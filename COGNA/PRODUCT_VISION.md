@@ -72,13 +72,15 @@ Narrative layer:
 
 ## Roadmap to Full Agentic Software
 
-| Version | Role |
-|---|---|
-| MVP 1.0 | Working brain stem: rule-based loop and reports |
-| MVP 2.0 | Pilot-ready personalization: full content, retention, weekly reports, observability |
-| MVP 3.0 | LLM-assisted drafting and candidate scoring under validation |
-| MVP 4.0 | Multi-unit curriculum and longer planning horizon |
-| MVP 5.0 | Full agentic platform: multi-subject, learned policies, multi-modal teaching |
+| Version | Role | Spec | Tracking |
+|---|---|---|---|
+| MVP 1.0 | Working brain stem: rule-based loop and reports | [`/docs/mvp-1.0/`](../docs/mvp-1.0/README.md) | [`/COGNA 1.0/`](../COGNA%201.0/) |
+| MVP 2.0 | Pilot-ready personalization: full content, retention, weekly reports, observability | [`/docs/mvp-2.0/`](../docs/mvp-2.0/README.md) | [`/COGNA 2.0/`](../COGNA%202.0/) |
+| MVP 3.0 | LLM-assisted drafting and candidate scoring under validation | [`/docs/mvp-3.0/`](../docs/mvp-3.0/README.md) | [`/COGNA 3.0/`](../COGNA%203.0/) |
+| MVP 4.0 | Multi-unit curriculum and longer planning horizon | [`/docs/mvp-4.0/`](../docs/mvp-4.0/README.md) | [`/COGNA 4.0/`](../COGNA%204.0/) |
+| MVP 5.0 | Full agentic platform: multi-subject, learned policies, multi-modal teaching | [`/docs/mvp-5.0/`](../docs/mvp-5.0/README.md) | [`/COGNA 5.0/`](../COGNA%205.0/) |
+
+Implementation authority: **MVP 2.0 is active**. MVP 3.0–5.0 docs are **Draft / Planning or Vision** until promoted (see [`/AGENTS.md`](../AGENTS.md)).
 
 ## Guardrails
 

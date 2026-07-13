@@ -3,11 +3,11 @@ description: Cogna MVP dual-era build tracking and spec authority — always app
 alwaysApply: true
 ---
 
-# Cogna MVP — Agent rules (1.0 archive + 2.0 active)
+# Cogna MVP — Agent rules (1.0 archive + 2.0 active + 3–5 planning)
 
-## Spec vs tracking (dual era)
+## Spec vs tracking
 
-**New work → MVP 2.0**
+**New work → MVP 2.0 (active)**
 
 - Implement from `/docs/mvp-2.0/`.
 - Execution tracking lives in `/COGNA 2.0/`.
@@ -18,6 +18,12 @@ alwaysApply: true
 - `/docs/mvp-1.0/` and `/COGNA 1.0/` are frozen / historical.
 - Do not extend 1.0 specs for new product features.
 - 1.0 hotfixes only: cite `/docs/mvp-1.0/` and update `/COGNA 1.0/` tracking if needed.
+
+**MVP 3.0 / 4.0 / 5.0 → Planning only**
+
+- Specs: `/docs/mvp-3.0/`, `/docs/mvp-4.0/`, `/docs/mvp-5.0/` (Draft / Planning or Vision).
+- Tracking: `/COGNA 3.0/`, `/COGNA 4.0/`, `/COGNA 5.0/`.
+- Do **not** implement product features from these eras until AGENTS.md marks one **Active** and its README is Canonical / Frozen.
 
 **Never**
 
