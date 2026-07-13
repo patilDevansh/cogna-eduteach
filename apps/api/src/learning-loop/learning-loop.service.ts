@@ -812,6 +812,17 @@ export class LearningLoopService {
       : null;
 
     const dueRevision = await this.revisionService.findDue(studentId);
+    const sessionAttempts = await this.prisma.attempt.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: "asc" },
+    });
+    const decisionExtras = await this.buildDecisionExtras({
+      studentId,
+      session,
+      conceptId: session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION",
+      recentIncorrectStreak: 0,
+      sessionAttempts,
+    });
 
     const decision = this.decisionEngine.decide({
       session,
@@ -824,6 +835,7 @@ export class LearningLoopService {
       ),
       remediationState: remediation?.state,
       dueRevision: dueRevision ?? undefined,
+      ...decisionExtras,
     });
 
     if (
@@ -1059,6 +1071,43 @@ export class LearningLoopService {
         orderBy: { createdAt: "desc" },
       })) != null;
 
+    const profile = await this.prisma.learnerProfile.findUnique({
+      where: { studentId: input.studentId },
+    });
+
+    const latestMisconception = await this.prisma.diagnosticFactor.findFirst({
+      where: {
+        studentId: input.studentId,
+        conceptId: input.conceptId,
+        factorType: "MISCONCEPTION",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const altExplanations = latestMisconception?.alternativeExplanations ?? [];
+    const alternativeExplanationDominant =
+      altExplanations.length > 0 &&
+      (await this.prisma.diagnosticFactor.findFirst({
+        where: {
+          studentId: input.studentId,
+          conceptId: input.conceptId,
+          factorType: "MISCONCEPTION",
+          factorKey: { in: altExplanations.filter((a) => a !== "question_misread") },
+          confidence: {
+            gte: latestMisconception?.confidence ?? 0,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      })) != null;
+
+    const calibration = profile?.confidenceCalibration;
+    const confidenceCalibration =
+      calibration === "possibly_overconfident" ||
+      calibration === "possibly_underconfident" ||
+      calibration === "reasonably_calibrated" ||
+      calibration === "unknown"
+        ? calibration
+        : "unknown";
+
     return {
       breakSuggestedThisSession: Boolean(input.session.breakSuggestedAt),
       idleSpikeCount,
@@ -1073,6 +1122,8 @@ export class LearningLoopService {
           ? errorRecoveryFactor.value
           : null,
       retentionEstimateId: retentionRow?.id,
+      confidenceCalibration,
+      alternativeExplanationDominant,
     };
   }
 

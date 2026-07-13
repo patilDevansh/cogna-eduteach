@@ -22,4 +22,10 @@ export class JobsController {
   retryEmails() {
     return this.jobs.retryFailedEmails();
   }
+
+  /** Refresh item statistics from attempts (off answer hot path). */
+  @Post("item-statistics/refresh")
+  refreshItemStats() {
+    return this.jobs.refreshItemStatistics();
+  }
 }

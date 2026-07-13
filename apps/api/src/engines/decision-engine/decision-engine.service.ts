@@ -45,6 +45,14 @@ export interface DecisionInput {
   /** Error recovery for explanation style preference. */
   errorRecoveryRate?: number | null;
   retentionEstimateId?: string;
+  /** Confidence calibration → difficulty caution (personalization). */
+  confidenceCalibration?:
+    | "possibly_overconfident"
+    | "possibly_underconfident"
+    | "reasonably_calibrated"
+    | "unknown";
+  /** R14 — block TARGET_MISCONCEPTION when alternative explanation dominates. */
+  alternativeExplanationDominant?: boolean;
 }
 
 const SESSION_QUESTION_LIMIT = 12;
@@ -141,7 +149,11 @@ export class DecisionEngineService {
     }
 
     const conceptId = session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION";
-    const difficulty = session.activeDifficulty ?? 2;
+    let difficulty = session.activeDifficulty ?? 2;
+    // Calibration-aware difficulty caution (README_PERSONALIZATION)
+    if (input.confidenceCalibration === "possibly_overconfident") {
+      difficulty = Math.max(1, difficulty - 1);
+    }
 
     // 3. Post-explanation re-test
     if (lastWasExplanation || remediationState === "RETESTING") {
@@ -154,8 +166,23 @@ export class DecisionEngineService {
       );
     }
 
-    // 4. Explanation required
+    // 4. Explanation required — high recovery prefers shorter hint first
     if (remediationState === "EXPLANATION_REQUIRED") {
+      if (errorRecoveryRate !== null && errorRecoveryRate >= 0.65) {
+        return this.decision(
+          "SHOW_HINT",
+          "TARGET_MISCONCEPTION",
+          {
+            conceptId,
+            difficulty,
+            targetMisconception: activeMisconceptionId,
+            hintLevel: 1,
+          },
+          0.8,
+          "Strong error recovery; shorter hint before full explanation.",
+          { explanationStyle: "HINT" },
+        );
+      }
       return this.decision(
         "SHOW_EXPLANATION",
         "TARGET_MISCONCEPTION",
@@ -218,7 +245,7 @@ export class DecisionEngineService {
       );
     }
 
-    // 6. Misconception targeting (weak evidence gate)
+    // 6. Misconception targeting (weak evidence + R14 alt-explanation gates)
     if (
       remediationState === "TARGETING" ||
       (misconceptionConfidence >= 0.6 && activeMisconceptionId)
@@ -230,6 +257,15 @@ export class DecisionEngineService {
           { conceptId, difficulty },
           0.55,
           "Weak misconception evidence; standard practice.",
+        );
+      }
+      if (input.alternativeExplanationDominant) {
+        return this.decision(
+          "SHOW_QUESTION",
+          "STANDARD_PRACTICE",
+          { conceptId, difficulty },
+          0.5,
+          "Alternative explanation dominant; abstain from targeting.",
         );
       }
       return this.decision(
@@ -290,14 +326,20 @@ export class DecisionEngineService {
       );
     }
 
-    // 9. Difficulty adaptation
+    // 9. Difficulty adaptation (overconfident learners stay cautious on increase)
     if (recentCorrectStreak >= 2) {
+      const nextDifficulty =
+        input.confidenceCalibration === "possibly_overconfident"
+          ? difficulty
+          : Math.min(5, difficulty + 1);
       return this.decision(
         "SHOW_QUESTION",
-        "INCREASE_DIFFICULTY",
-        { conceptId, difficulty: Math.min(5, difficulty + 1) },
+        nextDifficulty > difficulty ? "INCREASE_DIFFICULTY" : "STANDARD_PRACTICE",
+        { conceptId, difficulty: nextDifficulty },
         0.7,
-        "Repeated success; increase difficulty.",
+        input.confidenceCalibration === "possibly_overconfident"
+          ? "Repeated success but overconfident calibration; hold difficulty."
+          : "Repeated success; increase difficulty.",
       );
     }
 

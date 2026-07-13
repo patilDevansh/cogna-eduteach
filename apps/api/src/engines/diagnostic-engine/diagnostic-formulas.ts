@@ -107,6 +107,51 @@ export function decayMisconceptionConfidence(current: number): number {
   return Math.max(0, current - 0.2);
 }
 
+/** Evidence expiry weights for misconception activation (diagnostic-rules-v2). */
+export function evidenceAgeWeight(daysOld: number): number {
+  if (daysOld <= 21) return 1.0;
+  if (daysOld <= 45) return 0.5;
+  return 0;
+}
+
+export type MisconceptionMatchStats = {
+  misconceptionId?: string;
+  weightedMatchingCount: number;
+  confidence: number;
+};
+
+/**
+ * R14 / README_RULES §2 — alternativeExplanationDominant.
+ * True when an alternative outranks primary by weighted count, or ties with
+ * confidence(E) >= confidence(P). Blocks TARGETING / TARGET_MISCONCEPTION.
+ */
+export function isAlternativeExplanationDominant(input: {
+  primary: MisconceptionMatchStats;
+  alternatives: MisconceptionMatchStats[];
+}): boolean {
+  const { primary, alternatives } = input;
+  for (const alt of alternatives) {
+    if (alt.weightedMatchingCount > primary.weightedMatchingCount) return true;
+    if (
+      alt.weightedMatchingCount === primary.weightedMatchingCount &&
+      alt.confidence >= primary.confidence
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Default taxonomy alternatives when question patterns do not list them. */
+export const DEFAULT_ALTERNATIVE_EXPLANATIONS: Record<string, string[]> = {
+  SIGN_HANDLING: ["ARITHMETIC_SLIP", "question_misread"],
+  DISTRIBUTIVE_ERROR: ["ARITHMETIC_SLIP", "SIGN_HANDLING"],
+  INVERSE_OPERATION_CONFUSION: ["ARITHMETIC_SLIP", "EQUALITY_BALANCE_ERROR"],
+  VARIABLE_AS_LABEL: ["ARITHMETIC_SLIP"],
+  EQUALITY_BALANCE_ERROR: ["ARITHMETIC_SLIP", "INVERSE_OPERATION_CONFUSION"],
+  ARITHMETIC_SLIP: ["question_misread"],
+};
+
 // ─── MVP 2.0: retention-rules-v2 ────────────────────────────────────────────
 
 export function hasSufficientRetentionEvidence(input: {

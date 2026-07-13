@@ -20,7 +20,10 @@ import {
   computeMisconceptionConfidence,
   computeRetentionEstimate,
   decayMisconceptionConfidence,
+  DEFAULT_ALTERNATIVE_EXPLANATIONS,
+  evidenceAgeWeight,
   hasSufficientRetentionEvidence,
+  isAlternativeExplanationDominant,
   isIdleSpike,
   isIndependentCorrect,
   isRetentionReviewEligible,
@@ -603,10 +606,11 @@ export class DiagnosticEngineService {
       const next = attempts[i + 1];
       if (curr.grade !== "INCORRECT") continue;
       // Feedback opportunity: incorrect followed by hint use, explanation path, or retest
+      // Feedback opportunity: hint used, explanation/retest path, or next attempt on same concept
       const hadFeedback =
         curr.hintCount > 0 ||
         next.questionId !== curr.questionId ||
-        true; // comparable follow-up within window counts
+        next.highestHintLevel > curr.highestHintLevel;
       if (!hadFeedback) continue;
       feedbackOpportunities += 1;
       if (next.grade === "CORRECT") correctAfterFeedbackAttempts += 1;
@@ -700,6 +704,81 @@ export class DiagnosticEngineService {
     return null;
   }
 
+  /**
+   * R14 — compare primary misconception weighted evidence to taxonomy alternatives
+   * and competing MISCONCEPTION factors on the same concept (last 45 days).
+   */
+  private async computeAltExplanationDominant(
+    studentId: string,
+    conceptId: string,
+    primaryId: string,
+    primaryMatchingCount: number,
+    primaryConfidence: number,
+  ): Promise<boolean> {
+    const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+    const recentFactors = await this.prisma.diagnosticFactor.findMany({
+      where: {
+        studentId,
+        conceptId,
+        factorType: "MISCONCEPTION",
+        createdAt: { gte: cutoff },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    });
+
+    const byKey = new Map<string, { weightedMatchingCount: number; confidence: number }>();
+    for (const f of recentFactors) {
+      if (byKey.has(f.factorKey)) continue;
+      const ageDays =
+        (Date.now() - f.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+      const weight = evidenceAgeWeight(ageDays);
+      if (weight === 0) continue;
+      const rawCount =
+        typeof f.value === "object" &&
+        f.value !== null &&
+        "matchingCount" in (f.value as object)
+          ? Number((f.value as { matchingCount?: number }).matchingCount)
+          : typeof f.value === "number"
+            ? f.value
+            : primaryMatchingCount;
+      byKey.set(f.factorKey, {
+        weightedMatchingCount: rawCount * weight,
+        confidence: f.confidence,
+      });
+    }
+
+    // Ensure primary reflects the latest match count
+    byKey.set(primaryId, {
+      weightedMatchingCount: primaryMatchingCount,
+      confidence: primaryConfidence,
+    });
+
+    const altIds = [
+      ...(DEFAULT_ALTERNATIVE_EXPLANATIONS[primaryId] ?? []),
+      ...[...byKey.keys()].filter((k) => k !== primaryId),
+    ];
+    const uniqueAlts = [...new Set(altIds)].filter((id) => id !== "question_misread");
+
+    const alternatives = uniqueAlts.map((id) => {
+      const row = byKey.get(id);
+      return {
+        misconceptionId: id,
+        weightedMatchingCount: row?.weightedMatchingCount ?? 0,
+        confidence: row?.confidence ?? 0,
+      };
+    });
+
+    return isAlternativeExplanationDominant({
+      primary: {
+        misconceptionId: primaryId,
+        weightedMatchingCount: primaryMatchingCount,
+        confidence: primaryConfidence,
+      },
+      alternatives,
+    });
+  }
+
   private async recentMatchingAttempts(
     studentId: string,
     misconceptionId: string,
@@ -741,8 +820,22 @@ export class DiagnosticEngineService {
       },
     });
 
+    const altDominant = await this.computeAltExplanationDominant(
+      studentId,
+      conceptId,
+      misconceptionId,
+      matchingCount,
+      confidence,
+    );
+
     let state = existing?.state ?? "UNCONFIRMED";
-    if (matchingCount >= 2 && confidence >= 0.6 && state === "UNCONFIRMED") {
+    // R14: remain UNCONFIRMED when alternative explanation dominates
+    if (
+      matchingCount >= 2 &&
+      confidence >= 0.6 &&
+      state === "UNCONFIRMED" &&
+      !altDominant
+    ) {
       state = "TARGETING";
     }
 

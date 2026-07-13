@@ -311,6 +311,66 @@ export class ScheduledJobsService {
     return { retried };
   }
 
+  /** Refresh ItemStatistic rows from recent attempts (off hot path). */
+  async refreshItemStatistics(limit = 50): Promise<{ refreshed: number }> {
+    const questions = await this.prisma.question.findMany({
+      where: { reviewStatus: "APPROVED" },
+      take: limit,
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, version: true },
+    });
+
+    let refreshed = 0;
+    for (const q of questions) {
+      const attempts = await this.prisma.attempt.findMany({
+        where: { questionId: q.id, questionVersion: q.version },
+        select: {
+          grade: true,
+          timeToSubmitMs: true,
+          hintCount: true,
+          submittedAnswer: true,
+        },
+      });
+      if (attempts.length === 0) continue;
+
+      const attemptCount = attempts.length;
+      const correctRate =
+        attempts.filter((a) => a.grade === "CORRECT").length / attemptCount;
+      const avgTimeMs = Math.round(
+        attempts.reduce((s, a) => s + (a.timeToSubmitMs ?? 0), 0) / attemptCount,
+      );
+      const hintRate =
+        attempts.filter((a) => a.hintCount > 0).length / attemptCount;
+
+      await this.prisma.itemStatistic.upsert({
+        where: {
+          questionId_questionVersion: {
+            questionId: q.id,
+            questionVersion: q.version,
+          },
+        },
+        create: {
+          questionId: q.id,
+          questionVersion: q.version,
+          attemptCount,
+          correctRate,
+          avgTimeMs,
+          hintRate,
+          misconceptionHits: {},
+          discriminationScore: null,
+        },
+        update: {
+          attemptCount,
+          correctRate,
+          avgTimeMs,
+          hintRate,
+        },
+      });
+      refreshed++;
+    }
+    return { refreshed };
+  }
+
   private async lockJob(jobId: string) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return null;
