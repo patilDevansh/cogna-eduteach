@@ -4,6 +4,12 @@
 
 ## Open Skips (pre-declared into later eras)
 
+### Phase 1 — Manifest draft funnel metrics (deferred to Phase 4/5)
+
+- **Reason:** Core draft pipeline (create → validate → review → promote) is functional; funnel metrics observability deferred until pilot cohort generates real draft volume.
+- **Return when:** Phase 4 (observability) or Phase 5 (pilot scale-up) when drafts reach meaningful volume for analysis.
+- **Spec refs:** [`docs/mvp-3.0/README_CONTENT_PIPELINE.md`](../docs/mvp-3.0/README_CONTENT_PIPELINE.md) (manifest.json funnel tracking)
+
 ### V4 — Multi-unit curriculum expansion
 
 - **Reason:** MVP 3.0 deepens Linear Equations + assisted authoring before breadth.

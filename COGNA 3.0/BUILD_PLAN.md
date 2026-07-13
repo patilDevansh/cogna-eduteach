@@ -15,11 +15,11 @@
 
 ## Phase 1 — Content draft pipeline
 
-- [ ] Content Draft Service + `CONTENT_LLM_DRAFT` job
-- [ ] Validation Service (`content-validation-rules-v1`)
-- [ ] Review API extensions for drafts
+- [x] Content Draft Service + `CONTENT_LLM_DRAFT` job
+- [x] Validation Service (`content-validation-rules-v1`)
+- [x] Review API extensions for drafts
 - [ ] Manifest draft funnel metrics
-- [ ] Golden S11–S15
+- [x] Golden S11–S15
 
 ## Phase 2 — Experiments
 

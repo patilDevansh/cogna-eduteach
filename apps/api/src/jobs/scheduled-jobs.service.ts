@@ -4,9 +4,11 @@ import { ReportGeneratorService } from "../engines/report-generator/report-gener
 import { RecommendationEngineService } from "../engines/recommendation-engine/recommendation-engine.service";
 import { RevisionService } from "../revision/revision.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ContentDraftService } from "../content/content-draft.service";
 
 const WEEKLY_REPORT_MAX_ATTEMPTS = 3;
 const EMAIL_MAX_ATTEMPTS = 5;
+const CONTENT_JOB_MAX_ATTEMPTS = 3;
 
 @Injectable()
 export class ScheduledJobsService {
@@ -18,6 +20,7 @@ export class ScheduledJobsService {
     private readonly reportGenerator: ReportGeneratorService,
     private readonly recommendationEngine: RecommendationEngineService,
     private readonly revisionService: RevisionService,
+    private readonly contentDrafts: ContentDraftService,
   ) {}
 
   async enqueueWeeklyReport(input: {
@@ -369,6 +372,128 @@ export class ScheduledJobsService {
       refreshed++;
     }
     return { refreshed };
+  }
+
+  // ─── MVP 3.0 — Content draft jobs ─────────────────────────────────────────
+
+  /**
+   * CONTENT_LLM_DRAFT job (stub).
+   * Gate: CONTENT_LLM_DRAFTS_ENABLED=true required.
+   * When enabled, calls LLM provider and creates ContentDraft with status=DRAFT.
+   * Then enqueues CONTENT_VALIDATE job.
+   */
+  async processContentLlmDraftJob(jobId: string): Promise<{ status: string }> {
+    const job = await this.lockJob(jobId);
+    if (!job) {
+      const current = await this.prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+      return { status: current.status };
+    }
+
+    try {
+      const payload = job.payload as {
+        conceptId: string;
+        difficulty: number;
+        draftType: string;
+        promptVersion?: string;
+      };
+
+      // Stub: In production, this would call the LLM provider
+      // For now, just log that the job would run
+      const contentLlmDraftsEnabled = process.env.CONTENT_LLM_DRAFTS_ENABLED === "true";
+      if (!contentLlmDraftsEnabled) {
+        throw new Error("CONTENT_LLM_DRAFTS_ENABLED=false; job cannot proceed");
+      }
+
+      this.logger.warn(
+        `CONTENT_LLM_DRAFT job ${jobId} is a stub. LLM provider integration not yet implemented.`,
+      );
+
+      // Stub result: mark as completed with no-op
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          attemptCount: job.attemptCount + 1,
+          lockedAt: null,
+          lockedBy: null,
+          lastError: null,
+        },
+      });
+
+      return { status: "COMPLETED" };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const attemptCount = job.attemptCount + 1;
+      const permanent = attemptCount >= CONTENT_JOB_MAX_ATTEMPTS;
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: permanent ? JobStatus.FAILED_PERMANENT : JobStatus.FAILED_RETRYABLE,
+          attemptCount,
+          lastError: message,
+          lockedAt: null,
+          lockedBy: null,
+          runAfter: permanent
+            ? null
+            : new Date(Date.now() + attemptCount * 60_000),
+        },
+      });
+      this.logger.error(`CONTENT_LLM_DRAFT job ${jobId} failed: ${message}`);
+      return { status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE" };
+    }
+  }
+
+  /**
+   * CONTENT_VALIDATE job.
+   * Runs validation on a draft and updates status to VALIDATED or VALIDATION_FAILED.
+   */
+  async processContentValidateJob(jobId: string): Promise<{ status: string }> {
+    const job = await this.lockJob(jobId);
+    if (!job) {
+      const current = await this.prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+      return { status: current.status };
+    }
+
+    try {
+      const payload = job.payload as { draftId: string };
+
+      await this.contentDrafts.validateDraft({ draftId: payload.draftId });
+
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          resultRef: payload.draftId,
+          attemptCount: job.attemptCount + 1,
+          lockedAt: null,
+          lockedBy: null,
+          lastError: null,
+        },
+      });
+
+      return { status: "COMPLETED" };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const attemptCount = job.attemptCount + 1;
+      const permanent = attemptCount >= CONTENT_JOB_MAX_ATTEMPTS;
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: permanent ? JobStatus.FAILED_PERMANENT : JobStatus.FAILED_RETRYABLE,
+          attemptCount,
+          lastError: message,
+          lockedAt: null,
+          lockedBy: null,
+          runAfter: permanent
+            ? null
+            : new Date(Date.now() + attemptCount * 60_000),
+        },
+      });
+      this.logger.error(`CONTENT_VALIDATE job ${jobId} failed: ${message}`);
+      return { status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE" };
+    }
   }
 
   private async lockJob(jobId: string) {
