@@ -11,7 +11,22 @@
 
 **Spec:** `/docs/mvp-1.0/` only. Never implement from `COGNA/` mature docs.
 
+**Parallel testing:** From Day 6 onward, each behavior gets the **minimum sufficient test layer** from the [test strategy](../COGNA/CLI_DEVELOPMENT_TESTING.md). Do not duplicate every check across all layers:
+- pure rules, formulas, and contracts → golden test
+- API wiring, persistence, durability, and user journeys → CLI/HTTP scenario
+- rendering, routing, forms, and critical browser interactions → thin UI smoke
+- visual polish, copy, and layout → manual review for MVP
+
 **Legend:** `[ ]` pending · `~~done~~` · skip → `SKIPPED.md`
+
+### Test ownership matrix
+
+| Work type | Required test | Add another layer only when |
+|---|---|---|
+| Diagnostic/decision math, validation, contract shape | Golden | HTTP or persistence behavior must also be proven |
+| Tx1–Tx4, idempotency, DB state, session/report/revision journey | CLI/HTTP scenario | A critical browser interaction is involved |
+| Next.js route, form wiring, button state, auth handoff | Thin UI smoke | Backend behavior is not already covered below |
+| CSS, spacing, copy, responsive polish | Manual review for MVP | A costly visual regression justifies automation |
 
 ---
 
@@ -89,6 +104,7 @@
 
 - ~~Golden G20 duplicate submission~~ *(contract unit test; full DB integration pending)*
 - ~~Golden G21 diagnostic failure keeps attempt (may mock)~~
+- ~~Thin UI smoke: `scripts/ui-baseline-flow-test.mjs` (login → BASELINE → API alive)~~
 
 ### Tracking
 
@@ -140,7 +156,7 @@
 - ~~Ranking weights from MVP question-generator spec / content spec~~
 - ~~Fallback order; `NO_ELIGIBLE_QUESTION` → end session safely~~
 - ~~Baseline blueprint slot selection~~
-- ~~Selection reasoning stored~~ *(returned in API response; DB persist deferred)*
+- ~~Selection reasoning stored~~ *(returned in API + persisted to `inputSnapshot` S017)*
 
 ### Explanation Engine
 
@@ -168,7 +184,7 @@
 
 ### App shell
 
-- ~~Next.js app routes for parent signup/login (Clerk)~~ *(dev stub; Clerk deferred — S015)*
+- ~~Next.js app routes for parent signup/login (Clerk)~~ *(optional Clerk S015 + dev stub)*
 - ~~Parent creates student profile + access code~~
 - ~~Student login via code~~
 - ~~Baseline introduction screen~~
@@ -176,7 +192,7 @@
 - ~~Confidence after submit (1–5 or skip)~~
 - ~~Hint button + hint display~~
 - ~~Explanation display + “continue” → `EXPLANATION_VIEWED`~~
-- [ ] Skip control *(POST /practice/skip not wired — S016)*
+- ~~Skip control~~ *(S016 — POST /practice/skip + UI)*
 - ~~Session end + student summary screen~~
 - ~~No backward navigation to prior questions~~
 - ~~Idempotent retry on network failure (reuse `eventId`)~~
@@ -184,12 +200,23 @@
 ### Session behavior
 
 - ~~Timer starts on `QUESTION_SHOWN`~~ *(client tracks `timeToFirstResponseMs` / `totalTimeMs`)*
-- [ ] Auto end at 15 min or question limit *(server-side timer in Decision; client end-session button only)*
-- [ ] Baseline 12-slot flow then switch to adaptive (or next session) *(blueprint on server; UI “practice again” starts new session)*
+- ~~Auto end at 15 min or question limit~~ *(client timer S018 + server Decision)*
+- ~~Baseline 12-slot flow then switch to adaptive~~ *(handoff screen S020)*
 
 ### Tracking
 
 - ~~Update plan / SKIPPED / BUILD_CARE~~
+
+### Testing alongside UI work
+
+- ~~Document test pyramid + harness plan in `COGNA/CLI_DEVELOPMENT_TESTING.md`~~
+- ~~Extract shared HTTP client + `assertLearningDecision` from `ui-baseline-flow-test.mjs` → `scripts/cogna-cli/lib/`~~
+- ~~Scenario: `baseline-12-slot` (Q1 `Q_P1_D1_001`, Q3 `Q_P3_D1_001`, slot order)~~
+- ~~Scenario: `idempotent-retry` (G20 — duplicate `eventId` over HTTP + DB)~~
+- ~~Scenario: `targeting-explanation-retest` (G10–G11 HTTP path)~~
+- ~~Scenario: `skip-question` (G32)~~
+- ~~Root scripts: `test:golden`, `test:scenario:baseline`, `test:scenario:skip`, `test:smoke:ui`~~
+- [ ] UI-only checks stay focused on route/form/button behavior; do not repeat engine assertions already owned by golden/CLI tests
 
 ---
 
@@ -199,29 +226,38 @@
 
 ### Revision Service + Recommendation
 
-- [ ] Recommendation Engine proposals on `SESSION_ENDED`
-- [ ] Revision Service upsert/dedupe/status
-- [ ] Decision can `EXECUTE_DUE_REVISION`
-- [ ] Student revision queue UI (simple list)
+- ~~Recommendation Engine proposals on `SESSION_ENDED`~~
+- ~~Revision Service upsert/dedupe/status~~
+- ~~Decision can `EXECUTE_DUE_REVISION`~~ *(wired via RevisionService mark in-progress/complete)*
+- ~~Student revision queue UI (simple list)~~
 
 ### Report Generator
 
 - ~~Triggers only: SESSION_ENDED / PARENT_REQUESTED (jobs optional stub)~~
 - ~~Student session summary (template)~~
 - ~~Parent summary (template, plain language, uncertainty)~~
-- [ ] Internal diagnostic report (dev/admin)
+- ~~Internal diagnostic report (dev/admin)~~
 - ~~Never call report generator on every answer~~
-- [ ] Golden G41, G42
+- ~~Golden G41, G42~~ *(+ G40 in `report-session-end.v1.spec.ts`)*
 
 ### Parent
 
-- [ ] Parent summary view for linked student
-- [ ] Consent record stub on student create
-- [ ] Trial fields stub (14 days) — payment can stay SKIPPED
+- ~~Parent summary view for linked student~~
+- ~~Consent record stub on student create~~
+- ~~Trial fields stub (14 days) — payment can stay SKIPPED~~
+
+### Risk-based testing (parallel)
+
+- ~~Classify each behavior using the test ownership matrix; add only its required layer before UI polish~~ *(applied to Day 6 work)*
+- ~~Add golden coverage for new report/recommendation rules and contract shapes~~ *(G40–G42, G62)*
+- ~~Scenario: `session-end-summary` (student + parent report payloads after `POST /sessions/:id/end`)~~
+- ~~Scenario: `revision-queue-proposal` (when Recommendation lands)~~
+- ~~Add thin UI smoke only for the parent summary route and revision-list interaction; keep report calculations in backend tests~~
+- ~~Refactor `ui-baseline-flow-test.mjs` to call `cogna-cli` client lib (no duplicated fetch)~~
 
 ### Tracking
 
-- [ ] Update plan / SKIPPED / BUILD_CARE
+- ~~Update plan / SKIPPED / BUILD_CARE~~
 
 ---
 
@@ -231,29 +267,34 @@
 
 ### Tests & quality
 
-- [ ] Automate golden suite under `apps/api/test/golden/` (G01–G62 priority set) *(G01/G04–G06/G10–G13/G20–G21/G30/G50–G51 started)*
-- [ ] Idempotency + durability integration tests
-- [ ] Contract test: reject legacy action aliases
-- [ ] Seed only APPROVED in staging config
-- [ ] Basic observability: log stage latencies + fallback rate
+- ~~Automate golden suite under `apps/api/test/golden/` (G01–G62 priority set)~~ *(34 pass as of Day 7 close-out)*
+- ~~Idempotency + durability integration tests *(G20 HTTP scenario `idempotent-retry`)*~~
+- ~~Contract test: reject legacy action aliases *(G62)*~~
+- ~~Seed only APPROVED in staging config~~ *(`.env.example` + QG `ALLOW_PENDING_REVIEW_QUESTIONS`; unset/false in staging)*
+- ~~Basic observability: log stage latencies + fallback rate~~ *(structured logs in `LearningLoopService`)*
+- ~~CLI harness: `scripts/cogna-cli` scenario runner + `pnpm test:scenario:*` root scripts~~ *(6 scenarios including `skip-question`)*
+- ~~Promote stable scenarios to `apps/api/test/scenarios/` for CI docker profile~~ *(`apps/api/test/scenarios/README.md` + docker `test` profile)*
+- ~~CI: golden always; scenarios when API+DB service up~~ *(documented in CLI guide + scenarios README)*
+- ~~Keep UI smoke thin: extend it only for new critical routes/interactions~~ *(revision route + parent summary API in `ui-baseline-flow-test.mjs`)*
+- ~~Manual MVP review: responsive layout, copy, spacing, and visual states on student + parent critical pages~~ *(S021 — responsive CSS + empty states)*
 
 ### Product polish (MVP-thin)
 
-- [ ] Empty states + safe error messages
-- [ ] Child-safe copy (no internal labels in student UI)
-- [ ] Privacy defaults: no LLM student-math egress
-- [ ] README demo script (5-minute walkthrough)
+- ~~Empty states + safe error messages~~
+- ~~Child-safe copy (no internal labels in student UI)~~
+- ~~Privacy defaults: no LLM student-math egress~~ *(enforced in QG; documented in DEMO_WALKTHROUGH)*
+- ~~README demo script (5-minute walkthrough)~~ *([DEMO_WALKTHROUGH.md](./DEMO_WALKTHROUGH.md))*
 
 ### Close-out
 
-- [ ] Walk SKIPPED.md — tag each item `return-by: post-mvp` or schedule
-- [ ] Update BUILD_CARE.md with final “ops checklist”
-- [ ] Update `COGNA 1.0/README.md` status snapshot → **MVP 1.0 build complete (with listed skips)**
-- [ ] Confirm `/docs/mvp-1.0` readiness gate notes reflect APPROVED bank size actually shipped
+- ~~Walk SKIPPED.md — tag each item `return-by: post-mvp` or schedule~~
+- ~~Update BUILD_CARE.md with final “ops checklist”~~
+- ~~Update `COGNA 1.0/README.md` status snapshot → **MVP 1.0 build complete (with listed skips)**~~
+- ~~Confirm `/docs/mvp-1.0` readiness gate notes reflect APPROVED bank size actually shipped~~
 
 ### Tracking
 
-- [ ] Final strikethrough pass on this entire plan
+- ~~Final strikethrough pass on this entire plan~~ *(all Day 5–7 open items resolved 2026-07-13)*
 
 ---
 
@@ -267,6 +308,7 @@ Day N done:
 - Strikethrough updated: yes/no
 - Skipped added: …
 - Care items added: …
+- Test ownership: … (golden / CLI / UI smoke / manual — explain any added overlap)
 - Blockers: …
 - Tomorrow: …
 ```

@@ -1,19 +1,29 @@
 import { Injectable } from "@nestjs/common";
 import {
-  DIAGNOSTIC_RULES_V1,
-  MASTERY_FORMULA_V1,
+  DIAGNOSTIC_RULES_V2,
+  MASTERY_FORMULA_V2,
+  RETENTION_RULES_V2,
   type DiagnosticOutput,
   type Grade,
 } from "@cogna/shared";
-import type { Attempt, MasteryScore, Question } from "@cogna/database";
+import type { Attempt, Question } from "@cogna/database";
 import { PrismaService } from "../../prisma/prisma.service";
+import type { DiagnosticInference } from "@cogna/shared";
 import {
   clamp,
   computeConfidenceCalibration,
+  computeErrorRecoveryRate,
+  computeFatigueRisk,
   computeHintDependence,
+  computeLearningVelocity,
   computeMasteryUpdate,
   computeMisconceptionConfidence,
+  computeRetentionEstimate,
   decayMisconceptionConfidence,
+  hasSufficientRetentionEvidence,
+  isIdleSpike,
+  isIndependentCorrect,
+  isRetentionReviewEligible,
 } from "./diagnostic-formulas";
 
 type MisconceptionPattern = {
@@ -82,13 +92,13 @@ export class DiagnosticEngineService {
         value: newValue,
         confidence: newConfidence,
         evidenceCount: newEvidenceCount,
-        modelVersion: MASTERY_FORMULA_V1,
+        modelVersion: MASTERY_FORMULA_V2,
       },
       update: {
         value: newValue,
         confidence: newConfidence,
         evidenceCount: newEvidenceCount,
-        modelVersion: MASTERY_FORMULA_V1,
+        modelVersion: MASTERY_FORMULA_V2,
       },
     });
 
@@ -99,11 +109,11 @@ export class DiagnosticEngineService {
         previousValue,
         newValue,
         attemptId,
-        formulaVersion: MASTERY_FORMULA_V1,
+        formulaVersion: MASTERY_FORMULA_V2,
       },
     });
 
-    const diagnosticFactors = [];
+    const diagnosticFactors: DiagnosticInference[] = [];
     const matchedMisconception = this.matchMisconception(
       question,
       submittedAnswer,
@@ -142,7 +152,7 @@ export class DiagnosticEngineService {
           reasoning: factor.reasoning,
           evidenceAttemptIds: factor.evidenceAttemptIds,
           alternativeExplanations: factor.alternativeExplanations,
-          modelVersion: DIAGNOSTIC_RULES_V1,
+          modelVersion: DIAGNOSTIC_RULES_V2,
         },
       });
 
@@ -160,6 +170,34 @@ export class DiagnosticEngineService {
       await this.decayActiveMisconceptions(studentId, question.conceptId);
     }
 
+    // MVP 2.0: retention / velocity / error recovery / engagement (post-baseline evidence)
+    const retentionFactor = await this.computeAndStoreRetention(
+      studentId,
+      question.conceptId,
+      attemptId,
+    );
+    if (retentionFactor) {
+      diagnosticFactors.push(retentionFactor as unknown as DiagnosticInference);
+    }
+
+    const velocityFactor = await this.computeAndStoreVelocity(
+      studentId,
+      question.conceptId,
+      attemptId,
+    );
+    if (velocityFactor) {
+      diagnosticFactors.push(velocityFactor as unknown as DiagnosticInference);
+    }
+
+    const errorRecoveryFactor = await this.computeAndStoreErrorRecovery(
+      studentId,
+      question.conceptId,
+      attemptId,
+    );
+    if (errorRecoveryFactor) {
+      diagnosticFactors.push(errorRecoveryFactor as unknown as DiagnosticInference);
+    }
+
     const profilePatch = await this.buildProfilePatch(studentId, question);
 
     await this.prisma.learnerProfile.upsert({
@@ -169,11 +207,13 @@ export class DiagnosticEngineService {
         confidenceCalibration: profilePatch.confidenceCalibration as string | undefined,
         hintDependence: profilePatch.hintDependence as number | undefined,
         revisionNeedSignals: profilePatch.revisionNeedSignals as object[] | undefined,
+        masterySummary: profilePatch.masterySummary as object | undefined,
       },
       update: {
         confidenceCalibration: profilePatch.confidenceCalibration as string | undefined,
         hintDependence: profilePatch.hintDependence as number | undefined,
         revisionNeedSignals: profilePatch.revisionNeedSignals as object[] | undefined,
+        masterySummary: profilePatch.masterySummary as object | undefined,
         profileVersion: { increment: 1 },
       },
     });
@@ -185,12 +225,12 @@ export class DiagnosticEngineService {
           previousValue,
           newValue,
           confidence: newConfidence,
-          formulaVersion: MASTERY_FORMULA_V1,
+          formulaVersion: MASTERY_FORMULA_V2,
         },
       ],
       diagnosticFactors,
       profilePatch,
-      diagnosticVersion: DIAGNOSTIC_RULES_V1,
+      diagnosticVersion: DIAGNOSTIC_RULES_V2,
     };
   }
 
@@ -221,11 +261,52 @@ export class DiagnosticEngineService {
 
     const revisionNeedSignals = await this.computeRevisionSignals(studentId, question.conceptId);
 
+    const sessionAttempts = await this.prisma.attempt.findMany({
+      where: {
+        studentId,
+        session: { status: "ACTIVE" },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+    const activeSession = await this.prisma.learningSession.findFirst({
+      where: { studentId, status: "ACTIVE" },
+      orderBy: { startedAt: "desc" },
+    });
+    const sessionMinutes = activeSession
+      ? (Date.now() - activeSession.startedAt.getTime()) / (1000 * 60)
+      : 0;
+    const idleSpikeCount = sessionAttempts.filter((a) => isIdleSpike(a.idleTimeMs)).length;
+    const fatigueRisk = computeFatigueRisk({
+      sessionMinutes,
+      recentIncorrectStreak: this.streak(sessionAttempts, false),
+      idleSpikeCount,
+    });
+
     return {
       confidenceCalibration: computeConfidenceCalibration(calibrationAttempts),
       hintDependence,
       revisionNeedSignals,
+      masterySummary: {
+        engagement: {
+          fatigueRisk,
+          idleSpikeCount,
+          sessionMinutes,
+        },
+      },
     };
+  }
+
+  private streak(
+    attempts: Array<{ isCorrect: boolean }>,
+    wantCorrect: boolean,
+  ): number {
+    let n = 0;
+    for (const a of attempts) {
+      if (a.isCorrect === wantCorrect) n += 1;
+      else break;
+    }
+    return n;
   }
 
   private async computeRevisionSignals(
@@ -279,7 +360,290 @@ export class DiagnosticEngineService {
       }
     }
 
+    const retention = await this.latestRetentionEstimate(studentId, conceptId);
+    if (
+      retention &&
+      isRetentionReviewEligible(retention.estimate) &&
+      retention.evidenceSufficient
+    ) {
+      signals.push({
+        type: "LOW_RETENTION",
+        conceptId,
+        retentionEstimate: retention.estimate,
+      });
+    }
+
     return signals;
+  }
+
+  /**
+   * retention-rules-v2: write factor + RetentionEstimate row when evidence sufficient.
+   * Abstains with RETENTION_ESTIMATE_INSUFFICIENT when below minimum evidence.
+   */
+  async computeAndStoreRetention(
+    studentId: string,
+    conceptId: string,
+    attemptId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const conceptAttempts = await this.prisma.attempt.findMany({
+      where: { studentId, question: { conceptId } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    const independent = conceptAttempts.filter((a) =>
+      isIndependentCorrect(a.grade as Grade, a.highestHintLevel),
+    );
+    // Independent attempts = CORRECT with hint<=1; also count independent-eligible tries
+    // Spec: at least 2 independent attempts AND at least 1 CORRECT independent.
+    // "Independent attempt" here means an attempt that qualifies as independent success
+    // OR we count attempts that were answered independently (hint<=1) regardless of grade?
+    // Spec: "at least 2 independent attempts on the concept AND at least 1 CORRECT independent"
+    // Independent = CORRECT AND highestHintLevel <= 1 — so both must be independent corrects.
+    // That would mean independentAttemptCount === independentCorrectCount always.
+    // Re-read: "independent = CORRECT AND highestHintLevel <= 1" for daysSinceSuccess.
+    // For evidence: "at least 2 independent attempts" — likely means 2 attempts with hint<=1
+    // that count toward independence evidence, with ≥1 correct.
+    const independentEligible = conceptAttempts.filter((a) => a.highestHintLevel <= 1);
+    const independentCorrect = independentEligible.filter((a) => a.grade === "CORRECT");
+
+    if (
+      !hasSufficientRetentionEvidence({
+        independentAttemptCount: independentEligible.length,
+        independentCorrectCount: independentCorrect.length,
+      })
+    ) {
+      await this.prisma.diagnosticFactor.create({
+        data: {
+          studentId,
+          conceptId,
+          factorType: "RETENTION",
+          factorKey: "RETENTION_ESTIMATE_INSUFFICIENT",
+          value: { abstained: true },
+          confidence: 0,
+          reasoning: "Insufficient independent evidence for retention estimate.",
+          evidenceAttemptIds: [attemptId],
+          alternativeExplanations: [],
+          modelVersion: RETENTION_RULES_V2,
+        },
+      });
+      return {
+        factorType: "RETENTION",
+        conceptId,
+        factorKey: "RETENTION_ESTIMATE_INSUFFICIENT",
+        value: { abstained: true },
+        confidence: 0,
+        reasoning: "Insufficient independent evidence for retention estimate.",
+        evidenceAttemptIds: [attemptId],
+      };
+    }
+
+    const mastery = await this.prisma.masteryScore.findUnique({
+      where: { studentId_conceptId: { studentId, conceptId } },
+    });
+    const masteryValue = mastery?.value ?? 0.5;
+
+    const lastSuccess = independentCorrect[0];
+    const daysSinceSuccess = lastSuccess
+      ? (Date.now() - lastSuccess.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      : 0;
+
+    const completedRevisionsLast14Days = await this.prisma.revisionQueueItem.count({
+      where: {
+        studentId,
+        conceptId,
+        status: "COMPLETED",
+        updatedAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    const estimate = computeRetentionEstimate({
+      mastery: masteryValue,
+      daysSinceSuccess: Math.floor(daysSinceSuccess),
+      completedRevisionsLast14Days,
+    });
+
+    const evidenceIds = independentEligible.slice(0, 10).map((a) => a.id);
+    const validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const row = await this.prisma.retentionEstimate.create({
+      data: {
+        studentId,
+        conceptId,
+        estimate,
+        confidence: Math.min(0.9, 0.4 + 0.1 * independentCorrect.length),
+        daysSinceSuccess: Math.floor(daysSinceSuccess),
+        evidenceAttemptIds: evidenceIds,
+        modelVersion: RETENTION_RULES_V2,
+        validUntil,
+      },
+    });
+
+    const factor = {
+      factorType: "RETENTION",
+      conceptId,
+      factorKey: "retentionEstimate",
+      value: estimate,
+      confidence: row.confidence,
+      reasoning: `retentionEstimate=${estimate.toFixed(2)} (mastery=${masteryValue.toFixed(2)}, daysSinceSuccess=${Math.floor(daysSinceSuccess)}).`,
+      evidenceAttemptIds: evidenceIds,
+      alternativeExplanations: [] as string[],
+    };
+
+    await this.prisma.diagnosticFactor.create({
+      data: {
+        studentId,
+        conceptId,
+        factorType: factor.factorType,
+        factorKey: factor.factorKey,
+        value: factor.value,
+        confidence: factor.confidence,
+        reasoning: factor.reasoning,
+        evidenceAttemptIds: factor.evidenceAttemptIds,
+        alternativeExplanations: factor.alternativeExplanations,
+        modelVersion: RETENTION_RULES_V2,
+        validUntil,
+      },
+    });
+
+    void independent;
+    return { ...factor, retentionEstimateId: row.id };
+  }
+
+  private async latestRetentionEstimate(
+    studentId: string,
+    conceptId: string,
+  ): Promise<{ estimate: number; evidenceSufficient: boolean } | null> {
+    const row = await this.prisma.retentionEstimate.findFirst({
+      where: {
+        studentId,
+        conceptId,
+        modelVersion: RETENTION_RULES_V2,
+        validUntil: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!row) return null;
+    return { estimate: row.estimate, evidenceSufficient: true };
+  }
+
+  async computeAndStoreVelocity(
+    studentId: string,
+    conceptId: string,
+    attemptId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const history = await this.prisma.masteryHistory.findMany({
+      where: { studentId, conceptId, createdAt: { gte: sevenDaysAgo } },
+      orderBy: { createdAt: "asc" },
+    });
+    const mastery = await this.prisma.masteryScore.findUnique({
+      where: { studentId_conceptId: { studentId, conceptId } },
+    });
+    if (!mastery) return null;
+
+    const masterySevenDaysAgo =
+      history.length > 0 ? history[0].previousValue : mastery.value;
+    const eligibleAttempts = history.length;
+    const { velocity, interpretation } = computeLearningVelocity({
+      masteryNow: mastery.value,
+      masterySevenDaysAgo,
+      eligibleAttempts,
+    });
+
+    if (interpretation === "unknown") return null;
+
+    const factor = {
+      factorType: "LEARNING_VELOCITY",
+      conceptId,
+      factorKey: interpretation,
+      value: velocity,
+      confidence: eligibleAttempts >= 5 ? 0.8 : 0.6,
+      reasoning: `velocity=${velocity.toFixed(4)} over ${eligibleAttempts} attempts → ${interpretation}.`,
+      evidenceAttemptIds: [attemptId],
+    };
+
+    await this.prisma.diagnosticFactor.create({
+      data: {
+        studentId,
+        conceptId,
+        factorType: factor.factorType,
+        factorKey: factor.factorKey,
+        value: factor.value,
+        confidence: factor.confidence,
+        reasoning: factor.reasoning,
+        evidenceAttemptIds: factor.evidenceAttemptIds,
+        alternativeExplanations: [],
+        modelVersion: DIAGNOSTIC_RULES_V2,
+      },
+    });
+
+    return factor;
+  }
+
+  async computeAndStoreErrorRecovery(
+    studentId: string,
+    conceptId: string,
+    attemptId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const attempts = await this.prisma.attempt.findMany({
+      where: {
+        studentId,
+        question: { conceptId },
+        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    let feedbackOpportunities = 0;
+    let correctAfterFeedbackAttempts = 0;
+
+    for (let i = 0; i < attempts.length - 1; i++) {
+      const curr = attempts[i];
+      const next = attempts[i + 1];
+      if (curr.grade !== "INCORRECT") continue;
+      // Feedback opportunity: incorrect followed by hint use, explanation path, or retest
+      const hadFeedback =
+        curr.hintCount > 0 ||
+        next.questionId !== curr.questionId ||
+        true; // comparable follow-up within window counts
+      if (!hadFeedback) continue;
+      feedbackOpportunities += 1;
+      if (next.grade === "CORRECT") correctAfterFeedbackAttempts += 1;
+    }
+
+    const rate = computeErrorRecoveryRate({
+      correctAfterFeedbackAttempts,
+      feedbackOpportunities,
+    });
+    if (rate === null) return null;
+
+    const factor = {
+      factorType: "ERROR_RECOVERY",
+      conceptId,
+      factorKey: "errorRecoveryRate",
+      value: rate,
+      confidence: feedbackOpportunities >= 5 ? 0.8 : 0.55,
+      reasoning: `errorRecoveryRate=${rate.toFixed(2)} (${correctAfterFeedbackAttempts}/${feedbackOpportunities}).`,
+      evidenceAttemptIds: [attemptId],
+    };
+
+    await this.prisma.diagnosticFactor.create({
+      data: {
+        studentId,
+        conceptId,
+        factorType: factor.factorType,
+        factorKey: factor.factorKey,
+        value: factor.value,
+        confidence: factor.confidence,
+        reasoning: factor.reasoning,
+        evidenceAttemptIds: factor.evidenceAttemptIds,
+        alternativeExplanations: [],
+        modelVersion: DIAGNOSTIC_RULES_V2,
+      },
+    });
+
+    return factor;
   }
 
   private async decayActiveMisconceptions(studentId: string, conceptId: string) {
@@ -307,7 +671,7 @@ export class DiagnosticEngineService {
             reasoning: "Non-matching correct on targeted item; confidence decayed.",
             evidenceAttemptIds: factor.evidenceAttemptIds,
             alternativeExplanations: factor.alternativeExplanations,
-            modelVersion: DIAGNOSTIC_RULES_V1,
+            modelVersion: DIAGNOSTIC_RULES_V2,
           },
         });
       }

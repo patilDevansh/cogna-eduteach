@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
 import { AuthService, ParentsService } from "./parents.service";
 
 @Controller("auth")
@@ -24,17 +24,82 @@ export class ParentsController {
   }
 
   @Get("me/students")
-  async listStudents(@Headers("x-parent-id") parentIdHeader?: string) {
-    const parentId = await this.auth.resolveParentId(parentIdHeader);
+  async listStudents(
+    @Headers("x-parent-id") parentIdHeader?: string,
+    @Headers("authorization") authHeader?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
     return this.parents.listStudents(parentId);
   }
 
   @Post("me/students")
   async createStudent(
     @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
     @Body() body: { name: string; grade?: number },
   ) {
-    const parentId = await this.auth.resolveParentId(parentIdHeader);
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
     return this.parents.createStudent(parentId, body);
+  }
+
+  @Get("me/billing")
+  async getBilling(
+    @Headers("x-parent-id") parentIdHeader?: string,
+    @Headers("authorization") authHeader?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.getBillingStatus(parentId);
+  }
+
+  @Post("me/students/:studentId/invite")
+  async inviteSecondaryParent(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+    @Body() body: { email: string; relationship?: string },
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.inviteSecondaryParent(parentId, studentId, body);
+  }
+
+  @Get("me/students/:studentId/summary")
+  async getStudentSummary(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ): Promise<{
+    studentId: string;
+    reportId: string;
+    renderedText: string;
+    structuredData: unknown;
+    createdAt: Date;
+  }> {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.getStudentSummary(parentId, studentId);
+  }
+
+  @Get("me/students/:studentId/weekly-summary")
+  async getWeeklySummary(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ): Promise<{
+    studentId: string;
+    reportId: string;
+    structuredSummary: unknown;
+    renderedText: string;
+    periodStart: string;
+    periodEnd: string;
+  }> {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.getWeeklySummary(parentId, studentId);
+  }
+
+  @Get("me/auth-mode")
+  authMode() {
+    return {
+      clerkEnabled: this.auth.clerkEnabled(),
+      devSignupAvailable: !this.auth.clerkEnabled(),
+    };
   }
 }

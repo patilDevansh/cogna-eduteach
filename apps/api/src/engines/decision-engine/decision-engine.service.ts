@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
   BASELINE_SLOT_COUNT,
-  DECISION_RULES_V1,
+  DECISION_RULES_V2,
   baselineConceptForSlot,
   type LearningDecision,
   type LearningIntent,
@@ -9,9 +9,13 @@ import {
 } from "@cogna/shared";
 import type {
   LearningSession,
-  MisconceptionRemediationState,
   RevisionQueueItem,
 } from "@cogna/database";
+import {
+  DEFAULT_BREAK_MINUTES,
+  HARD_STOP_SESSION_MINUTES,
+  computeFatigueRisk,
+} from "../diagnostic-engine/diagnostic-formulas";
 
 export interface DecisionInput {
   session: LearningSession;
@@ -24,10 +28,27 @@ export interface DecisionInput {
   lastWasExplanation?: boolean;
   prerequisiteMastery?: number;
   hasPrereqQuestions?: boolean;
+  /** Override computed minutes (tests / clock injection). */
+  sessionMinutes?: number;
+  /** Explicit fatigue override; otherwise derived from signals. */
+  fatigueRisk?: boolean;
+  breakSuggestedThisSession?: boolean;
+  idleSpikeCount?: number;
+  averageTimeIncreasing50Pct?: boolean;
+  /** Transfer-check gates (decision-rules-v2 §12.8). */
+  masteryValue?: number;
+  evidenceCount?: number;
+  masteryThreshold?: number;
+  minimumEvidence?: number;
+  hasTransferCheckItem?: boolean;
+  hasActiveMisconceptionHighConfidence?: boolean;
+  /** Error recovery for explanation style preference. */
+  errorRecoveryRate?: number | null;
+  retentionEstimateId?: string;
 }
 
-const SESSION_LIMIT_MINUTES = 15;
 const SESSION_QUESTION_LIMIT = 12;
+const EXPERIMENT_VARIANT = process.env.EXPERIMENT_VARIANT ?? "targeted";
 
 @Injectable()
 export class DecisionEngineService {
@@ -43,14 +64,26 @@ export class DecisionEngineService {
       lastWasExplanation,
       prerequisiteMastery,
       hasPrereqQuestions,
+      idleSpikeCount = 0,
+      averageTimeIncreasing50Pct = false,
+      errorRecoveryRate = null,
+      retentionEstimateId,
     } = input;
 
     const sessionMinutes =
+      input.sessionMinutes ??
       (Date.now() - session.startedAt.getTime()) / (1000 * 60);
 
-    // 1. Safety / session end
+    const breakSuggestedThisSession =
+      input.breakSuggestedThisSession ??
+      Boolean(
+        (session as LearningSession & { breakSuggestedAt?: Date | null })
+          .breakSuggestedAt,
+      );
+
+    // 1. Safety / session end — always wins over soft break
     if (
-      sessionMinutes >= SESSION_LIMIT_MINUTES ||
+      sessionMinutes >= HARD_STOP_SESSION_MINUTES ||
       session.questionCount >= SESSION_QUESTION_LIMIT
     ) {
       return this.decision(
@@ -61,9 +94,37 @@ export class DecisionEngineService {
           difficulty: session.activeDifficulty ?? 2,
         },
         0.9,
-        sessionMinutes >= SESSION_LIMIT_MINUTES
+        sessionMinutes >= HARD_STOP_SESSION_MINUTES
           ? "Session time limit reached."
           : "Session question limit reached.",
+      );
+    }
+
+    const fatigueRisk =
+      input.fatigueRisk ??
+      computeFatigueRisk({
+        sessionMinutes,
+        recentIncorrectStreak,
+        averageTimeIncreasing50Pct,
+        idleSpikeCount,
+      });
+
+    // 2. Fatigue break (soft) — never after hard stop
+    if (
+      fatigueRisk &&
+      !breakSuggestedThisSession &&
+      sessionMinutes < HARD_STOP_SESSION_MINUTES
+    ) {
+      return this.decision(
+        "SUGGEST_BREAK",
+        "BREAK_FOR_FATIGUE",
+        {
+          conceptId: session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION",
+          difficulty: session.activeDifficulty ?? 2,
+          breakMinutes: DEFAULT_BREAK_MINUTES,
+        },
+        0.75,
+        "Fatigue risk detected; suggesting a short break.",
       );
     }
 
@@ -82,7 +143,7 @@ export class DecisionEngineService {
     const conceptId = session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION";
     const difficulty = session.activeDifficulty ?? 2;
 
-    // 2. Post-explanation re-test
+    // 3. Post-explanation re-test
     if (lastWasExplanation || remediationState === "RETESTING") {
       return this.decision(
         "SHOW_QUESTION",
@@ -93,7 +154,7 @@ export class DecisionEngineService {
       );
     }
 
-    // 3. Explanation required
+    // 4. Explanation required
     if (remediationState === "EXPLANATION_REQUIRED") {
       return this.decision(
         "SHOW_EXPLANATION",
@@ -104,24 +165,32 @@ export class DecisionEngineService {
           targetMisconception: activeMisconceptionId,
         },
         0.8,
-        "Targeted attempts failed; explanation required.",
+        errorRecoveryRate !== null && errorRecoveryRate < 0.35
+          ? "Low error recovery; step-by-step explanation required."
+          : "Targeted attempts failed; explanation required.",
         { explanationStyle: "STEP_BY_STEP" },
       );
     }
 
-    // 4. Due revision
+    // 5. Due revision / retention review
     if (dueRevision) {
+      const isRetention =
+        dueRevision.type === "RETENTION_REVIEW" ||
+        dueRevision.type === "SPACED_REVIEW_RETENTION";
       return this.decision(
         "SHOW_QUESTION",
-        "EXECUTE_DUE_REVISION",
+        isRetention ? "RETENTION_REVIEW" : "EXECUTE_DUE_REVISION",
         {
           conceptId: dueRevision.conceptId,
           difficulty,
           revisionItemId: dueRevision.id,
           targetMisconception: dueRevision.targetMisconception ?? undefined,
+          retentionEstimateId: isRetention ? retentionEstimateId : undefined,
         },
         0.75,
-        `Due revision: ${dueRevision.reasoning}`,
+        isRetention
+          ? `Retention review: ${dueRevision.reasoning}`
+          : `Due revision: ${dueRevision.reasoning}`,
       );
     }
 
@@ -149,7 +218,7 @@ export class DecisionEngineService {
       );
     }
 
-    // 5. Misconception targeting (weak evidence gate)
+    // 6. Misconception targeting (weak evidence gate)
     if (
       remediationState === "TARGETING" ||
       (misconceptionConfidence >= 0.6 && activeMisconceptionId)
@@ -176,7 +245,7 @@ export class DecisionEngineService {
       );
     }
 
-    // 6. Prerequisite review
+    // 7. Prerequisite review
     if (
       recentIncorrectStreak >= 2 &&
       (prerequisiteMastery ?? 1) < 0.3 &&
@@ -191,7 +260,37 @@ export class DecisionEngineService {
       );
     }
 
-    // 7. Difficulty adaptation
+    // 8. Transfer check
+    const masteryThreshold = input.masteryThreshold ?? 0.75;
+    const minimumEvidence = input.minimumEvidence ?? 5;
+    const masteryValue = input.masteryValue;
+    const evidenceCount = input.evidenceCount ?? 0;
+    const hasActiveHigh =
+      input.hasActiveMisconceptionHighConfidence ??
+      (misconceptionConfidence > 0.6 && Boolean(activeMisconceptionId));
+
+    if (
+      masteryValue !== undefined &&
+      masteryValue >= masteryThreshold &&
+      evidenceCount >= minimumEvidence &&
+      !hasActiveHigh &&
+      input.hasTransferCheckItem
+    ) {
+      return this.decision(
+        "SHOW_QUESTION",
+        "TRANSFER_CHECK",
+        {
+          conceptId,
+          difficulty,
+          transferConceptId: conceptId,
+        },
+        0.71,
+        "Mastery stable above threshold; no active misconception >0.6; transfer item available.",
+        { questionFormat: "WORD_PROBLEM" },
+      );
+    }
+
+    // 9. Difficulty adaptation
     if (recentCorrectStreak >= 2) {
       return this.decision(
         "SHOW_QUESTION",
@@ -212,13 +311,18 @@ export class DecisionEngineService {
       );
     }
 
-    // 8. Standard practice
+    // 10. Standard practice
+    const experimentNote =
+      EXPERIMENT_VARIANT === "random"
+        ? " (A/B stub: random sequencing variant)"
+        : "";
+
     return this.decision(
       "SHOW_QUESTION",
       "STANDARD_PRACTICE",
       { conceptId, difficulty },
       0.6,
-      "Continue practice at current level.",
+      `Continue practice at current level.${experimentNote}`,
     );
   }
 
@@ -242,18 +346,32 @@ export class DecisionEngineService {
     parameters: LearningDecision["parameters"],
     confidence: number,
     reasoning: string,
-    options?: { fallbackGenerated?: boolean; explanationStyle?: "STEP_BY_STEP" },
+    options?: {
+      fallbackGenerated?: boolean;
+      explanationStyle?: "STEP_BY_STEP" | "HINT" | "ANALOGY";
+      questionFormat?: "NUMERIC" | "MCQ" | "WORD_PROBLEM";
+    },
   ): LearningDecision {
+    const contentStyle =
+      options?.explanationStyle || options?.questionFormat
+        ? {
+            ...(options.explanationStyle
+              ? { explanationStyle: options.explanationStyle }
+              : {}),
+            ...(options.questionFormat
+              ? { questionFormat: options.questionFormat }
+              : {}),
+          }
+        : undefined;
+
     return {
       uiAction,
       learningIntent,
       parameters,
-      contentStyle: options?.explanationStyle
-        ? { explanationStyle: options.explanationStyle }
-        : undefined,
+      contentStyle,
       confidence,
       reasoning,
-      decisionVersion: DECISION_RULES_V1,
+      decisionVersion: DECISION_RULES_V2,
       fallbackGenerated: options?.fallbackGenerated,
     };
   }

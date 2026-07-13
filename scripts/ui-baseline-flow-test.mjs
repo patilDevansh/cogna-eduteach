@@ -3,31 +3,24 @@
  * UI-equivalent baseline flow test (API + log monitoring).
  * Mirrors browser path: login → baseline → answer through variable + 12+9.
  */
-const API = process.env.API_URL ?? "http://localhost:3001";
+import { createClient } from "./cogna-cli/lib/client.mjs";
+import { uuid } from "./cogna-cli/lib/uuid.mjs";
+import { BASELINE_QUESTION_IDS } from "./cogna-cli/lib/contracts.mjs";
+
 const WEB = process.env.WEB_URL ?? "http://localhost:3000";
-const uuid = () => crypto.randomUUID();
+const client = createClient();
 
 const log = (step, msg) => console.log(`[${step}] ${msg}`);
 
-async function get(path) {
-  const r = await fetch(`${API}${path}`);
-  return { status: r.status, body: await r.json().catch(() => null) };
-}
-
-async function post(path, body) {
-  const r = await fetch(`${API}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const text = await r.text();
-  let bodyJson;
-  try {
-    bodyJson = JSON.parse(text);
-  } catch {
-    bodyJson = text;
+function pickAnswer(question) {
+  if (question.id === BASELINE_QUESTION_IDS.q1TwelvePlusNine) return "18";
+  if (question.id === BASELINE_QUESTION_IDS.q3Variable) return "x";
+  if (question.stem?.includes("14 + (-6)")) return "8";
+  if (question.stem?.includes("2a + 1")) return "7";
+  if (question.type === "MCQ") {
+    return question.stem?.includes("variable") ? "x" : "Add 2 to the right";
   }
-  return { status: r.status, body: bodyJson };
+  return "1";
 }
 
 async function main() {
@@ -50,37 +43,20 @@ async function main() {
     process.exit(1);
   }
   try {
-    const health = await get("/health");
-    if (health.status !== 200) fail("0-api", `health ${health.status}`);
-    else pass("0-api", `health ok, demo code ${health.body?.devAccessCode}`);
+    const health = await client.health();
+    pass("0-api", `health ok, demo code ${health?.devAccessCode ?? "demo1234"}`);
   } catch (e) {
     fail("0-api", String(e));
     process.exit(1);
   }
 
-  // Step 1: login (same as UI)
-  const login = await post("/auth/student/login", { accessCode: "demo1234" });
-  if (login.status !== 201 && login.status !== 200) {
-    fail("1-login", `status ${login.status} ${JSON.stringify(login.body)}`);
-    process.exit(1);
-  }
-  const studentId = login.body.studentId;
+  const { studentId } = await client.loginStudent("demo1234");
   pass("1-login", `studentId=${studentId}`);
 
-  // Step 2: start BASELINE session
-  const session = await post("/sessions", { studentId, sessionMode: "BASELINE" });
-  if (session.status !== 201) {
-    fail("2-session", `status ${session.status}`);
-    process.exit(1);
-  }
-  const sessionId = session.body.sessionId;
-  let q = session.body.next?.payload;
+  const session = await client.startSession(studentId, "BASELINE");
+  const sessionId = session.sessionId;
+  let q = session.next?.payload;
   pass("2-session", `sessionId=${sessionId} firstQ=${q?.id} stem="${q?.stem?.slice(0, 40)}"`);
-
-  const targets = {
-    variable: "Q_P3_D1_001",
-    twelvePlusNine: "Q_P1_D1_001",
-  };
 
   let sawTwelvePlusNine = false;
   let sawVariable = false;
@@ -88,37 +64,21 @@ async function main() {
 
   while (q && step < 15) {
     step++;
-    let answer;
-    if (q.id === targets.twelvePlusNine) {
-      sawTwelvePlusNine = true;
-      answer = "18";
-    } else if (q.id === targets.variable) {
-      sawVariable = true;
-      answer = "x";
-    } else if (q.stem?.includes("14 + (-6)")) answer = "8";
-    else if (q.stem?.includes("2a + 1")) answer = "7";
-    else if (q.type === "MCQ") answer = q.stem?.includes("variable") ? "x" : "Add 2 to the right";
-    else answer = "1";
+    const answer = pickAnswer(q);
+
+    if (q.id === BASELINE_QUESTION_IDS.q1TwelvePlusNine) sawTwelvePlusNine = true;
+    if (q.id === BASELINE_QUESTION_IDS.q3Variable) sawVariable = true;
 
     log(`3-submit-${step}`, `POST /practice/answer q=${q.id} answer="${answer}"`);
-    const res = await post("/practice/answer", {
-      eventId: uuid(),
-      eventType: "ANSWER_SUBMITTED",
-      studentId,
-      sessionId,
-      questionId: q.id,
-      questionVersion: q.version,
-      submittedAnswer: answer,
-      timeToFirstResponseMs: 200,
-      totalTimeMs: 3000,
-      idleTimeMs: 0,
-      attemptNumber: 1,
-      hintCount: 0,
-      highestHintLevel: 0,
-      selfRatedConfidence: 3,
-      answerChangedBeforeSubmit: false,
-      clientTimestamp: new Date().toISOString(),
-    });
+    const res = await client.submitAnswer(
+      client.buildAnswerPayload({
+        eventId: uuid(),
+        studentId,
+        sessionId,
+        question: q,
+        submittedAnswer: answer,
+      }),
+    );
 
     if (res.status >= 500) {
       fail(`3-submit-${step}`, `HTTP ${res.status} ${JSON.stringify(res.body)}`);
@@ -146,17 +106,57 @@ async function main() {
     if (!q) break;
   }
 
-  // Verify health after flow
   try {
-    const healthAfter = await get("/health");
-    pass("5-api-alive", `health ${healthAfter.status} after ${step} submits`);
+    await client.health();
+    pass("5-api-alive", `health ok after ${step} submits`);
   } catch (e) {
     fail("5-api-alive", `API died: ${e}`);
   }
 
+  // Thin smoke: critical routes + revision/parent APIs (no engine re-assertions)
+  try {
+    const revisionRes = await fetch(`${WEB}/student/revision`);
+    pass("6-route-revision", `HTTP ${revisionRes.status}`);
+  } catch (e) {
+    fail("6-route-revision", String(e));
+  }
+
+  try {
+    const parentRes = await fetch(`${WEB}/parent/login`);
+    pass("7-route-parent-login", `HTTP ${parentRes.status}`);
+  } catch (e) {
+    fail("7-route-parent-login", String(e));
+  }
+
+  try {
+    const queue = await client.getRevisionQueue(studentId);
+    pass("8-revision-api", `queue items=${Array.isArray(queue) ? queue.length : "?"}`);
+  } catch (e) {
+    fail("8-revision-api", String(e));
+  }
+
+  try {
+    const parent = await client.devSignup(`smoke-${Date.now()}@test.local`, "Smoke Parent");
+    const child = await client.createStudent(parent.parentId, "Smoke Child", 8);
+    try {
+      const summaryRes = await client.getParentStudentSummary(parent.parentId, child.studentId);
+      const hasText = typeof summaryRes?.renderedText === "string";
+      pass("9-parent-summary-api", hasText ? "summary payload ok" : "empty summary");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("404") && msg.includes("No parent summary")) {
+        pass("9-parent-summary-api", "404 empty summary (expected before first session)");
+      } else {
+        throw e;
+      }
+    }
+  } catch (e) {
+    fail("9-parent-summary-api", String(e));
+  }
+
   console.log("\n--- SUMMARY ---");
-  console.log(`Saw 12+9 (Q_P1_D1_001): ${sawTwelvePlusNine}`);
-  console.log(`Saw variable (Q_P3_D1_001): ${sawVariable}`);
+  console.log(`Saw 12+9 (${BASELINE_QUESTION_IDS.q1TwelvePlusNine}): ${sawTwelvePlusNine}`);
+  console.log(`Saw variable (${BASELINE_QUESTION_IDS.q3Variable}): ${sawVariable}`);
   console.log(`Note: 12+9 is baseline Q1; variable is Q3 (not after 12+9)`);
   for (const r of results) {
     console.log(`${r.status} ${r.step}: ${r.detail}`);

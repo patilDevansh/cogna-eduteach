@@ -1,26 +1,44 @@
 ---
-description: Cogna MVP 1.0 build tracking and spec authority — always apply
+description: Cogna MVP dual-era build tracking and spec authority — always apply
 alwaysApply: true
 ---
 
-# Cogna MVP 1.0 — Agent rules
+# Cogna MVP — Agent rules (1.0 archive + 2.0 active)
 
-## Spec vs tracking
+## Spec vs tracking (dual era)
 
-- Implement **only** from `/docs/mvp-1.0/`.
+**New work → MVP 2.0**
+
+- Implement from `/docs/mvp-2.0/`.
+- Execution tracking lives in `/COGNA 2.0/`.
+- Repo/GitHub ops: `COGNA 2.0/REPO_AND_GITHUB.md`.
+
+**MVP 1.0 → archive**
+
+- `/docs/mvp-1.0/` and `/COGNA 1.0/` are frozen / historical.
+- Do not extend 1.0 specs for new product features.
+- 1.0 hotfixes only: cite `/docs/mvp-1.0/` and update `/COGNA 1.0/` tracking if needed.
+
+**Never**
+
 - Do **not** treat `/COGNA/` mature READMEs as MVP implementation specs (future architecture only).
-- Execution tracking lives in `/COGNA 1.0/`.
 
 ## Always update tracking docs
 
-In the **same turn** as completing, skipping, or discovering MVP work, update:
+### MVP 2.0 (default for new work)
 
-1. `COGNA 1.0/BUILD_PLAN_7_DAY.md` — strikethrough completed tasks with `~~text~~`
-2. `COGNA 1.0/SKIPPED.md` — add deferred items with reason + return condition
-3. `COGNA 1.0/BUILD_CARE.md` — add pitfalls or check off enforced care items
-4. `COGNA 1.0/README.md` — refresh status snapshot when day/blocker changes
+In the **same turn** as completing, skipping, or discovering MVP 2.0 work, update:
 
-If the user skips something verbally, log it in `SKIPPED.md` even if they forget to ask.
+1. `COGNA 2.0/BUILD_PLAN.md` — strikethrough completed tasks with `~~text~~`
+2. `COGNA 2.0/SKIPPED.md` — add deferred items with reason + return condition
+3. `COGNA 2.0/BUILD_CARE.md` — add pitfalls or check off enforced care items
+4. `COGNA 2.0/README.md` — refresh status snapshot when phase/blocker changes
+
+### MVP 1.0 (archive / hotfix only)
+
+If touching archived 1.0 work, update the parallel files under `COGNA 1.0/` the same way.
+
+If the user skips something verbally, log it in the active era’s `SKIPPED.md` even if they forget to ask.
 
 ## Contract locks
 
@@ -28,7 +46,8 @@ If the user skips something verbally, log it in `SKIPPED.md` even if they forget
 - Allowed `uiAction`: `SHOW_QUESTION` | `SHOW_EXPLANATION` | `SHOW_HINT` | `END_SESSION` | `SUGGEST_BREAK`.
 - Staged Tx1–Tx4 durability; idempotent `eventId`.
 - Only `APPROVED` questions to students; no unchecked LLM math.
+- Extend contracts only as specified in `/docs/mvp-2.0/` (not by inventing aliases).
 
 ## First build reality
 
-Existing `packages/shared` and `packages/database` may still contain **legacy** decision enums — align them to `/docs/mvp-1.0` before extending.
+Existing `packages/shared` and `packages/database` may still contain **legacy** decision enums — align to the **active** MVP spec (`/docs/mvp-2.0/` for new work; `/docs/mvp-1.0/` only when patching frozen 1.0 behavior) before extending.

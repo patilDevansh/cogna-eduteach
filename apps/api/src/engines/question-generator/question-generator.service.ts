@@ -113,7 +113,40 @@ export class QuestionGeneratorService {
       }
     }
 
+    const allowPending = process.env.ALLOW_PENDING_REVIEW_QUESTIONS === "true";
+    if (!allowPending) {
+      const approvedExists = await this.prisma.question.count({
+        where: { conceptId: primaryConcept, reviewStatus: ReviewStatus.APPROVED },
+      });
+      if (approvedExists === 0) {
+        throw new NotFoundException("NO_APPROVED_CONTENT");
+      }
+    }
     throw new NotFoundException("NO_ELIGIBLE_QUESTION");
+  }
+
+  /** Staging gate check for CLI R12 — never serves PENDING_REVIEW when ALLOW_PENDING is off. */
+  async approvalGateStatus(): Promise<{
+    allowPendingReview: boolean;
+    approvedCount: number;
+    pendingReviewCount: number;
+    wouldServePendingToStudent: boolean;
+    stagingGate: "ENFORCED" | "RELAXED";
+  }> {
+    const allowPending = process.env.ALLOW_PENDING_REVIEW_QUESTIONS === "true";
+    const approvedCount = await this.prisma.question.count({
+      where: { reviewStatus: ReviewStatus.APPROVED },
+    });
+    const pendingReviewCount = await this.prisma.question.count({
+      where: { reviewStatus: ReviewStatus.PENDING_REVIEW },
+    });
+    return {
+      allowPendingReview: allowPending,
+      approvedCount,
+      pendingReviewCount,
+      wouldServePendingToStudent: allowPending,
+      stagingGate: allowPending ? "RELAXED" : "ENFORCED",
+    };
   }
 
   private async trySelect(

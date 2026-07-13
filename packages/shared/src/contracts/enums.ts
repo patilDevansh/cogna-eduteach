@@ -19,6 +19,10 @@ export const LEARNING_INTENTS = [
   "RETEST_AFTER_EXPLANATION",
   "CONCEPT_REINFORCEMENT",
   "BASELINE_ASSESSMENT",
+  // MVP 2.0 additive intents
+  "RETENTION_REVIEW",
+  "TRANSFER_CHECK",
+  "BREAK_FOR_FATIGUE",
 ] as const;
 
 export type LearningIntent = (typeof LEARNING_INTENTS)[number];
@@ -86,6 +90,59 @@ export const EVENT_TYPES = [
   "EXPLANATION_VIEWED",
   "QUESTION_SKIPPED",
   "SESSION_ENDED",
+  // MVP 2.0 additive events
+  "REVISION_ITEM_COMPLETED",
+  "WEEKLY_REPORT_REQUESTED",
+  "REPORT_DELIVERY_ATTEMPTED",
+  "CONTENT_REVIEWED",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
+
+export const DIAGNOSTIC_FACTOR_TYPES = [
+  "MASTERY",
+  "MISCONCEPTION",
+  "CONFIDENCE_CALIBRATION",
+  "HINT_DEPENDENCE",
+  "RETENTION",
+  "LEARNING_VELOCITY",
+  "ERROR_RECOVERY",
+  "EXPLANATION_EFFECTIVENESS",
+  "ENGAGEMENT_PATTERN",
+  "ITEM_STATISTIC",
+] as const;
+
+export type DiagnosticFactorType = (typeof DIAGNOSTIC_FACTOR_TYPES)[number];
+
+export const JOB_STATUSES = [
+  "PENDING",
+  "RUNNING",
+  "COMPLETED",
+  "FAILED_RETRYABLE",
+  "FAILED_PERMANENT",
+] as const;
+
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+export const REPORT_DELIVERY_STATUSES = [
+  "PENDING",
+  "SENT",
+  "FAILED",
+  "RETRYING",
+] as const;
+
+export type ReportDeliveryStatus = (typeof REPORT_DELIVERY_STATUSES)[number];
+
+export const REPORT_DELIVERY_CHANNELS = ["EMAIL", "IN_APP"] as const;
+export type ReportDeliveryChannel = (typeof REPORT_DELIVERY_CHANNELS)[number];
+
+export const CONTENT_REVIEW_STATUSES = [
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "REJECTED",
+] as const;
+
+export type ContentReviewStatus = (typeof CONTENT_REVIEW_STATUSES)[number];
+
+export const CONTENT_REVIEW_TYPES = ["QUESTION", "EXPLANATION"] as const;
+export type ContentReviewType = (typeof CONTENT_REVIEW_TYPES)[number];

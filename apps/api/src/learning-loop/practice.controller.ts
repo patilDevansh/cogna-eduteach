@@ -3,6 +3,7 @@ import type { HintRequestedEvent } from "@cogna/shared";
 import { LearningLoopService } from "./learning-loop.service";
 import { AnswerSubmittedDto } from "./dto/answer-submitted.dto";
 import { ExplanationViewedDto } from "./dto/explanation-viewed.dto";
+import { SkipQuestionDto } from "./dto/skip-question.dto";
 
 @Controller("practice")
 export class PracticeController {
@@ -32,5 +33,10 @@ export class PracticeController {
   @Post("hint")
   requestHint(@Body() body: HintRequestedEvent) {
     return this.loop.processHint(body);
+  }
+
+  @Post("skip")
+  skipQuestion(@Body() body: SkipQuestionDto) {
+    return this.loop.processSkip(body);
   }
 }

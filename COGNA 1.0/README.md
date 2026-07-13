@@ -11,6 +11,7 @@
 | [BUILD_PLAN_7_DAY.md](./BUILD_PLAN_7_DAY.md) | Day-by-day tasks — **strikethrough** each item when done |
 | [SKIPPED.md](./SKIPPED.md) | Intentionally deferred work — must revisit later |
 | [BUILD_CARE.md](./BUILD_CARE.md) | Guardrails and pitfalls while building |
+| [DEMO_WALKTHROUGH.md](./DEMO_WALKTHROUGH.md) | 5-minute local MVP demo script |
 
 ## Agent / human rule (mandatory)
 
@@ -30,13 +31,13 @@ Canonical instruction also lives in:
 ## Status snapshot
 
 - **Plan start:** 2026-07-10  
-- **Current day:** Day 5 **substantially complete** — Day 6 revision/reports UI next  
+- **Build status:** **MVP 1.0 build complete — all skips resolved** — 2026-07-13  
 - **Branch:** `feat/mvp-1.0-build` (local repo initialized in `eduTeach/`)  
-- **Blocked on:** nothing critical  
-- **First construction milestone:** backend + **usable practice UI** (session → answer → hint → explanation → summary)  
-- **Verified (2026-07-10):** `pnpm build` green; golden tests **28 pass** (incl. G30b baseline slot); API :3001 + Web :3000 loadable; student login accepts `demo1234` (any case); full 12-slot baseline completes without API crash; `Q_P1_D1_001` grades `18`→INCORRECT / `21`→CORRECT per bank  
-- **Code landed:** diagnostic calibration/hint dependence, baseline blueprint, QG ranking/fallback, parent/student dev auth API, `apps/web` practice flow  
-- **Human-only:** formal math review of milestone ~9 APPROVED questions (S001 / S014)  
-- **Dev credentials (after seed):** student `dev_student_001`, access code `demo1234`  
-- **UI:** http://localhost:3000 — parent signup, student login, baseline intro, practice screens  
-- **Deferred:** Clerk auth (S015), skip control (S016), client 15-min auto-end (S018)
+- **Blocked on:** external pilot only — S014 human math sign-off (checklist ready)  
+- **Vertical slice:** parent → student → baseline → practice → diagnostics/decisions → hints/explanations → revision → session + parent summary  
+- **Verified (2026-07-13):** `pnpm build` green; golden **36 pass**; CLI scenarios **6** (`baseline-12-slot`, `session-end-summary`, `revision-queue-proposal`, `idempotent-retry`, `targeting-explanation-retest`, `skip-question`); `pnpm test:smoke:ui`  
+- **APPROVED bank shipped:** **17** milestone IDs (baseline anchors + C2 sign-handling path) — not full ~200  
+- **Dev credentials (after seed):** student access code `demo1234`  
+- **Demo:** [DEMO_WALKTHROUGH.md](./DEMO_WALKTHROUGH.md)  
+- **UI:** http://localhost:3000 — parent signup, student login, baseline, practice (skip + 15-min timer + baseline handoff), revision queue, parent summary  
+- **Auth:** optional Clerk when keys set — see [DEV_AUTH.md](../docs/mvp-1.0/DEV_AUTH.md)

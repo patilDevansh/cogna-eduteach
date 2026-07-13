@@ -1,0 +1,21 @@
+{
+  "unit": "linear-equations-one-variable",
+  "curriculum": "CBSE-style Grade 8",
+  "targetApproved": 200,
+  "status": "draft",
+  "idPolicy": "Keep MVP 1.0 concept IDs. Do not use P2_INTEGER_MUL_DIV or C6_WORD_PROBLEMS.",
+  "notes": "approved counts below are seed-effective (JSON reviewStatus is PENDING_REVIEW for all 45; seed MILESTONE_APPROVED_QUESTION_IDS promotes 17).",
+  "coverage": {
+    "P1_INTEGER_ADD_SUB": { "target": 20, "approved": 2 },
+    "P2_NEGATIVE_OPS": { "target": 15, "approved": 0 },
+    "P3_VARIABLES_CONSTANTS": { "target": 15, "approved": 1 },
+    "P4_SIMPLE_EXPRESSIONS": { "target": 20, "approved": 1 },
+    "P5_EQUALITY_BALANCE": { "target": 20, "approved": 2 },
+    "C1_ONE_STEP_ADDITION": { "target": 20, "approved": 1 },
+    "C2_ONE_STEP_SUBTRACTION": { "target": 25, "approved": 7 },
+    "C3_ONE_STEP_MULTIPLICATION": { "target": 20, "approved": 1 },
+    "C4_ONE_STEP_DIVISION": { "target": 20, "approved": 0 },
+    "C5_TWO_STEP_EQUATIONS": { "target": 25, "approved": 2 },
+    "C6_SIMPLE_WORD_PROBLEMS": { "target": 20, "approved": 0 }
+  }
+}

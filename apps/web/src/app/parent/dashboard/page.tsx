@@ -22,7 +22,7 @@ export default function ParentDashboardPage() {
     api
       .listStudents(p.parentId)
       .then(setStudents)
-      .catch((err) => setError(err.message));
+      .catch(() => setError("We couldn't load your students. Please refresh the page."));
   }, [router]);
 
   function signOut() {
@@ -47,6 +47,14 @@ export default function ParentDashboardPage() {
           {students.map((s) => (
             <li key={s.id}>
               <strong>{s.name}</strong> — Grade {s.grade}
+              <div className="actions" style={{ marginTop: "0.5rem" }}>
+                <Link href={`/parent/students/${s.id}/summary`} className="btn btn-secondary">
+                  Session summary
+                </Link>
+                <Link href={`/parent/students/${s.id}/weekly`} className="btn btn-secondary">
+                  Weekly update
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

@@ -17,5 +17,24 @@ services:
       timeout: 5s
       retries: 10
 
+  # CI / integration profile: start Postgres, then run API + scenarios on the host.
+  #   docker compose --profile test up -d postgres
+  #   pnpm db:push && pnpm db:seed
+  #   ALLOW_PENDING_REVIEW_QUESTIONS=true pnpm --filter @cogna/api start &
+  #   pnpm test:golden && pnpm test:scenario:all
+  test-runner:
+    profiles: ["test"]
+    image: node:20-alpine
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cogna?schema=public
+      API_URL: http://host.docker.internal:3001
+    entrypoint: ["sh", "-c", "echo 'Start API on host :3001, then: pnpm test:golden && pnpm test:scenario:all'"]
+
 volumes:
   cogna_pg_data:

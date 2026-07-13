@@ -81,6 +81,41 @@ enum LearningIntent {
   RETEST_AFTER_EXPLANATION
   CONCEPT_REINFORCEMENT
   BASELINE_ASSESSMENT
+  // MVP 2.0 additive
+  RETENTION_REVIEW
+  TRANSFER_CHECK
+  BREAK_FOR_FATIGUE
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED_RETRYABLE
+  FAILED_PERMANENT
+}
+
+enum ReportDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
+}
+
+enum ReportDeliveryChannel {
+  EMAIL
+  IN_APP
+}
+
+enum ContentReviewStatus {
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
+}
+
+enum ContentReviewType {
+  QUESTION
+  EXPLANATION
 }
 
 enum RemediationState {
@@ -151,17 +186,19 @@ model Student {
   accessCodeHash  String
   deletedAt       DateTime?
 
-  learnerProfile    LearnerProfile?
-  sessions          LearningSession[]
-  attempts          Attempt[]
-  masteryScores     MasteryScore[]
-  masteryHistory    MasteryHistory[]
-  diagnosticFactors DiagnosticFactor[]
-  remediationStates MisconceptionRemediationState[]
-  learningDecisions LearningDecision[]
-  revisionItems     RevisionQueueItem[]
-  reports           Report[]
-  parentLinks       ParentStudentLink[]
+  learnerProfile         LearnerProfile?
+  sessions               LearningSession[]
+  attempts               Attempt[]
+  masteryScores          MasteryScore[]
+  masteryHistory         MasteryHistory[]
+  diagnosticFactors      DiagnosticFactor[]
+  remediationStates      MisconceptionRemediationState[]
+  learningDecisions      LearningDecision[]
+  revisionItems          RevisionQueueItem[]
+  reports                Report[]
+  parentLinks            ParentStudentLink[]
+  retentionEstimates     RetentionEstimate[]
+  explanationOutcomes    ExplanationOutcome[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -190,11 +227,12 @@ model Concept {
   minimumEvidence  Int
   sortOrder        Int
 
-  prerequisites ConceptPrerequisite[] @relation("Concept")
-  requiredBy    ConceptPrerequisite[] @relation("Prerequisite")
-  questions     Question[]
-  explanations  Explanation[]
-  masteryScores MasteryScore[]
+  prerequisites      ConceptPrerequisite[] @relation("Concept")
+  requiredBy         ConceptPrerequisite[] @relation("Prerequisite")
+  questions          Question[]
+  explanations       Explanation[]
+  masteryScores      MasteryScore[]
+  retentionEstimates RetentionEstimate[]
 }
 
 model ConceptPrerequisite {
@@ -237,7 +275,8 @@ model Question {
   itemQualityWeight        Float        @default(1.0)
   options                  Json?
 
-  attempts Attempt[]
+  attempts       Attempt[]
+  itemStatistics ItemStatistic[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -272,6 +311,8 @@ model LearningSession {
   baselineSlotIndex Int           @default(0)
   activeConceptId   String?
   activeDifficulty  Int           @default(2)
+  /// Set when SUGGEST_BREAK + BREAK_FOR_FATIGUE is emitted (once per session).
+  breakSuggestedAt  DateTime?
 
   attempts  Attempt[]
   decisions LearningDecision[]
@@ -412,22 +453,24 @@ model LearnerProfileHistory {
 }
 
 model LearningDecision {
-  id                String          @id @default(cuid())
-  studentId         String
-  student           Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  sessionId         String
-  session           LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  attemptId         String?
-  uiAction          UiAction
-  learningIntent    LearningIntent
-  contentStyle      Json?
-  parameters        Json
-  confidence        Float
-  reasoning         String
-  decisionVersion   String
-  inputSnapshot     Json?
-  fallbackGenerated Boolean         @default(false)
-  createdAt         DateTime        @default(now())
+  id                 String          @id @default(cuid())
+  studentId          String
+  student            Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId          String
+  session            LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attemptId          String?
+  uiAction           UiAction
+  learningIntent     LearningIntent
+  contentStyle       Json?
+  parameters         Json
+  confidence         Float
+  reasoning          String
+  decisionVersion    String
+  inputSnapshot      Json?
+  selectionReasoning Json?
+  latencyMs          Int?
+  fallbackGenerated  Boolean         @default(false)
+  createdAt          DateTime        @default(now())
 
   @@index([sessionId, createdAt])
 }
@@ -468,6 +511,8 @@ model Report {
   reportVersion  String
   createdAt      DateTime       @default(now())
 
+  deliveries ReportDelivery[]
+
   @@index([studentId, createdAt])
 }
 
@@ -478,4 +523,125 @@ model Consent {
   consentType String
   grantedAt   DateTime  @default(now())
   revokedAt   DateTime?
+}
+
+// ─── MVP 2.0 additive tables ───────────────────────────────────────────────
+
+model Job {
+  id             String    @id @default(cuid())
+  jobType        String
+  idempotencyKey String
+  payload        Json
+  status         JobStatus @default(PENDING)
+  attemptCount   Int       @default(0)
+  lastError      String?
+  lockedAt       DateTime?
+  lockedBy       String?
+  runAfter       DateTime?
+  completedAt    DateTime?
+  resultRef      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([jobType, idempotencyKey])
+  @@index([status, runAfter, createdAt])
+  @@index([jobType, status])
+}
+
+model RetentionEstimate {
+  id                 String   @id @default(cuid())
+  studentId          String
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId          String
+  concept            Concept  @relation(fields: [conceptId], references: [id])
+  estimate           Float
+  confidence         Float
+  daysSinceSuccess   Int
+  evidenceAttemptIds Json
+  modelVersion       String
+  validUntil         DateTime
+  createdAt          DateTime @default(now())
+
+  @@unique([studentId, conceptId, modelVersion, validUntil])
+  @@index([studentId, conceptId])
+}
+
+model ExplanationOutcome {
+  id               String   @id @default(cuid())
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId        String
+  explanationId    String
+  conceptId        String
+  misconceptionId  String?
+  viewedEventId    String   @unique
+  retestAttemptId  String?
+  effective        Boolean?
+  highestHintLevel Int?
+  modelVersion     String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([studentId, conceptId])
+  @@index([sessionId])
+}
+
+model ItemStatistic {
+  questionId          String
+  questionVersion     Int
+  question            Question @relation(fields: [questionId, questionVersion], references: [id, version])
+  attemptCount        Int
+  correctRate         Float
+  avgTimeMs           Int
+  hintRate            Float
+  misconceptionHits   Json
+  discriminationScore Float?
+  updatedAt           DateTime @updatedAt
+
+  @@id([questionId, questionVersion])
+}
+
+model ReportDelivery {
+  id                String                @id @default(cuid())
+  reportId          String
+  report            Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  parentId          String
+  channel           ReportDeliveryChannel
+  status            ReportDeliveryStatus  @default(PENDING)
+  providerMessageId String?
+  error             String?
+  attemptCount      Int                   @default(0)
+  lastAttemptAt     DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([reportId])
+  @@index([status])
+}
+
+model ContentReview {
+  id             String              @id @default(cuid())
+  contentType    ContentReviewType
+  contentId      String
+  contentVersion Int
+  reviewer       String
+  status         ContentReviewStatus
+  checklist      Json
+  notes          String?
+  reviewedAt     DateTime
+  createdAt      DateTime            @default(now())
+
+  @@index([contentType, contentId, contentVersion])
+}
+
+/// MVP 3.0 stub — no product writes or decision branching in MVP 2.0.
+model ExperimentAssignment {
+  id            String    @id @default(cuid())
+  studentId     String
+  experimentKey String
+  variant       String
+  assignedAt    DateTime  @default(now())
+  endedAt       DateTime?
+
+  @@index([studentId, experimentKey])
 }

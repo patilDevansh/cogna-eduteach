@@ -13,7 +13,7 @@ const prisma = new PrismaClient();
 
 const CONTENT_ROOT = join(__dirname, "../../../docs/mvp-1.0/content");
 
-/** Milestone slice: C2 sign-handling path — APPROVED for local/dev build */
+/** Milestone slice: C2 sign-handling path + baseline blueprint anchors — APPROVED for local/dev build */
 const MILESTONE_APPROVED_QUESTION_IDS = new Set([
   "Q_C2_D1_001",
   "Q_C2_D2_001",
@@ -23,7 +23,15 @@ const MILESTONE_APPROVED_QUESTION_IDS = new Set([
   "Q_C2_D2_003",
   "Q_C2_D2_R01",
   "Q_P1_D1_001",
+  "Q_P1_D2_002",
+  "Q_P3_D1_001",
+  "Q_P4_D1_001",
+  "Q_P5_D1_001",
   "Q_P5_D2_001",
+  "Q_C1_D1_001",
+  "Q_C3_D1_001",
+  "Q_C5_D1_001",
+  "Q_C5_D2_001",
 ]);
 
 const MILESTONE_MISCONCEPTION_PATTERNS: Record<

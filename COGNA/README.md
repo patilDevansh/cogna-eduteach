@@ -1,8 +1,16 @@
 # Cogna — Documentation Map
 
-## Canonical MVP 1.0 implementation spec
+## Repo & GitHub organization
 
-**Only implement from:**
+Branches, PR checks, labels, milestones, and folder authority:
+
+→ [`COGNA 2.0/REPO_AND_GITHUB.md`](../COGNA%202.0/REPO_AND_GITHUB.md)
+
+Also see [`AGENTS.md`](../AGENTS.md) (dual era: 1.0 archive / 2.0 active).
+
+## Canonical MVP implementation specs
+
+**MVP 1.0 (frozen / archive):**
 
 ```text
 /docs/mvp-1.0/
@@ -12,23 +20,44 @@ Start: [`docs/mvp-1.0/README.md`](../docs/mvp-1.0/README.md)
 
 Especially: [`docs/mvp-1.0/README_SHARED_CONTRACTS.md`](../docs/mvp-1.0/README_SHARED_CONTRACTS.md)
 
-## 7-day build tracking
+**MVP 2.0 (active spec for new work):**
+
+```text
+/docs/mvp-2.0/
+```
+
+Start: [`docs/mvp-2.0/README.md`](../docs/mvp-2.0/README.md)
+
+## MVP 1.0 build tracking (archive)
 
 ```text
 /COGNA 1.0/
 ```
 
-- [BUILD_PLAN_7_DAY.md](../COGNA%201.0/BUILD_PLAN_7_DAY.md) — day tasks (strikethrough when done)
+- [BUILD_PLAN_7_DAY.md](../COGNA%201.0/BUILD_PLAN_7_DAY.md) — day tasks (historical)
 - [SKIPPED.md](../COGNA%201.0/SKIPPED.md) — deferred items
 - [BUILD_CARE.md](../COGNA%201.0/BUILD_CARE.md) — guardrails
 
-**Always update those three when doing MVP work** (see `/AGENTS.md`).
+Use only for archive reference or explicit 1.0 hotfixes (see `/AGENTS.md`).
+
+## MVP 2.0 build tracking (active)
+
+```text
+/COGNA 2.0/
+```
+
+- [BUILD_PLAN.md](../COGNA%202.0/BUILD_PLAN.md) — phase plan
+- [SKIPPED.md](../COGNA%202.0/SKIPPED.md) — MVP 2.0 deferrals
+- [BUILD_CARE.md](../COGNA%202.0/BUILD_CARE.md) — MVP 2.0 guardrails
+- [REPO_AND_GITHUB.md](../COGNA%202.0/REPO_AND_GITHUB.md) — branches, PRs, labels
+
+**Always update the active tracking set when doing MVP 2.0 work** (see `/AGENTS.md`).
 
 ## This `COGNA/` folder
 
 > **Future architecture only. Do not use as the MVP implementation specification.**
 
-Mature engine essays below may describe long-term vision. If they conflict with `/docs/mvp-1.0/`, **`/docs/mvp-1.0/` wins**.
+Mature engine essays below may describe long-term vision. If they conflict with `/docs/mvp-2.0/` (active) or `/docs/mvp-1.0/` (archive), **the MVP docs win** for that era.
 
 | File | Status |
 |---|---|
@@ -39,5 +68,7 @@ Mature engine essays below may describe long-term vision. If they conflict with 
 | `README_EXPLANATION_ENGINE.md` | Future architecture only |
 | `README_RECOMMENDATION_ENGINE.md` | Future architecture only |
 | `README_REPORT_GENERATOR.md` | Future architecture only |
+| `PRODUCT_VISION.md` | Future product vision bridge — agentic Cogna roadmap |
 | `README_MVP_ARCHITECTURE.md` | Superseded stub |
 | `COGNA MVP- 1.0/` | **Superseded draft** → use `/docs/mvp-1.0/` |
+| [`CLI_DEVELOPMENT_TESTING.md`](./CLI_DEVELOPMENT_TESTING.md) | **Engineering guide** — CLI/HTTP scenario testing parallel to UI (not MVP spec) |

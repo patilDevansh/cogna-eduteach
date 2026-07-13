@@ -45,8 +45,10 @@ export default function ParentLoginPage() {
     <div className="card">
       <h1>Parent account</h1>
       <p className="lead">
-        Create an account to add students and view their progress. Clerk auth
-        will replace this dev signup when keys are configured.
+        Create an account to add students and view their progress.
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+          ? " Sign in with Clerk when configured."
+          : " Dev signup is active until Clerk keys are configured (see docs/mvp-1.0/DEV_AUTH.md)."}
       </p>
 
       {error && <p className="error">{error}</p>}

@@ -30,7 +30,25 @@ export interface DiagnosticInference {
   confidence: number;
   reasoning: string;
   evidenceAttemptIds?: string[];
+  evidenceEventIds?: string[];
   alternativeExplanations?: string[];
+  validUntil?: string;
+  modelVersion?: string;
+}
+
+/** MVP 2.0 diagnostic factor shape (additive; see README_SHARED_CONTRACTS). */
+export interface DiagnosticFactorV2 {
+  factorType: import("./contracts/enums").DiagnosticFactorType;
+  conceptId?: string;
+  factorKey?: string;
+  value: unknown;
+  confidence: number;
+  reasoning: string;
+  evidenceAttemptIds?: string[];
+  evidenceEventIds?: string[];
+  alternativeExplanations?: string[];
+  validUntil?: string;
+  modelVersion: string;
 }
 
 export interface MasteryUpdate {

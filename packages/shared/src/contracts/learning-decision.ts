@@ -14,6 +14,13 @@ export interface DecisionParameters {
   hintLevel?: number;
   baselineSlotIndex?: number;
   preferredQuestionType?: string;
+  // MVP 2.0 optional fields
+  retentionEstimateId?: string;
+  transferConceptId?: string;
+  sessionPlanId?: string;
+  maxQuestionCount?: number;
+  breakMinutes?: number;
+  explanationOutcomeId?: string;
 }
 
 export interface LearningDecision {
@@ -49,9 +56,26 @@ export interface HintPayload {
   content: string;
 }
 
+/** Payload when uiAction is SUGGEST_BREAK (e.g. BREAK_FOR_FATIGUE). */
+export interface BreakPayload {
+  breakMinutes: number;
+  message: string;
+  continueAllowed: true;
+}
+
+export interface SessionEndPayload {
+  summary?: string;
+  revisionProposed?: boolean;
+}
+
 export interface PracticeNextResponse {
   decision: LearningDecision;
   decisionId?: string;
-  payload?: QuestionPayload | ExplanationPayload | HintPayload;
+  payload?:
+    | QuestionPayload
+    | ExplanationPayload
+    | HintPayload
+    | BreakPayload
+    | SessionEndPayload;
   studentMessage?: string;
 }

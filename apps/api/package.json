@@ -10,6 +10,7 @@
     "test": "node --import tsx --test test/golden/*.spec.ts"
   },
   "dependencies": {
+    "@clerk/backend": "^2.0.0",
     "@cogna/database": "workspace:*",
     "@cogna/shared": "workspace:*",
     "@nestjs/common": "^11.1.3",

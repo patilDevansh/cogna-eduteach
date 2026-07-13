@@ -1,6 +1,8 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
+  BadRequestException,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import type {
@@ -12,6 +14,8 @@ import type {
   HintRequestedEvent,
   LearningDecision,
   PracticeNextResponse,
+  QuestionSkippedEvent,
+  QuestionSkippedResponse,
 } from "@cogna/shared";
 import { BASELINE_SLOT_COUNT } from "@cogna/shared";
 import {
@@ -28,9 +32,17 @@ import { DiagnosticEngineService } from "../engines/diagnostic-engine/diagnostic
 import { DecisionEngineService } from "../engines/decision-engine/decision-engine.service";
 import { QuestionGeneratorService } from "../engines/question-generator/question-generator.service";
 import { ExplanationEngineService } from "../engines/explanation-engine/explanation-engine.service";
+import { RevisionService } from "../revision/revision.service";
+import {
+  isExplanationEffective,
+  isIdleSpike,
+} from "../engines/diagnostic-engine/diagnostic-formulas";
+import { DIAGNOSTIC_RULES_V2 } from "@cogna/shared";
 
 @Injectable()
 export class LearningLoopService {
+  private readonly logger = new Logger(LearningLoopService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly grader: GraderService,
@@ -38,14 +50,33 @@ export class LearningLoopService {
     private readonly decisionEngine: DecisionEngineService,
     private readonly questionGenerator: QuestionGeneratorService,
     private readonly explanationEngine: ExplanationEngineService,
+    private readonly revisionService: RevisionService,
   ) {}
 
   async processAnswer(event: AnswerSubmittedEvent): Promise<AnswerSubmittedResponse> {
+    const loopStarted = Date.now();
+    let stageStarted = loopStarted;
+    const logStage = (stage: string, extra?: Record<string, unknown>) => {
+      const latencyMs = Date.now() - stageStarted;
+      this.logger.log(
+        JSON.stringify({
+          event: "learning_loop.stage",
+          stage,
+          latencyMs,
+          eventId: event.eventId,
+          sessionId: event.sessionId,
+          ...extra,
+        }),
+      );
+      stageStarted = Date.now();
+    };
+
     const existing = await this.prisma.attempt.findUnique({
       where: { eventId: event.eventId },
     });
 
     if (existing?.storedResponse) {
+      logStage("tx0_idempotent_hit", { totalMs: Date.now() - loopStarted });
       return existing.storedResponse as unknown as AnswerSubmittedResponse;
     }
 
@@ -114,6 +145,8 @@ export class LearningLoopService {
       });
     }
 
+    logStage("tx1_graded", { grade, isCorrect, attemptId: attempt.id });
+
     const needsDiagnostic =
       attempt.processingStatus === ProcessingStatus.GRADED ||
       attempt.processingStatus === ProcessingStatus.FAILED_RETRYABLE;
@@ -134,7 +167,9 @@ export class LearningLoopService {
           where: { id: attempt.id },
           data: { processingStatus: ProcessingStatus.PROFILE_UPDATED },
         });
+        logStage("tx2_diagnostic", { attemptId: attempt.id });
       } catch {
+        logStage("tx2_diagnostic_failed", { attemptId: attempt.id });
         await this.prisma.attempt.update({
           where: { id: attempt.id },
           data: { processingStatus: ProcessingStatus.FAILED_RETRYABLE },
@@ -164,7 +199,7 @@ export class LearningLoopService {
       orderBy: { updatedAt: "desc" },
     });
 
-    // RETESTING + correct → RESOLVED (G11)
+    // RETESTING + correct → RESOLVED (G11) + explanation outcome (R06)
     if (
       isCorrect &&
       remediation?.state === "RETESTING" &&
@@ -184,6 +219,25 @@ export class LearningLoopService {
         },
       });
       remediation = { ...remediation, state: "RESOLVED" };
+      await this.completeExplanationOutcome({
+        studentId: event.studentId,
+        sessionId: event.sessionId,
+        conceptId: question.conceptId,
+        misconceptionId: remediation.misconceptionId,
+        retestAttemptId: attempt.id,
+        grade: "CORRECT",
+        highestHintLevel: event.highestHintLevel,
+      });
+    } else if (!isCorrect && remediation?.state === "RETESTING") {
+      await this.completeExplanationOutcome({
+        studentId: event.studentId,
+        sessionId: event.sessionId,
+        conceptId: question.conceptId,
+        misconceptionId: remediation.misconceptionId,
+        retestAttemptId: attempt.id,
+        grade: "INCORRECT",
+        highestHintLevel: event.highestHintLevel,
+      });
     }
 
     const activeFactor = await this.prisma.diagnosticFactor.findFirst({
@@ -220,7 +274,16 @@ export class LearningLoopService {
     // After each baseline answer, the next question comes from the following blueprint slot.
     const sessionForNext = this.sessionForNextBaselineQuestion(session);
 
+    const decisionExtras = await this.buildDecisionExtras({
+      studentId: event.studentId,
+      session: sessionForNext,
+      conceptId: question.conceptId,
+      recentIncorrectStreak,
+      sessionAttempts: recentAttempts,
+    });
+
     let decision: LearningDecision;
+    let usedFallback = false;
     try {
       decision = this.decisionEngine.decide({
         session: sessionForNext,
@@ -232,9 +295,29 @@ export class LearningLoopService {
         dueRevision: dueRevision ?? undefined,
         prerequisiteMastery: prereqMastery,
         hasPrereqQuestions,
+        ...decisionExtras,
       });
     } catch {
       decision = this.decisionEngine.fallbackDecision(sessionForNext);
+      usedFallback = true;
+    }
+
+    logStage("tx3_decided", {
+      uiAction: decision.uiAction,
+      learningIntent: decision.learningIntent,
+      fallbackGenerated: decision.fallbackGenerated ?? usedFallback,
+    });
+
+    if (decision.fallbackGenerated || usedFallback) {
+      this.logger.warn(
+        JSON.stringify({
+          event: "learning_loop.fallback",
+          eventId: event.eventId,
+          sessionId: event.sessionId,
+          uiAction: decision.uiAction,
+          learningIntent: decision.learningIntent,
+        }),
+      );
     }
 
     // TARGETING with 2+ failed targeted attempts → EXPLANATION_REQUIRED (G10)
@@ -310,6 +393,14 @@ export class LearningLoopService {
       },
     });
 
+    if (
+      (decision.learningIntent === "EXECUTE_DUE_REVISION" ||
+        decision.learningIntent === "RETENTION_REVIEW") &&
+      decision.parameters.revisionItemId
+    ) {
+      await this.revisionService.markInProgress(decision.parameters.revisionItemId);
+    }
+
     const next = await this.resolveContent(
       decision,
       event.studentId,
@@ -317,16 +408,34 @@ export class LearningLoopService {
       sessionForNext,
     );
 
+    await this.persistSelectionReasoning(savedDecision.id, next.studentMessage);
+
+    logStage("tx4_content_resolved", {
+      uiAction: next.decision.uiAction,
+      hasPayload: Boolean(next.payload),
+    });
+
     const sessionUpdate: {
-      questionCount: { increment: number };
+      questionCount?: { increment: number };
       activeConceptId: string | undefined;
       activeDifficulty: number | undefined;
       baselineSlotIndex?: { increment: number };
+      breakSuggestedAt?: Date;
     } = {
-      questionCount: { increment: 1 },
       activeConceptId: decision.parameters.conceptId,
       activeDifficulty: decision.parameters.difficulty ?? session.activeDifficulty,
     };
+
+    if (
+      decision.uiAction === "SHOW_QUESTION" ||
+      decision.uiAction === "SHOW_EXPLANATION"
+    ) {
+      sessionUpdate.questionCount = { increment: 1 };
+    }
+
+    if (decision.uiAction === "SUGGEST_BREAK") {
+      sessionUpdate.breakSuggestedAt = new Date();
+    }
 
     if (session.sessionMode === "BASELINE" && decision.uiAction === "SHOW_QUESTION") {
       sessionUpdate.baselineSlotIndex = { increment: 1 };
@@ -336,6 +445,15 @@ export class LearningLoopService {
       where: { id: session.id },
       data: sessionUpdate,
     });
+
+    if (
+      isCorrect &&
+      (decision.learningIntent === "EXECUTE_DUE_REVISION" ||
+        decision.learningIntent === "RETENTION_REVIEW") &&
+      decision.parameters.revisionItemId
+    ) {
+      await this.revisionService.markCompleted(decision.parameters.revisionItemId);
+    }
 
     const response: AnswerSubmittedResponse = {
       processingStatus: "COMPLETED",
@@ -354,6 +472,8 @@ export class LearningLoopService {
         storedResponse: response as unknown as object,
       },
     });
+
+    logStage("completed", { totalMs: Date.now() - loopStarted });
 
     return response;
   }
@@ -417,6 +537,20 @@ export class LearningLoopService {
       });
     }
 
+    await this.recordExplanationViewedOutcome({
+      studentId: event.studentId,
+      sessionId: event.sessionId,
+      explanationId: event.explanationId ?? "unknown",
+      conceptId:
+        event.conceptId ??
+        remediation?.conceptId ??
+        session.activeConceptId ??
+        "C2_ONE_STEP_SUBTRACTION",
+      misconceptionId:
+        event.misconceptionId ?? remediation?.misconceptionId ?? undefined,
+      viewedEventId: event.eventId,
+    });
+
     const decision = this.decisionEngine.decide({
       session,
       recentCorrectStreak: 0,
@@ -424,6 +558,7 @@ export class LearningLoopService {
       activeMisconceptionId:
         event.misconceptionId ?? remediation?.misconceptionId ?? undefined,
       remediationState: "RETESTING",
+      breakSuggestedThisSession: Boolean(session.breakSuggestedAt),
     });
 
     const savedDecision = await this.prisma.learningDecision.create({
@@ -444,6 +579,8 @@ export class LearningLoopService {
     });
 
     const next = await this.resolveContent(decision, event.studentId, event.sessionId, session);
+
+    await this.persistSelectionReasoning(savedDecision.id, next.studentMessage);
 
     const response: ExplanationViewedResponse = {
       processingStatus: "COMPLETED",
@@ -509,6 +646,146 @@ export class LearningLoopService {
     };
   }
 
+  async processSkip(event: QuestionSkippedEvent): Promise<QuestionSkippedResponse> {
+    const existing = await this.prisma.rawEvent.findUnique({
+      where: { eventId: event.eventId },
+    });
+
+    if (existing?.payload) {
+      const payload = existing.payload as Record<string, unknown>;
+      if (payload.storedResponse) {
+        return payload.storedResponse as QuestionSkippedResponse;
+      }
+    }
+
+    const session = await this.prisma.learningSession.findUniqueOrThrow({
+      where: { id: event.sessionId },
+    });
+
+    if (session.studentId !== event.studentId) {
+      throw new NotFoundException("Session not found for student.");
+    }
+
+    if (session.status !== "ACTIVE") {
+      throw new BadRequestException("Session is not active.");
+    }
+
+    await this.prisma.question.findUniqueOrThrow({
+      where: {
+        id_version: { id: event.questionId, version: event.questionVersion },
+      },
+    });
+
+    if (session.sessionMode === "BASELINE") {
+      const priorSkips = await this.prisma.rawEvent.count({
+        where: { sessionId: event.sessionId, eventType: "QUESTION_SKIPPED" },
+      });
+      if (priorSkips >= 2) {
+        throw new BadRequestException(
+          "Maximum baseline skip extensions reached (2).",
+        );
+      }
+    }
+
+    await this.prisma.rawEvent.upsert({
+      where: { eventId: event.eventId },
+      create: {
+        eventId: event.eventId,
+        eventType: event.eventType,
+        studentId: event.studentId,
+        sessionId: event.sessionId,
+        payload: event as unknown as object,
+      },
+      update: {},
+    });
+
+    const recentAttempts = await this.prisma.attempt.findMany({
+      where: { sessionId: event.sessionId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    const recentCorrectStreak = this.streak(recentAttempts, true);
+    const recentIncorrectStreak = this.streak(recentAttempts, false);
+
+    const sessionForNext = this.sessionForNextBaselineQuestion(session);
+
+    let decision: LearningDecision;
+    try {
+      decision = this.decisionEngine.decide({
+        session: sessionForNext,
+        recentCorrectStreak,
+        recentIncorrectStreak,
+      });
+    } catch {
+      decision = this.decisionEngine.fallbackDecision(sessionForNext);
+    }
+
+    const savedDecision = await this.prisma.learningDecision.create({
+      data: {
+        studentId: event.studentId,
+        sessionId: event.sessionId,
+        uiAction: decision.uiAction as UiAction,
+        learningIntent: decision.learningIntent as LearningIntent,
+        contentStyle: decision.contentStyle
+          ? (decision.contentStyle as Prisma.InputJsonValue)
+          : undefined,
+        parameters: decision.parameters as unknown as Prisma.InputJsonValue,
+        confidence: decision.confidence,
+        reasoning: decision.reasoning,
+        decisionVersion: decision.decisionVersion,
+        fallbackGenerated: decision.fallbackGenerated ?? false,
+        inputSnapshot: { trigger: "QUESTION_SKIPPED", questionId: event.questionId },
+      },
+    });
+
+    const next = await this.resolveContent(
+      decision,
+      event.studentId,
+      event.sessionId,
+      sessionForNext,
+    );
+
+    await this.persistSelectionReasoning(savedDecision.id, next.studentMessage);
+
+    const sessionUpdate: {
+      baselineSlotIndex?: { increment: number };
+      activeConceptId?: string;
+      activeDifficulty?: number;
+    } = {
+      activeConceptId: decision.parameters.conceptId,
+      activeDifficulty: decision.parameters.difficulty ?? session.activeDifficulty,
+    };
+
+    if (session.sessionMode === "BASELINE" && decision.uiAction === "SHOW_QUESTION") {
+      sessionUpdate.baselineSlotIndex = { increment: 1 };
+    }
+
+    await this.prisma.learningSession.update({
+      where: { id: session.id },
+      data: sessionUpdate,
+    });
+
+    const response: QuestionSkippedResponse = {
+      processingStatus: "COMPLETED",
+      decision,
+      decisionId: savedDecision.id,
+      next,
+    };
+
+    await this.prisma.rawEvent.update({
+      where: { eventId: event.eventId },
+      data: {
+        payload: {
+          ...(event as unknown as object),
+          storedResponse: response,
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    return response;
+  }
+
   async getNextForSession(sessionId: string, studentId: string): Promise<PracticeNextResponse> {
     const session = await this.prisma.learningSession.findUniqueOrThrow({
       where: { id: sessionId },
@@ -534,6 +811,8 @@ export class LearningLoopService {
         })
       : null;
 
+    const dueRevision = await this.revisionService.findDue(studentId);
+
     const decision = this.decisionEngine.decide({
       session,
       recentCorrectStreak: 0,
@@ -544,9 +823,44 @@ export class LearningLoopService {
         remediation?.state,
       ),
       remediationState: remediation?.state,
+      dueRevision: dueRevision ?? undefined,
     });
 
+    if (
+      decision.learningIntent === "EXECUTE_DUE_REVISION" &&
+      decision.parameters.revisionItemId
+    ) {
+      await this.revisionService.markInProgress(decision.parameters.revisionItemId);
+    }
+
     return this.resolveContent(decision, studentId, sessionId, session);
+  }
+
+  private async persistSelectionReasoning(
+    decisionId: string,
+    selectionReasoning?: string,
+  ): Promise<void> {
+    if (!selectionReasoning) return;
+
+    const existing = await this.prisma.learningDecision.findUnique({
+      where: { id: decisionId },
+      select: { inputSnapshot: true },
+    });
+
+    const prior =
+      existing?.inputSnapshot && typeof existing.inputSnapshot === "object"
+        ? (existing.inputSnapshot as Record<string, unknown>)
+        : {};
+
+    await this.prisma.learningDecision.update({
+      where: { id: decisionId },
+      data: {
+        inputSnapshot: {
+          ...prior,
+          selectionReasoning,
+        },
+      },
+    });
   }
 
   private async getWeakestPrereqMastery(
@@ -633,14 +947,18 @@ export class LearningLoopService {
         if (
           err instanceof NotFoundException &&
           (err.message === "NO_ELIGIBLE_QUESTION" ||
-            err.message.includes("NO_ELIGIBLE_QUESTION"))
+            err.message.includes("NO_ELIGIBLE_QUESTION") ||
+            err.message === "NO_APPROVED_CONTENT" ||
+            err.message.includes("NO_APPROVED_CONTENT"))
         ) {
           const endDecision: LearningDecision = {
             uiAction: "END_SESSION",
             learningIntent: "STANDARD_PRACTICE",
             parameters: decision.parameters,
             confidence: 0.8,
-            reasoning: "No eligible questions; ending session safely.",
+            reasoning: err.message.includes("NO_APPROVED_CONTENT")
+              ? "No APPROVED content available; ending session safely."
+              : "No eligible questions; ending session safely.",
             decisionVersion: decision.decisionVersion,
           };
           return {
@@ -657,6 +975,19 @@ export class LearningLoopService {
       return { decision, payload: explanation };
     }
 
+    if (decision.uiAction === "SUGGEST_BREAK") {
+      const minutes = decision.parameters.breakMinutes ?? 3;
+      return {
+        decision,
+        payload: {
+          breakMinutes: minutes,
+          message: "Let's take a short break and come back fresh.",
+          continueAllowed: true as const,
+        },
+        studentMessage: "Let's take a short break and come back fresh.",
+      };
+    }
+
     if (decision.uiAction === "END_SESSION") {
       return {
         decision,
@@ -667,6 +998,156 @@ export class LearningLoopService {
     return { decision };
   }
 
+  private async buildDecisionExtras(input: {
+    studentId: string;
+    session: LearningSession;
+    conceptId: string;
+    recentIncorrectStreak: number;
+    sessionAttempts: Attempt[];
+  }) {
+    const idleSpikeCount = input.sessionAttempts.filter((a) =>
+      isIdleSpike(a.idleTimeMs),
+    ).length;
+
+    const mastery = await this.prisma.masteryScore.findUnique({
+      where: {
+        studentId_conceptId: {
+          studentId: input.studentId,
+          conceptId: input.conceptId,
+        },
+      },
+    });
+    const concept = await this.prisma.concept.findUnique({
+      where: { id: input.conceptId },
+    });
+
+    const hasTransferCheckItem =
+      (await this.prisma.question.count({
+        where: {
+          conceptId: input.conceptId,
+          questionIntent: "TRANSFER_CHECK",
+          reviewStatus: "APPROVED",
+        },
+      })) > 0;
+
+    const errorRecoveryFactor = await this.prisma.diagnosticFactor.findFirst({
+      where: {
+        studentId: input.studentId,
+        conceptId: input.conceptId,
+        factorType: "ERROR_RECOVERY",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const retentionRow = await this.prisma.retentionEstimate.findFirst({
+      where: {
+        studentId: input.studentId,
+        conceptId: input.conceptId,
+        validUntil: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const activeHighMisconception =
+      (await this.prisma.diagnosticFactor.findFirst({
+        where: {
+          studentId: input.studentId,
+          conceptId: input.conceptId,
+          factorType: "MISCONCEPTION",
+          confidence: { gt: 0.6 },
+        },
+        orderBy: { createdAt: "desc" },
+      })) != null;
+
+    return {
+      breakSuggestedThisSession: Boolean(input.session.breakSuggestedAt),
+      idleSpikeCount,
+      masteryValue: mastery?.value,
+      evidenceCount: mastery?.evidenceCount,
+      masteryThreshold: concept?.masteryThreshold,
+      minimumEvidence: concept?.minimumEvidence,
+      hasTransferCheckItem,
+      hasActiveMisconceptionHighConfidence: activeHighMisconception,
+      errorRecoveryRate:
+        typeof errorRecoveryFactor?.value === "number"
+          ? errorRecoveryFactor.value
+          : null,
+      retentionEstimateId: retentionRow?.id,
+    };
+  }
+
+  private async recordExplanationViewedOutcome(input: {
+    studentId: string;
+    sessionId: string;
+    explanationId: string;
+    conceptId: string;
+    misconceptionId?: string;
+    viewedEventId: string;
+  }) {
+    try {
+      await this.prisma.explanationOutcome.upsert({
+        where: { viewedEventId: input.viewedEventId },
+        create: {
+          studentId: input.studentId,
+          sessionId: input.sessionId,
+          explanationId: input.explanationId,
+          conceptId: input.conceptId,
+          misconceptionId: input.misconceptionId,
+          viewedEventId: input.viewedEventId,
+          effective: null,
+          modelVersion: DIAGNOSTIC_RULES_V2,
+        },
+        update: {},
+      });
+    } catch (err) {
+      this.logger.warn(
+        `explanation_outcome create skipped: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private async completeExplanationOutcome(input: {
+    studentId: string;
+    sessionId: string;
+    conceptId: string;
+    misconceptionId?: string;
+    retestAttemptId: string;
+    grade: Grade;
+    highestHintLevel: number;
+  }) {
+    try {
+      const pending = await this.prisma.explanationOutcome.findFirst({
+        where: {
+          studentId: input.studentId,
+          sessionId: input.sessionId,
+          conceptId: input.conceptId,
+          effective: null,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!pending) return;
+
+      const effective = isExplanationEffective({
+        explanationViewed: true,
+        nextAttemptCorrect: input.grade === "CORRECT",
+        highestHintLevel: input.highestHintLevel,
+      });
+
+      await this.prisma.explanationOutcome.update({
+        where: { id: pending.id },
+        data: {
+          retestAttemptId: input.retestAttemptId,
+          effective,
+          highestHintLevel: input.highestHintLevel,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `explanation_outcome complete skipped: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   /** Blueprint slot for the question shown after the current answer completes. */
   private sessionForNextBaselineQuestion(session: LearningSession): LearningSession {
     if (session.sessionMode !== "BASELINE") {
@@ -675,6 +1156,7 @@ export class LearningLoopService {
 
     return {
       ...session,
+      questionCount: session.questionCount + 1,
       baselineSlotIndex: Math.min(
         session.baselineSlotIndex + 1,
         BASELINE_SLOT_COUNT - 1,
