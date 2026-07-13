@@ -496,6 +496,202 @@ export class ScheduledJobsService {
     }
   }
 
+  // ─── MVP 3.0 — Experiment analysis export ────────────────────────────────
+
+  /**
+   * EXPERIMENT_ANALYSIS_EXPORT job.
+   * Exports experiment outcomes for offline analysis (idempotent).
+   * Job payload: { experimentKey, periodStart, periodEnd }
+   */
+  async processExperimentAnalysisExportJob(jobId: string): Promise<{
+    status: string;
+    exportPath?: string;
+  }> {
+    const job = await this.lockJob(jobId);
+    if (!job) {
+      const current = await this.prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+      return {
+        status: current.status,
+        exportPath: current.resultRef ?? undefined,
+      };
+    }
+
+    try {
+      const payload = job.payload as {
+        experimentKey: string;
+        periodStart: string;
+        periodEnd: string;
+      };
+
+      // 1. Fetch assignments
+      const assignments = await this.prisma.experimentAssignment.findMany({
+        where: {
+          experimentKey: payload.experimentKey,
+          assignedAt: {
+            gte: new Date(payload.periodStart),
+            lte: new Date(payload.periodEnd),
+          },
+        },
+      });
+
+      // 2. Fetch candidate scores for those students
+      const studentIds = assignments.map((a) => a.studentId);
+      const scores = await this.prisma.candidateActionScore.findMany({
+        where: {
+          studentId: { in: studentIds },
+          createdAt: {
+            gte: new Date(payload.periodStart),
+            lte: new Date(payload.periodEnd),
+          },
+        },
+      });
+
+      // 3. Fetch session outcomes (mastery deltas, retention success, etc.)
+      const sessions = await this.prisma.learningSession.findMany({
+        where: {
+          studentId: { in: studentIds },
+          startedAt: {
+            gte: new Date(payload.periodStart),
+            lte: new Date(payload.periodEnd),
+          },
+        },
+        include: {
+          attempts: {
+            include: { masteryUpdates: true },
+          },
+        },
+      });
+
+      // 4. Build export structure (stub — real export would write to cloud storage)
+      const exportData = {
+        experimentKey: payload.experimentKey,
+        periodStart: payload.periodStart,
+        periodEnd: payload.periodEnd,
+        generatedAt: new Date().toISOString(),
+        assignments: assignments.map((a) => ({
+          studentId: a.studentId,
+          arm: a.arm,
+          assignedAt: a.assignedAt.toISOString(),
+        })),
+        candidateScores: scores.map((s) => ({
+          studentId: s.studentId,
+          sessionId: s.sessionId,
+          eventId: s.eventId,
+          selectedIndex: s.selectedIndex,
+          experimentArmId: s.experimentArmId,
+          shadow: s.shadow,
+          createdAt: s.createdAt.toISOString(),
+        })),
+        sessions: sessions.map((sess) => ({
+          studentId: sess.studentId,
+          sessionId: sess.id,
+          startedAt: sess.startedAt.toISOString(),
+          endedAt: sess.endedAt?.toISOString(),
+          attemptCount: sess.attempts.length,
+          masteryDeltas: sess.attempts.flatMap((a) =>
+            a.masteryUpdates.map((m) => ({
+              conceptId: m.conceptId,
+              delta: m.newValue - m.previousValue,
+            })),
+          ),
+        })),
+      };
+
+      // Stub: In production, write exportData to S3/GCS and store path
+      const exportPath = `exports/${payload.experimentKey}_${payload.periodStart}_${payload.periodEnd}.json`;
+      this.logger.log(
+        `EXPERIMENT_ANALYSIS_EXPORT job ${jobId} completed (stub). Export path: ${exportPath}`,
+      );
+
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          resultRef: exportPath,
+          attemptCount: job.attemptCount + 1,
+          lockedAt: null,
+          lockedBy: null,
+          lastError: null,
+        },
+      });
+
+      return { status: "COMPLETED", exportPath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const attemptCount = job.attemptCount + 1;
+      const permanent = attemptCount >= CONTENT_JOB_MAX_ATTEMPTS;
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: permanent ? JobStatus.FAILED_PERMANENT : JobStatus.FAILED_RETRYABLE,
+          attemptCount,
+          lastError: message,
+          lockedAt: null,
+          lockedBy: null,
+          runAfter: permanent
+            ? null
+            : new Date(Date.now() + attemptCount * 60_000),
+        },
+      });
+      this.logger.error(`EXPERIMENT_ANALYSIS_EXPORT job ${jobId} failed: ${message}`);
+      return { status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE" };
+    }
+  }
+
+  /**
+   * Enqueue EXPERIMENT_ANALYSIS_EXPORT job (idempotent by experiment + period).
+   */
+  async enqueueExperimentAnalysisExport(input: {
+    experimentKey: string;
+    periodStart: string;
+    periodEnd: string;
+  }): Promise<{
+    jobId: string;
+    exportPath?: string;
+    status: "COMPLETED" | "PENDING";
+    idempotencyKey: string;
+  }> {
+    const idempotencyKey = `${input.experimentKey}:${input.periodStart}:${input.periodEnd}`;
+
+    const existing = await this.prisma.job.findUnique({
+      where: {
+        jobType_idempotencyKey: {
+          jobType: "EXPERIMENT_ANALYSIS_EXPORT",
+          idempotencyKey,
+        },
+      },
+    });
+
+    if (existing?.status === JobStatus.COMPLETED && existing.resultRef) {
+      return {
+        jobId: existing.id,
+        exportPath: existing.resultRef,
+        status: "COMPLETED",
+        idempotencyKey,
+      };
+    }
+
+    const job =
+      existing ??
+      (await this.prisma.job.create({
+        data: {
+          jobType: "EXPERIMENT_ANALYSIS_EXPORT",
+          idempotencyKey,
+          payload: input,
+          status: JobStatus.PENDING,
+        },
+      }));
+
+    const result = await this.processExperimentAnalysisExportJob(job.id);
+    return {
+      jobId: job.id,
+      exportPath: result.exportPath,
+      status: result.status === "COMPLETED" ? "COMPLETED" : "PENDING",
+      idempotencyKey,
+    };
+  }
+
   private async lockJob(jobId: string) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) return null;

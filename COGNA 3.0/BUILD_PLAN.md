@@ -37,10 +37,10 @@
 
 ## Phase 4 — Analysis & observability
 
-- [ ] `EXPERIMENT_ANALYSIS_EXPORT` job
-- [ ] Pilot dashboard experiment + draft sections
-- [ ] Alerts for non-APPROVED serve / hot-path LLM
-- [ ] Golden S18–S19
+- [x] `EXPERIMENT_ANALYSIS_EXPORT` job
+- [x] Pilot dashboard experiment + draft sections
+- [x] Alerts for non-APPROVED serve / hot-path LLM
+- [x] Golden S18–S19
 
 ## Phase 5 — Bank growth & pilot
 

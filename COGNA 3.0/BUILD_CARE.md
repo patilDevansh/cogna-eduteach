@@ -16,6 +16,7 @@
 - [x] Scorer cannot override END_SESSION / SUGGEST_BREAK hard gates (decision-rules-v3 implements priority order: hard gates always win)
 - [x] Experiment assignment sticky and audited (ExperimentAssignment.sticky default true; unique constraint on studentId+experimentKey)
 - [x] G## + R## remain green + S01–S03, S11–S16, S20 added (78/78 golden tests green — 50 suites)
+- [x] Phase 4: S18–S19 golden tests added and green; EXPERIMENT_ANALYSIS_EXPORT idempotent by period key; hot path isolation verified; alert stubs for non-APPROVED content and hot-path LLM calls
 
 ## Pitfalls to Watch
 
@@ -27,6 +28,8 @@
 - Renaming concept IDs
 - Expanding to multi-unit before 3.0 pilot exit criteria
 - Parent reports leaking experiment jargon without consent policy
+- Running experiment analysis exports in production without storage isolation
+- Ignoring hot-path LLM alert (P0 violation — must be zero)
 
 ## Enforced in P0/P1 Documentation Pass (2026-07-13)
 
