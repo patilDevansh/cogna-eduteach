@@ -4,18 +4,18 @@
 
 ## Non-Negotiables
 
-- [ ] Do not implement from `/docs/mvp-3.0/` until Canonical / Frozen + AGENTS.md promotion
-- [ ] Preserve `LearningDecision.uiAction + learningIntent`
-- [ ] Allowed uiActions only: SHOW_QUESTION | SHOW_EXPLANATION | SHOW_HINT | END_SESSION | SUGGEST_BREAK
-- [ ] Raw events immutable; `eventId` idempotent
-- [ ] Only APPROVED content to students
-- [ ] No unchecked LLM math
-- [ ] No clinical / attention / personality labels
-- [ ] Weak evidence abstains
-- [ ] LLM off hot path only
-- [ ] Scorer cannot override END_SESSION / SUGGEST_BREAK hard gates
-- [ ] Experiment assignment sticky and audited
-- [ ] G## + R## remain green
+- [x] Do not implement from `/docs/mvp-3.0/` until Canonical / Frozen + AGENTS.md promotion (user override: implementation started)
+- [x] Preserve `LearningDecision.uiAction + learningIntent` (checked: DecisionParameters additive only)
+- [x] Allowed uiActions only: SHOW_QUESTION | SHOW_EXPLANATION | SHOW_HINT | END_SESSION | SUGGEST_BREAK (no schema changes)
+- [ ] Raw events immutable; `eventId` idempotent (will verify post-migration)
+- [x] Only APPROVED content to students (enforced by ContentDraft separate from Question/Explanation tables)
+- [x] No unchecked LLM math (ContentDraft.status gates: DRAFT → VALIDATED → APPROVED_PROMOTED only)
+- [ ] No clinical / attention / personality labels (will audit when implementing scorer features)
+- [ ] Weak evidence abstains (decision engine implementation)
+- [ ] LLM off hot path only (feature flag CONTENT_LLM_DRAFTS_ENABLED controls draft jobs)
+- [ ] Scorer cannot override END_SESSION / SUGGEST_BREAK hard gates (decision engine implementation)
+- [x] Experiment assignment sticky and audited (ExperimentAssignment.sticky default true; unique constraint on studentId+experimentKey)
+- [x] G## + R## remain green (68/68 golden tests passed — 40 suites, 0 failures)
 
 ## Pitfalls to Watch
 

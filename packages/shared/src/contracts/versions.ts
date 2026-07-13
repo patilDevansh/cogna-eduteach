@@ -34,3 +34,27 @@ export const ENGINE_VERSIONS_V2 = {
   reportTemplates: REPORT_TEMPLATES_V2,
   contentReviewRules: CONTENT_REVIEW_RULES_V2,
 } as const;
+
+// ─── MVP 3.0 version strings ───────────────────────────────────────────────
+
+export const DECISION_RULES_V3 = "decision-rules-v3";
+export const CANDIDATE_SCORE_RULES_V1 = "candidate-score-rules-v1";
+export const EXPERIMENT_RULES_V1 = "experiment-rules-v1";
+export const CONTENT_DRAFT_RULES_V1 = "content-draft-rules-v1";
+export const CONTENT_VALIDATION_RULES_V1 = "content-validation-rules-v1";
+
+export const ENGINE_VERSIONS_V3 = {
+  // Carry forward from MVP 2.0
+  masteryFormula: MASTERY_FORMULA_V2,
+  diagnosticRules: DIAGNOSTIC_RULES_V2,
+  retentionRules: RETENTION_RULES_V2,
+  recommendationRules: RECOMMENDATION_RULES_V2,
+  reportTemplates: REPORT_TEMPLATES_V2,
+  contentReviewRules: CONTENT_REVIEW_RULES_V2,
+  // MVP 3.0 new
+  decisionRules: DECISION_RULES_V3,
+  candidateScoreRules: CANDIDATE_SCORE_RULES_V1,
+  experimentRules: EXPERIMENT_RULES_V1,
+  contentDraftRules: CONTENT_DRAFT_RULES_V1,
+  contentValidationRules: CONTENT_VALIDATION_RULES_V1,
+} as const;

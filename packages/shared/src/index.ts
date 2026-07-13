@@ -3,6 +3,10 @@ export * from "./contracts/versions";
 export * from "./contracts/learning-decision";
 export * from "./contracts/events";
 export * from "./contracts/baseline-blueprint";
+// MVP 3.0
+export * from "./contracts/experiments";
+export * from "./contracts/content-drafts";
+export * from "./contracts/candidate-scores";
 
 export interface AttemptSignals {
   isCorrect: boolean | null;

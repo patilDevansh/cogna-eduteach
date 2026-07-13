@@ -21,6 +21,11 @@ export interface DecisionParameters {
   maxQuestionCount?: number;
   breakMinutes?: number;
   explanationOutcomeId?: string;
+  // MVP 3.0 optional fields
+  experimentId?: string;
+  experimentArmId?: string;
+  candidateScoreId?: string;
+  draftOriginId?: string; // analytics only; never student-facing
 }
 
 export interface LearningDecision {

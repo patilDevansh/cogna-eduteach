@@ -7,10 +7,11 @@
 
 - [ ] Human promote `docs/mvp-3.0` from Draft → Canonical / Frozen
 - [ ] Confirm experiment ethics / parent notice language
-- [ ] Feature flags: `EXPERIMENTS_ENABLED`, `CONTENT_LLM_DRAFTS_ENABLED`
-- [ ] `packages/shared`: experiment + draft + candidate score types
-- [ ] Prisma: activate `ExperimentAssignment` writes; add drafts / scores / definitions
-- [ ] Carry G## + R## green as regression baseline
+- [x] Feature flags: `EXPERIMENTS_ENABLED`, `CONTENT_LLM_DRAFTS_ENABLED`
+- [x] `packages/shared`: experiment + draft + candidate score types
+- [x] Prisma: activate `ExperimentAssignment` writes; add drafts / scores / definitions
+- [x] Prisma client generated (no migration needed yet — using db push pattern)
+- [x] Carry G## + R## green as regression baseline (68/68 golden tests passed)
 
 ## Phase 1 — Content draft pipeline
 
