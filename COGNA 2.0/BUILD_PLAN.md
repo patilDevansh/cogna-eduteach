@@ -52,11 +52,11 @@
 
 ## Phase 4 — Recommendation, Revision, Reports
 
-- [ ] Daily revision plan v2
-- [ ] Weekly plan
-- [ ] Weekly parent report
-- [ ] Report delivery records (`jobs` + `report_deliveries`)
-- [ ] Email provider integration or staging stub
+- [x] ~~Daily revision plan v2~~
+- [x] ~~Weekly plan~~
+- [x] ~~Weekly parent report~~
+- [x] ~~Report delivery records (`jobs` + `report_deliveries`)~~
+- [x] ~~Email provider integration or staging stub~~
 - [x] ~~Parent weekly summary UI~~
 - [x] ~~Student revision plan / queue UI (retention-aware copy; plan API 404-tolerant)~~
 - [x] ~~Practice `SUGGEST_BREAK` break UI (soft; once per session)~~
@@ -74,7 +74,7 @@
 ## Phase 6 — Pilot Readiness
 
 - [x] ~~Golden suite green (G## + R01–R10; further R11+ still open)~~
-- [ ] CLI scenarios green
+- [x] ~~CLI scenarios green~~ (retention-review-due, weekly-report, fatigue-break, explanation-effectiveness, email-report-delivery, content-approval-gate + prior MVP 1.0 set)
 - [ ] UI smoke green
 - [x] ~~UI smoke script for MVP 2.0 routes (`scripts/ui-mvp2-smoke.mjs`)~~
 - [ ] Content review checklist signed

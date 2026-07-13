@@ -49,7 +49,7 @@
 ## Testing Care
 
 - [x] ~~Golden for formulas and policies (R01–R10 + G## regression green 2026-07-13)~~
-- [ ] CLI for API/DB journeys
+- [x] ~~CLI for API/DB journeys~~ (MVP 2.0: retention-review-due, weekly-report, fatigue-break, explanation-effectiveness, email-report-delivery, content-approval-gate)
 - [x] ~~UI smoke only for route and interaction wiring (`test:smoke:ui` + `test:smoke:ui:mvp2`)~~
 - [ ] Content validation for bank quality
 - [ ] Pilot metrics for real-world outcomes

@@ -18,11 +18,13 @@
 - **Created:** 2026-07-13
 - **Updated:** 2026-07-13
 - **MVP 1.0 status:** complete / archive
-- **MVP 2.0 status:** **Phase 2–3 engines landed** + foundation + web UI Phase 4 surfaces — diagnostic/decision v2 + R01–R10 goldens green
+- **MVP 2.0 status:** **Phase 2–4 in progress** — engines + goldens + Phase 4 reports/revision/jobs API + CLI scenarios green; UI Phase 4 surfaces present
 - **Spec status line:** `Canonical / Frozen` in [`docs/mvp-2.0/README.md`](../docs/mvp-2.0/README.md)
 - **Core goal:** pilot-ready personalization with full reviewed Linear Equations content, retention/revision v2, weekly reports, observability, and production auth path
 - **Foundation done:** shared enum migration (`RETENTION_REVIEW` | `TRANSFER_CHECK` | `BREAK_FOR_FATIGUE`), `*-v2` version strings, Prisma additive tables
 - **Engines done:** retention-rules-v2, learning velocity, error recovery, explanation outcomes, fatigue → `SUGGEST_BREAK`/`BREAK_FOR_FATIGUE`, decision priority v2, recommendation term math v2; `pnpm test:golden` **53/53**
+- **Phase 4 API done:** daily/weekly revision plan v2, weekly parent report + `report_deliveries` + jobs enqueue/retry, retention GET/fixture, email stub
+- **CLI done:** `retention-review-due`, `weekly-report`, `fatigue-break`, `explanation-effectiveness`, `email-report-delivery`, `content-approval-gate`
 - **Web UI done:** `/parent/students/[id]/weekly`, session summary empty/404 states, revision queue + optional plan, practice `SUGGEST_BREAK` break phase
 - **Next:** item statistics refresh; confidence-calibration-aware difficulty; content bank + review; Clerk/email production path
 - **Remaining operational gates:** content-review owner, pilot cohort, Clerk/email production choices, ~200 APPROVED bank for external pilot
