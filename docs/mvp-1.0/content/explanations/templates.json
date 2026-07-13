@@ -1,0 +1,44 @@
+{
+  "explanations": [
+    {
+      "id": "EXP_C2_SIGN_HANDLING_STEP_V1",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "misconceptionId": "SIGN_HANDLING",
+      "style": "STEP_BY_STEP",
+      "content": "When an equation subtracts a number from x, undo that by adding the same number to both sides. For example, from x - 7 = 11, add 7 to both sides to get x = 18. Do not subtract 7 from 11.",
+      "checkForUnderstanding": "What operation undoes subtracting 7 from x?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_C1_INVERSE_STEP_V1",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "misconceptionId": "INVERSE_OPERATION",
+      "style": "STEP_BY_STEP",
+      "content": "If the equation adds a number to x, undo it by subtracting that number from both sides. Keep both sides balanced.",
+      "checkForUnderstanding": "What undoes adding 3 to x?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_P5_EQUALITY_STEP_V1",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "misconceptionId": "EQUALITY_IMBALANCE",
+      "style": "STEP_BY_STEP",
+      "content": "An equation is like a balance scale. Whatever you do to one side, do to the other side too, or the sides are no longer equal.",
+      "checkForUnderstanding": "If you subtract 4 from the left side, what must you do on the right?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_C6_WORD_STEP_V1",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "misconceptionId": "WORD_TO_EQUATION",
+      "style": "STEP_BY_STEP",
+      "content": "Translate the sentence into an equation before solving. 'Seven less than a number' means x - 7, not 7 - x.",
+      "checkForUnderstanding": "How do you write 'seven less than a number' as an expression?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    }
+  ]
+}

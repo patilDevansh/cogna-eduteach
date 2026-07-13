@@ -1,0 +1,481 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  PARENT
+  STUDENT
+  ADMIN
+}
+
+enum ConceptKind {
+  PREREQ
+  CORE
+}
+
+enum QuestionType {
+  NUMERIC
+  MCQ
+  WORD_PROBLEM
+}
+
+enum ReviewStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  RETIRED
+}
+
+enum SessionMode {
+  BASELINE
+  ADAPTIVE_PRACTICE
+}
+
+enum SessionStatus {
+  ACTIVE
+  ENDED
+}
+
+enum Grade {
+  CORRECT
+  INCORRECT
+  PARTIALLY_CORRECT
+  INVALID_FORMAT
+  REQUIRES_REVIEW
+}
+
+enum ProcessingStatus {
+  RECEIVED
+  VALIDATED
+  GRADED
+  PROFILE_UPDATED
+  DECIDED
+  CONTENT_RESOLVED
+  COMPLETED
+  FAILED_RETRYABLE
+  FAILED_PERMANENT
+}
+
+enum UiAction {
+  SHOW_QUESTION
+  SHOW_EXPLANATION
+  SHOW_HINT
+  END_SESSION
+  SUGGEST_BREAK
+}
+
+enum LearningIntent {
+  STANDARD_PRACTICE
+  INCREASE_DIFFICULTY
+  DECREASE_DIFFICULTY
+  TARGET_MISCONCEPTION
+  REVIEW_PREREQUISITE
+  EXECUTE_DUE_REVISION
+  RETEST_AFTER_EXPLANATION
+  CONCEPT_REINFORCEMENT
+  BASELINE_ASSESSMENT
+}
+
+enum RemediationState {
+  UNCONFIRMED
+  TARGETING
+  EXPLANATION_REQUIRED
+  RETESTING
+  RESOLVED
+  STILL_ACTIVE
+}
+
+enum RevisionItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ReportAudience {
+  STUDENT
+  PARENT
+  INTERNAL
+}
+
+enum ReportTrigger {
+  SESSION_ENDED
+  DAILY_REPORT_JOB
+  WEEKLY_REPORT_JOB
+  PARENT_REQUESTED_REPORT
+}
+
+// ─── Auth / accounts ───────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique
+  role      UserRole
+  email     String?
+  createdAt DateTime @default(now())
+
+  parent  Parent?
+  student Student?
+
+  @@index([role])
+}
+
+model Parent {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  trialEndsAt        DateTime?
+  subscriptionStatus String    @default("trial")
+
+  primaryStudents ParentStudentLink[] @relation("PrimaryParent")
+  createdAt       DateTime            @default(now())
+}
+
+model Student {
+  id              String    @id @default(cuid())
+  userId          String?   @unique
+  user            User?     @relation(fields: [userId], references: [id])
+  primaryParentId String
+  name            String
+  grade           Int       @default(8)
+  curriculum      String    @default("CBSE")
+  accessCodeHash  String
+  deletedAt       DateTime?
+
+  learnerProfile    LearnerProfile?
+  sessions          LearningSession[]
+  attempts          Attempt[]
+  masteryScores     MasteryScore[]
+  masteryHistory    MasteryHistory[]
+  diagnosticFactors DiagnosticFactor[]
+  remediationStates MisconceptionRemediationState[]
+  learningDecisions LearningDecision[]
+  revisionItems     RevisionQueueItem[]
+  reports           Report[]
+  parentLinks       ParentStudentLink[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([primaryParentId])
+}
+
+model ParentStudentLink {
+  parentId       String
+  parent         Parent  @relation("PrimaryParent", fields: [parentId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  relationship   String  @default("parent")
+  canViewReports Boolean @default(true)
+
+  @@id([parentId, studentId])
+}
+
+// ─── Content ───────────────────────────────────────────────────────────────
+
+model Concept {
+  id               String      @id
+  name             String
+  kind             ConceptKind
+  masteryThreshold Float
+  minimumEvidence  Int
+  sortOrder        Int
+
+  prerequisites ConceptPrerequisite[] @relation("Concept")
+  requiredBy    ConceptPrerequisite[] @relation("Prerequisite")
+  questions     Question[]
+  explanations  Explanation[]
+  masteryScores MasteryScore[]
+}
+
+model ConceptPrerequisite {
+  conceptId      String
+  concept        Concept @relation("Concept", fields: [conceptId], references: [id], onDelete: Cascade)
+  prerequisiteId String
+  prerequisite   Concept @relation("Prerequisite", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@id([conceptId, prerequisiteId])
+}
+
+model Misconception {
+  id                         String @id
+  conceptIds                 String[]
+  minimumMatchingAttempts    Int
+  activationConfidence       Float
+  alternativeExplanations    String[]
+  maxTargetedBeforeExplanation Int    @default(2)
+  maxExplanationCycles       Int      @default(2)
+  resolutionConsecutiveCorrect Int    @default(2)
+  resolutionMaxHintLevel     Int      @default(1)
+}
+
+model Question {
+  id                       String
+  version                  Int          @default(1)
+  conceptId                String
+  concept                  Concept      @relation(fields: [conceptId], references: [id])
+  difficulty               Int
+  questionIntent           String
+  type                     QuestionType
+  stem                     String
+  acceptedAnswers          Json
+  misconceptionsTested     String[]
+  misconceptionPatterns    Json?
+  prerequisiteConceptIds   String[]
+  solutionSteps            Json
+  hintLadder               Json
+  reviewStatus             ReviewStatus @default(PENDING_REVIEW)
+  itemQualityWeight        Float        @default(1.0)
+  options                  Json?
+
+  attempts Attempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([id, version])
+  @@index([conceptId, difficulty, reviewStatus])
+}
+
+model Explanation {
+  id                    String       @id
+  conceptId             String
+  concept               Concept      @relation(fields: [conceptId], references: [id])
+  misconceptionId       String?
+  style                 String
+  content               String
+  checkForUnderstanding String?
+  reviewStatus          ReviewStatus @default(PENDING_REVIEW)
+  version               Int          @default(1)
+}
+
+// ─── Sessions & events ─────────────────────────────────────────────────────
+
+model LearningSession {
+  id                String        @id @default(cuid())
+  studentId         String
+  student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionMode       SessionMode   @default(ADAPTIVE_PRACTICE)
+  status            SessionStatus @default(ACTIVE)
+  startedAt         DateTime      @default(now())
+  endedAt           DateTime?
+  questionCount     Int           @default(0)
+  baselineSlotIndex Int           @default(0)
+  activeConceptId   String?
+  activeDifficulty  Int           @default(2)
+
+  attempts  Attempt[]
+  decisions LearningDecision[]
+
+  @@index([studentId, startedAt])
+}
+
+model RawEvent {
+  eventId   String   @id
+  eventType String
+  studentId String
+  sessionId String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  attempt Attempt?
+
+  @@index([studentId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+model Attempt {
+  id                        String           @id @default(cuid())
+  eventId                   String           @unique
+  event                     RawEvent         @relation(fields: [eventId], references: [eventId])
+  studentId                 String
+  student                   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId                 String
+  session                   LearningSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionId                String
+  questionVersion           Int
+  question                  Question         @relation(fields: [questionId, questionVersion], references: [id, version])
+  submittedAnswer           String
+  grade                     Grade
+  isCorrect                 Boolean
+  timeToFirstResponseMs     Int
+  totalTimeMs               Int
+  idleTimeMs                Int
+  attemptNumber             Int
+  hintCount                 Int
+  highestHintLevel          Int
+  selfRatedConfidence       Int?
+  answerChangedBeforeSubmit Boolean
+  processingStatus          ProcessingStatus @default(GRADED)
+  storedResponse            Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([sessionId, createdAt])
+}
+
+// ─── Learner state ─────────────────────────────────────────────────────────
+
+model MasteryScore {
+  studentId     String
+  student       Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId     String
+  concept       Concept @relation(fields: [conceptId], references: [id])
+  value         Float
+  confidence    Float
+  evidenceCount Int     @default(0)
+  modelVersion  String
+
+  updatedAt DateTime @updatedAt
+
+  @@id([studentId, conceptId])
+}
+
+model MasteryHistory {
+  id             String  @id @default(cuid())
+  studentId      String
+  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId      String
+  previousValue  Float
+  newValue       Float
+  attemptId      String
+  formulaVersion String
+  createdAt      DateTime @default(now())
+
+  @@index([studentId, conceptId, createdAt])
+}
+
+model DiagnosticFactor {
+  id                     String   @id @default(cuid())
+  studentId              String
+  student                Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId              String?
+  factorType             String
+  factorKey              String?
+  value                  Json
+  confidence             Float
+  reasoning              String
+  evidenceAttemptIds     String[]
+  alternativeExplanations String[]
+  modelVersion           String
+  validUntil             DateTime?
+  createdAt              DateTime @default(now())
+
+  @@index([studentId, createdAt])
+}
+
+model MisconceptionRemediationState {
+  studentId              String
+  student                Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  misconceptionId        String
+  conceptId              String
+  state                  RemediationState @default(UNCONFIRMED)
+  targetedAttemptCount   Int              @default(0)
+  explanationCycleCount  Int              @default(0)
+  consecutiveCorrect     Int              @default(0)
+  updatedAt              DateTime         @updatedAt
+
+  @@id([studentId, misconceptionId, conceptId])
+}
+
+model LearnerProfile {
+  studentId             String  @id
+  student                 Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  profileVersion          Int     @default(1)
+  masterySummary          Json    @default("{}")
+  activeMisconceptions    Json    @default("[]")
+  confidenceCalibration   String?
+  hintDependence          Float   @default(0)
+  revisionNeedSignals     Json    @default("[]")
+  updatedAt               DateTime @updatedAt
+}
+
+model LearnerProfileHistory {
+  id             String   @id @default(cuid())
+  studentId      String
+  profileVersion Int
+  snapshot       Json
+  attemptId      String?
+  createdAt      DateTime @default(now())
+
+  @@index([studentId, createdAt])
+}
+
+model LearningDecision {
+  id                String          @id @default(cuid())
+  studentId         String
+  student           Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId         String
+  session           LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attemptId         String?
+  uiAction          UiAction
+  learningIntent    LearningIntent
+  contentStyle      Json?
+  parameters        Json
+  confidence        Float
+  reasoning         String
+  decisionVersion   String
+  inputSnapshot     Json?
+  fallbackGenerated Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model RevisionQueueItem {
+  id                    String             @id @default(cuid())
+  studentId             String
+  student               Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId             String
+  type                  String
+  targetMisconception   String?
+  priority              Float
+  dueAt                 DateTime
+  questionCount         Int
+  status                RevisionItemStatus @default(PENDING)
+  reasoning             String
+  confidence            Float
+  recommendationVersion String
+  dedupeKey             String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, dedupeKey])
+  @@index([studentId, status, dueAt])
+}
+
+model Report {
+  id             String         @id @default(cuid())
+  studentId      String
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  audience       ReportAudience
+  trigger        ReportTrigger
+  periodStart    DateTime
+  periodEnd      DateTime
+  structuredData Json
+  renderedText   String
+  reportVersion  String
+  createdAt      DateTime       @default(now())
+
+  @@index([studentId, createdAt])
+}
+
+model Consent {
+  id          String    @id @default(cuid())
+  parentId    String
+  studentId   String
+  consentType String
+  grantedAt   DateTime  @default(now())
+  revokedAt   DateTime?
+}

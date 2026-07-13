@@ -1,0 +1,21 @@
+{
+  "name": "cogna",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:generate": "pnpm --filter @cogna/database generate",
+    "db:push": "pnpm --filter @cogna/database push",
+    "db:seed": "pnpm --filter @cogna/database seed",
+    "db:studio": "pnpm --filter @cogna/database studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

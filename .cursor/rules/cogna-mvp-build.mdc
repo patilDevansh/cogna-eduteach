@@ -1,0 +1,34 @@
+---
+description: Cogna MVP 1.0 build tracking and spec authority — always apply
+alwaysApply: true
+---
+
+# Cogna MVP 1.0 — Agent rules
+
+## Spec vs tracking
+
+- Implement **only** from `/docs/mvp-1.0/`.
+- Do **not** treat `/COGNA/` mature READMEs as MVP implementation specs (future architecture only).
+- Execution tracking lives in `/COGNA 1.0/`.
+
+## Always update tracking docs
+
+In the **same turn** as completing, skipping, or discovering MVP work, update:
+
+1. `COGNA 1.0/BUILD_PLAN_7_DAY.md` — strikethrough completed tasks with `~~text~~`
+2. `COGNA 1.0/SKIPPED.md` — add deferred items with reason + return condition
+3. `COGNA 1.0/BUILD_CARE.md` — add pitfalls or check off enforced care items
+4. `COGNA 1.0/README.md` — refresh status snapshot when day/blocker changes
+
+If the user skips something verbally, log it in `SKIPPED.md` even if they forget to ask.
+
+## Contract locks
+
+- Use shared `LearningDecision` with `uiAction` + `learningIntent` (never flat `EASIER_QUESTION` / `HARDER_QUESTION` as the action field).
+- Allowed `uiAction`: `SHOW_QUESTION` | `SHOW_EXPLANATION` | `SHOW_HINT` | `END_SESSION` | `SUGGEST_BREAK`.
+- Staged Tx1–Tx4 durability; idempotent `eventId`.
+- Only `APPROVED` questions to students; no unchecked LLM math.
+
+## First build reality
+
+Existing `packages/shared` and `packages/database` may still contain **legacy** decision enums — align them to `/docs/mvp-1.0` before extending.

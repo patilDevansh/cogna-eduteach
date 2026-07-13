@@ -1,0 +1,20 @@
+{
+  "bankVersion": "question-bank-draft-v1",
+  "reviewPolicy": "PENDING_REVIEW items must not be served in production. Pilot requires human Grade-8 CBSE approval to APPROVED.",
+  "targets": {
+    "prerequisite": { "min": 40, "max": 60 },
+    "core": { "min": 100, "max": 150 },
+    "perMisconceptionTagged": { "min": 15, "max": 25 },
+    "baselinePool": { "min": 20, "max": 30 },
+    "delayedRevisionEquivalents": { "min": 20, "max": 30 },
+    "totalApproved": 200
+  },
+  "seedCount": 45,
+  "approvedCount": 0,
+  "pendingReviewCount": 45,
+  "coverageNotes": [
+    "Seed covers P1–P5 and C1–C6 with multiple difficulties.",
+    "Misconception-tagged items included for SIGN_HANDLING, INVERSE_OPERATION, EQUALITY_IMBALANCE, ARITHMETIC_SLIP, WORD_TO_EQUATION.",
+    "Expand to ~200 before pilot; keep IDs stable."
+  ]
+}

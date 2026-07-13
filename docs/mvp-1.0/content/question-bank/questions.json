@@ -1,0 +1,1344 @@
+{
+  "questions": [
+    {
+      "id": "Q_P1_D1_001",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Compute: 12 + 9",
+      "acceptedAnswers": [
+        "21",
+        "21.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "12 + 9 = 21"
+      ],
+      "hintLadder": [
+        "Add the ones digits.",
+        "12 + 9 = 21"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_D1_002",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 20 - 8",
+      "acceptedAnswers": [
+        "12",
+        "12.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "20 - 8 = 12"
+      ],
+      "hintLadder": [
+        "Subtract 8 from 20.",
+        "20 - 8 = 12"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_D2_001",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 15 - 27",
+      "acceptedAnswers": [
+        "-12",
+        "-12.0"
+      ],
+      "misconceptionsTested": [
+        "ARITHMETIC_SLIP"
+      ],
+      "solutionSteps": [
+        "15 - 27 = -12"
+      ],
+      "hintLadder": [
+        "Is the result positive or negative?",
+        "27 is larger than 15.",
+        "15 - 27 = -12"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_D3_001",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: -8 + 5",
+      "acceptedAnswers": [
+        "-3",
+        "-3.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "ARITHMETIC_SLIP"
+      ],
+      "solutionSteps": [
+        "-8 + 5 = -3"
+      ],
+      "hintLadder": [
+        "Start at -8 on the number line.",
+        "Move 5 to the right.",
+        "-8 + 5 = -3"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_D2_002",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Compute: 14 + (-6)",
+      "acceptedAnswers": [
+        "8",
+        "8.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "14 + (-6) = 8"
+      ],
+      "hintLadder": [
+        "Adding a negative is like subtracting.",
+        "14 - 6 = 8"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P2_D1_001",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: (-3) \u00d7 4",
+      "acceptedAnswers": [
+        "-12",
+        "-12.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB"
+      ],
+      "solutionSteps": [
+        "Negative times positive is negative.",
+        "(-3)\u00d74 = -12"
+      ],
+      "hintLadder": [
+        "What is the sign of the product?",
+        "3\u00d74=12, then apply the sign.",
+        "-12"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P2_D2_001",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: (-5) \u00d7 (-2)",
+      "acceptedAnswers": [
+        "10",
+        "10.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB"
+      ],
+      "solutionSteps": [
+        "Negative times negative is positive.",
+        "10"
+      ],
+      "hintLadder": [
+        "Same signs multiply to positive.",
+        "5\u00d72=10"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P2_D3_001",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: (-18) \u00f7 3",
+      "acceptedAnswers": [
+        "-6",
+        "-6.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB"
+      ],
+      "solutionSteps": [
+        "-18 \u00f7 3 = -6"
+      ],
+      "hintLadder": [
+        "Division sign rules match multiplication.",
+        "18\u00f73=6 with negative sign."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P2_D2_002",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "REVIEW_PREREQUISITE",
+      "type": "NUMERIC",
+      "stem": "Compute: 7 + (-10)",
+      "acceptedAnswers": [
+        "-3",
+        "-3.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB"
+      ],
+      "solutionSteps": [
+        "7-10=-3"
+      ],
+      "hintLadder": [
+        "Adding -10 is subtracting 10.",
+        "7-10=-3"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P3_D1_001",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "MCQ",
+      "stem": "In 3x + 5, which is the variable?",
+      "acceptedAnswers": [
+        "x",
+        "X"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x is the variable; 3 and 5 are constants/coefficients."
+      ],
+      "hintLadder": [
+        "A variable can change.",
+        "Which letter stands for an unknown?"
+      ],
+      "options": [
+        "3",
+        "x",
+        "5",
+        "3x"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_D2_001",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In 7 - y, the constant term is:",
+      "acceptedAnswers": [
+        "7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "7 is constant; y is variable."
+      ],
+      "hintLadder": [
+        "Constants do not change.",
+        "Look for the number alone."
+      ],
+      "options": [
+        "y",
+        "7",
+        "-y",
+        "7-y"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_D1_002",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "Which expression has a variable?",
+      "acceptedAnswers": [
+        "n + 2"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "n + 2 contains variable n."
+      ],
+      "hintLadder": [
+        "Look for a letter."
+      ],
+      "options": [
+        "12",
+        "4 + 5",
+        "n + 2",
+        "9"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_D1_001",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "If a = 3, evaluate 2a + 1",
+      "acceptedAnswers": [
+        "7",
+        "7.0"
+      ],
+      "misconceptionsTested": [
+        "ARITHMETIC_SLIP"
+      ],
+      "prerequisiteConceptIds": [
+        "P3_VARIABLES_CONSTANTS"
+      ],
+      "solutionSteps": [
+        "2\u00d73+1=7"
+      ],
+      "hintLadder": [
+        "Replace a with 3.",
+        "2\u00d73=6, then +1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P4_D2_001",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If x = -2, evaluate 5x",
+      "acceptedAnswers": [
+        "-10",
+        "-10.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P3_VARIABLES_CONSTANTS"
+      ],
+      "solutionSteps": [
+        "5\u00d7(-2)=-10"
+      ],
+      "hintLadder": [
+        "Substitute x=-2.",
+        "Positive \u00d7 negative = negative."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P4_D3_001",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: 3x + 2x",
+      "acceptedAnswers": [
+        "5x",
+        "5*x"
+      ],
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [
+        "P3_VARIABLES_CONSTANTS"
+      ],
+      "solutionSteps": [
+        "(3+2)x=5x"
+      ],
+      "hintLadder": [
+        "Like terms can be combined.",
+        "3x+2x=5x"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P5_D1_001",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "MCQ",
+      "stem": "If a scale is balanced with 4 on the left and 4 on the right, and you add 2 to the left, what must you do to keep balance?",
+      "acceptedAnswers": [
+        "Add 2 to the right"
+      ],
+      "misconceptionsTested": [
+        "EQUALITY_IMBALANCE"
+      ],
+      "solutionSteps": [
+        "Same operation on both sides."
+      ],
+      "hintLadder": [
+        "Balance means both sides equal.",
+        "Do the same to both sides."
+      ],
+      "options": [
+        "Add 2 to the right",
+        "Subtract 2 from the right",
+        "Add 2 to the left only",
+        "Remove 4 from the right"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_D2_001",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "From x + 3 = 10, which step keeps equality?",
+      "acceptedAnswers": [
+        "Subtract 3 from both sides"
+      ],
+      "misconceptionsTested": [
+        "EQUALITY_IMBALANCE",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB"
+      ],
+      "solutionSteps": [
+        "Subtract 3 from both sides \u2192 x=7"
+      ],
+      "hintLadder": [
+        "Undo +3.",
+        "Apply the inverse to both sides."
+      ],
+      "options": [
+        "Subtract 3 from the left only",
+        "Subtract 3 from both sides",
+        "Add 3 to the left only",
+        "Multiply both sides by 3"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_P5_D2_002",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 2,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "MCQ",
+      "stem": "True or false: you may add 5 to only one side of an equation and still keep it true.",
+      "acceptedAnswers": [
+        "false",
+        "False",
+        "FALSE"
+      ],
+      "misconceptionsTested": [
+        "EQUALITY_IMBALANCE"
+      ],
+      "solutionSteps": [
+        "Both sides must receive the same change."
+      ],
+      "hintLadder": [
+        "Think of a balance scale."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_D1_001",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 3 = 7",
+      "acceptedAnswers": [
+        "4",
+        "x=4",
+        "x = 4",
+        "4.0"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "Subtract 3 from both sides.",
+        "x=4"
+      ],
+      "hintLadder": [
+        "What undoes adding 3?",
+        "Subtract 3 from both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C1_D2_001",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 8 = 5",
+      "acceptedAnswers": [
+        "-3",
+        "x=-3",
+        "x = -3"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=5-8=-3"
+      ],
+      "hintLadder": [
+        "Subtract 8 from both sides.",
+        "5-8 is negative."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C1_D3_001",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 3,
+      "questionIntent": "TARGET_MISCONCEPTION",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 12 = 4",
+      "acceptedAnswers": [
+        "-8",
+        "x=-8",
+        "x = -8"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=4-12=-8"
+      ],
+      "hintLadder": [
+        "Undo +12.",
+        "4-12=-8"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C1_D2_002",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "RETEST_AFTER_EXPLANATION",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 9 = 2",
+      "acceptedAnswers": [
+        "-7",
+        "x=-7",
+        "x = -7"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=2-9=-7"
+      ],
+      "hintLadder": [
+        "Subtract 9 from both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D1_001",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 4 = 9",
+      "acceptedAnswers": [
+        "13",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "Add 4 to both sides.",
+        "x=13"
+      ],
+      "hintLadder": [
+        "What undoes subtracting 4?",
+        "Add 4 to both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D2_001",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 7 = 11",
+      "acceptedAnswers": [
+        "18",
+        "x=18",
+        "x = 18",
+        "18.0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "Add 7 to both sides.",
+        "x=18"
+      ],
+      "hintLadder": [
+        "What operation is applied to x?",
+        "Use the opposite operation.",
+        "Add 7 to both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D2_002",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "TARGET_MISCONCEPTION",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 6 = 10",
+      "acceptedAnswers": [
+        "16",
+        "x=16",
+        "x = 16"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "Add 6 to both sides.",
+        "x=16"
+      ],
+      "hintLadder": [
+        "Undo subtracting 6.",
+        "Add 6 to both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D3_001",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "DISCRIMINATION",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 8 = -2",
+      "acceptedAnswers": [
+        "6",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "ARITHMETIC_SLIP"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=-2+8=6"
+      ],
+      "hintLadder": [
+        "Add 8 to both sides.",
+        "-2+8=6"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D4_001",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 4,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - (-3) = 5",
+      "acceptedAnswers": [
+        "2",
+        "x=2",
+        "x = 2"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x-(-3)=x+3=5 \u2192 x=2"
+      ],
+      "hintLadder": [
+        "Subtracting a negative is adding.",
+        "x+3=5"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D2_003",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "RETEST_AFTER_EXPLANATION",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 5 = 12",
+      "acceptedAnswers": [
+        "17",
+        "x=17",
+        "x = 17"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=17"
+      ],
+      "hintLadder": [
+        "Add 5 to both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C3_D1_001",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: 3x = 12",
+      "acceptedAnswers": [
+        "4",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "Divide both sides by 3.",
+        "x=4"
+      ],
+      "hintLadder": [
+        "What undoes multiplying by 3?",
+        "Divide both sides by 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C3_D2_001",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: -3x = 15",
+      "acceptedAnswers": [
+        "-5",
+        "x=-5",
+        "x = -5"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=15/(-3)=-5"
+      ],
+      "hintLadder": [
+        "Divide both sides by -3.",
+        "Watch the sign."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C3_D3_001",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 3,
+      "questionIntent": "TARGET_MISCONCEPTION",
+      "type": "NUMERIC",
+      "stem": "Solve: 5x = -20",
+      "acceptedAnswers": [
+        "-4",
+        "x=-4",
+        "x = -4"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=-20/5=-4"
+      ],
+      "hintLadder": [
+        "Divide both sides by 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C4_D1_001",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x / 4 = 3",
+      "acceptedAnswers": [
+        "12",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "Multiply both sides by 4.",
+        "x=12"
+      ],
+      "hintLadder": [
+        "What undoes division by 4?",
+        "Multiply both sides by 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C4_D2_001",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x / -4 = 6",
+      "acceptedAnswers": [
+        "-24",
+        "x=-24",
+        "x = -24"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=6\u00d7(-4)=-24"
+      ],
+      "hintLadder": [
+        "Multiply both sides by -4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C4_D3_001",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "TARGET_MISCONCEPTION",
+      "type": "NUMERIC",
+      "stem": "Solve: x / 5 = -2",
+      "acceptedAnswers": [
+        "-10",
+        "x=-10",
+        "x = -10"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=-2\u00d75=-10"
+      ],
+      "hintLadder": [
+        "Multiply both sides by 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C5_D1_001",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: 2x + 3 = 11",
+      "acceptedAnswers": [
+        "4",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION",
+        "EQUALITY_IMBALANCE"
+      ],
+      "prerequisiteConceptIds": [
+        "C1_ONE_STEP_ADDITION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "Subtract 3: 2x=8",
+        "Divide by 2: x=4"
+      ],
+      "hintLadder": [
+        "Undo addition first.",
+        "Then undo multiplication."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C5_D2_001",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 3x - 4 = 8",
+      "acceptedAnswers": [
+        "4",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "Add 4: 3x=12",
+        "x=4"
+      ],
+      "hintLadder": [
+        "Add 4 to both sides.",
+        "Divide by 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C5_D3_001",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: -2x + 5 = 1",
+      "acceptedAnswers": [
+        "2",
+        "x=2",
+        "x = 2"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "C1_ONE_STEP_ADDITION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "Subtract 5: -2x=-4",
+        "Divide by -2: x=2"
+      ],
+      "hintLadder": [
+        "Isolate the term with x.",
+        "Watch signs when dividing."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C5_D2_002",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 2,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: 4x + 1 = 13",
+      "acceptedAnswers": [
+        "3",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [
+        "C1_ONE_STEP_ADDITION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "4x=12",
+        "x=3"
+      ],
+      "hintLadder": [
+        "Subtract 1.",
+        "Divide by 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C5_D4_001",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 4,
+      "questionIntent": "CONCEPT_REINFORCEMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: 5x - 7 = -2",
+      "acceptedAnswers": [
+        "1",
+        "x=1",
+        "x = 1"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "ARITHMETIC_SLIP"
+      ],
+      "prerequisiteConceptIds": [
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "5x=5",
+        "x=1"
+      ],
+      "hintLadder": [
+        "Add 7 to both sides.",
+        "-2+7=5"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C6_D1_001",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number increased by 6 is 15. Find the number.",
+      "acceptedAnswers": [
+        "9",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "C1_ONE_STEP_ADDITION",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x+6=15",
+        "x=9"
+      ],
+      "hintLadder": [
+        "Write an equation.",
+        "What undoes +6?"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C6_D2_001",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 2,
+      "questionIntent": "TARGET_MISCONCEPTION",
+      "type": "WORD_PROBLEM",
+      "stem": "Seven less than a number is 11. Find the number.",
+      "acceptedAnswers": [
+        "18",
+        "x=18",
+        "x = 18"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "C2_ONE_STEP_SUBTRACTION",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x-7=11",
+        "x=18"
+      ],
+      "hintLadder": [
+        "'Seven less than a number' means x-7.",
+        "Add 7 to both sides."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C6_D3_001",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "Three times a number is 21. Find the number.",
+      "acceptedAnswers": [
+        "7",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "INVERSE_OPERATION"
+      ],
+      "prerequisiteConceptIds": [
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "3x=21",
+        "x=7"
+      ],
+      "hintLadder": [
+        "Translate to 3x=21.",
+        "Divide by 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C6_D2_002",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number divided by 4 equals 5. Find the number.",
+      "acceptedAnswers": [
+        "20",
+        "x=20",
+        "x = 20"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION"
+      ],
+      "prerequisiteConceptIds": [
+        "C4_ONE_STEP_DIVISION"
+      ],
+      "solutionSteps": [
+        "x/4=5",
+        "x=20"
+      ],
+      "hintLadder": [
+        "Write x/4=5.",
+        "Multiply by 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C2_D2_R01",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "CONCEPT_REINFORCEMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 9 = 4",
+      "acceptedAnswers": [
+        "13",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "prerequisiteConceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ],
+      "solutionSteps": [
+        "x=13"
+      ],
+      "hintLadder": [
+        "Add 9 to both sides."
+      ],
+      "tags": [
+        "delayed_revision_equivalent"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    },
+    {
+      "id": "Q_C5_D2_R01",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 2,
+      "questionIntent": "CONCEPT_REINFORCEMENT",
+      "type": "NUMERIC",
+      "stem": "Solve: 2x - 5 = 9",
+      "acceptedAnswers": [
+        "7",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ],
+      "solutionSteps": [
+        "2x=14",
+        "x=7"
+      ],
+      "hintLadder": [
+        "Add 5.",
+        "Divide by 2."
+      ],
+      "tags": [
+        "delayed_revision_equivalent"
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1.0
+    }
+  ]
+}

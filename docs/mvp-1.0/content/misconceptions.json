@@ -1,0 +1,65 @@
+{
+  "misconceptions": [
+    {
+      "id": "SIGN_HANDLING",
+      "conceptIds": [
+        "C1_ONE_STEP_ADDITION",
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION",
+        "C4_ONE_STEP_DIVISION",
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP", "question_misread", "guessing"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "EQUALITY_IMBALANCE",
+      "conceptIds": ["P5_EQUALITY_BALANCE", "C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION", "C4_ONE_STEP_DIVISION", "C5_TWO_STEP_EQUATIONS"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["question_misread"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "INVERSE_OPERATION",
+      "conceptIds": ["C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION", "C4_ONE_STEP_DIVISION"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "ARITHMETIC_SLIP",
+      "conceptIds": ["P1_INTEGER_ADD_SUB", "P2_NEGATIVE_OPS", "C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION", "C4_ONE_STEP_DIVISION", "C5_TWO_STEP_EQUATIONS"],
+      "minimumMatchingAttempts": 3,
+      "activationConfidence": 0.55,
+      "alternativeExplanations": ["question_misread"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "WORD_TO_EQUATION",
+      "conceptIds": ["C6_SIMPLE_WORD_PROBLEMS"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["question_misread"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "concepts": [
+    {
+      "id": "P1_INTEGER_ADD_SUB",
+      "name": "Integer addition and subtraction",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "P2_NEGATIVE_OPS",
+      "name": "Negative-number operations",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 2,
+      "prerequisites": ["P1_INTEGER_ADD_SUB"]
+    },
+    {
+      "id": "P3_VARIABLES_CONSTANTS",
+      "name": "Variables and constants",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 3,
+      "prerequisites": ["P1_INTEGER_ADD_SUB"]
+    },
+    {
+      "id": "P4_SIMPLE_EXPRESSIONS",
+      "name": "Simple expressions",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 4,
+      "prerequisites": ["P3_VARIABLES_CONSTANTS"]
+    },
+    {
+      "id": "P5_EQUALITY_BALANCE",
+      "name": "Equality and balance",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 3,
+      "sortOrder": 5,
+      "prerequisites": ["P1_INTEGER_ADD_SUB", "P3_VARIABLES_CONSTANTS"]
+    },
+    {
+      "id": "C1_ONE_STEP_ADDITION",
+      "name": "One-step addition equations",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 6,
+      "prerequisites": ["P1_INTEGER_ADD_SUB", "P5_EQUALITY_BALANCE"]
+    },
+    {
+      "id": "C2_ONE_STEP_SUBTRACTION",
+      "name": "One-step subtraction equations",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 7,
+      "prerequisites": ["P1_INTEGER_ADD_SUB", "P5_EQUALITY_BALANCE"]
+    },
+    {
+      "id": "C3_ONE_STEP_MULTIPLICATION",
+      "name": "One-step multiplication equations",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 8,
+      "prerequisites": ["P2_NEGATIVE_OPS", "P5_EQUALITY_BALANCE"]
+    },
+    {
+      "id": "C4_ONE_STEP_DIVISION",
+      "name": "One-step division equations",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 9,
+      "prerequisites": ["P2_NEGATIVE_OPS", "P5_EQUALITY_BALANCE"]
+    },
+    {
+      "id": "C5_TWO_STEP_EQUATIONS",
+      "name": "Two-step equations",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 5,
+      "sortOrder": 10,
+      "prerequisites": ["C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION"]
+    },
+    {
+      "id": "C6_SIMPLE_WORD_PROBLEMS",
+      "name": "Simple equation word problems",
+      "kind": "CORE",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 4,
+      "sortOrder": 11,
+      "prerequisites": ["C5_TWO_STEP_EQUATIONS", "P5_EQUALITY_BALANCE"]
+    }
+  ]
+}
