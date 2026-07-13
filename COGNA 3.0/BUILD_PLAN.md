@@ -23,10 +23,10 @@
 
 ## Phase 2 — Experiments
 
-- [ ] Experiment Registry + sticky assignment
-- [ ] Decision Engine experiment hook (`decision-rules-v3`)
-- [ ] Assignment admin APIs
-- [ ] Golden S01–S03, S16, S20
+- [x] Experiment Registry + sticky assignment
+- [x] Decision Engine experiment hook (`decision-rules-v3`)
+- [x] Assignment admin APIs
+- [x] Golden S01–S03, S16, S20
 
 ## Phase 3 — Candidate scoring
 

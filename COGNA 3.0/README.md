@@ -17,12 +17,21 @@
 ## Status Snapshot
 
 - **Created:** 2026-07-13
-- **Updated:** 2026-07-13 (Phase 1 content draft pipeline)
-- **MVP 3.0 status:** **Active implementation** — user promoted; Phase 1 core complete (draft pipeline)
+- **Updated:** 2026-07-13 (Phase 2 experiments + decision-rules-v3)
+- **MVP 3.0 status:** **Active implementation** — Phase 2 complete (experiments + decision-rules-v3)
 - **Spec status line:** `Draft / Planning` in [`docs/mvp-3.0/README.md`](../docs/mvp-3.0/README.md) (implementation proceeding despite Draft status per user directive)
 - **Core goal:** LLM-assisted drafting under gates + experiment_assignments + candidate action scoring
-- **Blocked on:** None — Phase 1 core complete; Phase 2 (experiments + scoring) ready to start
+- **Blocked on:** None — Phase 2 complete; Phase 3 (candidate scoring) ready to start
 - **Recent changes:** 
+  - **Phase 2 — Experiments (complete):**
+    - ExperimentsService: experiment definition CRUD, sticky assignment (experiment-rules-v1 hash-based allocation)
+    - ExperimentsController: admin APIs (GET /experiments, POST /experiments/:key/assign/:studentId, GET /experiments/:key/assignments)
+    - DecisionEngineService: decision-rules-v3 with experiment hooks (async decide, experimentKey/experimentArm parameters)
+    - Seed default experiment: policy_score_linear_eq_2026q3 (50/50 control/scored_v1 allocation)
+    - Eligibility: minSessionsCompleted=1, excludeBaselineOnly=true, unitId=linear-equations-one-variable
+    - Golden tests S01–S03, S16, S20 green (sticky assignment, ineligibility, hash allocation, decision snapshot, control retention path)
+    - Feature flag EXPERIMENTS_ENABLED=false by default; production behavior unchanged when off
+    - Hard decision gates (END_SESSION, SUGGEST_BREAK, retention) never overridden by experiment
   - **Phase 1 — Content draft pipeline (core complete):**
     - ContentDraftService: create, validate, review, promote (DRAFT → VALIDATED → APPROVED_PROMOTED)
     - ContentValidationService: content-validation-rules-v1 (schema, canonical concept ID, difficulty, answer check, deny-list)
@@ -41,8 +50,8 @@
     - Added MVP 3.0 event types: EXPERIMENT_ASSIGNED, CANDIDATE_SCORED, CONTENT_DRAFT_*
     - Added feature flags: EXPERIMENTS_ENABLED, CONTENT_LLM_DRAFTS_ENABLED (default false)
     - Feature flag module created at apps/web/src/lib/feature-flags.ts
-- **Current phase:** Phase 1 core complete (manifest metrics deferred) — 73/73 golden tests green (45 suites); ready for Phase 2 experiments
-- **Test results:** All MVP 2.0 golden tests (G##/R## regression baseline) + MVP 3.0 S11–S15 passing
+- **Current phase:** Phase 2 complete — 78/78 golden tests green (50 suites); ready for Phase 3 candidate scoring
+- **Test results:** All MVP 2.0 golden tests (G##/R## regression baseline) + MVP 3.0 S01–S03, S11–S16, S20 passing
 
 
 ## Rule

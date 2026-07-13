@@ -285,7 +285,7 @@ export class LearningLoopService {
     let decision: LearningDecision;
     let usedFallback = false;
     try {
-      decision = this.decisionEngine.decide({
+      decision = await this.decisionEngine.decide({
         session: sessionForNext,
         recentCorrectStreak,
         recentIncorrectStreak,
@@ -336,7 +336,7 @@ export class LearningLoopService {
         },
         data: { state: "EXPLANATION_REQUIRED" },
       });
-      decision = this.decisionEngine.decide({
+      decision = await this.decisionEngine.decide({
         session: sessionForNext,
         recentCorrectStreak,
         recentIncorrectStreak,
@@ -364,7 +364,7 @@ export class LearningLoopService {
         data: { state: nextState },
       });
       if (nextState === "EXPLANATION_REQUIRED") {
-        decision = this.decisionEngine.decide({
+        decision = await this.decisionEngine.decide({
           session: sessionForNext,
           recentCorrectStreak,
           recentIncorrectStreak,
@@ -551,7 +551,7 @@ export class LearningLoopService {
       viewedEventId: event.eventId,
     });
 
-    const decision = this.decisionEngine.decide({
+    const decision = await this.decisionEngine.decide({
       session,
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
@@ -712,7 +712,7 @@ export class LearningLoopService {
 
     let decision: LearningDecision;
     try {
-      decision = this.decisionEngine.decide({
+      decision = await this.decisionEngine.decide({
         session: sessionForNext,
         recentCorrectStreak,
         recentIncorrectStreak,
@@ -824,7 +824,7 @@ export class LearningLoopService {
       sessionAttempts,
     });
 
-    const decision = this.decisionEngine.decide({
+    const decision = await this.decisionEngine.decide({
       session,
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,

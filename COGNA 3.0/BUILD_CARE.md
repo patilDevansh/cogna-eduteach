@@ -11,11 +11,11 @@
 - [x] Only APPROVED content to students (enforced by ContentDraft separate from Question/Explanation tables)
 - [x] No unchecked LLM math (ContentDraft.status gates: DRAFT → VALIDATED → APPROVED_PROMOTED only; validation service checks answer correctness)
 - [ ] No clinical / attention / personality labels (implemented in content-validation-rules-v1 deny-list; audit ongoing)
-- [ ] Weak evidence abstains (decision engine implementation)
+- [x] Weak evidence abstains (decision engine carries MVP 2.0 weak-evidence gates: misconception <0.5, retention min attempts, etc.)
 - [x] LLM off hot path only (feature flag CONTENT_LLM_DRAFTS_ENABLED controls draft jobs; LLM never called in Tx1-Tx4)
-- [ ] Scorer cannot override END_SESSION / SUGGEST_BREAK hard gates (decision engine implementation)
+- [x] Scorer cannot override END_SESSION / SUGGEST_BREAK hard gates (decision-rules-v3 implements priority order: hard gates always win)
 - [x] Experiment assignment sticky and audited (ExperimentAssignment.sticky default true; unique constraint on studentId+experimentKey)
-- [x] G## + R## remain green + S11–S15 added (73/73 golden tests passed — 45 suites, 0 failures)
+- [x] G## + R## remain green + S01–S03, S11–S16, S20 added (78/78 golden tests green — 50 suites)
 
 ## Pitfalls to Watch
 

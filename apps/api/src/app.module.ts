@@ -16,6 +16,7 @@ import { ObservabilityModule } from "./observability/observability.module";
 import { JobsModule } from "./jobs/jobs.module";
 import { ContentModule } from "./content/content.module";
 import { RetentionModule } from "./retention/retention.module";
+import { ExperimentsModule } from "./experiments/experiments.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -37,6 +38,7 @@ import { HealthController } from "./health.controller";
     ParentsModule,
     JobsModule,
     ContentModule,
+    ExperimentsModule,
   ],
   controllers: [HealthController],
 })

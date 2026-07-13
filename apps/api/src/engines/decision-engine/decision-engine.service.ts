@@ -1,7 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
   BASELINE_SLOT_COUNT,
   DECISION_RULES_V2,
+  DECISION_RULES_V3,
   baselineConceptForSlot,
   type LearningDecision,
   type LearningIntent,
@@ -16,6 +17,7 @@ import {
   HARD_STOP_SESSION_MINUTES,
   computeFatigueRisk,
 } from "../diagnostic-engine/diagnostic-formulas";
+import { ExperimentsService } from "../../experiments/experiments.service";
 
 export interface DecisionInput {
   session: LearningSession;
@@ -53,14 +55,54 @@ export interface DecisionInput {
     | "unknown";
   /** R14 — block TARGET_MISCONCEPTION when alternative explanation dominates. */
   alternativeExplanationDominant?: boolean;
+  /** MVP 3.0 — experiment context. */
+  experimentKey?: string;
+  experimentArm?: string;
 }
 
 const SESSION_QUESTION_LIMIT = 12;
 const EXPERIMENT_VARIANT = process.env.EXPERIMENT_VARIANT ?? "targeted";
+const EXPERIMENTS_ENABLED =
+  process.env.EXPERIMENTS_ENABLED === "true" ? true : false;
 
 @Injectable()
 export class DecisionEngineService {
-  decide(input: DecisionInput): LearningDecision {
+  private readonly logger = new Logger(DecisionEngineService.name);
+
+  constructor(private readonly experimentsService?: ExperimentsService) {}
+
+  async decide(input: DecisionInput): Promise<LearningDecision> {
+    // MVP 3.0: Check for experiment assignment if enabled
+    let experimentKey: string | undefined;
+    let experimentArm: string | undefined;
+
+    if (EXPERIMENTS_ENABLED && this.experimentsService && !input.experimentKey) {
+      // Try to resolve experiment assignment for linear equations
+      const assignment = await this.experimentsService.resolveAssignment({
+        studentId: input.session.studentId,
+        experimentKey: "policy_score_linear_eq_2026q3",
+      });
+
+      if (assignment) {
+        experimentKey = assignment.experimentKey;
+        experimentArm = assignment.arm;
+        this.logger.debug(
+          `Student ${input.session.studentId} assigned to ${experimentArm}`,
+        );
+      }
+    } else if (input.experimentKey && input.experimentArm) {
+      experimentKey = input.experimentKey;
+      experimentArm = input.experimentArm;
+    }
+
+    return this.decideInternal(input, experimentKey, experimentArm);
+  }
+
+  decideInternal(
+    input: DecisionInput,
+    experimentKey?: string,
+    experimentArm?: string,
+  ): LearningDecision {
     const {
       session,
       recentCorrectStreak,
@@ -89,12 +131,37 @@ export class DecisionEngineService {
           .breakSuggestedAt,
       );
 
+    // Helper to create decisions with experiment context
+    const makeDecision = (
+      uiAction: LearningDecision["uiAction"],
+      learningIntent: LearningIntent,
+      parameters: LearningDecision["parameters"],
+      confidence: number,
+      reasoning: string,
+      options?: {
+        fallbackGenerated?: boolean;
+        explanationStyle?: "STEP_BY_STEP" | "HINT" | "ANALOGY";
+        questionFormat?: "NUMERIC" | "MCQ" | "WORD_PROBLEM";
+      },
+    ): LearningDecision => {
+      return this.decision(
+        uiAction,
+        learningIntent,
+        parameters,
+        confidence,
+        reasoning,
+        options,
+        experimentKey,
+        experimentArm,
+      );
+    };
+
     // 1. Safety / session end — always wins over soft break
     if (
       sessionMinutes >= HARD_STOP_SESSION_MINUTES ||
       session.questionCount >= SESSION_QUESTION_LIMIT
     ) {
-      return this.decision(
+      return makeDecision(
         "END_SESSION",
         session.sessionMode === "BASELINE" ? "BASELINE_ASSESSMENT" : "STANDARD_PRACTICE",
         {
@@ -123,7 +190,7 @@ export class DecisionEngineService {
       !breakSuggestedThisSession &&
       sessionMinutes < HARD_STOP_SESSION_MINUTES
     ) {
-      return this.decision(
+      return makeDecision(
         "SUGGEST_BREAK",
         "BREAK_FOR_FATIGUE",
         {
@@ -139,7 +206,7 @@ export class DecisionEngineService {
     // Baseline mode: fixed blueprint, no adaptive difficulty
     if (session.sessionMode === "BASELINE") {
       const conceptId = baselineConceptForSlot(session.baselineSlotIndex);
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "BASELINE_ASSESSMENT",
         { conceptId, difficulty: 2, baselineSlotIndex: session.baselineSlotIndex },
@@ -157,7 +224,7 @@ export class DecisionEngineService {
 
     // 3. Post-explanation re-test
     if (lastWasExplanation || remediationState === "RETESTING") {
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "RETEST_AFTER_EXPLANATION",
         { conceptId, difficulty, targetMisconception: activeMisconceptionId },
@@ -169,7 +236,7 @@ export class DecisionEngineService {
     // 4. Explanation required — high recovery prefers shorter hint first
     if (remediationState === "EXPLANATION_REQUIRED") {
       if (errorRecoveryRate !== null && errorRecoveryRate >= 0.65) {
-        return this.decision(
+        return makeDecision(
           "SHOW_HINT",
           "TARGET_MISCONCEPTION",
           {
@@ -183,7 +250,7 @@ export class DecisionEngineService {
           { explanationStyle: "HINT" },
         );
       }
-      return this.decision(
+      return makeDecision(
         "SHOW_EXPLANATION",
         "TARGET_MISCONCEPTION",
         {
@@ -204,7 +271,7 @@ export class DecisionEngineService {
       const isRetention =
         dueRevision.type === "RETENTION_REVIEW" ||
         dueRevision.type === "SPACED_REVIEW_RETENTION";
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         isRetention ? "RETENTION_REVIEW" : "EXECUTE_DUE_REVISION",
         {
@@ -228,7 +295,7 @@ export class DecisionEngineService {
         (prerequisiteMastery ?? 1) < 0.5 &&
         hasPrereqQuestions
       ) {
-        return this.decision(
+        return makeDecision(
           "SHOW_QUESTION",
           "REVIEW_PREREQUISITE",
           { conceptId, difficulty: Math.max(1, difficulty - 1) },
@@ -236,7 +303,7 @@ export class DecisionEngineService {
           "Still active misconception; reviewing prerequisite.",
         );
       }
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "DECREASE_DIFFICULTY",
         { conceptId, difficulty: Math.max(1, difficulty - 1) },
@@ -251,7 +318,7 @@ export class DecisionEngineService {
       (misconceptionConfidence >= 0.6 && activeMisconceptionId)
     ) {
       if (misconceptionConfidence < 0.5) {
-        return this.decision(
+        return makeDecision(
           "SHOW_QUESTION",
           "STANDARD_PRACTICE",
           { conceptId, difficulty },
@@ -260,7 +327,7 @@ export class DecisionEngineService {
         );
       }
       if (input.alternativeExplanationDominant) {
-        return this.decision(
+        return makeDecision(
           "SHOW_QUESTION",
           "STANDARD_PRACTICE",
           { conceptId, difficulty },
@@ -268,7 +335,7 @@ export class DecisionEngineService {
           "Alternative explanation dominant; abstain from targeting.",
         );
       }
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "TARGET_MISCONCEPTION",
         {
@@ -287,7 +354,7 @@ export class DecisionEngineService {
       (prerequisiteMastery ?? 1) < 0.3 &&
       hasPrereqQuestions
     ) {
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "REVIEW_PREREQUISITE",
         { conceptId, difficulty: Math.max(1, difficulty - 1) },
@@ -312,7 +379,7 @@ export class DecisionEngineService {
       !hasActiveHigh &&
       input.hasTransferCheckItem
     ) {
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "TRANSFER_CHECK",
         {
@@ -332,7 +399,7 @@ export class DecisionEngineService {
         input.confidenceCalibration === "possibly_overconfident"
           ? difficulty
           : Math.min(5, difficulty + 1);
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         nextDifficulty > difficulty ? "INCREASE_DIFFICULTY" : "STANDARD_PRACTICE",
         { conceptId, difficulty: nextDifficulty },
@@ -344,7 +411,7 @@ export class DecisionEngineService {
     }
 
     if (recentIncorrectStreak >= 2) {
-      return this.decision(
+      return makeDecision(
         "SHOW_QUESTION",
         "DECREASE_DIFFICULTY",
         { conceptId, difficulty: Math.max(1, difficulty - 1) },
@@ -359,7 +426,7 @@ export class DecisionEngineService {
         ? " (A/B stub: random sequencing variant)"
         : "";
 
-    return this.decision(
+    return makeDecision(
       "SHOW_QUESTION",
       "STANDARD_PRACTICE",
       { conceptId, difficulty },
@@ -393,6 +460,8 @@ export class DecisionEngineService {
       explanationStyle?: "STEP_BY_STEP" | "HINT" | "ANALOGY";
       questionFormat?: "NUMERIC" | "MCQ" | "WORD_PROBLEM";
     },
+    experimentKey?: string,
+    experimentArm?: string,
   ): LearningDecision {
     const contentStyle =
       options?.explanationStyle || options?.questionFormat
@@ -406,15 +475,24 @@ export class DecisionEngineService {
           }
         : undefined;
 
-    return {
+    const decisionVersion =
+      experimentKey && experimentArm ? DECISION_RULES_V3 : DECISION_RULES_V2;
+
+    const decision: LearningDecision = {
       uiAction,
       learningIntent,
-      parameters,
+      parameters: {
+        ...parameters,
+        ...(experimentKey ? { experimentId: experimentKey } : {}),
+        ...(experimentArm ? { experimentArmId: experimentArm } : {}),
+      },
       contentStyle,
       confidence,
       reasoning,
-      decisionVersion: DECISION_RULES_V2,
+      decisionVersion,
       fallbackGenerated: options?.fallbackGenerated,
     };
+
+    return decision;
   }
 }
