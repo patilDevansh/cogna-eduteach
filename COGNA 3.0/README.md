@@ -17,13 +17,14 @@
 ## Status Snapshot
 
 - **Created:** 2026-07-13
-- **Updated:** 2026-07-13 (Phase 4 analysis & observability complete)
+- **Updated:** 2026-07-13 (Phase 4 pushed to remote; full test suite passed)
 - **MVP 3.0 status:** **Active implementation** — Phase 4 complete (analysis & observability)
 - **Spec status line:** `Draft / Planning` in [`docs/mvp-3.0/README.md`](../docs/mvp-3.0/README.md) (implementation proceeding despite Draft status per user directive)
 - **Core goal:** LLM-assisted drafting under gates + experiment_assignments + candidate action scoring + analysis & observability
-- **Blocked on:** None — Phase 4 complete; Phase 5 (bank growth & pilot) ready to start
+- **Blocked on:** None — Phase 4 complete and verified; Phase 5 (bank growth & pilot) ready to start
 - **Recent changes:** 
   - **Phase 4 — Analysis & observability (complete):**
+    - Branch `feat/mvp-2.0-build` pushed to remote (commit e32b1f1); full test suite passed (93/93 golden tests green)
     - EXPERIMENT_ANALYSIS_EXPORT job: idempotent export of experiment outcomes for offline analysis
     - Job handler fetches assignments, candidate scores, and session outcomes for a given experiment key + period
     - Export stub logs to structured format; production would write to cloud storage (S3/GCS)
