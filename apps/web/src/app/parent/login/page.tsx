@@ -6,12 +6,24 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { saveParent } from "@/lib/session";
 
+import { ClerkParentSignIn, isClerkEnabled } from "@/components/clerk-parent-sign-in";
+
 export default function ParentLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (isClerkEnabled()) {
+    return (
+      <div className="card">
+        <h1>Parent sign in</h1>
+        <p className="lead">Sign in with your Clerk account to view student progress.</p>
+        <ClerkParentSignIn />
+      </div>
+    );
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +43,7 @@ export default function ParentLoginPage() {
   async function useDevAccount() {
     setLoading(true);
     try {
-      const parent = await api.parentSignup("parent@demo.cogna.local", "Demo Parent");
+      const parent = await api.parentDemoLogin();
       saveParent(parent);
       router.push("/parent/dashboard");
     } catch (err) {

@@ -19,13 +19,29 @@ export interface PilotDashboardResponse {
     DRAFT: number;
     RETIRED: number;
   };
-  /** Concepts that have bank items but zero APPROVED questions. */
   approvedContentGaps: number;
   vendors: {
     posthogEnabled: boolean;
     sentryEnabled: boolean;
   };
+  alerts: {
+    thresholds: AlertThresholds;
+    status: AlertStatus;
+  };
   generatedAt: string;
+}
+
+export interface AlertThresholds {
+  apiErrorRatePct: number;
+  fallbackDecisionRatePct: number;
+  reportDeliveryFailurePct: number;
+  minApprovedQuestions: number;
+}
+
+export interface AlertStatus {
+  approvedContentBelowPilot: boolean;
+  jobFailuresElevated: boolean;
+  observabilityVendorsReady: boolean;
 }
 
 /**
@@ -125,6 +141,14 @@ export class ObservabilityService implements OnModuleInit {
       (c) => !approvedConceptIds.has(c.conceptId),
     ).length;
 
+    const thresholds = this.getAlertThresholds();
+    const alerts: AlertStatus = {
+      approvedContentBelowPilot: approved < thresholds.minApprovedQuestions,
+      jobFailuresElevated:
+        jobRetryable + jobPermanent > 0 && attemptsRecent24h > 0,
+      observabilityVendorsReady: this.posthogEnabled || this.sentryEnabled,
+    };
+
     return {
       sessionsToday,
       attemptsRecent24h,
@@ -147,7 +171,20 @@ export class ObservabilityService implements OnModuleInit {
         posthogEnabled: this.posthogEnabled,
         sentryEnabled: this.sentryEnabled,
       },
+      alerts: {
+        thresholds,
+        status: alerts,
+      },
       generatedAt: now.toISOString(),
+    };
+  }
+
+  getAlertThresholds(): AlertThresholds {
+    return {
+      apiErrorRatePct: 2,
+      fallbackDecisionRatePct: 5,
+      reportDeliveryFailurePct: 10,
+      minApprovedQuestions: 200,
     };
   }
 

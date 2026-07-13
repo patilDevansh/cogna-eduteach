@@ -273,6 +273,7 @@ function PracticeContent() {
         sessionId,
         questionId: question.id,
         questionVersion: question.version,
+        clientTimestamp: new Date().toISOString(),
       });
       const hint = result.hint ?? result.payload;
       setHints((prev) => [...prev, hint]);
@@ -442,6 +443,7 @@ function PracticeContent() {
         sessionId,
         conceptId: current?.decision.parameters.conceptId,
         misconceptionId: current?.decision.parameters.targetMisconception,
+        clientTimestamp: new Date().toISOString(),
       });
 
       if (result.next?.decision.uiAction === "END_SESSION") {

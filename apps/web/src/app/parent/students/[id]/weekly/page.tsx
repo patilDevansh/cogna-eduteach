@@ -10,7 +10,7 @@ import {
   type ParentWeeklySummary,
   type WeeklyStructuredSummary,
 } from "@/lib/api";
-import { getParent } from "@/lib/session";
+import { useParentAuth } from "@/lib/parent-auth-context";
 import { conceptLabel } from "@/lib/concept-labels";
 
 type LoadState =
@@ -88,21 +88,20 @@ export default function ParentWeeklySummaryPage() {
   const router = useRouter();
   const params = useParams();
   const studentId = String(params.id ?? "");
-  const [parent, setParent] = useState<ReturnType<typeof getParent>>(null);
+  const { isLoaded, isSignedIn, getAuth } = useParentAuth();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [requesting, setRequesting] = useState(false);
   const [requestNote, setRequestNote] = useState("");
 
   useEffect(() => {
-    const p = getParent();
-    if (!p) {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
       router.replace("/parent/login");
       return;
     }
-    setParent(p);
 
-    api
-      .getParentWeeklySummary(p.parentId, studentId)
+    getAuth()
+      .then((auth) => api.getParentWeeklySummary(auth, studentId))
       .then((data) => {
         if (data.renderedText || data.structuredSummary) {
           setState({ kind: "ready", data });
@@ -137,10 +136,10 @@ export default function ParentWeeklySummaryPage() {
             "We couldn't load the weekly summary. Please try again after your child completes a few sessions.",
         });
       });
-  }, [router, studentId]);
+  }, [isLoaded, isSignedIn, getAuth, router, studentId]);
 
   async function requestWeekly() {
-    if (!parent || requesting) return;
+    if (!isSignedIn || requesting) return;
     setRequesting(true);
     setRequestNote("");
     try {
@@ -151,7 +150,8 @@ export default function ParentWeeklySummaryPage() {
           ? "Weekly report is being prepared. Refresh in a minute."
           : "Weekly report ready — refreshing…",
       );
-      const refreshed = await api.getParentWeeklySummary(parent.parentId, studentId);
+      const auth = await getAuth();
+      const refreshed = await api.getParentWeeklySummary(auth, studentId);
       if (refreshed.renderedText || refreshed.structuredSummary) {
         setState({ kind: "ready", data: refreshed });
       }
@@ -170,7 +170,7 @@ export default function ParentWeeklySummaryPage() {
     }
   }
 
-  if (!parent) return <p>Loading…</p>;
+  if (!isLoaded || !isSignedIn) return <p>Loading…</p>;
 
   const structured = state.kind === "ready" ? asStructured(state.data.structuredSummary) : null;
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, NotFoundException, Param, Post } from "@nestjs/common";
 import { AuthService, ParentsService } from "./parents.service";
 
 @Controller("auth")
@@ -21,6 +21,16 @@ export class ParentsController {
   @Post("dev/signup")
   devSignup(@Body() body: { email: string; name: string }) {
     return this.parents.devSignup(body);
+  }
+
+  /** Returns seeded Demo Parent + Demo Student link (dev only). */
+  @Post("dev/demo-login")
+  async demoLogin() {
+    const parent = await this.parents.getSeededDemoParent();
+    if (!parent) {
+      throw new NotFoundException("Seeded demo parent missing — run pnpm db:seed");
+    }
+    return parent;
   }
 
   @Get("me/students")

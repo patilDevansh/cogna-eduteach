@@ -729,7 +729,7 @@ export class DiagnosticEngineService {
 
     const byKey = new Map<string, { weightedMatchingCount: number; confidence: number }>();
     for (const f of recentFactors) {
-      if (byKey.has(f.factorKey)) continue;
+      if (!f.factorKey || byKey.has(f.factorKey)) continue;
       const ageDays =
         (Date.now() - f.createdAt.getTime()) / (1000 * 60 * 60 * 24);
       const weight = evidenceAgeWeight(ageDays);

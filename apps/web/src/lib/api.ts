@@ -1,4 +1,8 @@
 import type { PracticeNextResponse } from "@cogna/shared";
+import {
+  buildParentAuthHeaders,
+  type ParentAuthInput,
+} from "./parent-auth-headers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const SESSION_LIMIT_MS = 15 * 60 * 1000;
@@ -149,18 +153,25 @@ export const api = {
       body: JSON.stringify({ email, name }),
     }),
 
-  listStudents: (parentId: string) =>
+  parentDemoLogin: () =>
+    apiFetch<ParentSession>("/parents/dev/demo-login", { method: "POST" }),
+
+  listStudents: (auth?: string | ParentAuthInput) =>
     apiFetch<Array<{ id: string; name: string; grade: number }>>(
       "/parents/me/students",
-      { headers: { "X-Parent-Id": parentId } },
+      { headers: buildParentAuthHeaders(auth) },
     ),
 
-  createStudent: (parentId: string, name: string, grade?: number) =>
+  createStudent: (
+    auth: string | ParentAuthInput | undefined,
+    name: string,
+    grade?: number,
+  ) =>
     apiFetch<{ studentId: string; name: string; accessCode: string }>(
       "/parents/me/students",
       {
         method: "POST",
-        headers: { "X-Parent-Id": parentId },
+        headers: buildParentAuthHeaders(auth),
         body: JSON.stringify({ name, grade }),
       },
     ),
@@ -215,10 +226,17 @@ export const api = {
     sessionId: string;
     questionId: string;
     questionVersion: number;
+    clientTimestamp?: string;
   }) =>
     apiFetch<{ hint: { level: number; content: string }; payload: { level: number; content: string } }>(
       "/practice/hint",
-      { method: "POST", body: JSON.stringify(payload) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          ...payload,
+          clientTimestamp: payload.clientTimestamp ?? new Date().toISOString(),
+        }),
+      },
     ),
 
   skipQuestion: (payload: {
@@ -246,10 +264,14 @@ export const api = {
     sessionId: string;
     conceptId?: string;
     misconceptionId?: string;
+    clientTimestamp?: string;
   }) =>
     apiFetch<{ next?: PracticeNextResponse }>("/practice/explanation-viewed", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        clientTimestamp: payload.clientTimestamp ?? new Date().toISOString(),
+      }),
     }),
 
   endSession: (sessionId: string) =>
@@ -275,7 +297,10 @@ export const api = {
       createdAt: string;
     }>(`/students/${studentId}/reports/latest?audience=${audience}`),
 
-  getParentStudentSummary: (parentId: string, studentId: string) =>
+  getParentStudentSummary: (
+    auth: string | ParentAuthInput | undefined,
+    studentId: string,
+  ) =>
     apiFetch<{
       studentId: string;
       reportId?: string;
@@ -283,14 +308,17 @@ export const api = {
       structuredData?: unknown;
       createdAt: string;
     }>(`/parents/me/students/${studentId}/summary`, {
-      headers: { "X-Parent-Id": parentId },
+      headers: buildParentAuthHeaders(auth),
     }),
 
   /** MVP 2.0 — may 404 until backend lands. */
-  getParentWeeklySummary: (parentId: string, studentId: string) =>
+  getParentWeeklySummary: (
+    auth: string | ParentAuthInput | undefined,
+    studentId: string,
+  ) =>
     apiFetch<ParentWeeklySummary>(
       `/parents/me/students/${studentId}/weekly-summary`,
-      { headers: { "X-Parent-Id": parentId } },
+      { headers: buildParentAuthHeaders(auth) },
     ),
 
   /** MVP 2.0 — optional trigger; may 404 until backend lands. */

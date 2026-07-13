@@ -24,17 +24,37 @@ export class ParentsService {
     private readonly reportGenerator: ReportGeneratorService,
   ) {}
 
+  /** Seeded pilot parent (links to Demo Student via db:seed). */
+  async getSeededDemoParent() {
+    const parent = await this.prisma.parent.findFirst({
+      where: { user: { clerkId: "dev_parent_clerk" } },
+      include: { user: true },
+    });
+    if (!parent) return null;
+    return {
+      parentId: parent.id,
+      email: parent.user.email ?? "parent@demo.cogna.local",
+      name: parent.name,
+    };
+  }
+
   async devSignup(input: { email: string; name: string }) {
-    const clerkId = `dev_${createHash("sha256").update(input.email).digest("hex").slice(0, 16)}`;
+    const email = input.email.trim().toLowerCase();
+    if (email === "parent@demo.cogna.local") {
+      const seeded = await this.getSeededDemoParent();
+      if (seeded) return seeded;
+    }
+
+    const clerkId = `dev_${createHash("sha256").update(email).digest("hex").slice(0, 16)}`;
 
     const user = await this.prisma.user.upsert({
       where: { clerkId },
       create: {
         clerkId,
         role: UserRole.PARENT,
-        email: input.email,
+        email,
       },
-      update: { email: input.email },
+      update: { email },
     });
 
     const parent = await this.prisma.parent.upsert({

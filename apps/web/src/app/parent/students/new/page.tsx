@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { getParent } from "@/lib/session";
+import { useParentAuth } from "@/lib/parent-auth-context";
 
 export default function NewStudentPage() {
   const router = useRouter();
+  const { isLoaded, isSignedIn, getAuth } = useParentAuth();
   const [name, setName] = useState("");
   const [grade, setGrade] = useState(8);
   const [accessCode, setAccessCode] = useState<string | null>(null);
@@ -15,18 +16,18 @@ export default function NewStudentPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!getParent()) router.replace("/parent/login");
-  }, [router]);
+    if (isLoaded && !isSignedIn) router.replace("/parent/login");
+  }, [isLoaded, isSignedIn, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parent = getParent();
-    if (!parent) return;
+    if (!isSignedIn) return;
 
     setLoading(true);
     setError("");
     try {
-      const result = await api.createStudent(parent.parentId, name, grade);
+      const auth = await getAuth();
+      const result = await api.createStudent(auth, name, grade);
       setAccessCode(result.accessCode);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create student");
@@ -34,6 +35,8 @@ export default function NewStudentPage() {
       setLoading(false);
     }
   }
+
+  if (!isLoaded || !isSignedIn) return <p>Loading…</p>;
 
   if (accessCode) {
     return (

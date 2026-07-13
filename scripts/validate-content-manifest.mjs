@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const QUESTIONS_PATH = join(ROOT, "docs/mvp-1.0/content/question-bank/questions.json");
+const GENERATED_PATH = join(ROOT, "docs/mvp-2.0/content/question-bank/generated-questions.json");
 const MANIFEST_PATH = join(ROOT, "docs/mvp-2.0/content/question-bank/manifest.json");
 
 /** Canonical concept IDs (MVP 1.0 IDs kept for MVP 2.0). */
@@ -114,6 +115,17 @@ function main() {
   let manifest;
   try {
     questionsFile = loadJson(QUESTIONS_PATH);
+    try {
+      const generated = loadJson(GENERATED_PATH);
+      if (Array.isArray(generated?.questions)) {
+        questionsFile.questions = [
+          ...(questionsFile.questions ?? []),
+          ...generated.questions,
+        ];
+      }
+    } catch {
+      // generated bank optional
+    }
     manifest = loadJson(MANIFEST_PATH);
   } catch (err) {
     console.error("Failed to read content files:", err instanceof Error ? err.message : err);

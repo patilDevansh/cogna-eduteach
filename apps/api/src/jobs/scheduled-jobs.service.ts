@@ -326,7 +326,7 @@ export class ScheduledJobsService {
         where: { questionId: q.id, questionVersion: q.version },
         select: {
           grade: true,
-          timeToSubmitMs: true,
+          totalTimeMs: true,
           hintCount: true,
           submittedAnswer: true,
         },
@@ -337,7 +337,7 @@ export class ScheduledJobsService {
       const correctRate =
         attempts.filter((a) => a.grade === "CORRECT").length / attemptCount;
       const avgTimeMs = Math.round(
-        attempts.reduce((s, a) => s + (a.timeToSubmitMs ?? 0), 0) / attemptCount,
+        attempts.reduce((s, a) => s + (a.totalTimeMs ?? 0), 0) / attemptCount,
       );
       const hintRate =
         attempts.filter((a) => a.hintCount > 0).length / attemptCount;

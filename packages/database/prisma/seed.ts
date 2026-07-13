@@ -12,6 +12,7 @@ import {
 const prisma = new PrismaClient();
 
 const CONTENT_ROOT = join(__dirname, "../../../docs/mvp-1.0/content");
+const CONTENT_V2_ROOT = join(__dirname, "../../../docs/mvp-2.0/content");
 
 /** Milestone slice: C2 sign-handling path + baseline blueprint anchors — APPROVED for local/dev build */
 const MILESTONE_APPROVED_QUESTION_IDS = new Set([
@@ -58,8 +59,49 @@ const MILESTONE_MISCONCEPTION_PATTERNS: Record<
   ],
 };
 
+function loadJsonFromRoot<T>(root: string, relativePath: string): T {
+  return JSON.parse(readFileSync(join(root, relativePath), "utf8")) as T;
+}
+
 function loadJson<T>(relativePath: string): T {
-  return JSON.parse(readFileSync(join(CONTENT_ROOT, relativePath), "utf8")) as T;
+  return loadJsonFromRoot<T>(CONTENT_ROOT, relativePath);
+}
+
+type BankQuestion = {
+  id: string;
+  version?: number;
+  conceptId: string;
+  difficulty: number;
+  questionIntent: string;
+  type: string;
+  stem: string;
+  acceptedAnswers: string[];
+  misconceptionsTested: string[];
+  prerequisiteConceptIds?: string[];
+  solutionSteps: string[];
+  hintLadder: string[];
+  reviewStatus?: string;
+  itemQualityWeight?: number;
+  options?: string[];
+  misconceptionAnswerPatterns?: Array<{
+    misconceptionId: string;
+    answers: string[];
+  }>;
+};
+
+function loadAllBankQuestions(): BankQuestion[] {
+  const base = loadJson<{ questions: BankQuestion[] }>("question-bank/questions.json");
+  let generated: BankQuestion[] = [];
+  try {
+    const gen = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V2_ROOT,
+      "question-bank/generated-questions.json",
+    );
+    generated = gen.questions ?? [];
+  } catch {
+    // generated bank optional until scripts/generate-approved-bank.mjs runs
+  }
+  return [...(base.questions ?? []), ...generated];
 }
 
 function hashAccessCode(code: string): string {
@@ -171,35 +213,14 @@ async function seedMisconceptions() {
 }
 
 async function seedQuestions() {
-  const { questions } = loadJson<{
-    questions: Array<{
-      id: string;
-      version?: number;
-      conceptId: string;
-      difficulty: number;
-      questionIntent: string;
-      type: string;
-      stem: string;
-      acceptedAnswers: string[];
-      misconceptionsTested: string[];
-      prerequisiteConceptIds?: string[];
-      solutionSteps: string[];
-      hintLadder: string[];
-      reviewStatus?: string;
-      itemQualityWeight?: number;
-      options?: string[];
-      misconceptionAnswerPatterns?: Array<{
-        misconceptionId: string;
-        answers: string[];
-      }>;
-    }>;
-  }>("question-bank/questions.json");
+  const questions = loadAllBankQuestions();
 
   for (const q of questions) {
     const version = q.version ?? 1;
-    const reviewStatus = MILESTONE_APPROVED_QUESTION_IDS.has(q.id)
-      ? ReviewStatus.APPROVED
-      : ((q.reviewStatus as ReviewStatus) ?? ReviewStatus.PENDING_REVIEW);
+    const reviewStatus =
+      q.reviewStatus === "APPROVED" || MILESTONE_APPROVED_QUESTION_IDS.has(q.id)
+        ? ReviewStatus.APPROVED
+        : ReviewStatus.PENDING_REVIEW;
 
     const patterns =
       MILESTONE_MISCONCEPTION_PATTERNS[q.id] ?? q.misconceptionAnswerPatterns ?? null;

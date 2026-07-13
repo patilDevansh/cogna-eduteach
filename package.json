@@ -25,7 +25,9 @@
     "test:scenario:content-approval-gate": "node scripts/cogna-cli/index.mjs run content-approval-gate",
     "test:scenario:all": "node scripts/cogna-cli/index.mjs run baseline-12-slot && node scripts/cogna-cli/index.mjs run session-end-summary && node scripts/cogna-cli/index.mjs run revision-queue-proposal && node scripts/cogna-cli/index.mjs run idempotent-retry && node scripts/cogna-cli/index.mjs run targeting-explanation-retest && node scripts/cogna-cli/index.mjs run skip-question && node scripts/cogna-cli/index.mjs run retention-review-due && node scripts/cogna-cli/index.mjs run weekly-report && node scripts/cogna-cli/index.mjs run fatigue-break && node scripts/cogna-cli/index.mjs run explanation-effectiveness && node scripts/cogna-cli/index.mjs run email-report-delivery && node scripts/cogna-cli/index.mjs run content-approval-gate",
     "test:smoke:ui": "node scripts/ui-baseline-flow-test.mjs",
-    "test:smoke:ui:mvp2": "node scripts/ui-mvp2-smoke.mjs"
+    "test:smoke:ui:mvp2": "node scripts/ui-mvp2-smoke.mjs",
+    "test:fast": "pnpm test:golden && pnpm test:scenario:all && pnpm test:smoke:ui:mvp2",
+    "content:generate-bank": "node scripts/generate-approved-bank.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

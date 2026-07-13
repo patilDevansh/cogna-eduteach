@@ -3,13 +3,15 @@ import { assertLearningDecision, assertAnswerResponse } from "../lib/assert-deci
 
 export const name = "baseline-12-slot";
 export const description =
-  "BASELINE session: Q1 Q_P1_D1_001 (12+9), Q3 Q_P3_D1_001 (variable), 12-slot completion";
+  "BASELINE session: fresh student, fixed concept blueprint, 12-slot completion";
 export const mapsTo = ["G30", "G30b"];
 
 const { q1TwelvePlusNine, q3Variable } = BASELINE_QUESTION_IDS;
+const FIRST_CONCEPT = "P1_INTEGER_ADD_SUB";
+const THIRD_CONCEPT = "P3_VARIABLES_CONSTANTS";
 
 function pickAnswer(question) {
-  if (question.id === q1TwelvePlusNine) return "18";
+  if (question.id === q1TwelvePlusNine) return "21";
   if (question.id === q3Variable) return "x";
   if (question.stem?.includes("14 + (-6)")) return "8";
   if (question.stem?.includes("2a + 1")) return "7";
@@ -32,8 +34,11 @@ export async function run({ client, assert, uuid, log = () => {} }) {
   await client.health();
   record("health", "PASS", `API ok at ${client.apiUrl}`);
 
-  const { studentId } = await client.loginStudent("demo1234");
-  record("login", "PASS", `studentId=${studentId}`);
+  const stamp = `${Date.now()}-${uuid().slice(0, 8)}`;
+  const parent = await client.devSignup(`baseline-${stamp}@test.local`, "Baseline Parent");
+  const created = await client.createStudent(parent.parentId, "Baseline Student", 8);
+  const { studentId } = await client.loginStudent(created.accessCode);
+  record("fresh-student", "PASS", `studentId=${studentId}`);
 
   const session = await client.startSession(studentId, "BASELINE");
   const { sessionId } = session;
@@ -50,12 +55,12 @@ export async function run({ client, assert, uuid, log = () => {} }) {
   });
   record("session-start", "PASS", `sessionId=${sessionId}`);
 
-  if (question.id !== q1TwelvePlusNine) {
+  if (question.conceptId !== FIRST_CONCEPT) {
     throw new Error(
-      `Expected Q1 ${q1TwelvePlusNine}, got ${question.id} (baseline slot 0)`,
+      `Expected baseline slot 1 concept ${FIRST_CONCEPT}, got ${question.conceptId} question=${question.id}`,
     );
   }
-  record("q1-slot", "PASS", `first question ${q1TwelvePlusNine} (12+9)`);
+  record("q1-slot", "PASS", `first question ${question.id} concept=${question.conceptId}`);
 
   let submitStep = 0;
   let sawQ3 = false;
@@ -65,14 +70,14 @@ export async function run({ client, assert, uuid, log = () => {} }) {
     submitStep++;
     const answer = pickAnswer(question);
 
-    if (question.id === q3Variable) {
-      sawQ3 = true;
-      if (submitStep !== 3) {
+    if (submitStep === 3) {
+      if (question.conceptId !== THIRD_CONCEPT) {
         throw new Error(
-          `Expected ${q3Variable} on submit step 3, got it on step ${submitStep}`,
+          `Expected baseline slot 3 concept ${THIRD_CONCEPT}, got ${question.conceptId} question=${question.id}`,
         );
       }
-      record("q3-slot", "PASS", `third question ${q3Variable} (variable)`);
+      sawQ3 = true;
+      record("q3-slot", "PASS", `third question ${question.id} concept=${question.conceptId}`);
     }
 
     const res = await client.submitAnswer(
@@ -121,7 +126,7 @@ export async function run({ client, assert, uuid, log = () => {} }) {
   }
 
   if (!sawQ3) {
-    throw new Error(`Never saw baseline Q3 ${q3Variable}`);
+    throw new Error(`Never saw baseline slot 3 concept ${THIRD_CONCEPT}`);
   }
 
   if (submitStep !== 12) {

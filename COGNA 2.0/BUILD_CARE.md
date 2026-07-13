@@ -36,11 +36,15 @@
 - [x] ~~LearningDecision: `selectionReasoning`, `latencyMs` (inputSnapshot already present)~~
 - [x] ~~ExperimentAssignment stub only — no product writes~~
 - [x] ~~Decision engine v2 emits new intents on product paths (`RETENTION_REVIEW` | `TRANSFER_CHECK` | `BREAK_FOR_FATIGUE`)~~
-- [ ] Seed does not need 200-question authoring for schema; content expansion is Phase 1
+- [x] ~~Programmatic 220 APPROVED bank via `pnpm content:generate-bank`~~ (human checklist sign-off still Phase 6)
+- [x] ~~R14 `alternativeExplanationDominant` blocks TARGETING~~
+- [x] ~~Calibration-aware difficulty caution for `possibly_overconfident`~~
+- [x] ~~Pilot dashboard at `GET /observability/pilot-dashboard`~~
+- [x] ~~Item statistics refresh off hot path (`POST /jobs/item-statistics/refresh`)~~
 
 ## Agentic Safety
 
-- [ ] Engines are bounded specialists, not free-form agents
+- [x] ~~Engines are bounded specialists, not free-form agents~~ (deterministic rules; no free-form LLM policy)
 - [ ] Any future LLM use has human review or validation gate
 - [ ] No engine calls another engine directly without ownership review
 - [ ] Every personalized action traces to evidence
@@ -48,10 +52,10 @@
 
 ## Testing Care
 
-- [x] ~~Golden for formulas and policies (R01–R10 + G## regression green 2026-07-13)~~
-- [x] ~~CLI for API/DB journeys~~ (MVP 2.0: retention-review-due, weekly-report, fatigue-break, explanation-effectiveness, email-report-delivery, content-approval-gate)
+- [x] ~~Golden for formulas and policies (G## + R01–R20 green)~~ (`pnpm test:golden` — 68 pass)
+- [x] ~~CLI for API/DB journeys~~ (`pnpm test:scenario:all`; baseline fixture is isolated per run and asserts slot concepts, not unstable question IDs)
 - [x] ~~UI smoke only for route and interaction wiring (`test:smoke:ui` + `test:smoke:ui:mvp2`)~~
-- [ ] Content validation for bank quality
+- [x] ~~Content validation for bank quality~~ (`pnpm test:content`)
 - [ ] Pilot metrics for real-world outcomes
 
 ## Product Care
@@ -76,7 +80,14 @@
 - Wiring experiment branching in MVP 2.0 via `experiment_assignments`
 - Hard-failing the web UI when MVP 2.0 endpoints (`weekly-summary`, `revision-plan`) return 404 while backends land in parallel
 - Showing raw concept IDs, mastery/fatigue clinical language, or engine reasoning to students
+- Parallel agents editing the same `apps/api/src` file without ownership lanes (serialize shared contracts + prisma; split by directory)
+- Treating seed APPROVED overrides or programmatic bank as signed content review — external pilot still needs human-approved checklist
+- Emitting `SUGGEST_BREAK` after hard session-end (15 min / question limit) — END_SESSION must win
+- **Use demo parent** must call `POST /parents/dev/demo-login` (seeded demo parent) — not `devSignup`, which creates a new empty parent
+- Regenerating / expanding the APPROVED bank changes baseline question IDs — re-seed and re-check goldens / smoke after `pnpm content:generate-bank`
 - [x] ~~Enforced: fatigue soft-break never above `END_SESSION` (R07/R08)~~
 - [x] ~~Enforced: retention estimate rounded to 2dp for deterministic golden replay~~
-- [ ] Item statistics refresh still deferred
-- [ ] Confidence-calibration-aware difficulty still deferred
+- [x] ~~Enforced: item statistics refresh off hot path~~
+- [x] ~~Enforced: confidence-calibration-aware difficulty~~
+- [x] ~~Enforced: practice POSTs that require `@IsISO8601()` `clientTimestamp` (`answer`, `skip`, `explanation-viewed`) must send `new Date().toISOString()` — web `api.ts` defaults for `explanationViewed` + `requestHint` so Continue after explanation cannot omit it~~
+- [x] ~~Enforced: parent API auth — Clerk Bearer via `buildParentAuthHeaders` when session exists; dev `X-Parent-Id` from `getParent()` when no publishable key; do not add Clerk middleware that blocks dev without keys~~

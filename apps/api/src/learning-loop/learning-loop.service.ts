@@ -1100,7 +1100,12 @@ export class LearningLoopService {
       })) != null;
 
     const calibration = profile?.confidenceCalibration;
-    const confidenceCalibration =
+    type CalibrationLabel =
+      | "possibly_overconfident"
+      | "possibly_underconfident"
+      | "reasonably_calibrated"
+      | "unknown";
+    const confidenceCalibration: CalibrationLabel =
       calibration === "possibly_overconfident" ||
       calibration === "possibly_underconfident" ||
       calibration === "reasonably_calibrated" ||

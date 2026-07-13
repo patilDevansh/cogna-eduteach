@@ -23,11 +23,11 @@
 
 ## Phase 1 — Content and Review Pipeline
 
-- [ ] Expand Linear Equations bank toward 200 APPROVED questions
-- [ ] Add content manifest validation
-- [ ] Add content review records / checklist workflow
+- [x] ~~Expand Linear Equations bank toward 200 APPROVED questions~~ (220 APPROVED: 45 base + 175 generated via `pnpm content:generate-bank` → `generated-questions.json`; programmatic math-verified — human checklist sign-off still Phase 6)
+- [x] ~~Add content manifest validation~~ (`pnpm test:content` → `scripts/validate-content-manifest.mjs`)
+- [x] ~~Add content review records / checklist workflow~~ (`POST /content/review/:questionId` writes `ContentReview` + updates `reviewStatus`; signed checklist remains human Phase 6)
 - [ ] Expand explanation templates for priority misconceptions (incl. new IDs)
-- [ ] Enforce no non-APPROVED content outside local dev
+- [x] ~~Enforce no non-APPROVED content outside local dev~~ (QG gate + `GET /content/approval-gate`; local may use `ALLOW_PENDING_REVIEW_QUESTIONS`)
 
 ## Phase 2 — Diagnostic v2
 
@@ -36,8 +36,9 @@
 - [x] ~~Error recovery~~
 - [x] ~~Explanation effectiveness~~
 - [x] ~~Engagement/fatigue pattern~~
-- [ ] Item statistics refresh
+- [x] ~~Item statistics refresh~~ (`POST /jobs/item-statistics/refresh`)
 - [x] ~~Golden tests R01-R06~~
+- [x] ~~R14 alternativeExplanationDominant formula + remediation gate~~
 
 ## Phase 3 — Decision and Personalization v2
 
@@ -47,8 +48,8 @@
 - [x] ~~`TRANSFER_CHECK`~~
 - [x] ~~`SUGGEST_BREAK` / fatigue path (soft; never above END_SESSION hard stop)~~
 - [x] ~~Web UI handles `SUGGEST_BREAK` (break phase; once per session; child-safe copy)~~
-- [ ] Confidence-calibration-aware difficulty
-- [x] ~~Weak-evidence abstention tests~~ (R02 retention abstention; misconception `<0.5` gate retained)
+- [x] ~~Confidence-calibration-aware difficulty~~ (overconfident → hold/reduce difficulty)
+- [x] ~~Weak-evidence abstention tests~~ (R02; misconception `<0.5`; R14 alt-explanation)
 
 ## Phase 4 — Recommendation, Revision, Reports
 
@@ -57,30 +58,33 @@
 - [x] ~~Weekly parent report~~
 - [x] ~~Report delivery records (`jobs` + `report_deliveries`)~~
 - [x] ~~Email provider integration or staging stub~~
-- [x] ~~Parent weekly summary UI~~
+- [x] ~~Parent weekly summary UI~~ (structuredSummary fallback render)
 - [x] ~~Student revision plan / queue UI (retention-aware copy; plan API 404-tolerant)~~
 - [x] ~~Practice `SUGGEST_BREAK` break UI (soft; once per session)~~
+- [x] ~~Web practice: `explanationViewed` / Continue after explanation always sends ISO `clientTimestamp` (also defaulted in `api.ts`; hint aligned)~~
 - [x] ~~MVP 2.0 UI smoke (`test:smoke:ui:mvp2`)~~
 
 ## Phase 5 — Production Ops
 
-- [ ] Clerk production auth
-- [ ] Billing status integration or explicit stub
-- [ ] Guardian invite flow
-- [ ] Observability dashboards
-- [ ] Pilot dashboard
-- [ ] Error monitoring and alert thresholds
+- [x] ~~Clerk production auth (web: `parent-auth-headers` Bearer + `ParentAuthProvider`/`useParentAuth`; dev `X-Parent-Id` unchanged when no publishable key; no Clerk middleware)~~ — production keys + end-to-end verify still operational
+- [x] ~~Billing status integration or explicit stub~~ (`GET /parents/me/billing`)
+- [x] ~~Guardian invite flow~~ (API stub `POST .../invite`)
+- [x] ~~Demo parent login~~ (`POST /parents/dev/demo-login` + seeded demo parent; web **Use demo parent**)
+- [ ] Observability dashboards (full product/learning dashboards beyond pilot)
+- [x] ~~Pilot dashboard~~ (`GET /observability/pilot-dashboard`)
+- [x] ~~Alert thresholds endpoint~~ (`GET /observability/alert-thresholds`); Sentry/PostHog remain env-gated stubs
+- [x] ~~`pnpm test:fast`~~ (golden + scenario + mvp2 UI smoke) and ~~`pnpm content:generate-bank`~~ scripts
 
 ## Phase 6 — Pilot Readiness
 
-- [x] ~~Golden suite green (G## + R01–R10; further R11+ still open)~~
-- [x] ~~CLI scenarios green~~ (retention-review-due, weekly-report, fatigue-break, explanation-effectiveness, email-report-delivery, content-approval-gate + prior MVP 1.0 set)
-- [ ] UI smoke green
+- [x] ~~Golden suite green (G## + R01–R20)~~ (`pnpm test:golden` — 68 pass)
+- [x] ~~CLI scenarios green~~ (`pnpm test:scenario:all`; baseline uses a fresh student and validates blueprint concepts rather than fixed expanded-bank IDs)
+- [x] ~~UI smoke green~~ (`pnpm test:smoke:ui:mvp2` — soft empty weekly/summary 404s only)
 - [x] ~~UI smoke script for MVP 2.0 routes (`scripts/ui-mvp2-smoke.mjs`)~~
-- [ ] Content review checklist signed
-- [ ] Pilot cohort ready
-- [ ] Demo walkthrough updated for MVP 2.0
-- [ ] README snapshot updated to pilot-ready
+- [ ] Content review checklist signed (human)
+- [ ] Pilot cohort ready (human)
+- [x] ~~Demo walkthrough updated for MVP 2.0~~ ([`DEMO_WALKTHROUGH.md`](./DEMO_WALKTHROUGH.md))
+- [x] ~~README snapshot updated to pilot-ready~~ (**pilot-ready (dev)**)
 
 ## Agentic Roadmap Reminder
 

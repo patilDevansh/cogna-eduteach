@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { api, isNotFound, isUnavailable } from "@/lib/api";
-import { getParent } from "@/lib/session";
+import { useParentAuth } from "@/lib/parent-auth-context";
 
 type LoadState =
   | { kind: "loading" }
@@ -16,19 +16,18 @@ export default function ParentStudentSummaryPage() {
   const router = useRouter();
   const params = useParams();
   const studentId = String(params.id ?? "");
-  const [parent, setParent] = useState<ReturnType<typeof getParent>>(null);
+  const { isLoaded, isSignedIn, getAuth } = useParentAuth();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
 
   useEffect(() => {
-    const p = getParent();
-    if (!p) {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
       router.replace("/parent/login");
       return;
     }
-    setParent(p);
 
-    api
-      .getParentStudentSummary(p.parentId, studentId)
+    getAuth()
+      .then((auth) => api.getParentStudentSummary(auth, studentId))
       .then((report) => {
         if (!report.renderedText?.trim()) {
           setState({
@@ -67,9 +66,9 @@ export default function ParentStudentSummaryPage() {
             "We couldn't load this summary. Please try again after your child completes a session.",
         });
       });
-  }, [router, studentId]);
+  }, [isLoaded, isSignedIn, getAuth, router, studentId]);
 
-  if (!parent) return <p>Loading…</p>;
+  if (!isLoaded || !isSignedIn) return <p>Loading…</p>;
 
   return (
     <div className="card">

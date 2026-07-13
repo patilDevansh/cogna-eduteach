@@ -10,4 +10,9 @@ export class ObservabilityController {
   pilotDashboard() {
     return this.observability.getPilotDashboard();
   }
+
+  @Get("alert-thresholds")
+  alertThresholds() {
+    return this.observability.getAlertThresholds();
+  }
 }
