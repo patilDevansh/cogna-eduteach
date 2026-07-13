@@ -1,17 +1,19 @@
 # Cogna 4.0 — Build Tracking
 
-> Planning folder for MVP 4.0 (multi-unit curriculum).  
-> Spec: [`/docs/mvp-4.0/`](../docs/mvp-4.0/README.md) — **Draft / Vision**.  
-> Not active implementation. Active era: MVP 2.0.
+> Active implementation folder for MVP 4.0 (multi-unit curriculum).  
+> Spec: [`/docs/mvp-4.0/`](../docs/mvp-4.0/README.md) — **Canonical** (frozen for implementation).  
+> Active era per AGENTS.md.
 
 ## Status Snapshot
 
 - **Created:** 2026-07-13
-- **Updated:** 2026-07-13
-- **Status:** Planning / Vision — P0/P1 documentation improvements applied 2026-07-13
+- **Updated:** 2026-07-14
+- **Status:** **Phase 0 Complete** — Foundation contracts, schema, and unit IDs in place
 - **Core goal:** Multi-unit Grade 8 math + planning horizon + optional teacher read-only
-- **Depends on:** MVP 3.0 exit (assisted content + experiments proven)
-- **Recent changes:** Unit catalog freeze policy, core/optional concepts, teacher GET-only allowlist, U16 worked example, cross-unit retention clarification, pilot cohort dependency
+- **Depends on:** MVP 3.0 exit complete (2026-07-14)
+- **Recent changes:** 
+  - 2026-07-14: Phase 0 implementation complete (schema, contracts, seed, golden tests pass)
+  - 2026-07-13: P0/P1 documentation improvements applied (unit catalog freeze, teacher allowlist, U16 example)
 
 ## Documents
 

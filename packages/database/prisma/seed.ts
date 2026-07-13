@@ -388,6 +388,97 @@ async function seedDevAccounts() {
   console.log("Dev access code:", demoAccessCode);
 }
 
+async function seedCurriculumUnits() {
+  // MVP 4.0 Phase 0: Define initial curriculum units
+  const units = [
+    {
+      unitId: "linear-equations-one-variable",
+      title: "Linear Equations in One Variable",
+      prerequisiteUnitIds: [] as string[],
+      unlockRule: "DIAGNOSTIC_PLACEMENT",
+      priorityWeight: 1.0,
+      concepts: [
+        { conceptId: "P1_INTEGER_ADD_SUB", kind: "PREREQ" },
+        { conceptId: "P2_NEGATIVE_OPS", kind: "PREREQ" },
+        { conceptId: "P3_VARIABLES_CONSTANTS", kind: "PREREQ" },
+        { conceptId: "P4_SIMPLE_EXPRESSIONS", kind: "PREREQ" },
+        { conceptId: "P5_EQUALITY_BALANCE", kind: "PREREQ" },
+        { conceptId: "C1_ONE_STEP_ADDITION", kind: "CORE" },
+        { conceptId: "C2_ONE_STEP_SUBTRACTION", kind: "CORE" },
+        { conceptId: "C3_ONE_STEP_MULTIPLICATION", kind: "CORE" },
+        { conceptId: "C4_ONE_STEP_DIVISION", kind: "CORE" },
+        { conceptId: "C5_TWO_STEP_EQUATIONS", kind: "CORE" },
+        { conceptId: "C6_SIMPLE_WORD_PROBLEMS", kind: "CORE" },
+      ],
+    },
+    {
+      unitId: "systems-of-equations",
+      title: "Systems of Linear Equations",
+      prerequisiteUnitIds: ["linear-equations-one-variable"],
+      unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
+      priorityWeight: 1.0,
+      concepts: [
+        // Placeholder: MVP 4.0 Phase 1 will define actual concepts
+      ],
+    },
+    {
+      unitId: "quadratic-equations",
+      title: "Quadratic Equations",
+      prerequisiteUnitIds: ["linear-equations-one-variable"],
+      unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
+      priorityWeight: 0.9,
+      concepts: [
+        // Placeholder: MVP 4.0 Phase 1 will define actual concepts
+      ],
+    },
+  ];
+
+  for (const unit of units) {
+    const created = await prisma.curriculumUnit.upsert({
+      where: { unitId: unit.unitId },
+      create: {
+        unitId: unit.unitId,
+        title: unit.title,
+        prerequisiteUnitIds: unit.prerequisiteUnitIds,
+        unlockRule: unit.unlockRule,
+        priorityWeight: unit.priorityWeight,
+      },
+      update: {
+        title: unit.title,
+        prerequisiteUnitIds: unit.prerequisiteUnitIds,
+        unlockRule: unit.unlockRule,
+        priorityWeight: unit.priorityWeight,
+      },
+    });
+
+    // Seed unit concepts
+    for (const uc of unit.concepts) {
+      await prisma.unitConcept.upsert({
+        where: {
+          unitId_conceptId: {
+            unitId: unit.unitId,
+            conceptId: uc.conceptId,
+          },
+        },
+        create: {
+          unitId: unit.unitId,
+          conceptId: uc.conceptId,
+          kind: uc.kind as "PREREQ" | "CORE",
+        },
+        update: {
+          kind: uc.kind as "PREREQ" | "CORE",
+        },
+      });
+    }
+  }
+
+  // Backfill unitId for existing questions (all belong to linear-equations-one-variable)
+  await prisma.question.updateMany({
+    where: { unitId: null },
+    data: { unitId: "linear-equations-one-variable" },
+  });
+}
+
 async function main() {
   console.log("Seeding concepts…");
   await seedConcepts();
@@ -397,6 +488,8 @@ async function main() {
   await seedQuestions();
   console.log("Seeding explanations…");
   await seedExplanations();
+  console.log("Seeding curriculum units (MVP 4.0)…");
+  await seedCurriculumUnits();
   console.log("Seeding dev accounts…");
   await seedDevAccounts();
   console.log("Seed complete.");

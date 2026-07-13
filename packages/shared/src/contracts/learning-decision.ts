@@ -26,6 +26,11 @@ export interface DecisionParameters {
   experimentArmId?: string;
   candidateScoreId?: string;
   draftOriginId?: string; // analytics only; never student-facing
+  // MVP 4.0 optional fields
+  unitId?: string;
+  curriculumPlanId?: string;
+  horizonWeekIndex?: number; // 0-based within plan
+  bridgeConceptId?: string;
 }
 
 export interface LearningDecision {

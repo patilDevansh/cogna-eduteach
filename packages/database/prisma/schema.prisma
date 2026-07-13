@@ -85,6 +85,9 @@ enum LearningIntent {
   RETENTION_REVIEW
   TRANSFER_CHECK
   BREAK_FOR_FATIGUE
+  // MVP 4.0 additive
+  UNIT_BRIDGE_REVIEW
+  HORIZON_FOCUS_PRACTICE
 }
 
 enum JobStatus {
@@ -274,6 +277,8 @@ model Question {
   reviewStatus             ReviewStatus @default(PENDING_REVIEW)
   itemQualityWeight        Float        @default(1.0)
   options                  Json?
+  /// MVP 4.0: Unit association (nullable for backward compat; backfill linear-equations-one-variable)
+  unitId                   String?
 
   attempts       Attempt[]
   itemStatistics ItemStatistic[]
@@ -283,6 +288,7 @@ model Question {
 
   @@id([id, version])
   @@index([conceptId, difficulty, reviewStatus])
+  @@index([unitId])
 }
 
 model Explanation {
@@ -699,4 +705,49 @@ model CandidateActionScore {
 
   @@index([studentId, createdAt])
   @@index([experimentId, experimentArmId])
+}
+
+// ─── MVP 4.0 tables ────────────────────────────────────────────────────────
+
+model CurriculumUnit {
+  id                   String   @id @default(cuid())
+  unitId               String   @unique
+  title                String
+  prerequisiteUnitIds  Json     // string[]
+  unlockRule           String   // ALL_PREREQ_UNITS_AT_THRESHOLD | MANUAL | DIAGNOSTIC_PLACEMENT
+  priorityWeight       Float    @default(1.0)
+  createdAt            DateTime @default(now())
+
+  unitConcepts UnitConcept[]
+}
+
+model UnitConcept {
+  unitId        String
+  unit          CurriculumUnit @relation(fields: [unitId], references: [unitId], onDelete: Cascade)
+  conceptId     String
+  kind          ConceptKind    // PREREQ | CORE
+
+  @@id([unitId, conceptId])
+  @@index([conceptId])
+}
+
+model CurriculumPlan {
+  id            String   @id @default(cuid())
+  studentId     String
+  horizonWeeks  Int      // 2..6
+  planJson      Json     // weeks[] with weekIndex, primaryUnitId, focusConceptIds, bridgeConceptIds, maxNewConcepts
+  rulesVersion  String   // planning-rules-v1
+  validUntil    DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([studentId, validUntil])
+}
+
+model TeacherStudentLink {
+  teacherId String
+  studentId String
+  role      String // COACH | TEACHER
+
+  @@unique([teacherId, studentId])
+  @@index([studentId])
 }

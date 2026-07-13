@@ -23,6 +23,9 @@ export const LEARNING_INTENTS = [
   "RETENTION_REVIEW",
   "TRANSFER_CHECK",
   "BREAK_FOR_FATIGUE",
+  // MVP 4.0 additive intents
+  "UNIT_BRIDGE_REVIEW",
+  "HORIZON_FOCUS_PRACTICE",
 ] as const;
 
 export type LearningIntent = (typeof LEARNING_INTENTS)[number];

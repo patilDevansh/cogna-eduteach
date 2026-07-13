@@ -58,3 +58,28 @@ export const ENGINE_VERSIONS_V3 = {
   contentDraftRules: CONTENT_DRAFT_RULES_V1,
   contentValidationRules: CONTENT_VALIDATION_RULES_V1,
 } as const;
+
+// ─── MVP 4.0 version strings ───────────────────────────────────────────────
+
+export const CURRICULUM_RULES_V1 = "curriculum-rules-v1";
+export const PLANNING_RULES_V1 = "planning-rules-v1";
+export const DECISION_RULES_V4 = "decision-rules-v4"; // unit-aware
+export const RECOMMENDATION_RULES_V4 = "recommendation-rules-v4";
+
+export const ENGINE_VERSIONS_V4 = {
+  // Carry forward from MVP 2.0/3.0
+  masteryFormula: MASTERY_FORMULA_V2,
+  diagnosticRules: DIAGNOSTIC_RULES_V2,
+  retentionRules: RETENTION_RULES_V2,
+  reportTemplates: REPORT_TEMPLATES_V2,
+  contentReviewRules: CONTENT_REVIEW_RULES_V2,
+  candidateScoreRules: CANDIDATE_SCORE_RULES_V1,
+  experimentRules: EXPERIMENT_RULES_V1,
+  contentDraftRules: CONTENT_DRAFT_RULES_V1,
+  contentValidationRules: CONTENT_VALIDATION_RULES_V1,
+  // MVP 4.0 new
+  curriculumRules: CURRICULUM_RULES_V1,
+  planningRules: PLANNING_RULES_V1,
+  decisionRules: DECISION_RULES_V4,
+  recommendationRules: RECOMMENDATION_RULES_V4,
+} as const;

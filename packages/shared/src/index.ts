@@ -7,6 +7,8 @@ export * from "./contracts/baseline-blueprint";
 export * from "./contracts/experiments";
 export * from "./contracts/content-drafts";
 export * from "./contracts/candidate-scores";
+// MVP 4.0
+export * from "./contracts/curriculum";
 
 export interface AttemptSignals {
   isCorrect: boolean | null;

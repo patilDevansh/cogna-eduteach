@@ -4,9 +4,9 @@
 
 ## Phase 0 — Freeze
 
-- [ ] Promote docs after MVP 3.0 exit
-- [ ] Finalize second/third unit IDs
-- [ ] Shared contracts: unitId, plans, new intents
+- [x] ~~Promote docs after MVP 3.0 exit~~
+- [x] ~~Finalize second/third unit IDs~~
+- [x] ~~Shared contracts: unitId, plans, new intents~~
 
 ## Phase 1 — Curriculum graph
 
