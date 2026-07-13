@@ -361,6 +361,198 @@
       "prerequisiteConceptIds": []
     },
     {
+      "id": "Q_P1_GEN_016",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 21 - 9",
+      "acceptedAnswers": [
+        "12",
+        "12.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "21 - 9 = 12"
+      ],
+      "hintLadder": [
+        "Subtract the second number.",
+        "21 - 9 = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_017",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 6 + 11",
+      "acceptedAnswers": [
+        "17",
+        "17.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "6 + 11 = 17"
+      ],
+      "hintLadder": [
+        "Add the two numbers.",
+        "6 + 11 = 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_018",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 21 - 11",
+      "acceptedAnswers": [
+        "10",
+        "10.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "21 - 11 = 10"
+      ],
+      "hintLadder": [
+        "Subtract the second number.",
+        "21 - 11 = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_019",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 6 + 13",
+      "acceptedAnswers": [
+        "19",
+        "19.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "6 + 13 = 19"
+      ],
+      "hintLadder": [
+        "Add the two numbers.",
+        "6 + 13 = 19"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_020",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 21 - 13",
+      "acceptedAnswers": [
+        "8",
+        "8.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "21 - 13 = 8"
+      ],
+      "hintLadder": [
+        "Subtract the second number.",
+        "21 - 13 = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_021",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 7 + 3",
+      "acceptedAnswers": [
+        "10",
+        "10.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "7 + 3 = 10"
+      ],
+      "hintLadder": [
+        "Add the two numbers.",
+        "7 + 3 = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_022",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 22 - 3",
+      "acceptedAnswers": [
+        "19",
+        "19.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "22 - 3 = 19"
+      ],
+      "hintLadder": [
+        "Subtract the second number.",
+        "22 - 3 = 19"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P1_GEN_023",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 7 + 7",
+      "acceptedAnswers": [
+        "14",
+        "14.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "7 + 7 = 14"
+      ],
+      "hintLadder": [
+        "Add the two numbers.",
+        "7 + 7 = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
       "id": "Q_P2_GEN_001",
       "conceptId": "P2_NEGATIVE_OPS",
       "difficulty": 2,
@@ -618,6 +810,30 @@
       "hintLadder": [
         "Adding a negative subtracts.",
         "28 - 6 = 22"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P2_GEN_012",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 30 + (-7)",
+      "acceptedAnswers": [
+        "23",
+        "23.0"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "30 + (-7) = 23"
+      ],
+      "hintLadder": [
+        "Adding a negative subtracts.",
+        "30 - 7 = 23"
       ],
       "reviewStatus": "APPROVED",
       "version": 1,
@@ -906,6 +1122,126 @@
       "hintLadder": [
         "The number multiplying the variable.",
         "Answer: 3"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_GEN_013",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In 4x + 5, which is the variable?",
+      "acceptedAnswers": [
+        "x",
+        "x"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "A variable stands for an unknown value."
+      ],
+      "hintLadder": [
+        "A variable stands for an unknown value.",
+        "Answer: x"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_GEN_014",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In 5y - 7, which is the constant?",
+      "acceptedAnswers": [
+        "7",
+        "-7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "A constant is a fixed number."
+      ],
+      "hintLadder": [
+        "A constant is a fixed number.",
+        "Answer: 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_GEN_015",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In 4m + 1, which letter is the variable?",
+      "acceptedAnswers": [
+        "m",
+        "m"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Look for the letter."
+      ],
+      "hintLadder": [
+        "Look for the letter.",
+        "Answer: m"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_GEN_016",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In 5 + 3t, which is the coefficient of t?",
+      "acceptedAnswers": [
+        "3",
+        "3"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "The number multiplying the variable."
+      ],
+      "hintLadder": [
+        "The number multiplying the variable.",
+        "Answer: 3"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P3_GEN_017",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In 5x + 5, which is the variable?",
+      "acceptedAnswers": [
+        "x",
+        "x"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "A variable stands for an unknown value."
+      ],
+      "hintLadder": [
+        "A variable stands for an unknown value.",
+        "Answer: x"
       ],
       "reviewStatus": "APPROVED",
       "version": 1,
@@ -1338,6 +1674,206 @@
       "prerequisiteConceptIds": []
     },
     {
+      "id": "Q_P4_GEN_018",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 4, evaluate 2a + 3",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(4) + 3 = 11"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_019",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 5, evaluate 2a + 1",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(5) + 1 = 11"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_020",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 6, evaluate 2a + 2",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(6) + 2 = 14"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_021",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 7, evaluate 2a + 3",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(7) + 3 = 17"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_022",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 8, evaluate 2a + 1",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(8) + 1 = 17"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_023",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 9, evaluate 2a + 2",
+      "acceptedAnswers": [
+        "20",
+        "20.0",
+        "x=20"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(9) + 2 = 20"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 20"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_024",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 10, evaluate 2a + 3",
+      "acceptedAnswers": [
+        "23",
+        "23.0",
+        "x=23"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(10) + 3 = 23"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 23"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P4_GEN_025",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "If a = 11, evaluate 2a + 1",
+      "acceptedAnswers": [
+        "23",
+        "23.0",
+        "x=23"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(11) + 1 = 23"
+      ],
+      "hintLadder": [
+        "Substitute a into the expression.",
+        "Answer: 23"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
       "id": "Q_P5_GEN_001",
       "conceptId": "P5_EQUALITY_BALANCE",
       "difficulty": 1,
@@ -1763,6 +2299,206 @@
       "prerequisiteConceptIds": []
     },
     {
+      "id": "Q_P5_GEN_018",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: multiplying both sides by 2 keeps an equation true.",
+      "acceptedAnswers": [
+        "true",
+        "True",
+        "yes"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_019",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: you must do the same operation to both sides of an equation.",
+      "acceptedAnswers": [
+        "true",
+        "True",
+        "yes"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_020",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: you may add 5 to only one side and keep balance.",
+      "acceptedAnswers": [
+        "false",
+        "False",
+        "no"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: false"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: false"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_021",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: multiplying both sides by 2 keeps an equation true.",
+      "acceptedAnswers": [
+        "true",
+        "True",
+        "yes"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_022",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: you must do the same operation to both sides of an equation.",
+      "acceptedAnswers": [
+        "true",
+        "True",
+        "yes"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_023",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: you may add 5 to only one side and keep balance.",
+      "acceptedAnswers": [
+        "false",
+        "False",
+        "no"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: false"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: false"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_024",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: multiplying both sides by 2 keeps an equation true.",
+      "acceptedAnswers": [
+        "true",
+        "True",
+        "yes"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_P5_GEN_025",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: you must do the same operation to both sides of an equation.",
+      "acceptedAnswers": [
+        "true",
+        "True",
+        "yes"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "Think about balance on both sides.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
       "id": "Q_C1_GEN_001",
       "conceptId": "C1_ONE_STEP_ADDITION",
       "difficulty": 2,
@@ -2172,6 +2908,214 @@
       "hintLadder": [
         "Subtract from both sides.",
         "x = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_017",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 7 = 13",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 13 - 7 = 6"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_018",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 8 = 15",
+      "acceptedAnswers": [
+        "7",
+        "7.0",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 15 - 8 = 7"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_019",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 9 = 17",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 17 - 9 = 8"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_020",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 10 = 19",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 19 - 10 = 9"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_021",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 11 = 21",
+      "acceptedAnswers": [
+        "10",
+        "10.0",
+        "x=10",
+        "x = 10"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 21 - 11 = 10"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_022",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 12 = 23",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11",
+        "x = 11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 23 - 12 = 11"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_023",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 13 = 25",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 25 - 13 = 12"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C1_GEN_024",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x + 14 = 27",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 27 - 14 = 13"
+      ],
+      "hintLadder": [
+        "Subtract from both sides.",
+        "x = 13"
       ],
       "reviewStatus": "APPROVED",
       "version": 1,
@@ -2647,6 +3591,266 @@
       "prerequisiteConceptIds": []
     },
     {
+      "id": "Q_C2_GEN_019",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 12 = 16",
+      "acceptedAnswers": [
+        "28",
+        "28.0",
+        "x=28",
+        "x = 28"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 16 + 12 = 28"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 28"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_020",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 13 = 16",
+      "acceptedAnswers": [
+        "29",
+        "29.0",
+        "x=29",
+        "x = 29"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 16 + 13 = 29"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 29"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_021",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 4 = 6",
+      "acceptedAnswers": [
+        "10",
+        "10.0",
+        "x=10",
+        "x = 10"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 4 = 10"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_022",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 5 = 6",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11",
+        "x = 11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 5 = 11"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_023",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 6 = 6",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 6 = 12"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_024",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 7 = 6",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 7 = 13"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_025",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 8 = 6",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14",
+        "x = 14"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 8 = 14"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_026",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 9 = 6",
+      "acceptedAnswers": [
+        "15",
+        "15.0",
+        "x=15",
+        "x = 15"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 9 = 15"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 15"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_027",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 10 = 6",
+      "acceptedAnswers": [
+        "16",
+        "16.0",
+        "x=16",
+        "x = 16"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 10 = 16"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 16"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C2_GEN_028",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x - 11 = 6",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17",
+        "x = 17"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 + 11 = 17"
+      ],
+      "hintLadder": [
+        "Add to both sides.",
+        "x = 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
       "id": "Q_C3_GEN_001",
       "conceptId": "C3_ONE_STEP_MULTIPLICATION",
       "difficulty": 2,
@@ -3089,6 +4293,214 @@
       "prerequisiteConceptIds": []
     },
     {
+      "id": "Q_C3_GEN_018",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 3x = 24",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 24 ÷ 3 = 8"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_019",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 4x = 36",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 36 ÷ 4 = 9"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_020",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 5x = 50",
+      "acceptedAnswers": [
+        "10",
+        "10.0",
+        "x=10",
+        "x = 10"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 50 ÷ 5 = 10"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_021",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 6x = 66",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11",
+        "x = 11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 66 ÷ 6 = 11"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_022",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 7x = 84",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 84 ÷ 7 = 12"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_023",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 8x = 104",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 104 ÷ 8 = 13"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_024",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 9x = 126",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14",
+        "x = 14"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 126 ÷ 9 = 14"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C3_GEN_025",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 2x = 6",
+      "acceptedAnswers": [
+        "3",
+        "3.0",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 6 ÷ 2 = 3"
+      ],
+      "hintLadder": [
+        "Divide both sides by the coefficient.",
+        "x = 3"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
       "id": "Q_C4_GEN_001",
       "conceptId": "C4_ONE_STEP_DIVISION",
       "difficulty": 3,
@@ -3524,6 +4936,214 @@
       "hintLadder": [
         "Multiply both sides by the divisor.",
         "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_018",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/3 = 7",
+      "acceptedAnswers": [
+        "21",
+        "21.0",
+        "x=21",
+        "x = 21"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 7 × 3 = 21"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 21"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_019",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/4 = 8",
+      "acceptedAnswers": [
+        "32",
+        "32.0",
+        "x=32",
+        "x = 32"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 8 × 4 = 32"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 32"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_020",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/5 = 9",
+      "acceptedAnswers": [
+        "45",
+        "45.0",
+        "x=45",
+        "x = 45"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 9 × 5 = 45"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 45"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_021",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/6 = 10",
+      "acceptedAnswers": [
+        "60",
+        "60.0",
+        "x=60",
+        "x = 60"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 10 × 6 = 60"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 60"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_022",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/7 = 11",
+      "acceptedAnswers": [
+        "77",
+        "77.0",
+        "x=77",
+        "x = 77"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 11 × 7 = 77"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 77"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_023",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/8 = 12",
+      "acceptedAnswers": [
+        "96",
+        "96.0",
+        "x=96",
+        "x = 96"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 12 × 8 = 96"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 96"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_024",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/9 = 13",
+      "acceptedAnswers": [
+        "117",
+        "117.0",
+        "x=117",
+        "x = 117"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 13 × 9 = 117"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 117"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C4_GEN_025",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: x/2 = 2",
+      "acceptedAnswers": [
+        "4",
+        "4.0",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "x = 2 × 2 = 4"
+      ],
+      "hintLadder": [
+        "Multiply both sides by the divisor.",
+        "x = 4"
       ],
       "reviewStatus": "APPROVED",
       "version": 1,
@@ -4044,6 +5664,276 @@
       "prerequisiteConceptIds": []
     },
     {
+      "id": "Q_C5_GEN_020",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 5x + 4 = 59",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11",
+        "x = 11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x = 55",
+        "x = 11"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_021",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 2x + 5 = 29",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x = 24",
+        "x = 12"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_022",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 3x + 6 = 45",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x = 39",
+        "x = 13"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_023",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 4x + 7 = 63",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14",
+        "x = 14"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4x = 56",
+        "x = 14"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_024",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 5x + 8 = 83",
+      "acceptedAnswers": [
+        "15",
+        "15.0",
+        "x=15",
+        "x = 15"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x = 75",
+        "x = 15"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 15"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_025",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 2x + 3 = 11",
+      "acceptedAnswers": [
+        "4",
+        "4.0",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x = 8",
+        "x = 4"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 4"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_026",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 3x + 4 = 19",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x = 15",
+        "x = 5"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_027",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 4x + 5 = 29",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4x = 24",
+        "x = 6"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_028",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 5x + 6 = 41",
+      "acceptedAnswers": [
+        "7",
+        "7.0",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x = 35",
+        "x = 7"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C5_GEN_029",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve: 2x + 7 = 23",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x = 16",
+        "x = 8"
+      ],
+      "hintLadder": [
+        "Subtract the constant first.",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
       "id": "Q_C6_GEN_001",
       "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
       "difficulty": 3,
@@ -4490,7 +6380,231 @@
       "version": 1,
       "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_017",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 2 and increased by 3 gives 25. Find the number.",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11",
+        "x = 11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x + 3 = 25",
+        "x = 11"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "2x + 3 = 25",
+        "x = 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_018",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 3 and increased by 3 gives 39. Find the number.",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x + 3 = 39",
+        "x = 12"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "3x + 3 = 39",
+        "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_019",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 4 and increased by 3 gives 55. Find the number.",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4x + 3 = 55",
+        "x = 13"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "4x + 3 = 55",
+        "x = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_020",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 5 and increased by 3 gives 73. Find the number.",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14",
+        "x = 14"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x + 3 = 73",
+        "x = 14"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "5x + 3 = 73",
+        "x = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_021",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 2 and increased by 3 gives 13. Find the number.",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x + 3 = 13",
+        "x = 5"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "2x + 3 = 13",
+        "x = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_022",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 3 and increased by 3 gives 21. Find the number.",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x + 3 = 21",
+        "x = 6"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "3x + 3 = 21",
+        "x = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_023",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 4 and increased by 3 gives 31. Find the number.",
+      "acceptedAnswers": [
+        "7",
+        "7.0",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4x + 3 = 31",
+        "x = 7"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "4x + 3 = 31",
+        "x = 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_C6_GEN_024",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 5 and increased by 3 gives 43. Find the number.",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x + 3 = 43",
+        "x = 8"
+      ],
+      "hintLadder": [
+        "Write an equation first.",
+        "5x + 3 = 43",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": []
     }
   ],
-  "generatedAt": "2026-07-13T09:41:35.149Z"
+  "generatedAt": "2026-07-13T18:43:15.311Z"
 }

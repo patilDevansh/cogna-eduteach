@@ -38,6 +38,24 @@
 - **Reason:** Still rejected under `mastery-formula-v2`.
 - **Return when:** Explicit `mastery-formula-v3` + goldens if ever required.
 
+### Phase 5 — Live pilot run (≥ 2 weeks) with real students
+
+- **Reason:** Phase 5 engineering complete (bank scaled to 302, promotion script drafted, observability ready). Live pilot requires human coordination: student cohort selection, parent consent, teacher briefing, 2-week monitoring.
+- **Return when:** Human decision to launch pilot cohort with experiment enabled.
+- **Spec refs:** [`docs/mvp-3.0/README_EXPERIMENTS.md`](../docs/mvp-3.0/README_EXPERIMENTS.md) (sticky assignment + analysis)
+
+### Phase 5 — Signed review checklist for LLM-assisted content
+
+- **Reason:** MVP 3.0 promotion script (`scripts/promote-programmatic-drafts.mjs`) handles deterministic math templates only. LLM-assisted drafts MUST go through human review checklist before APPROVED_PROMOTED status. Checklist enforcement is procedural, not code-gated.
+- **Return when:** First LLM-assisted draft batch ready for human review.
+- **Spec refs:** [`docs/mvp-3.0/content/REVIEW_CHECKLIST.md`](../docs/mvp-3.0/content/REVIEW_CHECKLIST.md)
+
+### Phase 5 — Policy decision: control vs scored_v1 default
+
+- **Reason:** Requires ≥ 2 weeks of pilot data + experiment analysis export. Policy decision depends on offline outcome comparison (session quality, retention, misconception resolution). Cannot decide before pilot run completes.
+- **Return when:** After pilot completes + experiment analysis reviewed.
+- **Spec refs:** [`docs/mvp-3.0/README_EXPERIMENTS.md`](../docs/mvp-3.0/README_EXPERIMENTS.md) (experiment arms: control / scored_v1)
+
 ## Pre-Declared Non-Goals
 
 - Unchecked LLM math to students
