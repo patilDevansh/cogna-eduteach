@@ -45,8 +45,8 @@ function mockDueRevision(): RevisionQueueItem {
 describe("G40 — Due revision priority", () => {
   const engine = new DecisionEngineService();
 
-  it("prefers EXECUTE_DUE_REVISION over TARGET_MISCONCEPTION when item is due", () => {
-    const decision = engine.decide({
+  it("prefers EXECUTE_DUE_REVISION over TARGET_MISCONCEPTION when item is due", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 1,
@@ -66,8 +66,8 @@ describe("G40 — Due revision priority", () => {
 describe("G41 — Session timeout", () => {
   const engine = new DecisionEngineService();
 
-  it("returns END_SESSION at question limit", () => {
-    const decision = engine.decide({
+  it("returns END_SESSION at question limit", async () => {
+    const decision = await engine.decide({
       session: mockSession({ questionCount: 12 }),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
@@ -76,8 +76,8 @@ describe("G41 — Session timeout", () => {
     assert.equal(decision.uiAction, "END_SESSION");
   });
 
-  it("returns END_SESSION after 15 minutes", () => {
-    const decision = engine.decide({
+  it("returns END_SESSION after 15 minutes", async () => {
+    const decision = await engine.decide({
       session: mockSession({
         startedAt: new Date(Date.now() - 16 * 60 * 1000),
       }),

@@ -22,9 +22,9 @@ function mockSession(overrides: Partial<LearningSession> = {}): LearningSession 
 }
 
 describe("R07 — Fatigue break before hard stop", () => {
-  it("emits SUGGEST_BREAK + BREAK_FOR_FATIGUE at 12 min with idle spikes", () => {
+  it("emits SUGGEST_BREAK + BREAK_FOR_FATIGUE at 12 min with idle spikes", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession({ questionCount: 5 }),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
@@ -39,9 +39,9 @@ describe("R07 — Fatigue break before hard stop", () => {
     assert.equal(decision.decisionVersion, DECISION_RULES_V2);
   });
 
-  it("does not re-fire break when already suggested this session", () => {
+  it("does not re-fire break when already suggested this session", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession({
         questionCount: 5,
         breakSuggestedAt: new Date(),
@@ -60,9 +60,9 @@ describe("R07 — Fatigue break before hard stop", () => {
 });
 
 describe("R08 — END_SESSION beats SUGGEST_BREAK", () => {
-  it("emits END_SESSION only at 15 min even with fatigueRisk", () => {
+  it("emits END_SESSION only at 15 min even with fatigueRisk", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession({ questionCount: 5 }),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
@@ -87,9 +87,9 @@ describe("R15 — New intent enum migration guard", () => {
 });
 
 describe("R19 — Transfer check decision", () => {
-  it("emits SHOW_QUESTION + TRANSFER_CHECK when gates pass", () => {
+  it("emits SHOW_QUESTION + TRANSFER_CHECK when gates pass", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession({
         activeConceptId: "C5_TWO_STEP_EQUATIONS",
       }),

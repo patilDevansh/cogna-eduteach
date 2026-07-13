@@ -29,8 +29,8 @@ function assertCanonicalDecision(decision: LearningDecision) {
 describe("G62 — Forbidden uiAction alias", () => {
   const engine = new DecisionEngineService();
 
-  it("uses SHOW_QUESTION + DECREASE_DIFFICULTY instead of legacy EASIER_QUESTION alias", () => {
-    const decision = engine.decide({
+  it("uses SHOW_QUESTION + DECREASE_DIFFICULTY instead of legacy EASIER_QUESTION alias", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 2,
@@ -43,19 +43,19 @@ describe("G62 — Forbidden uiAction alias", () => {
     assert.notEqual((decision as { action?: string }).action, "HARDER_QUESTION");
   });
 
-  it("never emits flat legacy action fields on any priority path", () => {
+  it("never emits flat legacy action fields on any priority path", async () => {
     const paths = [
-      engine.decide({
+      await engine.decide({
         session: mockSession({ questionCount: 12 }),
         recentCorrectStreak: 0,
         recentIncorrectStreak: 0,
       }),
-      engine.decide({
+      await engine.decide({
         session: mockSession(),
         recentCorrectStreak: 2,
         recentIncorrectStreak: 0,
       }),
-      engine.decide({
+      await engine.decide({
         session: mockSession(),
         recentCorrectStreak: 0,
         recentIncorrectStreak: 0,

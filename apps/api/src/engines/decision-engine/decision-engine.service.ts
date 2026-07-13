@@ -7,6 +7,7 @@ import {
   type LearningDecision,
   type LearningIntent,
   type RemediationState,
+  type CandidateAction,
 } from "@cogna/shared";
 import type {
   LearningSession,
@@ -18,6 +19,7 @@ import {
   computeFatigueRisk,
 } from "../diagnostic-engine/diagnostic-formulas";
 import { ExperimentsService } from "../../experiments/experiments.service";
+import { CandidateScorerService } from "../candidate-scorer/candidate-scorer.service";
 
 export interface DecisionInput {
   session: LearningSession;
@@ -47,6 +49,7 @@ export interface DecisionInput {
   /** Error recovery for explanation style preference. */
   errorRecoveryRate?: number | null;
   retentionEstimateId?: string;
+  retentionEstimate?: number;
   /** Confidence calibration → difficulty caution (personalization). */
   confidenceCalibration?:
     | "possibly_overconfident"
@@ -58,6 +61,12 @@ export interface DecisionInput {
   /** MVP 3.0 — experiment context. */
   experimentKey?: string;
   experimentArm?: string;
+  /** MVP 3.0 — shadow mode: score but don't apply. */
+  shadow?: boolean;
+  /** MVP 3.0 — seen difficulties for exploration term. */
+  seenDifficulties?: number[];
+  /** MVP 3.0 — explanation effectiveness for scoring. */
+  explanationEffectiveness?: number;
 }
 
 const SESSION_QUESTION_LIMIT = 12;
@@ -69,7 +78,10 @@ const EXPERIMENTS_ENABLED =
 export class DecisionEngineService {
   private readonly logger = new Logger(DecisionEngineService.name);
 
-  constructor(private readonly experimentsService?: ExperimentsService) {}
+  constructor(
+    private readonly experimentsService?: ExperimentsService,
+    private readonly candidateScorer?: CandidateScorerService,
+  ) {}
 
   async decide(input: DecisionInput): Promise<LearningDecision> {
     // MVP 3.0: Check for experiment assignment if enabled
@@ -93,6 +105,17 @@ export class DecisionEngineService {
     } else if (input.experimentKey && input.experimentArm) {
       experimentKey = input.experimentKey;
       experimentArm = input.experimentArm;
+    }
+
+    // Check if we should use candidate scoring
+    const useScoring =
+      EXPERIMENTS_ENABLED &&
+      experimentArm === "scored_v1" &&
+      this.candidateScorer &&
+      !input.shadow;
+
+    if (useScoring) {
+      return this.decideWithScoring(input, experimentKey, experimentArm);
     }
 
     return this.decideInternal(input, experimentKey, experimentArm);
@@ -447,6 +470,400 @@ export class DecisionEngineService {
       "Safe fallback decision.",
       { fallbackGenerated: true },
     );
+  }
+
+  /**
+   * MVP 3.0 — Candidate scoring decision path.
+   * Used when EXPERIMENTS_ENABLED && scored_v1 arm && not shadow.
+   */
+  private decideWithScoring(
+    input: DecisionInput,
+    experimentKey?: string,
+    experimentArm?: string,
+  ): LearningDecision {
+    const { session } = input;
+
+    // Hard gates 1-2: always win, never scored
+    const hardGate = this.checkHardGates(input);
+    if (hardGate) {
+      return this.decision(
+        hardGate.uiAction,
+        hardGate.learningIntent,
+        hardGate.parameters,
+        hardGate.confidence,
+        hardGate.reasoning,
+        hardGate.options,
+        experimentKey,
+        experimentArm,
+      );
+    }
+
+    // Generate legal candidates from rules 3-10
+    const candidates = this.generateLegalCandidates(input);
+
+    if (candidates.length === 0) {
+      this.logger.warn("No legal candidates generated; falling back");
+      return this.fallbackDecision(session);
+    }
+
+    // Score and rank candidates
+    const scoringContext = {
+      studentId: session.studentId,
+      sessionId: session.id,
+      eventId: `decision_${Date.now()}`,
+      experimentId: experimentKey,
+      experimentArmId: experimentArm,
+      shadow: input.shadow ?? false,
+      masteryValue: input.masteryValue,
+      masteryThreshold: input.masteryThreshold,
+      retentionEstimate: input.retentionEstimate,
+      misconceptionConfidence: input.misconceptionConfidence,
+      explanationEffectiveness: input.explanationEffectiveness,
+      seenDifficulties: input.seenDifficulties,
+      targetConceptId: session.activeConceptId ?? undefined,
+      targetDifficulty: session.activeDifficulty ?? undefined,
+    };
+
+    const scoredCandidates = this.candidateScorer!.scoreAndRank(
+      candidates,
+      scoringContext,
+    );
+
+    const selectedIndex = this.candidateScorer!.selectBest(scoredCandidates);
+    const selected = scoredCandidates[selectedIndex];
+
+    this.logger.log(
+      `Scored ${candidates.length} candidates; selected: ${selected.candidate.learningIntent} (score: ${selected.score.toFixed(3)})`,
+    );
+
+    // Convert selected candidate to LearningDecision
+    return this.decision(
+      selected.candidate.uiAction,
+      selected.candidate.learningIntent,
+      selected.candidate.parameters,
+      selected.score,
+      `Scored selection: ${selected.candidate.legalityReason}`,
+      {
+        explanationStyle: selected.candidate.contentStyle?.explanationStyle,
+        questionFormat: selected.candidate.contentStyle?.questionFormat,
+      },
+      experimentKey,
+      experimentArm,
+    );
+  }
+
+  /**
+   * Check hard gates (END_SESSION, SUGGEST_BREAK) that always win.
+   * Returns the decision if a hard gate is triggered, null otherwise.
+   */
+  private checkHardGates(input: DecisionInput): {
+    uiAction: LearningDecision["uiAction"];
+    learningIntent: LearningIntent;
+    parameters: LearningDecision["parameters"];
+    confidence: number;
+    reasoning: string;
+    options?: {
+      fallbackGenerated?: boolean;
+      explanationStyle?: "STEP_BY_STEP" | "HINT" | "ANALOGY";
+      questionFormat?: "NUMERIC" | "MCQ" | "WORD_PROBLEM";
+    };
+  } | null {
+    const { session } = input;
+    const sessionMinutes =
+      input.sessionMinutes ??
+      (Date.now() - session.startedAt.getTime()) / (1000 * 60);
+
+    // 1. Safety / session end
+    if (
+      sessionMinutes >= HARD_STOP_SESSION_MINUTES ||
+      session.questionCount >= SESSION_QUESTION_LIMIT
+    ) {
+      return {
+        uiAction: "END_SESSION",
+        learningIntent:
+          session.sessionMode === "BASELINE"
+            ? "BASELINE_ASSESSMENT"
+            : "STANDARD_PRACTICE",
+        parameters: {
+          conceptId: session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION",
+          difficulty: session.activeDifficulty ?? 2,
+        },
+        confidence: 0.9,
+        reasoning:
+          sessionMinutes >= HARD_STOP_SESSION_MINUTES
+            ? "Session time limit reached."
+            : "Session question limit reached.",
+      };
+    }
+
+    const breakSuggestedThisSession =
+      input.breakSuggestedThisSession ??
+      Boolean(
+        (session as LearningSession & { breakSuggestedAt?: Date | null })
+          .breakSuggestedAt,
+      );
+
+    const fatigueRisk =
+      input.fatigueRisk ??
+      computeFatigueRisk({
+        sessionMinutes,
+        recentIncorrectStreak: input.recentIncorrectStreak,
+        averageTimeIncreasing50Pct: input.averageTimeIncreasing50Pct ?? false,
+        idleSpikeCount: input.idleSpikeCount ?? 0,
+      });
+
+    // 2. Fatigue break
+    if (
+      fatigueRisk &&
+      !breakSuggestedThisSession &&
+      sessionMinutes < HARD_STOP_SESSION_MINUTES
+    ) {
+      return {
+        uiAction: "SUGGEST_BREAK",
+        learningIntent: "BREAK_FOR_FATIGUE",
+        parameters: {
+          conceptId: session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION",
+          difficulty: session.activeDifficulty ?? 2,
+          breakMinutes: DEFAULT_BREAK_MINUTES,
+        },
+        confidence: 0.75,
+        reasoning: "Fatigue risk detected; suggesting a short break.",
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Generate legal candidates from decision rules 3-10.
+   * Returns a list of valid CandidateAction objects.
+   */
+  private generateLegalCandidates(input: DecisionInput): CandidateAction[] {
+    const candidates: CandidateAction[] = [];
+    const { session } = input;
+    const conceptId = session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION";
+    let difficulty = session.activeDifficulty ?? 2;
+
+    // Calibration-aware difficulty caution
+    if (input.confidenceCalibration === "possibly_overconfident") {
+      difficulty = Math.max(1, difficulty - 1);
+    }
+
+    // Baseline mode
+    if (session.sessionMode === "BASELINE") {
+      const baselineConceptId = baselineConceptForSlot(session.baselineSlotIndex);
+      candidates.push({
+        uiAction: "SHOW_QUESTION",
+        learningIntent: "BASELINE_ASSESSMENT",
+        parameters: {
+          conceptId: baselineConceptId,
+          difficulty: 2,
+          baselineSlotIndex: session.baselineSlotIndex,
+        },
+        legalityReason: "Baseline mode active",
+      });
+      return candidates;
+    }
+
+    // Rule 3: Post-explanation re-test
+    if (
+      input.lastWasExplanation ||
+      input.remediationState === "RETESTING"
+    ) {
+      candidates.push({
+        uiAction: "SHOW_QUESTION",
+        learningIntent: "RETEST_AFTER_EXPLANATION",
+        parameters: {
+          conceptId,
+          difficulty,
+          targetMisconception: input.activeMisconceptionId,
+        },
+        legalityReason: "Post-explanation re-test required",
+      });
+      return candidates; // Only legal option
+    }
+
+    // Rule 4: Explanation required
+    if (input.remediationState === "EXPLANATION_REQUIRED") {
+      if (
+        input.errorRecoveryRate !== null &&
+        input.errorRecoveryRate !== undefined &&
+        input.errorRecoveryRate >= 0.65
+      ) {
+        candidates.push({
+          uiAction: "SHOW_HINT",
+          learningIntent: "TARGET_MISCONCEPTION",
+          contentStyle: { explanationStyle: "HINT" },
+          parameters: {
+            conceptId,
+            difficulty,
+            targetMisconception: input.activeMisconceptionId,
+            hintLevel: 1,
+          },
+          legalityReason: "High error recovery; hint preferred",
+        });
+      } else {
+        candidates.push({
+          uiAction: "SHOW_EXPLANATION",
+          learningIntent: "TARGET_MISCONCEPTION",
+          contentStyle: { explanationStyle: "STEP_BY_STEP" },
+          parameters: {
+            conceptId,
+            difficulty,
+            targetMisconception: input.activeMisconceptionId,
+          },
+          legalityReason: "Low error recovery; explanation required",
+        });
+      }
+      return candidates; // Only legal option
+    }
+
+    // Rule 5: Due revision / retention
+    if (input.dueRevision) {
+      const isRetention =
+        input.dueRevision.type === "RETENTION_REVIEW" ||
+        input.dueRevision.type === "SPACED_REVIEW_RETENTION";
+      candidates.push({
+        uiAction: "SHOW_QUESTION",
+        learningIntent: isRetention ? "RETENTION_REVIEW" : "EXECUTE_DUE_REVISION",
+        parameters: {
+          conceptId: input.dueRevision.conceptId,
+          difficulty,
+          revisionItemId: input.dueRevision.id,
+          targetMisconception: input.dueRevision.targetMisconception ?? undefined,
+          retentionEstimateId: isRetention ? input.retentionEstimateId : undefined,
+        },
+        legalityReason: isRetention ? "Retention review due" : "Revision due",
+      });
+    }
+
+    // Rules 6-10: Standard practice paths (may generate multiple candidates)
+
+    // STILL_ACTIVE remediation
+    if (input.remediationState === "STILL_ACTIVE") {
+      if (
+        input.recentIncorrectStreak >= 2 &&
+        (input.prerequisiteMastery ?? 1) < 0.5 &&
+        input.hasPrereqQuestions
+      ) {
+        candidates.push({
+          uiAction: "SHOW_QUESTION",
+          learningIntent: "REVIEW_PREREQUISITE",
+          parameters: {
+            conceptId,
+            difficulty: Math.max(1, difficulty - 1),
+          },
+          legalityReason: "Still active; weak prerequisite",
+        });
+      } else {
+        candidates.push({
+          uiAction: "SHOW_QUESTION",
+          learningIntent: "DECREASE_DIFFICULTY",
+          parameters: {
+            conceptId,
+            difficulty: Math.max(1, difficulty - 1),
+          },
+          legalityReason: "Still active; decrease difficulty",
+        });
+      }
+    }
+
+    // Misconception targeting
+    if (
+      input.remediationState === "TARGETING" ||
+      ((input.misconceptionConfidence ?? 0) >= 0.6 &&
+        input.activeMisconceptionId)
+    ) {
+      if ((input.misconceptionConfidence ?? 0) >= 0.5) {
+        if (!input.alternativeExplanationDominant) {
+          candidates.push({
+            uiAction: "SHOW_QUESTION",
+            learningIntent: "TARGET_MISCONCEPTION",
+            parameters: {
+              conceptId,
+              difficulty: Math.max(
+                1,
+                difficulty - (input.recentIncorrectStreak >= 2 ? 1 : 0),
+              ),
+              targetMisconception: input.activeMisconceptionId,
+            },
+            legalityReason: "Targeting suspected misconception",
+          });
+        }
+      }
+    }
+
+    // Transfer check
+    const masteryThreshold = input.masteryThreshold ?? 0.75;
+    const minimumEvidence = input.minimumEvidence ?? 5;
+    const masteryValue = input.masteryValue;
+    const evidenceCount = input.evidenceCount ?? 0;
+    const hasActiveHigh =
+      input.hasActiveMisconceptionHighConfidence ??
+      ((input.misconceptionConfidence ?? 0) > 0.6 &&
+        Boolean(input.activeMisconceptionId));
+
+    if (
+      masteryValue !== undefined &&
+      masteryValue >= masteryThreshold &&
+      evidenceCount >= minimumEvidence &&
+      !hasActiveHigh &&
+      input.hasTransferCheckItem
+    ) {
+      candidates.push({
+        uiAction: "SHOW_QUESTION",
+        learningIntent: "TRANSFER_CHECK",
+        contentStyle: { questionFormat: "WORD_PROBLEM" },
+        parameters: {
+          conceptId,
+          difficulty,
+          transferConceptId: conceptId,
+        },
+        legalityReason: "Mastery stable; transfer check available",
+      });
+    }
+
+    // Difficulty adaptation
+    if (input.recentCorrectStreak >= 2) {
+      const nextDifficulty =
+        input.confidenceCalibration === "possibly_overconfident"
+          ? difficulty
+          : Math.min(5, difficulty + 1);
+      candidates.push({
+        uiAction: "SHOW_QUESTION",
+        learningIntent:
+          nextDifficulty > difficulty
+            ? "INCREASE_DIFFICULTY"
+            : "STANDARD_PRACTICE",
+        parameters: { conceptId, difficulty: nextDifficulty },
+        legalityReason:
+          input.confidenceCalibration === "possibly_overconfident"
+            ? "Overconfident; hold difficulty"
+            : "Repeated success; increase difficulty",
+      });
+    }
+
+    if (input.recentIncorrectStreak >= 2) {
+      candidates.push({
+        uiAction: "SHOW_QUESTION",
+        learningIntent: "DECREASE_DIFFICULTY",
+        parameters: {
+          conceptId,
+          difficulty: Math.max(1, difficulty - 1),
+        },
+        legalityReason: "Repeated errors; decrease difficulty",
+      });
+    }
+
+    // Always include standard practice as a candidate
+    candidates.push({
+      uiAction: "SHOW_QUESTION",
+      learningIntent: "STANDARD_PRACTICE",
+      parameters: { conceptId, difficulty },
+      legalityReason: "Standard practice always legal",
+    });
+
+    return candidates;
   }
 
   private decision(

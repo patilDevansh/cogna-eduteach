@@ -22,8 +22,8 @@ function mockSession(overrides: Partial<LearningSession> = {}): LearningSession 
 describe("G10 — Targeting then explanation", () => {
   const engine = new DecisionEngineService();
 
-  it("returns SHOW_EXPLANATION when remediation state is EXPLANATION_REQUIRED", () => {
-    const decision = engine.decide({
+  it("returns SHOW_EXPLANATION when remediation state is EXPLANATION_REQUIRED", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 2,
@@ -41,8 +41,8 @@ describe("G10 — Targeting then explanation", () => {
 describe("G11 — Explanation then successful re-test", () => {
   const engine = new DecisionEngineService();
 
-  it("returns RETEST_AFTER_EXPLANATION when remediation state is RETESTING", () => {
-    const decision = engine.decide({
+  it("returns RETEST_AFTER_EXPLANATION when remediation state is RETESTING", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
@@ -56,8 +56,8 @@ describe("G11 — Explanation then successful re-test", () => {
     assert.ok(decision.confidence > 0);
   });
 
-  it("prefers RETESTING over EXPLANATION_REQUIRED when both signals present", () => {
-    const decision = engine.decide({
+  it("prefers RETESTING over EXPLANATION_REQUIRED when both signals present", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,

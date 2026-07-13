@@ -50,9 +50,9 @@ describe("R05 — Error recovery low → prefer STEP_BY_STEP", () => {
     assert.equal(preferStepByStepExplanation(rate, true), true);
   });
 
-  it("emits SHOW_EXPLANATION + TARGET_MISCONCEPTION + STEP_BY_STEP", () => {
+  it("emits SHOW_EXPLANATION + TARGET_MISCONCEPTION + STEP_BY_STEP", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 2,

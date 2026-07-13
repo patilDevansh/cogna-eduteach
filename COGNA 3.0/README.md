@@ -17,12 +17,21 @@
 ## Status Snapshot
 
 - **Created:** 2026-07-13
-- **Updated:** 2026-07-13 (Phase 2 experiments + decision-rules-v3)
-- **MVP 3.0 status:** **Active implementation** — Phase 2 complete (experiments + decision-rules-v3)
+- **Updated:** 2026-07-13 (Phase 3 candidate scoring complete)
+- **MVP 3.0 status:** **Active implementation** — Phase 3 complete (candidate scoring)
 - **Spec status line:** `Draft / Planning` in [`docs/mvp-3.0/README.md`](../docs/mvp-3.0/README.md) (implementation proceeding despite Draft status per user directive)
 - **Core goal:** LLM-assisted drafting under gates + experiment_assignments + candidate action scoring
-- **Blocked on:** None — Phase 2 complete; Phase 3 (candidate scoring) ready to start
+- **Blocked on:** None — Phase 3 complete; Phase 4 (analysis & observability) ready to start
 - **Recent changes:** 
+  - **Phase 3 — Candidate scoring (complete):**
+    - CandidateScorerService: candidate-score-rules-v1 heuristic scoring (0.30 mastery gap + 0.25 retention risk + 0.20 misconception severity + 0.15 explanation need + 0.10 exploration)
+    - DecisionEngineService: candidate generation and scoring when EXPERIMENTS_ENABLED && scored_v1 arm && !shadow
+    - Hard gates (END_SESSION, SUGGEST_BREAK) always win; scorer never overrides safety
+    - Legal candidate set generation from decision rules 3-10 (post-explanation, remediation, retention, targeting, difficulty adaptation)
+    - Tie-break: higher score wins; if equal, lexicographic learningIntent + conceptId
+    - Shadow mode support: when shadow=true OR control arm, use control path (decideInternal)
+    - Golden tests S04–S10, S21 green (hard gates, due revision, heuristic score, shadow mode, fallback, tie-break)
+    - Feature flag EXPERIMENTS_ENABLED gates all scoring; production behavior unchanged when off
   - **Phase 2 — Experiments (complete):**
     - ExperimentsService: experiment definition CRUD, sticky assignment (experiment-rules-v1 hash-based allocation)
     - ExperimentsController: admin APIs (GET /experiments, POST /experiments/:key/assign/:studentId, GET /experiments/:key/assignments)
@@ -50,8 +59,8 @@
     - Added MVP 3.0 event types: EXPERIMENT_ASSIGNED, CANDIDATE_SCORED, CONTENT_DRAFT_*
     - Added feature flags: EXPERIMENTS_ENABLED, CONTENT_LLM_DRAFTS_ENABLED (default false)
     - Feature flag module created at apps/web/src/lib/feature-flags.ts
-- **Current phase:** Phase 2 complete — 78/78 golden tests green (50 suites); ready for Phase 3 candidate scoring
-- **Test results:** All MVP 2.0 golden tests (G##/R## regression baseline) + MVP 3.0 S01–S03, S11–S16, S20 passing
+- **Current phase:** Phase 3 complete — 86/86 golden tests green (58 suites); ready for Phase 4 analysis & observability
+- **Test results:** All MVP 2.0 golden tests (G##/R## regression baseline) + MVP 3.0 S01–S10, S11–S16, S20–S21 passing
 
 
 ## Rule

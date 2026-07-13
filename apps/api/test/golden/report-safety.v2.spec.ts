@@ -94,9 +94,9 @@ describe("R11 — Weekly report uncertainty", () => {
 });
 
 describe("R13 — No clinical labels", () => {
-  it("BreakPayload / fatigue messaging never contains clinical labels", () => {
+  it("BreakPayload / fatigue messaging never contains clinical labels", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,

@@ -40,7 +40,7 @@ describe("R01 — Retention due (exact formula)", () => {
     assert.equal(isHighPriorityRetention(retentionEstimate), false);
   });
 
-  it("emits SHOW_QUESTION + RETENTION_REVIEW when retention item is due", () => {
+  it("emits SHOW_QUESTION + RETENTION_REVIEW when retention item is due", async () => {
     const engine = new DecisionEngineService();
     const dueRevision = {
       id: "rev_ret_1",
@@ -60,7 +60,7 @@ describe("R01 — Retention due (exact formula)", () => {
       updatedAt: new Date(),
     } as RevisionQueueItem;
 
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
@@ -87,9 +87,9 @@ describe("R02 — Weak retention evidence abstains", () => {
     );
   });
 
-  it("must NOT emit RETENTION_REVIEW from retention factor alone without due item", () => {
+  it("must NOT emit RETENTION_REVIEW from retention factor alone without due item", async () => {
     const engine = new DecisionEngineService();
-    const decision = engine.decide({
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,

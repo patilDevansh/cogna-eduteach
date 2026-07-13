@@ -30,10 +30,10 @@
 
 ## Phase 3 — Candidate scoring
 
-- [ ] Candidate Scorer (`candidate-score-rules-v1`)
+- [x] Candidate Scorer (`candidate-score-rules-v1`)
 - [ ] Shadow mode batch job
-- [ ] Live apply behind experiment arm only
-- [ ] Golden S04–S10
+- [x] Live apply behind experiment arm only
+- [x] Golden S04–S10, S21
 
 ## Phase 4 — Analysis & observability
 
