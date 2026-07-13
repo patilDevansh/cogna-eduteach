@@ -1,0 +1,26 @@
+{
+  "era": "mvp-4.0",
+  "specStatus": "Draft / Vision",
+  "status": "stub-targets",
+  "notes": "Multi-unit stub. Linear Equations IDs frozen. Secondary unit IDs illustrative until human freeze.",
+  "units": {
+    "linear-equations-one-variable": {
+      "targetApproved": 280,
+      "approvedCount": 0,
+      "prerequisiteUnitIds": [],
+      "idPolicy": "Keep MVP 1.0/2.0 concept IDs."
+    },
+    "algebraic-expressions-grade8": {
+      "targetApproved": 120,
+      "approvedCount": 0,
+      "prerequisiteUnitIds": ["linear-equations-one-variable"],
+      "idPolicy": "New AE_* namespace; do not collide with Linear Equations IDs."
+    },
+    "linear-equations-two-variable-intro": {
+      "targetApproved": 80,
+      "approvedCount": 0,
+      "prerequisiteUnitIds": ["linear-equations-one-variable"],
+      "idPolicy": "New TVI_* namespace (illustrative)."
+    }
+  }
+}
