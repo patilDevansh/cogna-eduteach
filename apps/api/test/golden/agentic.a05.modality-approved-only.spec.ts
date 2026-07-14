@@ -22,7 +22,7 @@ describe("A05 — Non-APPROVED modality blocked", () => {
         assetId: "MOD_TEST_PENDING",
         modality: "VIDEO",
         conceptId: "C2_TEST_CONCEPT",
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         subjectId: "mathematics",
         storageRef: "s3://test/pending-video.mp4",
         reviewStatus: "PENDING_REVIEW", // NOT APPROVED
@@ -34,7 +34,7 @@ describe("A05 — Non-APPROVED modality blocked", () => {
         assetId: "MOD_TEST_APPROVED",
         modality: "VIDEO",
         conceptId: "C2_TEST_CONCEPT",
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         subjectId: "mathematics",
         storageRef: "s3://test/approved-video.mp4",
         reviewStatus: "APPROVED", // APPROVED

@@ -23,6 +23,7 @@ import { HealthController } from "./health.controller";
 import { ModalityDirectorModule } from "./engines/modality-director/modality-director.module";
 import { PolicyEngineModule } from "./engines/policy-engine/policy-engine.module";
 import { SafetyEvalModule } from "./engines/safety-eval/safety-eval.module";
+import { PolicyModule } from "./policy/policy.module";
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { SafetyEvalModule } from "./engines/safety-eval/safety-eval.module";
     ModalityDirectorModule,
     PolicyEngineModule,
     SafetyEvalModule,
+    PolicyModule,
   ],
   controllers: [HealthController],
 })

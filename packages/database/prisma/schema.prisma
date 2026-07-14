@@ -137,7 +137,9 @@ enum PolicyStatus {
   CANDIDATE
   SHADOW
   EXPERIMENT
+  PROMOTION_REQUESTED
   PROMOTED
+  REJECTED
   ROLLED_BACK
 }
 
@@ -828,15 +830,24 @@ model ModalityOutcome {
 }
 
 model PolicyVersion {
-  id            String       @id @default(cuid())
-  policyVersion String       @unique
-  status        PolicyStatus @default(CANDIDATE)
-  artifactRef   String // model blob location (S3, etc.)
-  safetyEvalId  String?
-  safetyEval    SafetyEval?  @relation(fields: [safetyEvalId], references: [id])
-  createdAt     DateTime     @default(now())
-  promotedAt    DateTime?
-  rolledBackAt  DateTime?
+  id                      String       @id @default(cuid())
+  policyVersion           String       @unique
+  status                  PolicyStatus @default(CANDIDATE)
+  artifactRef             String // model blob location (S3, etc.)
+  safetyEvalId            String?
+  safetyEval              SafetyEval?  @relation(fields: [safetyEvalId], references: [id])
+  createdAt               DateTime     @default(now())
+  promotedAt              DateTime?
+  promotionRequestedBy    String?
+  promotionRequestedAt    DateTime?
+  promotionApprovedBy     String?
+  promotionApprovedAt     DateTime?
+  promotionRejectedBy     String?
+  promotionRejectedAt     DateTime?
+  promotionRejectedReason String?
+  rolledBackAt            DateTime?
+  rolledBackBy            String?
+  rolledBackReason        String?
 
   @@index([status])
 }

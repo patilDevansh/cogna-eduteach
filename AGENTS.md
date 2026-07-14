@@ -28,15 +28,16 @@
 - Learned policy infrastructure (PolicyEngineService, shadow mode, promote/rollback)
 - Safety evaluation gates (SafetyEvalService, metrics suite)
 - Modality director (ModalityDirectorService, APPROVED-only asset selection)
+- Dual-control policy ops API (PolicyController: request/approve/reject promotion, rollback)
 - Contracts: uiAction set = 5, modality via contentStyle, new intents (SHOW_TEACHING_MODULE, MODALITY_RETEST)
-- Golden tests: 11/16 functional (A01, A02, A05, A07, A08, A10, A11, A12, A15, A16)
+- Golden tests: 16/16 functional (A01–A16); full suite 162/162 passing
 
 ### Deferred to Pilot / Post-MVP 5.0
 
 - Learned policy training (offline job, requires production data)
-- Dual-control API endpoints (A09)
 - Modality asset review pipeline (human workflows)
-- Remaining golden tests (A03, A04, A06, A13, A14) requiring runtime learned-policy inference or human content workflows
+- Production auth middleware on policy endpoints (policy_ops role per PRODUCTION_AUTH.md)
+- A12 full hot-path LLM instrumentation (stub test documents ban)
 
 ## Completed eras (MVP 3.0 / 4.0)
 

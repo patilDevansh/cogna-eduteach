@@ -6,36 +6,19 @@
 
 - **Reason:** Infrastructure complete, but actual model training requires production data volume.
 - **Return when:** Pilot generates sufficient decision logs (≥100k decisions across ≥50 students); offline training job scheduled.
-- **Status:** PolicyEngineService always returns baseline; shadow mode infrastructure ready.
+- **Status:** PolicyEngineService always returns baseline; shadow mode infrastructure ready; POLICY_DATASET_BUILD job skeleton exports session/score features.
 
-### Dual-Control API Endpoints
+### Production Auth for Policy Ops API
 
-- **Reason:** Policy promotion/rollback methods exist but require API endpoints + auth checks.
-- **Return when:** Admin API spec finalized; dual-control auth middleware implemented.
-- **Status:** PolicyEngineService.promotePolicy and rollbackPolicy exist; need HTTP layer.
-
-### Golden Tests A03, A04, A09
-
-- **Reason:** Full implementation requires runtime infrastructure (learned policy inference for A03/A04, dual-control API endpoints for A09).
-- **Return when:** Learned policy training complete (A03, A04); API endpoints for dual-control (A09).
-- **Status:** Test stubs exist; A06, A13, A14 completed and passing (modality validation service implemented).
-
-### Golden Tests A08, A10 — Test Isolation Issue
-
-- **Status:** Infrastructure implemented and functional. Tests pass when run individually but have database state isolation issues when run with full test suite. PolicyEngineService shadow mode and rollback methods work correctly (confirmed by individual test runs and service logs).
-- **Return when:** Test isolation improved (e.g., test-level transactions, per-test databases, or sequential test execution).
+- **Reason:** PolicyController endpoints exist but production auth middleware (policy_ops role, dual-control actor validation) not wired.
+- **Return when:** Admin API spec finalized; auth middleware implemented per PRODUCTION_AUTH.md.
+- **Status:** HTTP layer complete (request-promotion, approve-promotion, reject-promotion, rollback); auth deferred.
 
 ### Modality Asset Review Pipeline (Human UI)
 
 - **Reason:** Human review UI requires content team workflows, transcript validation tooling, retest question mapping interface.
 - **Return when:** Content team staffed; review tooling UI built.
 - **Status:** Validation service API complete (ModalityValidationService); `reviewStatus` enforced in ModalityDirector; human UI deferred.
-
-### Dataset Build Job
-
-- **Reason:** Offline batch job for extracting decision features/outcomes from logs.
-- **Return when:** Pilot runs; production logs available for export.
-- **Status:** Job type planned but not implemented.
 
 ## Open Skips (beyond 5.0 / research)
 

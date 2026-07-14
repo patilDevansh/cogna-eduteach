@@ -12,25 +12,25 @@ import {
 } from "./helpers/policy-suite-lock";
 
 /**
- * A02 — Safety gate blocks unsafe policy (MVP 5.0)
+ * A03 — Hard gate imitation (MVP 5.0)
  *
- * A learned policy may only apply if its safety eval passes.
- * If safetyEval.passed = false, the system MUST use baseline only.
+ * When baseline says END_SESSION or SUGGEST_BREAK, the learned policy stub
+ * must imitate the hard gate — never override with a softer action.
  */
-describe("A02 — Safety gate blocks unsafe policy", { concurrency: false }, () => {
+describe("A03 — Hard gate imitation", { concurrency: false }, () => {
   const prisma = new PrismaClient();
   const policyEngine = new PolicyEngineService(prisma);
   const safetyEval = new SafetyEvalService(prisma);
 
-  const TEST_NAMESPACE = "a02-safety-gate";
-  const POLICY_ID = `${TEST_NAMESPACE}-unsafe-v1`;
+  const TEST_NAMESPACE = "a03-hard-gate";
+  const POLICY_ID = `${TEST_NAMESPACE}-policy-v1`;
 
-  const baselineDecision: LearningDecision = {
-    uiAction: "SHOW_QUESTION",
+  const endSessionBaseline: LearningDecision = {
+    uiAction: "END_SESSION",
     learningIntent: "STANDARD_PRACTICE",
-    parameters: { conceptId: "C2_ONE_STEP_SUBTRACTION" },
-    confidence: 0.9,
-    reasoning: "Baseline decision",
+    parameters: {},
+    confidence: 1.0,
+    reasoning: "Session limit reached",
     decisionVersion: POLICY_RULES_V5,
   };
 
@@ -51,71 +51,68 @@ describe("A02 — Safety gate blocks unsafe policy", { concurrency: false }, () 
     await prisma.$disconnect();
   });
 
-  it("rejects policy with failed safety eval", async () => {
+  it("learned policy imitates END_SESSION hard gate", async () => {
     const evalResult = await safetyEval.evaluatePolicy({
       policyVersion: POLICY_ID,
-      artifactRef: "s3://test/unsafe-model.bin",
+      artifactRef: "s3://test/test-different-intent-model.bin",
       evaluationSetRef: "s3://test/eval-set.json",
     });
 
     await prisma.safetyEval.update({
       where: { id: evalResult.evalId },
-      data: { passed: false },
+      data: { passed: true },
     });
 
     await prisma.policyVersion.create({
       data: {
         policyVersion: POLICY_ID,
         status: "PROMOTED",
-        artifactRef: "s3://test/unsafe-model.bin",
+        artifactRef: "s3://test/test-different-intent-model.bin",
         safetyEvalId: evalResult.evalId,
         promotedAt: new Date(),
       },
     });
 
-    const verifyPolicy = await prisma.policyVersion.findUnique({
-      where: { policyVersion: POLICY_ID },
-      include: { safetyEval: true },
-    });
-
-    assert.ok(verifyPolicy, "Policy should exist");
-    assert.equal(verifyPolicy.status, "PROMOTED", "Policy should be promoted");
-    assert.ok(verifyPolicy.safetyEval, "Policy should have safety eval");
-    assert.equal(
-      verifyPolicy.safetyEval.passed,
-      false,
-      "Safety eval should have passed=false",
-    );
-
     const result = await policyEngine.inferDecision({
       studentId: `${TEST_NAMESPACE}-student`,
       sessionId: `${TEST_NAMESPACE}-session`,
-      baselineDecision,
+      baselineDecision: endSessionBaseline,
       featureVector: { mastery: 0.5 },
     });
 
-    assert.equal(result.decision, baselineDecision);
+    assert.equal(result.decision.uiAction, "END_SESSION");
     assert.equal(result.choiceRecord.selected, "baseline");
+    assert.ok(result.choiceRecord.learnedDecision, "Should log learned decision");
     assert.equal(
-      result.choiceRecord.safetyGatePassed,
-      false,
-      "Safety gate should fail for policy with passed=false",
+      result.choiceRecord.learnedDecision?.uiAction,
+      "END_SESSION",
+      "Learned policy must imitate END_SESSION hard gate",
     );
-    assert.equal(result.choiceRecord.policyVersion, POLICY_ID);
+    assert.notEqual(
+      result.choiceRecord.learnedDecision?.learningIntent,
+      "CONCEPT_REINFORCEMENT",
+      "Learned policy must not soften END_SESSION into practice",
+    );
   });
 
-  it("uses baseline when no PROMOTED policy exists", async () => {
-    await rollbackAllPromotedPolicies(prisma);
+  it("learned policy imitates SUGGEST_BREAK hard gate", async () => {
+    const suggestBreakBaseline: LearningDecision = {
+      uiAction: "SUGGEST_BREAK",
+      learningIntent: "BREAK_FOR_FATIGUE",
+      parameters: {},
+      confidence: 0.95,
+      reasoning: "Extended session detected",
+      decisionVersion: POLICY_RULES_V5,
+    };
 
     const result = await policyEngine.inferDecision({
       studentId: `${TEST_NAMESPACE}-student-2`,
       sessionId: `${TEST_NAMESPACE}-session-2`,
-      baselineDecision,
+      baselineDecision: suggestBreakBaseline,
       featureVector: { mastery: 0.5 },
     });
 
-    assert.equal(result.decision, baselineDecision);
-    assert.equal(result.choiceRecord.selected, "baseline");
-    assert.equal(result.choiceRecord.policyVersion, POLICY_RULES_V5);
+    assert.equal(result.decision.uiAction, "SUGGEST_BREAK");
+    assert.equal(result.choiceRecord.learnedDecision?.uiAction, "SUGGEST_BREAK");
   });
 });

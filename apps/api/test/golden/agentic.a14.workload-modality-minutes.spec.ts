@@ -17,7 +17,7 @@ import { RecommendationEngineService } from "../../src/engines/recommendation-en
  * 
  * This prevents overwhelming students with both many questions AND long videos.
  */
-describe("A14 — Workload includes modality minutes", () => {
+describe("A14 — Workload includes modality minutes", { concurrency: false }, () => {
   const prisma = new PrismaClient();
   let testStudentId: string;
 
@@ -33,10 +33,10 @@ describe("A14 — Workload includes modality minutes", () => {
     });
 
     await prisma.curriculumUnit.upsert({
-      where: { unitId: "linear-equations" },
+      where: { unitId: "linear-equations-one-variable" },
       update: {},
       create: {
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         title: "Linear Equations",
         subjectId: "mathematics",
         prerequisiteUnitIds: [],
@@ -103,7 +103,7 @@ describe("A14 — Workload includes modality minutes", () => {
         assetId: "MOD_A14_SHORT",
         modality: "VIDEO",
         conceptId: "C2_VARIABLES_BOTH_SIDES",
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         subjectId: "mathematics",
         storageRef: "s3://test/short-video.mp4",
         transcriptRef: "s3://test/short-transcript.txt",
@@ -118,7 +118,7 @@ describe("A14 — Workload includes modality minutes", () => {
         assetId: "MOD_A14_LONG",
         modality: "VIDEO",
         conceptId: "C3_DISTRIBUTIVE_PROPERTY",
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         subjectId: "mathematics",
         storageRef: "s3://test/long-video.mp4",
         transcriptRef: "s3://test/long-transcript.txt",
@@ -133,7 +133,7 @@ describe("A14 — Workload includes modality minutes", () => {
       data: {
         id: "Q_A14_RETEST_1",
         conceptId: "C2_VARIABLES_BOTH_SIDES",
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         type: "NUMERIC",
         difficulty: 5,
         stem: "Solve: 2x + 3 = x + 7",
@@ -151,7 +151,7 @@ describe("A14 — Workload includes modality minutes", () => {
       data: {
         id: "Q_A14_RETEST_2",
         conceptId: "C3_DISTRIBUTIVE_PROPERTY",
-        unitId: "linear-equations",
+        unitId: "linear-equations-one-variable",
         type: "NUMERIC",
         difficulty: 6,
         stem: "Solve: 2(x + 3) = 14",

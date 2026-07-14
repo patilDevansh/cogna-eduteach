@@ -9,7 +9,16 @@ export interface PolicyVersion {
   safetyEvalId?: string;
   createdAt: Date;
   promotedAt?: Date;
+  promotionRequestedBy?: string;
+  promotionRequestedAt?: Date;
+  promotionApprovedBy?: string;
+  promotionApprovedAt?: Date;
+  promotionRejectedBy?: string;
+  promotionRejectedAt?: Date;
+  promotionRejectedReason?: string;
   rolledBackAt?: Date;
+  rolledBackBy?: string;
+  rolledBackReason?: string;
 }
 
 export interface PolicyChoiceRecord {

@@ -169,7 +169,9 @@ export const POLICY_STATUSES = [
   "CANDIDATE",
   "SHADOW",
   "EXPERIMENT",
+  "PROMOTION_REQUESTED",
   "PROMOTED",
+  "REJECTED",
   "ROLLED_BACK",
 ] as const;
 export type PolicyStatus = (typeof POLICY_STATUSES)[number];

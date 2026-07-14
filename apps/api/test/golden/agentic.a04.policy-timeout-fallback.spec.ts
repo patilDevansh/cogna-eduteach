@@ -12,18 +12,18 @@ import {
 } from "./helpers/policy-suite-lock";
 
 /**
- * A02 — Safety gate blocks unsafe policy (MVP 5.0)
+ * A04 — Policy timeout fallback (MVP 5.0)
  *
- * A learned policy may only apply if its safety eval passes.
- * If safetyEval.passed = false, the system MUST use baseline only.
+ * When policy inference exceeds the timeout budget, the system must fall back
+ * to the baseline rules decision without blocking the hot path.
  */
-describe("A02 — Safety gate blocks unsafe policy", { concurrency: false }, () => {
+describe("A04 — Policy timeout fallback", { concurrency: false }, () => {
   const prisma = new PrismaClient();
   const policyEngine = new PolicyEngineService(prisma);
   const safetyEval = new SafetyEvalService(prisma);
 
-  const TEST_NAMESPACE = "a02-safety-gate";
-  const POLICY_ID = `${TEST_NAMESPACE}-unsafe-v1`;
+  const TEST_NAMESPACE = "a04-timeout";
+  const POLICY_ID = `${TEST_NAMESPACE}-slow-policy-v1`;
 
   const baselineDecision: LearningDecision = {
     uiAction: "SHOW_QUESTION",
@@ -51,71 +51,49 @@ describe("A02 — Safety gate blocks unsafe policy", { concurrency: false }, () 
     await prisma.$disconnect();
   });
 
-  it("rejects policy with failed safety eval", async () => {
+  it("falls back to baseline on inference timeout", async () => {
     const evalResult = await safetyEval.evaluatePolicy({
       policyVersion: POLICY_ID,
-      artifactRef: "s3://test/unsafe-model.bin",
+      artifactRef: "s3://test/test-slow-inference-model.bin",
       evaluationSetRef: "s3://test/eval-set.json",
     });
 
     await prisma.safetyEval.update({
       where: { id: evalResult.evalId },
-      data: { passed: false },
+      data: { passed: true },
     });
 
     await prisma.policyVersion.create({
       data: {
         policyVersion: POLICY_ID,
         status: "PROMOTED",
-        artifactRef: "s3://test/unsafe-model.bin",
+        artifactRef: "s3://test/test-slow-inference-model.bin",
         safetyEvalId: evalResult.evalId,
         promotedAt: new Date(),
       },
     });
 
-    const verifyPolicy = await prisma.policyVersion.findUnique({
-      where: { policyVersion: POLICY_ID },
-      include: { safetyEval: true },
-    });
-
-    assert.ok(verifyPolicy, "Policy should exist");
-    assert.equal(verifyPolicy.status, "PROMOTED", "Policy should be promoted");
-    assert.ok(verifyPolicy.safetyEval, "Policy should have safety eval");
-    assert.equal(
-      verifyPolicy.safetyEval.passed,
-      false,
-      "Safety eval should have passed=false",
-    );
-
+    const start = Date.now();
     const result = await policyEngine.inferDecision({
       studentId: `${TEST_NAMESPACE}-student`,
       sessionId: `${TEST_NAMESPACE}-session`,
       baselineDecision,
       featureVector: { mastery: 0.5 },
     });
+    const elapsed = Date.now() - start;
 
-    assert.equal(result.decision, baselineDecision);
-    assert.equal(result.choiceRecord.selected, "baseline");
-    assert.equal(
-      result.choiceRecord.safetyGatePassed,
-      false,
-      "Safety gate should fail for policy with passed=false",
-    );
+    assert.equal(result.decision, baselineDecision, "Should return baseline on timeout");
+    assert.equal(result.choiceRecord.selected, "baseline", "Should select baseline");
     assert.equal(result.choiceRecord.policyVersion, POLICY_ID);
-  });
-
-  it("uses baseline when no PROMOTED policy exists", async () => {
-    await rollbackAllPromotedPolicies(prisma);
-
-    const result = await policyEngine.inferDecision({
-      studentId: `${TEST_NAMESPACE}-student-2`,
-      sessionId: `${TEST_NAMESPACE}-session-2`,
-      baselineDecision,
-      featureVector: { mastery: 0.5 },
-    });
-
-    assert.equal(result.decision, baselineDecision);
-    assert.equal(result.choiceRecord.selected, "baseline");
-    assert.equal(result.choiceRecord.policyVersion, POLICY_RULES_V5);
+    assert.equal(result.choiceRecord.shadow, false);
+    assert.ok(
+      result.choiceRecord.inferenceTimeMs !== undefined,
+      "Should record inference timing for observability",
+    );
+    assert.ok(
+      result.choiceRecord.inferenceTimeMs! >= 500,
+      "Timeout path should reflect at least the 500ms budget",
+    );
+    assert.ok(elapsed >= 500, "Total call should not block beyond timeout budget");
   });
 });

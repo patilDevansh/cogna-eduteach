@@ -5,21 +5,28 @@ import { PolicyEngineService } from "../../src/engines/policy-engine/policy-engi
 import { SafetyEvalService } from "../../src/engines/safety-eval/safety-eval.service";
 import { POLICY_RULES_V5 } from "@cogna/shared";
 import type { LearningDecision } from "@cogna/shared";
+import {
+  acquirePolicySuiteLock,
+  releasePolicySuiteLock,
+  rollbackAllPromotedPolicies,
+} from "./helpers/policy-suite-lock";
 
 /**
  * A08 — Shadow policy logs PolicyChoiceRecord (MVP 5.0)
- * 
+ *
  * When a learned policy runs in shadow mode, the system should:
  * - Use baseline for the actual decision
  * - Log the learned decision that would have been used
  * - Mark shadow=true in the choice record
- * 
- * This allows offline analysis of learned policy without affecting students.
  */
-describe("A08 — Shadow policy logs PolicyChoiceRecord", () => {
+describe("A08 — Shadow policy logs PolicyChoiceRecord", { concurrency: false }, () => {
   const prisma = new PrismaClient();
   const policyEngine = new PolicyEngineService(prisma);
   const safetyEval = new SafetyEvalService(prisma);
+
+  const TEST_NAMESPACE = "a08-shadow";
+  const POLICY_ID = `${TEST_NAMESPACE}-policy-v1`;
+  const SHADOW_STUDENT = `${TEST_NAMESPACE}-shadow-student`;
 
   const baselineDecision: LearningDecision = {
     uiAction: "SHOW_QUESTION",
@@ -31,46 +38,43 @@ describe("A08 — Shadow policy logs PolicyChoiceRecord", () => {
   };
 
   before(async () => {
-    // Clean up any existing test data
-    await prisma.policyVersion.deleteMany({ where: { policyVersion: "test-shadow-policy-v1" } });
-    await prisma.experimentAssignment.deleteMany({ where: { studentId: "test_shadow_student" } });
+    await acquirePolicySuiteLock();
+    await rollbackAllPromotedPolicies(prisma);
+    await prisma.policyVersion.deleteMany({
+      where: { policyVersion: { startsWith: TEST_NAMESPACE } },
+    });
+    await prisma.experimentAssignment.deleteMany({
+      where: { studentId: { startsWith: TEST_NAMESPACE } },
+    });
   });
 
   after(async () => {
-    // Clean up test data and rollback any promoted policies
-    await prisma.policyVersion.deleteMany({ where: { policyVersion: "test-shadow-policy-v1" } });
-    await prisma.experimentAssignment.deleteMany({ where: { studentId: "test_shadow_student" } });
-    await prisma.policyVersion.updateMany({
-      where: { status: "PROMOTED", policyVersion: { startsWith: "test-" } },
-      data: { status: "ROLLED_BACK", rolledBackAt: new Date() },
+    await prisma.policyVersion.deleteMany({
+      where: { policyVersion: { startsWith: TEST_NAMESPACE } },
     });
+    await prisma.experimentAssignment.deleteMany({
+      where: { studentId: { startsWith: TEST_NAMESPACE } },
+    });
+    await rollbackAllPromotedPolicies(prisma);
+    releasePolicySuiteLock();
     await prisma.$disconnect();
   });
 
   it("logs shadow mode with learned decision", async () => {
-    // Roll back any existing promoted policies from other tests to ensure clean state
-    await prisma.policyVersion.updateMany({
-      where: { status: "PROMOTED" },
-      data: { status: "ROLLED_BACK", rolledBackAt: new Date() },
-    });
-
-    // Create a passing safety eval
     const evalResult = await safetyEval.evaluatePolicy({
-      policyVersion: "test-shadow-policy-v1",
+      policyVersion: POLICY_ID,
       artifactRef: "s3://test/shadow-model.bin",
       evaluationSetRef: "s3://test/eval-set.json",
     });
 
-    // Mark it as passed
     await prisma.safetyEval.update({
       where: { id: evalResult.evalId },
       data: { passed: true },
     });
 
-    // Create and promote a policy version
     await prisma.policyVersion.create({
       data: {
-        policyVersion: "test-shadow-policy-v1",
+        policyVersion: POLICY_ID,
         status: "PROMOTED",
         artifactRef: "s3://test/shadow-model.bin",
         safetyEvalId: evalResult.evalId,
@@ -78,38 +82,35 @@ describe("A08 — Shadow policy logs PolicyChoiceRecord", () => {
       },
     });
 
-    // Assign student to shadow experiment arm
     await prisma.experimentAssignment.create({
       data: {
-        id: "test_shadow_assignment",
-        studentId: "test_shadow_student",
+        id: `${TEST_NAMESPACE}-assignment`,
+        studentId: SHADOW_STUDENT,
         experimentKey: "learned-policy-v1",
         arm: "shadow",
         assignedAt: new Date(),
       },
     });
 
-    // Call inference for a student in shadow mode
     const result = await policyEngine.inferDecision({
-      studentId: "test_shadow_student",
-      sessionId: "test_shadow_session",
+      studentId: SHADOW_STUDENT,
+      sessionId: `${TEST_NAMESPACE}-session`,
       baselineDecision,
       featureVector: { mastery: 0.5 },
     });
 
-    // Verify shadow mode behavior
     assert.equal(result.decision, baselineDecision, "Should return baseline decision");
     assert.equal(result.choiceRecord.selected, "baseline", "Should select baseline");
     assert.equal(result.choiceRecord.shadow, true, "Should mark as shadow mode");
     assert.equal(result.choiceRecord.safetyGatePassed, true, "Safety gate should pass");
     assert.ok(result.choiceRecord.learnedDecision, "Should log learned decision for analysis");
-    assert.equal(result.choiceRecord.policyVersion, "test-shadow-policy-v1", "Should log policy version");
+    assert.equal(result.choiceRecord.policyVersion, POLICY_ID, "Should log policy version");
   });
 
   it("uses baseline (not shadow) when student not in experiment", async () => {
     const result = await policyEngine.inferDecision({
-      studentId: "test_control_student",
-      sessionId: "test_control_session",
+      studentId: `${TEST_NAMESPACE}-control-student`,
+      sessionId: `${TEST_NAMESPACE}-control-session`,
       baselineDecision,
       featureVector: { mastery: 0.5 },
     });
