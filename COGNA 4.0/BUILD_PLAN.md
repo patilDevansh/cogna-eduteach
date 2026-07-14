@@ -16,10 +16,10 @@
 
 ## Phase 2 — Planning horizon
 
-- [ ] Planning Horizon Service
-- [ ] `CURRICULUM_PLAN_REFRESH` job
-- [ ] Decision `decision-rules-v4`
-- [ ] Golden U04–U08
+- [x] ~~Planning Horizon Service~~
+- [x] ~~`CURRICULUM_PLAN_REFRESH` job~~
+- [x] ~~Decision `decision-rules-v4`~~
+- [x] ~~Golden U04–U08~~
 
 ## Phase 3 — Multi-unit content
 

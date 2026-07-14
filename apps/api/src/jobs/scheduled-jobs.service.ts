@@ -3,12 +3,14 @@ import { JobStatus, ReportTrigger } from "@cogna/database";
 import { ReportGeneratorService } from "../engines/report-generator/report-generator.service";
 import { RecommendationEngineService } from "../engines/recommendation-engine/recommendation-engine.service";
 import { RevisionService } from "../revision/revision.service";
+import { PlanningHorizonService } from "../curriculum/planning-horizon.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ContentDraftService } from "../content/content-draft.service";
 
 const WEEKLY_REPORT_MAX_ATTEMPTS = 3;
 const EMAIL_MAX_ATTEMPTS = 5;
 const CONTENT_JOB_MAX_ATTEMPTS = 3;
+const PLAN_REFRESH_MAX_ATTEMPTS = 3;
 
 @Injectable()
 export class ScheduledJobsService {
@@ -21,6 +23,7 @@ export class ScheduledJobsService {
     private readonly recommendationEngine: RecommendationEngineService,
     private readonly revisionService: RevisionService,
     private readonly contentDrafts: ContentDraftService,
+    private readonly planningHorizon: PlanningHorizonService,
   ) {}
 
   async enqueueWeeklyReport(input: {
@@ -690,6 +693,140 @@ export class ScheduledJobsService {
       status: result.status === "COMPLETED" ? "COMPLETED" : "PENDING",
       idempotencyKey,
     };
+  }
+
+  // ─── MVP 4.0 — Curriculum plan refresh ────────────────────────────────────
+
+  /**
+   * CURRICULUM_PLAN_REFRESH job (MVP 4.0 Phase 2).
+   * Refreshes a student's curriculum plan if expired or invalid.
+   * Idempotent by studentId + day.
+   */
+  async enqueueCurriculumPlanRefresh(input: {
+    studentId: string;
+    force?: boolean;
+  }): Promise<{
+    jobId: string;
+    planId?: string;
+    status: "COMPLETED" | "PENDING";
+    idempotencyKey: string;
+  }> {
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const idempotencyKey = `${input.studentId}:${today}`;
+
+    const existing = await this.prisma.job.findUnique({
+      where: {
+        jobType_idempotencyKey: {
+          jobType: "CURRICULUM_PLAN_REFRESH",
+          idempotencyKey,
+        },
+      },
+    });
+
+    if (existing?.status === JobStatus.COMPLETED && existing.resultRef && !input.force) {
+      return {
+        jobId: existing.id,
+        planId: existing.resultRef,
+        status: "COMPLETED",
+        idempotencyKey,
+      };
+    }
+
+    const job =
+      existing ??
+      (await this.prisma.job.create({
+        data: {
+          jobType: "CURRICULUM_PLAN_REFRESH",
+          idempotencyKey,
+          payload: input,
+          status: JobStatus.PENDING,
+        },
+      }));
+
+    const result = await this.processCurriculumPlanRefreshJob(job.id);
+    return {
+      jobId: job.id,
+      planId: result.planId,
+      status: result.status === "COMPLETED" ? "COMPLETED" : "PENDING",
+      idempotencyKey,
+    };
+  }
+
+  /**
+   * Process CURRICULUM_PLAN_REFRESH job.
+   * Calls PlanningHorizonService.refreshPlanIfNeeded.
+   */
+  async processCurriculumPlanRefreshJob(jobId: string): Promise<{
+    status: string;
+    planId?: string;
+  }> {
+    const job = await this.lockJob(jobId);
+    if (!job) {
+      const current = await this.prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+      return { status: current.status, planId: current.resultRef ?? undefined };
+    }
+
+    try {
+      const payload = job.payload as {
+        studentId: string;
+        force?: boolean;
+      };
+
+      const plan = await this.planningHorizon.refreshPlanIfNeeded(payload.studentId);
+
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          resultRef: plan.id,
+          attemptCount: job.attemptCount + 1,
+          lockedAt: null,
+          lockedBy: null,
+          lastError: null,
+        },
+      });
+
+      return { status: "COMPLETED", planId: plan.id };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const attemptCount = job.attemptCount + 1;
+      const permanent = attemptCount >= PLAN_REFRESH_MAX_ATTEMPTS;
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: permanent ? JobStatus.FAILED_PERMANENT : JobStatus.FAILED_RETRYABLE,
+          attemptCount,
+          lastError: message,
+          lockedAt: null,
+          lockedBy: null,
+          runAfter: permanent
+            ? null
+            : new Date(Date.now() + attemptCount * 60_000),
+        },
+      });
+      this.logger.error(`CURRICULUM_PLAN_REFRESH job ${jobId} failed: ${message}`);
+      return { status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE" };
+    }
+  }
+
+  /**
+   * Run daily curriculum plan refresh for all students.
+   * Called by scheduled task.
+   */
+  async runDailyCurriculumPlanRefresh(): Promise<{ processed: number }> {
+    const students = await this.prisma.student.findMany({
+      where: { deletedAt: null },
+      take: 100,
+      select: { id: true },
+    });
+
+    let processed = 0;
+    for (const student of students) {
+      await this.enqueueCurriculumPlanRefresh({ studentId: student.id });
+      processed++;
+    }
+    return { processed };
   }
 
   private async lockJob(jobId: string) {

@@ -3,6 +3,7 @@ import {
   BASELINE_SLOT_COUNT,
   DECISION_RULES_V2,
   DECISION_RULES_V3,
+  DECISION_RULES_V4,
   baselineConceptForSlot,
   type LearningDecision,
   type LearningIntent,
@@ -67,6 +68,16 @@ export interface DecisionInput {
   seenDifficulties?: number[];
   /** MVP 3.0 — explanation effectiveness for scoring. */
   explanationEffectiveness?: number;
+  /** MVP 4.0 — curriculum plan context. */
+  curriculumPlanId?: string;
+  activePlanWeekIndex?: number;
+  primaryUnitId?: string;
+  /** MVP 4.0 — unit bridge concepts that block unlock. */
+  unitBridgeConcepts?: string[];
+  /** MVP 4.0 — horizon focus concepts for current week. */
+  horizonFocusConcepts?: string[];
+  /** MVP 4.0 — enable decision-rules-v4. */
+  useDecisionRulesV4?: boolean;
 }
 
 const SESSION_QUESTION_LIMIT = 12;
@@ -176,6 +187,7 @@ export class DecisionEngineService {
         options,
         experimentKey,
         experimentArm,
+        input.useDecisionRulesV4,
       );
     };
 
@@ -303,11 +315,33 @@ export class DecisionEngineService {
           revisionItemId: dueRevision.id,
           targetMisconception: dueRevision.targetMisconception ?? undefined,
           retentionEstimateId: isRetention ? retentionEstimateId : undefined,
+          unitId: input.primaryUnitId,
         },
         0.75,
         isRetention
           ? `Retention review: ${dueRevision.reasoning}`
           : `Due revision: ${dueRevision.reasoning}`,
+      );
+    }
+
+    // 6. MVP 4.0 — Unit bridge review (decision-rules-v4 priority 4)
+    if (
+      input.useDecisionRulesV4 &&
+      input.unitBridgeConcepts &&
+      input.unitBridgeConcepts.length > 0
+    ) {
+      const bridgeConceptId = input.unitBridgeConcepts[0];
+      return makeDecision(
+        "SHOW_QUESTION",
+        "UNIT_BRIDGE_REVIEW",
+        {
+          conceptId: bridgeConceptId,
+          difficulty,
+          bridgeConceptId,
+          unitId: input.primaryUnitId,
+        },
+        0.75,
+        "Bridge concept review required to unlock next unit",
       );
     }
 
@@ -321,7 +355,7 @@ export class DecisionEngineService {
         return makeDecision(
           "SHOW_QUESTION",
           "REVIEW_PREREQUISITE",
-          { conceptId, difficulty: Math.max(1, difficulty - 1) },
+          { conceptId, difficulty: Math.max(1, difficulty - 1), unitId: input.primaryUnitId },
           0.65,
           "Still active misconception; reviewing prerequisite.",
         );
@@ -329,7 +363,7 @@ export class DecisionEngineService {
       return makeDecision(
         "SHOW_QUESTION",
         "DECREASE_DIFFICULTY",
-        { conceptId, difficulty: Math.max(1, difficulty - 1) },
+        { conceptId, difficulty: Math.max(1, difficulty - 1), unitId: input.primaryUnitId },
         0.65,
         "Still active misconception; decreasing difficulty.",
       );
@@ -344,7 +378,7 @@ export class DecisionEngineService {
         return makeDecision(
           "SHOW_QUESTION",
           "STANDARD_PRACTICE",
-          { conceptId, difficulty },
+          { conceptId, difficulty, unitId: input.primaryUnitId },
           0.55,
           "Weak misconception evidence; standard practice.",
         );
@@ -353,7 +387,7 @@ export class DecisionEngineService {
         return makeDecision(
           "SHOW_QUESTION",
           "STANDARD_PRACTICE",
-          { conceptId, difficulty },
+          { conceptId, difficulty, unitId: input.primaryUnitId },
           0.5,
           "Alternative explanation dominant; abstain from targeting.",
         );
@@ -365,6 +399,7 @@ export class DecisionEngineService {
           conceptId,
           difficulty: Math.max(1, difficulty - (recentIncorrectStreak >= 2 ? 1 : 0)),
           targetMisconception: activeMisconceptionId,
+          unitId: input.primaryUnitId,
         },
         misconceptionConfidence,
         "Targeting suspected misconception.",
@@ -380,13 +415,38 @@ export class DecisionEngineService {
       return makeDecision(
         "SHOW_QUESTION",
         "REVIEW_PREREQUISITE",
-        { conceptId, difficulty: Math.max(1, difficulty - 1) },
+        { conceptId, difficulty: Math.max(1, difficulty - 1), unitId: input.primaryUnitId },
         0.6,
         "Repeated errors with weak prerequisite mastery.",
       );
     }
 
-    // 8. Transfer check
+    // 8. MVP 4.0 — Horizon focus practice (decision-rules-v4 priority 7)
+    if (
+      input.useDecisionRulesV4 &&
+      input.horizonFocusConcepts &&
+      input.horizonFocusConcepts.length > 0
+    ) {
+      // Select a focus concept from the current week's plan
+      const focusConceptId =
+        input.horizonFocusConcepts.find((c) => c !== conceptId) ??
+        input.horizonFocusConcepts[0];
+      return makeDecision(
+        "SHOW_QUESTION",
+        "HORIZON_FOCUS_PRACTICE",
+        {
+          conceptId: focusConceptId,
+          difficulty,
+          unitId: input.primaryUnitId,
+          curriculumPlanId: input.curriculumPlanId,
+          horizonWeekIndex: input.activePlanWeekIndex,
+        },
+        0.7,
+        "Practicing curriculum horizon focus concept",
+      );
+    }
+
+    // 9. Transfer check
     const masteryThreshold = input.masteryThreshold ?? 0.75;
     const minimumEvidence = input.minimumEvidence ?? 5;
     const masteryValue = input.masteryValue;
@@ -409,6 +469,7 @@ export class DecisionEngineService {
           conceptId,
           difficulty,
           transferConceptId: conceptId,
+          unitId: input.primaryUnitId,
         },
         0.71,
         "Mastery stable above threshold; no active misconception >0.6; transfer item available.",
@@ -416,7 +477,7 @@ export class DecisionEngineService {
       );
     }
 
-    // 9. Difficulty adaptation (overconfident learners stay cautious on increase)
+    // 10. Difficulty adaptation (overconfident learners stay cautious on increase)
     if (recentCorrectStreak >= 2) {
       const nextDifficulty =
         input.confidenceCalibration === "possibly_overconfident"
@@ -425,7 +486,7 @@ export class DecisionEngineService {
       return makeDecision(
         "SHOW_QUESTION",
         nextDifficulty > difficulty ? "INCREASE_DIFFICULTY" : "STANDARD_PRACTICE",
-        { conceptId, difficulty: nextDifficulty },
+        { conceptId, difficulty: nextDifficulty, unitId: input.primaryUnitId },
         0.7,
         input.confidenceCalibration === "possibly_overconfident"
           ? "Repeated success but overconfident calibration; hold difficulty."
@@ -437,13 +498,13 @@ export class DecisionEngineService {
       return makeDecision(
         "SHOW_QUESTION",
         "DECREASE_DIFFICULTY",
-        { conceptId, difficulty: Math.max(1, difficulty - 1) },
+        { conceptId, difficulty: Math.max(1, difficulty - 1), unitId: input.primaryUnitId },
         0.7,
         "Repeated errors; decrease difficulty.",
       );
     }
 
-    // 10. Standard practice
+    // 11. Standard practice
     const experimentNote =
       EXPERIMENT_VARIANT === "random"
         ? " (A/B stub: random sequencing variant)"
@@ -452,23 +513,27 @@ export class DecisionEngineService {
     return makeDecision(
       "SHOW_QUESTION",
       "STANDARD_PRACTICE",
-      { conceptId, difficulty },
+      { conceptId, difficulty, unitId: input.primaryUnitId },
       0.6,
       `Continue practice at current level.${experimentNote}`,
     );
   }
 
-  fallbackDecision(session: LearningSession): LearningDecision {
+  fallbackDecision(session: LearningSession, unitId?: string, useDecisionRulesV4?: boolean): LearningDecision {
     return this.decision(
       "SHOW_QUESTION",
       "STANDARD_PRACTICE",
       {
         conceptId: session.activeConceptId ?? "C2_ONE_STEP_SUBTRACTION",
         difficulty: session.activeDifficulty ?? 2,
+        unitId,
       },
       0.4,
       "Safe fallback decision.",
       { fallbackGenerated: true },
+      undefined,
+      undefined,
+      useDecisionRulesV4,
     );
   }
 
@@ -495,6 +560,7 @@ export class DecisionEngineService {
         hardGate.options,
         experimentKey,
         experimentArm,
+        input.useDecisionRulesV4,
       );
     }
 
@@ -549,6 +615,7 @@ export class DecisionEngineService {
       },
       experimentKey,
       experimentArm,
+      input.useDecisionRulesV4,
     );
   }
 
@@ -879,6 +946,7 @@ export class DecisionEngineService {
     },
     experimentKey?: string,
     experimentArm?: string,
+    useDecisionRulesV4?: boolean,
   ): LearningDecision {
     const contentStyle =
       options?.explanationStyle || options?.questionFormat
@@ -893,7 +961,11 @@ export class DecisionEngineService {
         : undefined;
 
     const decisionVersion =
-      experimentKey && experimentArm ? DECISION_RULES_V3 : DECISION_RULES_V2;
+      useDecisionRulesV4
+        ? DECISION_RULES_V4
+        : experimentKey && experimentArm
+          ? DECISION_RULES_V3
+          : DECISION_RULES_V2;
 
     const decision: LearningDecision = {
       uiAction,
