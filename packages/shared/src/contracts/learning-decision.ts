@@ -1,8 +1,9 @@
-import type { ExplanationStyle, LearningIntent, QuestionFormat, UiAction } from "./enums";
+import type { ExplanationStyle, LearningIntent, ModalityKind, QuestionFormat, UiAction } from "./enums";
 
 export interface ContentStyle {
   questionFormat?: QuestionFormat;
   explanationStyle?: ExplanationStyle;
+  modality?: ModalityKind; // MVP 5.0
 }
 
 export interface DecisionParameters {
@@ -31,6 +32,11 @@ export interface DecisionParameters {
   curriculumPlanId?: string;
   horizonWeekIndex?: number; // 0-based within plan
   bridgeConceptId?: string;
+  // MVP 5.0 optional fields
+  subjectId?: string;
+  modalityAssetId?: string;
+  policyVersion?: string;
+  safetyEvalId?: string;
 }
 
 export interface LearningDecision {

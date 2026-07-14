@@ -9,6 +9,10 @@ export * from "./contracts/content-drafts";
 export * from "./contracts/candidate-scores";
 // MVP 4.0
 export * from "./contracts/curriculum";
+// MVP 5.0
+export * from "./contracts/modality";
+export * from "./contracts/policy";
+export * from "./contracts/safety-eval";
 
 export interface AttemptSignals {
   isCorrect: boolean | null;

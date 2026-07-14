@@ -88,6 +88,9 @@ enum LearningIntent {
   // MVP 4.0 additive
   UNIT_BRIDGE_REVIEW
   HORIZON_FOCUS_PRACTICE
+  // MVP 5.0 additive
+  SHOW_TEACHING_MODULE
+  MODALITY_RETEST
 }
 
 enum JobStatus {
@@ -119,6 +122,23 @@ enum ContentReviewStatus {
 enum ContentReviewType {
   QUESTION
   EXPLANATION
+}
+
+// ─── MVP 5.0 Enums ────────────────────────────────────────────────────────
+
+enum ModalityKind {
+  TEXT
+  ANIMATION
+  VIDEO
+  VOICE
+}
+
+enum PolicyStatus {
+  CANDIDATE
+  SHADOW
+  EXPERIMENT
+  PROMOTED
+  ROLLED_BACK
 }
 
 enum RemediationState {
@@ -189,19 +209,19 @@ model Student {
   accessCodeHash  String
   deletedAt       DateTime?
 
-  learnerProfile         LearnerProfile?
-  sessions               LearningSession[]
-  attempts               Attempt[]
-  masteryScores          MasteryScore[]
-  masteryHistory         MasteryHistory[]
-  diagnosticFactors      DiagnosticFactor[]
-  remediationStates      MisconceptionRemediationState[]
-  learningDecisions      LearningDecision[]
-  revisionItems          RevisionQueueItem[]
-  reports                Report[]
-  parentLinks            ParentStudentLink[]
-  retentionEstimates     RetentionEstimate[]
-  explanationOutcomes    ExplanationOutcome[]
+  learnerProfile      LearnerProfile?
+  sessions            LearningSession[]
+  attempts            Attempt[]
+  masteryScores       MasteryScore[]
+  masteryHistory      MasteryHistory[]
+  diagnosticFactors   DiagnosticFactor[]
+  remediationStates   MisconceptionRemediationState[]
+  learningDecisions   LearningDecision[]
+  revisionItems       RevisionQueueItem[]
+  reports             Report[]
+  parentLinks         ParentStudentLink[]
+  retentionEstimates  RetentionEstimate[]
+  explanationOutcomes ExplanationOutcome[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -248,37 +268,37 @@ model ConceptPrerequisite {
 }
 
 model Misconception {
-  id                         String @id
-  conceptIds                 String[]
-  minimumMatchingAttempts    Int
-  activationConfidence       Float
-  alternativeExplanations    String[]
-  maxTargetedBeforeExplanation Int    @default(2)
-  maxExplanationCycles       Int      @default(2)
-  resolutionConsecutiveCorrect Int    @default(2)
-  resolutionMaxHintLevel     Int      @default(1)
+  id                           String   @id
+  conceptIds                   String[]
+  minimumMatchingAttempts      Int
+  activationConfidence         Float
+  alternativeExplanations      String[]
+  maxTargetedBeforeExplanation Int      @default(2)
+  maxExplanationCycles         Int      @default(2)
+  resolutionConsecutiveCorrect Int      @default(2)
+  resolutionMaxHintLevel       Int      @default(1)
 }
 
 model Question {
-  id                       String
-  version                  Int          @default(1)
-  conceptId                String
-  concept                  Concept      @relation(fields: [conceptId], references: [id])
-  difficulty               Int
-  questionIntent           String
-  type                     QuestionType
-  stem                     String
-  acceptedAnswers          Json
-  misconceptionsTested     String[]
-  misconceptionPatterns    Json?
-  prerequisiteConceptIds   String[]
-  solutionSteps            Json
-  hintLadder               Json
-  reviewStatus             ReviewStatus @default(PENDING_REVIEW)
-  itemQualityWeight        Float        @default(1.0)
-  options                  Json?
+  id                     String
+  version                Int          @default(1)
+  conceptId              String
+  concept                Concept      @relation(fields: [conceptId], references: [id])
+  difficulty             Int
+  questionIntent         String
+  type                   QuestionType
+  stem                   String
+  acceptedAnswers        Json
+  misconceptionsTested   String[]
+  misconceptionPatterns  Json?
+  prerequisiteConceptIds String[]
+  solutionSteps          Json
+  hintLadder             Json
+  reviewStatus           ReviewStatus @default(PENDING_REVIEW)
+  itemQualityWeight      Float        @default(1.0)
+  options                Json?
   /// MVP 4.0: Unit association (nullable for backward compat; backfill linear-equations-one-variable)
-  unitId                   String?
+  unitId                 String?
 
   attempts       Attempt[]
   itemStatistics ItemStatistic[]
@@ -389,9 +409,9 @@ model MasteryScore {
 }
 
 model MasteryHistory {
-  id             String  @id @default(cuid())
+  id             String   @id @default(cuid())
   studentId      String
-  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   conceptId      String
   previousValue  Float
   newValue       Float
@@ -403,48 +423,48 @@ model MasteryHistory {
 }
 
 model DiagnosticFactor {
-  id                     String   @id @default(cuid())
-  studentId              String
-  student                Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  conceptId              String?
-  factorType             String
-  factorKey              String?
-  value                  Json
-  confidence             Float
-  reasoning              String
-  evidenceAttemptIds     String[]
+  id                      String    @id @default(cuid())
+  studentId               String
+  student                 Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId               String?
+  factorType              String
+  factorKey               String?
+  value                   Json
+  confidence              Float
+  reasoning               String
+  evidenceAttemptIds      String[]
   alternativeExplanations String[]
-  modelVersion           String
-  validUntil             DateTime?
-  createdAt              DateTime @default(now())
+  modelVersion            String
+  validUntil              DateTime?
+  createdAt               DateTime  @default(now())
 
   @@index([studentId, createdAt])
 }
 
 model MisconceptionRemediationState {
-  studentId              String
-  student                Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  misconceptionId        String
-  conceptId              String
-  state                  RemediationState @default(UNCONFIRMED)
-  targetedAttemptCount   Int              @default(0)
-  explanationCycleCount  Int              @default(0)
-  consecutiveCorrect     Int              @default(0)
-  updatedAt              DateTime         @updatedAt
+  studentId             String
+  student               Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  misconceptionId       String
+  conceptId             String
+  state                 RemediationState @default(UNCONFIRMED)
+  targetedAttemptCount  Int              @default(0)
+  explanationCycleCount Int              @default(0)
+  consecutiveCorrect    Int              @default(0)
+  updatedAt             DateTime         @updatedAt
 
   @@id([studentId, misconceptionId, conceptId])
 }
 
 model LearnerProfile {
-  studentId             String  @id
-  student                 Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  profileVersion          Int     @default(1)
-  masterySummary          Json    @default("{}")
-  activeMisconceptions    Json    @default("[]")
-  confidenceCalibration   String?
-  hintDependence          Float   @default(0)
-  revisionNeedSignals     Json    @default("[]")
-  updatedAt               DateTime @updatedAt
+  studentId             String   @id
+  student               Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  profileVersion        Int      @default(1)
+  masterySummary        Json     @default("{}")
+  activeMisconceptions  Json     @default("[]")
+  confidenceCalibration String?
+  hintDependence        Float    @default(0)
+  revisionNeedSignals   Json     @default("[]")
+  updatedAt             DateTime @updatedAt
 }
 
 model LearnerProfileHistory {
@@ -643,16 +663,16 @@ model ContentReview {
 // ─── MVP 3.0 tables ────────────────────────────────────────────────────────
 
 model ExperimentDefinition {
-  id              String   @id @default(cuid())
-  experimentKey   String   @unique
-  status          String   // DRAFT | RUNNING | PAUSED | COMPLETED
-  armsJson        Json     // arm ids + allocations
+  id              String    @id @default(cuid())
+  experimentKey   String    @unique
+  status          String // DRAFT | RUNNING | PAUSED | COMPLETED
+  armsJson        Json // arm ids + allocations
   eligibilityJson Json
-  rulesVersion    String   // experiment-rules-v1
+  rulesVersion    String // experiment-rules-v1
   startAt         DateTime
   endAt           DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model ExperimentAssignment {
@@ -670,38 +690,38 @@ model ExperimentAssignment {
 }
 
 model ContentDraft {
-  id                  String    @id @default(cuid())
-  draftType           String    // QUESTION | EXPLANATION_TEMPLATE | HINT_LADDER
+  id                  String   @id @default(cuid())
+  draftType           String // QUESTION | EXPLANATION_TEMPLATE | HINT_LADDER
   conceptId           String
   difficulty          Int?
   targetMisconception String?
   payload             Json
-  source              String    // HUMAN | LLM_ASSISTED | PROGRAMMATIC
+  source              String // HUMAN | LLM_ASSISTED | PROGRAMMATIC
   provider            String?
   promptVersion       String?
-  status              String    // DRAFT | VALIDATING | VALIDATED | ...
+  status              String // DRAFT | VALIDATING | VALIDATED | ...
   validationErrors    Json?
   reviewNotes         String?
   promotedContentId   String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([status, createdAt])
   @@index([conceptId, draftType])
 }
 
 model CandidateActionScore {
-  id               String   @id @default(cuid())
-  studentId        String
-  sessionId        String
-  eventId          String
-  candidatesJson   Json     // scored candidates
-  selectedIndex    Int
-  scoreVersion     String   // candidate-score-rules-v1
-  experimentId     String?
-  experimentArmId  String?
-  shadow           Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  id              String   @id @default(cuid())
+  studentId       String
+  sessionId       String
+  eventId         String
+  candidatesJson  Json // scored candidates
+  selectedIndex   Int
+  scoreVersion    String // candidate-score-rules-v1
+  experimentId    String?
+  experimentArmId String?
+  shadow          Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
   @@index([studentId, createdAt])
   @@index([experimentId, experimentArmId])
@@ -710,35 +730,39 @@ model CandidateActionScore {
 // ─── MVP 4.0 tables ────────────────────────────────────────────────────────
 
 model CurriculumUnit {
-  id                   String   @id @default(cuid())
-  unitId               String   @unique
-  title                String
-  prerequisiteUnitIds  Json     // string[]
-  unlockRule           String   // ALL_PREREQ_UNITS_AT_THRESHOLD | MANUAL | DIAGNOSTIC_PLACEMENT
-  priorityWeight       Float    @default(1.0)
-  createdAt            DateTime @default(now())
+  id                  String   @id @default(cuid())
+  unitId              String   @unique
+  title               String
+  subjectId           String? // MVP 5.0: FK to subjects (optional during migration)
+  subject             Subject? @relation(fields: [subjectId], references: [subjectId], onDelete: Cascade)
+  prerequisiteUnitIds Json // string[]
+  unlockRule          String // ALL_PREREQ_UNITS_AT_THRESHOLD | MANUAL | DIAGNOSTIC_PLACEMENT
+  priorityWeight      Float    @default(1.0)
+  createdAt           DateTime @default(now())
 
   unitConcepts UnitConcept[]
+
+  @@index([subjectId])
 }
 
 model UnitConcept {
-  unitId        String
-  unit          CurriculumUnit @relation(fields: [unitId], references: [unitId], onDelete: Cascade)
-  conceptId     String
-  kind          ConceptKind    // PREREQ | CORE
+  unitId    String
+  unit      CurriculumUnit @relation(fields: [unitId], references: [unitId], onDelete: Cascade)
+  conceptId String
+  kind      ConceptKind // PREREQ | CORE
 
   @@id([unitId, conceptId])
   @@index([conceptId])
 }
 
 model CurriculumPlan {
-  id            String   @id @default(cuid())
-  studentId     String
-  horizonWeeks  Int      // 2..6
-  planJson      Json     // weeks[] with weekIndex, primaryUnitId, focusConceptIds, bridgeConceptIds, maxNewConcepts
-  rulesVersion  String   // planning-rules-v1
-  validUntil    DateTime
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  studentId    String
+  horizonWeeks Int // 2..6
+  planJson     Json // weeks[] with weekIndex, primaryUnitId, focusConceptIds, bridgeConceptIds, maxNewConcepts
+  rulesVersion String // planning-rules-v1
+  validUntil   DateTime
+  createdAt    DateTime @default(now())
 
   @@index([studentId, validUntil])
 }
@@ -750,4 +774,82 @@ model TeacherStudentLink {
 
   @@unique([teacherId, studentId])
   @@index([studentId])
+}
+
+// ─── MVP 5.0 tables ────────────────────────────────────────────────────────
+
+model Subject {
+  id        String   @id @default(cuid())
+  subjectId String   @unique
+  title     String
+  createdAt DateTime @default(now())
+
+  units          CurriculumUnit[]
+  modalityAssets ModalityAsset[]
+}
+
+model ModalityAsset {
+  id               String       @id @default(cuid())
+  assetId          String       @unique
+  modality         ModalityKind
+  conceptId        String
+  misconceptionId  String?
+  unitId           String
+  subjectId        String
+  subject          Subject      @relation(fields: [subjectId], references: [subjectId], onDelete: Cascade)
+  storageRef       String // S3/CDN reference
+  transcriptRef    String? // required for VOICE/VIDEO with math claims
+  reviewStatus     ReviewStatus @default(PENDING_REVIEW)
+  retestQuestionId String? // link to APPROVED text question for retest
+  durationMs       Int?
+  createdAt        DateTime     @default(now())
+
+  outcomes ModalityOutcome[]
+
+  @@index([subjectId, conceptId])
+  @@index([reviewStatus])
+  @@index([unitId])
+}
+
+model ModalityOutcome {
+  id            String        @id @default(cuid())
+  studentId     String
+  assetId       String
+  asset         ModalityAsset @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
+  sessionId     String
+  completed     Boolean
+  dwellMs       Int
+  retestCorrect Boolean?
+  modelVersion  String // tracks which rules/policy version selected this
+  createdAt     DateTime      @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([assetId])
+}
+
+model PolicyVersion {
+  id            String       @id @default(cuid())
+  policyVersion String       @unique
+  status        PolicyStatus @default(CANDIDATE)
+  artifactRef   String // model blob location (S3, etc.)
+  safetyEvalId  String?
+  safetyEval    SafetyEval?  @relation(fields: [safetyEvalId], references: [id])
+  createdAt     DateTime     @default(now())
+  promotedAt    DateTime?
+  rolledBackAt  DateTime?
+
+  @@index([status])
+}
+
+model SafetyEval {
+  id            String   @id @default(cuid())
+  policyVersion String
+  metricsJson   Json // detailed metrics per README_RULES safety-eval-rules-v1
+  passed        Boolean
+  rulesVersion  String // safety-eval-rules-v1
+  createdAt     DateTime @default(now())
+
+  policyVersions PolicyVersion[]
+
+  @@index([policyVersion])
 }

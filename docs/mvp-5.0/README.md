@@ -1,15 +1,14 @@
-# Cogna MVP 5.0 — Draft / Vision Specification
+# Cogna MVP 5.0 — Canonical Specification
 
-> **This folder is the long-range planning source of truth for MVP 5.0.**  
+> **This folder is the active implementation source of truth for MVP 5.0.**  
 > Path: `/docs/mvp-5.0/`  
-> Status is **Draft / Vision** — not Canonical / Frozen.  
-> Do **not** implement until prior eras prove safety foundations and this pack is promoted.  
-> Active implementation remains MVP 2.0.
+> Status is **Canonical / Frozen** for implementation.  
+> MVP 4.0 complete; MVP 5.0 now active era.
 
 ## Spec status
 
 ```text
-Spec status: Draft / Vision
+Spec status: Canonical / Frozen for Implementation
 ```
 
 ## Build tracking

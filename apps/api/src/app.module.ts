@@ -19,6 +19,10 @@ import { RetentionModule } from "./retention/retention.module";
 import { ExperimentsModule } from "./experiments/experiments.module";
 import { CurriculumModule } from "./curriculum/curriculum.module";
 import { HealthController } from "./health.controller";
+// MVP 5.0 modules
+import { ModalityDirectorModule } from "./engines/modality-director/modality-director.module";
+import { PolicyEngineModule } from "./engines/policy-engine/policy-engine.module";
+import { SafetyEvalModule } from "./engines/safety-eval/safety-eval.module";
 
 @Module({
   imports: [
@@ -41,6 +45,10 @@ import { HealthController } from "./health.controller";
     ContentModule,
     ExperimentsModule,
     CurriculumModule,
+    // MVP 5.0
+    ModalityDirectorModule,
+    PolicyEngineModule,
+    SafetyEvalModule,
   ],
   controllers: [HealthController],
 })

@@ -26,6 +26,9 @@ export const LEARNING_INTENTS = [
   // MVP 4.0 additive intents
   "UNIT_BRIDGE_REVIEW",
   "HORIZON_FOCUS_PRACTICE",
+  // MVP 5.0 additive intents
+  "SHOW_TEACHING_MODULE",
+  "MODALITY_RETEST",
 ] as const;
 
 export type LearningIntent = (typeof LEARNING_INTENTS)[number];
@@ -156,3 +159,17 @@ export type ContentReviewStatus = (typeof CONTENT_REVIEW_STATUSES)[number];
 
 export const CONTENT_REVIEW_TYPES = ["QUESTION", "EXPLANATION"] as const;
 export type ContentReviewType = (typeof CONTENT_REVIEW_TYPES)[number];
+
+// ─── MVP 5.0 enums ─────────────────────────────────────────────────────────
+
+export const MODALITY_KINDS = ["TEXT", "ANIMATION", "VIDEO", "VOICE"] as const;
+export type ModalityKind = (typeof MODALITY_KINDS)[number];
+
+export const POLICY_STATUSES = [
+  "CANDIDATE",
+  "SHADOW",
+  "EXPERIMENT",
+  "PROMOTED",
+  "ROLLED_BACK",
+] as const;
+export type PolicyStatus = (typeof POLICY_STATUSES)[number];

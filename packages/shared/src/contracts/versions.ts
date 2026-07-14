@@ -83,3 +83,33 @@ export const ENGINE_VERSIONS_V4 = {
   decisionRules: DECISION_RULES_V4,
   recommendationRules: RECOMMENDATION_RULES_V4,
 } as const;
+
+// ─── MVP 5.0 version strings ───────────────────────────────────────────────
+
+export const POLICY_RULES_V5 = "policy-rules-v5";
+export const LEARNED_POLICY_V1 = "learned-policy-v1";
+export const MODALITY_RULES_V1 = "modality-rules-v1";
+export const SUBJECT_GRAPH_RULES_V1 = "subject-graph-rules-v1";
+export const SAFETY_EVAL_RULES_V1 = "safety-eval-rules-v1";
+
+export const ENGINE_VERSIONS_V5 = {
+  // Carry forward from MVP 2.0/3.0/4.0
+  masteryFormula: MASTERY_FORMULA_V2,
+  diagnosticRules: DIAGNOSTIC_RULES_V2,
+  retentionRules: RETENTION_RULES_V2,
+  reportTemplates: REPORT_TEMPLATES_V2,
+  contentReviewRules: CONTENT_REVIEW_RULES_V2,
+  candidateScoreRules: CANDIDATE_SCORE_RULES_V1,
+  experimentRules: EXPERIMENT_RULES_V1,
+  contentDraftRules: CONTENT_DRAFT_RULES_V1,
+  contentValidationRules: CONTENT_VALIDATION_RULES_V1,
+  curriculumRules: CURRICULUM_RULES_V1,
+  planningRules: PLANNING_RULES_V1,
+  recommendationRules: RECOMMENDATION_RULES_V4,
+  // MVP 5.0 new
+  policyRules: POLICY_RULES_V5,
+  learnedPolicy: LEARNED_POLICY_V1,
+  modalityRules: MODALITY_RULES_V1,
+  subjectGraphRules: SUBJECT_GRAPH_RULES_V1,
+  safetyEvalRules: SAFETY_EVAL_RULES_V1,
+} as const;
