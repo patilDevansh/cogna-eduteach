@@ -13,6 +13,8 @@ export default function ParentDashboardPage() {
     Array<{ id: string; name: string; grade: number }>
   >([]);
   const [error, setError] = useState("");
+  const [codes, setCodes] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -29,9 +31,27 @@ export default function ParentDashboardPage() {
       );
   }, [isLoaded, isSignedIn, getAuth, router]);
 
+  useEffect(() => {
+    document.title = "Parent dashboard — Cogna";
+  }, []);
+
   async function handleSignOut() {
     await signOut();
     router.push("/");
+  }
+
+  async function showAccessCode(studentId: string) {
+    setBusyId(studentId);
+    setError("");
+    try {
+      const auth = await getAuth();
+      const result = await api.regenerateAccessCode(auth, studentId);
+      setCodes((prev) => ({ ...prev, [studentId]: result.accessCode }));
+    } catch {
+      setError("Couldn't create a new access code. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   if (!isLoaded || !isSignedIn) return <p>Loading…</p>;
@@ -39,7 +59,11 @@ export default function ParentDashboardPage() {
   return (
     <div className="card">
       <h1>Hello, {display?.name ?? "Parent"}</h1>
-      <p className="lead">Manage your students and their practice access codes.</p>
+      <p className="lead">
+        View progress reports below. Access codes are shown when you add a
+        student — create a new one here if the old code was lost (it replaces
+        the previous code).
+      </p>
 
       {error && <p className="error">{error}</p>}
 
@@ -51,6 +75,11 @@ export default function ParentDashboardPage() {
           {students.map((s) => (
             <li key={s.id}>
               <strong>{s.name}</strong> — Grade {s.grade}
+              {codes[s.id] && (
+                <p className="lead" style={{ margin: "0.35rem 0 0" }}>
+                  Access code: <span className="access-code">{codes[s.id]}</span>
+                </p>
+              )}
               <div className="actions" style={{ marginTop: "0.5rem" }}>
                 <Link href={`/parent/students/${s.id}/summary`} className="btn btn-secondary">
                   Session summary
@@ -58,6 +87,18 @@ export default function ParentDashboardPage() {
                 <Link href={`/parent/students/${s.id}/weekly`} className="btn btn-secondary">
                   Weekly update
                 </Link>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={busyId === s.id}
+                  onClick={() => void showAccessCode(s.id)}
+                >
+                  {busyId === s.id
+                    ? "Creating…"
+                    : codes[s.id]
+                      ? "Create another code"
+                      : "Create new access code"}
+                </button>
               </div>
             </li>
           ))}

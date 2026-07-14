@@ -16,6 +16,10 @@ export default function NewStudentPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    document.title = "Add student — Cogna";
+  }, []);
+
+  useEffect(() => {
     if (isLoaded && !isSignedIn) router.replace("/parent/login");
   }, [isLoaded, isSignedIn, router]);
 

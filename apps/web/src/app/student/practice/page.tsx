@@ -60,6 +60,8 @@ function PracticeContent() {
   const [handoffMessage, setHandoffMessage] = useState("");
   const [breakInfo, setBreakInfo] = useState<BreakInfo | null>(null);
   const [breakSuggestedThisSession, setBreakSuggestedThisSession] = useState(false);
+  const [submitFailed, setSubmitFailed] = useState(false);
+  const [baselineQuestionIndex, setBaselineQuestionIndex] = useState(0);
 
   const questionShownAt = useRef<number>(Date.now());
   const firstInputAt = useRef<number | null>(null);
@@ -67,6 +69,11 @@ function PracticeContent() {
   const pendingPayload = useRef<Parameters<typeof api.submitAnswer>[0] | null>(null);
 
   const question = current?.payload as QuestionPayload | undefined;
+  const BASELINE_TARGET = 12;
+
+  function questionLabel(count: number): string {
+    return count === 1 ? "question" : "questions";
+  }
 
   function phaseFromDecision(next: PracticeNextResponse | null | undefined): Phase {
     const action = next?.decision?.uiAction;
@@ -199,6 +206,7 @@ function PracticeContent() {
       setSessionStartedAt(Date.now());
       setBreakSuggestedThisSession(false);
       setBreakInfo(null);
+      setBaselineQuestionIndex(mode === "BASELINE" ? 1 : 0);
       questionShownAt.current = Date.now();
       if (session.next.decision.uiAction === "SUGGEST_BREAK") {
         const payload = session.next.payload as
@@ -234,6 +242,11 @@ function PracticeContent() {
   }, [startSession]);
 
   useEffect(() => {
+    document.title =
+      mode === "BASELINE" ? "Baseline — Cogna" : "Practice — Cogna";
+  }, [mode]);
+
+  useEffect(() => {
     if (!sessionStartedAt || phase === "ended" || phase === "handoff") return;
 
     const tick = () => {
@@ -260,10 +273,12 @@ function PracticeContent() {
     if (!firstInputAt.current) firstInputAt.current = Date.now();
     setAnswerChanged(true);
     setAnswer(value);
+    if (error) setError("");
   }
 
   async function requestHint() {
     if (!question || !sessionId || !studentId) return;
+    if ((question.hintLadder?.length ?? 0) <= highestHintLevel) return;
 
     try {
       const result = await api.requestHint({
@@ -276,9 +291,12 @@ function PracticeContent() {
         clientTimestamp: new Date().toISOString(),
       });
       const hint = result.hint ?? result.payload;
-      setHints((prev) => [...prev, hint]);
+      setHints((prev) => {
+        if (prev.some((h) => h.level === hint.level)) return prev;
+        return [...prev, hint];
+      });
       setHintCount((c) => c + 1);
-      setHighestHintLevel(hint.level);
+      setHighestHintLevel((prev) => Math.max(prev, hint.level));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hint unavailable");
     }
@@ -298,6 +316,7 @@ function PracticeContent() {
 
     setSubmitting(true);
     setError("");
+    setSubmitFailed(false);
 
     const now = Date.now();
     const eventId = pendingEventId.current ?? newEventId();
@@ -329,6 +348,7 @@ function PracticeContent() {
       const result = await api.submitAnswer(payload);
       pendingEventId.current = null;
       pendingPayload.current = null;
+      setSubmitFailed(false);
 
       setGradeResult({ grade: result.grade, isCorrect: result.isCorrect });
 
@@ -364,6 +384,7 @@ function PracticeContent() {
       setCurrent(result.next ?? null);
       setPhase("feedback");
     } catch (err) {
+      setSubmitFailed(true);
       setError(
         err instanceof Error
           ? `${err.message} — tap Retry to resubmit with the same event.`
@@ -377,6 +398,7 @@ function PracticeContent() {
   async function retrySubmit() {
     if (!pendingPayload.current) return;
     setSubmitting(true);
+    setSubmitFailed(false);
     try {
       const result = await api.submitAnswer(pendingPayload.current);
       pendingEventId.current = null;
@@ -402,6 +424,7 @@ function PracticeContent() {
       }
       setError("");
     } catch (err) {
+      setSubmitFailed(true);
       setError(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setSubmitting(false);
@@ -490,8 +513,12 @@ function PracticeContent() {
     setHintCount(0);
     setHighestHintLevel(0);
     setAnswerChanged(false);
+    setSubmitFailed(false);
     firstInputAt.current = null;
     questionShownAt.current = Date.now();
+    if (mode === "BASELINE" && next && phaseFromDecision(next) === "question") {
+      setBaselineQuestionIndex((n) => n + 1);
+    }
     setPhase(phaseFromDecision(next));
   }
 
@@ -562,7 +589,8 @@ function PracticeContent() {
       <div className="card">
         <h1>Baseline complete!</h1>
         <p className="lead">
-          You answered {summary?.questionCount ?? 12} questions. Next up: adaptive
+          You answered {summary?.questionCount ?? 12}{" "}
+          {questionLabel(summary?.questionCount ?? 12)}. Next up: adaptive
           practice tailored to your level.
         </p>
         {error && <p className="error">{error}</p>}
@@ -616,7 +644,8 @@ function PracticeContent() {
       <div className="card">
         <h1>Great work, {studentName}!</h1>
         <p className="lead">
-          You answered {summary?.questionCount ?? 0} questions this session.
+          You answered {summary?.questionCount ?? 0}{" "}
+          {questionLabel(summary?.questionCount ?? 0)} this session.
         </p>
         {summary?.summaryReportId && (
           <p className="lead" style={{ fontSize: "0.85rem" }}>
@@ -700,8 +729,11 @@ function PracticeContent() {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={submitting}
-            onClick={() => submitAnswer(confidence)}
+            disabled={submitting || confidence === null}
+            onClick={() => {
+              if (confidence === null) return;
+              void submitAnswer(confidence);
+            }}
           >
             {submitting ? "Submitting…" : "Submit"}
           </button>
@@ -709,15 +741,15 @@ function PracticeContent() {
             type="button"
             className="btn btn-secondary"
             disabled={submitting}
-            onClick={() => submitAnswer(null)}
+            onClick={() => void submitAnswer(null)}
           >
             Skip
           </button>
-          {pendingPayload.current && (
+          {submitFailed && pendingPayload.current && (
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={retrySubmit}
+              onClick={() => void retrySubmit()}
               disabled={submitting}
             >
               Retry
@@ -749,7 +781,9 @@ function PracticeContent() {
   return (
     <div className="card">
       <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0 0 0.5rem" }}>
-        {mode === "BASELINE" ? "Baseline" : "Practice"}
+        {mode === "BASELINE"
+          ? `Baseline · Question ${Math.min(baselineQuestionIndex, BASELINE_TARGET)} of ${BASELINE_TARGET}`
+          : "Practice"}
       </p>
       {sessionStartedAt && (
         <p className="session-timer" aria-live="polite">
@@ -773,6 +807,12 @@ function PracticeContent() {
             type="text"
             value={answer}
             onChange={(e) => onAnswerChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !submitting) {
+                e.preventDefault();
+                submitForConfidence();
+              }
+            }}
             placeholder="e.g. 16 or x=16"
             autoComplete="off"
           />
@@ -792,7 +832,7 @@ function PracticeContent() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={requestHint}
+                onClick={() => void requestHint()}
                 disabled={submitting}
               >
                 Hint

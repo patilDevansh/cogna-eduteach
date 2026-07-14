@@ -4,6 +4,12 @@
 
 ## Open Skips
 
+### V2 — Mid-session navigate away without resume/end prompt
+
+- **Reason:** Global Parent/Student nav lets learners leave an active practice session (orphaning the ACTIVE session) with no “resume or end?” dialog. Out of scope for the 2026-07-14 UI QA polish pass.
+- **Return when:** Add session resume or confirm-on-navigate once pilot UX owners want it; until then prefer End session before leaving practice.
+- **Spec refs:** UI QA findings; practice session lifecycle
+
 ### V3 — `experiment_assignments` table / policy experiments
 
 - **Reason:** MVP 2.0 freezes deterministic decision/recommendation rules. Experiment assignment and variant branching belong after pilot data and an analysis harness exist.

@@ -10,6 +10,10 @@ export default function BaselineIntroPage() {
   const [student, setStudent] = useState<ReturnType<typeof getStudent>>(null);
 
   useEffect(() => {
+    document.title = "Get ready — Cogna";
+  }, []);
+
+  useEffect(() => {
     const s = getStudent();
     if (!s) {
       router.replace("/student/login");

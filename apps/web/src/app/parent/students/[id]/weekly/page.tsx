@@ -11,7 +11,7 @@ import {
   type WeeklyStructuredSummary,
 } from "@/lib/api";
 import { useParentAuth } from "@/lib/parent-auth-context";
-import { conceptLabel } from "@/lib/concept-labels";
+import { conceptLabel, formatReportDate, humanizeParentCopy } from "@/lib/concept-labels";
 
 type LoadState =
   | { kind: "loading" }
@@ -92,6 +92,10 @@ export default function ParentWeeklySummaryPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [requesting, setRequesting] = useState(false);
   const [requestNote, setRequestNote] = useState("");
+
+  useEffect(() => {
+    document.title = "Weekly update — Cogna";
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -200,11 +204,14 @@ export default function ParentWeeklySummaryPage() {
         <>
           {state.data.periodStart && state.data.periodEnd && (
             <p className="lead" style={{ marginBottom: "0.75rem" }}>
-              Period: {state.data.periodStart} → {state.data.periodEnd}
+              Period: {formatReportDate(state.data.periodStart)} →{" "}
+              {formatReportDate(state.data.periodEnd)}
             </p>
           )}
           {state.data.renderedText ? (
-            <p style={{ marginTop: "0.5rem", lineHeight: 1.6 }}>{state.data.renderedText}</p>
+            <p style={{ marginTop: "0.5rem", lineHeight: 1.6 }}>
+              {humanizeParentCopy(state.data.renderedText)}
+            </p>
           ) : structured ? (
             <StructuredWeeklyView summary={structured} />
           ) : (

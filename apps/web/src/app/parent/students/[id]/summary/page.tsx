@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { api, isNotFound, isUnavailable } from "@/lib/api";
+import { humanizeParentCopy } from "@/lib/concept-labels";
 import { useParentAuth } from "@/lib/parent-auth-context";
 
 type LoadState =
@@ -18,6 +19,10 @@ export default function ParentStudentSummaryPage() {
   const studentId = String(params.id ?? "");
   const { isLoaded, isSignedIn, getAuth } = useParentAuth();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+
+  useEffect(() => {
+    document.title = "Learning summary — Cogna";
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -94,7 +99,9 @@ export default function ParentStudentSummaryPage() {
 
       {state.kind === "ready" && (
         <>
-          <p style={{ marginTop: "1rem", lineHeight: 1.6 }}>{state.summary}</p>
+          <p style={{ marginTop: "1rem", lineHeight: 1.6 }}>
+            {humanizeParentCopy(state.summary)}
+          </p>
           <p className="lead" style={{ marginTop: "1rem" }}>
             Generated {state.createdAt}
           </p>

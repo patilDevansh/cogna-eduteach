@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -14,6 +14,10 @@ export default function ParentLoginPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.title = "Parent login — Cogna";
+  }, []);
 
   if (isClerkEnabled()) {
     return (
@@ -60,7 +64,7 @@ export default function ParentLoginPage() {
         Create an account to add students and view their progress.
         {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
           ? " Sign in with Clerk when configured."
-          : " Dev signup is active until Clerk keys are configured (see docs/mvp-1.0/DEV_AUTH.md)."}
+          : " Demo signup is available for local pilot testing."}
       </p>
 
       {error && <p className="error">{error}</p>}

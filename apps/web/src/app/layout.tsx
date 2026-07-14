@@ -3,7 +3,10 @@ import "./globals.css";
 import { AppProviders } from "@/components/app-providers";
 
 export const metadata: Metadata = {
-  title: "Cogna — Practice",
+  title: {
+    default: "Cogna",
+    template: "%s — Cogna",
+  },
   description: "Adaptive math practice for Grade 8",
 };
 

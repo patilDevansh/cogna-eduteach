@@ -37,6 +37,10 @@ export default function StudentRevisionPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = "Practice plan — Cogna";
+  }, []);
+
+  useEffect(() => {
     const s = getStudent();
     if (!s) {
       router.replace("/student/login");
@@ -89,10 +93,11 @@ export default function StudentRevisionPage() {
 
   if (!student) return <p>Loading…</p>;
 
-  const retentionHint =
-    plan?.weekly?.retentionConceptIds?.length
-      ? plan.weekly.retentionConceptIds.map(conceptLabel)
-      : [];
+  const retentionHint = [
+    ...new Set(
+      (plan?.weekly?.retentionConceptIds ?? []).map(conceptLabel),
+    ),
+  ];
 
   const sorted = [...items].sort((a, b) => {
     const dueA = isDueSoon(a.dueAt) ? 0 : 1;

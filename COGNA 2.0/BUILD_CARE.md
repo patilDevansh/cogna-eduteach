@@ -60,8 +60,8 @@
 
 ## Product Care
 
-- [x] ~~Student copy is encouraging and label-free (revision + break UI)~~
-- [x] ~~Parent copy explains uncertainty (summary/weekly empty states)~~
+- [x] ~~Student copy is encouraging and label-free (revision + break UI)~~ (2026-07-14: hardened `childSafeReasoning`; expanded concept labels)
+- [x] ~~Parent copy explains uncertainty (summary/weekly empty states)~~ (2026-07-14: humanize dates/labels; no confidence metrics in parent-facing render)
 - [x] ~~Workload caps protect children from over-practice~~ (R09)
 - [x] ~~Break suggestions are supportive, not diagnostic~~
 - [ ] Full bank quality beats feature breadth
@@ -80,6 +80,9 @@
 - Wiring experiment branching in MVP 2.0 via `experiment_assignments`
 - Hard-failing the web UI when MVP 2.0 endpoints (`weekly-summary`, `revision-plan`) return 404 while backends land in parallel
 - Showing raw concept IDs, mastery/fatigue clinical language, or engine reasoning to students
+- Hint ladder must advance from prior `HINT_REQUESTED` events for the session+question (not only `attempt.highestHintLevel` — no attempt exists before answer submit)
+- Parent “Create new access code” regenerates and **invalidates** the previous code — do not click it on Demo Student during demos (breaks `demo1234`; re-seed or restore hash if needed)
+- Parent/weekly `renderedText` may contain legacy raw IDs — always run `humanizeParentCopy` / friendly `labelize` before display
 - Parallel agents editing the same `apps/api/src` file without ownership lanes (serialize shared contracts + prisma; split by directory)
 - Treating seed APPROVED overrides or programmatic bank as signed content review — external pilot still needs human-approved checklist
 - Emitting `SUGGEST_BREAK` after hard session-end (15 min / question limit) — END_SESSION must win

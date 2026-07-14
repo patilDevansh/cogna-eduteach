@@ -612,10 +612,33 @@ export class LearningLoopService {
       orderBy: { createdAt: "desc" },
     });
 
-    const currentLevel = lastAttempt?.highestHintLevel ?? 0;
+    // Hints are often requested before any attempt exists. Count prior
+    // HINT_REQUESTED events for this session+question so the ladder advances.
+    const priorHintEvents = await this.prisma.rawEvent.findMany({
+      where: {
+        sessionId: event.sessionId,
+        eventType: "HINT_REQUESTED",
+      },
+      select: { payload: true },
+    });
+    const priorForQuestion = priorHintEvents.filter((row) => {
+      const payload = row.payload as { questionId?: string };
+      return payload.questionId === event.questionId;
+    });
+
+    const currentLevel = Math.max(
+      priorForQuestion.length,
+      lastAttempt?.highestHintLevel ?? 0,
+    );
+
+    const questionVersion =
+      (event as { questionVersion?: number }).questionVersion ??
+      lastAttempt?.questionVersion ??
+      1;
+
     const hint = await this.explanationEngine.getNextHint(
       event.questionId,
-      lastAttempt?.questionVersion ?? 1,
+      questionVersion,
       currentLevel,
     );
 
@@ -625,7 +648,10 @@ export class LearningLoopService {
         eventType: event.eventType,
         studentId: event.studentId,
         sessionId: event.sessionId,
-        payload: event as unknown as object,
+        payload: {
+          ...(event as unknown as object),
+          hintLevel: hint.level,
+        },
       },
     });
 

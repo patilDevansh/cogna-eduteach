@@ -176,6 +176,15 @@ export const api = {
       },
     ),
 
+  regenerateAccessCode: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<{ studentId: string; accessCode: string }>(
+      `/parents/me/students/${studentId}/access-code`,
+      {
+        method: "POST",
+        headers: buildParentAuthHeaders(auth),
+      },
+    ),
+
   studentLogin: (accessCode: string) =>
     apiFetch<StudentSession>("/auth/student/login", {
       method: "POST",

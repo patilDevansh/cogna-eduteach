@@ -17,16 +17,16 @@
 ## Status Snapshot
 
 - **Created:** 2026-07-13
-- **Updated:** 2026-07-13
+- **Updated:** 2026-07-14
 - **MVP 1.0 status:** complete / archive
-- **MVP 2.0 status:** **pilot-ready (dev)** — engines/APIs/UI + 220 APPROVED bank + demo walkthrough; human gates (checklist sign-off, pilot cohort, production Clerk keys) remain
+- **MVP 2.0 status:** **pilot-ready (dev)** — engines/APIs/UI + 220 APPROVED bank + demo walkthrough + UI QA polish (hint ladder, child-safe/parent copy, access-code regenerate); human gates (checklist sign-off, pilot cohort, production Clerk keys) remain
 - **Spec status line:** `Canonical / Frozen` in [`docs/mvp-2.0/README.md`](../docs/mvp-2.0/README.md)
 - **Core goal:** pilot-ready personalization with full reviewed Linear Equations content, retention/revision v2, weekly reports, observability, and production auth path
 - **Foundation done:** shared enum migration (`RETENTION_REVIEW` | `TRANSFER_CHECK` | `BREAK_FOR_FATIGUE`), `*-v2` version strings, Prisma `db push` applied locally
 - **Engines done:** retention, velocity, error recovery, explanation effectiveness, fatigue, R14 alt-explanation gate, calibration-aware difficulty, item-stats refresh job
 - **Content done:** 220 APPROVED Linear Equations bank (`pnpm content:generate-bank`); `POST /content/review/:questionId`; approval gate
-- **APIs done:** weekly-summary, revision-plan, retention, weekly report + email jobs, content approval-gate + review, `GET /observability/pilot-dashboard`, `GET /observability/alert-thresholds`, `POST /parents/dev/demo-login`
-- **Web UI done:** parent weekly (+ structuredSummary fallback), revision queue/plan, practice `SUGGEST_BREAK` break phase; demo parent login; Clerk parent auth (`ClerkParentSignIn` + Bearer via `useParentAuth` when key set; dev `X-Parent-Id` fallback); practice Continue after explanation sends ISO `clientTimestamp`
+- **APIs done:** weekly-summary, revision-plan, retention, weekly report + email jobs, content approval-gate + review, `GET /observability/pilot-dashboard`, `GET /observability/alert-thresholds`, `POST /parents/dev/demo-login`, `POST /parents/me/students/:id/access-code` (regenerate); hint ladder uses prior `HINT_REQUESTED` events
+- **Web UI done:** parent weekly (+ structuredSummary fallback + humanized dates/labels), revision queue/plan (hardened child-safe reasoning), practice `SUGGEST_BREAK` break phase; demo parent login; Clerk parent auth; practice polish (hint dedupe, confidence gate, pluralization, Enter-submit, baseline progress); access-code regenerate on dashboard; route page titles
 - **Demo:** [`DEMO_WALKTHROUGH.md`](./DEMO_WALKTHROUGH.md)
 - **Tests:** engineering verification green on 2026-07-13 — `pnpm test:golden` (68/68), `pnpm test:scenario:all`, `pnpm test:smoke:ui:mvp2`, `pnpm test:content`, and web `tsc --noEmit`
 - **Next (human / remaining):** content review checklist signed; pilot cohort; production Clerk keys verify in staging; explanation-template expansion; full vendor observability dashboards

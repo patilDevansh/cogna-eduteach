@@ -534,7 +534,7 @@ export class ReportGeneratorService {
           );
         } else {
           lines.push(
-            `A pattern we are checking: ${labelize(p.misconceptionId)} (confidence ${p.confidence.toFixed(2)}).`,
+            `A pattern we are checking: ${labelize(p.misconceptionId)}.`,
           );
         }
       }
@@ -543,8 +543,14 @@ export class ReportGeneratorService {
     }
 
     if (data.revisionPlan.length > 0) {
+      const seen = new Set<string>();
+      const unique = data.revisionPlan.filter((r) => {
+        if (seen.has(r.conceptId)) return false;
+        seen.add(r.conceptId);
+        return true;
+      });
       lines.push(
-        `Next short practice: ${data.revisionPlan
+        `Next short practice: ${unique
           .map((r) => `${labelize(r.conceptId)} (${r.questionCount} questions)`)
           .join("; ")}.`,
       );
@@ -562,7 +568,7 @@ export class ReportGeneratorService {
     masteryChanges: Record<string, { from: number; to: number }>;
     activeMisconception: string | null;
   }): string {
-    const conceptLabel = data.conceptId.replace(/_/g, " ").toLowerCase();
+    const conceptLabel = labelize(data.conceptId);
     const masteryNote =
       Object.keys(data.masteryChanges).length > 0
         ? " Your mastery updated based on today's practice."
@@ -570,7 +576,7 @@ export class ReportGeneratorService {
 
     let revisit = "";
     if (data.activeMisconception) {
-      revisit = ` Keep practicing ${data.activeMisconception.replace(/_/g, " ").toLowerCase()} next time.`;
+      revisit = ` Keep practicing ${labelize(data.activeMisconception)} next time.`;
     }
 
     return (
@@ -588,15 +594,14 @@ export class ReportGeneratorService {
     activeMisconception: string | null;
     remediationState: string | null;
   }): string {
-    const conceptLabel = data.conceptId.replace(/_/g, " ").toLowerCase();
+    const conceptLabel = labelize(data.conceptId);
     const lines = [
       `Your child practiced ${conceptLabel} today.`,
       `They answered ${data.correctAnswers} of ${data.questionsAttempted} correctly (${Math.round(data.accuracy * 100)}%).`,
     ];
 
     if (data.activeMisconception) {
-      const label = data.activeMisconception.replace(/_/g, " ").toLowerCase();
-      lines.push(`A pattern we are checking: ${label}.`);
+      lines.push(`A pattern we are checking: ${labelize(data.activeMisconception)}.`);
       if (data.remediationState === "STILL_ACTIVE" || data.remediationState === "TARGETING") {
         lines.push("Still gathering evidence — more practice will help.");
       }
@@ -634,5 +639,22 @@ export class ReportGeneratorService {
 }
 
 function labelize(id: string): string {
-  return id.replace(/_/g, " ").toLowerCase();
+  const CONCEPT_LABELS: Record<string, string> = {
+    P1_INTEGER_ADD_SUB: "adding and subtracting integers",
+    P2_NEGATIVE_OPS: "working with negatives",
+    P3_VARIABLES_CONSTANTS: "variables and constants",
+    P4_SIMPLE_EXPRESSIONS: "simple expressions",
+    P5_EQUALITY_BALANCE: "keeping equations balanced",
+    C1_ONE_STEP_ADDITION: "one-step addition equations",
+    C2_ONE_STEP_SUBTRACTION: "one-step subtraction equations",
+    C3_ONE_STEP_MULTIPLICATION: "one-step multiplication equations",
+    C4_ONE_STEP_DIVISION: "one-step division equations",
+    C5_TWO_STEP_EQUATIONS: "two-step equations",
+    C6_SIMPLE_WORD_PROBLEMS: "word problems",
+    SIGN_HANDLING: "sign handling",
+    OPERATION_CHOICE: "choosing the operation",
+    BALANCE_ERROR: "keeping both sides balanced",
+    VARIABLE_MISREAD: "reading the variable",
+  };
+  return CONCEPT_LABELS[id] ?? id.replace(/_/g, " ").toLowerCase();
 }

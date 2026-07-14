@@ -61,6 +61,16 @@ export class ParentsController {
     return this.parents.getBillingStatus(parentId);
   }
 
+  @Post("me/students/:studentId/access-code")
+  async regenerateAccessCode(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.regenerateAccessCode(parentId, studentId);
+  }
+
   @Post("me/students/:studentId/invite")
   async inviteSecondaryParent(
     @Headers("x-parent-id") parentIdHeader: string | undefined,

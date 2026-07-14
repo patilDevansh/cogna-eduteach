@@ -133,6 +133,23 @@ export class ParentsService {
     };
   }
 
+  async regenerateAccessCode(parentId: string, studentId: string) {
+    const link = await this.prisma.parentStudentLink.findUnique({
+      where: { parentId_studentId: { parentId, studentId } },
+    });
+    if (!link) {
+      throw new UnauthorizedException("Student not linked to this parent.");
+    }
+
+    const accessCode = generateAccessCode();
+    await this.prisma.student.update({
+      where: { id: studentId },
+      data: { accessCodeHash: hashAccessCode(accessCode) },
+    });
+
+    return { studentId, accessCode };
+  }
+
   async getStudentSummary(parentId: string, studentId: string): Promise<{
     studentId: string;
     reportId: string;

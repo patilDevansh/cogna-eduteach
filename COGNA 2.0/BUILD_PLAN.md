@@ -63,6 +63,7 @@
 - [x] ~~Practice `SUGGEST_BREAK` break UI (soft; once per session)~~
 - [x] ~~Web practice: `explanationViewed` / Continue after explanation always sends ISO `clientTimestamp` (also defaulted in `api.ts`; hint aligned)~~
 - [x] ~~MVP 2.0 UI smoke (`test:smoke:ui:mvp2`)~~
+- [x] ~~UI QA polish (2026-07-14): hint ladder advances via prior HINT_REQUESTED events; child-safe revision/parent copy; parent access-code regenerate; practice validation/confidence/pluralization/Enter-submit/baseline progress; page titles; soft parent-login copy~~
 
 ## Phase 5 — Production Ops
 
