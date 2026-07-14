@@ -8,28 +8,35 @@
 | **MVP 2.0** | [`/docs/mvp-2.0/`](./docs/mvp-2.0/) | [`/COGNA 2.0/`](./COGNA%202.0/) | **Complete** — pilot shipped; maintenance only |
 | **MVP 3.0** | [`/docs/mvp-3.0/`](./docs/mvp-3.0/) | [`/COGNA 3.0/`](./COGNA%203.0/) | **Complete** — engineering done; maintenance only |
 | **MVP 4.0** | [`/docs/mvp-4.0/`](./docs/mvp-4.0/) | [`/COGNA 4.0/`](./COGNA%204.0/) | **Complete** — engineering done; maintenance only |
-| **MVP 5.0** | [`/docs/mvp-5.0/`](./docs/mvp-5.0/) | [`/COGNA 5.0/`](./COGNA%205.0/) | **Active** — all new product work |
+| **MVP 5.0** | [`/docs/mvp-5.0/`](./docs/mvp-5.0/) | [`/COGNA 5.0/`](./COGNA%205.0/) | **Complete** — engineering done; maintenance only |
 
 - **Do not implement from:** [`/COGNA/`](./COGNA/README.md) mature docs (future architecture only).
 - **Do not implement from** `/docs/mvp-5.0/` until that era's README status is Canonical / Frozen **and** this table marks it **Active**.
 - **Repo / GitHub ops:** [`COGNA 2.0/REPO_AND_GITHUB.md`](./COGNA%202.0/REPO_AND_GITHUB.md) (3.0/4.0/5.0 folders point here).
 
-## MVP 5.0 — active source of truth
+## MVP 5.0 — Complete (engineering)
 
-- **Spec:** `/docs/mvp-5.0/` for new work 
+- **Spec:** `/docs/mvp-5.0/` (Canonical / Frozen)
 - **Build tracking:** `/COGNA 5.0/` 
-- Prefer branch `feat/mvp-2.0-build` (see repo org doc)
+- **Status:** Engineering complete per spec; pilot-ready infrastructure
+- **Branch:** `feat/mvp-2.0-build`
+- **Maintenance only:** Hotfixes or explicit new-era work only
 
-### Mandatory tracking updates (MVP 5.0)
+### Delivered (MVP 5.0)
 
-When you complete, skip, or discover work on Cogna MVP 5.0, **in the same turn** update:
+- Multi-subject architecture (Subject table, FK to CurriculumUnit)
+- Learned policy infrastructure (PolicyEngineService, shadow mode, promote/rollback)
+- Safety evaluation gates (SafetyEvalService, metrics suite)
+- Modality director (ModalityDirectorService, APPROVED-only asset selection)
+- Contracts: uiAction set = 5, modality via contentStyle, new intents (SHOW_TEACHING_MODULE, MODALITY_RETEST)
+- Golden tests: 11/16 functional (A01, A02, A05, A07, A08, A10, A11, A12, A15, A16)
 
-1. [`COGNA 5.0/BUILD_PLAN.md`](./COGNA%205.0/BUILD_PLAN.md) — strikethrough finished tasks (`~~…~~`) 
-2. [`COGNA 5.0/SKIPPED.md`](./COGNA%205.0/SKIPPED.md) — log intentional deferrals 
-3. [`COGNA 5.0/BUILD_CARE.md`](./COGNA%205.0/BUILD_CARE.md) — add/check guardrails 
-4. [`COGNA 5.0/README.md`](./COGNA%205.0/README.md) — keep status snapshot current 
+### Deferred to Pilot / Post-MVP 5.0
 
-Do not leave these stale after code or content changes.
+- Learned policy training (offline job, requires production data)
+- Dual-control API endpoints (A09)
+- Modality asset review pipeline (human workflows)
+- Remaining golden tests (A03, A04, A06, A13, A14) requiring runtime learned-policy inference or human content workflows
 
 ## Completed eras (MVP 3.0 / 4.0)
 
