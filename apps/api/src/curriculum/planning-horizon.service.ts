@@ -222,7 +222,32 @@ export class PlanningHorizonService {
         state: { in: ["UNCONFIRMED", "TARGETING", "EXPLANATION_REQUIRED", "RETESTING", "STILL_ACTIVE"] },
       },
     });
-    const totalConfidence = activeMisconceptions.reduce((sum, m) => sum + m.confidence, 0);
+    const diagnosticFactors =
+      activeMisconceptions.length > 0
+        ? await this.prisma.diagnosticFactor.findMany({
+            where: {
+              studentId,
+              factorType: "MISCONCEPTION",
+              OR: activeMisconceptions.map((m) => ({
+                conceptId: m.conceptId,
+                factorKey: m.misconceptionId,
+              })),
+            },
+          })
+        : [];
+    const confidenceByMisconception = new Map(
+      diagnosticFactors.map((f) => [
+        `${f.conceptId}:${f.factorKey}`,
+        f.confidence,
+      ]),
+    );
+    const totalConfidence = activeMisconceptions.reduce(
+      (sum, m) =>
+        sum +
+        (confidenceByMisconception.get(`${m.conceptId}:${m.misconceptionId}`) ??
+          0),
+      0,
+    );
     const misconceptionBurden = Math.min(1.0, totalConfidence / focusConceptIds.length);
 
     // 4. Curriculum priority weight from unit (already in DB)

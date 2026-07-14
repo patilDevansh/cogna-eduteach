@@ -4,13 +4,15 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
-import { ContentValidationService } from "./content-validation.service";
+import { Prisma } from "@cogna/database";
 import type {
+  ContentDraft,
   DraftStatus,
   DraftType,
   DraftSource,
-} from "@cogna/shared/contracts/content-drafts";
+} from "@cogna/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { ContentValidationService } from "./content-validation.service";
 
 export interface CreateDraftInput {
   draftType: DraftType;
@@ -71,12 +73,12 @@ export class ContentDraftService {
         conceptId: input.conceptId,
         difficulty: input.difficulty ?? null,
         targetMisconception: input.targetMisconception ?? null,
-        payload: input.payload,
+        payload: input.payload as Prisma.InputJsonValue,
         source: input.source,
         provider: input.provider ?? null,
         promptVersion: input.promptVersion ?? null,
         status: "DRAFT",
-        validationErrors: null,
+        validationErrors: Prisma.DbNull,
         reviewNotes: null,
         promotedContentId: null,
       },
@@ -134,7 +136,8 @@ export class ContentDraftService {
       where: { id: input.draftId },
       data: {
         status: newStatus,
-        validationErrors: validationResult.errors ?? null,
+        validationErrors:
+          validationResult.errors ?? Prisma.DbNull,
       },
     });
 
@@ -265,12 +268,18 @@ export class ContentDraftService {
           difficulty: draft.difficulty ?? 5,
           stem: payload.stem,
           acceptedAnswers: payload.acceptedAnswers ?? {},
-          options: payload.options ?? null,
+          options:
+            payload.options === undefined
+              ? undefined
+              : (payload.options as Prisma.InputJsonValue),
           solutionSteps: payload.solutionSteps ?? {},
           hintLadder: payload.hintLadder ?? {},
           questionIntent: payload.questionIntent ?? "STANDARD",
           misconceptionsTested: payload.misconceptionsTested ?? [],
-          misconceptionPatterns: payload.misconceptionPatterns ?? null,
+          misconceptionPatterns:
+            payload.misconceptionPatterns === undefined
+              ? undefined
+              : (payload.misconceptionPatterns as Prisma.InputJsonValue),
           prerequisiteConceptIds: payload.prerequisiteConceptIds ?? [],
           version: 1,
           reviewStatus: "APPROVED",
@@ -314,7 +323,7 @@ export class ContentDraftService {
   /**
    * Get draft by ID (admin/review UI).
    */
-  async getDraft(draftId: string) {
+  async getDraft(draftId: string): Promise<ContentDraft> {
     const draft = await this.prisma.contentDraft.findUnique({
       where: { id: draftId },
     });
@@ -325,15 +334,15 @@ export class ContentDraftService {
 
     return {
       id: draft.id,
-      draftType: draft.draftType,
+      draftType: draft.draftType as DraftType,
       conceptId: draft.conceptId,
       difficulty: draft.difficulty ?? undefined,
       targetMisconception: draft.targetMisconception ?? undefined,
-      payload: draft.payload,
-      source: draft.source,
+      payload: draft.payload as Record<string, unknown>,
+      source: draft.source as DraftSource,
       provider: draft.provider ?? undefined,
       promptVersion: draft.promptVersion ?? undefined,
-      status: draft.status,
+      status: draft.status as DraftStatus,
       validationErrors:
         draft.validationErrors &&
         typeof draft.validationErrors === "object" &&

@@ -126,7 +126,7 @@ export class SafetyEvalService {
     return {
       id: eval_.id,
       policyVersion: eval_.policyVersion,
-      metricsJson: eval_.metricsJson as SafetyMetrics,
+      metricsJson: eval_.metricsJson as unknown as SafetyMetrics,
       passed: eval_.passed,
       rulesVersion: eval_.rulesVersion,
       createdAt: eval_.createdAt,

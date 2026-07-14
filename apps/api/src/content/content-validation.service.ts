@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { DraftType } from "@cogna/shared/contracts/content-drafts";
+import type { DraftType } from "@cogna/shared";
 
 export interface ValidationInput {
   draftType: DraftType;

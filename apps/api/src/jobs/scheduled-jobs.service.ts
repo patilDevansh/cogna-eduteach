@@ -559,11 +559,25 @@ export class ScheduledJobsService {
           },
         },
         include: {
-          attempts: {
-            include: { masteryUpdates: true },
-          },
+          attempts: true,
         },
       });
+
+      const attemptIds = sessions.flatMap((sess) =>
+        sess.attempts.map((attempt) => attempt.id),
+      );
+      const masteryHistory =
+        attemptIds.length > 0
+          ? await this.prisma.masteryHistory.findMany({
+              where: { attemptId: { in: attemptIds } },
+            })
+          : [];
+      const masteryByAttempt = new Map<string, typeof masteryHistory>();
+      for (const row of masteryHistory) {
+        const existing = masteryByAttempt.get(row.attemptId) ?? [];
+        existing.push(row);
+        masteryByAttempt.set(row.attemptId, existing);
+      }
 
       // 4. Build export structure (stub — real export would write to cloud storage)
       const exportData = {
@@ -592,7 +606,7 @@ export class ScheduledJobsService {
           endedAt: sess.endedAt?.toISOString(),
           attemptCount: sess.attempts.length,
           masteryDeltas: sess.attempts.flatMap((a) =>
-            a.masteryUpdates.map((m) => ({
+            (masteryByAttempt.get(a.id) ?? []).map((m) => ({
               conceptId: m.conceptId,
               delta: m.newValue - m.previousValue,
             })),
@@ -687,6 +701,183 @@ export class ScheduledJobsService {
       }));
 
     const result = await this.processExperimentAnalysisExportJob(job.id);
+    return {
+      jobId: job.id,
+      exportPath: result.exportPath,
+      status: result.status === "COMPLETED" ? "COMPLETED" : "PENDING",
+      idempotencyKey,
+    };
+  }
+
+  // ─── MVP 5.0 — Policy dataset export ─────────────────────────────────────
+
+  /**
+   * POLICY_DATASET_BUILD job (stub).
+   * Exports decision features/actions/outcomes for offline policy training.
+   * Job payload: { periodStart, periodEnd, subjectId? }
+   */
+  async processPolicyDatasetBuildJob(jobId: string): Promise<{
+    status: string;
+    exportPath?: string;
+    recordCount?: number;
+  }> {
+    const job = await this.lockJob(jobId);
+    if (!job) {
+      const current = await this.prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+      return {
+        status: current.status,
+        exportPath: current.resultRef ?? undefined,
+      };
+    }
+
+    try {
+      const payload = job.payload as {
+        periodStart: string;
+        periodEnd: string;
+        subjectId?: string;
+      };
+
+      const sessions = await this.prisma.learningSession.findMany({
+        where: {
+          startedAt: {
+            gte: new Date(payload.periodStart),
+            lte: new Date(payload.periodEnd),
+          },
+        },
+        include: {
+          attempts: {
+            select: {
+              id: true,
+              grade: true,
+              totalTimeMs: true,
+              question: { select: { conceptId: true } },
+            },
+          },
+        },
+        take: 500,
+      });
+
+      const scores = await this.prisma.candidateActionScore.findMany({
+        where: {
+          createdAt: {
+            gte: new Date(payload.periodStart),
+            lte: new Date(payload.periodEnd),
+          },
+        },
+        take: 500,
+      });
+
+      const exportData = {
+        periodStart: payload.periodStart,
+        periodEnd: payload.periodEnd,
+        subjectId: payload.subjectId ?? null,
+        generatedAt: new Date().toISOString(),
+        sessionCount: sessions.length,
+        scoreCount: scores.length,
+        sessions: sessions.map((sess) => ({
+          sessionId: sess.id,
+          studentId: sess.studentId,
+          attemptCount: sess.attempts.length,
+        })),
+        candidateScores: scores.map((s) => ({
+          studentId: s.studentId,
+          sessionId: s.sessionId,
+          selectedIndex: s.selectedIndex,
+          shadow: s.shadow,
+        })),
+      };
+
+      const exportPath = `exports/policy-dataset_${payload.periodStart}_${payload.periodEnd}.json`;
+      this.logger.log(
+        `POLICY_DATASET_BUILD job ${jobId} completed (stub). ${exportData.sessionCount} sessions, ${exportData.scoreCount} scores. Path: ${exportPath}`,
+      );
+
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          resultRef: exportPath,
+          attemptCount: job.attemptCount + 1,
+          lockedAt: null,
+          lockedBy: null,
+          lastError: null,
+        },
+      });
+
+      return {
+        status: "COMPLETED",
+        exportPath,
+        recordCount: exportData.sessionCount + exportData.scoreCount,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const attemptCount = job.attemptCount + 1;
+      const permanent = attemptCount >= CONTENT_JOB_MAX_ATTEMPTS;
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: permanent ? JobStatus.FAILED_PERMANENT : JobStatus.FAILED_RETRYABLE,
+          attemptCount,
+          lastError: message,
+          lockedAt: null,
+          lockedBy: null,
+          runAfter: permanent
+            ? null
+            : new Date(Date.now() + attemptCount * 60_000),
+        },
+      });
+      this.logger.error(`POLICY_DATASET_BUILD job ${jobId} failed: ${message}`);
+      return { status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE" };
+    }
+  }
+
+  /**
+   * Enqueue POLICY_DATASET_BUILD job (idempotent by period).
+   */
+  async enqueuePolicyDatasetBuild(input: {
+    periodStart: string;
+    periodEnd: string;
+    subjectId?: string;
+  }): Promise<{
+    jobId: string;
+    exportPath?: string;
+    status: "COMPLETED" | "PENDING";
+    idempotencyKey: string;
+  }> {
+    const subjectKey = input.subjectId ?? "all";
+    const idempotencyKey = `${subjectKey}:${input.periodStart}:${input.periodEnd}`;
+
+    const existing = await this.prisma.job.findUnique({
+      where: {
+        jobType_idempotencyKey: {
+          jobType: "POLICY_DATASET_BUILD",
+          idempotencyKey,
+        },
+      },
+    });
+
+    if (existing?.status === JobStatus.COMPLETED && existing.resultRef) {
+      return {
+        jobId: existing.id,
+        exportPath: existing.resultRef,
+        status: "COMPLETED",
+        idempotencyKey,
+      };
+    }
+
+    const job =
+      existing ??
+      (await this.prisma.job.create({
+        data: {
+          jobType: "POLICY_DATASET_BUILD",
+          idempotencyKey,
+          payload: input,
+          status: JobStatus.PENDING,
+        },
+      }));
+
+    const result = await this.processPolicyDatasetBuildJob(job.id);
     return {
       jobId: job.id,
       exportPath: result.exportPath,

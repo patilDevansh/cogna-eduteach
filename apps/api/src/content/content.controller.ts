@@ -6,7 +6,7 @@ import {
   CreateDraftInput,
   ReviewDraftInput,
 } from "./content-draft.service";
-import type { DraftStatus, DraftSource } from "@cogna/shared/contracts/content-drafts";
+import type { ContentDraft, DraftStatus, DraftSource } from "@cogna/shared";
 
 @Controller("content")
 export class ContentController {
@@ -53,7 +53,7 @@ export class ContentController {
 
   /** Get draft by ID (admin/review UI). */
   @Get("drafts/:id")
-  getDraft(@Param("id") draftId: string) {
+  getDraft(@Param("id") draftId: string): Promise<ContentDraft> {
     return this.drafts.getDraft(draftId);
   }
 

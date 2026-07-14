@@ -243,10 +243,10 @@ export class CandidateScorerService {
       learningIntent: candidate.learningIntent,
       conceptId: candidate.parameters.conceptId ?? "unknown",
       difficulty: candidate.parameters.difficulty ?? 0,
-      masteryValue: context.masteryValue ?? null,
-      retentionEstimate: context.retentionEstimate ?? null,
+      masteryValue: context.masteryValue ?? 0,
+      retentionEstimate: context.retentionEstimate ?? 0,
       misconceptionConfidence: context.misconceptionConfidence ?? 0,
-      explanationEffectiveness: context.explanationEffectiveness ?? null,
+      explanationEffectiveness: context.explanationEffectiveness ?? 0,
     };
   }
 

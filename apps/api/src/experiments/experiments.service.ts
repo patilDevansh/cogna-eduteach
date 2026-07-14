@@ -1,3 +1,4 @@
+import { Prisma } from "@cogna/database";
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -95,7 +96,7 @@ export class ExperimentsService {
         experimentKey: definition.experimentKey,
         status: definition.status,
         armsJson,
-        eligibilityJson: definition.eligibility,
+        eligibilityJson: definition.eligibility as unknown as Prisma.InputJsonValue,
         rulesVersion: definition.rulesVersion,
         startAt: new Date(definition.startAt),
         endAt: definition.endAt ? new Date(definition.endAt) : null,
@@ -103,7 +104,7 @@ export class ExperimentsService {
       update: {
         status: definition.status,
         armsJson,
-        eligibilityJson: definition.eligibility,
+        eligibilityJson: definition.eligibility as unknown as Prisma.InputJsonValue,
         rulesVersion: definition.rulesVersion,
         startAt: new Date(definition.startAt),
         endAt: definition.endAt ? new Date(definition.endAt) : null,
