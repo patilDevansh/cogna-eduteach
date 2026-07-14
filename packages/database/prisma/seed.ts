@@ -13,6 +13,7 @@ const prisma = new PrismaClient();
 
 const CONTENT_ROOT = join(__dirname, "../../../docs/mvp-1.0/content");
 const CONTENT_V2_ROOT = join(__dirname, "../../../docs/mvp-2.0/content");
+const CONTENT_V4_ROOT = join(__dirname, "../../../docs/mvp-4.0/content");
 
 /** Milestone slice: C2 sign-handling path + baseline blueprint anchors — APPROVED for local/dev build */
 const MILESTONE_APPROVED_QUESTION_IDS = new Set([
@@ -120,7 +121,8 @@ function mapQuestionType(type: string): QuestionType {
 }
 
 async function seedConcepts() {
-  const { concepts } = loadJson<{
+  // MVP 1.0 Linear Equations concepts
+  const { concepts: linearConcepts } = loadJson<{
     concepts: Array<{
       id: string;
       name: string;
@@ -132,7 +134,21 @@ async function seedConcepts() {
     }>;
   }>("concepts.json");
 
-  for (const c of concepts) {
+  // MVP 4.0 Phase 1: Systems of Equations concepts
+  let systemsConcepts: typeof linearConcepts = [];
+  try {
+    const systems = loadJsonFromRoot<{ concepts: typeof linearConcepts }>(
+      CONTENT_V4_ROOT,
+      "systems-of-equations-concepts.json",
+    );
+    systemsConcepts = systems.concepts ?? [];
+  } catch {
+    // Systems concepts optional until Phase 1 completes
+  }
+
+  const allConcepts = [...linearConcepts, ...systemsConcepts];
+
+  for (const c of allConcepts) {
     await prisma.concept.upsert({
       where: { id: c.id },
       create: {
@@ -153,7 +169,7 @@ async function seedConcepts() {
     });
   }
 
-  for (const c of concepts) {
+  for (const c of allConcepts) {
     for (const prereqId of c.prerequisites) {
       await prisma.conceptPrerequisite.upsert({
         where: {
@@ -418,7 +434,12 @@ async function seedCurriculumUnits() {
       unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
       priorityWeight: 1.0,
       concepts: [
-        // Placeholder: MVP 4.0 Phase 1 will define actual concepts
+        { conceptId: "SE_P1_LINEAR_EQ_MASTERY", kind: "PREREQ" },
+        { conceptId: "SE_P2_SUBSTITUTION_CONCEPT", kind: "PREREQ" },
+        { conceptId: "SE_C1_GRAPHICAL_SOLUTION", kind: "CORE" },
+        { conceptId: "SE_C2_SUBSTITUTION_METHOD", kind: "CORE" },
+        { conceptId: "SE_C3_ELIMINATION_METHOD", kind: "CORE" },
+        { conceptId: "SE_C4_SYSTEM_WORD_PROBLEMS", kind: "CORE" },
       ],
     },
     {

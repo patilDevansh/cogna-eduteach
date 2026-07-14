@@ -37,3 +37,24 @@
 - [x] Version strings: `CURRICULUM_RULES_V1`, `PLANNING_RULES_V1`, `DECISION_RULES_V4`, `RECOMMENDATION_RULES_V4`
 - [x] Initial unit IDs seeded: `linear-equations-one-variable`, `systems-of-equations`, `quadratic-equations`
 - [x] Golden tests: U01–U08 pass (no MVP 3.0 regressions)
+
+## Phase 1 Implementation (2026-07-14)
+
+- [x] Linear Equations concept IDs frozen (P1-P5, C1-C6) — never renamed
+- [x] Systems of Equations (U02) concepts defined: SE_P1_LINEAR_EQ_MASTERY, SE_P2_SUBSTITUTION_CONCEPT, SE_C1_GRAPHICAL_SOLUTION, SE_C2_SUBSTITUTION_METHOD, SE_C3_ELIMINATION_METHOD, SE_C4_SYSTEM_WORD_PROBLEMS
+- [x] CurriculumGraphService implements curriculum-rules-v1:
+  - evaluateUnitUnlock: ≥70% core mastery threshold with evidence check
+  - getUnlockedUnits: all units a student can access
+  - getUnlockBlockerConcepts: identifies weak concepts preventing unlock (bridge review candidates)
+- [x] Curriculum API endpoints (CurriculumController):
+  - GET /curriculum/:studentId/units/:unitId/unlock
+  - GET /curriculum/:studentId/units/unlocked
+  - GET /curriculum/:studentId/units/:unitId/blockers
+- [x] CurriculumModule wired into AppModule
+- [x] Golden tests U01-U03 written and passing:
+  - U01: Linear Equations IDs unchanged (all 11 concepts canonical)
+  - U02: Unit unlock blocked (54% mastery → systems-of-equations locked, blocker concepts identified)
+  - U03: Unit unlock allowed (82% mastery → systems-of-equations unlocked)
+- [x] All G/R/S regression tests pass (104 total tests, 0 failures)
+- [x] Seed updated to load SE_* concepts from docs/mvp-4.0/content/systems-of-equations-concepts.json
+- [x] No decision engine wiring yet (deferred to Phase 2 planning horizon)

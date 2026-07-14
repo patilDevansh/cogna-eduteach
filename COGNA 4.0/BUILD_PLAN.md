@@ -10,9 +10,9 @@
 
 ## Phase 1 — Curriculum graph
 
-- [ ] `curriculum_units` / `unit_concepts` schema
-- [ ] Unlock evaluation
-- [ ] Golden U01–U03
+- [x] ~~`curriculum_units` / `unit_concepts` schema~~
+- [x] ~~Unlock evaluation~~
+- [x] ~~Golden U01–U03~~
 
 ## Phase 2 — Planning horizon
 

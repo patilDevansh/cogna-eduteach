@@ -17,6 +17,7 @@ import { JobsModule } from "./jobs/jobs.module";
 import { ContentModule } from "./content/content.module";
 import { RetentionModule } from "./retention/retention.module";
 import { ExperimentsModule } from "./experiments/experiments.module";
+import { CurriculumModule } from "./curriculum/curriculum.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -39,6 +40,7 @@ import { HealthController } from "./health.controller";
     JobsModule,
     ContentModule,
     ExperimentsModule,
+    CurriculumModule,
   ],
   controllers: [HealthController],
 })
