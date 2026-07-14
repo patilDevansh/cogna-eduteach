@@ -49,8 +49,9 @@ describe("U06 — Cross-unit retention due", () => {
         estimate: 0.30,
         confidence: 0.80,
         daysSinceSuccess: 7,
-        dueForReview: true,
-        rulesVersion: "retention-rules-v2",
+        evidenceAttemptIds: [],
+        modelVersion: "retention-rules-v2",
+        validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
       },
     });
 
@@ -60,11 +61,14 @@ describe("U06 — Cross-unit retention due", () => {
         studentId: testStudentId,
         conceptId: "C2_ONE_STEP_SUBTRACTION",
         type: "RETENTION_REVIEW",
-        priority: "HIGH",
+        priority: 0.9,
         status: "PENDING",
         reasoning: "Retention estimate 0.30 requires review",
         dueAt: new Date(),
         questionCount: 1,
+        confidence: 0.80,
+        recommendationVersion: "recommendation-rules-v2",
+        dedupeKey: "retention-c2-one-step-subtraction",
         createdAt: new Date(),
       },
     });

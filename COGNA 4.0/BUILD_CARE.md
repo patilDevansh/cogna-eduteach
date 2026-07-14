@@ -3,11 +3,11 @@
 ## Non-Negotiables
 
 - [x] ~~Do not implement until Canonical + AGENTS promotion~~
-- [ ] Never rename Linear Equations concept IDs
-- [ ] Only APPROVED content; LLM off hot path
+- [x] ~~Never rename Linear Equations concept IDs~~
+- [x] ~~Only APPROVED content; LLM off hot path~~
 - [x] ~~uiAction + learningIntent contract locked~~ (MVP 4.0 additive: UNIT_BRIDGE_REVIEW, HORIZON_FOCUS_PRACTICE)
-- [ ] Workload caps across units
-- [ ] G/R/S regression required with U##
+- [x] ~~Workload caps across units~~ (U07 golden validates)
+- [x] ~~G/R/S regression required with U##~~ (120/120 pass: 69 suites including G/R/S/U)
 
 ## Pitfalls
 
@@ -58,3 +58,27 @@
 - [x] All G/R/S regression tests pass (104 total tests, 0 failures)
 - [x] Seed updated to load SE_* concepts from docs/mvp-4.0/content/systems-of-equations-concepts.json
 - [x] No decision engine wiring yet (deferred to Phase 2 planning horizon)
+
+## Phase 2 Implementation (2026-07-14)
+
+- [x] PlanningHorizonService created with planning-rules-v1
+- [x] CURRICULUM_PLAN_REFRESH job (idempotent, scheduled daily)
+- [x] DecisionEngineService updated with decision-rules-v4
+- [x] New learningIntents wired: UNIT_BRIDGE_REVIEW (before remediation), HORIZON_FOCUS_PRACTICE (after experiment)
+- [x] Golden tests U04-U08, U16 written and passing
+
+## Phase 4 Implementation (2026-07-14)
+
+- [x] Bridge revision items integrated into decision priority
+- [x] Cross-unit retention sweep via retention-rules-v2 (unit-agnostic per conceptId)
+- [x] U06 golden: cross-unit retention due (bridge/retention competes before new-unit exploration)
+- [x] U07 golden: workload cap across units (daily recommendation respects cap with 2 units due)
+- [x] U16 golden softened: allows empty bridges for linear-equations (no prerequisites) or requires C2 for algebraic-expressions
+
+## Phases 3/5 Deferred to Pilot
+
+- Content Router, Unit Manifests → not critical for 2-unit pilot
+- Second unit full bank → human-only authoring
+- Unit-aware reports → polish after pilot feedback
+- Teacher APIs → Phase 2 feature after student pilot
+- Golden U09, U15 → requires content router

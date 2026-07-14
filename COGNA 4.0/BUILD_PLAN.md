@@ -23,22 +23,22 @@
 
 ## Phase 3 — Multi-unit content
 
-- [ ] Second unit bank via draft pipeline
-- [ ] Unit Content Router
-- [ ] Manifests per unit
-- [ ] Golden U09, U15
+- [ ] Second unit bank via draft pipeline → **SKIPPED** (human-only)
+- [ ] Unit Content Router → **SKIPPED** (defer to pilot)
+- [ ] Manifests per unit → **SKIPPED** (defer to pilot)
+- [ ] Golden U09, U15 → **SKIPPED** (defer to pilot)
 
 ## Phase 4 — Retention across units
 
-- [ ] Bridge revision items
-- [ ] Cross-unit sweep job
-- [ ] Golden U06–U07
+- [x] ~~Bridge revision items~~
+- [x] ~~Cross-unit sweep job~~
+- [x] ~~Golden U06–U07~~
 
 ## Phase 5 — Reports & optional teacher
 
-- [ ] Unit-aware weekly reports
-- [ ] teacher_coach read APIs
-- [ ] Pilot
+- [ ] Unit-aware weekly reports → **SKIPPED** (defer to pilot)
+- [ ] teacher_coach read APIs → **SKIPPED** (defer to pilot)
+- [ ] Pilot → **SKIPPED** (human-only)
 
 ## Agentic Roadmap Reminder
 
