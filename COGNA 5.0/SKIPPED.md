@@ -14,22 +14,22 @@
 - **Return when:** Admin API spec finalized; dual-control auth middleware implemented.
 - **Status:** PolicyEngineService.promotePolicy and rollbackPolicy exist; need HTTP layer.
 
-### Golden Tests A03, A04, A06, A09, A13, A14
+### Golden Tests A03, A04, A09
 
-- **Reason:** Full implementation requires runtime infrastructure (learned policy inference, retest validation, ops workflows).
-- **Return when:** Learned policy training complete (A03, A04); modality asset review pipeline operational (A06, A13, A14); API endpoints for dual-control (A09).
-- **Status:** Test stubs created as documentation of requirements.
+- **Reason:** Full implementation requires runtime infrastructure (learned policy inference for A03/A04, dual-control API endpoints for A09).
+- **Return when:** Learned policy training complete (A03, A04); API endpoints for dual-control (A09).
+- **Status:** Test stubs exist; A06, A13, A14 completed and passing (modality validation service implemented).
 
 ### Golden Tests A08, A10 — Test Isolation Issue
 
 - **Status:** Infrastructure implemented and functional. Tests pass when run individually but have database state isolation issues when run with full test suite. PolicyEngineService shadow mode and rollback methods work correctly (confirmed by individual test runs and service logs).
 - **Return when:** Test isolation improved (e.g., test-level transactions, per-test databases, or sequential test execution).
 
-### Modality Asset Review Pipeline
+### Modality Asset Review Pipeline (Human UI)
 
-- **Reason:** Requires human review workflow, transcript validation tooling, retest question mapping UI.
-- **Return when:** Content team staffed; review tooling built.
-- **Status:** Schema + service exist; `reviewStatus` enforced in ModalityDirector.
+- **Reason:** Human review UI requires content team workflows, transcript validation tooling, retest question mapping interface.
+- **Return when:** Content team staffed; review tooling UI built.
+- **Status:** Validation service API complete (ModalityValidationService); `reviewStatus` enforced in ModalityDirector; human UI deferred.
 
 ### Dataset Build Job
 
