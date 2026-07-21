@@ -317,6 +317,82 @@ export function createClient(apiUrl = process.env.API_URL ?? DEFAULT_API_URL) {
     return body;
   }
 
+  async function parentGet(path, parentId) {
+    const res = await fetch(`${base}${path}`, {
+      headers: { "X-Parent-Id": parentId },
+    });
+    const text = await res.text();
+    let body = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+    }
+    if (res.status !== 200) {
+      throw httpError("GET", path, res.status, body);
+    }
+    return body;
+  }
+
+  async function parentPatch(path, parentId, payload) {
+    const res = await fetch(`${base}${path}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-Parent-Id": parentId },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let body = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text;
+      }
+    }
+    if (res.status !== 200) {
+      throw httpError("PATCH", path, res.status, body);
+    }
+    return body;
+  }
+
+  /** MVP 2.1 parent analytics dashboard endpoints. */
+  function getMasteryTrend(parentId, studentId, { conceptId, weeks } = {}) {
+    const params = new URLSearchParams();
+    if (conceptId) params.set("conceptId", conceptId);
+    if (weeks) params.set("weeks", String(weeks));
+    const qs = params.toString();
+    return parentGet(
+      `/parents/me/students/${studentId}/mastery-trend${qs ? `?${qs}` : ""}`,
+      parentId,
+    );
+  }
+
+  function getConceptBands(parentId, studentId) {
+    return parentGet(`/parents/me/students/${studentId}/concept-bands`, parentId);
+  }
+
+  function getPracticeCalendar(parentId, studentId, { weeks } = {}) {
+    const qs = weeks ? `?weeks=${weeks}` : "";
+    return parentGet(`/parents/me/students/${studentId}/practice-calendar${qs}`, parentId);
+  }
+
+  function getPatternHistory(parentId, studentId, { weeks } = {}) {
+    const qs = weeks ? `?weeks=${weeks}` : "";
+    return parentGet(`/parents/me/students/${studentId}/pattern-history${qs}`, parentId);
+  }
+
+  function getSafetySettings(parentId, studentId) {
+    return parentGet(`/parents/me/students/${studentId}/settings`, parentId);
+  }
+
+  function updateSafetySettings(parentId, studentId, aiAssistedPracticePaused) {
+    return parentPatch(`/parents/me/students/${studentId}/settings`, parentId, {
+      aiAssistedPracticePaused,
+    });
+  }
+
   function buildAnswerPayload({
     eventId,
     studentId,
@@ -370,6 +446,12 @@ export function createClient(apiUrl = process.env.API_URL ?? DEFAULT_API_URL) {
     createStudent,
     getParentStudentSummary,
     getParentWeeklySummary,
+    getMasteryTrend,
+    getConceptBands,
+    getPracticeCalendar,
+    getPatternHistory,
+    getSafetySettings,
+    updateSafetySettings,
     buildAnswerPayload,
   };
 }

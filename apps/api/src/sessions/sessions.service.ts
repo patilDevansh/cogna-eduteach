@@ -5,6 +5,8 @@ import { LearningLoopService } from "../learning-loop/learning-loop.service";
 import { ReportGeneratorService } from "../engines/report-generator/report-generator.service";
 import { RecommendationEngineService } from "../engines/recommendation-engine/recommendation-engine.service";
 import { RevisionService } from "../revision/revision.service";
+import { StudentAnalysisAgentService } from "../engines/student-analysis/student-analysis-agent.service";
+import { PracticeRecommenderAgentService } from "../engines/practice-recommender/practice-recommender-agent.service";
 
 @Injectable()
 export class SessionsService {
@@ -14,6 +16,8 @@ export class SessionsService {
     private readonly reportGenerator: ReportGeneratorService,
     private readonly recommendationEngine: RecommendationEngineService,
     private readonly revisionService: RevisionService,
+    private readonly studentAnalysis: StudentAnalysisAgentService,
+    private readonly practiceRecommender: PracticeRecommenderAgentService,
   ) {}
 
   async create(studentId: string, sessionMode: SessionMode = SessionMode.ADAPTIVE_PRACTICE) {
@@ -67,6 +71,10 @@ export class SessionsService {
     );
 
     const report = await this.reportGenerator.generateSessionSummary(sessionId);
+
+    // Shadow-mode only — fire-and-forget, never blocks or changes this response.
+    this.studentAnalysis.analyzeSessionInBackground(existing.studentId, sessionId);
+    this.practiceRecommender.evaluateInBackground(existing.studentId, sessionId, proposals);
 
     return {
       sessionId: session.id,

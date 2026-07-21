@@ -1,0 +1,67 @@
+name: Test gates
+
+on:
+  push:
+    branches: [feat/mvp-2.0-build, main, master]
+  pull_request:
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cogna
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cogna?schema=public
+      ALLOW_PENDING_REVIEW_QUESTIONS: "true"
+      LIVE_AGENTIC_GENERATE: "true"
+      LIVE_AGENTIC_SERVE_GENERATED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @cogna/shared build
+      - run: pnpm --filter @cogna/database generate
+      - run: pnpm db:push
+      - run: pnpm db:seed
+      - name: Start API
+        run: |
+          pnpm --filter @cogna/api build
+          pnpm --filter @cogna/api start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/health && break
+            sleep 2
+          done
+      - name: Start Web
+        run: |
+          pnpm --filter @cogna/web build
+          pnpm --filter @cogna/web start &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/ >/dev/null && break
+            sleep 2
+          done
+      - name: Golden + content
+        run: pnpm test:golden && pnpm test:content
+      - name: Scenario E2E (incl. live-gen)
+        run: pnpm test:scenario:all
+      - name: UI smoke
+        run: pnpm test:smoke:ui:mvp2
+      - name: Playwright UI (may SKIP playwright deps)
+        run: pnpm test:ui:e2e
+        continue-on-error: true

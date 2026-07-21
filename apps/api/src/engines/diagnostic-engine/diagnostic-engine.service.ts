@@ -6,7 +6,7 @@ import {
   type DiagnosticOutput,
   type Grade,
 } from "@cogna/shared";
-import type { Attempt, Question } from "@cogna/database";
+import type { Attempt, Question, RemediationState } from "@cogna/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { DiagnosticInference } from "@cogna/shared";
 import {
@@ -27,6 +27,7 @@ import {
   isIdleSpike,
   isIndependentCorrect,
   isRetentionReviewEligible,
+  resolveConfidenceForCalibration,
 } from "./diagnostic-formulas";
 
 type MisconceptionPattern = {
@@ -252,7 +253,7 @@ export class DiagnosticEngineService {
 
     const calibrationAttempts = recentAttempts.slice(0, 8).map((a) => ({
       grade: a.grade as Grade,
-      selfRatedConfidence: a.selfRatedConfidence,
+      selfRatedConfidence: resolveConfidenceForCalibration(a),
     }));
 
     const hintDependence = computeHintDependence(
@@ -828,7 +829,8 @@ export class DiagnosticEngineService {
       confidence,
     );
 
-    let state = existing?.state ?? "UNCONFIRMED";
+    const previousState = existing?.state ?? "UNCONFIRMED";
+    let state = previousState;
     // R14: remain UNCONFIRMED when alternative explanation dominates
     if (
       matchingCount >= 2 &&
@@ -861,6 +863,28 @@ export class DiagnosticEngineService {
             ? (existing?.targetedAttemptCount ?? 0) + 1
             : existing?.targetedAttemptCount ?? 0,
       },
+    });
+
+    await this.recordRemediationTransition(
+      studentId,
+      misconceptionId,
+      conceptId,
+      previousState,
+      state,
+    );
+  }
+
+  /** Insert-only transition log powering the parent "pattern history" view. No-op when the state didn't actually change. */
+  private async recordRemediationTransition(
+    studentId: string,
+    misconceptionId: string,
+    conceptId: string,
+    fromState: RemediationState,
+    toState: RemediationState,
+  ): Promise<void> {
+    if (fromState === toState) return;
+    await this.prisma.misconceptionRemediationStateHistory.create({
+      data: { studentId, misconceptionId, conceptId, fromState, toState },
     });
   }
 }

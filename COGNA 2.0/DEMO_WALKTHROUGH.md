@@ -43,6 +43,21 @@ pnpm test:fast
 | `pnpm test:scenario:all` | API E2E: wrong→explanation→retest, skip, retention, weekly report, email stub |
 | `pnpm test:smoke:ui:mvp2` | Routes + API wiring + revision queue |
 | `pnpm test:content` | 220 APPROVED question bank vs manifest |
+| `pnpm test:ui:e2e` | Playwright on integrated apps/web (wrong/right, letters) |
+| `pnpm test:scenario:live-gen-*` | Live-gen fallback / timeout / invalid-json |
+
+## Live agentic flags (shadow-first)
+
+```bash
+# Shadow: generate+verify+log, still serve bank
+LIVE_AGENTIC_GENERATE=true LIVE_AGENTIC_SERVE_GENERATED=false OPENAI_API_KEY=... pnpm --filter @cogna/api dev
+```
+
+See [`COGNA/LIVE_AGENTIC_PLAN.md`](../COGNA/LIVE_AGENTIC_PLAN.md) and [`COGNA/PRIVACY_AND_DATA.md`](../COGNA/PRIVACY_AND_DATA.md).
+
+## Stage 1 pilot gate
+
+At least **one live child session on a real phone**, observed — automated gates do not replace this.
 
 ## Production paths (when configured)
 

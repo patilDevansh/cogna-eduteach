@@ -1,0 +1,857 @@
+{
+  "questions": [
+    {
+      "id": "Q_FAC_P1_D1_001",
+      "conceptId": "FAC_P1_MONOMIAL_FACTORS",
+      "difficulty": 1,
+      "stem": "Find the greatest common factor of 8x and 12.",
+      "acceptedAnswers": [
+        "4"
+      ],
+      "solutionSteps": [
+        "GCF(8,12) = 4; 12 has no factor of x",
+        "GCF = 4"
+      ],
+      "hintLadder": [
+        "Find the GCF of the numbers first.",
+        "12 has no x in it, so the GCF can't include x.",
+        "GCF = 4."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_P1_D1_002",
+      "conceptId": "FAC_P1_MONOMIAL_FACTORS",
+      "difficulty": 1,
+      "stem": "Find the greatest common factor of 6x^2 and 9x.",
+      "acceptedAnswers": [
+        "3x"
+      ],
+      "solutionSteps": [
+        "GCF(6,9) = 3; smaller power of x is x^1",
+        "GCF = 3x"
+      ],
+      "hintLadder": [
+        "Find the GCF of the numbers, then the smallest power of x in common.",
+        "GCF = 3x."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_P1_D2_001",
+      "conceptId": "FAC_P1_MONOMIAL_FACTORS",
+      "difficulty": 2,
+      "stem": "Find the greatest common factor of 15x^3 and 25x^2.",
+      "acceptedAnswers": [
+        "5x^2",
+        "5x^2"
+      ],
+      "solutionSteps": [
+        "GCF(15,25) = 5; smaller power of x is x^2",
+        "GCF = 5x^2"
+      ],
+      "hintLadder": [
+        "GCF of 15 and 25 is 5.",
+        "The smaller power of x between x^3 and x^2 is x^2.",
+        "GCF = 5x^2."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C1_D1_001",
+      "conceptId": "FAC_C1_COMMON_FACTOR",
+      "difficulty": 1,
+      "stem": "Factorise: 6x + 9",
+      "acceptedAnswers": [
+        "3(2x+3)",
+        "3(2x + 3)"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "1(6x+9)",
+            "6x+9"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "GCF of 6 and 9 is 3",
+        "3(2x + 3)"
+      ],
+      "hintLadder": [
+        "Find the GCF of 6 and 9.",
+        "Pull out the 3.",
+        "3(2x + 3)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C1_D2_001",
+      "conceptId": "FAC_C1_COMMON_FACTOR",
+      "difficulty": 2,
+      "stem": "Factorise: 8x^2 + 12x",
+      "acceptedAnswers": [
+        "4x(2x+3)",
+        "4x(2x + 3)"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "x(8x+12)",
+            "4(2x^2+3x)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "GCF of 8x^2 and 12x is 4x",
+        "4x(2x + 3)"
+      ],
+      "hintLadder": [
+        "Find the GCF, including the shared x.",
+        "4x(2x + 3)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C1_D2_002",
+      "conceptId": "FAC_C1_COMMON_FACTOR",
+      "difficulty": 2,
+      "stem": "Factorise: 15x^3 - 20x^2",
+      "acceptedAnswers": [
+        "5x^2(3x-4)",
+        "5x^2(3x - 4)"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "5x(3x^2-4x)",
+            "x^2(15x-20)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "GCF of 15x^3 and 20x^2 is 5x^2",
+        "5x^2(3x - 4)"
+      ],
+      "hintLadder": [
+        "Pull out the full GCF \u2014 both the number and the biggest shared power of x.",
+        "5x^2(3x - 4)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C2_D2_001",
+      "conceptId": "FAC_C2_REGROUPING",
+      "difficulty": 2,
+      "stem": "Factorise by regrouping: xy + 3x + 2y + 6",
+      "acceptedAnswers": [
+        "(x+2)(y+3)",
+        "(x + 2)(y + 3)"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_REGROUPING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_REGROUPING",
+          "answers": [
+            "x(y+3)+2(y+3)",
+            "x(y+3)+2y+6"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x(y + 3) + 2(y + 3)",
+        "(x + 2)(y + 3)"
+      ],
+      "hintLadder": [
+        "Group the first two and last two terms.",
+        "x(y+3) + 2(y+3).",
+        "(x + 2)(y + 3)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C2_D3_001",
+      "conceptId": "FAC_C2_REGROUPING",
+      "difficulty": 3,
+      "stem": "Factorise by regrouping: ax + ay + bx + by",
+      "acceptedAnswers": [
+        "(a+b)(x+y)",
+        "(a + b)(x + y)"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_REGROUPING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_REGROUPING",
+          "answers": [
+            "a(x+y)+b(x+y)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a(x + y) + b(x + y)",
+        "(a + b)(x + y)"
+      ],
+      "hintLadder": [
+        "Group ax+ay and bx+by.",
+        "a(x+y) + b(x+y).",
+        "(a + b)(x + y)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C2_D3_002",
+      "conceptId": "FAC_C2_REGROUPING",
+      "difficulty": 3,
+      "stem": "Factorise by regrouping: 2xy + 3x + 2y + 3",
+      "acceptedAnswers": [
+        "(x+1)(2y+3)",
+        "(x + 1)(2y + 3)"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_REGROUPING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_REGROUPING",
+          "answers": [
+            "x(2y+3)+2y+3",
+            "x(2y+3)+1(2y+3)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x(2y + 3) + 1(2y + 3)",
+        "(x + 1)(2y + 3)"
+      ],
+      "hintLadder": [
+        "Group 2xy+3x and 2y+3.",
+        "x(2y+3) + (2y+3).",
+        "(x + 1)(2y + 3)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C3_D2_001",
+      "conceptId": "FAC_C3_IDENTITY_BASED",
+      "difficulty": 2,
+      "stem": "Factorise using an identity: x^2 + 10x + 25",
+      "acceptedAnswers": [
+        "(x+5)^2",
+        "(x + 5)^2"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x-5)^2",
+            "(x - 5)^2"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2 + 10x + 25 matches a^2 + 2ab + b^2 with a=x, b=5",
+        "(x + 5)^2"
+      ],
+      "hintLadder": [
+        "The middle term is 2\u00d75\u00d7x \u2014 this matches (a+b)^2.",
+        "(x + 5)^2."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C3_D2_002",
+      "conceptId": "FAC_C3_IDENTITY_BASED",
+      "difficulty": 2,
+      "stem": "Factorise using an identity: x^2 - 14x + 49",
+      "acceptedAnswers": [
+        "(x-7)^2",
+        "(x - 7)^2"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x+7)^2",
+            "(x + 7)^2"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 49 matches a^2 - 2ab + b^2 with a=x, b=7",
+        "(x - 7)^2"
+      ],
+      "hintLadder": [
+        "The negative middle term means this is (a-b)^2.",
+        "(x - 7)^2."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C3_D3_001",
+      "conceptId": "FAC_C3_IDENTITY_BASED",
+      "difficulty": 3,
+      "stem": "Factorise using an identity: x^2 - 81",
+      "acceptedAnswers": [
+        "(x+9)(x-9)",
+        "(x + 9)(x - 9)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x+9)(x+9)",
+            "(x-9)(x-9)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2 - 81 = x^2 - 9^2, matches a^2 - b^2",
+        "(x + 9)(x - 9)"
+      ],
+      "hintLadder": [
+        "This is a difference of two squares: a^2 - b^2 = (a+b)(a-b).",
+        "(x + 9)(x - 9)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C5_D1_001",
+      "conceptId": "FAC_C5_DIVISION_CHECK",
+      "difficulty": 1,
+      "stem": "Divide: (6x^2 + 9x) / 3x",
+      "acceptedAnswers": [
+        "2x+3",
+        "2x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "2x^2+3x",
+            "6x+9"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "6x^2/3x = 2x, 9x/3x = 3",
+        "2x + 3"
+      ],
+      "hintLadder": [
+        "Divide each term by 3x separately.",
+        "2x + 3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C5_D2_001",
+      "conceptId": "FAC_C5_DIVISION_CHECK",
+      "difficulty": 2,
+      "stem": "Divide: (15x^3 - 20x^2) / 5x^2",
+      "acceptedAnswers": [
+        "3x-4",
+        "3x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "3x^2-4x",
+            "15x-20"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "15x^3/5x^2 = 3x, 20x^2/5x^2 = 4",
+        "3x - 4"
+      ],
+      "hintLadder": [
+        "Divide each term by 5x^2 separately.",
+        "3x - 4."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C5_D2_002",
+      "conceptId": "FAC_C5_DIVISION_CHECK",
+      "difficulty": 2,
+      "stem": "Divide: (x^2 + 8x + 15) / (x + 3)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "solutionSteps": [
+        "x^2 + 8x + 15 = (x+3)(x+5)",
+        "(x+3)(x+5) / (x+3) = x + 5"
+      ],
+      "hintLadder": [
+        "This is the (x+3)(x+5) identity in disguise.",
+        "Dividing by (x+3) leaves x + 5."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D1_001",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 1,
+      "stem": "Factorise: x^2 + 8x + 15",
+      "acceptedAnswers": [
+        "(x+3)(x+5)",
+        "(x + 3)(x + 5)"
+      ],
+      "misconceptionsTested": [
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "WRONG_FACTOR_PAIR",
+          "answers": [
+            "(x+1)(x+15)",
+            "(x + 1)(x + 15)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers that multiply to the constant and add to the middle coefficient.",
+        "= (x+3)(x+5)"
+      ],
+      "hintLadder": [
+        "Find a pair of numbers whose PRODUCT is the constant term and whose SUM is the middle coefficient \u2014 both must match.",
+        "(x+3)(x+5)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D1_002",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 1,
+      "stem": "Factorise: x^2 + 9x + 14",
+      "acceptedAnswers": [
+        "(x+2)(x+7)",
+        "(x + 2)(x + 7)"
+      ],
+      "misconceptionsTested": [
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "WRONG_FACTOR_PAIR",
+          "answers": [
+            "(x+1)(x+14)",
+            "(x + 1)(x + 14)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers that multiply to the constant and add to the middle coefficient.",
+        "= (x+2)(x+7)"
+      ],
+      "hintLadder": [
+        "Find a pair of numbers whose PRODUCT is the constant term and whose SUM is the middle coefficient \u2014 both must match.",
+        "(x+2)(x+7)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D2_001",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 2,
+      "stem": "Factorise: x^2 + 10x + 24",
+      "acceptedAnswers": [
+        "(x+4)(x+6)",
+        "(x + 4)(x + 6)"
+      ],
+      "misconceptionsTested": [
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "WRONG_FACTOR_PAIR",
+          "answers": [
+            "(x+2)(x+12)",
+            "(x + 2)(x + 12)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers that multiply to the constant and add to the middle coefficient.",
+        "= (x+4)(x+6)"
+      ],
+      "hintLadder": [
+        "Find a pair of numbers whose PRODUCT is the constant term and whose SUM is the middle coefficient \u2014 both must match.",
+        "(x+4)(x+6)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D2_002",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 2,
+      "stem": "Factorise: x^2 + 5x - 24",
+      "acceptedAnswers": [
+        "(x-3)(x+8)",
+        "(x - 3)(x + 8)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x+3)(x-8)",
+            "(x + 3)(x - 8)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers whose product is the constant and sum is the middle coefficient \u2014 watch the signs.",
+        "= (x-3)(x+8)"
+      ],
+      "hintLadder": [
+        "Both numbers' signs matter: check product AND sum together.",
+        "(x-3)(x+8)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D3_001",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 3,
+      "stem": "Factorise: x^2 - 7x + 10",
+      "acceptedAnswers": [
+        "(x-5)(x-2)",
+        "(x - 5)(x - 2)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x+5)(x+2)",
+            "(x + 5)(x + 2)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers whose product is the constant and sum is the middle coefficient \u2014 watch the signs.",
+        "= (x-5)(x-2)"
+      ],
+      "hintLadder": [
+        "Both numbers' signs matter: check product AND sum together.",
+        "(x-5)(x-2)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D3_002",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 3,
+      "stem": "Factorise: x^2 + 5x - 36",
+      "acceptedAnswers": [
+        "(x+9)(x-4)",
+        "(x + 9)(x - 4)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x-9)(x+4)",
+            "(x - 9)(x + 4)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers whose product is the constant and sum is the middle coefficient \u2014 watch the signs.",
+        "= (x+9)(x-4)"
+      ],
+      "hintLadder": [
+        "Both numbers' signs matter: check product AND sum together.",
+        "(x+9)(x-4)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D4_001",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 4,
+      "stem": "Factorise: x^2 - 10x + 21",
+      "acceptedAnswers": [
+        "(x-7)(x-3)",
+        "(x - 7)(x - 3)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x+7)(x+3)",
+            "(x + 7)(x + 3)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers whose product is the constant and sum is the middle coefficient \u2014 watch the signs.",
+        "= (x-7)(x-3)"
+      ],
+      "hintLadder": [
+        "Both numbers' signs matter: check product AND sum together.",
+        "(x-7)(x-3)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D4_002",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 4,
+      "stem": "Factorise: x^2 + 5x - 66",
+      "acceptedAnswers": [
+        "(x+11)(x-6)",
+        "(x + 11)(x - 6)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x-11)(x+6)",
+            "(x - 11)(x + 6)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers whose product is the constant and sum is the middle coefficient \u2014 watch the signs.",
+        "= (x+11)(x-6)"
+      ],
+      "hintLadder": [
+        "Both numbers' signs matter: check product AND sum together.",
+        "(x+11)(x-6)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    },
+    {
+      "id": "Q_FAC_C4_D5_001",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "difficulty": 5,
+      "stem": "Factorise: x^2 + 3x - 108",
+      "acceptedAnswers": [
+        "(x+12)(x-9)",
+        "(x + 12)(x - 9)"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "WRONG_FACTOR_PAIR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "(x-12)(x+9)",
+            "(x - 12)(x + 9)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Find two numbers whose product is the constant and sum is the middle coefficient \u2014 watch the signs.",
+        "= (x+12)(x-9)"
+      ],
+      "hintLadder": [
+        "Both numbers' signs matter: check product AND sum together.",
+        "(x+12)(x-9)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "factorisation"
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import {
   SESSION_LIMIT_MS,
 } from "@/lib/api";
 import { getStudent, clearStudent } from "@/lib/session";
+import styles from "@/components/practice.module.css";
 
 type Phase =
   | "loading"
@@ -44,7 +45,9 @@ function PracticeContent() {
   const [gradeResult, setGradeResult] = useState<{
     grade: string;
     isCorrect: boolean;
+    attemptId?: string;
   } | null>(null);
+  const [confidenceTap, setConfidenceTap] = useState<"guess" | "hunch" | "worked-unsure" | "sure" | null>(null);
   const [hints, setHints] = useState<Array<{ level: number; content: string }>>([]);
   const [hintCount, setHintCount] = useState(0);
   const [highestHintLevel, setHighestHintLevel] = useState(0);
@@ -308,6 +311,13 @@ function PracticeContent() {
       return;
     }
     setError("");
+    if (mode === "ADAPTIVE_PRACTICE") {
+      // No blocking confidence screen in regular practice — a passive proxy
+      // (response time vs. this student's own pace, hints, edits) covers it,
+      // with an optional one-tap chip fused into the feedback screen instead.
+      void submitAnswer(null);
+      return;
+    }
     setPhase("confidence");
   }
 
@@ -350,7 +360,8 @@ function PracticeContent() {
       pendingPayload.current = null;
       setSubmitFailed(false);
 
-      setGradeResult({ grade: result.grade, isCorrect: result.isCorrect });
+      setGradeResult({ grade: result.grade, isCorrect: result.isCorrect, attemptId: result.attemptId });
+      setConfidenceTap(null);
 
       if (result.next?.decision.uiAction === "END_SESSION") {
         const end = await api.endSession(sessionId);
@@ -403,7 +414,8 @@ function PracticeContent() {
       const result = await api.submitAnswer(pendingPayload.current);
       pendingEventId.current = null;
       pendingPayload.current = null;
-      setGradeResult({ grade: result.grade, isCorrect: result.isCorrect });
+      setGradeResult({ grade: result.grade, isCorrect: result.isCorrect, attemptId: result.attemptId });
+      setConfidenceTap(null);
       if (result.next?.decision.uiAction === "END_SESSION") {
         const end = await api.endSession(sessionId);
         setSummary({
@@ -509,6 +521,7 @@ function PracticeContent() {
     setAnswer("");
     setConfidence(null);
     setGradeResult(null);
+    setConfidenceTap(null);
     setHints([]);
     setHintCount(0);
     setHighestHintLevel(0);
@@ -575,26 +588,49 @@ function PracticeContent() {
     router.push("/");
   }
 
-  if (phase === "loading") {
+  const chrome = (
+    <div className={styles.chrome}>
+      <Link href="/" className="wordmark">
+        cogna<span className="dot">.</span>
+      </Link>
+      <button type="button" className="btn-quiet" onClick={signOut}>
+        Pause and sign out
+      </button>
+    </div>
+  );
+
+  function shell(children: React.ReactNode, extraStageClass?: string) {
     return (
-      <div className="card">
-        <p>Starting session…</p>
-        {error && <p className="error">{error}</p>}
+      <div className={`${styles.stage} ${extraStageClass ?? ""}`}>
+        {chrome}
+        <div className={`${styles.panel} phase-in`}>{children}</div>
       </div>
     );
   }
 
-  if (phase === "handoff") {
-    return (
-      <div className="card">
-        <h1>Baseline complete!</h1>
-        <p className="lead">
-          You answered {summary?.questionCount ?? 12}{" "}
-          {questionLabel(summary?.questionCount ?? 12)}. Next up: adaptive
-          practice tailored to your level.
+  if (phase === "loading") {
+    return shell(
+      <>
+        <p className="muted">
+          {handoffMessage || "Getting your practice ready…"}
         </p>
         {error && <p className="error">{error}</p>}
-        <div className="actions">
+      </>,
+    );
+  }
+
+  if (phase === "handoff") {
+    return shell(
+      <>
+        <p className="eyebrow">Baseline complete</p>
+        <h1>Nicely done, {studentName}.</h1>
+        <p className="lead">
+          You worked through {summary?.questionCount ?? 12}{" "}
+          {questionLabel(summary?.questionCount ?? 12)}. Next up: practice that
+          adjusts to what you&apos;re ready for.
+        </p>
+        {error && <p className="error">{error}</p>}
+        <div className="actions" style={{ marginTop: "var(--s-6)" }}>
           <button
             type="button"
             className="btn btn-primary"
@@ -602,28 +638,29 @@ function PracticeContent() {
           >
             Continue to practice
           </button>
-          <Link href="/student/revision" className="btn btn-secondary">
+          <Link href="/student/revision" className="btn btn-ghost">
             View practice plan
           </Link>
         </div>
-      </div>
+      </>,
     );
   }
 
   if (phase === "break") {
-    return (
-      <div className="card">
-        <h1>Time for a short break</h1>
-        <div className="break-box" role="status">
-          <p>{breakInfo?.message ?? "Let's take a short break and come back fresh."}</p>
-          <p className="lead" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
-            About {breakInfo?.minutes ?? 3} minute
-            {(breakInfo?.minutes ?? 3) === 1 ? "" : "s"} is plenty — stretch, sip
-            water, then continue when you&apos;re ready.
-          </p>
-        </div>
+    return shell(
+      <div className="center">
+        <p className="eyebrow">Short break</p>
+        <div className={`${styles.breathCircle} breathe`} aria-hidden="true" style={{ marginTop: "var(--s-4)" }} />
+        <p className="lead" style={{ marginTop: "var(--s-5)" }} role="status">
+          {breakInfo?.message ?? "Let's take a short break and come back fresh."}
+        </p>
+        <p className="faint" style={{ marginTop: "var(--s-2)" }}>
+          About {breakInfo?.minutes ?? 3} minute
+          {(breakInfo?.minutes ?? 3) === 1 ? "" : "s"} is plenty — stretch, sip
+          water, and come back when you&apos;re ready. No rush.
+        </p>
         {error && <p className="error">{error}</p>}
-        <div className="actions">
+        <div className="actions" style={{ justifyContent: "center", marginTop: "var(--s-6)" }}>
           <button
             type="button"
             className="btn btn-primary"
@@ -631,36 +668,31 @@ function PracticeContent() {
           >
             I&apos;m ready — continue
           </button>
-          <button type="button" className="btn btn-secondary" onClick={endSessionEarly}>
-            End session
+          <button type="button" className="btn-quiet" onClick={endSessionEarly}>
+            End session instead
           </button>
         </div>
-      </div>
+      </div>,
+      styles.breakStage,
     );
   }
 
   if (phase === "ended") {
-    return (
-      <div className="card">
-        <h1>Great work, {studentName}!</h1>
-        <p className="lead">
-          You answered {summary?.questionCount ?? 0}{" "}
-          {questionLabel(summary?.questionCount ?? 0)} this session.
-        </p>
-        {summary?.summaryReportId && (
-          <p className="lead" style={{ fontSize: "0.85rem" }}>
-            Your progress was saved.
+    return shell(
+      <>
+        <p className="eyebrow">Session complete</p>
+        <h1>Great work, {studentName}.</h1>
+        <div className={styles.summaryFacts} style={{ marginTop: "var(--s-4)" }}>
+          <p>
+            You worked through {summary?.questionCount ?? 0}{" "}
+            {questionLabel(summary?.questionCount ?? 0)} this session.
           </p>
-        )}
-        {handoffMessage && mode === "ADAPTIVE_PRACTICE" && (
-          <p className="lead" style={{ fontSize: "0.85rem" }}>
-            {handoffMessage}
-          </p>
-        )}
-        <Link href="/student/revision" className="btn btn-secondary" style={{ marginTop: "0.5rem" }}>
-          View practice plan
-        </Link>
-        <div className="actions">
+          {summary?.summaryReportId && <p className="faint">Your progress was saved.</p>}
+          {handoffMessage && mode === "ADAPTIVE_PRACTICE" && (
+            <p className="faint">{handoffMessage}</p>
+          )}
+        </div>
+        <div className={styles.summaryActions} style={{ marginTop: "var(--s-6)" }}>
           <button
             type="button"
             className="btn btn-primary"
@@ -668,29 +700,33 @@ function PracticeContent() {
               router.push(
                 mode === "BASELINE"
                   ? "/student/practice?mode=ADAPTIVE_PRACTICE"
-                  : "/student/baseline",
+                  : "/student/home",
               )
             }
           >
             Practice again
           </button>
-          <button type="button" className="btn btn-secondary" onClick={signOut}>
+          <Link href="/student/revision" className="btn btn-ghost">
+            View practice plan
+          </Link>
+          <button type="button" className="btn-quiet" onClick={signOut}>
             Sign out
           </button>
         </div>
-      </div>
+      </>,
     );
   }
 
   if (phase === "explanation" && current) {
     const explanation = current.payload as { content: string; checkForUnderstanding?: string };
-    return (
-      <div className="card">
-        <h1>Let&apos;s review</h1>
-        <div className="explanation-box">
+    return shell(
+      <>
+        <p className="eyebrow">Let's look at this together</p>
+        <h1 style={{ fontSize: "var(--text-lg)" }}>A quick review</h1>
+        <div className="help-note" style={{ marginTop: "var(--s-4)" }}>
           <p>{explanation?.content}</p>
           {explanation?.checkForUnderstanding && (
-            <p style={{ marginTop: "0.75rem", fontStyle: "italic" }}>
+            <p style={{ marginTop: "var(--s-3)", fontStyle: "italic" }}>
               {explanation.checkForUnderstanding}
             </p>
           )}
@@ -699,33 +735,38 @@ function PracticeContent() {
         <button
           type="button"
           className="btn btn-primary"
+          style={{ marginTop: "var(--s-5)" }}
           onClick={continueAfterExplanation}
         >
           Continue
         </button>
-      </div>
+      </>,
     );
   }
 
   if (phase === "confidence") {
-    return (
-      <div className="card">
-        <h1>How confident were you?</h1>
-        <p className="lead">Rate 1 (not sure) to 5 (very sure), or skip.</p>
-        <div className="confidence-row">
+    return shell(
+      <>
+        <p className="eyebrow">Before we check it</p>
+        <h1 style={{ fontSize: "var(--text-lg)" }}>How sure do you feel about that one?</h1>
+        <p className="lead">
+          1 means just guessing, 5 means very sure. There&apos;s no wrong answer here.
+        </p>
+        <div className={styles.confidenceRow}>
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
-              className={`confidence-btn ${confidence === n ? "selected" : ""}`}
+              className={`btn ${confidence === n ? "btn-primary" : "btn-ghost"}`}
               onClick={() => setConfidence(n)}
+              aria-pressed={confidence === n}
             >
               {n}
             </button>
           ))}
         </div>
         {error && <p className="error">{error}</p>}
-        <div className="actions">
+        <div className="actions" style={{ marginTop: "var(--s-5)" }}>
           <button
             type="button"
             className="btn btn-primary"
@@ -735,20 +776,20 @@ function PracticeContent() {
               void submitAnswer(confidence);
             }}
           >
-            {submitting ? "Submitting…" : "Submit"}
+            {submitting ? "Checking…" : "Check my answer"}
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn-quiet"
             disabled={submitting}
             onClick={() => void submitAnswer(null)}
           >
-            Skip
+            Skip this
           </button>
           {submitFailed && pendingPayload.current && (
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-ghost"
               onClick={() => void retrySubmit()}
               disabled={submitting}
             >
@@ -756,123 +797,219 @@ function PracticeContent() {
             </button>
           )}
         </div>
-      </div>
+      </>,
     );
+  }
+
+  async function tapConfidence(level: "guess" | "hunch" | "worked-unsure" | "sure") {
+    if (!gradeResult?.attemptId || !studentId || confidenceTap) return;
+    setConfidenceTap(level);
+    const value =
+      level === "sure" ? 5 : level === "worked-unsure" ? 3 : level === "hunch" ? 2 : 1;
+    try {
+      await api.updateAttemptConfidence(gradeResult.attemptId, studentId, value);
+    } catch {
+      // Optional, non-blocking signal — nothing to surface to the student if this fails.
+    }
   }
 
   if (phase === "feedback") {
-    return (
-      <div className="card">
-        <h1>{gradeResult?.isCorrect ? "Nice!" : "Not quite"}</h1>
-        <div
-          className={`grade-feedback ${gradeResult?.isCorrect ? "correct" : "incorrect"}`}
-        >
-          {gradeResult?.isCorrect
-            ? "Your answer is correct."
-            : "Let's keep practicing — you'll get another question."}
+    const isCorrect = gradeResult?.isCorrect;
+    return shell(
+      <>
+        <div className={`feedback ${isCorrect ? "feedback-correct" : "feedback-incorrect"} settle`}>
+          {isCorrect ? (
+            <svg className="check-draw" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+              <circle cx="14" cy="14" r="13" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
+              <path d="M8 14.5l4 4 8-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+              <circle cx="14" cy="14" r="13" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
+              <path d="M14 8v7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="14" cy="19" r="1.4" fill="currentColor" />
+            </svg>
+          )}
+          <div>
+            <strong>{isCorrect ? "Nice work — that's right." : "Not quite that one."}</strong>
+            <span>
+              {isCorrect
+                ? "On to the next."
+                : "That's completely normal while you're learning this — you'll get another chance to practice it."}
+            </span>
+          </div>
         </div>
-        <button type="button" className="btn btn-primary" onClick={continueAfterFeedback}>
+
+        {mode === "ADAPTIVE_PRACTICE" && gradeResult?.attemptId && (
+          <div style={{ marginTop: "var(--s-4)" }}>
+            <p className="faint" style={{ fontSize: "var(--text-xs)", marginBottom: "var(--s-2)" }}>
+              How did you get that one? (optional)
+            </p>
+            <div style={{ display: "flex", gap: "var(--s-2)", flexWrap: "wrap" }}>
+              {(
+                [
+                  ["guess", "I just picked one"],
+                  ["hunch", "I had a hunch"],
+                  ["worked-unsure", "I worked it out, but not sure"],
+                  ["sure", "I'm sure — I checked it"],
+                ] as const
+              ).map(([level, label]) => (
+                <button
+                  key={level}
+                  type="button"
+                  className={confidenceTap === level ? "btn btn-primary" : "btn btn-ghost"}
+                  style={{ padding: "0.5rem 0.9rem", minHeight: "auto", fontSize: "var(--text-sm)" }}
+                  onClick={() => void tapConfidence(level)}
+                  disabled={Boolean(confidenceTap)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ marginTop: "var(--s-5)" }}
+          onClick={continueAfterFeedback}
+        >
           Next question
         </button>
-      </div>
+      </>,
     );
   }
 
-  return (
-    <div className="card">
-      <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0 0 0.5rem" }}>
-        {mode === "BASELINE"
-          ? `Baseline · Question ${Math.min(baselineQuestionIndex, BASELINE_TARGET)} of ${BASELINE_TARGET}`
-          : "Practice"}
-      </p>
-      {sessionStartedAt && (
-        <p className="session-timer" aria-live="polite">
-          Session time: {formatElapsed(elapsedMs)} / 15:00
-        </p>
-      )}
+  const isEquationStem = question ? /^(solve for x:|compute:)/i.test(question.stem) : false;
+
+  return shell(
+    <>
+      <div className={styles.quietRow} style={{ borderTop: "none", paddingTop: 0, justifyContent: "space-between" }}>
+        {mode === "BASELINE" ? (
+          <div className="progress-row">
+            <span className="time-note">
+              Question {Math.min(baselineQuestionIndex, BASELINE_TARGET)} of {BASELINE_TARGET}
+            </span>
+            <div className="progress-dots" aria-hidden="true">
+              {Array.from({ length: BASELINE_TARGET }, (_, i) => {
+                const n = i + 1;
+                const cls =
+                  n < baselineQuestionIndex ? "done" : n === baselineQuestionIndex ? "now" : "";
+                return <span key={n} className={cls} />;
+              })}
+            </div>
+          </div>
+        ) : (
+          <span className="time-note">Practice · take your time</span>
+        )}
+        {sessionStartedAt && (
+          <span className="time-note" aria-live="polite">
+            {formatElapsed(elapsedMs)} / 15:00
+          </span>
+        )}
+      </div>
 
       {question ? (
         <>
-          <div className="question-stem">{question.stem}</div>
+          <div className={`${styles.question} worked-line ${isEquationStem ? "math" : ""}`} style={isEquationStem ? undefined : { fontSize: "var(--text-lg)", fontFamily: "var(--font-display)" }}>
+            {question.stem}
+          </div>
 
-          {hints.map((h) => (
-            <div key={h.level} className="hint-box">
-              <strong>Hint {h.level}:</strong> {h.content}
+          {hints.length > 0 && (
+            <div className={styles.hints}>
+              {hints.map((h) => (
+                <div key={h.level}>
+                  <span className={styles.hintTag}>Hint {h.level}</span>
+                  {h.content}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
 
-          <label htmlFor="answer">Your answer</label>
-          <input
-            id="answer"
-            type="text"
-            value={answer}
-            onChange={(e) => onAnswerChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !submitting) {
-                e.preventDefault();
-                submitForConfidence();
-              }
-            }}
-            placeholder="e.g. 16 or x=16"
-            autoComplete="off"
-          />
+          <div className={styles.answerRow}>
+            <div className="field" style={{ flex: 1, minWidth: "10rem" }}>
+              <label htmlFor="answer">Your answer</label>
+              <input
+                id="answer"
+                className={`input ${styles.answerInput}`}
+                type="text"
+                value={answer}
+                onChange={(e) => onAnswerChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !submitting) {
+                    e.preventDefault();
+                    submitForConfidence();
+                  }
+                }}
+                placeholder="e.g. 16 or x=16"
+                autoComplete="off"
+              />
+            </div>
+          </div>
 
           {error && <p className="error">{error}</p>}
 
-          <div className="actions">
+          <div className="actions" style={{ marginTop: "var(--s-5)" }}>
             <button
               type="button"
               className="btn btn-primary"
               onClick={submitForConfidence}
               disabled={submitting}
             >
-              Submit answer
+              Check
             </button>
             {(question.hintLadder?.length ?? 0) > highestHintLevel && (
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-ghost"
                 onClick={() => void requestHint()}
                 disabled={submitting}
               >
-                Hint
+                Get a hint
               </button>
             )}
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn-quiet"
               onClick={() => void skipQuestion()}
               disabled={submitting}
             >
-              Skip question
+              Skip this one
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={endSessionEarly}
-            >
+          </div>
+          <div className={styles.quietRow}>
+            <button type="button" className="btn-quiet" onClick={endSessionEarly}>
               End session
             </button>
           </div>
         </>
       ) : (
-        <div className="empty-state">
+        <div className="center" style={{ padding: "var(--s-6) 0" }}>
           <p className="lead">No question right now.</p>
-          <p>You can end the session and try again later — that&apos;s okay.</p>
-          <div className="actions" style={{ justifyContent: "center" }}>
+          <p className="muted">You can end the session and try again later — that's okay.</p>
+          <div className="actions" style={{ justifyContent: "center", marginTop: "var(--s-4)" }}>
             <button type="button" className="btn btn-primary" onClick={endSessionEarly}>
               End session
             </button>
           </div>
         </div>
       )}
-    </div>
+    </>,
   );
 }
 
 export default function PracticePage() {
   return (
-    <Suspense fallback={<div className="card"><p>Loading…</p></div>}>
+    <Suspense
+      fallback={
+        <div className={styles.stage}>
+          <div className={`${styles.panel} phase-in`}>
+            <p className="muted">Loading…</p>
+          </div>
+        </div>
+      }
+    >
       <PracticeContent />
     </Suspense>
   );

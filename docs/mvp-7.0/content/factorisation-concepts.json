@@ -1,0 +1,58 @@
+{
+  "concepts": [
+    {
+      "id": "FAC_P1_MONOMIAL_FACTORS",
+      "name": "Finding the greatest common factor of monomials",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 26,
+      "prerequisites": ["ID_P1_TERM_BASICS"]
+    },
+    {
+      "id": "FAC_C1_COMMON_FACTOR",
+      "name": "Factorising by taking out a common factor",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 27,
+      "prerequisites": ["FAC_P1_MONOMIAL_FACTORS"]
+    },
+    {
+      "id": "FAC_C2_REGROUPING",
+      "name": "Factorising by regrouping terms",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 28,
+      "prerequisites": ["FAC_C1_COMMON_FACTOR"]
+    },
+    {
+      "id": "FAC_C3_IDENTITY_BASED",
+      "name": "Factorising using standard identities",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 29,
+      "prerequisites": ["ID_C1_SQUARE_OF_SUM", "ID_C2_SQUARE_OF_DIFFERENCE", "ID_C3_DIFFERENCE_OF_SQUARES"]
+    },
+    {
+      "id": "FAC_C4_TRINOMIAL",
+      "name": "Factorising x^2+(a+b)x+ab into (x+a)(x+b)",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 5,
+      "sortOrder": 30,
+      "prerequisites": ["ID_C4_TWO_BINOMIAL_IDENTITY", "FAC_C2_REGROUPING"]
+    },
+    {
+      "id": "FAC_C5_DIVISION_CHECK",
+      "name": "Dividing algebraic expressions to check a factorisation",
+      "kind": "CORE",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 4,
+      "sortOrder": 31,
+      "prerequisites": ["FAC_C1_COMMON_FACTOR"]
+    }
+  ]
+}

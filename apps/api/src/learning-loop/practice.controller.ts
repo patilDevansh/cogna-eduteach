@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import type { HintRequestedEvent } from "@cogna/shared";
 import { LearningLoopService } from "./learning-loop.service";
 import { AnswerSubmittedDto } from "./dto/answer-submitted.dto";
 import { ExplanationViewedDto } from "./dto/explanation-viewed.dto";
 import { SkipQuestionDto } from "./dto/skip-question.dto";
+import { UpdateAttemptConfidenceDto } from "./dto/update-attempt-confidence.dto";
 
 @Controller("practice")
 export class PracticeController {
@@ -38,5 +39,17 @@ export class PracticeController {
   @Post("skip")
   skipQuestion(@Body() body: SkipQuestionDto) {
     return this.loop.processSkip(body);
+  }
+
+  @Patch("attempts/:attemptId/confidence")
+  updateAttemptConfidence(
+    @Param("attemptId") attemptId: string,
+    @Body() body: UpdateAttemptConfidenceDto,
+  ) {
+    return this.loop.updateAttemptConfidence(
+      attemptId,
+      body.studentId,
+      body.selfRatedConfidence,
+    );
   }
 }

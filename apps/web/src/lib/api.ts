@@ -1,4 +1,11 @@
-import type { PracticeNextResponse } from "@cogna/shared";
+import type {
+  ConceptMasteryBand,
+  MasteryTrendPoint,
+  PatternHistoryItem,
+  PracticeCalendarDay,
+  PracticeNextResponse,
+  StudentSafetySettings,
+} from "@cogna/shared";
 import {
   buildParentAuthHeaders,
   type ParentAuthInput,
@@ -141,6 +148,13 @@ export interface ParentWeeklySummary {
   periodStart?: string;
   periodEnd?: string;
   createdAt?: string;
+}
+
+export interface HomeSummary {
+  studentId: string;
+  nextAction: { conceptId: string; reason: "revision" | "continue" } | null;
+  momentum: { sessionsCount: number; days: boolean[] };
+  recap: { conceptId: string | null; minutes: number; endedAt: string } | null;
 }
 
 export const api = {
@@ -292,6 +306,16 @@ export const api = {
       revisionItemsCreated?: number;
     }>(`/sessions/${sessionId}/end`, { method: "POST" }),
 
+  /** Fused, non-blocking confidence tap on the adaptive-practice feedback screen — fire-and-forget from the caller's point of view. */
+  updateAttemptConfidence: (attemptId: string, studentId: string, selfRatedConfidence: number) =>
+    apiFetch<{ attemptId: string; selfRatedConfidence: number }>(
+      `/practice/attempts/${attemptId}/confidence`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ studentId, selfRatedConfidence }),
+      },
+    ),
+
   getRevisionQueue: (studentId: string) =>
     apiFetch<RevisionQueueItem[]>(`/students/${studentId}/revision-queue`),
 
@@ -338,6 +362,70 @@ export const api = {
     apiFetch<{ reportId: string; status: string; idempotencyKey?: string }>(
       `/students/${studentId}/reports/weekly`,
       { method: "POST", body: JSON.stringify(body) },
+    ),
+
+  getHomeSummary: (studentId: string) =>
+    apiFetch<HomeSummary>(`/students/${studentId}/home-summary`),
+
+  getMasteryTrend: (
+    auth: string | ParentAuthInput | undefined,
+    studentId: string,
+    opts?: { conceptId?: string; weeks?: number },
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.conceptId) params.set("conceptId", opts.conceptId);
+    if (opts?.weeks) params.set("weeks", String(opts.weeks));
+    const qs = params.toString();
+    return apiFetch<MasteryTrendPoint[]>(
+      `/parents/me/students/${studentId}/mastery-trend${qs ? `?${qs}` : ""}`,
+      { headers: buildParentAuthHeaders(auth) },
+    );
+  },
+
+  getConceptBands: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<ConceptMasteryBand[]>(
+      `/parents/me/students/${studentId}/concept-bands`,
+      { headers: buildParentAuthHeaders(auth) },
+    ),
+
+  getPracticeCalendar: (
+    auth: string | ParentAuthInput | undefined,
+    studentId: string,
+    weeks?: number,
+  ) =>
+    apiFetch<PracticeCalendarDay[]>(
+      `/parents/me/students/${studentId}/practice-calendar${weeks ? `?weeks=${weeks}` : ""}`,
+      { headers: buildParentAuthHeaders(auth) },
+    ),
+
+  getPatternHistory: (
+    auth: string | ParentAuthInput | undefined,
+    studentId: string,
+    weeks?: number,
+  ) =>
+    apiFetch<PatternHistoryItem[]>(
+      `/parents/me/students/${studentId}/pattern-history${weeks ? `?weeks=${weeks}` : ""}`,
+      { headers: buildParentAuthHeaders(auth) },
+    ),
+
+  getSafetySettings: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<StudentSafetySettings>(
+      `/parents/me/students/${studentId}/settings`,
+      { headers: buildParentAuthHeaders(auth) },
+    ),
+
+  updateSafetySettings: (
+    auth: string | ParentAuthInput | undefined,
+    studentId: string,
+    aiAssistedPracticePaused: boolean,
+  ) =>
+    apiFetch<StudentSafetySettings>(
+      `/parents/me/students/${studentId}/settings`,
+      {
+        method: "PATCH",
+        headers: buildParentAuthHeaders(auth),
+        body: JSON.stringify({ aiAssistedPracticePaused }),
+      },
     ),
 };
 

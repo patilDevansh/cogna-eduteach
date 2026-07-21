@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { join } from "path";
 import { PrismaModule } from "./prisma/prisma.module";
 import { StudentsModule } from "./students/students.module";
 import { SessionsModule } from "./sessions/sessions.module";
@@ -27,7 +28,15 @@ import { PolicyModule } from "./policy/policy.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // turbo runs api from apps/api; repo secrets live in monorepo root .env
+      envFilePath: [
+        join(__dirname, "..", "..", "..", ".env"),
+        join(process.cwd(), ".env"),
+        join(process.cwd(), "..", "..", ".env"),
+      ],
+    }),
     ObservabilityModule,
     PrismaModule,
     StudentsModule,

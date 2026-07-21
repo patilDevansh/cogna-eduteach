@@ -5,8 +5,47 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { saveParent } from "@/lib/session";
+import styles from "@/components/login.module.css";
 
 import { ClerkParentSignIn, isClerkEnabled } from "@/components/clerk-parent-sign-in";
+
+function ShieldIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M8 1.5 2.5 3.8v3.9c0 3.4 2.3 6.4 5.5 7.3 3.2-.9 5.5-3.9 5.5-7.3V3.8L8 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function Chrome() {
+  return (
+    <div className={styles.chrome}>
+      <Link href="/" className="wordmark">
+        cogna<span className="dot">.</span>
+      </Link>
+      <Link href="/student/login" className="btn-quiet">
+        I&apos;m a student
+      </Link>
+    </div>
+  );
+}
+
+function TrustLine() {
+  return (
+    <div className={styles.trustLine}>
+      <ShieldIcon />
+      <p>
+        Your child never sees this login. Everything shown here is checked
+        before it reaches them.
+      </p>
+    </div>
+  );
+}
 
 export default function ParentLoginPage() {
   const router = useRouter();
@@ -21,10 +60,18 @@ export default function ParentLoginPage() {
 
   if (isClerkEnabled()) {
     return (
-      <div className="card">
-        <h1>Parent sign in</h1>
-        <p className="lead">Sign in with your Clerk account to view student progress.</p>
-        <ClerkParentSignIn />
+      <div className={styles.stage}>
+        <Chrome />
+        <div className={`${styles.parentWrap} phase-in`}>
+          <div className={styles.parentCard}>
+            <div className={styles.parentHead}>
+              <h1>Welcome back</h1>
+              <p>Sign in to see how practice is going and what to try next.</p>
+            </div>
+            <ClerkParentSignIn />
+            <TrustLine />
+          </div>
+        </div>
       </div>
     );
   }
@@ -58,55 +105,71 @@ export default function ParentLoginPage() {
   }
 
   return (
-    <div className="card">
-      <h1>Parent account</h1>
-      <p className="lead">
-        Create an account to add students and view their progress.
-        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-          ? " Sign in with Clerk when configured."
-          : " Demo signup is available for local pilot testing."}
-      </p>
+    <div className={styles.stage}>
+      <Chrome />
+      <div className={`${styles.parentWrap} phase-in`}>
+        <div className={styles.parentCard}>
+          <div className={styles.parentHead}>
+            <h1>Welcome back</h1>
+            <p>
+              Create an account to add students and see their progress.
+              {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+                ? " Sign in with Clerk when configured."
+                : " Demo signup is available for local pilot testing."}
+            </p>
+          </div>
 
-      {error && <p className="error">{error}</p>}
+          <form onSubmit={handleSignup} className="stack-4">
+            <div className="field">
+              <label htmlFor="name">Your name</label>
+              <input
+                id="name"
+                className="input"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="Parent name"
+              />
+            </div>
 
-      <form onSubmit={handleSignup}>
-        <label htmlFor="name">Your name</label>
-        <input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Parent name"
-        />
+            <div className="field">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                className="input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+              />
+            </div>
 
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          placeholder="you@example.com"
-        />
+            {error && <p className="error">{error}</p>}
 
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? "Creating…" : "Create account"}
-        </button>
-      </form>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+              {loading ? "Creating…" : "Create account"}
+            </button>
+          </form>
 
-      <div className="actions" style={{ marginTop: "1.5rem" }}>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={useDevAccount}
-          disabled={loading}
-        >
-          Use demo parent
-        </button>
-        <Link href="/parent/dashboard" className="btn btn-secondary">
-          Already signed in
-        </Link>
+          <div className={styles.dividerRow}>or</div>
+
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={useDevAccount}
+            disabled={loading}
+          >
+            Use demo parent
+          </button>
+
+          <TrustLine />
+
+          <p className={styles.switchLine}>
+            Already signed in? <Link href="/parent/dashboard">Go to dashboard</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

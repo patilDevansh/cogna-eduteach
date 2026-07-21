@@ -86,10 +86,11 @@
 - [ ] Pilot cohort ready (human)
 - [x] ~~Demo walkthrough updated for MVP 2.0~~ ([`DEMO_WALKTHROUGH.md`](./DEMO_WALKTHROUGH.md))
 - [x] ~~README snapshot updated to pilot-ready~~ (**pilot-ready (dev)**)
+- [x] ~~Live agentic Stage 0: visibility docs + testUI-claude UX + C-lite/shadow/ContentVerifier + test gates~~ ([`COGNA/LIVE_AGENTIC_PLAN.md`](../COGNA/LIVE_AGENTIC_PLAN.md))
 
 ## Agentic Roadmap Reminder
 
-- MVP 2.0: orchestrated engines with richer memory
+- MVP 2.0: orchestrated engines with richer memory; **live C-lite shadow-first** under ContentVerifier
 - MVP 3.0: LLM-assisted drafting and scoring under validation; optional `experiment_assignments`
 - MVP 4.0: multi-unit curriculum and planning horizon
 - MVP 5.0: full multi-modal, multi-subject, learned agentic platform

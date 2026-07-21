@@ -14,6 +14,10 @@ const prisma = new PrismaClient();
 const CONTENT_ROOT = join(__dirname, "../../../docs/mvp-1.0/content");
 const CONTENT_V2_ROOT = join(__dirname, "../../../docs/mvp-2.0/content");
 const CONTENT_V4_ROOT = join(__dirname, "../../../docs/mvp-4.0/content");
+const CONTENT_V6_ROOT = join(__dirname, "../../../docs/mvp-6.0/content");
+const CONTENT_V7_ROOT = join(__dirname, "../../../docs/mvp-7.0/content");
+const CONTENT_V8_ROOT = join(__dirname, "../../../docs/mvp-8.0/content");
+const CONTENT_V9_ROOT = join(__dirname, "../../../docs/mvp-9.0/content");
 
 /** Milestone slice: C2 sign-handling path + baseline blueprint anchors — APPROVED for local/dev build */
 const MILESTONE_APPROVED_QUESTION_IDS = new Set([
@@ -84,6 +88,7 @@ type BankQuestion = {
   reviewStatus?: string;
   itemQualityWeight?: number;
   options?: string[];
+  unitId?: string;
   misconceptionAnswerPatterns?: Array<{
     misconceptionId: string;
     answers: string[];
@@ -102,7 +107,109 @@ function loadAllBankQuestions(): BankQuestion[] {
   } catch {
     // generated bank optional until scripts/generate-approved-bank.mjs runs
   }
-  return [...(base.questions ?? []), ...generated];
+  let handcrafted: BankQuestion[] = [];
+  try {
+    const hc = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V2_ROOT,
+      "question-bank/handcrafted-100.json",
+    );
+    handcrafted = hc.questions ?? [];
+  } catch {
+    // handcrafted bank optional until scripts/generate-handcrafted-bank.mjs runs
+  }
+  let algebraicIdentities: BankQuestion[] = [];
+  try {
+    const ai = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V6_ROOT,
+      "question-bank/questions.json",
+    );
+    algebraicIdentities = ai.questions ?? [];
+  } catch {
+    // algebraic identities bank optional until mvp-6.0 content lands
+  }
+  let bulkGeneratedV6: BankQuestion[] = [];
+  try {
+    const gen6 = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V6_ROOT,
+      "question-bank/generated-questions.json",
+    );
+    bulkGeneratedV6 = gen6.questions ?? [];
+  } catch {
+    // mvp-6.0 bulk-generated bank optional until scripts/generate-algebra-bank-v2.mjs runs
+  }
+  let factorisation: BankQuestion[] = [];
+  try {
+    const fac = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V7_ROOT,
+      "question-bank/questions.json",
+    );
+    factorisation = fac.questions ?? [];
+  } catch {
+    // factorisation bank optional until mvp-7.0 content lands
+  }
+  let bulkGeneratedV7: BankQuestion[] = [];
+  try {
+    const gen7 = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V7_ROOT,
+      "question-bank/generated-questions.json",
+    );
+    bulkGeneratedV7 = gen7.questions ?? [];
+  } catch {
+    // mvp-7.0 bulk-generated bank optional until scripts/generate-factorisation-bank.mjs runs
+  }
+  let exponents: BankQuestion[] = [];
+  try {
+    const exp = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V8_ROOT,
+      "question-bank/questions.json",
+    );
+    exponents = exp.questions ?? [];
+  } catch {
+    // exponents bank optional until mvp-8.0 content lands
+  }
+  let bulkGeneratedV8: BankQuestion[] = [];
+  try {
+    const gen8 = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V8_ROOT,
+      "question-bank/generated-questions.json",
+    );
+    bulkGeneratedV8 = gen8.questions ?? [];
+  } catch {
+    // mvp-8.0 bulk-generated bank optional until scripts/generate-exponents-bank.mjs runs
+  }
+  let rationalExpressions: BankQuestion[] = [];
+  try {
+    const rat = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V9_ROOT,
+      "question-bank/questions.json",
+    );
+    rationalExpressions = rat.questions ?? [];
+  } catch {
+    // rational expressions bank optional until mvp-9.0 content lands
+  }
+  let bulkGeneratedV9: BankQuestion[] = [];
+  try {
+    const gen9 = loadJsonFromRoot<{ questions: BankQuestion[] }>(
+      CONTENT_V9_ROOT,
+      "question-bank/generated-questions.json",
+    );
+    bulkGeneratedV9 = gen9.questions ?? [];
+  } catch {
+    // mvp-9.0 bulk-generated bank optional until scripts/generate-rational-bank.mjs runs
+  }
+  return [
+    ...(base.questions ?? []),
+    ...generated,
+    ...handcrafted,
+    ...algebraicIdentities,
+    ...bulkGeneratedV6,
+    ...factorisation,
+    ...bulkGeneratedV7,
+    ...exponents,
+    ...bulkGeneratedV8,
+    ...rationalExpressions,
+    ...bulkGeneratedV9,
+  ];
 }
 
 function hashAccessCode(code: string): string {
@@ -146,7 +253,62 @@ async function seedConcepts() {
     // Systems concepts optional until Phase 1 completes
   }
 
-  const allConcepts = [...linearConcepts, ...systemsConcepts];
+  // MVP 6.0: Algebraic Identities concepts
+  let identitiesConcepts: typeof linearConcepts = [];
+  try {
+    const identities = loadJsonFromRoot<{ concepts: typeof linearConcepts }>(
+      CONTENT_V6_ROOT,
+      "algebraic-identities-concepts.json",
+    );
+    identitiesConcepts = identities.concepts ?? [];
+  } catch {
+    // Algebraic identities concepts optional until mvp-6.0 content lands
+  }
+
+  // MVP 7.0: Factorisation concepts
+  let factorisationConcepts: typeof linearConcepts = [];
+  try {
+    const factorisation = loadJsonFromRoot<{ concepts: typeof linearConcepts }>(
+      CONTENT_V7_ROOT,
+      "factorisation-concepts.json",
+    );
+    factorisationConcepts = factorisation.concepts ?? [];
+  } catch {
+    // Factorisation concepts optional until mvp-7.0 content lands
+  }
+
+  // MVP 8.0: Exponents (algebra slice) concepts
+  let exponentsConcepts: typeof linearConcepts = [];
+  try {
+    const exponents = loadJsonFromRoot<{ concepts: typeof linearConcepts }>(
+      CONTENT_V8_ROOT,
+      "exponents-concepts.json",
+    );
+    exponentsConcepts = exponents.concepts ?? [];
+  } catch {
+    // Exponents concepts optional until mvp-8.0 content lands
+  }
+
+  // MVP 9.0: Rational Expressions concepts
+  let rationalConcepts: typeof linearConcepts = [];
+  try {
+    const rational = loadJsonFromRoot<{ concepts: typeof linearConcepts }>(
+      CONTENT_V9_ROOT,
+      "rational-expressions-concepts.json",
+    );
+    rationalConcepts = rational.concepts ?? [];
+  } catch {
+    // Rational expressions concepts optional until mvp-9.0 content lands
+  }
+
+  const allConcepts = [
+    ...linearConcepts,
+    ...systemsConcepts,
+    ...identitiesConcepts,
+    ...factorisationConcepts,
+    ...exponentsConcepts,
+    ...rationalConcepts,
+  ];
 
   for (const c of allConcepts) {
     await prisma.concept.upsert({
@@ -200,7 +362,45 @@ async function seedMisconceptions() {
     }>;
   }>("misconceptions.json");
 
-  for (const m of misconceptions) {
+  let identitiesMisconceptions: typeof misconceptions = [];
+  try {
+    const identities = loadJsonFromRoot<{ misconceptions: typeof misconceptions }>(
+      CONTENT_V6_ROOT,
+      "misconceptions.json",
+    );
+    identitiesMisconceptions = identities.misconceptions ?? [];
+  } catch {
+    // Algebraic identities misconceptions optional until mvp-6.0 content lands
+  }
+
+  let factorisationMisconceptions: typeof misconceptions = [];
+  try {
+    const factorisation = loadJsonFromRoot<{ misconceptions: typeof misconceptions }>(
+      CONTENT_V7_ROOT,
+      "misconceptions.json",
+    );
+    factorisationMisconceptions = factorisation.misconceptions ?? [];
+  } catch {
+    // Factorisation misconceptions optional until mvp-7.0 content lands
+  }
+
+  let exponentsMisconceptions: typeof misconceptions = [];
+  try {
+    const exponents = loadJsonFromRoot<{ misconceptions: typeof misconceptions }>(
+      CONTENT_V8_ROOT,
+      "misconceptions.json",
+    );
+    exponentsMisconceptions = exponents.misconceptions ?? [];
+  } catch {
+    // Exponents misconceptions optional until mvp-8.0 content lands
+  }
+
+  for (const m of [
+    ...misconceptions,
+    ...identitiesMisconceptions,
+    ...factorisationMisconceptions,
+    ...exponentsMisconceptions,
+  ]) {
     await prisma.misconception.upsert({
       where: { id: m.id },
       create: {
@@ -260,6 +460,7 @@ async function seedQuestions() {
         reviewStatus,
         itemQualityWeight: q.itemQualityWeight ?? 1.0,
         options: q.options ?? null,
+        unitId: q.unitId ?? null,
       },
       update: {
         stem: q.stem,
@@ -381,6 +582,26 @@ async function seedDevAccounts() {
     "C4_ONE_STEP_DIVISION",
     "C5_TWO_STEP_EQUATIONS",
     "C6_SIMPLE_WORD_PROBLEMS",
+    "C7_VARIABLE_BOTH_SIDES",
+    "ID_P1_TERM_BASICS",
+    "ID_P2_BINOMIAL_MULTIPLICATION",
+    "ID_C1_SQUARE_OF_SUM",
+    "ID_C2_SQUARE_OF_DIFFERENCE",
+    "ID_C3_DIFFERENCE_OF_SQUARES",
+    "ID_C4_TWO_BINOMIAL_IDENTITY",
+    "ID_C5_MENTAL_MATH_APPLICATION",
+    "FAC_P1_MONOMIAL_FACTORS",
+    "FAC_C1_COMMON_FACTOR",
+    "FAC_C2_REGROUPING",
+    "FAC_C3_IDENTITY_BASED",
+    "FAC_C4_TRINOMIAL",
+    "FAC_C5_DIVISION_CHECK",
+    "C8_FRACTIONAL_COEFFICIENTS",
+    "EXP_P1_LAWS_OF_EXPONENTS",
+    "EXP_C1_NEGATIVE_EXPONENTS",
+    "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+    "RAT_P1_VARIABLES_IN_FRACTIONS",
+    "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
   ];
 
   for (const conceptId of conceptIds) {
@@ -425,6 +646,11 @@ async function seedCurriculumUnits() {
         { conceptId: "C4_ONE_STEP_DIVISION", kind: "CORE" },
         { conceptId: "C5_TWO_STEP_EQUATIONS", kind: "CORE" },
         { conceptId: "C6_SIMPLE_WORD_PROBLEMS", kind: "CORE" },
+        // C7_VARIABLE_BOTH_SIDES is deliberately NOT listed here: golden test U01 freezes
+        // this unit's original 11 concepts (see curriculum.u01.linear-ids-unchanged.spec.ts),
+        // and U02/U03 unlock-threshold percentages are computed against that exact count.
+        // C7 still fully works as a Concept (mastery, questions, prerequisite C5->C7) — it
+        // just isn't counted toward this unit's unlock-gating math.
       ],
     },
     {
@@ -450,6 +676,64 @@ async function seedCurriculumUnits() {
       priorityWeight: 0.9,
       concepts: [
         // Placeholder: MVP 4.0 Phase 1 will define actual concepts
+      ],
+    },
+    {
+      // MVP 6.0: Algebraic Identities — first-batch content, depth-first on ID_C4 (the (x+a)(x+b) identity)
+      unitId: "algebraic-identities",
+      title: "Algebraic Identities",
+      prerequisiteUnitIds: ["linear-equations-one-variable"],
+      unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
+      priorityWeight: 1.0,
+      concepts: [
+        { conceptId: "ID_P1_TERM_BASICS", kind: "PREREQ" },
+        { conceptId: "ID_P2_BINOMIAL_MULTIPLICATION", kind: "PREREQ" },
+        { conceptId: "ID_C1_SQUARE_OF_SUM", kind: "CORE" },
+        { conceptId: "ID_C2_SQUARE_OF_DIFFERENCE", kind: "CORE" },
+        { conceptId: "ID_C3_DIFFERENCE_OF_SQUARES", kind: "CORE" },
+        { conceptId: "ID_C4_TWO_BINOMIAL_IDENTITY", kind: "CORE" },
+        { conceptId: "ID_C5_MENTAL_MATH_APPLICATION", kind: "CORE" },
+      ],
+    },
+    {
+      // MVP 7.0: Factorisation — runs the Algebraic Identities unit in reverse, depth-first on FAC_C4 (the (x+a)(x+b) trinomial)
+      unitId: "factorisation",
+      title: "Factorisation",
+      prerequisiteUnitIds: ["algebraic-identities"],
+      unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
+      priorityWeight: 1.0,
+      concepts: [
+        { conceptId: "FAC_P1_MONOMIAL_FACTORS", kind: "PREREQ" },
+        { conceptId: "FAC_C1_COMMON_FACTOR", kind: "CORE" },
+        { conceptId: "FAC_C2_REGROUPING", kind: "CORE" },
+        { conceptId: "FAC_C3_IDENTITY_BASED", kind: "CORE" },
+        { conceptId: "FAC_C4_TRINOMIAL", kind: "CORE" },
+        { conceptId: "FAC_C5_DIVISION_CHECK", kind: "CORE" },
+      ],
+    },
+    {
+      // MVP 8.0: Exponents — the algebra-facing slice (product/quotient/power rules, negative exponents, simplification)
+      unitId: "exponents-algebra",
+      title: "Exponents",
+      prerequisiteUnitIds: ["linear-equations-one-variable"],
+      unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
+      priorityWeight: 1.0,
+      concepts: [
+        { conceptId: "EXP_P1_LAWS_OF_EXPONENTS", kind: "PREREQ" },
+        { conceptId: "EXP_C1_NEGATIVE_EXPONENTS", kind: "CORE" },
+        { conceptId: "EXP_C2_EXPONENTS_IN_SIMPLIFICATION", kind: "CORE" },
+      ],
+    },
+    {
+      // MVP 9.0: Rational Expressions — needs factoring, so gated behind the Factorisation unit
+      unitId: "rational-expressions",
+      title: "Rational Expressions",
+      prerequisiteUnitIds: ["factorisation"],
+      unlockRule: "ALL_PREREQ_UNITS_AT_THRESHOLD",
+      priorityWeight: 0.9,
+      concepts: [
+        { conceptId: "RAT_P1_VARIABLES_IN_FRACTIONS", kind: "PREREQ" },
+        { conceptId: "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS", kind: "CORE" },
       ],
     },
   ];

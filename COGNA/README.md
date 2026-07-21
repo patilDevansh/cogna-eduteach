@@ -59,6 +59,17 @@ Use only for archive reference or explicit 1.0 hotfixes (see `/AGENTS.md`).
 
 Mature engine essays below may describe long-term vision. If they conflict with `/docs/mvp-2.0/` (active) or `/docs/mvp-1.0/` (archive), **the MVP docs win** for that era.
 
+## Manager / live-agentic visibility (plain English)
+
+| File | Purpose |
+|---|---|
+| [`HOW_THE_PRODUCT_WORKS.md`](./HOW_THE_PRODUCT_WORKS.md) | How kids are assessed and what they see |
+| [`LANGUAGE_AND_VOICE.md`](./LANGUAGE_AND_VOICE.md) | Child-safe / parent-letter voice (from testUI-claude) |
+| [`PRIVACY_AND_DATA.md`](./PRIVACY_AND_DATA.md) | Minors, DPDP, OpenAI prompts without PII |
+| [`LIVE_AGENTIC_PLAN.md`](./LIVE_AGENTIC_PLAN.md) | Stages, flags, flip criteria, ops metrics |
+| [`QUESTION_BANK_ATLAS.md`](./QUESTION_BANK_ATLAS.md) | Question bank map and sample stems |
+| [`DEMO_STUDENTS_AND_TRAINING.md`](./DEMO_STUDENTS_AND_TRAINING.md) | Demo accounts and what “training” means |
+
 | File | Status |
 |---|---|
 | `README_LEARNING_LOOP.md` | Future architecture only |

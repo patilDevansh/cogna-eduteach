@@ -25,6 +25,7 @@ import {
   UiAction,
   type Attempt,
   type LearningSession,
+  type RemediationState,
 } from "@cogna/database";
 import { PrismaService } from "../prisma/prisma.service";
 import { GraderService } from "../grading/grader.service";
@@ -32,10 +33,13 @@ import { DiagnosticEngineService } from "../engines/diagnostic-engine/diagnostic
 import { DecisionEngineService } from "../engines/decision-engine/decision-engine.service";
 import { QuestionGeneratorService } from "../engines/question-generator/question-generator.service";
 import { ExplanationEngineService } from "../engines/explanation-engine/explanation-engine.service";
+import { LiveTeachingAgentService } from "../engines/live-teaching/live-teaching-agent.service";
+import { BreakAdvisorAgentService } from "../engines/break-advisor/break-advisor-agent.service";
 import { RevisionService } from "../revision/revision.service";
 import {
   isExplanationEffective,
   isIdleSpike,
+  inferConfidenceFromBehavior,
 } from "../engines/diagnostic-engine/diagnostic-formulas";
 import { DIAGNOSTIC_RULES_V2 } from "@cogna/shared";
 
@@ -51,6 +55,8 @@ export class LearningLoopService {
     private readonly questionGenerator: QuestionGeneratorService,
     private readonly explanationEngine: ExplanationEngineService,
     private readonly revisionService: RevisionService,
+    private readonly liveTeaching: LiveTeachingAgentService,
+    private readonly breakAdvisor: BreakAdvisorAgentService,
   ) {}
 
   async processAnswer(event: AnswerSubmittedEvent): Promise<AnswerSubmittedResponse> {
@@ -107,6 +113,24 @@ export class LearningLoopService {
       grade = this.grader.grade(event.submittedAnswer, accepted);
       isCorrect = grade === "CORRECT";
 
+      // Student's own recent pace — the baseline the passive confidence proxy compares against.
+      const paceHistory = await this.prisma.attempt.findMany({
+        where: { studentId: event.studentId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { totalTimeMs: true },
+      });
+      const studentAverageTimeMs =
+        paceHistory.length >= 3
+          ? paceHistory.reduce((sum, a) => sum + a.totalTimeMs, 0) / paceHistory.length
+          : null;
+      const inferredConfidence = inferConfidenceFromBehavior({
+        totalTimeMs: event.totalTimeMs,
+        studentAverageTimeMs,
+        hintCount: event.hintCount,
+        answerChangedBeforeSubmit: event.answerChangedBeforeSubmit,
+      });
+
       // Tx1 — evidence (durable even if later stages fail)
       await this.prisma.rawEvent.upsert({
         where: { eventId: event.eventId },
@@ -138,6 +162,7 @@ export class LearningLoopService {
           hintCount: event.hintCount,
           highestHintLevel: event.highestHintLevel,
           selfRatedConfidence: event.selfRatedConfidence ?? undefined,
+          inferredConfidence,
           answerChangedBeforeSubmit: event.answerChangedBeforeSubmit,
           processingStatus: ProcessingStatus.GRADED,
         },
@@ -218,6 +243,13 @@ export class LearningLoopService {
           consecutiveCorrect: { increment: 1 },
         },
       });
+      await this.recordRemediationTransition(
+        event.studentId,
+        remediation.misconceptionId,
+        remediation.conceptId,
+        remediation.state,
+        "RESOLVED",
+      );
       remediation = { ...remediation, state: "RESOLVED" };
       await this.completeExplanationOutcome({
         studentId: event.studentId,
@@ -336,6 +368,13 @@ export class LearningLoopService {
         },
         data: { state: "EXPLANATION_REQUIRED" },
       });
+      await this.recordRemediationTransition(
+        event.studentId,
+        remediation.misconceptionId,
+        remediation.conceptId,
+        remediation.state,
+        "EXPLANATION_REQUIRED",
+      );
       decision = await this.decisionEngine.decide({
         session: sessionForNext,
         recentCorrectStreak,
@@ -363,6 +402,13 @@ export class LearningLoopService {
         },
         data: { state: nextState },
       });
+      await this.recordRemediationTransition(
+        event.studentId,
+        remediation.misconceptionId,
+        remediation.conceptId,
+        remediation.state,
+        nextState,
+      );
       if (nextState === "EXPLANATION_REQUIRED") {
         decision = await this.decisionEngine.decide({
           session: sessionForNext,
@@ -374,6 +420,15 @@ export class LearningLoopService {
         });
       }
     }
+
+    // Shadow-mode only — fire-and-forget, never changes the decision above.
+    this.breakAdvisor.evaluateInBackground(event.studentId, event.sessionId, {
+      sessionMinutes: (Date.now() - sessionForNext.startedAt.getTime()) / 60000,
+      recentIncorrectStreak,
+      idleSpikeCount: decisionExtras.idleSpikeCount,
+      averageTimeIncreasing50Pct: false,
+      ruleSuggestsBreak: decision.uiAction === "SUGGEST_BREAK",
+    });
 
     const savedDecision = await this.prisma.learningDecision.create({
       data: {
@@ -672,6 +727,34 @@ export class LearningLoopService {
     };
   }
 
+  /**
+   * Post-hoc explicit confidence tap — the fused, non-blocking "sure / not
+   * sure / guessing" chip shown on the adaptive-practice feedback screen,
+   * fired after the answer (and its passively inferred confidence) have
+   * already been submitted and graded. Only updates the stored rating so
+   * future calibration windows pick it up; does not re-run diagnostics for
+   * this attempt.
+   */
+  async updateAttemptConfidence(
+    attemptId: string,
+    studentId: string,
+    selfRatedConfidence: number,
+  ): Promise<{ attemptId: string; selfRatedConfidence: number }> {
+    const attempt = await this.prisma.attempt.findUniqueOrThrow({
+      where: { id: attemptId },
+    });
+    if (attempt.studentId !== studentId) {
+      throw new NotFoundException("Attempt not found for student.");
+    }
+
+    const updated = await this.prisma.attempt.update({
+      where: { id: attemptId },
+      data: { selfRatedConfidence },
+    });
+
+    return { attemptId: updated.id, selfRatedConfidence: updated.selfRatedConfidence! };
+  }
+
   async processSkip(event: QuestionSkippedEvent): Promise<QuestionSkippedResponse> {
     const existing = await this.prisma.rawEvent.findUnique({
       where: { eventId: event.eventId },
@@ -956,17 +1039,33 @@ export class LearningLoopService {
     sessionId: string,
     session?: { sessionMode: string; baselineSlotIndex: number },
   ): Promise<PracticeNextResponse> {
+    // Scoped to the student across sessions (not just this session) so a
+    // question already served yesterday doesn't come right back today.
     const recent = await this.prisma.attempt.findMany({
-      where: { sessionId },
+      where: { studentId },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 40,
       select: { questionId: true },
     });
     const recentQuestionIds = recent.map((a) => a.questionId);
 
     if (decision.uiAction === "SHOW_QUESTION") {
+      // Parent-controlled safety toggle: never even shadow-generate for a paused student.
+      const student = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { aiAssistedPracticePaused: true },
+      });
+      // Shadow generate+verify in parallel with bank select; prefer bank unless serve+pass.
+      const generatedPromise = student?.aiAssistedPracticePaused
+        ? Promise.resolve(null)
+        : this.liveTeaching.tryGenerateShadow({
+            decision,
+            sessionId,
+            studentId,
+          });
+
       try {
-        const { question, reasoning } = await this.questionGenerator.selectForDecision(
+        const bankPromise = this.questionGenerator.selectForDecision(
           decision,
           recentQuestionIds,
           {
@@ -976,12 +1075,28 @@ export class LearningLoopService {
                 : decision.parameters.baselineSlotIndex,
           },
         );
+
+        const [bankResult, generated] = await Promise.all([
+          bankPromise,
+          generatedPromise.catch(() => null),
+        ]);
+
+        if (generated) {
+          return {
+            decision,
+            payload: generated,
+            studentMessage: "Let's try this one.",
+          };
+        }
+
         return {
           decision,
-          payload: question,
-          studentMessage: reasoning,
+          payload: bankResult.question,
+          studentMessage: bankResult.reasoning,
         };
       } catch (err) {
+        // Still await shadow so logs emit even when bank fails.
+        await generatedPromise.catch(() => null);
         if (
           err instanceof NotFoundException &&
           (err.message === "NO_ELIGIBLE_QUESTION" ||
@@ -1244,6 +1359,20 @@ export class LearningLoopService {
         BASELINE_SLOT_COUNT - 1,
       ),
     };
+  }
+
+  /** Insert-only transition log powering the parent "pattern history" view. No-op when the state didn't actually change. */
+  private async recordRemediationTransition(
+    studentId: string,
+    misconceptionId: string,
+    conceptId: string,
+    fromState: RemediationState,
+    toState: RemediationState,
+  ): Promise<void> {
+    if (fromState === toState) return;
+    await this.prisma.misconceptionRemediationStateHistory.create({
+      data: { studentId, misconceptionId, conceptId, fromState, toState },
+    });
   }
 
   private streak(

@@ -16,9 +16,18 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const QUESTIONS_PATH = join(ROOT, "docs/mvp-1.0/content/question-bank/questions.json");
 const GENERATED_PATH = join(ROOT, "docs/mvp-2.0/content/question-bank/generated-questions.json");
+const HANDCRAFTED_PATH = join(ROOT, "docs/mvp-2.0/content/question-bank/handcrafted-100.json");
+const IDENTITIES_PATH = join(ROOT, "docs/mvp-6.0/content/question-bank/questions.json");
+const IDENTITIES_GENERATED_PATH = join(ROOT, "docs/mvp-6.0/content/question-bank/generated-questions.json");
+const FACTORISATION_PATH = join(ROOT, "docs/mvp-7.0/content/question-bank/questions.json");
+const FACTORISATION_GENERATED_PATH = join(ROOT, "docs/mvp-7.0/content/question-bank/generated-questions.json");
+const EXPONENTS_PATH = join(ROOT, "docs/mvp-8.0/content/question-bank/questions.json");
+const EXPONENTS_GENERATED_PATH = join(ROOT, "docs/mvp-8.0/content/question-bank/generated-questions.json");
+const RATIONAL_PATH = join(ROOT, "docs/mvp-9.0/content/question-bank/questions.json");
+const RATIONAL_GENERATED_PATH = join(ROOT, "docs/mvp-9.0/content/question-bank/generated-questions.json");
 const MANIFEST_PATH = join(ROOT, "docs/mvp-2.0/content/question-bank/manifest.json");
 
-/** Canonical concept IDs (MVP 1.0 IDs kept for MVP 2.0). */
+/** Canonical concept IDs (MVP 1.0 IDs kept for MVP 2.0, plus the MVP 6.0-9.0 units). */
 const KNOWN_CONCEPT_IDS = new Set([
   "P1_INTEGER_ADD_SUB",
   "P2_NEGATIVE_OPS",
@@ -31,6 +40,26 @@ const KNOWN_CONCEPT_IDS = new Set([
   "C4_ONE_STEP_DIVISION",
   "C5_TWO_STEP_EQUATIONS",
   "C6_SIMPLE_WORD_PROBLEMS",
+  "C7_VARIABLE_BOTH_SIDES",
+  "C8_FRACTIONAL_COEFFICIENTS",
+  "ID_P1_TERM_BASICS",
+  "ID_P2_BINOMIAL_MULTIPLICATION",
+  "ID_C1_SQUARE_OF_SUM",
+  "ID_C2_SQUARE_OF_DIFFERENCE",
+  "ID_C3_DIFFERENCE_OF_SQUARES",
+  "ID_C4_TWO_BINOMIAL_IDENTITY",
+  "ID_C5_MENTAL_MATH_APPLICATION",
+  "FAC_P1_MONOMIAL_FACTORS",
+  "FAC_C1_COMMON_FACTOR",
+  "FAC_C2_REGROUPING",
+  "FAC_C3_IDENTITY_BASED",
+  "FAC_C4_TRINOMIAL",
+  "FAC_C5_DIVISION_CHECK",
+  "EXP_P1_LAWS_OF_EXPONENTS",
+  "EXP_C1_NEGATIVE_EXPONENTS",
+  "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+  "RAT_P1_VARIABLES_IN_FRACTIONS",
+  "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
 ]);
 
 /** Rejected aliases — must never appear in the bank. */
@@ -125,6 +154,93 @@ function main() {
       }
     } catch {
       // generated bank optional
+    }
+    try {
+      const handcrafted = loadJson(HANDCRAFTED_PATH);
+      if (Array.isArray(handcrafted?.questions)) {
+        questionsFile.questions = [
+          ...(questionsFile.questions ?? []),
+          ...handcrafted.questions,
+        ];
+      }
+    } catch {
+      // handcrafted bank optional
+    }
+    try {
+      const identities = loadJson(IDENTITIES_PATH);
+      if (Array.isArray(identities?.questions)) {
+        questionsFile.questions = [
+          ...(questionsFile.questions ?? []),
+          ...identities.questions,
+        ];
+      }
+    } catch {
+      // mvp-6.0 algebraic identities bank optional
+    }
+    try {
+      const identitiesGenerated = loadJson(IDENTITIES_GENERATED_PATH);
+      if (Array.isArray(identitiesGenerated?.questions)) {
+        questionsFile.questions = [
+          ...(questionsFile.questions ?? []),
+          ...identitiesGenerated.questions,
+        ];
+      }
+    } catch {
+      // mvp-6.0 bulk-generated bank optional until scripts/generate-algebra-bank-v2.mjs runs
+    }
+    try {
+      const factorisation = loadJson(FACTORISATION_PATH);
+      if (Array.isArray(factorisation?.questions)) {
+        questionsFile.questions = [
+          ...(questionsFile.questions ?? []),
+          ...factorisation.questions,
+        ];
+      }
+    } catch {
+      // mvp-7.0 factorisation bank optional
+    }
+    try {
+      const factorisationGenerated = loadJson(FACTORISATION_GENERATED_PATH);
+      if (Array.isArray(factorisationGenerated?.questions)) {
+        questionsFile.questions = [
+          ...(questionsFile.questions ?? []),
+          ...factorisationGenerated.questions,
+        ];
+      }
+    } catch {
+      // mvp-7.0 bulk-generated bank optional until scripts/generate-factorisation-bank.mjs runs
+    }
+    try {
+      const exponents = loadJson(EXPONENTS_PATH);
+      if (Array.isArray(exponents?.questions)) {
+        questionsFile.questions = [...(questionsFile.questions ?? []), ...exponents.questions];
+      }
+    } catch {
+      // mvp-8.0 exponents bank optional
+    }
+    try {
+      const exponentsGenerated = loadJson(EXPONENTS_GENERATED_PATH);
+      if (Array.isArray(exponentsGenerated?.questions)) {
+        questionsFile.questions = [...(questionsFile.questions ?? []), ...exponentsGenerated.questions];
+      }
+    } catch {
+      // mvp-8.0 bulk-generated bank optional until scripts/generate-exponents-bank.mjs runs
+    }
+    try {
+      const rational = loadJson(RATIONAL_PATH);
+      if (Array.isArray(rational?.questions)) {
+        questionsFile.questions = [...(questionsFile.questions ?? []), ...rational.questions];
+      }
+    } catch {
+      // mvp-9.0 rational expressions bank optional
+    }
+    try {
+      const rationalGenerated = loadJson(RATIONAL_GENERATED_PATH);
+      if (Array.isArray(rationalGenerated?.questions)) {
+        questionsFile.questions = [...(questionsFile.questions ?? []), ...rationalGenerated.questions];
+      }
+    } catch {
+      // mvp-9.0 bulk-generated bank optional until scripts/generate-rational-bank.mjs runs
     }
     manifest = loadJson(MANIFEST_PATH);
   } catch (err) {

@@ -190,6 +190,15 @@ export class QuestionGeneratorService {
 
     if (candidates.length === 0) return null;
 
+    // Shuffle before scoring so ties (very common — most candidates for a given
+    // concept/difficulty score identically) don't always resolve to the same
+    // question. Array.sort is stable, so without this the DB's fixed row order
+    // would deterministically pick the same "top" candidate every time.
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+
     const ranked = candidates
       .map((q) => ({
         question: q,

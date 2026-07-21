@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { isClerkEnabled } from "@/components/clerk-parent-sign-in";
-import { clearParent, getParent } from "@/lib/session";
+import { clearParent, getParent, onParentChanged } from "@/lib/session";
 import type { ParentAuthInput } from "@/lib/parent-auth-headers";
 
 export type ParentDisplay = {
@@ -36,6 +36,7 @@ function DevParentAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setParent(getParent());
     setIsLoaded(true);
+    return onParentChanged(() => setParent(getParent()));
   }, []);
 
   const getAuth = useCallback(

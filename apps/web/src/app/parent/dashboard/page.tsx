@@ -81,6 +81,9 @@ export default function ParentDashboardPage() {
                 </p>
               )}
               <div className="actions" style={{ marginTop: "0.5rem" }}>
+                <Link href={`/parent/students/${s.id}`} className="btn btn-primary">
+                  View progress
+                </Link>
                 <Link href={`/parent/students/${s.id}/summary`} className="btn btn-secondary">
                   Session summary
                 </Link>

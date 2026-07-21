@@ -84,6 +84,52 @@ export function computeConfidenceCalibration(
   return "reasonably_calibrated";
 }
 
+/** Below this ratio of the student's own average pace, an answer counts as "fast" for confidence inference. */
+const FAST_PACE_RATIO = 0.7;
+/** Above this ratio, an answer counts as "slow" — one of several hesitation signals. */
+const SLOW_PACE_RATIO = 1.5;
+
+/**
+ * Passive confidence proxy from behavior already collected on every attempt
+ * — no prompt required. Research basis: response time carries substantial,
+ * partly-independent information about confidence/correctness (Type-2 ROC
+ * analysis on response time vs. confidence), and intelligent-tutoring-system
+ * "wheel-spinning" research treats time/hints/hesitation as a standard proxy
+ * for hidden affect state. Returns the same 1..5 scale as selfRatedConfidence
+ * so it can substitute directly wherever that field is consumed.
+ */
+export function inferConfidenceFromBehavior(input: {
+  totalTimeMs: number;
+  /** The student's own recent average totalTimeMs for comparable questions; null when there isn't enough history yet. */
+  studentAverageTimeMs: number | null;
+  hintCount: number;
+  answerChangedBeforeSubmit: boolean;
+}): number {
+  const hesitant = input.hintCount > 0 || input.answerChangedBeforeSubmit;
+
+  if (input.studentAverageTimeMs === null || input.studentAverageTimeMs <= 0) {
+    // No pace baseline yet — fall back to hint/edit signals only.
+    return hesitant ? 2 : 3;
+  }
+
+  const paceRatio = input.totalTimeMs / input.studentAverageTimeMs;
+
+  if (hesitant || paceRatio >= SLOW_PACE_RATIO) return 2;
+  if (paceRatio <= FAST_PACE_RATIO) return 5;
+  return 3;
+}
+
+/** Prefers a student's explicit rating; falls back to the passive proxy only when they never rated. Keeps computeConfidenceCalibration itself unchanged. */
+export function resolveConfidenceForCalibration(a: {
+  selfRatedConfidence: number | null;
+  inferredConfidence?: number | null;
+}): number | null {
+  if (a.selfRatedConfidence !== null && a.selfRatedConfidence !== undefined) {
+    return a.selfRatedConfidence;
+  }
+  return a.inferredConfidence ?? null;
+}
+
 export function computeHintDependence(
   attempts: Array<{ highestHintLevel: number; hintsAvailable: boolean }>,
 ): number {

@@ -19,8 +19,9 @@
 - **Created:** 2026-07-13
 - **Updated:** 2026-07-14
 - **MVP 1.0 status:** complete / archive
-- **MVP 2.0 status:** **pilot-ready (dev)** — engines/APIs/UI + 220 APPROVED bank + demo walkthrough + UI QA polish (hint ladder, child-safe/parent copy, access-code regenerate); human gates (checklist sign-off, pilot cohort, production Clerk keys) remain
+- **MVP 2.0 status:** **pilot-ready (dev)** — quiet-classroom UX (testUI-claude) + live agentic C-lite shadow/ContentVerifier + visibility docs; human gates (checklist, pilot cohort, Clerk keys) remain
 - **Spec status line:** `Canonical / Frozen` in [`docs/mvp-2.0/README.md`](../docs/mvp-2.0/README.md)
+- **Live agentic:** see [`COGNA/LIVE_AGENTIC_PLAN.md`](../COGNA/LIVE_AGENTIC_PLAN.md) — `LIVE_AGENTIC_GENERATE` / `LIVE_AGENTIC_SERVE_GENERATED` (shadow-first)
 - **Core goal:** pilot-ready personalization with full reviewed Linear Equations content, retention/revision v2, weekly reports, observability, and production auth path
 - **Foundation done:** shared enum migration (`RETENTION_REVIEW` | `TRANSFER_CHECK` | `BREAK_FOR_FATIGUE`), `*-v2` version strings, Prisma `db push` applied locally
 - **Engines done:** retention, velocity, error recovery, explanation effectiveness, fatigue, R14 alt-explanation gate, calibration-aware difficulty, item-stats refresh job

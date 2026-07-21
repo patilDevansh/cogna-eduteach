@@ -1,0 +1,2716 @@
+{
+  "questions": [
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_001",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "The temperature was 14°C in the morning and rose by 9°C by noon. What is the noon temperature, in °C?",
+      "acceptedAnswers": [
+        "23",
+        "23.0",
+        "x=23",
+        "x = 23"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "14 + 9 = 23"
+      ],
+      "hintLadder": [
+        "Rising means adding.",
+        "14 + 9 = 23"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_002",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A bookstore had 32 notebooks in stock. It sold 15 of them. How many notebooks are left?",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17",
+        "x = 17"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "32 - 15 = 17"
+      ],
+      "hintLadder": [
+        "Selling means the stock goes down.",
+        "32 - 15 = 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_003",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Riya had ₹45 in her piggy bank. Her mother gave her ₹18 more. How much does she have now?",
+      "acceptedAnswers": [
+        "63",
+        "63.0",
+        "x=63",
+        "x = 63"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "₹45 + ₹18 = ₹63"
+      ],
+      "hintLadder": [
+        "Getting more money means adding.",
+        "45 + 18 = 63"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_004",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A lift is on floor 6. It goes down 4 floors. Which floor is it on now?",
+      "acceptedAnswers": [
+        "2",
+        "2.0",
+        "x=2",
+        "x = 2"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "6 - 4 = 2"
+      ],
+      "hintLadder": [
+        "Going down means subtracting floors.",
+        "6 - 4 = 2"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_005",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A cricket team scored 87 runs in the first innings and 56 runs in the second innings. What was the total?",
+      "acceptedAnswers": [
+        "143",
+        "143.0",
+        "x=143",
+        "x = 143"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "87 + 56 = 143"
+      ],
+      "hintLadder": [
+        "Add the two innings scores.",
+        "87 + 56 = 143"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_006",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A car travelled 40 km in the morning and 17 km more in the evening. What was the total distance travelled?",
+      "acceptedAnswers": [
+        "57",
+        "57.0",
+        "x=57",
+        "x = 57"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "40 + 17 = 57"
+      ],
+      "hintLadder": [
+        "Add both legs of the trip.",
+        "40 + 17 = 57"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_007",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A shirt cost ₹63. During a sale, the price was reduced by ₹28. What is the new price?",
+      "acceptedAnswers": [
+        "35",
+        "35.0",
+        "x=35",
+        "x = 35"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "₹63 - ₹28 = ₹35"
+      ],
+      "hintLadder": [
+        "A reduction means subtracting.",
+        "63 - 28 = 35"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P1_INTEGER_ADD_SUB_008",
+      "conceptId": "P1_INTEGER_ADD_SUB",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A student read 25 pages of a book on Monday and 19 pages more on Tuesday. How many pages in total?",
+      "acceptedAnswers": [
+        "44",
+        "44.0",
+        "x=44",
+        "x = 44"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "25 + 19 = 44"
+      ],
+      "hintLadder": [
+        "Add the pages from both days.",
+        "25 + 19 = 44"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_009",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "The temperature was 8°C. It dropped by 15°C overnight. What is the new temperature (it may be below zero)?",
+      "acceptedAnswers": [
+        "-7",
+        "-7.0",
+        "x=-7",
+        "x = -7"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "8 - 15 = -7"
+      ],
+      "hintLadder": [
+        "A drop below the starting value can go negative.",
+        "8 - 15 = -7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_010",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Arjun's bank balance was ₹20. He spent ₹7. What is his new balance? (Use a negative number if he now owes money.)",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "₹20 - ₹7 = ₹13"
+      ],
+      "hintLadder": [
+        "Spending more than you have makes the balance negative.",
+        "20 - 7 = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_011",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A diver starts at the surface (0 m) and descends 12 m, then descends 19 m more. Write the diver's depth as a negative number.",
+      "acceptedAnswers": [
+        "-31",
+        "-31.0",
+        "x=-31",
+        "x = -31"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "Depth after both descents: -(12 + 19) = -31"
+      ],
+      "hintLadder": [
+        "Going deeper adds to the negative depth.",
+        "-12 - 19 = -31"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_012",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: 5 + (-5)",
+      "acceptedAnswers": [
+        "0",
+        "0.0",
+        "x=0",
+        "x = 0"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "5 + (-5) = 5 - 5 = 0"
+      ],
+      "hintLadder": [
+        "Adding a negative number is the same as subtracting.",
+        "5 - 5 = 0"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_013",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A submarine is at -30 m (below sea level). It rises 11 m. What is its new position?",
+      "acceptedAnswers": [
+        "-19",
+        "-19.0",
+        "x=-19",
+        "x = -19"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "-30 + 11 = -19"
+      ],
+      "hintLadder": [
+        "Rising moves the depth toward zero (or above it).",
+        "-30 + 11 = -19"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_014",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Meera owes ₹9. She borrows ₹22 more. Write the total amount she owes as a negative number.",
+      "acceptedAnswers": [
+        "-31",
+        "-31.0",
+        "x=-31",
+        "x = -31"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "-(9 + 22) = -31"
+      ],
+      "hintLadder": [
+        "Owing more money makes the negative number larger in size.",
+        "-9 - 22 = -31"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_015",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "In a quiz, each wrong answer costs 4 marks. A student had 17 marks and then answered one question wrong. What is the new score?",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "solutionSteps": [
+        "17 - 4 = 13"
+      ],
+      "hintLadder": [
+        "A penalty is subtracted from the score.",
+        "17 - 4 = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P2_NEGATIVE_OPS_016",
+      "conceptId": "P2_NEGATIVE_OPS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Compute: -6 + 18",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "ARITHMETIC_SLIP"
+      ],
+      "solutionSteps": [
+        "-6 + 18 = 12"
+      ],
+      "hintLadder": [
+        "Think of it as starting at -${m} and moving right by ${n}.",
+        "18 - 6 = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_017",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 3x + 5, what is the coefficient of x?",
+      "acceptedAnswers": [
+        "3"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 3x + 5: coefficient=3, variable=x, constant=5."
+      ],
+      "hintLadder": [
+        "The coefficient is the number multiplying the variable x.",
+        "Answer: 3"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "3",
+        "5",
+        "x"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_018",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 2y + 7, what is the constant term?",
+      "acceptedAnswers": [
+        "7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 2y + 7: coefficient=2, variable=y, constant=7."
+      ],
+      "hintLadder": [
+        "The constant term is the number with no variable attached.",
+        "Answer: 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "7",
+        "2",
+        "y"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_019",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 4m + 1, which letter is the variable?",
+      "acceptedAnswers": [
+        "m"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 4m + 1: coefficient=4, variable=m, constant=1."
+      ],
+      "hintLadder": [
+        "The variable is the letter standing for an unknown value.",
+        "Answer: m"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "m",
+        "4",
+        "1"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_020",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 5t + 3, what is the coefficient of t?",
+      "acceptedAnswers": [
+        "5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 5t + 3: coefficient=5, variable=t, constant=3."
+      ],
+      "hintLadder": [
+        "The coefficient is the number multiplying the variable t.",
+        "Answer: 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "5",
+        "3",
+        "t"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_021",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 6p + 9, what is the constant term?",
+      "acceptedAnswers": [
+        "9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 6p + 9: coefficient=6, variable=p, constant=9."
+      ],
+      "hintLadder": [
+        "The constant term is the number with no variable attached.",
+        "Answer: 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "9",
+        "6",
+        "p"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_022",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 7n + 2, which letter is the variable?",
+      "acceptedAnswers": [
+        "n"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 7n + 2: coefficient=7, variable=n, constant=2."
+      ],
+      "hintLadder": [
+        "The variable is the letter standing for an unknown value.",
+        "Answer: n"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "n",
+        "7",
+        "2"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_023",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 8z + 4, what is the coefficient of z?",
+      "acceptedAnswers": [
+        "8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 8z + 4: coefficient=8, variable=z, constant=4."
+      ],
+      "hintLadder": [
+        "The coefficient is the number multiplying the variable z.",
+        "Answer: 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "8",
+        "4",
+        "z"
+      ]
+    },
+    {
+      "id": "Q_HC_P3_VARIABLES_CONSTANTS_024",
+      "conceptId": "P3_VARIABLES_CONSTANTS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "In the expression 9k + 6, what is the constant term?",
+      "acceptedAnswers": [
+        "6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "In 9k + 6: coefficient=9, variable=k, constant=6."
+      ],
+      "hintLadder": [
+        "The constant term is the number with no variable attached.",
+        "Answer: 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "6",
+        "9",
+        "k"
+      ]
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_025",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A taxi charges a base fare of ₹2 plus ₹3 per km. If a trip is 5 km, what is the total fare? (Evaluate 3x + 2 for x = 5.)",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17",
+        "x = 17"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3(5) + 2 = 15 + 2 = 17"
+      ],
+      "hintLadder": [
+        "Substitute the distance for x, then multiply before adding.",
+        "3 × 5 = 15",
+        "Answer: 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_026",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Kabir already had ₹10 saved and adds ₹5 every week. After 4 weeks, how much has he saved in total? (Evaluate 5x + 10 for x = 4.)",
+      "acceptedAnswers": [
+        "30",
+        "30.0",
+        "x=30",
+        "x = 30"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5(4) + 10 = 20 + 10 = 30"
+      ],
+      "hintLadder": [
+        "Substitute the number of weeks for x, then multiply before adding.",
+        "5 × 4 = 20",
+        "Answer: 30"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_027",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A plant is 8 cm tall and grows 2 cm every week. How tall is it after 6 weeks? (Evaluate 2x + 8 for x = 6.)",
+      "acceptedAnswers": [
+        "20",
+        "20.0",
+        "x=20",
+        "x = 20"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(6) + 8 = 12 + 8 = 20"
+      ],
+      "hintLadder": [
+        "Substitute the number of weeks for x, then multiply before adding.",
+        "2 × 6 = 12",
+        "Answer: 20"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_028",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A student already read 3 pages and then reads 4 pages every day. How many pages in total after 7 days? (Evaluate 4x + 3 for x = 7.)",
+      "acceptedAnswers": [
+        "31",
+        "31.0",
+        "x=31",
+        "x = 31"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4(7) + 3 = 28 + 3 = 31"
+      ],
+      "hintLadder": [
+        "Substitute the number of days for x, then multiply before adding.",
+        "4 × 7 = 28",
+        "Answer: 31"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_029",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A taxi charges a base fare of ₹1 plus ₹6 per km. If a trip is 3 km, what is the total fare? (Evaluate 6x + 1 for x = 3.)",
+      "acceptedAnswers": [
+        "19",
+        "19.0",
+        "x=19",
+        "x = 19"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "6(3) + 1 = 18 + 1 = 19"
+      ],
+      "hintLadder": [
+        "Substitute the distance for x, then multiply before adding.",
+        "6 × 3 = 18",
+        "Answer: 19"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_030",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Kabir already had ₹15 saved and adds ₹3 every week. After 8 weeks, how much has he saved in total? (Evaluate 3x + 15 for x = 8.)",
+      "acceptedAnswers": [
+        "39",
+        "39.0",
+        "x=39",
+        "x = 39"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3(8) + 15 = 24 + 15 = 39"
+      ],
+      "hintLadder": [
+        "Substitute the number of weeks for x, then multiply before adding.",
+        "3 × 8 = 24",
+        "Answer: 39"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_031",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A plant is 4 cm tall and grows 2 cm every week. How tall is it after 9 weeks? (Evaluate 2x + 4 for x = 9.)",
+      "acceptedAnswers": [
+        "22",
+        "22.0",
+        "x=22",
+        "x = 22"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2(9) + 4 = 18 + 4 = 22"
+      ],
+      "hintLadder": [
+        "Substitute the number of weeks for x, then multiply before adding.",
+        "2 × 9 = 18",
+        "Answer: 22"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P4_SIMPLE_EXPRESSIONS_032",
+      "conceptId": "P4_SIMPLE_EXPRESSIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A student already read 2 pages and then reads 5 pages every day. How many pages in total after 4 days? (Evaluate 5x + 2 for x = 4.)",
+      "acceptedAnswers": [
+        "22",
+        "22.0",
+        "x=22",
+        "x = 22"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5(4) + 2 = 20 + 2 = 22"
+      ],
+      "hintLadder": [
+        "Substitute the number of days for x, then multiply before adding.",
+        "5 × 4 = 20",
+        "Answer: 22"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_P5_EQUALITY_BALANCE_033",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "A balance scale is level with equal weights on both sides. If you add 5 grams to the left side only, is the scale still balanced?",
+      "acceptedAnswers": [
+        "false"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: false"
+      ],
+      "hintLadder": [
+        "Balance means both sides change together.",
+        "Answer: false"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "true",
+        "false"
+      ]
+    },
+    {
+      "id": "Q_HC_P5_EQUALITY_BALANCE_034",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "An equation 3x = 12 is like a balanced scale. If you divide the left side by 3, what must you do to the right side to keep it balanced?",
+      "acceptedAnswers": [
+        "divide by 3"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: divide by 3"
+      ],
+      "hintLadder": [
+        "Whatever you do to one side, you must do to the other.",
+        "Answer: divide by 3"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "divide by 3",
+        "add 3",
+        "do nothing"
+      ]
+    },
+    {
+      "id": "Q_HC_P5_EQUALITY_BALANCE_035",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: you may add 6 to one side of an equation and add a different number to the other side, and the equation stays true.",
+      "acceptedAnswers": [
+        "false"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: false"
+      ],
+      "hintLadder": [
+        "Both sides must receive the exact same operation.",
+        "Answer: false"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "true",
+        "false"
+      ]
+    },
+    {
+      "id": "Q_HC_P5_EQUALITY_BALANCE_036",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: multiplying both sides of an equation by the same non-zero number keeps the equation true.",
+      "acceptedAnswers": [
+        "true"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "This is the multiplication property of equality.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "true",
+        "false"
+      ]
+    },
+    {
+      "id": "Q_HC_P5_EQUALITY_BALANCE_037",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "An equation x - 4 = 9 is like a balanced scale. What operation restores x by itself while keeping balance?",
+      "acceptedAnswers": [
+        "add 4 to both sides"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: add 4 to both sides"
+      ],
+      "hintLadder": [
+        "Undo subtraction with the opposite operation, on both sides.",
+        "Answer: add 4 to both sides"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "add 4 to both sides",
+        "subtract 4 from only the left",
+        "multiply both sides by 4"
+      ]
+    },
+    {
+      "id": "Q_HC_P5_EQUALITY_BALANCE_038",
+      "conceptId": "P5_EQUALITY_BALANCE",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "MCQ",
+      "stem": "True or false: an equation stays balanced if you subtract the same number from both sides.",
+      "acceptedAnswers": [
+        "true"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Correct answer: true"
+      ],
+      "hintLadder": [
+        "This is the subtraction property of equality.",
+        "Answer: true"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": [],
+      "options": [
+        "true",
+        "false"
+      ]
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_039",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "BASELINE_ASSESSMENT",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x + 7 = 16",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 7 from both sides: x = 16 - 7 = 9"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 16 - 7 = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_040",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number increased by 12 equals 18. What is the number?",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 12 from both sides: x = 18 - 12 = 6"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 18 - 12 = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_041",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "In 4 years, Aisha will be 25 years old. How old is she now? (Let x be her age now: x + 4 = 25.)",
+      "acceptedAnswers": [
+        "21",
+        "21.0",
+        "x=21",
+        "x = 21"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 4 from both sides: x = 25 - 4 = 21"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 25 - 4 = 21"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_042",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A jar has some marbles. After adding 15 more, it has 23 marbles. How many marbles were in the jar to start? (x + 15 = 23)",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 15 from both sides: x = 23 - 15 = 8"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 23 - 15 = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_043",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x + 9 = 23",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14",
+        "x = 14"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 9 from both sides: x = 23 - 9 = 14"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 23 - 9 = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_044",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x + 6 = 25",
+      "acceptedAnswers": [
+        "19",
+        "19.0",
+        "x=19",
+        "x = 19"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 6 from both sides: x = 25 - 6 = 19"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 25 - 6 = 19"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_045",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number increased by 11 equals 16. What is the number?",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 11 from both sides: x = 16 - 11 = 5"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 16 - 11 = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_046",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "In 3 years, Aisha will be 30 years old. How old is she now? (Let x be her age now: x + 3 = 30.)",
+      "acceptedAnswers": [
+        "27",
+        "27.0",
+        "x=27",
+        "x = 27"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 3 from both sides: x = 30 - 3 = 27"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 30 - 3 = 27"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_047",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A jar has some marbles. After adding 18 more, it has 22 marbles. How many marbles were in the jar to start? (x + 18 = 22)",
+      "acceptedAnswers": [
+        "4",
+        "4.0",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 18 from both sides: x = 22 - 18 = 4"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 22 - 18 = 4"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C1_ONE_STEP_ADDITION_048",
+      "conceptId": "C1_ONE_STEP_ADDITION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x + 8 = 24",
+      "acceptedAnswers": [
+        "16",
+        "16.0",
+        "x=16",
+        "x = 16"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Subtract 8 from both sides: x = 24 - 8 = 16"
+      ],
+      "hintLadder": [
+        "Undo the addition by subtracting from both sides.",
+        "x = 24 - 8 = 16"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_049",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x - 5 = 8",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 5 to both sides: x = 8 + 5 = 13"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 8 + 5 = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_050",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number decreased by 9 equals 13. What is the number?",
+      "acceptedAnswers": [
+        "22",
+        "22.0",
+        "x=22",
+        "x = 22"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 9 to both sides: x = 13 + 9 = 22"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 13 + 9 = 22"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_051",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "After spending ₹4, Zoya has ₹4 left. How much money did she start with? (x - 4 = 4)",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 4 to both sides: x = 4 + 4 = 8"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 4 + 4 = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_052",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A tank lost 11 litres of water and now has 6 litres left. How many litres did it start with? (x - 11 = 6)",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17",
+        "x = 17"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 11 to both sides: x = 6 + 11 = 17"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 6 + 11 = 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_053",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x - 6 = 24",
+      "acceptedAnswers": [
+        "30",
+        "30.0",
+        "x=30",
+        "x = 30"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 6 to both sides: x = 24 + 6 = 30"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 24 + 6 = 30"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_054",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x - 8 = 6",
+      "acceptedAnswers": [
+        "14",
+        "14.0",
+        "x=14",
+        "x = 14"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 8 to both sides: x = 6 + 8 = 14"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 6 + 8 = 14"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_055",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number decreased by 3 equals 22. What is the number?",
+      "acceptedAnswers": [
+        "25",
+        "25.0",
+        "x=25",
+        "x = 25"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 3 to both sides: x = 22 + 3 = 25"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 22 + 3 = 25"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_056",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "After spending ₹12, Zoya has ₹7 left. How much money did she start with? (x - 12 = 7)",
+      "acceptedAnswers": [
+        "19",
+        "19.0",
+        "x=19",
+        "x = 19"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 12 to both sides: x = 7 + 12 = 19"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 7 + 12 = 19"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_057",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A tank lost 7 litres of water and now has 14 litres left. How many litres did it start with? (x - 7 = 14)",
+      "acceptedAnswers": [
+        "21",
+        "21.0",
+        "x=21",
+        "x = 21"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 7 to both sides: x = 14 + 7 = 21"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 14 + 7 = 21"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C2_ONE_STEP_SUBTRACTION_058",
+      "conceptId": "C2_ONE_STEP_SUBTRACTION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x - 10 = 16",
+      "acceptedAnswers": [
+        "26",
+        "26.0",
+        "x=26",
+        "x = 26"
+      ],
+      "misconceptionsTested": [
+        "INVERSE_OPERATION"
+      ],
+      "solutionSteps": [
+        "Add 10 to both sides: x = 16 + 10 = 26"
+      ],
+      "hintLadder": [
+        "Undo the subtraction by adding to both sides.",
+        "x = 16 + 10 = 26"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_059",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 4x = 24",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 4: x = 24 ÷ 4 = 6"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 24 ÷ 4 = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_060",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Movie tickets cost ₹3 each. A group paid ₹27 in total. How many tickets did they buy? (3x = 27)",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 3: x = 27 ÷ 3 = 9"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 27 ÷ 3 = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_061",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A recipe uses 7 eggs per batch. A baker used 35 eggs in total. How many batches did she make? (7x = 35)",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 7: x = 35 ÷ 7 = 5"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 35 ÷ 7 = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_062",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 6x = 48",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 6: x = 48 ÷ 6 = 8"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 48 ÷ 6 = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_063",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A rope is cut into pieces of 5 m each, using 55 m of rope in total. How many pieces were made? (5x = 55)",
+      "acceptedAnswers": [
+        "11",
+        "11.0",
+        "x=11",
+        "x = 11"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 5: x = 55 ÷ 5 = 11"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 55 ÷ 5 = 11"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_064",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 8x = 32",
+      "acceptedAnswers": [
+        "4",
+        "4.0",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 8: x = 32 ÷ 8 = 4"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 32 ÷ 8 = 4"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_065",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Movie tickets cost ₹9 each. A group paid ₹63 in total. How many tickets did they buy? (9x = 63)",
+      "acceptedAnswers": [
+        "7",
+        "7.0",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 9: x = 63 ÷ 9 = 7"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 63 ÷ 9 = 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_066",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A recipe uses 2 eggs per batch. A baker used 30 eggs in total. How many batches did she make? (2x = 30)",
+      "acceptedAnswers": [
+        "15",
+        "15.0",
+        "x=15",
+        "x = 15"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 2: x = 30 ÷ 2 = 15"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 30 ÷ 2 = 15"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_067",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 12x = 36",
+      "acceptedAnswers": [
+        "3",
+        "3.0",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 12: x = 36 ÷ 12 = 3"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 36 ÷ 12 = 3"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C3_ONE_STEP_MULTIPLICATION_068",
+      "conceptId": "C3_ONE_STEP_MULTIPLICATION",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A rope is cut into pieces of 6 m each, using 78 m of rope in total. How many pieces were made? (6x = 78)",
+      "acceptedAnswers": [
+        "13",
+        "13.0",
+        "x=13",
+        "x = 13"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Divide both sides by 6: x = 78 ÷ 6 = 13"
+      ],
+      "hintLadder": [
+        "Undo the multiplication by dividing both sides.",
+        "x = 78 ÷ 6 = 13"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_069",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x/3 = 7",
+      "acceptedAnswers": [
+        "21",
+        "21.0",
+        "x=21",
+        "x = 21"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 3: x = 7 × 3 = 21"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 7 × 3 = 21"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_070",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A sum of money split equally among 4 friends gives each ₹6. How much was the total sum? (x/4 = 6)",
+      "acceptedAnswers": [
+        "24",
+        "24.0",
+        "x=24",
+        "x = 24"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 4: x = 6 × 4 = 24"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 6 × 4 = 24"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_071",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x/5 = 9",
+      "acceptedAnswers": [
+        "45",
+        "45.0",
+        "x=45",
+        "x = 45"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 5: x = 9 × 5 = 45"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 9 × 5 = 45"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_072",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A rope of length x metres is cut into 2 equal pieces, each 13 metres long. How long was the rope? (x/2 = 13)",
+      "acceptedAnswers": [
+        "26",
+        "26.0",
+        "x=26",
+        "x = 26"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 2: x = 13 × 2 = 26"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 13 × 2 = 26"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_073",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x/6 = 5",
+      "acceptedAnswers": [
+        "30",
+        "30.0",
+        "x=30",
+        "x = 30"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 6: x = 5 × 6 = 30"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 5 × 6 = 30"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_074",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A sum of money split equally among 3 friends gives each ₹11. How much was the total sum? (x/3 = 11)",
+      "acceptedAnswers": [
+        "33",
+        "33.0",
+        "x=33",
+        "x = 33"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 3: x = 11 × 3 = 33"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 11 × 3 = 33"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_075",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x/7 = 4",
+      "acceptedAnswers": [
+        "28",
+        "28.0",
+        "x=28",
+        "x = 28"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 7: x = 4 × 7 = 28"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 4 × 7 = 28"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_076",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A rope of length x metres is cut into 4 equal pieces, each 8 metres long. How long was the rope? (x/4 = 8)",
+      "acceptedAnswers": [
+        "32",
+        "32.0",
+        "x=32",
+        "x = 32"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 4: x = 8 × 4 = 32"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 8 × 4 = 32"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_077",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: x/5 = 6",
+      "acceptedAnswers": [
+        "30",
+        "30.0",
+        "x=30",
+        "x = 30"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 5: x = 6 × 5 = 30"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 6 × 5 = 30"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C4_ONE_STEP_DIVISION_078",
+      "conceptId": "C4_ONE_STEP_DIVISION",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A sum of money split equally among 8 friends gives each ₹3. How much was the total sum? (x/8 = 3)",
+      "acceptedAnswers": [
+        "24",
+        "24.0",
+        "x=24",
+        "x = 24"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Multiply both sides by 8: x = 3 × 8 = 24"
+      ],
+      "hintLadder": [
+        "Undo the division by multiplying both sides.",
+        "x = 3 × 8 = 24"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_079",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 2x + 5 = 21",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x = 21 - 5 = 16",
+        "x = 16 ÷ 2 = 8"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_080",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 3 and then decreased by 4, giving 14. Find the number.",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x = 14 + 4 = 18",
+        "x = 18 ÷ 3 = 6"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_081",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 4 and then increased by 7, giving 27. Find the number.",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4x = 27 - 7 = 20",
+        "x = 20 ÷ 4 = 5"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_082",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 5x - 9 = 26",
+      "acceptedAnswers": [
+        "7",
+        "7.0",
+        "x=7",
+        "x = 7"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x = 26 + 9 = 35",
+        "x = 35 ÷ 5 = 7"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 7"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_083",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Bus tickets cost ₹2 each, plus a fixed booking fee of ₹11. A family paid ₹29 in total. How many tickets did they buy? (2x + 11 = 29)",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x = 29 - 11 = 18",
+        "x = 18 ÷ 2 = 9"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_084",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 6 and then decreased by 3, giving 21. Find the number.",
+      "acceptedAnswers": [
+        "4",
+        "4.0",
+        "x=4",
+        "x = 4"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "6x = 21 + 3 = 24",
+        "x = 24 ÷ 6 = 4"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 4"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_085",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 3x + 8 = 38",
+      "acceptedAnswers": [
+        "10",
+        "10.0",
+        "x=10",
+        "x = 10"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x = 38 - 8 = 30",
+        "x = 30 ÷ 3 = 10"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_086",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 4 and then decreased by 6, giving 30. Find the number.",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "4x = 30 + 6 = 36",
+        "x = 36 ÷ 4 = 9"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_087",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 2 and then increased by 15, giving 27. Find the number.",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "2x = 27 - 15 = 12",
+        "x = 12 ÷ 2 = 6"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_088",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Solve for x: 5x + 4 = 44",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "5x = 44 - 4 = 40",
+        "x = 40 ÷ 5 = 8"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_089",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 3 and then decreased by 7, giving 29. Find the number.",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "3x = 29 + 7 = 36",
+        "x = 36 ÷ 3 = 12"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C5_TWO_STEP_EQUATIONS_090",
+      "conceptId": "C5_TWO_STEP_EQUATIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "A number is multiplied by 6 and then increased by 9, giving 39. Find the number.",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "6x = 39 - 9 = 30",
+        "x = 30 ÷ 6 = 5"
+      ],
+      "hintLadder": [
+        "Undo the addition/subtraction first, then the multiplication.",
+        "x = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_091",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "Three times a number, decreased by 4, is 11. Find the number.",
+      "acceptedAnswers": [
+        "5",
+        "5.0",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 3x - 4 = 11",
+        "3x = 11 + 4 = 15",
+        "x = 15 ÷ 3 = 5"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "3x - 4 = 11",
+        "x = 5"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_092",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A rectangle's length is twice its width, plus 3 cm. If the length is 15 cm, write and solve the equation for the width w.",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 2w + 3 = 15",
+        "2w = 15 - 3 = 12",
+        "w = 12 ÷ 2 = 6"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "2w + 3 = 15",
+        "w = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_093",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "Sanya is 3 years younger than twice her brother's age. Sanya is 15. How old is her brother?",
+      "acceptedAnswers": [
+        "9",
+        "9.0",
+        "x=9",
+        "x = 9"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 2x - 3 = 15",
+        "2x = 15 + 3 = 18",
+        "x = 18 ÷ 2 = 9"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "2x - 3 = 15",
+        "x = 9"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_094",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number multiplied by 4, then increased by 7, gives 39. What is the number?",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 4x + 7 = 39",
+        "4x = 39 - 7 = 32",
+        "x = 32 ÷ 4 = 8"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "4x + 7 = 39",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_095",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A group buys concert tickets at ₹120 each plus a ₹50 booking fee, paying ₹770 in total. How many tickets did they buy?",
+      "acceptedAnswers": [
+        "6",
+        "6.0",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 120x + 50 = 770",
+        "120x = 770 - 50 = 720",
+        "x = 720 ÷ 120 = 6"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "120x + 50 = 770",
+        "x = 6"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_096",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "The perimeter of a rectangle is 54 cm and its length is 15 cm. Using 2(15 + w) = 54, find the width w.",
+      "acceptedAnswers": [
+        "12",
+        "12.0",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 2w + 30 = 54",
+        "2w = 54 - 30 = 24",
+        "w = 24 ÷ 2 = 12"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "2w + 30 = 54",
+        "w = 12"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_097",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "Three consecutive whole numbers add up to 51. Find the smallest of the three numbers.",
+      "acceptedAnswers": [
+        "16",
+        "16.0",
+        "x=16",
+        "x = 16"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 3x + 3 = 51",
+        "3x = 51 - 3 = 48",
+        "x = 48 ÷ 3 = 16"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "3x + 3 = 51",
+        "x = 16"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_098",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "Kabir already had ₹95 saved and adds ₹40 every week. After how many weeks will he have ₹415?",
+      "acceptedAnswers": [
+        "8",
+        "8.0",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 40x + 95 = 415",
+        "40x = 415 - 95 = 320",
+        "x = 320 ÷ 40 = 8"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "40x + 95 = 415",
+        "x = 8"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_099",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A father's age is 5 times his son's age. Together their ages add up to 60. How old is the son?",
+      "acceptedAnswers": [
+        "10",
+        "10.0",
+        "x=10",
+        "x = 10"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 5x + 0 = 50",
+        "5x = 50 - 0 = 50",
+        "x = 50 ÷ 5 = 10"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "5x + 0 = 50",
+        "x = 10"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    },
+    {
+      "id": "Q_HC_C6_SIMPLE_WORD_PROBLEMS_100",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "WORD_PROBLEM",
+      "stem": "A number is doubled and then 9 is subtracted, giving 25. Find the original number.",
+      "acceptedAnswers": [
+        "17",
+        "17.0",
+        "x=17",
+        "x = 17"
+      ],
+      "misconceptionsTested": [],
+      "solutionSteps": [
+        "Equation: 2x - 9 = 25",
+        "2x = 25 + 9 = 34",
+        "x = 34 ÷ 2 = 17"
+      ],
+      "hintLadder": [
+        "Turn the words into an equation first.",
+        "2x - 9 = 25",
+        "x = 17"
+      ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1.2,
+      "prerequisiteConceptIds": []
+    }
+  ],
+  "generatedAt": "2026-07-14T08:52:45.369Z"
+}

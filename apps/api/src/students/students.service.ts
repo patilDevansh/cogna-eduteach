@@ -190,6 +190,68 @@ export class StudentsService {
     };
   }
 
+  /**
+   * Composes the student home screen in one call: what to do next, this
+   * week's momentum (for the calm dot row, never a streak-loss mechanic),
+   * and a one-line recap of the most recent finished session.
+   */
+  async getHomeSummary(studentId: string): Promise<{
+    studentId: string;
+    nextAction: { conceptId: string; reason: "revision" | "continue" } | null;
+    momentum: { sessionsCount: number; days: boolean[] };
+    recap: { conceptId: string | null; minutes: number; endedAt: string } | null;
+  }> {
+    await this.prisma.student.findUniqueOrThrow({ where: { id: studentId } });
+
+    const dueItem = await this.revisionService.findDue(studentId);
+    let nextConceptId: string | null = dueItem?.conceptId ?? null;
+    let nextReason: "revision" | "continue" = "revision";
+    if (!nextConceptId) {
+      const lastActive = await this.prisma.learningSession.findFirst({
+        where: { studentId, activeConceptId: { not: null } },
+        orderBy: { startedAt: "desc" },
+        select: { activeConceptId: true },
+      });
+      nextConceptId = lastActive?.activeConceptId ?? null;
+      nextReason = "continue";
+    }
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentSessions = await this.prisma.learningSession.findMany({
+      where: { studentId, startedAt: { gte: sevenDaysAgo } },
+      select: { startedAt: true, endedAt: true, activeConceptId: true },
+      orderBy: { startedAt: "desc" },
+    });
+
+    const practicedDayKeys = new Set(
+      recentSessions.map((s) => s.startedAt.toISOString().slice(0, 10)),
+    );
+    const days: boolean[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      days.push(practicedDayKeys.has(d.toISOString().slice(0, 10)));
+    }
+
+    const lastEnded = recentSessions.find((s) => s.endedAt);
+    const recap = lastEnded
+      ? {
+          conceptId: lastEnded.activeConceptId,
+          minutes: Math.max(
+            0,
+            Math.round((lastEnded.endedAt!.getTime() - lastEnded.startedAt.getTime()) / 60000),
+          ),
+          endedAt: lastEnded.endedAt!.toISOString(),
+        }
+      : null;
+
+    return {
+      studentId,
+      nextAction: nextConceptId ? { conceptId: nextConceptId, reason: nextReason } : null,
+      momentum: { sessionsCount: recentSessions.length, days },
+      recap,
+    };
+  }
+
   studentEmailAccountsStatus() {
     return {
       status: "not_available",

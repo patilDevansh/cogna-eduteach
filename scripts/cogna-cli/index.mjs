@@ -21,6 +21,10 @@ import * as fatigueBreak from "./scenarios/fatigue-break.mjs";
 import * as explanationEffectiveness from "./scenarios/explanation-effectiveness.mjs";
 import * as emailReportDelivery from "./scenarios/email-report-delivery.mjs";
 import * as contentApprovalGate from "./scenarios/content-approval-gate.mjs";
+import * as liveGenFallback from "./scenarios/live-gen-fallback.mjs";
+import * as liveGenTimeout from "./scenarios/live-gen-timeout.mjs";
+import * as liveGenInvalidJson from "./scenarios/live-gen-invalid-json.mjs";
+import * as parentAnalytics from "./scenarios/parent-analytics.mjs";
 
 const SCENARIOS = {
   [baseline12Slot.name]: baseline12Slot,
@@ -35,6 +39,10 @@ const SCENARIOS = {
   [explanationEffectiveness.name]: explanationEffectiveness,
   [emailReportDelivery.name]: emailReportDelivery,
   [contentApprovalGate.name]: contentApprovalGate,
+  [liveGenFallback.name]: liveGenFallback,
+  [liveGenTimeout.name]: liveGenTimeout,
+  [liveGenInvalidJson.name]: liveGenInvalidJson,
+  [parentAnalytics.name]: parentAnalytics,
 };
 
 const log = (step, msg) => console.log(`[${step}] ${msg}`);

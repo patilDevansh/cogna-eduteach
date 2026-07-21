@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Headers, NotFoundException, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
 import { AuthService, ParentsService } from "./parents.service";
+import { ParentAnalyticsService } from "./parent-analytics.service";
+import { clampWeeks } from "./parent-analytics.formulas";
 
 @Controller("auth")
 export class AuthController {
@@ -16,6 +18,7 @@ export class ParentsController {
   constructor(
     private readonly parents: ParentsService,
     private readonly auth: AuthService,
+    private readonly analytics: ParentAnalyticsService,
   ) {}
 
   @Post("dev/signup")
@@ -121,5 +124,73 @@ export class ParentsController {
       clerkEnabled: this.auth.clerkEnabled(),
       devSignupAvailable: !this.auth.clerkEnabled(),
     };
+  }
+
+  @Get("me/students/:studentId/mastery-trend")
+  async getMasteryTrend(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+    @Query("conceptId") conceptId?: string,
+    @Query("weeks") weeksParam?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    const weeks = clampWeeks(weeksParam, 6);
+    return this.analytics.getMasteryTrend(parentId, studentId, conceptId, weeks);
+  }
+
+  @Get("me/students/:studentId/concept-bands")
+  async getConceptBands(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.analytics.getConceptBands(parentId, studentId);
+  }
+
+  @Get("me/students/:studentId/practice-calendar")
+  async getPracticeCalendar(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+    @Query("weeks") weeksParam?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    const weeks = clampWeeks(weeksParam, 5);
+    return this.analytics.getPracticeCalendar(parentId, studentId, weeks);
+  }
+
+  @Get("me/students/:studentId/pattern-history")
+  async getPatternHistory(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+    @Query("weeks") weeksParam?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    const weeks = clampWeeks(weeksParam, 8);
+    return this.analytics.getPatternHistory(parentId, studentId, weeks);
+  }
+
+  @Get("me/students/:studentId/settings")
+  async getSafetySettings(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.analytics.getSafetySettings(parentId, studentId);
+  }
+
+  @Patch("me/students/:studentId/settings")
+  async updateSafetySettings(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+    @Body() body: { aiAssistedPracticePaused: boolean },
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.analytics.updateSafetySettings(parentId, studentId, body);
   }
 }

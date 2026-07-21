@@ -7,11 +7,21 @@
         "C2_ONE_STEP_SUBTRACTION",
         "C3_ONE_STEP_MULTIPLICATION",
         "C4_ONE_STEP_DIVISION",
-        "C5_TWO_STEP_EQUATIONS"
+        "C5_TWO_STEP_EQUATIONS",
+        "C7_VARIABLE_BOTH_SIDES",
+        "ID_C2_SQUARE_OF_DIFFERENCE",
+        "ID_C3_DIFFERENCE_OF_SQUARES",
+        "ID_C4_TWO_BINOMIAL_IDENTITY",
+        "FAC_C3_IDENTITY_BASED",
+        "FAC_C4_TRINOMIAL"
       ],
       "minimumMatchingAttempts": 2,
       "activationConfidence": 0.6,
-      "alternativeExplanations": ["ARITHMETIC_SLIP", "question_misread", "guessing"],
+      "alternativeExplanations": [
+        "ARITHMETIC_SLIP",
+        "question_misread",
+        "guessing"
+      ],
       "maxTargetedBeforeExplanation": 2,
       "maxExplanationCycles": 2,
       "resolutionConsecutiveCorrect": 2,
@@ -19,10 +29,19 @@
     },
     {
       "id": "EQUALITY_IMBALANCE",
-      "conceptIds": ["P5_EQUALITY_BALANCE", "C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION", "C4_ONE_STEP_DIVISION", "C5_TWO_STEP_EQUATIONS"],
+      "conceptIds": [
+        "P5_EQUALITY_BALANCE",
+        "C1_ONE_STEP_ADDITION",
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION",
+        "C4_ONE_STEP_DIVISION",
+        "C5_TWO_STEP_EQUATIONS"
+      ],
       "minimumMatchingAttempts": 2,
       "activationConfidence": 0.6,
-      "alternativeExplanations": ["question_misread"],
+      "alternativeExplanations": [
+        "question_misread"
+      ],
       "maxTargetedBeforeExplanation": 2,
       "maxExplanationCycles": 2,
       "resolutionConsecutiveCorrect": 2,
@@ -30,10 +49,17 @@
     },
     {
       "id": "INVERSE_OPERATION",
-      "conceptIds": ["C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION", "C4_ONE_STEP_DIVISION"],
+      "conceptIds": [
+        "C1_ONE_STEP_ADDITION",
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION",
+        "C4_ONE_STEP_DIVISION"
+      ],
       "minimumMatchingAttempts": 2,
       "activationConfidence": 0.6,
-      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "alternativeExplanations": [
+        "ARITHMETIC_SLIP"
+      ],
       "maxTargetedBeforeExplanation": 2,
       "maxExplanationCycles": 2,
       "resolutionConsecutiveCorrect": 2,
@@ -41,10 +67,24 @@
     },
     {
       "id": "ARITHMETIC_SLIP",
-      "conceptIds": ["P1_INTEGER_ADD_SUB", "P2_NEGATIVE_OPS", "C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION", "C4_ONE_STEP_DIVISION", "C5_TWO_STEP_EQUATIONS"],
+      "conceptIds": [
+        "P1_INTEGER_ADD_SUB",
+        "P2_NEGATIVE_OPS",
+        "C1_ONE_STEP_ADDITION",
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION",
+        "C4_ONE_STEP_DIVISION",
+        "C5_TWO_STEP_EQUATIONS",
+        "C7_VARIABLE_BOTH_SIDES",
+        "ID_C5_MENTAL_MATH_APPLICATION",
+        "FAC_C1_COMMON_FACTOR",
+        "FAC_C5_DIVISION_CHECK"
+      ],
       "minimumMatchingAttempts": 3,
       "activationConfidence": 0.55,
-      "alternativeExplanations": ["question_misread"],
+      "alternativeExplanations": [
+        "question_misread"
+      ],
       "maxTargetedBeforeExplanation": 2,
       "maxExplanationCycles": 2,
       "resolutionConsecutiveCorrect": 2,
@@ -52,10 +92,46 @@
     },
     {
       "id": "WORD_TO_EQUATION",
-      "conceptIds": ["C6_SIMPLE_WORD_PROBLEMS"],
+      "conceptIds": [
+        "C6_SIMPLE_WORD_PROBLEMS"
+      ],
       "minimumMatchingAttempts": 2,
       "activationConfidence": 0.6,
-      "alternativeExplanations": ["question_misread"],
+      "alternativeExplanations": [
+        "question_misread"
+      ],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "VARIABLE_COLLECTION_ERROR",
+      "conceptIds": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": [
+        "ARITHMETIC_SLIP",
+        "SIGN_HANDLING"
+      ],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "DENOMINATOR_CLEARING_ERROR",
+      "conceptIds": [
+        "C8_FRACTIONAL_COEFFICIENTS"
+      ],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": [
+        "ARITHMETIC_SLIP",
+        "SIGN_HANDLING"
+      ],
       "maxTargetedBeforeExplanation": 2,
       "maxExplanationCycles": 2,
       "resolutionConsecutiveCorrect": 2,

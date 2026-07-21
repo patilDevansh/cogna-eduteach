@@ -23,6 +23,11 @@ export class StudentsController {
     return this.students.getProfile(id);
   }
 
+  @Get(":id/home-summary")
+  getHomeSummary(@Param("id") id: string) {
+    return this.students.getHomeSummary(id);
+  }
+
   @Get(":id/mastery")
   getMastery(@Param("id") id: string): Promise<unknown> {
     return this.students.getMastery(id);

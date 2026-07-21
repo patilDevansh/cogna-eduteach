@@ -1,0 +1,272 @@
+{
+  "questions": [
+    {
+      "id": "Q_RAT_P1_D1_001",
+      "conceptId": "RAT_P1_VARIABLES_IN_FRACTIONS",
+      "difficulty": 1,
+      "stem": "Simplify: (6x) / 3",
+      "acceptedAnswers": [
+        "2x"
+      ],
+      "solutionSteps": [
+        "6x / 3 = 2x"
+      ],
+      "hintLadder": [
+        "Divide the coefficient 6 by 3.",
+        "2x."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_P1_D1_002",
+      "conceptId": "RAT_P1_VARIABLES_IN_FRACTIONS",
+      "difficulty": 1,
+      "stem": "Simplify: (10x) / (5x)",
+      "acceptedAnswers": [
+        "2"
+      ],
+      "solutionSteps": [
+        "The x's cancel (x is not 0)",
+        "10/5 = 2"
+      ],
+      "hintLadder": [
+        "The x on top and bottom cancel out.",
+        "10/5 = 2."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_P1_D2_001",
+      "conceptId": "RAT_P1_VARIABLES_IN_FRACTIONS",
+      "difficulty": 2,
+      "stem": "Simplify: (8x^2) / (4x)",
+      "acceptedAnswers": [
+        "2x"
+      ],
+      "solutionSteps": [
+        "8x^2 / 4x = 2x"
+      ],
+      "hintLadder": [
+        "Divide the numbers, then divide the x's (x^2/x = x).",
+        "2x."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_C1_D2_001",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "stem": "Simplify: (x^2 + 5x + 6) / (x + 2)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x+2)(x+3)/(x+2)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2+5x+6=(x+2)(x+3)",
+        "= x+3"
+      ],
+      "hintLadder": [
+        "Factor the numerator (and denominator, if needed) first.",
+        "Then cancel the common factor.",
+        "x+3."
+      ],
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR"
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_C1_D2_002",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "stem": "Simplify: (x^2 - 9) / (x + 3)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x+3)(x-3)/(x+3)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2-9=(x+3)(x-3)",
+        "= x-3"
+      ],
+      "hintLadder": [
+        "Factor the numerator (and denominator, if needed) first.",
+        "Then cancel the common factor.",
+        "x-3."
+      ],
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR"
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_C1_D3_001",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "stem": "Simplify: (x^2 + 7x + 10) / (x + 5)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x+5)(x+2)/(x+5)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2+7x+10=(x+5)(x+2)",
+        "= x+2"
+      ],
+      "hintLadder": [
+        "Factor the numerator (and denominator, if needed) first.",
+        "Then cancel the common factor.",
+        "x+2."
+      ],
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR"
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_C1_D3_002",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "stem": "Simplify: (3x^2 + 9x) / (3x)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "3x(x+3)/(3x)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "3x^2+9x=3x(x+3)",
+        "= x+3"
+      ],
+      "hintLadder": [
+        "Factor the numerator (and denominator, if needed) first.",
+        "Then cancel the common factor.",
+        "x+3."
+      ],
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR"
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    },
+    {
+      "id": "Q_RAT_C1_D3_003",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "stem": "Simplify: (x^2 - 4) / (x - 2)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x+2)(x-2)/(x-2)"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2-4=(x+2)(x-2)",
+        "= x+2"
+      ],
+      "hintLadder": [
+        "Factor the numerator (and denominator, if needed) first.",
+        "Then cancel the common factor.",
+        "x+2."
+      ],
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR"
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "rational-expressions"
+    }
+  ]
+}

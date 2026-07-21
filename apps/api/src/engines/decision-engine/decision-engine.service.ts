@@ -21,6 +21,12 @@ import {
 } from "../diagnostic-engine/diagnostic-formulas";
 import { ExperimentsService } from "../../experiments/experiments.service";
 import { CandidateScorerService } from "../candidate-scorer/candidate-scorer.service";
+import { QuestionRecommenderAgentService } from "../question-recommender/question-recommender-agent.service";
+import {
+  isQuestionRecommenderGenerateEnabled,
+  isQuestionRecommenderServeEnabled,
+  resolveServedSelection,
+} from "../question-recommender/question-recommender.formulas";
 
 export interface DecisionInput {
   session: LearningSession;
@@ -92,6 +98,7 @@ export class DecisionEngineService {
   constructor(
     private readonly experimentsService?: ExperimentsService,
     private readonly candidateScorer?: CandidateScorerService,
+    private readonly questionRecommender?: QuestionRecommenderAgentService,
   ) {}
 
   async decide(input: DecisionInput): Promise<LearningDecision> {
@@ -118,12 +125,14 @@ export class DecisionEngineService {
       experimentArm = input.experimentArm;
     }
 
-    // Check if we should use candidate scoring
+    // Candidate scoring is required for the question recommender (legal set).
+    // Open that path for experiments scored_v1 OR when AI recommend flags are on.
+    const aiRecommenderActive =
+      isQuestionRecommenderGenerateEnabled() || isQuestionRecommenderServeEnabled();
     const useScoring =
-      EXPERIMENTS_ENABLED &&
-      experimentArm === "scored_v1" &&
       this.candidateScorer &&
-      !input.shadow;
+      !input.shadow &&
+      ((EXPERIMENTS_ENABLED && experimentArm === "scored_v1") || aiRecommenderActive);
 
     if (useScoring) {
       return this.decideWithScoring(input, experimentKey, experimentArm);
@@ -538,17 +547,17 @@ export class DecisionEngineService {
   }
 
   /**
-   * MVP 3.0 — Candidate scoring decision path.
-   * Used when EXPERIMENTS_ENABLED && scored_v1 arm && not shadow.
+   * Candidate scoring decision path.
+   * Used for experiments scored_v1 and/or AI question recommender (GENERATE/SERVE).
    */
-  private decideWithScoring(
+  private async decideWithScoring(
     input: DecisionInput,
     experimentKey?: string,
     experimentArm?: string,
-  ): LearningDecision {
+  ): Promise<LearningDecision> {
     const { session } = input;
 
-    // Hard gates 1-2: always win, never scored
+    // Hard gates 1-2: always win, never scored / never overridden by AI
     const hardGate = this.checkHardGates(input);
     if (hardGate) {
       return this.decision(
@@ -595,20 +604,57 @@ export class DecisionEngineService {
       scoringContext,
     );
 
-    const selectedIndex = this.candidateScorer!.selectBest(scoredCandidates);
+    const ruleSelectedIndex = this.candidateScorer!.selectBest(scoredCandidates);
+    const serveEnabled = isQuestionRecommenderServeEnabled();
+
+    let aiSelectedIndex: number | null = null;
+    if (this.questionRecommender) {
+      if (serveEnabled) {
+        // Await so the student path can apply a served AI pick (still legal-set only).
+        const aiResult = await this.questionRecommender.evaluate(
+          session.studentId,
+          session.id,
+          scoredCandidates,
+          ruleSelectedIndex,
+        );
+        if (aiResult.served && aiResult.recommendation) {
+          aiSelectedIndex = aiResult.recommendation.selectedIndex;
+        }
+      } else {
+        // Shadow only — fire-and-forget; rules remain authoritative.
+        this.questionRecommender.evaluateInBackground(
+          session.studentId,
+          session.id,
+          scoredCandidates,
+          ruleSelectedIndex,
+        );
+      }
+    }
+
+    const { selectedIndex, source } = resolveServedSelection(
+      ruleSelectedIndex,
+      aiSelectedIndex,
+      serveEnabled,
+      scoredCandidates.length,
+    );
     const selected = scoredCandidates[selectedIndex];
 
     this.logger.log(
-      `Scored ${candidates.length} candidates; selected: ${selected.candidate.learningIntent} (score: ${selected.score.toFixed(3)})`,
+      `Scored ${candidates.length} candidates; selected: ${selected.candidate.learningIntent} ` +
+        `(score: ${selected.score.toFixed(3)}, source: ${source})`,
     );
 
-    // Convert selected candidate to LearningDecision
+    const reasoningPrefix =
+      source === "ai"
+        ? `AI re-rank (legal set): ${selected.candidate.legalityReason}`
+        : `Scored selection: ${selected.candidate.legalityReason}`;
+
     return this.decision(
       selected.candidate.uiAction,
       selected.candidate.learningIntent,
       selected.candidate.parameters,
       selected.score,
-      `Scored selection: ${selected.candidate.legalityReason}`,
+      reasoningPrefix,
       {
         explanationStyle: selected.candidate.contentStyle?.explanationStyle,
         questionFormat: selected.candidate.contentStyle?.questionFormat,

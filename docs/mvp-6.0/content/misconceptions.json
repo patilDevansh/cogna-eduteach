@@ -1,0 +1,32 @@
+{
+  "misconceptions": [
+    {
+      "id": "CONSTANT_ADDITION_ERROR",
+      "conceptIds": ["ID_C4_TWO_BINOMIAL_IDENTITY", "ID_C5_MENTAL_MATH_APPLICATION"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "MIDDLE_TERM_OMISSION",
+      "conceptIds": [
+        "ID_C1_SQUARE_OF_SUM",
+        "ID_C2_SQUARE_OF_DIFFERENCE",
+        "ID_C3_DIFFERENCE_OF_SQUARES",
+        "ID_C4_TWO_BINOMIAL_IDENTITY",
+        "ID_C5_MENTAL_MATH_APPLICATION"
+      ],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    }
+  ]
+}

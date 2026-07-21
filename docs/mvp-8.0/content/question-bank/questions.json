@@ -1,0 +1,433 @@
+{
+  "questions": [
+    {
+      "id": "Q_EXP_P1_D1_001",
+      "conceptId": "EXP_P1_LAWS_OF_EXPONENTS",
+      "difficulty": 1,
+      "stem": "Simplify: x^4 * x^3",
+      "acceptedAnswers": [
+        "x^7"
+      ],
+      "misconceptionsTested": [
+        "EXPONENT_LAW_MISAPPLICATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+          "answers": [
+            "x^12"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a^m * a^n = a^(m+n)",
+        "x^(4+3) = x^7"
+      ],
+      "hintLadder": [
+        "When multiplying the same base, ADD the exponents.",
+        "4 + 3 = 7.",
+        "x^7."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_P1_D2_001",
+      "conceptId": "EXP_P1_LAWS_OF_EXPONENTS",
+      "difficulty": 2,
+      "stem": "Simplify: x^7 / x^3",
+      "acceptedAnswers": [
+        "x^4"
+      ],
+      "misconceptionsTested": [
+        "EXPONENT_LAW_MISAPPLICATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+          "answers": [
+            "x^-4",
+            "1/x^4"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a^m / a^n = a^(m-n)",
+        "x^(7-3) = x^4"
+      ],
+      "hintLadder": [
+        "When dividing the same base, SUBTRACT the exponents (top minus bottom).",
+        "7 - 3 = 4.",
+        "x^4."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_P1_D2_002",
+      "conceptId": "EXP_P1_LAWS_OF_EXPONENTS",
+      "difficulty": 2,
+      "stem": "Simplify: (x^3)^4",
+      "acceptedAnswers": [
+        "x^12"
+      ],
+      "misconceptionsTested": [
+        "EXPONENT_LAW_MISAPPLICATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+          "answers": [
+            "x^7"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(a^m)^n = a^(mn)",
+        "x^(3*4) = x^12"
+      ],
+      "hintLadder": [
+        "When raising a power to a power, MULTIPLY the exponents.",
+        "3 x 4 = 12.",
+        "x^12."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C1_D1_001",
+      "conceptId": "EXP_C1_NEGATIVE_EXPONENTS",
+      "difficulty": 1,
+      "stem": "Write with a positive exponent: x^-3",
+      "acceptedAnswers": [
+        "1/x^3"
+      ],
+      "misconceptionsTested": [
+        "NEGATIVE_EXPONENT_SIGN_FLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+          "answers": [
+            "-x^3"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a^-n = 1/a^n",
+        "x^-3 = 1/x^3"
+      ],
+      "hintLadder": [
+        "A negative exponent means 'reciprocal', not 'negative number'.",
+        "x^-3 = 1/x^3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C1_D1_002",
+      "conceptId": "EXP_C1_NEGATIVE_EXPONENTS",
+      "difficulty": 1,
+      "stem": "Evaluate: 2^-3",
+      "acceptedAnswers": [
+        "1/8"
+      ],
+      "misconceptionsTested": [
+        "NEGATIVE_EXPONENT_SIGN_FLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+          "answers": [
+            "-8"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "2^-3 = 1/2^3 = 1/8"
+      ],
+      "hintLadder": [
+        "2^-3 means 1 over 2^3.",
+        "2^3 = 8, so the answer is 1/8."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C1_D2_001",
+      "conceptId": "EXP_C1_NEGATIVE_EXPONENTS",
+      "difficulty": 2,
+      "stem": "Write with a positive exponent: 5x^-4",
+      "acceptedAnswers": [
+        "5/x^4"
+      ],
+      "misconceptionsTested": [
+        "NEGATIVE_EXPONENT_SIGN_FLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+          "answers": [
+            "-5x^4"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Only the x^-4 part flips \u2014 the 5 is not affected",
+        "5x^-4 = 5/x^4"
+      ],
+      "hintLadder": [
+        "Only the base with the negative exponent flips to a fraction \u2014 the 5 stays where it is.",
+        "5/x^4."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C2_D2_001",
+      "conceptId": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "difficulty": 2,
+      "stem": "Simplify: (x^3 * x^5) / x^2",
+      "acceptedAnswers": [
+        "x^6"
+      ],
+      "misconceptionsTested": [
+        "EXPONENT_LAW_MISAPPLICATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+          "answers": [
+            "x^8"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^3 * x^5 = x^8",
+        "x^8 / x^2 = x^6"
+      ],
+      "hintLadder": [
+        "First combine the top: 3+5=8.",
+        "Then subtract the bottom's exponent: 8-2=6.",
+        "x^6."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C2_D3_001",
+      "conceptId": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "difficulty": 3,
+      "stem": "Simplify: (x^4)^2 / x^3",
+      "acceptedAnswers": [
+        "x^5"
+      ],
+      "misconceptionsTested": [
+        "EXPONENT_LAW_MISAPPLICATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+          "answers": [
+            "x^3"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(x^4)^2 = x^8",
+        "x^8 / x^3 = x^5"
+      ],
+      "hintLadder": [
+        "First apply the power rule: 4x2=8.",
+        "Then subtract: 8-3=5.",
+        "x^5."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C2_D3_002",
+      "conceptId": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "difficulty": 3,
+      "stem": "Simplify: x^6 / x^-2",
+      "acceptedAnswers": [
+        "x^8"
+      ],
+      "misconceptionsTested": [
+        "NEGATIVE_EXPONENT_SIGN_FLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+          "answers": [
+            "x^4"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^6 / x^-2 = x^(6-(-2))",
+        "= x^8"
+      ],
+      "hintLadder": [
+        "Subtracting a negative exponent is the same as adding.",
+        "6 - (-2) = 8.",
+        "x^8."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C2_D3_003",
+      "conceptId": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "difficulty": 3,
+      "stem": "Simplify: x^2 * x^-5",
+      "acceptedAnswers": [
+        "1/x^3",
+        "x^-3"
+      ],
+      "misconceptionsTested": [
+        "NEGATIVE_EXPONENT_SIGN_FLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+          "answers": [
+            "x^3"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2 * x^-5 = x^(2-5) = x^-3",
+        "= 1/x^3"
+      ],
+      "hintLadder": [
+        "Add the exponents: 2 + (-5) = -3.",
+        "x^-3 = 1/x^3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C2_D4_001",
+      "conceptId": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "difficulty": 4,
+      "stem": "Simplify: (x^-3)^-2",
+      "acceptedAnswers": [
+        "x^6"
+      ],
+      "misconceptionsTested": [
+        "EXPONENT_LAW_MISAPPLICATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+          "answers": [
+            "x^-5"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(x^-3)^-2 = x^((-3)*(-2))",
+        "= x^6"
+      ],
+      "hintLadder": [
+        "Multiply the exponents, keeping track of signs.",
+        "(-3) x (-2) = 6.",
+        "x^6."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    },
+    {
+      "id": "Q_EXP_C2_D4_002",
+      "conceptId": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "difficulty": 4,
+      "stem": "Simplify: (x^2 * x^4) / x^-1",
+      "acceptedAnswers": [
+        "x^7"
+      ],
+      "misconceptionsTested": [
+        "NEGATIVE_EXPONENT_SIGN_FLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+          "answers": [
+            "x^5"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x^2 * x^4 = x^6",
+        "x^6 / x^-1 = x^(6-(-1)) = x^7"
+      ],
+      "hintLadder": [
+        "Combine the top first: 2+4=6.",
+        "Dividing by x^-1 means subtracting -1, which adds 1.",
+        "6 - (-1) = 7."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "exponents-algebra"
+    }
+  ]
+}

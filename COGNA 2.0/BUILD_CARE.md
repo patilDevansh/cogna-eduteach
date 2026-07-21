@@ -94,3 +94,8 @@
 - [x] ~~Enforced: confidence-calibration-aware difficulty~~
 - [x] ~~Enforced: practice POSTs that require `@IsISO8601()` `clientTimestamp` (`answer`, `skip`, `explanation-viewed`) must send `new Date().toISOString()` — web `api.ts` defaults for `explanationViewed` + `requestHint` so Continue after explanation cannot omit it~~
 - [x] ~~Enforced: parent API auth — Clerk Bearer via `buildParentAuthHeaders` when session exists; dev `X-Parent-Id` from `getParent()` when no publishable key; do not add Clerk middleware that blocks dev without keys~~
+- Never set `LIVE_AGENTIC_SERVE_GENERATED=true` until shadow metrics pass (`COGNA/LIVE_AGENTIC_PLAN.md`)
+- Never set `AI_QUESTION_RECOMMENDER_SERVE=true` without also setting `AI_QUESTION_RECOMMENDER_GENERATE=true` (orchestrator only calls when GENERATE is on); SERVE alone is a no-op
+- AI question recommender may only re-rank inside the legal scored-candidate set; hard gates still win first; timeout/fail → rules
+- ContentVerifier must stay on for generated paths; timeout → bank; prompts must not include student names/emails (`COGNA/PRIVACY_AND_DATA.md`)
+- Student UI copy through `toStudentSafeText` / `childSafeReasoning` — no raw concept IDs on screen

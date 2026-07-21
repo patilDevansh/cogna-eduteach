@@ -1,0 +1,67 @@
+{
+  "concepts": [
+    {
+      "id": "ID_P1_TERM_BASICS",
+      "name": "Combining like terms in expressions",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 19,
+      "prerequisites": ["P3_VARIABLES_CONSTANTS"]
+    },
+    {
+      "id": "ID_P2_BINOMIAL_MULTIPLICATION",
+      "name": "Multiplying two binomials",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 20,
+      "prerequisites": ["ID_P1_TERM_BASICS"]
+    },
+    {
+      "id": "ID_C1_SQUARE_OF_SUM",
+      "name": "The (a+b)^2 identity",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 21,
+      "prerequisites": ["ID_P2_BINOMIAL_MULTIPLICATION"]
+    },
+    {
+      "id": "ID_C2_SQUARE_OF_DIFFERENCE",
+      "name": "The (a-b)^2 identity",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 22,
+      "prerequisites": ["ID_P2_BINOMIAL_MULTIPLICATION"]
+    },
+    {
+      "id": "ID_C3_DIFFERENCE_OF_SQUARES",
+      "name": "The (a+b)(a-b) identity",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 23,
+      "prerequisites": ["ID_P2_BINOMIAL_MULTIPLICATION"]
+    },
+    {
+      "id": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "name": "The (x+a)(x+b) identity",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 5,
+      "sortOrder": 24,
+      "prerequisites": ["ID_C1_SQUARE_OF_SUM", "ID_C2_SQUARE_OF_DIFFERENCE", "ID_C3_DIFFERENCE_OF_SQUARES"]
+    },
+    {
+      "id": "ID_C5_MENTAL_MATH_APPLICATION",
+      "name": "Using identities for quick computation",
+      "kind": "CORE",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 4,
+      "sortOrder": 25,
+      "prerequisites": ["ID_C1_SQUARE_OF_SUM", "ID_C2_SQUARE_OF_DIFFERENCE", "ID_C3_DIFFERENCE_OF_SQUARES", "ID_C4_TWO_BINOMIAL_IDENTITY"]
+    }
+  ]
+}

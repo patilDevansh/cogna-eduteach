@@ -1,0 +1,97 @@
+.stage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-5);
+}
+
+.chrome {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-2) 0 var(--s-6);
+}
+
+/* ---------- student (phone-proportioned, access code only) ---------- */
+.studentCard {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(1.5rem, 5vw, 2.25rem);
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.pathArt {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-2) 0;
+}
+.pathArt svg { width: 120px; height: 46px; }
+
+.loginHead { text-align: center; }
+.loginHead h1 { font-size: var(--text-xl); }
+.loginHead p { color: var(--ink-soft); font-size: var(--text-sm); margin-top: var(--s-2); }
+
+.codeField { display: flex; flex-direction: column; gap: var(--s-2); }
+.codeInput {
+  font-family: var(--font-math);
+  font-size: var(--text-xl);
+  letter-spacing: 0.35em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.helperLine { text-align: center; font-size: var(--text-xs); color: var(--ink-faint); }
+
+/* ---------- parent (letter-proportioned, account entry) ---------- */
+.parentWrap { width: 100%; max-width: 420px; margin: auto 0; }
+.parentCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(1.75rem, 5vw, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.parentHead h1 { font-size: var(--text-xl); }
+.parentHead p { color: var(--ink-soft); font-size: var(--text-sm); margin-top: var(--s-2); line-height: 1.5; }
+
+.trustLine {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  background: var(--accent-wash);
+  border-radius: var(--radius);
+  padding: var(--s-4);
+}
+.trustLine svg { flex-shrink: 0; margin-top: 2px; color: var(--accent-deep); }
+.trustLine p { font-size: var(--text-xs); color: var(--accent-deep); line-height: 1.5; margin: 0; }
+
+.dividerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+}
+.dividerRow::before, .dividerRow::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+.switchLine { text-align: center; font-size: var(--text-sm); color: var(--ink-soft); }
+.switchLine a { color: var(--accent-deep); font-weight: 700; text-decoration: none; }
+.switchLine a:hover { text-decoration: underline; }
+
+@media (max-width: 460px) {
+  .studentCard, .parentCard { padding: var(--s-5); }
+}

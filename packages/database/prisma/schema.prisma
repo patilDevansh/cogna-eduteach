@@ -211,6 +211,9 @@ model Student {
   accessCodeHash  String
   deletedAt       DateTime?
 
+  /** Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags. */
+  aiAssistedPracticePaused Boolean @default(false)
+
   learnerProfile      LearnerProfile?
   sessions            LearningSession[]
   attempts            Attempt[]
@@ -218,6 +221,7 @@ model Student {
   masteryHistory      MasteryHistory[]
   diagnosticFactors   DiagnosticFactor[]
   remediationStates   MisconceptionRemediationState[]
+  remediationHistory  MisconceptionRemediationStateHistory[]
   learningDecisions   LearningDecision[]
   revisionItems       RevisionQueueItem[]
   reports             Report[]
@@ -383,6 +387,8 @@ model Attempt {
   hintCount                 Int
   highestHintLevel          Int
   selfRatedConfidence       Int?
+  /** Passive behavioral proxy (response time vs the student's own pace, hints, answer changes) — computed for every attempt, used only when selfRatedConfidence is null. */
+  inferredConfidence        Float?
   answerChangedBeforeSubmit Boolean
   processingStatus          ProcessingStatus @default(GRADED)
   storedResponse            Json?
@@ -455,6 +461,22 @@ model MisconceptionRemediationState {
   updatedAt             DateTime         @updatedAt
 
   @@id([studentId, misconceptionId, conceptId])
+}
+
+/** Insert-only transition log for MisconceptionRemediationState — the current-state
+ * table above is overwritten in place, so this is the only source for a
+ * multi-week "checking vs resolved" pattern-history timeline. */
+model MisconceptionRemediationStateHistory {
+  id              String            @id @default(cuid())
+  studentId       String
+  student         Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  misconceptionId String
+  conceptId       String
+  fromState       RemediationState?
+  toState         RemediationState
+  createdAt       DateTime          @default(now())
+
+  @@index([studentId, misconceptionId, conceptId, createdAt])
 }
 
 model LearnerProfile {
@@ -863,4 +885,26 @@ model SafetyEval {
   policyVersions PolicyVersion[]
 
   @@index([policyVersion])
+}
+
+/** Shared audit trail for every AI Orchestrator call, across all agents
+ * (student analysis, and future break/question/practice recommenders).
+ * `served` is only ever true when the capability's own SERVE flag is on —
+ * see AiOrchestratorService. This is the dataset that later replaces the
+ * hardcoded SafetyEval/PolicyEngine stubs with real evaluation. */
+model AiDecisionAuditLog {
+  id            String   @id @default(cuid())
+  capability    String // e.g. "STUDENT_ANALYSIS"
+  studentId     String
+  sessionId     String?
+  model         String?
+  ruleOutput    Json
+  aiOutput      Json?
+  served        Boolean  @default(false)
+  passed        Boolean  @default(false)
+  failureReason String?
+  latencyMs     Int
+  createdAt     DateTime @default(now())
+
+  @@index([capability, studentId, createdAt])
 }

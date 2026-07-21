@@ -1,0 +1,26 @@
+{
+  "misconceptions": [
+    {
+      "id": "EXPONENT_LAW_MISAPPLICATION",
+      "conceptIds": ["EXP_P1_LAWS_OF_EXPONENTS", "EXP_C2_EXPONENTS_IN_SIMPLIFICATION"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "NEGATIVE_EXPONENT_SIGN_FLIP",
+      "conceptIds": ["EXP_C1_NEGATIVE_EXPONENTS", "EXP_C2_EXPONENTS_IN_SIMPLIFICATION"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    }
+  ]
+}

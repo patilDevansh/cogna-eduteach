@@ -39,6 +39,106 @@
       "checkForUnderstanding": "How do you write 'seven less than a number' as an expression?",
       "reviewStatus": "PENDING_REVIEW",
       "version": 1
+    },
+    {
+      "id": "EXP_C7_VARIABLE_COLLECTION_STEP_V1",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "misconceptionId": "VARIABLE_COLLECTION_ERROR",
+      "style": "STEP_BY_STEP",
+      "content": "When x appears on both sides, move one x term across the equals sign the same way you'd move a number: change its sign. From 5x + 3 = 2x + 12, moving 2x to the left makes it -2x, giving 5x - 2x + 3 = 12, not 5x + 2x.",
+      "checkForUnderstanding": "If you move 2x from the right side to the left side, what sign does it get?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_C7_SIGN_HANDLING_STEP_V1",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "misconceptionId": "SIGN_HANDLING",
+      "style": "STEP_BY_STEP",
+      "content": "Move every term across the equals sign one at a time, and flip its sign each time it crosses. From 8 - 3x = 2x - 7, the -3x becomes +3x on the right, and the -7 becomes +7 on the left.",
+      "checkForUnderstanding": "If -3x crosses the equals sign, what does it become?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_ID_C4_CONSTANT_ADDITION_STEP_V1",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "misconceptionId": "CONSTANT_ADDITION_ERROR",
+      "style": "STEP_BY_STEP",
+      "content": "In (x+a)(x+b) = x^2 + (a+b)x + ab, the middle term ADDS a and b, but the last term MULTIPLIES them. For (x+3)(x+5), the middle term is 3+5=8, but the last term is 3x5=15, not 3+5=8 again.",
+      "checkForUnderstanding": "In (x+3)(x+5), is the last term 3+5 or 3×5?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_ID_MIDDLE_TERM_OMISSION_STEP_V1",
+      "conceptId": "ID_C1_SQUARE_OF_SUM",
+      "misconceptionId": "MIDDLE_TERM_OMISSION",
+      "style": "STEP_BY_STEP",
+      "content": "(a+b)^2 has three terms, not two: a^2 + 2ab + b^2. Squaring (x+4) is not the same as squaring x and squaring 4 separately and stopping there — the middle term 2ab is real and easy to drop by accident.",
+      "checkForUnderstanding": "How many terms does the fully expanded (a+b)^2 have?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_FAC_C4_WRONG_FACTOR_PAIR_STEP_V1",
+      "conceptId": "FAC_C4_TRINOMIAL",
+      "misconceptionId": "WRONG_FACTOR_PAIR",
+      "style": "STEP_BY_STEP",
+      "content": "To factorise x^2+8x+15, you need a pair of numbers that BOTH multiply to 15 AND add to 8. 1 and 15 multiply to 15, but add to 16 — that pair doesn't work even though the product is right. Only 3 and 5 satisfy both conditions.",
+      "checkForUnderstanding": "For x^2+8x+15, do the numbers 1 and 15 add up to 8?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_FAC_C1_INCOMPLETE_EXTRACTION_STEP_V1",
+      "conceptId": "FAC_C1_COMMON_FACTOR",
+      "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+      "style": "STEP_BY_STEP",
+      "content": "Pull out the FULL greatest common factor, not just part of it. For 8x^2 + 12x, the GCF is 4x — pulling out only x (leaving 8x+12 inside) or only 4 (leaving 2x^2+3x inside) is not fully factorised.",
+      "checkForUnderstanding": "For 8x^2 + 12x, is the full GCF just x, just 4, or 4x?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_FAC_C2_INCOMPLETE_REGROUPING_STEP_V1",
+      "conceptId": "FAC_C2_REGROUPING",
+      "misconceptionId": "INCOMPLETE_REGROUPING",
+      "style": "STEP_BY_STEP",
+      "content": "Regrouping isn't finished until both pairs share the exact same bracket. In xy + 3x + 2y + 6, grouping gives x(y+3) + 2(y+3) — since (y+3) matches on both sides, you can pull it out one more time to get (x+2)(y+3).",
+      "checkForUnderstanding": "In x(y+3) + 2(y+3), what do both terms have in common that can be pulled out?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_C8_DENOMINATOR_CLEARING_STEP_V1",
+      "conceptId": "C8_FRACTIONAL_COEFFICIENTS",
+      "misconceptionId": "DENOMINATOR_CLEARING_ERROR",
+      "style": "STEP_BY_STEP",
+      "content": "When you multiply both sides by the LCD to clear fractions, EVERY term gets multiplied — including a standalone number with no fraction under it. In (x+1)/2 = (x-1)/3 + 1, the '+1' at the end must also be multiplied by 6, becoming +6.",
+      "checkForUnderstanding": "If you multiply both sides by 6, does the standalone '+1' also get multiplied?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_EXPONENT_LAW_MISAPPLICATION_STEP_V1",
+      "conceptId": "EXP_P1_LAWS_OF_EXPONENTS",
+      "misconceptionId": "EXPONENT_LAW_MISAPPLICATION",
+      "style": "STEP_BY_STEP",
+      "content": "Multiplying same-base powers ADDS the exponents (x^4 * x^3 = x^7); raising a power to a power MULTIPLIES them ((x^3)^4 = x^12). These are different rules for different situations — mixing them up is the single most common exponent mistake.",
+      "checkForUnderstanding": "For x^4 * x^3, do you add or multiply the exponents 4 and 3?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
+    },
+    {
+      "id": "EXP_NEGATIVE_EXPONENT_SIGN_FLIP_STEP_V1",
+      "conceptId": "EXP_C1_NEGATIVE_EXPONENTS",
+      "misconceptionId": "NEGATIVE_EXPONENT_SIGN_FLIP",
+      "style": "STEP_BY_STEP",
+      "content": "A negative exponent means 'take the reciprocal', not 'make the value negative'. x^-3 = 1/x^3, a small positive number — it is never -x^3.",
+      "checkForUnderstanding": "Is x^-3 a negative number or a small positive fraction?",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1
     }
   ]
 }

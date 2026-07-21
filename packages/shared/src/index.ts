@@ -3,6 +3,7 @@ export * from "./contracts/versions";
 export * from "./contracts/learning-decision";
 export * from "./contracts/events";
 export * from "./contracts/baseline-blueprint";
+export * from "./contracts/payload-shapes";
 // MVP 3.0
 export * from "./contracts/experiments";
 export * from "./contracts/content-drafts";
@@ -13,6 +14,16 @@ export * from "./contracts/curriculum";
 export * from "./contracts/modality";
 export * from "./contracts/policy";
 export * from "./contracts/safety-eval";
+// Parent analytics dashboard
+export * from "./contracts/analytics";
+// AI Orchestrator — shadow-mode agents
+export * from "./contracts/student-analysis";
+export * from "./contracts/break-advisor";
+export * from "./contracts/question-recommender";
+export * from "./contracts/practice-recommender";
+// Voice / safe text
+export * from "./voice/forbidden-terms";
+export * from "./voice/safe-text";
 
 export interface AttemptSignals {
   isCorrect: boolean | null;
