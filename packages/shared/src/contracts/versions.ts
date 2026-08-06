@@ -125,3 +125,8 @@ export const EVIDENCE_POLICY_MICROSKILL_V1 = "evidence-policy-microskill-v1";
 // sees it. Versioned separately from the step verifier because loosening a
 // gate is a product decision that must be visible in the audit trail.
 export const AUTHORED_ITEM_GATE_V1 = "authored-item-gate-v1";
+
+// Phase B1 — fraction-linear clearing verifier. Separate from
+// STEP_VERIFICATION_RULES_V1 so changing clearing localization does not
+// silently rewrite the negative-distribution audit trail.
+export const STEP_VERIFICATION_RULES_FRACTION_V1 = "step-verification-rules-fraction-v1";

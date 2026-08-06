@@ -1,7 +1,7 @@
 # Cogna MVP 9.0.1 — Skipped
 
-> Living log for MVP 9.0.1 (Phase A, micro-skill step diagnostic) deferrals. Do not silently drop scope.
-> Plan: [`BUILD_PLAN.md`](./BUILD_PLAN.md) · Curriculum reference: [`docs/diagnostic-microskill-slice/micro-skill-catalogue.md`](../docs/diagnostic-microskill-slice/micro-skill-catalogue.md)
+> Living log for MVP 9.0.1 (Phase A / A2 / B1) deferrals. Do not silently drop scope.
+> Plan: [`BUILD_PLAN.md`](./BUILD_PLAN.md) · B1: [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md) · Curriculum reference: [`docs/diagnostic-microskill-slice/micro-skill-catalogue.md`](../docs/diagnostic-microskill-slice/micro-skill-catalogue.md)
 
 ## Open Skips
 
@@ -59,10 +59,28 @@
 - **Return when:** Pilot data shows templates systematically miss a needed shape, or we add a forced-AUTHOR staging flag for observability drills. Until then, prefer-templates is working as designed.
 - **Spec refs:** `COGNA 9.0.1/BUILD_PLAN_A2.md` T5 / G1.3
 
+### 9.0.1B1 — AUTHOR deferred for the fraction grammar
+
+- **Reason:** Templates-only until `fraction-linear-verifier` is green. AUTHOR needs that verifier anyway; enabling it earlier would reintroduce the A2 failure mode (model arithmetic wrong, no gate) on a new topic.
+- **Return when:** B1.5 — after fraction goldens + adversarial reject cases pass; then reuse the A2 authored-item gate against the fraction verifier.
+- **Spec refs:** `BUILD_PLAN_B.md` Decisions locked §1
+
+### 9.0.1B1 — Remaining Topic 2 skills not in the B1 slice
+
+- **Reason:** B1 is a thin vertical column (`FND_FRACTION_EQUIV`, `FND_FRACTION_OPS`, `LIN_CLEAR_FRACTIONS`, `LIN_SOLVE_FRACTIONS`). `FND_SIGN_ADD_SUB`, `FND_ORDER_OPS`, and `LIN_SOLVE_BRACKETS` stay catalogue-only.
+- **Return when:** A later B1.x / B2 slice needs them as entry or glue skills with their own templates and first-invalid codes.
+- **Spec refs:** `BUILD_PLAN_B.md` Out of scope
+
+### 9.0.1B1 — Versioned Question bank rows still not introduced
+
+- **Reason:** B1 still uses fixed items + template rendering (same as Phase A). Bank size is still a handful of shapes per track, not enough to justify a second source of truth in seed/`Question`.
+- **Return when:** Template + fixed coverage across topics grows past the point where `itemKey` + rendered prompt is insufficient for content ops (same return as 9.0.1A seed skip).
+- **Spec refs:** `BUILD_PLAN_B.md` Out of scope · open skip `9.0.1A — Slice items not seeded`
+
 ## Carried from the plan (already documented there, restated so nothing is lost)
 
 - Elapsed/idle time per step (fatigue detection only, never mastery evidence) — Phase B or C.
-- Breadth coverage across all 5 topics — Phase B.
+- Breadth coverage across all 5 topics — later Phase B topics after B1.
 - Execution and recording of the delayed retention check — Phase A schedules only.
 - Parent/student report content — Phase D.
 - Telemetry for the four `AssistanceLevelV2` levels this phase never produces (`GENERAL_PROMPT`, `LOCATION_HINT`, `MICRO_QUESTION`, `PARTIAL_WORKED_STEP`).

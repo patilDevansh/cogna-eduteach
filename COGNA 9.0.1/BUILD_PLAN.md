@@ -13,7 +13,7 @@ The user's full target for this milestone family (MVP 9.0.1–10.0) is larger th
 ## Sequencing (agreed before this plan)
 
 - **(A) — this document.** One narrow, real, end-to-end vertical slice — negative distribution in linear equations, the canonical Arun scenario — with three real AI responsibilities, wired through real UI → API → Postgres. Proves the loop works before scaling it.
-- **(B) — not yet planned.** Expand verifier + template coverage one topic at a time (brackets/fractions → identities → factorisation → quadratics). This *is* the "2,000 questions" work — the bottleneck is a verified solver per topic, not authoring volume.
+- **(B) — planned topic-by-topic.** Expand verifier + template coverage one topic at a time (brackets/fractions → identities → factorisation → quadratics). This *is* the "2,000 questions" work — the bottleneck is a verified solver per topic, not authoring volume. **B1 (Topic 2 fractions vertical slice):** [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md).
 - **(C) — not yet planned.** A pre-generation/caching layer so "AI decides what's next" is actually fast. A synchronous generate-and-verify call is realistically 2–6 seconds — too slow to feel instant. The fix is pre-fetching a small verified buffer in the background while the student works the current question, not making the model faster.
 - **(D) — not yet planned.** LLM-assisted report generation. Lowest risk, not latency-sensitive, can ship independently of (A)–(C).
 

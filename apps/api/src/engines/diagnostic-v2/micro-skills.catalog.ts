@@ -1,11 +1,11 @@
 /**
- * The 9 micro-skills this slice actually evidences — a thin vertical column
- * through Topics 1-2 of the full 73-skill catalogue documented at
- * docs/diagnostic-microskill-slice/micro-skill-catalogue.md.
+ * Micro-skills this module actually evidences — Phase A negative-distribution
+ * column plus Phase B1 fraction-linear column through Topics 1–2 of the full
+ * 73-skill catalogue at docs/diagnostic-microskill-slice/micro-skill-catalogue.md.
  *
- * Deliberately NOT closed at 9: later phases extend this array topic by topic
- * (brackets/fractions -> identities -> factorisation -> quadratics). Nothing
- * downstream may hardcode the count — see assertCatalogueIntegrity().
+ * Deliberately NOT closed at a fixed count: later phases extend this array
+ * topic by topic. Nothing downstream may hardcode the count — see
+ * assertCatalogueIntegrity().
  */
 import type { MicroSkillId } from "@cogna/shared";
 
@@ -17,6 +17,7 @@ export type CompetencyFamilyId =
   | "SOLVING_DIFFERENT_FORMS"
   | "CHECKING_AND_APPLYING"
   | "SIGNED_NUMBER_ARITHMETIC"
+  | "FRACTIONS_AND_ORDER"
   | "DISTRIBUTING_AND_CLEARING";
 
 /** Mirrors the MicroSkillDefinition authoring contract (Master Prompt §6.8), scoped to what this phase needs. */
@@ -26,7 +27,7 @@ export interface MicroSkillDefinition {
   topicId: TopicId;
   competencyFamilyId: CompetencyFamilyId;
   prerequisiteMicroSkillIds: MicroSkillId[];
-  /** EXECUTABLE = has a verifier and content in this phase. The other 64 catalogue skills are simply absent here, not listed as non-executable stubs. */
+  /** EXECUTABLE = has a verifier and content in this phase. The other catalogue skills are simply absent here, not listed as non-executable stubs. */
   status: "EXECUTABLE";
 }
 
@@ -48,14 +49,45 @@ export const MICRO_SKILL_CATALOGUE: readonly MicroSkillDefinition[] = [
     status: "EXECUTABLE",
   },
   {
-    // The slice's primary diagnostic target. Its prerequisite is what makes
-    // the whole design worthwhile: a failure here usually means the sign rule
-    // below, not "can't do brackets".
+    // The Phase A primary diagnostic target.
     id: "LIN_DISTRIBUTE_NEG",
     name: "Distribute a negative multiplier and preserve sign products",
     topicId: "BRACKETS_SIGNS_FRACTIONS",
     competencyFamilyId: "DISTRIBUTING_AND_CLEARING",
     prerequisiteMicroSkillIds: ["FND_SIGN_MUL_DIV", "LIN_DISTRIBUTE_POS"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FND_FRACTION_EQUIV",
+    name: "Create equivalent fractions",
+    topicId: "BRACKETS_SIGNS_FRACTIONS",
+    competencyFamilyId: "FRACTIONS_AND_ORDER",
+    prerequisiteMicroSkillIds: [],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FND_FRACTION_OPS",
+    name: "Perform fraction operations",
+    topicId: "BRACKETS_SIGNS_FRACTIONS",
+    competencyFamilyId: "FRACTIONS_AND_ORDER",
+    prerequisiteMicroSkillIds: ["FND_FRACTION_EQUIV"],
+    status: "EXECUTABLE",
+  },
+  {
+    // The Phase B1 primary diagnostic target.
+    id: "LIN_CLEAR_FRACTIONS",
+    name: "Clear fractions validly by multiplying through by a common multiple",
+    topicId: "BRACKETS_SIGNS_FRACTIONS",
+    competencyFamilyId: "DISTRIBUTING_AND_CLEARING",
+    prerequisiteMicroSkillIds: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "LIN_SOLVE_FRACTIONS",
+    name: "Solve an equation with fractions",
+    topicId: "BRACKETS_SIGNS_FRACTIONS",
+    competencyFamilyId: "DISTRIBUTING_AND_CLEARING",
+    prerequisiteMicroSkillIds: ["LIN_CLEAR_FRACTIONS", "LIN_SOLVE_TWO_STEP"],
     status: "EXECUTABLE",
   },
   {
@@ -130,7 +162,7 @@ export function layersForMicroSkill(
 /**
  * Guards the two things that would silently corrupt evidence: a duplicate id,
  * or a prerequisite pointing at a skill that isn't in the catalogue. Checks
- * the catalogue is internally consistent — deliberately not "=== 9", so
+ * the catalogue is internally consistent — deliberately not a fixed count, so
  * later phases can extend the array without editing this assertion.
  */
 export function assertCatalogueIntegrity(

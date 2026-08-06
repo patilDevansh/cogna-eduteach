@@ -63,8 +63,13 @@ Two things get *scheduled* but not yet *done* in this phase: a follow-up check t
 
 ## What this phase does NOT include
 
-- All the other algebra topics (brackets/fractions, identities, factorising, quadratics) — one topic at a time, after this.
-- The full 2,000-question bank — this phase only needs a handful of questions to prove the idea works.
-- Making AI-generated questions feel instant — that's a background-preparation trick we'll build once this works.
-- AI-written parent/student reports — a separate, easier piece we can build in parallel, but it's not part of this phase.
+- Identities, factorising, and quadratics — later Phase B topics, each with its own verifier ([`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md) covers **B1 only**: fraction-linear clearing).
+- AI authoring new fraction equations — templates only until the fraction verifier is proven (B1.5).
+- The full 2,000-question bank — each topic slice still uses a small fixed set plus templates.
+- Making AI-generated questions feel instant — that's a background-preparation trick we'll build once this works (Phase C).
+- AI-written parent/student reports — a separate, easier piece we can build in parallel, but it's not part of this phase (Phase D).
 - Any decision about whether this replaces the older version of Cogna's diagnostic system — we're deliberately not deciding that yet.
+
+## Phase B1 (shipped)
+
+See [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md). Adds a second diagnostic **track** for linear equations with fractions: a fraction-linear verifier that can tell a wrong common multiple apart from a dropped term, plus templates for entry / clear / contrast / transfer. The original negative-distribution track is unchanged (default). AUTHOR for the fraction grammar stays off until B1.5.
