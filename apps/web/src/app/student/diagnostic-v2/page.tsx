@@ -162,7 +162,16 @@ function DiagnosticV2Content() {
     setBusy(true);
     setError("");
     try {
-      const session = await api.startDiagnosticV2Session(studentId, sessionTrack);
+      const track = sessionTrack;
+      const session = await api.startDiagnosticV2Session(studentId, track);
+      const expectedOpening =
+        track === "FRACTION_LINEAR" ? "ENTRY_FRAC_SIMPLE" : "ENTRY_TWO_STEP";
+      if (session.itemKey !== expectedOpening) {
+        setError(
+          `Track mismatch: asked for ${track} but server opened ${session.itemKey} (${session.equationPrompt}). Refresh and try again.`,
+        );
+        return;
+      }
       setSessionId(session.sessionId);
       setAttempt({
         attemptId: session.attemptId,
@@ -174,7 +183,10 @@ function DiagnosticV2Content() {
       setAttemptSource("RULE");
       setWhyThisQuestion({
         source: "RULE",
-        reasoning: OPENING_WHY,
+        reasoning:
+          track === "FRACTION_LINEAR"
+            ? "Opening item of the fraction-linear diagnostic track."
+            : OPENING_WHY,
         itemKey: session.itemKey,
         stageId: session.stageId,
         origin: "PRE_WRITTEN",

@@ -445,13 +445,13 @@ export const api = {
    * Optional `track` selects NEGATIVE_DISTRIBUTION (default) or FRACTION_LINEAR (B1). */
   startDiagnosticV2Session: (
     studentId: string,
-    track?: "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR",
+    track: "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR" = "FRACTION_LINEAR",
   ) =>
     apiFetch<StartDiagnosticV2SessionResponse>("/diagnostic-v2/sessions", {
       method: "POST",
       body: JSON.stringify({
         studentId,
-        ...(track ? { track } : {}),
+        track,
       }),
     }),
 
