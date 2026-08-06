@@ -1,0 +1,1678 @@
+{
+  "collectedAt": "2026-08-05T06:47:13.912Z",
+  "api": "http://localhost:3001",
+  "studentId": "cmriwinvg00d9y2c1v0sq9wkv",
+  "runs": [
+    {
+      "runId": "run_2026-08-05T06-47-13-917Z_arun_sign_error",
+      "scenarioId": "arun_sign_error",
+      "file": "runs/run_2026-08-05T06-47-13-917Z_arun_sign_error.json",
+      "sessionId": "cmsfq5hh9006py21hxb40m8wz",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run_2026-08-05T06-47-30-450Z_bare_final_answer",
+      "scenarioId": "bare_final_answer",
+      "file": "runs/run_2026-08-05T06-47-30-450Z_bare_final_answer.json",
+      "sessionId": "cmsfq5u3d008jy21h1ri4430k",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run_2026-08-05T06-47-55-389Z_gibberish_and_decline",
+      "scenarioId": "gibberish_and_decline",
+      "file": "runs/run_2026-08-05T06-47-55-389Z_gibberish_and_decline.json",
+      "sessionId": "cmsfq6ddb00b6y21h1nijfw79",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run_2026-08-05T06-48-13-389Z_incomplete_distribution",
+      "scenarioId": "incomplete_distribution",
+      "file": "runs/run_2026-08-05T06-48-13-389Z_incomplete_distribution.json",
+      "sessionId": "cmsfq6r8500d1y21h1kxvtajl",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run_2026-08-05T06-48-28-637Z_dropped_constant_then_recover",
+      "scenarioId": "dropped_constant_then_recover",
+      "file": "runs/run_2026-08-05T06-48-28-637Z_dropped_constant_then_recover.json",
+      "sessionId": "cmsfq72zm00evy21hxo8a0vtx",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run_2026-08-05T06-48-43-848Z_all_correct_path",
+      "scenarioId": "all_correct_path",
+      "file": "runs/run_2026-08-05T06-48-43-848Z_all_correct_path.json",
+      "sessionId": "cmsfq7eqk00gpy21h6qdy4uat",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run_2026-08-05T06-49-04-010Z_arun_then_wrong_transfer",
+      "scenarioId": "arun_then_wrong_transfer",
+      "file": "runs/run_2026-08-05T06-49-04-010Z_arun_then_wrong_transfer.json",
+      "sessionId": "cmsfq7ua600jey21hkv38fyrv",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T06-59-07-947Z_mix_001_correct_correct_correct_correct_correct",
+      "scenarioId": "mix_001_correct_correct_correct_correct_correct",
+      "file": "runs/run100_2026-08-05T06-59-07-947Z_mix_001_correct_correct_correct_correct_correct.json",
+      "sessionId": "cmsfqksl400kty21h7cw3bc8r",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T06-59-21-270Z_mix_002_correct_correct_correct_correct_arun_sign_twice",
+      "scenarioId": "mix_002_correct_correct_correct_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T06-59-21-270Z_mix_002_correct_correct_correct_correct_arun_sign_twice.json",
+      "sessionId": "cmsfql2kd00msy21hvidkvcr1",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T06-59-32-136Z_mix_003_correct_correct_correct_correct_decline_twice",
+      "scenarioId": "mix_003_correct_correct_correct_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T06-59-32-136Z_mix_003_correct_correct_correct_correct_decline_twice.json",
+      "sessionId": "cmsfqlayd00ocy21hq6tn40on",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T06-59-51-285Z_mix_004_correct_correct_correct_correct_bare_final_z",
+      "scenarioId": "mix_004_correct_correct_correct_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T06-59-51-285Z_mix_004_correct_correct_correct_correct_bare_final_z.json",
+      "sessionId": "cmsfqlpq300qpy21hb2jjodfr",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-00-06-979Z_mix_005_correct_correct_correct_wrong_then_correct_correct",
+      "scenarioId": "mix_005_correct_correct_correct_wrong_then_correct_correct",
+      "file": "runs/run100_2026-08-05T07-00-06-979Z_mix_005_correct_correct_correct_wrong_then_correct_correct.json",
+      "sessionId": "cmsfqm1ty00sdy21hf0zmr25m",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_then_correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-00-20-372Z_mix_006_correct_correct_correct_wrong_then_correct_arun_sign_twice",
+      "scenarioId": "mix_006_correct_correct_correct_wrong_then_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-00-20-372Z_mix_006_correct_correct_correct_wrong_then_correct_arun_sign_twice.json",
+      "sessionId": "cmsfqmc6300ucy21hy6r362bo",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_then_correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-00-38-323Z_mix_007_correct_correct_correct_wrong_then_correct_decline_twice",
+      "scenarioId": "mix_007_correct_correct_correct_wrong_then_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-00-38-323Z_mix_007_correct_correct_correct_wrong_then_correct_decline_twice.json",
+      "sessionId": "cmsfqmq0p00wmy21hnsjhh7qs",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_then_correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-00-50-666Z_mix_008_correct_correct_correct_wrong_then_correct_bare_final_z",
+      "scenarioId": "mix_008_correct_correct_correct_wrong_then_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-00-50-666Z_mix_008_correct_correct_correct_wrong_then_correct_bare_final_z.json",
+      "sessionId": "cmsfqmzjl00y9y21hzgq7o6kf",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_then_correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-01-14-315Z_mix_009_correct_correct_correct_decline_twice_correct",
+      "scenarioId": "mix_009_correct_correct_correct_decline_twice_correct",
+      "file": "runs/run100_2026-08-05T07-01-14-315Z_mix_009_correct_correct_correct_decline_twice_correct.json",
+      "sessionId": "cmsfqnhsh010zy21hlcfj1c8d",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "decline_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-01-35-549Z_mix_010_correct_correct_correct_decline_twice_arun_sign_twice",
+      "scenarioId": "mix_010_correct_correct_correct_decline_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-01-35-549Z_mix_010_correct_correct_correct_decline_twice_arun_sign_twice.json",
+      "sessionId": "cmsfqny6d013ry21hkersio3j",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "decline_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-01-52-368Z_mix_011_correct_correct_correct_decline_twice_decline_twice",
+      "scenarioId": "mix_011_correct_correct_correct_decline_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-01-52-368Z_mix_011_correct_correct_correct_decline_twice_decline_twice.json",
+      "sessionId": "cmsfqob5k015oy21hwmgeax6u",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "decline_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-02-04-116Z_mix_012_correct_correct_correct_decline_twice_bare_final_z",
+      "scenarioId": "mix_012_correct_correct_correct_decline_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-02-04-116Z_mix_012_correct_correct_correct_decline_twice_bare_final_z.json",
+      "sessionId": "cmsfqok7v016zy21hi7ic3qkg",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "decline_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-02-26-557Z_mix_013_correct_correct_correct_wrong_twice_correct",
+      "scenarioId": "mix_013_correct_correct_correct_wrong_twice_correct",
+      "file": "runs/run100_2026-08-05T07-02-26-557Z_mix_013_correct_correct_correct_wrong_twice_correct.json",
+      "sessionId": "cmsfqp1j7019sy21hk4wyoxa0",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-02-39-863Z_mix_014_correct_correct_correct_wrong_twice_arun_sign_twice",
+      "scenarioId": "mix_014_correct_correct_correct_wrong_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-02-39-863Z_mix_014_correct_correct_correct_wrong_twice_arun_sign_twice.json",
+      "sessionId": "cmsfqpbst01bry21hh487dvbi",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-02-53-704Z_mix_015_correct_correct_correct_wrong_twice_decline_twice",
+      "scenarioId": "mix_015_correct_correct_correct_wrong_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-02-53-704Z_mix_015_correct_correct_correct_wrong_twice_decline_twice.json",
+      "sessionId": "cmsfqpmhc01dly21hssuby8k0",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-03-10-665Z_mix_016_correct_correct_correct_wrong_twice_bare_final_z",
+      "scenarioId": "mix_016_correct_correct_correct_wrong_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-03-10-665Z_mix_016_correct_correct_correct_wrong_twice_bare_final_z.json",
+      "sessionId": "cmsfqpzki01fiy21hkbex9hvd",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "correct",
+        "contrast": "wrong_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-03-27-948Z_mix_017_correct_correct_arun_sign_twice_correct_correct",
+      "scenarioId": "mix_017_correct_correct_arun_sign_twice_correct_correct",
+      "file": "runs/run100_2026-08-05T07-03-27-948Z_mix_017_correct_correct_arun_sign_twice_correct_correct.json",
+      "sessionId": "cmsfqqcwj01hsy21hpfqtjvm8",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-03-47-929Z_mix_018_correct_correct_arun_sign_twice_correct_arun_sign_twice",
+      "scenarioId": "mix_018_correct_correct_arun_sign_twice_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-03-47-929Z_mix_018_correct_correct_arun_sign_twice_correct_arun_sign_twice.json",
+      "sessionId": "cmsfqqsbh01jzy21hir2pyfg3",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-04-02-693Z_mix_019_correct_correct_arun_sign_twice_correct_decline_twice",
+      "scenarioId": "mix_019_correct_correct_arun_sign_twice_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-04-02-693Z_mix_019_correct_correct_arun_sign_twice_correct_decline_twice.json",
+      "sessionId": "cmsfqr3pn01lhy21hxqultv67",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-04-21-747Z_mix_020_correct_correct_arun_sign_twice_correct_bare_final_z",
+      "scenarioId": "mix_020_correct_correct_arun_sign_twice_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-04-21-747Z_mix_020_correct_correct_arun_sign_twice_correct_bare_final_z.json",
+      "sessionId": "cmsfqrif201ncy21h8q5d9x2q",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-04-37-038Z_mix_021_correct_correct_arun_sign_twice_wrong_then_correct_correct",
+      "scenarioId": "mix_021_correct_correct_arun_sign_twice_wrong_then_correct_correct",
+      "file": "runs/run100_2026-08-05T07-04-37-038Z_mix_021_correct_correct_arun_sign_twice_wrong_then_correct_correct.json",
+      "sessionId": "cmsfqru7r01p7y21hy1e3jw5d",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-05-05-998Z_mix_022_correct_correct_arun_sign_twice_wrong_then_correct_arun_sign_twice",
+      "scenarioId": "mix_022_correct_correct_arun_sign_twice_wrong_then_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-05-05-998Z_mix_022_correct_correct_arun_sign_twice_wrong_then_correct_arun_sign_twice.json",
+      "sessionId": "cmsfqsgl101rhy21hckmk29cf",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-05-19-005Z_mix_023_correct_correct_arun_sign_twice_wrong_then_correct_decline_twice",
+      "scenarioId": "mix_023_correct_correct_arun_sign_twice_wrong_then_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-05-19-005Z_mix_023_correct_correct_arun_sign_twice_wrong_then_correct_decline_twice.json",
+      "sessionId": "cmsfqsqli01swy21h7kafw733",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-05-38-302Z_mix_024_correct_correct_arun_sign_twice_wrong_then_correct_bare_final_z",
+      "scenarioId": "mix_024_correct_correct_arun_sign_twice_wrong_then_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-05-38-302Z_mix_024_correct_correct_arun_sign_twice_wrong_then_correct_bare_final_z.json",
+      "sessionId": "cmsfqt5hj01uuy21h2rmpes9b",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-05-56-537Z_mix_025_correct_correct_arun_sign_twice_decline_twice_correct",
+      "scenarioId": "mix_025_correct_correct_arun_sign_twice_decline_twice_correct",
+      "file": "runs/run100_2026-08-05T07-05-56-537Z_mix_025_correct_correct_arun_sign_twice_decline_twice_correct.json",
+      "sessionId": "cmsfqtjjy01wsy21h7suvlxa4",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-06-13-450Z_mix_026_correct_correct_arun_sign_twice_decline_twice_arun_sign_twice",
+      "scenarioId": "mix_026_correct_correct_arun_sign_twice_decline_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-06-13-450Z_mix_026_correct_correct_arun_sign_twice_decline_twice_arun_sign_twice.json",
+      "sessionId": "cmsfqtwlt01ypy21h28vipm0o",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-06-30-235Z_mix_027_correct_correct_arun_sign_twice_decline_twice_decline_twice",
+      "scenarioId": "mix_027_correct_correct_arun_sign_twice_decline_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-06-30-235Z_mix_027_correct_correct_arun_sign_twice_decline_twice_decline_twice.json",
+      "sessionId": "cmsfqu9k30207y21h3y1bmzic",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-06-52-160Z_mix_028_correct_correct_arun_sign_twice_decline_twice_bare_final_z",
+      "scenarioId": "mix_028_correct_correct_arun_sign_twice_decline_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-06-52-160Z_mix_028_correct_correct_arun_sign_twice_decline_twice_bare_final_z.json",
+      "sessionId": "cmsfquqgz0225y21hog9wl4uf",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-07-15-082Z_mix_029_correct_correct_arun_sign_twice_wrong_twice_correct",
+      "scenarioId": "mix_029_correct_correct_arun_sign_twice_wrong_twice_correct",
+      "file": "runs/run100_2026-08-05T07-07-15-082Z_mix_029_correct_correct_arun_sign_twice_wrong_twice_correct.json",
+      "sessionId": "cmsfqv85q024gy21hb35r3lpe",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-07-36-610Z_mix_030_correct_correct_arun_sign_twice_wrong_twice_arun_sign_twice",
+      "scenarioId": "mix_030_correct_correct_arun_sign_twice_wrong_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-07-36-610Z_mix_030_correct_correct_arun_sign_twice_wrong_twice_arun_sign_twice.json",
+      "sessionId": "cmsfqvors026qy21hdhu7g9kl",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-07-49-634Z_mix_031_correct_correct_arun_sign_twice_wrong_twice_decline_twice",
+      "scenarioId": "mix_031_correct_correct_arun_sign_twice_wrong_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-07-49-634Z_mix_031_correct_correct_arun_sign_twice_wrong_twice_decline_twice.json",
+      "sessionId": "cmsfqvytj0285y21h5fvc58wo",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-08-03-840Z_mix_032_correct_correct_arun_sign_twice_wrong_twice_bare_final_z",
+      "scenarioId": "mix_032_correct_correct_arun_sign_twice_wrong_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-08-03-840Z_mix_032_correct_correct_arun_sign_twice_wrong_twice_bare_final_z.json",
+      "sessionId": "cmsfqw9s5029ny21hd8rfjg1c",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "arun_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-08-23-885Z_mix_033_correct_correct_incomplete_dist_twice_correct_correct",
+      "scenarioId": "mix_033_correct_correct_incomplete_dist_twice_correct_correct",
+      "file": "runs/run100_2026-08-05T07-08-23-885Z_mix_033_correct_correct_incomplete_dist_twice_correct_correct.json",
+      "sessionId": "cmsfqwp8y02byy21hldpnpzrl",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-08-42-964Z_mix_034_correct_correct_incomplete_dist_twice_correct_arun_sign_twice",
+      "scenarioId": "mix_034_correct_correct_incomplete_dist_twice_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-08-42-964Z_mix_034_correct_correct_incomplete_dist_twice_correct_arun_sign_twice.json",
+      "sessionId": "cmsfqx3yv02dsy21hhfk584uf",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-09-00-217Z_mix_035_correct_correct_incomplete_dist_twice_correct_decline_twice",
+      "scenarioId": "mix_035_correct_correct_incomplete_dist_twice_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-09-00-217Z_mix_035_correct_correct_incomplete_dist_twice_correct_decline_twice.json",
+      "sessionId": "cmsfqxha502fny21hhmft43ix",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-09-18-159Z_mix_036_correct_correct_incomplete_dist_twice_correct_bare_final_z",
+      "scenarioId": "mix_036_correct_correct_incomplete_dist_twice_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-09-18-159Z_mix_036_correct_correct_incomplete_dist_twice_correct_bare_final_z.json",
+      "sessionId": "cmsfqxv4m02hly21hq34m5qc1",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-09-33-358Z_mix_037_correct_correct_incomplete_dist_twice_wrong_then_correct_correct",
+      "scenarioId": "mix_037_correct_correct_incomplete_dist_twice_wrong_then_correct_correct",
+      "file": "runs/run100_2026-08-05T07-09-33-358Z_mix_037_correct_correct_incomplete_dist_twice_wrong_then_correct_correct.json",
+      "sessionId": "cmsfqy6us02jgy21humpjfe3f",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-09-47-880Z_mix_038_correct_correct_incomplete_dist_twice_wrong_then_correct_arun_sign_twice",
+      "scenarioId": "mix_038_correct_correct_incomplete_dist_twice_wrong_then_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-09-47-880Z_mix_038_correct_correct_incomplete_dist_twice_wrong_then_correct_arun_sign_twice.json",
+      "sessionId": "cmsfqyi2802lay21h6bwexj46",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-09-59-850Z_mix_039_correct_correct_incomplete_dist_twice_wrong_then_correct_decline_twice",
+      "scenarioId": "mix_039_correct_correct_incomplete_dist_twice_wrong_then_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-09-59-850Z_mix_039_correct_correct_incomplete_dist_twice_wrong_then_correct_decline_twice.json",
+      "sessionId": "cmsfqyram02mpy21hzo6sde92",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-10-19-291Z_mix_040_correct_correct_incomplete_dist_twice_wrong_then_correct_bare_final_z",
+      "scenarioId": "mix_040_correct_correct_incomplete_dist_twice_wrong_then_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-10-19-291Z_mix_040_correct_correct_incomplete_dist_twice_wrong_then_correct_bare_final_z.json",
+      "sessionId": "cmsfqz6an02oky21hll414x7w",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-10-37-849Z_mix_041_correct_correct_incomplete_dist_twice_decline_twice_correct",
+      "scenarioId": "mix_041_correct_correct_incomplete_dist_twice_decline_twice_correct",
+      "file": "runs/run100_2026-08-05T07-10-37-849Z_mix_041_correct_correct_incomplete_dist_twice_decline_twice_correct.json",
+      "sessionId": "cmsfqzkm902qiy21hxvu0g3z1",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "decline_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-10-56-392Z_mix_042_correct_correct_incomplete_dist_twice_decline_twice_arun_sign_twice",
+      "scenarioId": "mix_042_correct_correct_incomplete_dist_twice_decline_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-10-56-392Z_mix_042_correct_correct_incomplete_dist_twice_decline_twice_arun_sign_twice.json",
+      "sessionId": "cmsfqzyx802siy21hr7gouhkc",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "decline_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-11-15-938Z_mix_043_correct_correct_incomplete_dist_twice_decline_twice_decline_twice",
+      "scenarioId": "mix_043_correct_correct_incomplete_dist_twice_decline_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-11-15-938Z_mix_043_correct_correct_incomplete_dist_twice_decline_twice_decline_twice.json",
+      "sessionId": "cmsfr0e0802udy21hlywvz2s2",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "decline_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-11-35-470Z_mix_044_correct_correct_incomplete_dist_twice_decline_twice_bare_final_z",
+      "scenarioId": "mix_044_correct_correct_incomplete_dist_twice_decline_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-11-35-470Z_mix_044_correct_correct_incomplete_dist_twice_decline_twice_bare_final_z.json",
+      "sessionId": "cmsfr0t2s02wey21ho1w2jlmr",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "decline_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-11-57-886Z_mix_045_correct_correct_incomplete_dist_twice_wrong_twice_correct",
+      "scenarioId": "mix_045_correct_correct_incomplete_dist_twice_wrong_twice_correct",
+      "file": "runs/run100_2026-08-05T07-11-57-886Z_mix_045_correct_correct_incomplete_dist_twice_wrong_twice_correct.json",
+      "sessionId": "cmsfr1adg02ypy21hbxds4ioz",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-12-13-710Z_mix_046_correct_correct_incomplete_dist_twice_wrong_twice_arun_sign_twice",
+      "scenarioId": "mix_046_correct_correct_incomplete_dist_twice_wrong_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-12-13-710Z_mix_046_correct_correct_incomplete_dist_twice_wrong_twice_arun_sign_twice.json",
+      "sessionId": "cmsfr1mkx030my21hopdebwiq",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-12-26-638Z_mix_047_correct_correct_incomplete_dist_twice_wrong_twice_decline_twice",
+      "scenarioId": "mix_047_correct_correct_incomplete_dist_twice_wrong_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-12-26-638Z_mix_047_correct_correct_incomplete_dist_twice_wrong_twice_decline_twice.json",
+      "sessionId": "cmsfr1wk50327y21hld8ttjws",
+      "itemCount": 3,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-12-37-962Z_mix_048_correct_correct_incomplete_dist_twice_wrong_twice_bare_final_z",
+      "scenarioId": "mix_048_correct_correct_incomplete_dist_twice_wrong_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-12-37-962Z_mix_048_correct_correct_incomplete_dist_twice_wrong_twice_bare_final_z.json",
+      "sessionId": "cmsfr25ap033iy21h8uhqg520",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "incomplete_dist_twice",
+        "contrast": "wrong_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-12-54-932Z_mix_049_correct_correct_outer_sign_twice_correct_correct",
+      "scenarioId": "mix_049_correct_correct_outer_sign_twice_correct_correct",
+      "file": "runs/run100_2026-08-05T07-12-54-932Z_mix_049_correct_correct_outer_sign_twice_correct_correct.json",
+      "sessionId": "cmsfr2ie4035gy21h80h2guch",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-13-09-558Z_mix_050_correct_correct_outer_sign_twice_correct_arun_sign_twice",
+      "scenarioId": "mix_050_correct_correct_outer_sign_twice_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-13-09-558Z_mix_050_correct_correct_outer_sign_twice_correct_arun_sign_twice.json",
+      "sessionId": "cmsfr2to9037ay21hx3fbidqy",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-13-21-308Z_mix_051_correct_correct_outer_sign_twice_correct_decline_twice",
+      "scenarioId": "mix_051_correct_correct_outer_sign_twice_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-13-21-308Z_mix_051_correct_correct_outer_sign_twice_correct_decline_twice.json",
+      "sessionId": "cmsfr32qp038py21h8zjt0v3k",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-13-35-776Z_mix_052_correct_correct_outer_sign_twice_correct_bare_final_z",
+      "scenarioId": "mix_052_correct_correct_outer_sign_twice_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-13-35-776Z_mix_052_correct_correct_outer_sign_twice_correct_bare_final_z.json",
+      "sessionId": "cmsfr3dwm03a7y21hg3bslxbn",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-13-51-952Z_mix_053_correct_correct_outer_sign_twice_wrong_then_correct_correct",
+      "scenarioId": "mix_053_correct_correct_outer_sign_twice_wrong_then_correct_correct",
+      "file": "runs/run100_2026-08-05T07-13-51-952Z_mix_053_correct_correct_outer_sign_twice_wrong_then_correct_correct.json",
+      "sessionId": "cmsfr3qdv03c2y21hn8e4co1l",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-14-10-221Z_mix_054_correct_correct_outer_sign_twice_wrong_then_correct_arun_sign_twice",
+      "scenarioId": "mix_054_correct_correct_outer_sign_twice_wrong_then_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-14-10-221Z_mix_054_correct_correct_outer_sign_twice_wrong_then_correct_arun_sign_twice.json",
+      "sessionId": "cmsfr44hf03ecy21hy5uxxb96",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-14-23-409Z_mix_055_correct_correct_outer_sign_twice_wrong_then_correct_decline_twice",
+      "scenarioId": "mix_055_correct_correct_outer_sign_twice_wrong_then_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-14-23-409Z_mix_055_correct_correct_outer_sign_twice_wrong_then_correct_decline_twice.json",
+      "sessionId": "cmsfr4ent03fry21h2f724dq2",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-14-39-357Z_mix_056_correct_correct_outer_sign_twice_wrong_then_correct_bare_final_z",
+      "scenarioId": "mix_056_correct_correct_outer_sign_twice_wrong_then_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-14-39-357Z_mix_056_correct_correct_outer_sign_twice_wrong_then_correct_bare_final_z.json",
+      "sessionId": "cmsfr4qyy03hcy21hkokt9m75",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_then_correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-14-56-335Z_mix_057_correct_correct_outer_sign_twice_decline_twice_correct",
+      "scenarioId": "mix_057_correct_correct_outer_sign_twice_decline_twice_correct",
+      "file": "runs/run100_2026-08-05T07-14-56-335Z_mix_057_correct_correct_outer_sign_twice_decline_twice_correct.json",
+      "sessionId": "cmsfr542c03jay21h9bg492d0",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-15-10-782Z_mix_058_correct_correct_outer_sign_twice_decline_twice_arun_sign_twice",
+      "scenarioId": "mix_058_correct_correct_outer_sign_twice_decline_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-15-10-782Z_mix_058_correct_correct_outer_sign_twice_decline_twice_arun_sign_twice.json",
+      "sessionId": "cmsfr5f7m03l7y21h5q4lc6aa",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-15-24-954Z_mix_059_correct_correct_outer_sign_twice_decline_twice_decline_twice",
+      "scenarioId": "mix_059_correct_correct_outer_sign_twice_decline_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-15-24-954Z_mix_059_correct_correct_outer_sign_twice_decline_twice_decline_twice.json",
+      "sessionId": "cmsfr5q5d03mpy21hd7gfieu8",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-15-40-171Z_mix_060_correct_correct_outer_sign_twice_decline_twice_bare_final_z",
+      "scenarioId": "mix_060_correct_correct_outer_sign_twice_decline_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-15-40-171Z_mix_060_correct_correct_outer_sign_twice_decline_twice_bare_final_z.json",
+      "sessionId": "cmsfr61vy03oay21h0rlinu0x",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "decline_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-15-57-386Z_mix_061_correct_correct_outer_sign_twice_wrong_twice_correct",
+      "scenarioId": "mix_061_correct_correct_outer_sign_twice_wrong_twice_correct",
+      "file": "runs/run100_2026-08-05T07-15-57-386Z_mix_061_correct_correct_outer_sign_twice_wrong_twice_correct.json",
+      "sessionId": "cmsfr6f6603q8y21hdo7dx0wp",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-16-12-056Z_mix_062_correct_correct_outer_sign_twice_wrong_twice_arun_sign_twice",
+      "scenarioId": "mix_062_correct_correct_outer_sign_twice_wrong_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-16-12-056Z_mix_062_correct_correct_outer_sign_twice_wrong_twice_arun_sign_twice.json",
+      "sessionId": "cmsfr6qhs03s2y21haji5xw5g",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-16-29-833Z_mix_063_correct_correct_outer_sign_twice_wrong_twice_decline_twice",
+      "scenarioId": "mix_063_correct_correct_outer_sign_twice_wrong_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-16-29-833Z_mix_063_correct_correct_outer_sign_twice_wrong_twice_decline_twice.json",
+      "sessionId": "cmsfr747l03tuy21hqll41vv9",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-16-47-663Z_mix_064_correct_correct_outer_sign_twice_wrong_twice_bare_final_z",
+      "scenarioId": "mix_064_correct_correct_outer_sign_twice_wrong_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-16-47-663Z_mix_064_correct_correct_outer_sign_twice_wrong_twice_bare_final_z.json",
+      "sessionId": "cmsfr7hyt03vsy21hdeok6aiz",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "outer_sign_twice",
+        "contrast": "wrong_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-17-07-975Z_mix_065_correct_correct_dropped_constant_recover_correct_correct",
+      "scenarioId": "mix_065_correct_correct_dropped_constant_recover_correct_correct",
+      "file": "runs/run100_2026-08-05T07-17-07-975Z_mix_065_correct_correct_dropped_constant_recover_correct_correct.json",
+      "sessionId": "cmsfr7xn503xny21hiwzo14bz",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-17-23-567Z_mix_066_correct_correct_dropped_constant_recover_correct_arun_sign_twice",
+      "scenarioId": "mix_066_correct_correct_dropped_constant_recover_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-17-23-567Z_mix_066_correct_correct_dropped_constant_recover_correct_arun_sign_twice.json",
+      "sessionId": "cmsfr89o703zhy21h55qfkgkg",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-17-40-981Z_mix_067_correct_correct_dropped_constant_recover_correct_decline_twice",
+      "scenarioId": "mix_067_correct_correct_dropped_constant_recover_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-17-40-981Z_mix_067_correct_correct_dropped_constant_recover_correct_decline_twice.json",
+      "sessionId": "cmsfr8n3x0419y21hgkwocmb3",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-17-55-283Z_mix_068_correct_correct_dropped_constant_recover_correct_bare_final_z",
+      "scenarioId": "mix_068_correct_correct_dropped_constant_recover_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-17-55-283Z_mix_068_correct_correct_dropped_constant_recover_correct_bare_final_z.json",
+      "sessionId": "cmsfr8y57042ry21h7x8k5po6",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-18-16-303Z_mix_069_correct_correct_dropped_constant_recover_wrong_then_correct_correct",
+      "scenarioId": "mix_069_correct_correct_dropped_constant_recover_wrong_then_correct_correct",
+      "file": "runs/run100_2026-08-05T07-18-16-303Z_mix_069_correct_correct_dropped_constant_recover_wrong_then_correct_correct.json",
+      "sessionId": "cmsfr9ed00452y21h29vxyovx",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_then_correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-18-30-155Z_mix_070_correct_correct_dropped_constant_recover_wrong_then_correct_arun_sign_twice",
+      "scenarioId": "mix_070_correct_correct_dropped_constant_recover_wrong_then_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-18-30-155Z_mix_070_correct_correct_dropped_constant_recover_wrong_then_correct_arun_sign_twice.json",
+      "sessionId": "cmsfr9p1t046wy21hrm6oes7r",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_then_correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-18-47-213Z_mix_071_correct_correct_dropped_constant_recover_wrong_then_correct_decline_twice",
+      "scenarioId": "mix_071_correct_correct_dropped_constant_recover_wrong_then_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-18-47-213Z_mix_071_correct_correct_dropped_constant_recover_wrong_then_correct_decline_twice.json",
+      "sessionId": "cmsfra27o048oy21htie25a1i",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_then_correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-19-01-981Z_mix_072_correct_correct_dropped_constant_recover_wrong_then_correct_bare_final_z",
+      "scenarioId": "mix_072_correct_correct_dropped_constant_recover_wrong_then_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-19-01-981Z_mix_072_correct_correct_dropped_constant_recover_wrong_then_correct_bare_final_z.json",
+      "sessionId": "cmsfradlx04acy21hnsz8bx0e",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_then_correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-19-17-406Z_mix_073_correct_correct_dropped_constant_recover_decline_twice_correct",
+      "scenarioId": "mix_073_correct_correct_dropped_constant_recover_decline_twice_correct",
+      "file": "runs/run100_2026-08-05T07-19-17-406Z_mix_073_correct_correct_dropped_constant_recover_decline_twice_correct.json",
+      "sessionId": "cmsfrapif04c7y21hrmqwl3uv",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "decline_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-19-33-831Z_mix_074_correct_correct_dropped_constant_recover_decline_twice_arun_sign_twice",
+      "scenarioId": "mix_074_correct_correct_dropped_constant_recover_decline_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-19-33-831Z_mix_074_correct_correct_dropped_constant_recover_decline_twice_arun_sign_twice.json",
+      "sessionId": "cmsfrb26o04e4y21hm0pc2j70",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "decline_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-19-53-967Z_mix_075_correct_correct_dropped_constant_recover_decline_twice_decline_twice",
+      "scenarioId": "mix_075_correct_correct_dropped_constant_recover_decline_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-19-53-967Z_mix_075_correct_correct_dropped_constant_recover_decline_twice_decline_twice.json",
+      "sessionId": "cmsfrbhpu04fsy21hfnb0uiga",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "decline_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-20-09-692Z_mix_076_correct_correct_dropped_constant_recover_decline_twice_bare_final_z",
+      "scenarioId": "mix_076_correct_correct_dropped_constant_recover_decline_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-20-09-692Z_mix_076_correct_correct_dropped_constant_recover_decline_twice_bare_final_z.json",
+      "sessionId": "cmsfrbtuq04hdy21hczw5wuiu",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "decline_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-20-24-721Z_mix_077_correct_correct_dropped_constant_recover_wrong_twice_correct",
+      "scenarioId": "mix_077_correct_correct_dropped_constant_recover_wrong_twice_correct",
+      "file": "runs/run100_2026-08-05T07-20-24-721Z_mix_077_correct_correct_dropped_constant_recover_wrong_twice_correct.json",
+      "sessionId": "cmsfrc5ga04jey21h5uwy9ms0",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-20-39-306Z_mix_078_correct_correct_dropped_constant_recover_wrong_twice_arun_sign_twice",
+      "scenarioId": "mix_078_correct_correct_dropped_constant_recover_wrong_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-20-39-306Z_mix_078_correct_correct_dropped_constant_recover_wrong_twice_arun_sign_twice.json",
+      "sessionId": "cmsfrcgpb04l8y21huonr6tbt",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-20-51-875Z_mix_079_correct_correct_dropped_constant_recover_wrong_twice_decline_twice",
+      "scenarioId": "mix_079_correct_correct_dropped_constant_recover_wrong_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-20-51-875Z_mix_079_correct_correct_dropped_constant_recover_wrong_twice_decline_twice.json",
+      "sessionId": "cmsfrcqel04mny21hxhn092yd",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-21-11-481Z_mix_080_correct_correct_dropped_constant_recover_wrong_twice_bare_final_z",
+      "scenarioId": "mix_080_correct_correct_dropped_constant_recover_wrong_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-21-11-481Z_mix_080_correct_correct_dropped_constant_recover_wrong_twice_bare_final_z.json",
+      "sessionId": "cmsfrd5j604oiy21hhil7g2t6",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "dropped_constant_recover",
+        "contrast": "wrong_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-21-27-563Z_mix_081_correct_correct_bare_final_correct_correct",
+      "scenarioId": "mix_081_correct_correct_bare_final_correct_correct",
+      "file": "runs/run100_2026-08-05T07-21-27-563Z_mix_081_correct_correct_bare_final_correct_correct.json",
+      "sessionId": "cmsfrdhxu04qjy21hqulfda98",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-21-45-055Z_mix_082_correct_correct_bare_final_correct_arun_sign_twice",
+      "scenarioId": "mix_082_correct_correct_bare_final_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-21-45-055Z_mix_082_correct_correct_bare_final_correct_arun_sign_twice.json",
+      "sessionId": "cmsfrdvfp04sty21hj5nucftm",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-22-06-609Z_mix_083_correct_correct_bare_final_correct_decline_twice",
+      "scenarioId": "mix_083_correct_correct_bare_final_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-22-06-609Z_mix_083_correct_correct_bare_final_correct_decline_twice.json",
+      "sessionId": "cmsfrec2g04v1y21h73j3e6i7",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-22-23-880Z_mix_084_correct_correct_bare_final_correct_bare_final_z",
+      "scenarioId": "mix_084_correct_correct_bare_final_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-22-23-880Z_mix_084_correct_correct_bare_final_correct_bare_final_z.json",
+      "sessionId": "cmsfrepe704wzy21h8irzupy7",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-22-41-973Z_mix_085_correct_correct_bare_final_wrong_then_correct_correct",
+      "scenarioId": "mix_085_correct_correct_bare_final_wrong_then_correct_correct",
+      "file": "runs/run100_2026-08-05T07-22-41-973Z_mix_085_correct_correct_bare_final_wrong_then_correct_correct.json",
+      "sessionId": "cmsfrf3cw04zay21h809slnzn",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_then_correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-22-59-796Z_mix_086_correct_correct_bare_final_wrong_then_correct_arun_sign_twice",
+      "scenarioId": "mix_086_correct_correct_bare_final_wrong_then_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-22-59-796Z_mix_086_correct_correct_bare_final_wrong_then_correct_arun_sign_twice.json",
+      "sessionId": "cmsfrfh3z051ky21hnqx3lw07",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_then_correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-23-16-145Z_mix_087_correct_correct_bare_final_wrong_then_correct_decline_twice",
+      "scenarioId": "mix_087_correct_correct_bare_final_wrong_then_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-23-16-145Z_mix_087_correct_correct_bare_final_wrong_then_correct_decline_twice.json",
+      "sessionId": "cmsfrftpx053fy21hylibkifx",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_then_correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-23-36-893Z_mix_088_correct_correct_bare_final_wrong_then_correct_bare_final_z",
+      "scenarioId": "mix_088_correct_correct_bare_final_wrong_then_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-23-36-893Z_mix_088_correct_correct_bare_final_wrong_then_correct_bare_final_z.json",
+      "sessionId": "cmsfrg9qc055ty21hez5o8012",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_then_correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-23-55-294Z_mix_089_correct_correct_bare_final_decline_twice_correct",
+      "scenarioId": "mix_089_correct_correct_bare_final_decline_twice_correct",
+      "file": "runs/run100_2026-08-05T07-23-55-294Z_mix_089_correct_correct_bare_final_decline_twice_correct.json",
+      "sessionId": "cmsfrgnxg0584y21hmbi7oln0",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "decline_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-24-15-638Z_mix_090_correct_correct_bare_final_decline_twice_arun_sign_twice",
+      "scenarioId": "mix_090_correct_correct_bare_final_decline_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-24-15-638Z_mix_090_correct_correct_bare_final_decline_twice_arun_sign_twice.json",
+      "sessionId": "cmsfrh3mi05ahy21hfgm8ida3",
+      "itemCount": 6,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "decline_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-24-42-807Z_mix_091_correct_correct_bare_final_decline_twice_decline_twice",
+      "scenarioId": "mix_091_correct_correct_bare_final_decline_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-24-42-807Z_mix_091_correct_correct_bare_final_decline_twice_decline_twice.json",
+      "sessionId": "cmsfrholc05d5y21ht5va3v4v",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "decline_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-25-00-158Z_mix_092_correct_correct_bare_final_decline_twice_bare_final_z",
+      "scenarioId": "mix_092_correct_correct_bare_final_decline_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-25-00-158Z_mix_092_correct_correct_bare_final_decline_twice_bare_final_z.json",
+      "sessionId": "cmsfri1za05f6y21ho0awlki9",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "decline_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-25-21-871Z_mix_093_correct_correct_bare_final_wrong_twice_correct",
+      "scenarioId": "mix_093_correct_correct_bare_final_wrong_twice_correct",
+      "file": "runs/run100_2026-08-05T07-25-21-871Z_mix_093_correct_correct_bare_final_wrong_twice_correct.json",
+      "sessionId": "cmsfriiqf05i0y21hni2y8shf",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_twice",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-25-38-876Z_mix_094_correct_correct_bare_final_wrong_twice_arun_sign_twice",
+      "scenarioId": "mix_094_correct_correct_bare_final_wrong_twice_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-25-38-876Z_mix_094_correct_correct_bare_final_wrong_twice_arun_sign_twice.json",
+      "sessionId": "cmsfrivuo05kay21hs6kx91cj",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_twice",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-25-57-254Z_mix_095_correct_correct_bare_final_wrong_twice_decline_twice",
+      "scenarioId": "mix_095_correct_correct_bare_final_wrong_twice_decline_twice",
+      "file": "runs/run100_2026-08-05T07-25-57-254Z_mix_095_correct_correct_bare_final_wrong_twice_decline_twice.json",
+      "sessionId": "cmsfrja1b05mly21h261hfp7l",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_twice",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-26-20-602Z_mix_096_correct_correct_bare_final_wrong_twice_bare_final_z",
+      "scenarioId": "mix_096_correct_correct_bare_final_wrong_twice_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-26-20-602Z_mix_096_correct_correct_bare_final_wrong_twice_bare_final_z.json",
+      "sessionId": "cmsfrjs1u05owy21hfas68usl",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "bare_final",
+        "contrast": "wrong_twice",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-26-38-526Z_mix_097_correct_correct_gibberish_then_decline_correct_correct",
+      "scenarioId": "mix_097_correct_correct_gibberish_then_decline_correct_correct",
+      "file": "runs/run100_2026-08-05T07-26-38-526Z_mix_097_correct_correct_gibberish_then_decline_correct_correct.json",
+      "sessionId": "cmsfrk5vo05r7y21hxbqamqjf",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "gibberish_then_decline",
+        "contrast": "correct",
+        "transfer": "correct"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-26-53-281Z_mix_098_correct_correct_gibberish_then_decline_correct_arun_sign_twice",
+      "scenarioId": "mix_098_correct_correct_gibberish_then_decline_correct_arun_sign_twice",
+      "file": "runs/run100_2026-08-05T07-26-53-281Z_mix_098_correct_correct_gibberish_then_decline_correct_arun_sign_twice.json",
+      "sessionId": "cmsfrkh9k05t2y21hgrennuqq",
+      "itemCount": 5,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "gibberish_then_decline",
+        "contrast": "correct",
+        "transfer": "arun_sign_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-27-11-009Z_mix_099_correct_correct_gibberish_then_decline_correct_decline_twice",
+      "scenarioId": "mix_099_correct_correct_gibberish_then_decline_correct_decline_twice",
+      "file": "runs/run100_2026-08-05T07-27-11-009Z_mix_099_correct_correct_gibberish_then_decline_correct_decline_twice.json",
+      "sessionId": "cmsfrkuxy05uyy21hzcw8t1tl",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "gibberish_then_decline",
+        "contrast": "correct",
+        "transfer": "decline_twice"
+      },
+      "notes": []
+    },
+    {
+      "runId": "run100_2026-08-05T07-27-26-159Z_mix_100_correct_correct_gibberish_then_decline_correct_bare_final_z",
+      "scenarioId": "mix_100_correct_correct_gibberish_then_decline_correct_bare_final_z",
+      "file": "runs/run100_2026-08-05T07-27-26-159Z_mix_100_correct_correct_gibberish_then_decline_correct_bare_final_z.json",
+      "sessionId": "cmsfrl6mu05why21hsl8ns1kr",
+      "itemCount": 4,
+      "sessionStatus": "COMPLETED",
+      "intent": {
+        "entry": "correct",
+        "varBoth": "correct",
+        "main": "gibberish_then_decline",
+        "contrast": "correct",
+        "transfer": "bare_final_z"
+      },
+      "notes": []
+    }
+  ],
+  "lastBatch": "100-varied",
+  "lastBatchAt": "2026-08-05T07:27:42.660Z",
+  "batch100": {
+    "file": "index-100.json",
+    "collected": 100,
+    "failed": 0,
+    "target": 100
+  }
+}

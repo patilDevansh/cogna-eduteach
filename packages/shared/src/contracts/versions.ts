@@ -113,3 +113,15 @@ export const ENGINE_VERSIONS_V5 = {
   subjectGraphRules: SUBJECT_GRAPH_RULES_V1,
   safetyEvalRules: SAFETY_EVAL_RULES_V1,
 } as const;
+
+// ─── MVP 9.0.1 Phase A — micro-skill step diagnostic (standalone track) ────
+// Not part of the mvp-1.0-9.0 ENGINE_VERSIONS_V* lineage — this is an
+// additive, separate diagnostic mechanism. See COGNA 9.0.1/BUILD_PLAN.md.
+
+export const STEP_VERIFICATION_RULES_V1 = "step-verification-rules-v1";
+export const EVIDENCE_POLICY_MICROSKILL_V1 = "evidence-policy-microskill-v1";
+
+// Phase A2 — the gate every AI-authored question must clear before a student
+// sees it. Versioned separately from the step verifier because loosening a
+// gate is a product decision that must be visible in the audit trail.
+export const AUTHORED_ITEM_GATE_V1 = "authored-item-gate-v1";

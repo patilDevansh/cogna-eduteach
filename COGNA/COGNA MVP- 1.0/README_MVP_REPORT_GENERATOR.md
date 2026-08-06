@@ -92,8 +92,6 @@ aggregate verified data
 → render in app
 ```
 
-No LLM required. If narrative tooling is added later, it must only translate structured data.
-
 ---
 
 ## Observation vs Inference vs Recommendation

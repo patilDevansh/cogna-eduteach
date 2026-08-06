@@ -43,7 +43,7 @@
     - Alert thresholds and status: nonApprovedServeAttempts=0 (must be zero), hotPathLlmCallsAllowed=0 (must be zero)
     - Alert methods: alertNonApprovedContentAttempt, alertHotPathLlmCall (P0 violations, log + Sentry stub)
     - Golden tests S18–S19 green:
-      - S18: Hot path isolation (no LLM calls on Tx1–Tx4; feature flag guards verified)
+      - S18: Hot path isolation (feature flag guards verified)
       - S19: Analysis export idempotency (reuses completed job for same period key; no duplicate exports)
     - Feature flags unchanged: EXPERIMENTS_ENABLED=false, CONTENT_LLM_DRAFTS_ENABLED=false (production defaults)
   - **Phase 3 — Candidate scoring (complete):**

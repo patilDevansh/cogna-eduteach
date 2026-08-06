@@ -14,6 +14,11 @@ import { computeAgreementRate } from "../engines/student-analysis/student-analys
 import { agreesWithRule as breakAgrees } from "../engines/break-advisor/break-advisor.formulas";
 import { agreesWithRule as questionAgrees } from "../engines/question-recommender/question-recommender.formulas";
 import { topChoiceAgrees as practiceTopChoiceAgrees } from "../engines/practice-recommender/practice-recommender.formulas";
+import {
+  graderAgreesWithRule,
+  interpreterAgreesWithRule,
+  selectorAgreesWithRule,
+} from "../engines/diagnostic-v2/diagnostic-v2.formulas";
 
 export type GateVerdict = "PASS" | "FAIL" | "INSUFFICIENT_DATA";
 
@@ -28,6 +33,10 @@ export const LATENCY_BUDGET_MS: Record<string, number> = {
   BREAK_ADVISOR: 2000,
   QUESTION_RECOMMENDER: 2000,
   PRACTICE_RECOMMENDER: 3000,
+  DIAGNOSTIC_V2_SELECTOR: 3000,
+  DIAGNOSTIC_V2_INTERPRETER: 3000,
+  DIAGNOSTIC_V2_GRADER: 2000,
+  DIAGNOSTIC_V2_AUTHOR: 2500,
 };
 
 export interface AuditRowLike {
@@ -105,6 +114,47 @@ export function rowAgreement(capability: string, ruleOutput: unknown, aiOutput: 
           : 0,
         comparedCount: 1,
       };
+    }
+    case "DIAGNOSTIC_V2_SELECTOR": {
+      if (typeof rule.choice !== "string" || typeof ai.choice !== "string") return NO_AGREEMENT;
+      const agreed = selectorAgreesWithRule(
+        {
+          choice: rule.choice,
+          index: rule.index as number | undefined,
+          templateId: rule.templateId as string | undefined,
+          targetMicroSkillId: rule.targetMicroSkillId as string | undefined,
+        },
+        {
+          choice: ai.choice,
+          index: ai.index as number | undefined,
+          templateId: ai.templateId as string | undefined,
+          targetMicroSkillId: ai.targetMicroSkillId as string | undefined,
+        },
+      );
+      return { agreedCount: agreed ? 1 : 0, comparedCount: 1 };
+    }
+    case "DIAGNOSTIC_V2_AUTHOR": {
+      // Authoring has no rule-authored equation to agree with — the deterministic
+      // baseline is always "serve a template instead". Treat as not-comparable
+      // so the capability cannot fail its gate for doing the job it was asked.
+      return NO_AGREEMENT;
+    }
+    case "DIAGNOSTIC_V2_INTERPRETER": {
+      if (typeof rule.hypothesisLabel !== "string" || typeof ai.hypothesisLabel !== "string") {
+        return NO_AGREEMENT;
+      }
+      return {
+        agreedCount: interpreterAgreesWithRule(rule.hypothesisLabel, ai.hypothesisLabel) ? 1 : 0,
+        comparedCount: 1,
+      };
+    }
+    case "DIAGNOSTIC_V2_GRADER": {
+      // graderAgreesWithRule() is false by construction — the rule baseline is
+      // always AMBIGUOUS, because this capability only runs when the rules
+      // abstained. Report that as not-comparable rather than as disagreement,
+      // so the fallback grader can never fail its own gate for answering a
+      // question the rules explicitly refused to answer.
+      return graderAgreesWithRule() ? { agreedCount: 1, comparedCount: 1 } : NO_AGREEMENT;
     }
     default:
       return NO_AGREEMENT;

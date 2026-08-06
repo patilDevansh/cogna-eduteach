@@ -85,7 +85,6 @@
 
 - ~~Normalized answer matcher (`16`, `x=16`, `x = 16`, `16.0`)~~
 - ~~Grades: CORRECT | INCORRECT | INVALID_FORMAT (PARTIALLY_CORRECT stub ok)~~
-- ~~No LLM grading path for MVP numeric/MCQ~~
 
 ### Learning Loop module
 
@@ -282,7 +281,6 @@
 
 - ~~Empty states + safe error messages~~
 - ~~Child-safe copy (no internal labels in student UI)~~
-- ~~Privacy defaults: no LLM student-math egress~~ *(enforced in QG; documented in DEMO_WALKTHROUGH)*
 - ~~README demo script (5-minute walkthrough)~~ *([DEMO_WALKTHROUGH.md](./DEMO_WALKTHROUGH.md))*
 
 ### Close-out

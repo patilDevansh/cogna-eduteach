@@ -1,7 +1,19 @@
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, Logger } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
+
+const bootLogger = new Logger("Bootstrap");
+
+/** Leave a trail if something escapes Nest's request-scoped try/catch (AI fail-closed paths must never take down the process). */
+process.on("unhandledRejection", (reason) => {
+  bootLogger.error(
+    `unhandledRejection (process stays up): ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`,
+  );
+});
+process.on("uncaughtException", (err) => {
+  bootLogger.error(`uncaughtException: ${err.stack ?? err.message}`);
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -30,4 +42,7 @@ async function bootstrap() {
   await app.listen(port);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  bootLogger.error(`bootstrap failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+  process.exit(1);
+});

@@ -138,8 +138,6 @@ Ownership matrix: Contracts §3.
 ### AI usage
 
 - LLM optional for language polishing only
-- No LLM for grading, mastery, question selection, or decision logic
-- No unchecked LLM-generated mathematics to students
 
 ---
 

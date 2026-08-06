@@ -173,6 +173,75 @@ enum ReportTrigger {
   PARENT_REQUESTED_REPORT
 }
 
+// ─── Diagnostic v2 enums (micro-skill step diagnostic, MVP 9.0.1 Phase A) ──
+
+enum StepValidityV2 {
+  VALID
+  INVALID
+  AMBIGUOUS
+  PARSE_FAILED
+}
+
+enum StepTransformationV2 {
+  SIMPLIFY
+  ADD_BOTH_SIDES
+  SUBTRACT_BOTH_SIDES
+  MULTIPLY_BOTH_SIDES
+  DIVIDE_BOTH_SIDES
+  DISTRIBUTE
+  COMBINE_LIKE_TERMS
+  SUBSTITUTE_CHECK
+  OTHER
+  UNKNOWN
+}
+
+enum AssistanceLevelV2 {
+  NONE
+  REVIEW_OPPORTUNITY
+  GENERAL_PROMPT
+  LOCATION_HINT
+  RULE_PROMPT
+  MICRO_QUESTION
+  PARTIAL_WORKED_STEP
+  FULL_EXPLANATION
+}
+
+enum MicroSkillStatusV2 {
+  UNKNOWN
+  EMERGING
+  DEVELOPING
+  RELIABLE
+  LIKELY_GAP
+}
+
+enum DiagnosticV2SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum VerificationSourceV2 {
+  DETERMINISTIC
+  AI_FALLBACK
+}
+
+enum HypothesisSourceV2 {
+  RULE
+  AI
+}
+
+enum MicroSkillEvidenceKindV2 {
+  INDEPENDENT_CORRECT
+  INDEPENDENT_INCORRECT
+  SELF_CORRECTED
+  ASSISTED_CORRECT
+  ASSISTED_INCORRECT
+  TRANSFER_SUCCESS
+  TRANSFER_FAILURE
+  SKIPPED
+  INSUFFICIENT
+}
+
 // ─── Auth / accounts ───────────────────────────────────────────────────────
 
 model User {
@@ -228,6 +297,11 @@ model Student {
   parentLinks         ParentStudentLink[]
   retentionEstimates  RetentionEstimate[]
   explanationOutcomes ExplanationOutcome[]
+
+  // Diagnostic v2 (micro-skill step diagnostic, MVP 9.0.1 Phase A)
+  diagnosticV2Sessions       DiagnosticV2Session[]
+  microSkillEvidenceEventsV2 MicroSkillEvidenceEventV2[]
+  microSkillStatesV2         MicroSkillStateV2[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -530,6 +604,8 @@ model RevisionQueueItem {
   studentId             String
   student               Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   conceptId             String
+  /// Diagnostic v2 (MVP 9.0.1 Phase A): set when this item schedules a micro-skill retention check instead of a concept-level one. Nullable, additive.
+  microSkillId          String?
   type                  String
   targetMisconception   String?
   priority              Float
@@ -907,4 +983,160 @@ model AiDecisionAuditLog {
   createdAt     DateTime @default(now())
 
   @@index([capability, studentId, createdAt])
+}
+
+// ─── Diagnostic v2 tables (micro-skill step diagnostic, MVP 9.0.1 Phase A) ─
+// Additive only — no existing table above is modified. See
+// COGNA 9.0.1/BUILD_PLAN.md for the full spec and
+// docs/diagnostic-microskill-slice/micro-skill-catalogue.md for the
+// seven-layer model and 73-skill catalogue this slice draws 9 skills from.
+
+/** One diagnostic run for one student: a small hard-coded sequence of items
+ * (entry -> negative-distribution target -> contrast probe if needed ->
+ * transfer check), not the general breadth/depth selector from Work Order 03 —
+ * that's a later phase. stageHistory logs each transition, including whether
+ * it was rule- or AI-selected and the AI's stated reasoning when present. */
+model DiagnosticV2Session {
+  id             String                    @id @default(cuid())
+  studentId      String
+  student        Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status         DiagnosticV2SessionStatus @default(ACTIVE)
+  currentStageId String
+  stageHistory   Json                      @default("[]")
+  policyVersion  String
+  startedAt      DateTime                  @default(now())
+  endedAt        DateTime?
+
+  attempts   DiagnosticV2Attempt[]
+  hypotheses DiagnosticV2Hypothesis[]
+
+  @@index([studentId, startedAt])
+}
+
+/** One question within a session. Phase A's content is a small hand-authored
+ * + template-rendered set, not a fully versioned Question-bank row like the
+ * existing product has — acceptable gap for this phase, revisited in Phase B. */
+model DiagnosticV2Attempt {
+  id             String    @id @default(cuid())
+  sessionId      String
+  session        DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  itemKey        String
+  equationPrompt String
+  /**
+   * PRE_WRITTEN | TEMPLATE_RENDERED | AI_AUTHORED — stated on the row so a
+   * later reader never has to infer origin from an item-key prefix (Phase A
+   * silently mistook generated transfer items for ordinary ones that way).
+   */
+  origin         String    @default("PRE_WRITTEN")
+  /** null only for AI_AUTHORED items, which belong to no template. */
+  templateId     String?
+  /** Where this item sits in the diagnostic sequence — stated, never inferred. */
+  stageId        String    @default("ENTRY_TWO_STEP")
+  status         String    @default("IN_PROGRESS")
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  steps DiagnosticV2Step[]
+
+  @@index([sessionId, createdAt])
+}
+
+/** Layer 6 (step-level evidence), plus the layer 2/3/5 tags (topic,
+ * competency family, context modifiers) attached to this one submitted line.
+ * Only completed, submitted lines are stored — never unfinished keystrokes.
+ * verificationSource distinguishes a normal deterministic-verifier result
+ * from the rare AI-fallback-graded case (PARSE_FAILED/AMBIGUOUS only). */
+model DiagnosticV2Step {
+  id                             String                @id @default(cuid())
+  attemptId                      String
+  attempt                        DiagnosticV2Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  stepIndex                      Int
+  previousLine                   String
+  submittedLine                  String
+  normalizedPreviousLine         String?
+  normalizedSubmittedLine        String?
+  attemptedTransformation        StepTransformationV2
+  validity                       StepValidityV2
+  verificationSource             VerificationSourceV2 @default(DETERMINISTIC)
+  aiGraderConfidence              Float?
+  firstInvalidActionCode         String?
+  firstInvalidActionDescription  String?
+  primaryMicroSkillId            String?
+  supportingMicroSkillIds        String[]
+  topicId                        String?
+  competencyFamilyId             String?
+  contextModifierIds             String[]
+  assistanceLevel                AssistanceLevelV2    @default(NONE)
+  /// Self-FK to the step this one corrects, when the student revised a prior invalid line after a review opportunity.
+  selfCorrectionOfStepId         String?
+  verifierVersion                String
+  createdAt                      DateTime              @default(now())
+
+  @@index([attemptId, stepIndex])
+}
+
+/** Layer 4/7 evidence event — insert-only, never edited. One row per
+ * observation that updates (or explicitly does not update) a micro-skill's
+ * state. Every event cites its source step so a claim can always be traced
+ * back to the exact line that produced it. */
+model MicroSkillEvidenceEventV2 {
+  id                     String                    @id @default(cuid())
+  studentId              String
+  student                Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId              String
+  attemptId              String
+  stepId                 String?
+  microSkillId           String
+  topicId                String?
+  competencyFamilyId     String?
+  contextModifierIds     String[]
+  evidenceKind           MicroSkillEvidenceKindV2
+  weight                 Float
+  assistanceLevel        AssistanceLevelV2        @default(NONE)
+  evidencePolicyVersion  String
+  createdAt              DateTime                  @default(now())
+
+  @@index([studentId, microSkillId, createdAt])
+}
+
+/** Persistent Layer-4 ground truth per student per skill — deterministic,
+ * derivable by replaying MicroSkillEvidenceEventV2. Never written to
+ * directly by an AI response; the AI interpreter (diagnostic-v2-ai-interpreter)
+ * reads this but only ever writes a DiagnosticV2Hypothesis on top of it. */
+model MicroSkillStateV2 {
+  studentId                String
+  student                  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  microSkillId             String
+  status                   MicroSkillStatusV2 @default(UNKNOWN)
+  evidenceCount            Int                @default(0)
+  independentSuccessCount  Int                @default(0)
+  independentFailureCount  Int                @default(0)
+  assistedSuccessCount     Int                @default(0)
+  observedContextStrengths String[]
+  observedContextGaps      String[]
+  lastEvidenceAt           DateTime?
+  stateVersion             Int                @default(1)
+  policyVersion            String
+
+  @@id([studentId, microSkillId])
+}
+
+/** The interpretation layer on top of MicroSkillStateV2's deterministic
+ * counters — "why" a pattern is happening, in language a human can read.
+ * source distinguishes an AI-authored hypothesis from the deterministic
+ * template-string fallback used when AI is disabled, fails, or times out;
+ * a hypothesis always exists either way. */
+model DiagnosticV2Hypothesis {
+  id                 String              @id @default(cuid())
+  sessionId          String
+  session            DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  microSkillId       String
+  hypothesisLabel    String
+  confidence         Float
+  reasoning          String
+  source             HypothesisSourceV2
+  childFacingSummary String?
+  createdAt          DateTime            @default(now())
+
+  @@index([sessionId, microSkillId, createdAt])
 }

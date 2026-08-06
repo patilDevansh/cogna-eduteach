@@ -25,6 +25,8 @@ import { ModalityDirectorModule } from "./engines/modality-director/modality-dir
 import { PolicyEngineModule } from "./engines/policy-engine/policy-engine.module";
 import { SafetyEvalModule } from "./engines/safety-eval/safety-eval.module";
 import { PolicyModule } from "./policy/policy.module";
+// MVP 9.0.1 Phase A — additive micro-skill step diagnostic, no existing route changes
+import { DiagnosticV2Module } from "./engines/diagnostic-v2/diagnostic-v2.module";
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { PolicyModule } from "./policy/policy.module";
     PolicyEngineModule,
     SafetyEvalModule,
     PolicyModule,
+    // MVP 9.0.1
+    DiagnosticV2Module,
   ],
   controllers: [HealthController],
 })

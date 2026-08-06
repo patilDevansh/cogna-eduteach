@@ -1,10 +1,16 @@
 import type {
   ConceptMasteryBand,
+  ConfidenceCalibrationSummary,
+  DiagnosticV2DebugView,
+  DiagnosticV2SummaryResponse,
   MasteryTrendPoint,
   PatternHistoryItem,
   PracticeCalendarDay,
   PracticeNextResponse,
+  StartDiagnosticV2SessionResponse,
   StudentSafetySettings,
+  SubmitDiagnosticV2StepRequest,
+  SubmitDiagnosticV2StepResponse,
 } from "@cogna/shared";
 import {
   buildParentAuthHeaders,
@@ -408,6 +414,12 @@ export const api = {
       { headers: buildParentAuthHeaders(auth) },
     ),
 
+  getConfidenceCalibration: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<ConfidenceCalibrationSummary>(
+      `/parents/me/students/${studentId}/confidence-calibration`,
+      { headers: buildParentAuthHeaders(auth) },
+    ),
+
   getSafetySettings: (auth: string | ParentAuthInput | undefined, studentId: string) =>
     apiFetch<StudentSafetySettings>(
       `/parents/me/students/${studentId}/settings`,
@@ -426,6 +438,35 @@ export const api = {
         headers: buildParentAuthHeaders(auth),
         body: JSON.stringify({ aiAssistedPracticePaused }),
       },
+    ),
+
+  /** MVP 9.0.1 Phase A — micro-skill step diagnostic; standalone from the
+   * MVP 1.0-9.0 session/practice routes above. May 404 until the backend lands. */
+  startDiagnosticV2Session: (studentId: string) =>
+    apiFetch<StartDiagnosticV2SessionResponse>("/diagnostic-v2/sessions", {
+      method: "POST",
+      body: JSON.stringify({ studentId }),
+    }),
+
+  submitDiagnosticV2Step: (
+    sessionId: string,
+    payload: SubmitDiagnosticV2StepRequest,
+  ) =>
+    apiFetch<SubmitDiagnosticV2StepResponse>(
+      `/diagnostic-v2/sessions/${sessionId}/steps`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  /** Internal debug view — only fetched when the page is opened with `?debug=1`. */
+  getDiagnosticV2Session: (sessionId: string) =>
+    apiFetch<DiagnosticV2DebugView>(`/diagnostic-v2/sessions/${sessionId}`),
+
+  getDiagnosticV2Summary: (sessionId: string) =>
+    apiFetch<DiagnosticV2SummaryResponse>(
+      `/diagnostic-v2/sessions/${sessionId}/summary`,
     ),
 };
 

@@ -21,6 +21,8 @@ export * from "./contracts/student-analysis";
 export * from "./contracts/break-advisor";
 export * from "./contracts/question-recommender";
 export * from "./contracts/practice-recommender";
+// MVP 9.0.1 Phase A — micro-skill step diagnostic (standalone track)
+export * from "./contracts/diagnostic-v2";
 // Voice / safe text
 export * from "./voice/forbidden-terms";
 export * from "./voice/safe-text";

@@ -161,7 +161,7 @@ Setup: stored decision-rules-v2 row
 Expected: replay unchanged under MVP 3.0 codepaths
 ```
 
-### S18 — Hot path has no LLM call
+### S18 — Hot path provider isolation
 
 ```text
 Setup: instrument provider client during answer submit
