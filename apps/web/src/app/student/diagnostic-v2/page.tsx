@@ -21,6 +21,8 @@ import styles from "@/components/diagnostic-v2.module.css";
 
 type Phase = "checking" | "intro" | "working" | "complete";
 
+type DiagnosticTrackChoice = "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR";
+
 type Attempt = DiagnosticV2AttemptView;
 
 type StepLogEntry = {
@@ -84,12 +86,18 @@ function DiagnosticV2Content() {
   const debugParam = searchParams.get("debug");
   const debugEnabled = debugParam !== null && debugParam !== "0";
   const trackParam = searchParams.get("track");
-  const sessionTrack =
-    trackParam === "FRACTION_LINEAR" ? "FRACTION_LINEAR" : undefined;
+  const initialTrack: DiagnosticTrackChoice =
+    trackParam === "FRACTION_LINEAR"
+      ? "FRACTION_LINEAR"
+      : trackParam === "NEGATIVE_DISTRIBUTION"
+        ? "NEGATIVE_DISTRIBUTION"
+        : "FRACTION_LINEAR";
 
   const [phase, setPhase] = useState<Phase>("checking");
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
+  const [sessionTrack, setSessionTrack] =
+    useState<DiagnosticTrackChoice>(initialTrack);
   const [sessionId, setSessionId] = useState("");
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   /** Who chose the item currently on screen. The opening item is always the
@@ -327,6 +335,40 @@ function DiagnosticV2Content() {
           out your working one line at a time — exactly how you&apos;d do it on
           paper — and submit each line as you go.
         </p>
+        <fieldset className={styles.trackPicker}>
+          <legend>What should we check?</legend>
+          <label className={styles.trackOption}>
+            <input
+              type="radio"
+              name="diagnosticTrack"
+              checked={sessionTrack === "FRACTION_LINEAR"}
+              onChange={() => setSessionTrack("FRACTION_LINEAR")}
+            />
+            <span>
+              <strong>Equations with fractions</strong>
+              <span className={styles.trackHint}>
+                Starts with something like <code>x/2 + 3 = 7</code>, then moves
+                to clearing denominators — e.g.{" "}
+                <code>(x+1)/2 = (x-1)/3 + 1</code>.
+              </span>
+            </span>
+          </label>
+          <label className={styles.trackOption}>
+            <input
+              type="radio"
+              name="diagnosticTrack"
+              checked={sessionTrack === "NEGATIVE_DISTRIBUTION"}
+              onChange={() => setSessionTrack("NEGATIVE_DISTRIBUTION")}
+            />
+            <span>
+              <strong>Brackets &amp; negative signs</strong>
+              <span className={styles.trackHint}>
+                Linear equations like <code>-2(x - 5) + 3 = 11</code> — the
+                original Phase A path.
+              </span>
+            </span>
+          </label>
+        </fieldset>
         <p className="lead">
           There&apos;s no timer and no score. If a line doesn&apos;t work out,
           nothing is lost — we just look at it together. If you&apos;re stuck on
@@ -379,10 +421,18 @@ function DiagnosticV2Content() {
   const assistance =
     outcome?.assistanceMessage ?? assistanceFallback(outcome?.assistanceOffered);
 
+  const enrichedWhy = enrichWhyThisQuestion(whyThisQuestion, debugView);
+  const latestHypothesis = debugView?.hypotheses?.at(-1);
+
   return shell(
     <>
       <p className="eyebrow">One line at a time</p>
       <h1 style={{ fontSize: "var(--text-lg)" }}>Solve this, showing each step</h1>
+      <p className={styles.trackBadge} role="status">
+        {sessionTrack === "FRACTION_LINEAR"
+          ? "Track: equations with fractions (clearing denominators)"
+          : "Track: brackets & negative signs"}
+      </p>
 
       {notice && (
         <div className={`${styles.note} ${styles.noteAccepted}`} role="status">
@@ -390,7 +440,15 @@ function DiagnosticV2Content() {
         </div>
       )}
 
-      {attemptSource === "AI" && (
+      {enrichedWhy && (
+        <WhyThisQuestionBox
+          why={enrichedWhy}
+          placement="inline"
+          showMeta={debugEnabled}
+        />
+      )}
+
+      {attemptSource === "AI" && !enrichedWhy?.reasoning && (
         <p className={styles.aiChip} role="note">
           <span className={styles.aiChipMark} aria-hidden="true">
             AI
@@ -399,11 +457,19 @@ function DiagnosticV2Content() {
         </p>
       )}
 
-      {debugEnabled && whyThisQuestion && (
-        <WhyThisQuestionBox
-          why={enrichWhyThisQuestion(whyThisQuestion, debugView)!}
-          placement="inline"
-        />
+      {latestHypothesis?.reasoning && (
+        <div className={styles.hypothesisBox} role="status">
+          <div className={styles.whyHead}>
+            <strong>What we think is going on</strong>
+            {sourceTag(latestHypothesis.source)}
+          </div>
+          <p className={styles.whyReasoning}>
+            {humanizeDiagnosticCodesInText(latestHypothesis.reasoning)}
+          </p>
+          {latestHypothesis.childFacingSummary && (
+            <p className={styles.noteDetail}>{latestHypothesis.childFacingSummary}</p>
+          )}
+        </div>
       )}
 
       <ol className={styles.working}>
@@ -589,9 +655,11 @@ function enrichWhyThisQuestion(
 function WhyThisQuestionBox({
   why,
   placement,
+  showMeta = true,
 }: {
   why: WhyThisQuestion;
   placement: "inline" | "panel";
+  showMeta?: boolean;
 }) {
   const readableReasoning = humanizeDiagnosticCodesInText(why.reasoning);
   return (
@@ -604,14 +672,16 @@ function WhyThisQuestionBox({
       <div className={styles.whyHead}>
         <strong>Why this question</strong>
         {sourceTag(why.source)}
-        {why.origin && <CodeTag code={why.origin} />}
+        {showMeta && why.origin && <CodeTag code={why.origin} />}
       </div>
       <p className={styles.whyReasoning}>{readableReasoning}</p>
-      <div className={styles.debugMeta}>
-        {why.itemKey && <CodeTag code={why.itemKey} />}
-        {why.templateId && <CodeTag code={why.templateId} />}
-        {why.stageId && <CodeTag code={why.stageId} />}
-      </div>
+      {showMeta && (
+        <div className={styles.debugMeta}>
+          {why.itemKey && <CodeTag code={why.itemKey} />}
+          {why.templateId && <CodeTag code={why.templateId} />}
+          {why.stageId && <CodeTag code={why.stageId} />}
+        </div>
+      )}
     </div>
   );
 }

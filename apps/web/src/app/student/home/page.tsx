@@ -197,6 +197,9 @@ export default function StudentHomePage() {
         )}
 
         <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>
+          <Link href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1">
+            Step check (fractions)
+          </Link>
           <Link href="/student/revision">Plan</Link>
           <button type="button" className="btn-quiet" onClick={signOut} style={{ padding: 0 }}>
             Sign out
