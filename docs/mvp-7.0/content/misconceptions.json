@@ -1,0 +1,37 @@
+{
+  "misconceptions": [
+    {
+      "id": "INCOMPLETE_FACTOR_EXTRACTION",
+      "conceptIds": ["FAC_C1_COMMON_FACTOR", "FAC_C2_REGROUPING", "FAC_C5_DIVISION_CHECK", "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "WRONG_FACTOR_PAIR",
+      "conceptIds": ["FAC_C4_TRINOMIAL"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    },
+    {
+      "id": "INCOMPLETE_REGROUPING",
+      "conceptIds": ["FAC_C2_REGROUPING"],
+      "minimumMatchingAttempts": 2,
+      "activationConfidence": 0.6,
+      "alternativeExplanations": ["ARITHMETIC_SLIP"],
+      "maxTargetedBeforeExplanation": 2,
+      "maxExplanationCycles": 2,
+      "resolutionConsecutiveCorrect": 2,
+      "resolutionMaxHintLevel": 1
+    }
+  ]
+}

@@ -1,0 +1,385 @@
+{
+  "runId": "run100_2026-08-05T07-25-21-871Z_mix_093_correct_correct_bare_final_wrong_twice_correct",
+  "batch": "100-varied",
+  "scenario": {
+    "id": "mix_093_correct_correct_bare_final_wrong_twice_correct",
+    "label": "E=correct V=correct M=bare_final C=wrong_twice T=correct",
+    "intent": {
+      "entry": "correct",
+      "varBoth": "correct",
+      "main": "bare_final",
+      "contrast": "wrong_twice",
+      "transfer": "correct"
+    }
+  },
+  "startedAt": "2026-08-05T07:25:21.871Z",
+  "sessionId": "cmsfriiqf05i0y21hni2y8shf",
+  "studentId": "cmriwinvg00d9y2c1v0sq9wkv",
+  "items": [
+    {
+      "ord": 1,
+      "question": {
+        "attemptId": "cmsfriiqh05i2y21hyrh9e8ig",
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "openingLine": "3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP"
+      },
+      "steps": [
+        {
+          "previousLine": "3x + 5 = 20",
+          "submittedLine": "3x = 15",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 0,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "3x = 15",
+          "submittedLine": "x = 5",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 1,
+          "itemComplete": true,
+          "sessionStatus": "ACTIVE"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "AI",
+        "reasoning": "The student shows a likely gap in LIN_DISTRIBUTE_NEG, so presenting a planned item from TPL_NEG_DISTRIBUTION will directly target this gap and assess or reinforce their understanding of distributing negatives in equations.",
+        "nextItemKey": "NEG_DIST_MAIN",
+        "nextEquationPrompt": "Solve for x:  -2(x - 5) + 3 = 11",
+        "nextOpeningLine": "-2(x - 5) + 3 = 11",
+        "nextAttemptId": "cmsfrilaz05iiy21hw5z17uue",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION"
+      }
+    },
+    {
+      "ord": 2,
+      "question": {
+        "attemptId": "cmsfrilaz05iiy21hw5z17uue",
+        "itemKey": "NEG_DIST_MAIN",
+        "equationPrompt": "Solve for x:  -2(x - 5) + 3 = 11",
+        "openingLine": "-2(x - 5) + 3 = 11",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION"
+      },
+      "steps": [
+        {
+          "previousLine": "-2(x - 5) + 3 = 11",
+          "submittedLine": "-2x + 10 + 3 = 11",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 0,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-2x + 10 + 3 = 11",
+          "submittedLine": "-2x + 13 = 11",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 1,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-2x + 13 = 11",
+          "submittedLine": "-2x = -2",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 2,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-2x = -2",
+          "submittedLine": "1",
+          "intent": "bare_number_final",
+          "outcome": "SUBMITTED",
+          "validity": "INVALID",
+          "verificationSource": "AI_FALLBACK",
+          "firstInvalidActionDescription": "The new line '1' does not represent the solution or a valid transformation of the equation '-2x = -2'.",
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 3,
+          "itemComplete": true,
+          "sessionStatus": "ACTIVE"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "AI",
+        "reasoning": "The student showed a likely gap in LIN_DISTRIBUTE_NEG with a recent incorrect step on negative distribution, so the next item should directly target expanding a negative distribution expression without solving, to isolate and reinforce this skill.",
+        "nextItemKey": "NEG_DIST_CONTRAST",
+        "nextEquationPrompt": "Expand:  -3(y - 4)",
+        "nextOpeningLine": "-3(y - 4)",
+        "nextAttemptId": "cmsfriq4905j8y21hvnuxgxxi",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION_BARE"
+      }
+    },
+    {
+      "ord": 3,
+      "question": {
+        "attemptId": "cmsfriq4905j8y21hvnuxgxxi",
+        "itemKey": "NEG_DIST_CONTRAST",
+        "equationPrompt": "Expand:  -3(y - 4)",
+        "openingLine": "-3(y - 4)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION_BARE"
+      },
+      "steps": [
+        {
+          "previousLine": "-3(y - 4)",
+          "submittedLine": "-3y - 12",
+          "intent": "wrong",
+          "outcome": "SUBMITTED",
+          "validity": "INVALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": "(-3)(-4) was evaluated as -12, but multiplying those two signs gives 12",
+          "assistanceOffered": "RULE_PROMPT",
+          "assistanceMessage": "The number outside the bracket multiplies every term inside it — including its sign. What is (-3) x (-4)? Two negatives multiplied together give a positive, so it is 12, not -12.",
+          "stepIndex": 0,
+          "itemComplete": true,
+          "sessionStatus": "ACTIVE"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "AI",
+        "reasoning": "The student shows a likely gap in distributing negatives correctly, especially with sign errors in multiplication; the TRANSFER_NEG_DIST question targets LIN_DISTRIBUTE_NEG and is the next item in the fixed sequence to check transfer after initial teaching.",
+        "nextItemKey": "TRANSFER_NEG_DIST",
+        "nextEquationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "nextOpeningLine": "-4(z - 2) + 3 = 19",
+        "nextAttemptId": "cmsfrit1405jiy21h4kr9y835",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION"
+      }
+    },
+    {
+      "ord": 4,
+      "question": {
+        "attemptId": "cmsfrit1405jiy21h4kr9y835",
+        "itemKey": "TRANSFER_NEG_DIST",
+        "equationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "openingLine": "-4(z - 2) + 3 = 19",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION"
+      },
+      "steps": [
+        {
+          "previousLine": "-4(z - 2) + 3 = 19",
+          "submittedLine": "-4z + 8 + 3 = 19",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 0,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-4z + 8 + 3 = 19",
+          "submittedLine": "-4z + 11 = 19",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 1,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-4z + 11 = 19",
+          "submittedLine": "-4z = 8",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 2,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-4z = 8",
+          "submittedLine": "z = -2",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 3,
+          "itemComplete": true,
+          "sessionStatus": "COMPLETED"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "RULE",
+        "reasoning": null,
+        "nextItemKey": null,
+        "nextEquationPrompt": null,
+        "nextOpeningLine": null,
+        "nextAttemptId": null
+      }
+    }
+  ],
+  "notes": [],
+  "debugSnapshot": {
+    "status": "COMPLETED",
+    "currentStageId": "COMPLETE",
+    "stageHistory": [
+      {
+        "at": "2026-08-05T07:25:21.878Z",
+        "source": "RULE",
+        "stageId": "ENTRY_TWO_STEP",
+        "reasoning": "Opening item of the fixed entry sequence."
+      },
+      {
+        "at": "2026-08-05T07:25:25.205Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_MAIN",
+        "reasoning": "The student shows a likely gap in LIN_DISTRIBUTE_NEG, so presenting a planned item from TPL_NEG_DISTRIBUTION will directly target this gap and assess or reinforce their understanding of distributing negatives in equations."
+      },
+      {
+        "at": "2026-08-05T07:25:31.438Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_CONTRAST",
+        "reasoning": "The student showed a likely gap in LIN_DISTRIBUTE_NEG with a recent incorrect step on negative distribution, so the next item should directly target expanding a negative distribution expression without solving, to isolate and reinforce this skill."
+      },
+      {
+        "at": "2026-08-05T07:25:35.213Z",
+        "source": "RULE",
+        "stageId": "RULE_PROMPT",
+        "reasoning": "Same distribution error twice on structurally different problems — taught the sign rule before re-testing."
+      },
+      {
+        "at": "2026-08-05T07:25:35.213Z",
+        "source": "AI",
+        "stageId": "TRANSFER_NEG_DIST",
+        "reasoning": "The student shows a likely gap in distributing negatives correctly, especially with sign errors in multiplication; the TRANSFER_NEG_DIST question targets LIN_DISTRIBUTE_NEG and is the next item in the fixed sequence to check transfer after initial teaching."
+      },
+      {
+        "at": "2026-08-05T07:25:38.545Z",
+        "source": "RULE",
+        "stageId": "COMPLETE",
+        "reasoning": "All planned items complete."
+      }
+    ],
+    "items": [
+      {
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP"
+      },
+      {
+        "itemKey": "NEG_DIST_MAIN",
+        "equationPrompt": "Solve for x:  -2(x - 5) + 3 = 11",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION"
+      },
+      {
+        "itemKey": "NEG_DIST_CONTRAST",
+        "equationPrompt": "Expand:  -3(y - 4)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION_BARE"
+      },
+      {
+        "itemKey": "TRANSFER_NEG_DIST",
+        "equationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION"
+      }
+    ],
+    "hypotheses": [
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student correctly isolated the letter 186 times independently and only made 5 errors, showing strong skill with very few mistakes.",
+        "childFacingSummary": "You're doing great at getting the letter alone in problems, just a couple of small slips here and there."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student made more mistakes than correct attempts independently when expanding brackets with a minus in front, showing a consistent difficulty with this skill.",
+        "childFacingSummary": "You often find it tricky to expand brackets with a minus in front, so keep practicing to get better at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student made more mistakes than correct answers independently when expanding brackets with a minus in front, showing a consistent difficulty with this skill.",
+        "childFacingSummary": "You often find it tricky to expand brackets with a minus in front, so keep practicing to get better at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student has more incorrect attempts than correct ones on their own and made a recent error reversing the sign rule when expanding brackets with a minus in front.",
+        "childFacingSummary": "You're having some trouble with expanding brackets that start with a minus, so keep practicing to get it right more often."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student made more errors than correct attempts independently, showing a consistent difficulty with expanding brackets that have a minus in front.",
+        "childFacingSummary": "You're finding it tricky to expand brackets with a minus sign, and that's happening quite often, so keep practicing to get better!"
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student correctly isolated the letter by dividing almost every time on their own, with very few mistakes and no need for help, showing strong independent skill.",
+        "childFacingSummary": "You're doing great at dividing to get the letter alone, making very few mistakes on your own!"
+      }
+    ]
+  },
+  "endedAt": "2026-08-05T07:25:38.573Z",
+  "sessionStatus": "COMPLETED"
+}

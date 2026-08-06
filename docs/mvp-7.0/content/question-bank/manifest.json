@@ -1,0 +1,16 @@
+{
+  "era": "mvp-7.0",
+  "unit": "factorisation",
+  "curriculum": "CBSE-style Grade 8",
+  "status": "first-batch-pending-review",
+  "idPolicy": "New FAC_* namespace — does not collide with P#/C#/SE_*/ID_* concept or question IDs.",
+  "notes": "Runs the algebraic-identities unit in reverse. Depth-first batch: authoring and bulk-generation effort concentrated on FAC_C4_TRINOMIAL (factorising x^2+(a+b)x+ab into (x+a)(x+b) — the reverse of the mvp-6.0 B4 priority skill). All PENDING_REVIEW pending human sign-off.",
+  "coverage": {
+    "FAC_P1_MONOMIAL_FACTORS": { "target": 3, "hand_authored": 3, "generated": 0 },
+    "FAC_C1_COMMON_FACTOR": { "target": 20, "hand_authored": 3, "generated": 120 },
+    "FAC_C2_REGROUPING": { "target": 3, "hand_authored": 3, "generated": 0 },
+    "FAC_C3_IDENTITY_BASED": { "target": 20, "hand_authored": 3, "generated": 65 },
+    "FAC_C4_TRINOMIAL": { "target": 50, "hand_authored": 9, "generated": 220 },
+    "FAC_C5_DIVISION_CHECK": { "target": 3, "hand_authored": 3, "generated": 0 }
+  }
+}

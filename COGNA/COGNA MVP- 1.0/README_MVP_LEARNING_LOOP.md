@@ -90,7 +90,7 @@ The Loop preserves the separation:
 
 ## Grading
 
-Deterministic normalized matching (Contracts §12). LLM must not grade simple numeric/algebraic finals in MVP.
+Deterministic normalized matching (Contracts §12).
 
 ---
 

@@ -1,8 +1,9 @@
-import type { ExplanationStyle, LearningIntent, QuestionFormat, UiAction } from "./enums";
+import type { ExplanationStyle, LearningIntent, ModalityKind, QuestionFormat, UiAction } from "./enums";
 
 export interface ContentStyle {
   questionFormat?: QuestionFormat;
   explanationStyle?: ExplanationStyle;
+  modality?: ModalityKind; // MVP 5.0
 }
 
 export interface DecisionParameters {
@@ -14,6 +15,28 @@ export interface DecisionParameters {
   hintLevel?: number;
   baselineSlotIndex?: number;
   preferredQuestionType?: string;
+  // MVP 2.0 optional fields
+  retentionEstimateId?: string;
+  transferConceptId?: string;
+  sessionPlanId?: string;
+  maxQuestionCount?: number;
+  breakMinutes?: number;
+  explanationOutcomeId?: string;
+  // MVP 3.0 optional fields
+  experimentId?: string;
+  experimentArmId?: string;
+  candidateScoreId?: string;
+  draftOriginId?: string; // analytics only; never student-facing
+  // MVP 4.0 optional fields
+  unitId?: string;
+  curriculumPlanId?: string;
+  horizonWeekIndex?: number; // 0-based within plan
+  bridgeConceptId?: string;
+  // MVP 5.0 optional fields
+  subjectId?: string;
+  modalityAssetId?: string;
+  policyVersion?: string;
+  safetyEvalId?: string;
 }
 
 export interface LearningDecision {
@@ -49,9 +72,26 @@ export interface HintPayload {
   content: string;
 }
 
+/** Payload when uiAction is SUGGEST_BREAK (e.g. BREAK_FOR_FATIGUE). */
+export interface BreakPayload {
+  breakMinutes: number;
+  message: string;
+  continueAllowed: true;
+}
+
+export interface SessionEndPayload {
+  summary?: string;
+  revisionProposed?: boolean;
+}
+
 export interface PracticeNextResponse {
   decision: LearningDecision;
   decisionId?: string;
-  payload?: QuestionPayload | ExplanationPayload | HintPayload;
+  payload?:
+    | QuestionPayload
+    | ExplanationPayload
+    | HintPayload
+    | BreakPayload
+    | SessionEndPayload;
   studentMessage?: string;
 }

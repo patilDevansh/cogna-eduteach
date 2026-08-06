@@ -1,0 +1,18 @@
+{
+  "era": "mvp-6.0",
+  "unit": "algebraic-identities",
+  "curriculum": "CBSE-style Grade 8",
+  "status": "first-batch-pending-review",
+  "idPolicy": "New ID_* namespace — does not collide with P#/C#/SE_* IDs from mvp-1.0/mvp-4.0.",
+  "notes": "Depth-first batch: authoring effort concentrated on ID_C4_TWO_BINOMIAL_IDENTITY (the (x+a)(x+b) identity, the highest-priority skill in this pass); the other 6 concepts have baseline coverage so the prerequisite chain and adaptive engine have something to serve. All PENDING_REVIEW pending human sign-off.",
+  "targetApproved": 45,
+  "coverage": {
+    "ID_P1_TERM_BASICS": { "target": 3, "approved": 0 },
+    "ID_P2_BINOMIAL_MULTIPLICATION": { "target": 3, "approved": 0 },
+    "ID_C1_SQUARE_OF_SUM": { "target": 3, "approved": 0 },
+    "ID_C2_SQUARE_OF_DIFFERENCE": { "target": 3, "approved": 0 },
+    "ID_C3_DIFFERENCE_OF_SQUARES": { "target": 3, "approved": 0 },
+    "ID_C4_TWO_BINOMIAL_IDENTITY": { "target": 9, "approved": 0 },
+    "ID_C5_MENTAL_MATH_APPLICATION": { "target": 3, "approved": 0 }
+  }
+}

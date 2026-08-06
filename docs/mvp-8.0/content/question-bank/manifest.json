@@ -1,0 +1,13 @@
+{
+  "era": "mvp-8.0",
+  "unit": "exponents-algebra",
+  "curriculum": "CBSE-style Grade 8",
+  "status": "first-batch-pending-review",
+  "idPolicy": "New EXP_* namespace — does not collide with P#/C#/SE_*/ID_*/FAC_* concept or question IDs.",
+  "notes": "Covers the slice of Exponents that feeds into algebra (product/quotient/power rules, negative exponents, and chained simplification) — not standalone number-system exponent work. All PENDING_REVIEW pending human sign-off.",
+  "coverage": {
+    "EXP_P1_LAWS_OF_EXPONENTS": { "target": 100, "hand_authored": 3, "generated": 145 },
+    "EXP_C1_NEGATIVE_EXPONENTS": { "target": 3, "hand_authored": 3, "generated": 0 },
+    "EXP_C2_EXPONENTS_IN_SIMPLIFICATION": { "target": 100, "hand_authored": 6, "generated": 100 }
+  }
+}

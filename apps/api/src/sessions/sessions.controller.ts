@@ -22,6 +22,15 @@ export class SessionsController {
     return this.sessions.end(id);
   }
 
+  /** Staging helper for fatigue CLI — backdates session.startedAt. */
+  @Post(":id/dev/simulate-elapsed")
+  simulateElapsed(
+    @Param("id") id: string,
+    @Body() body: { minutes: number },
+  ) {
+    return this.sessions.simulateElapsed(id, body.minutes ?? 12);
+  }
+
   @Get(":id")
   get(@Param("id") id: string): Promise<unknown> {
     return this.sessions.get(id);

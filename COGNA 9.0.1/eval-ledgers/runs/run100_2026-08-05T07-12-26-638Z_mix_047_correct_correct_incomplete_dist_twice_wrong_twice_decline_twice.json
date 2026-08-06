@@ -1,0 +1,266 @@
+{
+  "runId": "run100_2026-08-05T07-12-26-638Z_mix_047_correct_correct_incomplete_dist_twice_wrong_twice_decline_twice",
+  "batch": "100-varied",
+  "scenario": {
+    "id": "mix_047_correct_correct_incomplete_dist_twice_wrong_twice_decline_twice",
+    "label": "E=correct V=correct M=incomplete_dist_twice C=wrong_twice T=decline_twice",
+    "intent": {
+      "entry": "correct",
+      "varBoth": "correct",
+      "main": "incomplete_dist_twice",
+      "contrast": "wrong_twice",
+      "transfer": "decline_twice"
+    }
+  },
+  "startedAt": "2026-08-05T07:12:26.638Z",
+  "sessionId": "cmsfr1wk50327y21hld8ttjws",
+  "studentId": "cmriwinvg00d9y2c1v0sq9wkv",
+  "items": [
+    {
+      "ord": 1,
+      "question": {
+        "attemptId": "cmsfr1wka0329y21hn988z1s1",
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "openingLine": "3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP"
+      },
+      "steps": [
+        {
+          "previousLine": "3x + 5 = 20",
+          "submittedLine": "3x = 15",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 0,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "3x = 15",
+          "submittedLine": "x = 5",
+          "intent": "correct",
+          "outcome": "SUBMITTED",
+          "validity": "VALID",
+          "verificationSource": "DETERMINISTIC",
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": null,
+          "assistanceMessage": null,
+          "stepIndex": 1,
+          "itemComplete": true,
+          "sessionStatus": "ACTIVE"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "AI",
+        "reasoning": "The student shows a likely gap in LIN_DISTRIBUTE_NEG, so presenting a full equation with negative distribution will target this gap effectively and build on their current work on LIN_REMOVE_COEFFICIENT.",
+        "nextItemKey": "GEN_NEG_DIST_-4_4_1_y",
+        "nextEquationPrompt": "Solve for y:  -4(y - 4) + 1 = 9",
+        "nextOpeningLine": "-4(y - 4) + 1 = 9",
+        "nextAttemptId": "cmsfr1yso032py21hno1ffawh",
+        "origin": "TEMPLATE_RENDERED",
+        "templateId": "TPL_NEG_DISTRIBUTION"
+      }
+    },
+    {
+      "ord": 2,
+      "question": {
+        "attemptId": "cmsfr1yso032py21hno1ffawh",
+        "itemKey": "GEN_NEG_DIST_-4_4_1_y",
+        "equationPrompt": "Solve for y:  -4(y - 4) + 1 = 9",
+        "openingLine": "-4(y - 4) + 1 = 9",
+        "origin": "TEMPLATE_RENDERED",
+        "templateId": "TPL_NEG_DISTRIBUTION"
+      },
+      "steps": [
+        {
+          "previousLine": "-4(y - 4) + 1 = 9",
+          "submittedLine": "",
+          "intent": "dont_know_generated_main",
+          "outcome": "DECLINED",
+          "validity": null,
+          "verificationSource": null,
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": "RULE_PROMPT",
+          "assistanceMessage": "The number outside the bracket multiplies every term inside it — including its sign. What is (-4) x (-4)? Two negatives multiplied together give a positive, so it is 16, not -16.",
+          "stepIndex": null,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-4(y - 4) + 1 = 9",
+          "submittedLine": "",
+          "intent": "dont_know_generated_main",
+          "outcome": "DECLINED",
+          "validity": null,
+          "verificationSource": null,
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": "FULL_EXPLANATION",
+          "assistanceMessage": "Multiply the number outside the bracket by each term inside, one at a time, and keep track of the signs as you go. What is (-4) x (-4)? Two negatives multiplied together give a positive, so it is 16, not -16.",
+          "stepIndex": null,
+          "itemComplete": true,
+          "sessionStatus": "ACTIVE"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence.",
+        "nextItemKey": "TRANSFER_NEG_DIST",
+        "nextEquationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "nextOpeningLine": "-4(z - 2) + 3 = 19",
+        "nextAttemptId": "cmsfr22pc0332y21hothlkpwe",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION"
+      }
+    },
+    {
+      "ord": 3,
+      "question": {
+        "attemptId": "cmsfr22pc0332y21hothlkpwe",
+        "itemKey": "TRANSFER_NEG_DIST",
+        "equationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "openingLine": "-4(z - 2) + 3 = 19",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION"
+      },
+      "steps": [
+        {
+          "previousLine": "-4(z - 2) + 3 = 19",
+          "submittedLine": "",
+          "intent": "dont_know",
+          "outcome": "DECLINED",
+          "validity": null,
+          "verificationSource": null,
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": "RULE_PROMPT",
+          "assistanceMessage": "The number outside the bracket multiplies every term inside it — including its sign. What is (-4) x (-2)? Two negatives multiplied together give a positive, so it is 8, not -8.",
+          "stepIndex": null,
+          "itemComplete": false,
+          "sessionStatus": "ACTIVE"
+        },
+        {
+          "previousLine": "-4(z - 2) + 3 = 19",
+          "submittedLine": "",
+          "intent": "dont_know",
+          "outcome": "DECLINED",
+          "validity": null,
+          "verificationSource": null,
+          "firstInvalidActionDescription": null,
+          "assistanceOffered": "FULL_EXPLANATION",
+          "assistanceMessage": "Multiply the number outside the bracket by each term inside, one at a time, and keep track of the signs as you go. What is (-4) x (-2)? Two negatives multiplied together give a positive, so it is 8, not -8.",
+          "stepIndex": null,
+          "itemComplete": true,
+          "sessionStatus": "COMPLETED"
+        }
+      ],
+      "nextQuestionWhy": {
+        "source": "RULE",
+        "reasoning": null,
+        "nextItemKey": null,
+        "nextEquationPrompt": null,
+        "nextOpeningLine": null,
+        "nextAttemptId": null
+      }
+    }
+  ],
+  "notes": [],
+  "debugSnapshot": {
+    "status": "COMPLETED",
+    "currentStageId": "COMPLETE",
+    "stageHistory": [
+      {
+        "at": "2026-08-05T07:12:26.645Z",
+        "source": "RULE",
+        "stageId": "ENTRY_TWO_STEP",
+        "reasoning": "Opening item of the fixed entry sequence."
+      },
+      {
+        "at": "2026-08-05T07:12:29.533Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_MAIN",
+        "reasoning": "The student shows a likely gap in LIN_DISTRIBUTE_NEG, so presenting a full equation with negative distribution will target this gap effectively and build on their current work on LIN_REMOVE_COEFFICIENT."
+      },
+      {
+        "at": "2026-08-05T07:12:34.593Z",
+        "source": "RULE",
+        "stageId": "TRANSFER_NEG_DIST",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-05T07:12:37.621Z",
+        "source": "RULE",
+        "stageId": "COMPLETE",
+        "reasoning": "All planned items complete."
+      }
+    ],
+    "items": [
+      {
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP"
+      },
+      {
+        "itemKey": "GEN_NEG_DIST_-4_4_1_y",
+        "equationPrompt": "Solve for y:  -4(y - 4) + 1 = 9",
+        "origin": "TEMPLATE_RENDERED",
+        "templateId": "TPL_NEG_DISTRIBUTION"
+      },
+      {
+        "itemKey": "TRANSFER_NEG_DIST",
+        "equationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION"
+      }
+    ],
+    "hypotheses": [
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student correctly isolated the letter by dividing 121 times independently and only made 5 errors, showing strong and consistent skill.",
+        "childFacingSummary": "You're doing great at getting the letter alone in problems, with just a few small mistakes."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student has an equal number of correct and incorrect attempts independently, showing inconsistency with this skill.",
+        "childFacingSummary": "You sometimes get this right and sometimes make mistakes, so keep practicing to get more confident with expanding brackets that have a minus in front."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student has an equal number of correct and incorrect answers on their own, showing inconsistent understanding of expanding brackets with a minus in front.",
+        "childFacingSummary": "You sometimes get this tricky step right, but other times it trips you up, so keep practicing to get more steady with it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student has an equal number of correct and incorrect attempts independently, showing inconsistency with this skill.",
+        "childFacingSummary": "You sometimes get this right and sometimes not when expanding brackets with a minus, so keep practicing to get more steady at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "source": "AI",
+        "reasoning": "The student has an equal number of correct and incorrect attempts independently, showing a consistent struggle with this skill rather than occasional mistakes.",
+        "childFacingSummary": "You sometimes get this tricky step right, but other times it trips you up, so keep practicing to get more confident."
+      }
+    ]
+  },
+  "endedAt": "2026-08-05T07:12:37.654Z",
+  "sessionStatus": "COMPLETED"
+}

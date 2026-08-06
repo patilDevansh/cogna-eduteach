@@ -1,0 +1,12 @@
+{
+  "era": "mvp-9.0",
+  "unit": "rational-expressions",
+  "curriculum": "CBSE-style Grade 8",
+  "status": "first-batch-pending-review",
+  "idPolicy": "New RAT_* namespace — does not collide with any prior concept/question IDs.",
+  "notes": "Gated behind the Factorisation unit — RAT_C1 always factors the numerator into two binomials, one of which matches the denominator by construction (reverses the FAC_C4/ID_C4 formula). All PENDING_REVIEW pending human sign-off.",
+  "coverage": {
+    "RAT_P1_VARIABLES_IN_FRACTIONS": { "target": 3, "hand_authored": 3, "generated": 0 },
+    "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS": { "target": 50, "hand_authored": 5, "generated": 150 }
+  }
+}

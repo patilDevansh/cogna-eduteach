@@ -1,0 +1,58 @@
+{
+  "concepts": [
+    {
+      "id": "SE_P1_LINEAR_EQ_MASTERY",
+      "name": "Linear equations prerequisite mastery",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 12,
+      "prerequisites": ["C5_TWO_STEP_EQUATIONS"]
+    },
+    {
+      "id": "SE_P2_SUBSTITUTION_CONCEPT",
+      "name": "Substitution method foundation",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 13,
+      "prerequisites": ["P4_SIMPLE_EXPRESSIONS"]
+    },
+    {
+      "id": "SE_C1_GRAPHICAL_SOLUTION",
+      "name": "Graphical solution of systems",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 14,
+      "prerequisites": ["SE_P1_LINEAR_EQ_MASTERY"]
+    },
+    {
+      "id": "SE_C2_SUBSTITUTION_METHOD",
+      "name": "Substitution method",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 15,
+      "prerequisites": ["SE_P2_SUBSTITUTION_CONCEPT", "C5_TWO_STEP_EQUATIONS"]
+    },
+    {
+      "id": "SE_C3_ELIMINATION_METHOD",
+      "name": "Elimination method",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 5,
+      "sortOrder": 16,
+      "prerequisites": ["SE_C2_SUBSTITUTION_METHOD"]
+    },
+    {
+      "id": "SE_C4_SYSTEM_WORD_PROBLEMS",
+      "name": "System of equations word problems",
+      "kind": "CORE",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 4,
+      "sortOrder": 17,
+      "prerequisites": ["SE_C3_ELIMINATION_METHOD"]
+    }
+  ]
+}

@@ -19,9 +19,9 @@
         "Add the ones digits.",
         "12 + 9 = 21"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -43,9 +43,9 @@
         "Subtract 8 from 20.",
         "20 - 8 = 12"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -70,9 +70,9 @@
         "27 is larger than 15.",
         "15 - 27 = -12"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -98,9 +98,9 @@
         "Move 5 to the right.",
         "-8 + 5 = -3"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -124,9 +124,9 @@
         "Adding a negative is like subtracting.",
         "14 - 6 = 8"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -155,9 +155,9 @@
         "3\u00d74=12, then apply the sign.",
         "-12"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P2_D2_001",
@@ -184,9 +184,9 @@
         "Same signs multiply to positive.",
         "5\u00d72=10"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P2_D3_001",
@@ -213,9 +213,9 @@
         "Division sign rules match multiplication.",
         "18\u00f73=6 with negative sign."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P2_D2_002",
@@ -241,9 +241,9 @@
         "Adding -10 is subtracting 10.",
         "7-10=-3"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P3_D1_001",
@@ -270,9 +270,9 @@
         "5",
         "3x"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -299,9 +299,9 @@
         "-y",
         "7-y"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -327,9 +327,9 @@
         "n + 2",
         "9"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -356,9 +356,9 @@
         "Replace a with 3.",
         "2\u00d73=6, then +1."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P4_D2_001",
@@ -385,9 +385,9 @@
         "Substitute x=-2.",
         "Positive \u00d7 negative = negative."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P4_D3_001",
@@ -411,9 +411,9 @@
         "Like terms can be combined.",
         "3x+2x=5x"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P5_D1_001",
@@ -441,9 +441,9 @@
         "Add 2 to the left only",
         "Remove 4 from the right"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -476,9 +476,9 @@
         "Add 3 to the left only",
         "Multiply both sides by 3"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_P5_D2_002",
@@ -501,9 +501,9 @@
       "hintLadder": [
         "Think of a balance scale."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0,
+      "itemQualityWeight": 1,
       "prerequisiteConceptIds": []
     },
     {
@@ -534,9 +534,9 @@
         "What undoes adding 3?",
         "Subtract 3 from both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C1_D2_001",
@@ -564,9 +564,9 @@
         "Subtract 8 from both sides.",
         "5-8 is negative."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C1_D3_001",
@@ -595,9 +595,9 @@
         "Undo +12.",
         "4-12=-8"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C1_D2_002",
@@ -624,9 +624,9 @@
       "hintLadder": [
         "Subtract 9 from both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D1_001",
@@ -655,9 +655,9 @@
         "What undoes subtracting 4?",
         "Add 4 to both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D2_001",
@@ -688,9 +688,9 @@
         "Use the opposite operation.",
         "Add 7 to both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D2_002",
@@ -720,9 +720,9 @@
         "Undo subtracting 6.",
         "Add 6 to both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D3_001",
@@ -751,9 +751,9 @@
         "Add 8 to both sides.",
         "-2+8=6"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D4_001",
@@ -781,9 +781,9 @@
         "Subtracting a negative is adding.",
         "x+3=5"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D2_003",
@@ -810,9 +810,9 @@
       "hintLadder": [
         "Add 5 to both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C3_D1_001",
@@ -841,9 +841,9 @@
         "What undoes multiplying by 3?",
         "Divide both sides by 3."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C3_D2_001",
@@ -872,9 +872,9 @@
         "Divide both sides by -3.",
         "Watch the sign."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C3_D3_001",
@@ -901,9 +901,9 @@
       "hintLadder": [
         "Divide both sides by 5."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C4_D1_001",
@@ -932,9 +932,9 @@
         "What undoes division by 4?",
         "Multiply both sides by 4."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C4_D2_001",
@@ -961,9 +961,9 @@
       "hintLadder": [
         "Multiply both sides by -4."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C4_D3_001",
@@ -991,9 +991,9 @@
       "hintLadder": [
         "Multiply both sides by 5."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C5_D1_001",
@@ -1023,9 +1023,9 @@
         "Undo addition first.",
         "Then undo multiplication."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C5_D2_001",
@@ -1055,9 +1055,9 @@
         "Add 4 to both sides.",
         "Divide by 3."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C5_D3_001",
@@ -1086,9 +1086,9 @@
         "Isolate the term with x.",
         "Watch signs when dividing."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C5_D2_002",
@@ -1115,9 +1115,9 @@
         "Subtract 1.",
         "Divide by 4."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C5_D4_001",
@@ -1147,9 +1147,9 @@
         "Add 7 to both sides.",
         "-2+7=5"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C6_D1_001",
@@ -1179,9 +1179,9 @@
         "Write an equation.",
         "What undoes +6?"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C6_D2_001",
@@ -1211,9 +1211,9 @@
         "'Seven less than a number' means x-7.",
         "Add 7 to both sides."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C6_D3_001",
@@ -1242,9 +1242,9 @@
         "Translate to 3x=21.",
         "Divide by 3."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C6_D2_002",
@@ -1272,9 +1272,9 @@
         "Write x/4=5.",
         "Multiply by 4."
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C2_D2_R01",
@@ -1304,9 +1304,9 @@
       "tags": [
         "delayed_revision_equivalent"
       ],
-      "reviewStatus": "PENDING_REVIEW",
+      "reviewStatus": "APPROVED",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
     },
     {
       "id": "Q_C5_D2_R01",
@@ -1336,9 +1336,832 @@
       "tags": [
         "delayed_revision_equivalent"
       ],
+      "reviewStatus": "APPROVED",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D1_004",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 1,
+      "stem": "In 5 years, Meera will be 20 years old. How old is she now?",
+      "acceptedAnswers": [
+        "15",
+        "x=15",
+        "x = 15"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "WORD_TO_EQUATION",
+          "answers": [
+            "25",
+            "x=25"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x + 5 = 20",
+        "x = 15"
+      ],
+      "hintLadder": [
+        "Let her age now be x.",
+        "In 5 years means x + 5.",
+        "x + 5 = 20, so x = 15."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
       "reviewStatus": "PENDING_REVIEW",
       "version": 1,
-      "itemQualityWeight": 1.0
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D2_005",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 2,
+      "stem": "The cost of a pen is \u20b95 more than twice the cost of a pencil. The pen costs \u20b935. What is the cost of the pencil?",
+      "acceptedAnswers": [
+        "15",
+        "x=15",
+        "x = 15"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "20",
+            "x=20"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "2x + 5 = 35",
+        "2x = 30",
+        "x = 15"
+      ],
+      "hintLadder": [
+        "Let the pencil's cost be x.",
+        "Twice the pencil plus 5 is the pen's cost.",
+        "2x + 5 = 35, so x = 15."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D2_006",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 2,
+      "stem": "Rahul's sister is x years old and Rahul is twice her age. The sum of their ages is 24. How old is Rahul's sister?",
+      "acceptedAnswers": [
+        "8",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "WORD_TO_EQUATION",
+          "answers": [
+            "16",
+            "x=16"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x + 2x = 24",
+        "3x = 24",
+        "x = 8"
+      ],
+      "hintLadder": [
+        "Sister is x, Rahul is 2x.",
+        "x + 2x = 24.",
+        "3x = 24, so x = 8 (the sister's age)."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D2_007",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 2,
+      "stem": "A shopkeeper sells notebooks at \u20b915 each. After selling some notebooks and adding a fixed \u20b930 packing charge, he collects \u20b9210. How many notebooks did he sell?",
+      "acceptedAnswers": [
+        "12",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "INVERSE_OPERATION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INVERSE_OPERATION",
+          "answers": [
+            "14",
+            "x=14"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "15x + 30 = 210",
+        "15x = 180",
+        "x = 12"
+      ],
+      "hintLadder": [
+        "Let the number of notebooks be x.",
+        "Subtract the packing charge first.",
+        "15x = 180, so x = 12."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D3_004",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "stem": "The sum of three consecutive even numbers is 90. Find the largest of the three.",
+      "acceptedAnswers": [
+        "32",
+        "x=32",
+        "x = 32"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "ARITHMETIC_SLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "WORD_TO_EQUATION",
+          "answers": [
+            "28",
+            "x=28"
+          ]
+        },
+        {
+          "misconceptionId": "ARITHMETIC_SLIP",
+          "answers": [
+            "34",
+            "x=34"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "x + (x+2) + (x+4) = 90",
+        "3x + 6 = 90",
+        "x = 28",
+        "largest = x + 4 = 32"
+      ],
+      "hintLadder": [
+        "Let the numbers be x, x+2, x+4.",
+        "Add them and set equal to 90.",
+        "3x + 6 = 90, so x = 28, and the largest is 32."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D3_005",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 3,
+      "stem": "Twice a number, minus 9, equals the number plus 16. Find the number.",
+      "acceptedAnswers": [
+        "25",
+        "x=25",
+        "x = 25"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "7",
+            "x=7"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "2x - 9 = x + 16",
+        "x - 9 = 16",
+        "x = 25"
+      ],
+      "hintLadder": [
+        "Write it as 2x - 9 = x + 16.",
+        "Subtract x from both sides carefully.",
+        "x - 9 = 16, so x = 25."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D4_003",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 4,
+      "stem": "A train covers a distance in 6 hours at a certain speed. If the speed is increased by 5 km/h, the same distance is covered in 5 hours. Find the original speed (in km/h).",
+      "acceptedAnswers": [
+        "25",
+        "x=25",
+        "x = 25"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "-25",
+            "x=-25"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "6x = 5(x + 5)",
+        "6x = 5x + 25",
+        "x = 25"
+      ],
+      "prerequisiteConceptIds": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ],
+      "hintLadder": [
+        "Same distance both times: 6 \u00d7 speed = 5 \u00d7 (speed + 5).",
+        "Expand the right side.",
+        "6x = 5x + 25, so x = 25."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C6_D4_004",
+      "conceptId": "C6_SIMPLE_WORD_PROBLEMS",
+      "difficulty": 4,
+      "stem": "A father is 4 times as old as his daughter. In 6 years, he will be 3 times her age. Find the daughter's present age.",
+      "acceptedAnswers": [
+        "12",
+        "x=12",
+        "x = 12"
+      ],
+      "misconceptionsTested": [
+        "WORD_TO_EQUATION",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "0",
+            "x=0"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "4x + 6 = 3(x + 6)",
+        "4x + 6 = 3x + 18",
+        "x = 12"
+      ],
+      "prerequisiteConceptIds": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ],
+      "hintLadder": [
+        "Daughter is x now, father is 4x now.",
+        "In 6 years: 4x + 6 = 3(x + 6).",
+        "Expand carefully: 4x + 6 = 3x + 18, so x = 12."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D1_001",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 1,
+      "stem": "Solve for x: 5x + 3 = 2x + 12",
+      "acceptedAnswers": [
+        "3",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "VARIABLE_COLLECTION_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "5",
+            "x=5"
+          ]
+        },
+        {
+          "misconceptionId": "VARIABLE_COLLECTION_ERROR",
+          "answers": [
+            "9/7",
+            "x=9/7",
+            "1.29"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "5x - 2x = 12 - 3",
+        "3x = 9",
+        "x = 3"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Move the x terms to one side and numbers to the other.",
+        "5x - 2x = 12 - 3.",
+        "3x = 9, so x = 3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D1_002",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 1,
+      "stem": "Solve for x: 4x - 1 = x + 8",
+      "acceptedAnswers": [
+        "3",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "7/3",
+            "x=7/3",
+            "2.33"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "4x - x = 8 + 1",
+        "3x = 9",
+        "x = 3"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Subtract x from both sides, add 1 to both sides.",
+        "4x - x = 8 + 1.",
+        "3x = 9, so x = 3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D2_001",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 2,
+      "stem": "Solve for x: 7x - 4 = 3x + 16",
+      "acceptedAnswers": [
+        "5",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "3",
+            "x=3"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "7x - 3x = 16 + 4",
+        "4x = 20",
+        "x = 5"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Collect the x terms on one side, numbers on the other.",
+        "7x - 3x = 16 + 4.",
+        "4x = 20, so x = 5."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D2_002",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 2,
+      "stem": "Solve for x: 2x + 9 = 5x - 6",
+      "acceptedAnswers": [
+        "5",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [
+        "VARIABLE_COLLECTION_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "VARIABLE_COLLECTION_ERROR",
+          "answers": [
+            "-15/7",
+            "x=-15/7",
+            "-2.14"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "9 + 6 = 5x - 2x",
+        "15 = 3x",
+        "x = 5"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Move the smaller x term to the side with the larger one.",
+        "9 + 6 = 5x - 2x.",
+        "15 = 3x, so x = 5."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D3_001",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 3,
+      "stem": "Solve for x: 8 - 3x = 2x - 7",
+      "acceptedAnswers": [
+        "3",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "-15",
+            "x=-15"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "8 + 7 = 2x + 3x",
+        "15 = 5x",
+        "x = 3"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Keep track of the negative sign on 3x when you move it.",
+        "8 + 7 = 2x + 3x.",
+        "15 = 5x, so x = 3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D3_002",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 3,
+      "type": "NUMERIC",
+      "stem": "Solve for x: 3(x - 2) = x + 4",
+      "acceptedAnswers": [
+        "5",
+        "x=5",
+        "x = 5"
+      ],
+      "solutionSteps": [
+        "3x - 6 = x + 4",
+        "2x = 10",
+        "x = 5"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Distribute the 3 across (x - 2) first.",
+        "3x - 6 = x + 4.",
+        "2x = 10, so x = 5."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "misconceptionsTested": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D4_001",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 4,
+      "stem": "Solve for x: 4(x + 3) = 2(x + 9)",
+      "acceptedAnswers": [
+        "3",
+        "x=3",
+        "x = 3"
+      ],
+      "misconceptionsTested": [
+        "VARIABLE_COLLECTION_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "VARIABLE_COLLECTION_ERROR",
+          "answers": [
+            "1",
+            "x=1"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "4x + 12 = 2x + 18",
+        "2x = 6",
+        "x = 3"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Distribute both sides first.",
+        "4x + 12 = 2x + 18.",
+        "2x = 6, so x = 3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D4_002",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 4,
+      "stem": "Solve for x: 20 - 4x = 6x - 30",
+      "acceptedAnswers": [
+        "5",
+        "x=5",
+        "x = 5"
+      ],
+      "misconceptionsTested": [
+        "VARIABLE_COLLECTION_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "VARIABLE_COLLECTION_ERROR",
+          "answers": [
+            "25",
+            "x=25"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "20 + 30 = 6x + 4x",
+        "50 = 10x",
+        "x = 5"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Move both variable terms to the same side, carefully.",
+        "20 + 30 = 6x + 4x.",
+        "50 = 10x, so x = 5."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C7_D5_001",
+      "conceptId": "C7_VARIABLE_BOTH_SIDES",
+      "difficulty": 5,
+      "stem": "Solve for x: 5(x - 3) = 3(x + 1) - 2",
+      "acceptedAnswers": [
+        "8",
+        "x=8",
+        "x = 8"
+      ],
+      "misconceptionsTested": [
+        "ARITHMETIC_SLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "ARITHMETIC_SLIP",
+          "answers": [
+            "9",
+            "x=9"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "5x - 15 = 3x + 3 - 2",
+        "5x - 15 = 3x + 1",
+        "2x = 16",
+        "x = 8"
+      ],
+      "prerequisiteConceptIds": [
+        "C5_TWO_STEP_EQUATIONS"
+      ],
+      "hintLadder": [
+        "Distribute on both sides, then simplify the right side fully.",
+        "5x - 15 = 3x + 1.",
+        "2x = 16, so x = 8."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C8_D3_001",
+      "conceptId": "C8_FRACTIONAL_COEFFICIENTS",
+      "difficulty": 3,
+      "stem": "Solve for x: (x+1)/2 = (x-1)/3 + 1",
+      "acceptedAnswers": [
+        "1",
+        "x=1",
+        "x = 1"
+      ],
+      "misconceptionsTested": [
+        "DENOMINATOR_CLEARING_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "DENOMINATOR_CLEARING_ERROR",
+          "answers": [
+            "-4",
+            "x=-4"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Multiply every term by the LCD, 6: 3(x+1) = 2(x-1) + 6",
+        "3x+3 = 2x+4",
+        "x = 1"
+      ],
+      "prerequisiteConceptIds": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ],
+      "hintLadder": [
+        "Multiply EVERY term on both sides by 6, including the standalone +1.",
+        "3(x+1) = 2(x-1) + 6.",
+        "3x+3 = 2x+4, so x = 1."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C8_D3_002",
+      "conceptId": "C8_FRACTIONAL_COEFFICIENTS",
+      "difficulty": 3,
+      "stem": "Solve for x: x/2 + x/3 = 5",
+      "acceptedAnswers": [
+        "6",
+        "x=6",
+        "x = 6"
+      ],
+      "misconceptionsTested": [
+        "DENOMINATOR_CLEARING_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "DENOMINATOR_CLEARING_ERROR",
+          "answers": [
+            "7.5",
+            "15/2",
+            "x=7.5"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Multiply every term by the LCD, 6: 3x + 2x = 30",
+        "5x = 30",
+        "x = 6"
+      ],
+      "prerequisiteConceptIds": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ],
+      "hintLadder": [
+        "Multiply every term by 6 \u2014 that clears BOTH denominators.",
+        "3x + 2x = 30.",
+        "5x = 30, so x = 6."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
+    },
+    {
+      "id": "Q_C8_D4_001",
+      "conceptId": "C8_FRACTIONAL_COEFFICIENTS",
+      "difficulty": 4,
+      "stem": "Solve for x: (x-2)/4 = (x+2)/6",
+      "acceptedAnswers": [
+        "10",
+        "x=10",
+        "x = 10"
+      ],
+      "misconceptionsTested": [
+        "DENOMINATOR_CLEARING_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "DENOMINATOR_CLEARING_ERROR",
+          "answers": [
+            "-10",
+            "x=-10"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Multiply every term by the LCD, 12: 3(x-2) = 2(x+2)",
+        "3x-6 = 2x+4",
+        "x = 10"
+      ],
+      "prerequisiteConceptIds": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ],
+      "hintLadder": [
+        "Multiply both sides by 12, the LCD of 4 and 6.",
+        "3(x-2) = 2(x+2).",
+        "3x-6 = 2x+4, so x = 10."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1
     }
   ]
 }

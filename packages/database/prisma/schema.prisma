@@ -81,6 +81,66 @@ enum LearningIntent {
   RETEST_AFTER_EXPLANATION
   CONCEPT_REINFORCEMENT
   BASELINE_ASSESSMENT
+  // MVP 2.0 additive
+  RETENTION_REVIEW
+  TRANSFER_CHECK
+  BREAK_FOR_FATIGUE
+  // MVP 4.0 additive
+  UNIT_BRIDGE_REVIEW
+  HORIZON_FOCUS_PRACTICE
+  // MVP 5.0 additive
+  SHOW_TEACHING_MODULE
+  MODALITY_RETEST
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED_RETRYABLE
+  FAILED_PERMANENT
+}
+
+enum ReportDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
+}
+
+enum ReportDeliveryChannel {
+  EMAIL
+  IN_APP
+}
+
+enum ContentReviewStatus {
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
+}
+
+enum ContentReviewType {
+  QUESTION
+  EXPLANATION
+}
+
+// ─── MVP 5.0 Enums ────────────────────────────────────────────────────────
+
+enum ModalityKind {
+  TEXT
+  ANIMATION
+  VIDEO
+  VOICE
+}
+
+enum PolicyStatus {
+  CANDIDATE
+  SHADOW
+  EXPERIMENT
+  PROMOTION_REQUESTED
+  PROMOTED
+  REJECTED
+  ROLLED_BACK
 }
 
 enum RemediationState {
@@ -111,6 +171,75 @@ enum ReportTrigger {
   DAILY_REPORT_JOB
   WEEKLY_REPORT_JOB
   PARENT_REQUESTED_REPORT
+}
+
+// ─── Diagnostic v2 enums (micro-skill step diagnostic, MVP 9.0.1 Phase A) ──
+
+enum StepValidityV2 {
+  VALID
+  INVALID
+  AMBIGUOUS
+  PARSE_FAILED
+}
+
+enum StepTransformationV2 {
+  SIMPLIFY
+  ADD_BOTH_SIDES
+  SUBTRACT_BOTH_SIDES
+  MULTIPLY_BOTH_SIDES
+  DIVIDE_BOTH_SIDES
+  DISTRIBUTE
+  COMBINE_LIKE_TERMS
+  SUBSTITUTE_CHECK
+  OTHER
+  UNKNOWN
+}
+
+enum AssistanceLevelV2 {
+  NONE
+  REVIEW_OPPORTUNITY
+  GENERAL_PROMPT
+  LOCATION_HINT
+  RULE_PROMPT
+  MICRO_QUESTION
+  PARTIAL_WORKED_STEP
+  FULL_EXPLANATION
+}
+
+enum MicroSkillStatusV2 {
+  UNKNOWN
+  EMERGING
+  DEVELOPING
+  RELIABLE
+  LIKELY_GAP
+}
+
+enum DiagnosticV2SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum VerificationSourceV2 {
+  DETERMINISTIC
+  AI_FALLBACK
+}
+
+enum HypothesisSourceV2 {
+  RULE
+  AI
+}
+
+enum MicroSkillEvidenceKindV2 {
+  INDEPENDENT_CORRECT
+  INDEPENDENT_INCORRECT
+  SELF_CORRECTED
+  ASSISTED_CORRECT
+  ASSISTED_INCORRECT
+  TRANSFER_SUCCESS
+  TRANSFER_FAILURE
+  SKIPPED
+  INSUFFICIENT
 }
 
 // ─── Auth / accounts ───────────────────────────────────────────────────────
@@ -151,17 +280,28 @@ model Student {
   accessCodeHash  String
   deletedAt       DateTime?
 
-  learnerProfile    LearnerProfile?
-  sessions          LearningSession[]
-  attempts          Attempt[]
-  masteryScores     MasteryScore[]
-  masteryHistory    MasteryHistory[]
-  diagnosticFactors DiagnosticFactor[]
-  remediationStates MisconceptionRemediationState[]
-  learningDecisions LearningDecision[]
-  revisionItems     RevisionQueueItem[]
-  reports           Report[]
-  parentLinks       ParentStudentLink[]
+  /** Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags. */
+  aiAssistedPracticePaused Boolean @default(false)
+
+  learnerProfile      LearnerProfile?
+  sessions            LearningSession[]
+  attempts            Attempt[]
+  masteryScores       MasteryScore[]
+  masteryHistory      MasteryHistory[]
+  diagnosticFactors   DiagnosticFactor[]
+  remediationStates   MisconceptionRemediationState[]
+  remediationHistory  MisconceptionRemediationStateHistory[]
+  learningDecisions   LearningDecision[]
+  revisionItems       RevisionQueueItem[]
+  reports             Report[]
+  parentLinks         ParentStudentLink[]
+  retentionEstimates  RetentionEstimate[]
+  explanationOutcomes ExplanationOutcome[]
+
+  // Diagnostic v2 (micro-skill step diagnostic, MVP 9.0.1 Phase A)
+  diagnosticV2Sessions       DiagnosticV2Session[]
+  microSkillEvidenceEventsV2 MicroSkillEvidenceEventV2[]
+  microSkillStatesV2         MicroSkillStateV2[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -190,11 +330,12 @@ model Concept {
   minimumEvidence  Int
   sortOrder        Int
 
-  prerequisites ConceptPrerequisite[] @relation("Concept")
-  requiredBy    ConceptPrerequisite[] @relation("Prerequisite")
-  questions     Question[]
-  explanations  Explanation[]
-  masteryScores MasteryScore[]
+  prerequisites      ConceptPrerequisite[] @relation("Concept")
+  requiredBy         ConceptPrerequisite[] @relation("Prerequisite")
+  questions          Question[]
+  explanations       Explanation[]
+  masteryScores      MasteryScore[]
+  retentionEstimates RetentionEstimate[]
 }
 
 model ConceptPrerequisite {
@@ -207,43 +348,47 @@ model ConceptPrerequisite {
 }
 
 model Misconception {
-  id                         String @id
-  conceptIds                 String[]
-  minimumMatchingAttempts    Int
-  activationConfidence       Float
-  alternativeExplanations    String[]
-  maxTargetedBeforeExplanation Int    @default(2)
-  maxExplanationCycles       Int      @default(2)
-  resolutionConsecutiveCorrect Int    @default(2)
-  resolutionMaxHintLevel     Int      @default(1)
+  id                           String   @id
+  conceptIds                   String[]
+  minimumMatchingAttempts      Int
+  activationConfidence         Float
+  alternativeExplanations      String[]
+  maxTargetedBeforeExplanation Int      @default(2)
+  maxExplanationCycles         Int      @default(2)
+  resolutionConsecutiveCorrect Int      @default(2)
+  resolutionMaxHintLevel       Int      @default(1)
 }
 
 model Question {
-  id                       String
-  version                  Int          @default(1)
-  conceptId                String
-  concept                  Concept      @relation(fields: [conceptId], references: [id])
-  difficulty               Int
-  questionIntent           String
-  type                     QuestionType
-  stem                     String
-  acceptedAnswers          Json
-  misconceptionsTested     String[]
-  misconceptionPatterns    Json?
-  prerequisiteConceptIds   String[]
-  solutionSteps            Json
-  hintLadder               Json
-  reviewStatus             ReviewStatus @default(PENDING_REVIEW)
-  itemQualityWeight        Float        @default(1.0)
-  options                  Json?
+  id                     String
+  version                Int          @default(1)
+  conceptId              String
+  concept                Concept      @relation(fields: [conceptId], references: [id])
+  difficulty             Int
+  questionIntent         String
+  type                   QuestionType
+  stem                   String
+  acceptedAnswers        Json
+  misconceptionsTested   String[]
+  misconceptionPatterns  Json?
+  prerequisiteConceptIds String[]
+  solutionSteps          Json
+  hintLadder             Json
+  reviewStatus           ReviewStatus @default(PENDING_REVIEW)
+  itemQualityWeight      Float        @default(1.0)
+  options                Json?
+  /// MVP 4.0: Unit association (nullable for backward compat; backfill linear-equations-one-variable)
+  unitId                 String?
 
-  attempts Attempt[]
+  attempts       Attempt[]
+  itemStatistics ItemStatistic[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@id([id, version])
   @@index([conceptId, difficulty, reviewStatus])
+  @@index([unitId])
 }
 
 model Explanation {
@@ -272,6 +417,8 @@ model LearningSession {
   baselineSlotIndex Int           @default(0)
   activeConceptId   String?
   activeDifficulty  Int           @default(2)
+  /// Set when SUGGEST_BREAK + BREAK_FOR_FATIGUE is emitted (once per session).
+  breakSuggestedAt  DateTime?
 
   attempts  Attempt[]
   decisions LearningDecision[]
@@ -314,6 +461,8 @@ model Attempt {
   hintCount                 Int
   highestHintLevel          Int
   selfRatedConfidence       Int?
+  /** Passive behavioral proxy (response time vs the student's own pace, hints, answer changes) — computed for every attempt, used only when selfRatedConfidence is null. */
+  inferredConfidence        Float?
   answerChangedBeforeSubmit Boolean
   processingStatus          ProcessingStatus @default(GRADED)
   storedResponse            Json?
@@ -342,9 +491,9 @@ model MasteryScore {
 }
 
 model MasteryHistory {
-  id             String  @id @default(cuid())
+  id             String   @id @default(cuid())
   studentId      String
-  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   conceptId      String
   previousValue  Float
   newValue       Float
@@ -356,48 +505,64 @@ model MasteryHistory {
 }
 
 model DiagnosticFactor {
-  id                     String   @id @default(cuid())
-  studentId              String
-  student                Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  conceptId              String?
-  factorType             String
-  factorKey              String?
-  value                  Json
-  confidence             Float
-  reasoning              String
-  evidenceAttemptIds     String[]
+  id                      String    @id @default(cuid())
+  studentId               String
+  student                 Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId               String?
+  factorType              String
+  factorKey               String?
+  value                   Json
+  confidence              Float
+  reasoning               String
+  evidenceAttemptIds      String[]
   alternativeExplanations String[]
-  modelVersion           String
-  validUntil             DateTime?
-  createdAt              DateTime @default(now())
+  modelVersion            String
+  validUntil              DateTime?
+  createdAt               DateTime  @default(now())
 
   @@index([studentId, createdAt])
 }
 
 model MisconceptionRemediationState {
-  studentId              String
-  student                Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  misconceptionId        String
-  conceptId              String
-  state                  RemediationState @default(UNCONFIRMED)
-  targetedAttemptCount   Int              @default(0)
-  explanationCycleCount  Int              @default(0)
-  consecutiveCorrect     Int              @default(0)
-  updatedAt              DateTime         @updatedAt
+  studentId             String
+  student               Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  misconceptionId       String
+  conceptId             String
+  state                 RemediationState @default(UNCONFIRMED)
+  targetedAttemptCount  Int              @default(0)
+  explanationCycleCount Int              @default(0)
+  consecutiveCorrect    Int              @default(0)
+  updatedAt             DateTime         @updatedAt
 
   @@id([studentId, misconceptionId, conceptId])
 }
 
+/** Insert-only transition log for MisconceptionRemediationState — the current-state
+ * table above is overwritten in place, so this is the only source for a
+ * multi-week "checking vs resolved" pattern-history timeline. */
+model MisconceptionRemediationStateHistory {
+  id              String            @id @default(cuid())
+  studentId       String
+  student         Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  misconceptionId String
+  conceptId       String
+  fromState       RemediationState?
+  toState         RemediationState
+  createdAt       DateTime          @default(now())
+
+  @@index([studentId, misconceptionId, conceptId, createdAt])
+}
+
 model LearnerProfile {
-  studentId             String  @id
-  student                 Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  profileVersion          Int     @default(1)
-  masterySummary          Json    @default("{}")
-  activeMisconceptions    Json    @default("[]")
-  confidenceCalibration   String?
-  hintDependence          Float   @default(0)
-  revisionNeedSignals     Json    @default("[]")
-  updatedAt               DateTime @updatedAt
+  studentId             String   @id
+  student               Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  profileVersion        Int      @default(1)
+  masterySummary        Json     @default("{}")
+  activeMisconceptions  Json     @default("[]")
+  confidenceCalibration String?
+  hintDependence        Float    @default(0)
+  revisionNeedSignals   Json     @default("[]")
+  updatedAt             DateTime @updatedAt
 }
 
 model LearnerProfileHistory {
@@ -412,22 +577,24 @@ model LearnerProfileHistory {
 }
 
 model LearningDecision {
-  id                String          @id @default(cuid())
-  studentId         String
-  student           Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  sessionId         String
-  session           LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  attemptId         String?
-  uiAction          UiAction
-  learningIntent    LearningIntent
-  contentStyle      Json?
-  parameters        Json
-  confidence        Float
-  reasoning         String
-  decisionVersion   String
-  inputSnapshot     Json?
-  fallbackGenerated Boolean         @default(false)
-  createdAt         DateTime        @default(now())
+  id                 String          @id @default(cuid())
+  studentId          String
+  student            Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId          String
+  session            LearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attemptId          String?
+  uiAction           UiAction
+  learningIntent     LearningIntent
+  contentStyle       Json?
+  parameters         Json
+  confidence         Float
+  reasoning          String
+  decisionVersion    String
+  inputSnapshot      Json?
+  selectionReasoning Json?
+  latencyMs          Int?
+  fallbackGenerated  Boolean         @default(false)
+  createdAt          DateTime        @default(now())
 
   @@index([sessionId, createdAt])
 }
@@ -437,6 +604,8 @@ model RevisionQueueItem {
   studentId             String
   student               Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   conceptId             String
+  /// Diagnostic v2 (MVP 9.0.1 Phase A): set when this item schedules a micro-skill retention check instead of a concept-level one. Nullable, additive.
+  microSkillId          String?
   type                  String
   targetMisconception   String?
   priority              Float
@@ -468,6 +637,8 @@ model Report {
   reportVersion  String
   createdAt      DateTime       @default(now())
 
+  deliveries ReportDelivery[]
+
   @@index([studentId, createdAt])
 }
 
@@ -478,4 +649,494 @@ model Consent {
   consentType String
   grantedAt   DateTime  @default(now())
   revokedAt   DateTime?
+}
+
+// ─── MVP 2.0 additive tables ───────────────────────────────────────────────
+
+model Job {
+  id             String    @id @default(cuid())
+  jobType        String
+  idempotencyKey String
+  payload        Json
+  status         JobStatus @default(PENDING)
+  attemptCount   Int       @default(0)
+  lastError      String?
+  lockedAt       DateTime?
+  lockedBy       String?
+  runAfter       DateTime?
+  completedAt    DateTime?
+  resultRef      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([jobType, idempotencyKey])
+  @@index([status, runAfter, createdAt])
+  @@index([jobType, status])
+}
+
+model RetentionEstimate {
+  id                 String   @id @default(cuid())
+  studentId          String
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  conceptId          String
+  concept            Concept  @relation(fields: [conceptId], references: [id])
+  estimate           Float
+  confidence         Float
+  daysSinceSuccess   Int
+  evidenceAttemptIds Json
+  modelVersion       String
+  validUntil         DateTime
+  createdAt          DateTime @default(now())
+
+  @@unique([studentId, conceptId, modelVersion, validUntil])
+  @@index([studentId, conceptId])
+}
+
+model ExplanationOutcome {
+  id               String   @id @default(cuid())
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId        String
+  explanationId    String
+  conceptId        String
+  misconceptionId  String?
+  viewedEventId    String   @unique
+  retestAttemptId  String?
+  effective        Boolean?
+  highestHintLevel Int?
+  modelVersion     String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([studentId, conceptId])
+  @@index([sessionId])
+}
+
+model ItemStatistic {
+  questionId          String
+  questionVersion     Int
+  question            Question @relation(fields: [questionId, questionVersion], references: [id, version])
+  attemptCount        Int
+  correctRate         Float
+  avgTimeMs           Int
+  hintRate            Float
+  misconceptionHits   Json
+  discriminationScore Float?
+  updatedAt           DateTime @updatedAt
+
+  @@id([questionId, questionVersion])
+}
+
+model ReportDelivery {
+  id                String                @id @default(cuid())
+  reportId          String
+  report            Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  parentId          String
+  channel           ReportDeliveryChannel
+  status            ReportDeliveryStatus  @default(PENDING)
+  providerMessageId String?
+  error             String?
+  attemptCount      Int                   @default(0)
+  lastAttemptAt     DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([reportId])
+  @@index([status])
+}
+
+model ContentReview {
+  id             String              @id @default(cuid())
+  contentType    ContentReviewType
+  contentId      String
+  contentVersion Int
+  reviewer       String
+  status         ContentReviewStatus
+  checklist      Json
+  notes          String?
+  reviewedAt     DateTime
+  createdAt      DateTime            @default(now())
+
+  @@index([contentType, contentId, contentVersion])
+}
+
+// ─── MVP 3.0 tables ────────────────────────────────────────────────────────
+
+model ExperimentDefinition {
+  id              String    @id @default(cuid())
+  experimentKey   String    @unique
+  status          String // DRAFT | RUNNING | PAUSED | COMPLETED
+  armsJson        Json // arm ids + allocations
+  eligibilityJson Json
+  rulesVersion    String // experiment-rules-v1
+  startAt         DateTime
+  endAt           DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ExperimentAssignment {
+  id            String   @id @default(cuid())
+  studentId     String
+  experimentKey String
+  arm           String
+  assignedAt    DateTime @default(now())
+  sticky        Boolean  @default(true)
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@unique([studentId, experimentKey])
+  @@index([experimentKey, arm])
+}
+
+model ContentDraft {
+  id                  String   @id @default(cuid())
+  draftType           String // QUESTION | EXPLANATION_TEMPLATE | HINT_LADDER
+  conceptId           String
+  difficulty          Int?
+  targetMisconception String?
+  payload             Json
+  source              String // HUMAN | LLM_ASSISTED | PROGRAMMATIC
+  provider            String?
+  promptVersion       String?
+  status              String // DRAFT | VALIDATING | VALIDATED | ...
+  validationErrors    Json?
+  reviewNotes         String?
+  promotedContentId   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([conceptId, draftType])
+}
+
+model CandidateActionScore {
+  id              String   @id @default(cuid())
+  studentId       String
+  sessionId       String
+  eventId         String
+  candidatesJson  Json // scored candidates
+  selectedIndex   Int
+  scoreVersion    String // candidate-score-rules-v1
+  experimentId    String?
+  experimentArmId String?
+  shadow          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([experimentId, experimentArmId])
+}
+
+// ─── MVP 4.0 tables ────────────────────────────────────────────────────────
+
+model CurriculumUnit {
+  id                  String   @id @default(cuid())
+  unitId              String   @unique
+  title               String
+  subjectId           String? // MVP 5.0: FK to subjects (optional during migration)
+  subject             Subject? @relation(fields: [subjectId], references: [subjectId], onDelete: Cascade)
+  prerequisiteUnitIds Json // string[]
+  unlockRule          String // ALL_PREREQ_UNITS_AT_THRESHOLD | MANUAL | DIAGNOSTIC_PLACEMENT
+  priorityWeight      Float    @default(1.0)
+  createdAt           DateTime @default(now())
+
+  unitConcepts UnitConcept[]
+
+  @@index([subjectId])
+}
+
+model UnitConcept {
+  unitId    String
+  unit      CurriculumUnit @relation(fields: [unitId], references: [unitId], onDelete: Cascade)
+  conceptId String
+  kind      ConceptKind // PREREQ | CORE
+
+  @@id([unitId, conceptId])
+  @@index([conceptId])
+}
+
+model CurriculumPlan {
+  id           String   @id @default(cuid())
+  studentId    String
+  horizonWeeks Int // 2..6
+  planJson     Json // weeks[] with weekIndex, primaryUnitId, focusConceptIds, bridgeConceptIds, maxNewConcepts
+  rulesVersion String // planning-rules-v1
+  validUntil   DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([studentId, validUntil])
+}
+
+model TeacherStudentLink {
+  teacherId String
+  studentId String
+  role      String // COACH | TEACHER
+
+  @@unique([teacherId, studentId])
+  @@index([studentId])
+}
+
+// ─── MVP 5.0 tables ────────────────────────────────────────────────────────
+
+model Subject {
+  id        String   @id @default(cuid())
+  subjectId String   @unique
+  title     String
+  createdAt DateTime @default(now())
+
+  units          CurriculumUnit[]
+  modalityAssets ModalityAsset[]
+}
+
+model ModalityAsset {
+  id               String       @id @default(cuid())
+  assetId          String       @unique
+  modality         ModalityKind
+  conceptId        String
+  misconceptionId  String?
+  unitId           String
+  subjectId        String
+  subject          Subject      @relation(fields: [subjectId], references: [subjectId], onDelete: Cascade)
+  storageRef       String // S3/CDN reference
+  transcriptRef    String? // required for VOICE/VIDEO with math claims
+  reviewStatus     ReviewStatus @default(PENDING_REVIEW)
+  retestQuestionId String? // link to APPROVED text question for retest
+  durationMs       Int?
+  createdAt        DateTime     @default(now())
+
+  outcomes ModalityOutcome[]
+
+  @@index([subjectId, conceptId])
+  @@index([reviewStatus])
+  @@index([unitId])
+}
+
+model ModalityOutcome {
+  id            String        @id @default(cuid())
+  studentId     String
+  assetId       String
+  asset         ModalityAsset @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
+  sessionId     String
+  completed     Boolean
+  dwellMs       Int
+  retestCorrect Boolean?
+  modelVersion  String // tracks which rules/policy version selected this
+  createdAt     DateTime      @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([assetId])
+}
+
+model PolicyVersion {
+  id                      String       @id @default(cuid())
+  policyVersion           String       @unique
+  status                  PolicyStatus @default(CANDIDATE)
+  artifactRef             String // model blob location (S3, etc.)
+  safetyEvalId            String?
+  safetyEval              SafetyEval?  @relation(fields: [safetyEvalId], references: [id])
+  createdAt               DateTime     @default(now())
+  promotedAt              DateTime?
+  promotionRequestedBy    String?
+  promotionRequestedAt    DateTime?
+  promotionApprovedBy     String?
+  promotionApprovedAt     DateTime?
+  promotionRejectedBy     String?
+  promotionRejectedAt     DateTime?
+  promotionRejectedReason String?
+  rolledBackAt            DateTime?
+  rolledBackBy            String?
+  rolledBackReason        String?
+
+  @@index([status])
+}
+
+model SafetyEval {
+  id            String   @id @default(cuid())
+  policyVersion String
+  metricsJson   Json // detailed metrics per README_RULES safety-eval-rules-v1
+  passed        Boolean
+  rulesVersion  String // safety-eval-rules-v1
+  createdAt     DateTime @default(now())
+
+  policyVersions PolicyVersion[]
+
+  @@index([policyVersion])
+}
+
+/** Shared audit trail for every AI Orchestrator call, across all agents
+ * (student analysis, and future break/question/practice recommenders).
+ * `served` is only ever true when the capability's own SERVE flag is on —
+ * see AiOrchestratorService. This is the dataset that later replaces the
+ * hardcoded SafetyEval/PolicyEngine stubs with real evaluation. */
+model AiDecisionAuditLog {
+  id            String   @id @default(cuid())
+  capability    String // e.g. "STUDENT_ANALYSIS"
+  studentId     String
+  sessionId     String?
+  model         String?
+  ruleOutput    Json
+  aiOutput      Json?
+  served        Boolean  @default(false)
+  passed        Boolean  @default(false)
+  failureReason String?
+  latencyMs     Int
+  createdAt     DateTime @default(now())
+
+  @@index([capability, studentId, createdAt])
+}
+
+// ─── Diagnostic v2 tables (micro-skill step diagnostic, MVP 9.0.1 Phase A) ─
+// Additive only — no existing table above is modified. See
+// COGNA 9.0.1/BUILD_PLAN.md for the full spec and
+// docs/diagnostic-microskill-slice/micro-skill-catalogue.md for the
+// seven-layer model and 73-skill catalogue this slice draws 9 skills from.
+
+/** One diagnostic run for one student: a small hard-coded sequence of items
+ * (entry -> negative-distribution target -> contrast probe if needed ->
+ * transfer check), not the general breadth/depth selector from Work Order 03 —
+ * that's a later phase. stageHistory logs each transition, including whether
+ * it was rule- or AI-selected and the AI's stated reasoning when present. */
+model DiagnosticV2Session {
+  id             String                    @id @default(cuid())
+  studentId      String
+  student        Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status         DiagnosticV2SessionStatus @default(ACTIVE)
+  currentStageId String
+  stageHistory   Json                      @default("[]")
+  policyVersion  String
+  startedAt      DateTime                  @default(now())
+  endedAt        DateTime?
+
+  attempts   DiagnosticV2Attempt[]
+  hypotheses DiagnosticV2Hypothesis[]
+
+  @@index([studentId, startedAt])
+}
+
+/** One question within a session. Phase A's content is a small hand-authored
+ * + template-rendered set, not a fully versioned Question-bank row like the
+ * existing product has — acceptable gap for this phase, revisited in Phase B. */
+model DiagnosticV2Attempt {
+  id             String    @id @default(cuid())
+  sessionId      String
+  session        DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  itemKey        String
+  equationPrompt String
+  /**
+   * PRE_WRITTEN | TEMPLATE_RENDERED | AI_AUTHORED — stated on the row so a
+   * later reader never has to infer origin from an item-key prefix (Phase A
+   * silently mistook generated transfer items for ordinary ones that way).
+   */
+  origin         String    @default("PRE_WRITTEN")
+  /** null only for AI_AUTHORED items, which belong to no template. */
+  templateId     String?
+  /** Where this item sits in the diagnostic sequence — stated, never inferred. */
+  stageId        String    @default("ENTRY_TWO_STEP")
+  status         String    @default("IN_PROGRESS")
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  steps DiagnosticV2Step[]
+
+  @@index([sessionId, createdAt])
+}
+
+/** Layer 6 (step-level evidence), plus the layer 2/3/5 tags (topic,
+ * competency family, context modifiers) attached to this one submitted line.
+ * Only completed, submitted lines are stored — never unfinished keystrokes.
+ * verificationSource distinguishes a normal deterministic-verifier result
+ * from the rare AI-fallback-graded case (PARSE_FAILED/AMBIGUOUS only). */
+model DiagnosticV2Step {
+  id                             String                @id @default(cuid())
+  attemptId                      String
+  attempt                        DiagnosticV2Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  stepIndex                      Int
+  previousLine                   String
+  submittedLine                  String
+  normalizedPreviousLine         String?
+  normalizedSubmittedLine        String?
+  attemptedTransformation        StepTransformationV2
+  validity                       StepValidityV2
+  verificationSource             VerificationSourceV2 @default(DETERMINISTIC)
+  aiGraderConfidence              Float?
+  firstInvalidActionCode         String?
+  firstInvalidActionDescription  String?
+  primaryMicroSkillId            String?
+  supportingMicroSkillIds        String[]
+  topicId                        String?
+  competencyFamilyId             String?
+  contextModifierIds             String[]
+  assistanceLevel                AssistanceLevelV2    @default(NONE)
+  /// Self-FK to the step this one corrects, when the student revised a prior invalid line after a review opportunity.
+  selfCorrectionOfStepId         String?
+  verifierVersion                String
+  createdAt                      DateTime              @default(now())
+
+  @@index([attemptId, stepIndex])
+}
+
+/** Layer 4/7 evidence event — insert-only, never edited. One row per
+ * observation that updates (or explicitly does not update) a micro-skill's
+ * state. Every event cites its source step so a claim can always be traced
+ * back to the exact line that produced it. */
+model MicroSkillEvidenceEventV2 {
+  id                     String                    @id @default(cuid())
+  studentId              String
+  student                Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId              String
+  attemptId              String
+  stepId                 String?
+  microSkillId           String
+  topicId                String?
+  competencyFamilyId     String?
+  contextModifierIds     String[]
+  evidenceKind           MicroSkillEvidenceKindV2
+  weight                 Float
+  assistanceLevel        AssistanceLevelV2        @default(NONE)
+  evidencePolicyVersion  String
+  createdAt              DateTime                  @default(now())
+
+  @@index([studentId, microSkillId, createdAt])
+}
+
+/** Persistent Layer-4 ground truth per student per skill — deterministic,
+ * derivable by replaying MicroSkillEvidenceEventV2. Never written to
+ * directly by an AI response; the AI interpreter (diagnostic-v2-ai-interpreter)
+ * reads this but only ever writes a DiagnosticV2Hypothesis on top of it. */
+model MicroSkillStateV2 {
+  studentId                String
+  student                  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  microSkillId             String
+  status                   MicroSkillStatusV2 @default(UNKNOWN)
+  evidenceCount            Int                @default(0)
+  independentSuccessCount  Int                @default(0)
+  independentFailureCount  Int                @default(0)
+  assistedSuccessCount     Int                @default(0)
+  observedContextStrengths String[]
+  observedContextGaps      String[]
+  lastEvidenceAt           DateTime?
+  stateVersion             Int                @default(1)
+  policyVersion            String
+
+  @@id([studentId, microSkillId])
+}
+
+/** The interpretation layer on top of MicroSkillStateV2's deterministic
+ * counters — "why" a pattern is happening, in language a human can read.
+ * source distinguishes an AI-authored hypothesis from the deterministic
+ * template-string fallback used when AI is disabled, fails, or times out;
+ * a hypothesis always exists either way. */
+model DiagnosticV2Hypothesis {
+  id                 String              @id @default(cuid())
+  sessionId          String
+  session            DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  microSkillId       String
+  hypothesisLabel    String
+  confidence         Float
+  reasoning          String
+  source             HypothesisSourceV2
+  childFacingSummary String?
+  createdAt          DateTime            @default(now())
+
+  @@index([sessionId, microSkillId, createdAt])
 }

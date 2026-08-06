@@ -1,0 +1,6154 @@
+{
+  "questions": [
+    {
+      "id": "Q_RAT_C1_GEN_001",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 23x + 132) / (x - 12)",
+      "acceptedAnswers": [
+        "x-11",
+        "x - 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 23x + 132 = (x-12)(x-11)",
+        "Divide by (x - 12)",
+        "x - 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-11)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_002",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 22x + 120) / (x - 12)",
+      "acceptedAnswers": [
+        "x-10",
+        "x - 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 22x + 120 = (x-12)(x-10)",
+        "Divide by (x - 12)",
+        "x - 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-10)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_003",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 21x + 108) / (x - 12)",
+      "acceptedAnswers": [
+        "x-9",
+        "x - 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 21x + 108 = (x-12)(x-9)",
+        "Divide by (x - 12)",
+        "x - 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-9)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_004",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 20x + 96) / (x - 12)",
+      "acceptedAnswers": [
+        "x-8",
+        "x - 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 20x + 96 = (x-12)(x-8)",
+        "Divide by (x - 12)",
+        "x - 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-8)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_005",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 19x + 84) / (x - 12)",
+      "acceptedAnswers": [
+        "x-7",
+        "x - 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 19x + 84 = (x-12)(x-7)",
+        "Divide by (x - 12)",
+        "x - 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-7)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_006",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 18x + 72) / (x - 12)",
+      "acceptedAnswers": [
+        "x-6",
+        "x - 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 18x + 72 = (x-12)(x-6)",
+        "Divide by (x - 12)",
+        "x - 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-6)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_007",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 60) / (x - 12)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 60 = (x-12)(x-5)",
+        "Divide by (x - 12)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-5)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_008",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 16x + 48) / (x - 12)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 16x + 48 = (x-12)(x-4)",
+        "Divide by (x - 12)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-4)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_009",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 36) / (x - 12)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 36 = (x-12)(x-3)",
+        "Divide by (x - 12)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-3)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_010",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 14x + 24) / (x - 12)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 24 = (x-12)(x-2)",
+        "Divide by (x - 12)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-2)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_011",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 12) / (x - 12)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 12 = (x-12)(x-1)",
+        "Divide by (x - 12)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x-1)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_012",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 11x - 12) / (x - 12)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 11x - 12 = (x-12)(x+1)",
+        "Divide by (x - 12)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+1)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_013",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 10x - 24) / (x - 12)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 10x - 24 = (x-12)(x+2)",
+        "Divide by (x - 12)",
+        "x + 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+2)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_014",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 9x - 36) / (x - 12)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 9x - 36 = (x-12)(x+3)",
+        "Divide by (x - 12)",
+        "x + 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+3)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_015",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 8x - 48) / (x - 12)",
+      "acceptedAnswers": [
+        "x+4",
+        "x + 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 8x - 48 = (x-12)(x+4)",
+        "Divide by (x - 12)",
+        "x + 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+4)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_016",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 7x - 60) / (x - 12)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 7x - 60 = (x-12)(x+5)",
+        "Divide by (x - 12)",
+        "x + 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+5)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_017",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 6x - 72) / (x - 12)",
+      "acceptedAnswers": [
+        "x+6",
+        "x + 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 6x - 72 = (x-12)(x+6)",
+        "Divide by (x - 12)",
+        "x + 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+6)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_018",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 84) / (x - 12)",
+      "acceptedAnswers": [
+        "x+7",
+        "x + 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 84 = (x-12)(x+7)",
+        "Divide by (x - 12)",
+        "x + 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+7)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_019",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 4x - 96) / (x - 12)",
+      "acceptedAnswers": [
+        "x+8",
+        "x + 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 4x - 96 = (x-12)(x+8)",
+        "Divide by (x - 12)",
+        "x + 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+8)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_020",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 3x - 108) / (x - 12)",
+      "acceptedAnswers": [
+        "x+9",
+        "x + 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 3x - 108 = (x-12)(x+9)",
+        "Divide by (x - 12)",
+        "x + 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+9)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_021",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 2x - 120) / (x - 12)",
+      "acceptedAnswers": [
+        "x+10",
+        "x + 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 2x - 120 = (x-12)(x+10)",
+        "Divide by (x - 12)",
+        "x + 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+10)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_022",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - x - 132) / (x - 12)",
+      "acceptedAnswers": [
+        "x+11",
+        "x + 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - x - 132 = (x-12)(x+11)",
+        "Divide by (x - 12)",
+        "x + 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+11)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_023",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 144) / (x - 12)",
+      "acceptedAnswers": [
+        "x+12",
+        "x + 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 144 = (x-12)(x+12)",
+        "Divide by (x - 12)",
+        "x + 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-12)(x+12)/(x-12)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_024",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 23x + 132) / (x - 11)",
+      "acceptedAnswers": [
+        "x-12",
+        "x - 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 23x + 132 = (x-11)(x-12)",
+        "Divide by (x - 11)",
+        "x - 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-12)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_025",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 21x + 110) / (x - 11)",
+      "acceptedAnswers": [
+        "x-10",
+        "x - 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 21x + 110 = (x-11)(x-10)",
+        "Divide by (x - 11)",
+        "x - 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-10)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_026",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 20x + 99) / (x - 11)",
+      "acceptedAnswers": [
+        "x-9",
+        "x - 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 20x + 99 = (x-11)(x-9)",
+        "Divide by (x - 11)",
+        "x - 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-9)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_027",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 19x + 88) / (x - 11)",
+      "acceptedAnswers": [
+        "x-8",
+        "x - 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 19x + 88 = (x-11)(x-8)",
+        "Divide by (x - 11)",
+        "x - 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-8)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_028",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 18x + 77) / (x - 11)",
+      "acceptedAnswers": [
+        "x-7",
+        "x - 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 18x + 77 = (x-11)(x-7)",
+        "Divide by (x - 11)",
+        "x - 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-7)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_029",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 66) / (x - 11)",
+      "acceptedAnswers": [
+        "x-6",
+        "x - 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 66 = (x-11)(x-6)",
+        "Divide by (x - 11)",
+        "x - 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-6)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_030",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 16x + 55) / (x - 11)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 16x + 55 = (x-11)(x-5)",
+        "Divide by (x - 11)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-5)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_031",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 44) / (x - 11)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 44 = (x-11)(x-4)",
+        "Divide by (x - 11)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-4)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_032",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 14x + 33) / (x - 11)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 33 = (x-11)(x-3)",
+        "Divide by (x - 11)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-3)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_033",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 22) / (x - 11)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 22 = (x-11)(x-2)",
+        "Divide by (x - 11)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-2)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_034",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 12x + 11) / (x - 11)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 12x + 11 = (x-11)(x-1)",
+        "Divide by (x - 11)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x-1)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_035",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 10x - 11) / (x - 11)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 10x - 11 = (x-11)(x+1)",
+        "Divide by (x - 11)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+1)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_036",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 9x - 22) / (x - 11)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 9x - 22 = (x-11)(x+2)",
+        "Divide by (x - 11)",
+        "x + 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+2)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_037",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 8x - 33) / (x - 11)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 8x - 33 = (x-11)(x+3)",
+        "Divide by (x - 11)",
+        "x + 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+3)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_038",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 7x - 44) / (x - 11)",
+      "acceptedAnswers": [
+        "x+4",
+        "x + 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 7x - 44 = (x-11)(x+4)",
+        "Divide by (x - 11)",
+        "x + 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+4)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_039",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 6x - 55) / (x - 11)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 6x - 55 = (x-11)(x+5)",
+        "Divide by (x - 11)",
+        "x + 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+5)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_040",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 66) / (x - 11)",
+      "acceptedAnswers": [
+        "x+6",
+        "x + 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 66 = (x-11)(x+6)",
+        "Divide by (x - 11)",
+        "x + 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+6)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_041",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 4x - 77) / (x - 11)",
+      "acceptedAnswers": [
+        "x+7",
+        "x + 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 4x - 77 = (x-11)(x+7)",
+        "Divide by (x - 11)",
+        "x + 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+7)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_042",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 3x - 88) / (x - 11)",
+      "acceptedAnswers": [
+        "x+8",
+        "x + 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 3x - 88 = (x-11)(x+8)",
+        "Divide by (x - 11)",
+        "x + 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+8)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_043",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 2x - 99) / (x - 11)",
+      "acceptedAnswers": [
+        "x+9",
+        "x + 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 2x - 99 = (x-11)(x+9)",
+        "Divide by (x - 11)",
+        "x + 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+9)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_044",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - x - 110) / (x - 11)",
+      "acceptedAnswers": [
+        "x+10",
+        "x + 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - x - 110 = (x-11)(x+10)",
+        "Divide by (x - 11)",
+        "x + 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+10)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_045",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 121) / (x - 11)",
+      "acceptedAnswers": [
+        "x+11",
+        "x + 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 121 = (x-11)(x+11)",
+        "Divide by (x - 11)",
+        "x + 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+11)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_046",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + x - 132) / (x - 11)",
+      "acceptedAnswers": [
+        "x+12",
+        "x + 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + x - 132 = (x-11)(x+12)",
+        "Divide by (x - 11)",
+        "x + 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-11)(x+12)/(x-11)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_047",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 22x + 120) / (x - 10)",
+      "acceptedAnswers": [
+        "x-12",
+        "x - 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 22x + 120 = (x-10)(x-12)",
+        "Divide by (x - 10)",
+        "x - 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-12)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_048",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 21x + 110) / (x - 10)",
+      "acceptedAnswers": [
+        "x-11",
+        "x - 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 21x + 110 = (x-10)(x-11)",
+        "Divide by (x - 10)",
+        "x - 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-11)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_049",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 19x + 90) / (x - 10)",
+      "acceptedAnswers": [
+        "x-9",
+        "x - 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 19x + 90 = (x-10)(x-9)",
+        "Divide by (x - 10)",
+        "x - 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-9)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_050",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 18x + 80) / (x - 10)",
+      "acceptedAnswers": [
+        "x-8",
+        "x - 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 18x + 80 = (x-10)(x-8)",
+        "Divide by (x - 10)",
+        "x - 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-8)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_051",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 70) / (x - 10)",
+      "acceptedAnswers": [
+        "x-7",
+        "x - 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 70 = (x-10)(x-7)",
+        "Divide by (x - 10)",
+        "x - 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-7)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_052",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 16x + 60) / (x - 10)",
+      "acceptedAnswers": [
+        "x-6",
+        "x - 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 16x + 60 = (x-10)(x-6)",
+        "Divide by (x - 10)",
+        "x - 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-6)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_053",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 50) / (x - 10)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 50 = (x-10)(x-5)",
+        "Divide by (x - 10)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-5)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_054",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 14x + 40) / (x - 10)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 40 = (x-10)(x-4)",
+        "Divide by (x - 10)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-4)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_055",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 30) / (x - 10)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 30 = (x-10)(x-3)",
+        "Divide by (x - 10)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-3)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_056",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 12x + 20) / (x - 10)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 12x + 20 = (x-10)(x-2)",
+        "Divide by (x - 10)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-2)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_057",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 11x + 10) / (x - 10)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 11x + 10 = (x-10)(x-1)",
+        "Divide by (x - 10)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x-1)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_058",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 9x - 10) / (x - 10)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 9x - 10 = (x-10)(x+1)",
+        "Divide by (x - 10)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+1)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_059",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 8x - 20) / (x - 10)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 8x - 20 = (x-10)(x+2)",
+        "Divide by (x - 10)",
+        "x + 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+2)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_060",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 7x - 30) / (x - 10)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 7x - 30 = (x-10)(x+3)",
+        "Divide by (x - 10)",
+        "x + 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+3)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_061",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 6x - 40) / (x - 10)",
+      "acceptedAnswers": [
+        "x+4",
+        "x + 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 6x - 40 = (x-10)(x+4)",
+        "Divide by (x - 10)",
+        "x + 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+4)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_062",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 50) / (x - 10)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 50 = (x-10)(x+5)",
+        "Divide by (x - 10)",
+        "x + 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+5)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_063",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 4x - 60) / (x - 10)",
+      "acceptedAnswers": [
+        "x+6",
+        "x + 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 4x - 60 = (x-10)(x+6)",
+        "Divide by (x - 10)",
+        "x + 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+6)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_064",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 3x - 70) / (x - 10)",
+      "acceptedAnswers": [
+        "x+7",
+        "x + 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 3x - 70 = (x-10)(x+7)",
+        "Divide by (x - 10)",
+        "x + 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+7)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_065",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 2x - 80) / (x - 10)",
+      "acceptedAnswers": [
+        "x+8",
+        "x + 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 2x - 80 = (x-10)(x+8)",
+        "Divide by (x - 10)",
+        "x + 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+8)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_066",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - x - 90) / (x - 10)",
+      "acceptedAnswers": [
+        "x+9",
+        "x + 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - x - 90 = (x-10)(x+9)",
+        "Divide by (x - 10)",
+        "x + 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+9)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_067",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 100) / (x - 10)",
+      "acceptedAnswers": [
+        "x+10",
+        "x + 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 100 = (x-10)(x+10)",
+        "Divide by (x - 10)",
+        "x + 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+10)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_068",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + x - 110) / (x - 10)",
+      "acceptedAnswers": [
+        "x+11",
+        "x + 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + x - 110 = (x-10)(x+11)",
+        "Divide by (x - 10)",
+        "x + 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+11)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_069",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 2x - 120) / (x - 10)",
+      "acceptedAnswers": [
+        "x+12",
+        "x + 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 2x - 120 = (x-10)(x+12)",
+        "Divide by (x - 10)",
+        "x + 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-10)(x+12)/(x-10)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_070",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 21x + 108) / (x - 9)",
+      "acceptedAnswers": [
+        "x-12",
+        "x - 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 21x + 108 = (x-9)(x-12)",
+        "Divide by (x - 9)",
+        "x - 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-12)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_071",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 20x + 99) / (x - 9)",
+      "acceptedAnswers": [
+        "x-11",
+        "x - 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 20x + 99 = (x-9)(x-11)",
+        "Divide by (x - 9)",
+        "x - 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-11)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_072",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 19x + 90) / (x - 9)",
+      "acceptedAnswers": [
+        "x-10",
+        "x - 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 19x + 90 = (x-9)(x-10)",
+        "Divide by (x - 9)",
+        "x - 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-10)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_073",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 72) / (x - 9)",
+      "acceptedAnswers": [
+        "x-8",
+        "x - 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 72 = (x-9)(x-8)",
+        "Divide by (x - 9)",
+        "x - 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-8)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_074",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 16x + 63) / (x - 9)",
+      "acceptedAnswers": [
+        "x-7",
+        "x - 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 16x + 63 = (x-9)(x-7)",
+        "Divide by (x - 9)",
+        "x - 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-7)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_075",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 54) / (x - 9)",
+      "acceptedAnswers": [
+        "x-6",
+        "x - 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 54 = (x-9)(x-6)",
+        "Divide by (x - 9)",
+        "x - 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-6)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_076",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 14x + 45) / (x - 9)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 45 = (x-9)(x-5)",
+        "Divide by (x - 9)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-5)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_077",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 36) / (x - 9)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 36 = (x-9)(x-4)",
+        "Divide by (x - 9)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-4)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_078",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 12x + 27) / (x - 9)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 12x + 27 = (x-9)(x-3)",
+        "Divide by (x - 9)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-3)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_079",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 11x + 18) / (x - 9)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 11x + 18 = (x-9)(x-2)",
+        "Divide by (x - 9)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-2)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_080",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 10x + 9) / (x - 9)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 10x + 9 = (x-9)(x-1)",
+        "Divide by (x - 9)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x-1)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_081",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 8x - 9) / (x - 9)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 8x - 9 = (x-9)(x+1)",
+        "Divide by (x - 9)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+1)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_082",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 7x - 18) / (x - 9)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 7x - 18 = (x-9)(x+2)",
+        "Divide by (x - 9)",
+        "x + 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+2)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_083",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 6x - 27) / (x - 9)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 6x - 27 = (x-9)(x+3)",
+        "Divide by (x - 9)",
+        "x + 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+3)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_084",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 36) / (x - 9)",
+      "acceptedAnswers": [
+        "x+4",
+        "x + 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 36 = (x-9)(x+4)",
+        "Divide by (x - 9)",
+        "x + 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+4)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_085",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 4x - 45) / (x - 9)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 4x - 45 = (x-9)(x+5)",
+        "Divide by (x - 9)",
+        "x + 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+5)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_086",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 3x - 54) / (x - 9)",
+      "acceptedAnswers": [
+        "x+6",
+        "x + 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 3x - 54 = (x-9)(x+6)",
+        "Divide by (x - 9)",
+        "x + 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+6)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_087",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 2x - 63) / (x - 9)",
+      "acceptedAnswers": [
+        "x+7",
+        "x + 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 2x - 63 = (x-9)(x+7)",
+        "Divide by (x - 9)",
+        "x + 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+7)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_088",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - x - 72) / (x - 9)",
+      "acceptedAnswers": [
+        "x+8",
+        "x + 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - x - 72 = (x-9)(x+8)",
+        "Divide by (x - 9)",
+        "x + 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+8)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_089",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 81) / (x - 9)",
+      "acceptedAnswers": [
+        "x+9",
+        "x + 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 81 = (x-9)(x+9)",
+        "Divide by (x - 9)",
+        "x + 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+9)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_090",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + x - 90) / (x - 9)",
+      "acceptedAnswers": [
+        "x+10",
+        "x + 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + x - 90 = (x-9)(x+10)",
+        "Divide by (x - 9)",
+        "x + 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+10)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_091",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 2x - 99) / (x - 9)",
+      "acceptedAnswers": [
+        "x+11",
+        "x + 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 2x - 99 = (x-9)(x+11)",
+        "Divide by (x - 9)",
+        "x + 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+11)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_092",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 3x - 108) / (x - 9)",
+      "acceptedAnswers": [
+        "x+12",
+        "x + 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 3x - 108 = (x-9)(x+12)",
+        "Divide by (x - 9)",
+        "x + 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-9)(x+12)/(x-9)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_093",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 20x + 96) / (x - 8)",
+      "acceptedAnswers": [
+        "x-12",
+        "x - 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 20x + 96 = (x-8)(x-12)",
+        "Divide by (x - 8)",
+        "x - 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-12)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_094",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 19x + 88) / (x - 8)",
+      "acceptedAnswers": [
+        "x-11",
+        "x - 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 19x + 88 = (x-8)(x-11)",
+        "Divide by (x - 8)",
+        "x - 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-11)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_095",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 18x + 80) / (x - 8)",
+      "acceptedAnswers": [
+        "x-10",
+        "x - 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 18x + 80 = (x-8)(x-10)",
+        "Divide by (x - 8)",
+        "x - 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-10)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_096",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 72) / (x - 8)",
+      "acceptedAnswers": [
+        "x-9",
+        "x - 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 72 = (x-8)(x-9)",
+        "Divide by (x - 8)",
+        "x - 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-9)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_097",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 56) / (x - 8)",
+      "acceptedAnswers": [
+        "x-7",
+        "x - 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 56 = (x-8)(x-7)",
+        "Divide by (x - 8)",
+        "x - 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-7)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_098",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 14x + 48) / (x - 8)",
+      "acceptedAnswers": [
+        "x-6",
+        "x - 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 48 = (x-8)(x-6)",
+        "Divide by (x - 8)",
+        "x - 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-6)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_099",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 40) / (x - 8)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 40 = (x-8)(x-5)",
+        "Divide by (x - 8)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-5)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_100",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 12x + 32) / (x - 8)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 12x + 32 = (x-8)(x-4)",
+        "Divide by (x - 8)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-4)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_101",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 11x + 24) / (x - 8)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 11x + 24 = (x-8)(x-3)",
+        "Divide by (x - 8)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-3)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_102",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 10x + 16) / (x - 8)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 10x + 16 = (x-8)(x-2)",
+        "Divide by (x - 8)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-2)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_103",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 9x + 8) / (x - 8)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 9x + 8 = (x-8)(x-1)",
+        "Divide by (x - 8)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x-1)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_104",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 7x - 8) / (x - 8)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 7x - 8 = (x-8)(x+1)",
+        "Divide by (x - 8)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+1)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_105",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 6x - 16) / (x - 8)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 6x - 16 = (x-8)(x+2)",
+        "Divide by (x - 8)",
+        "x + 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+2)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_106",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 24) / (x - 8)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 24 = (x-8)(x+3)",
+        "Divide by (x - 8)",
+        "x + 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+3)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_107",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 4x - 32) / (x - 8)",
+      "acceptedAnswers": [
+        "x+4",
+        "x + 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 4x - 32 = (x-8)(x+4)",
+        "Divide by (x - 8)",
+        "x + 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+4)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_108",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 3x - 40) / (x - 8)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 3x - 40 = (x-8)(x+5)",
+        "Divide by (x - 8)",
+        "x + 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+5)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_109",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 2x - 48) / (x - 8)",
+      "acceptedAnswers": [
+        "x+6",
+        "x + 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 2x - 48 = (x-8)(x+6)",
+        "Divide by (x - 8)",
+        "x + 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+6)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_110",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - x - 56) / (x - 8)",
+      "acceptedAnswers": [
+        "x+7",
+        "x + 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - x - 56 = (x-8)(x+7)",
+        "Divide by (x - 8)",
+        "x + 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+7)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_111",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 64) / (x - 8)",
+      "acceptedAnswers": [
+        "x+8",
+        "x + 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 64 = (x-8)(x+8)",
+        "Divide by (x - 8)",
+        "x + 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+8)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_112",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + x - 72) / (x - 8)",
+      "acceptedAnswers": [
+        "x+9",
+        "x + 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + x - 72 = (x-8)(x+9)",
+        "Divide by (x - 8)",
+        "x + 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+9)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_113",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 2x - 80) / (x - 8)",
+      "acceptedAnswers": [
+        "x+10",
+        "x + 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 2x - 80 = (x-8)(x+10)",
+        "Divide by (x - 8)",
+        "x + 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+10)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_114",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 3x - 88) / (x - 8)",
+      "acceptedAnswers": [
+        "x+11",
+        "x + 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 3x - 88 = (x-8)(x+11)",
+        "Divide by (x - 8)",
+        "x + 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+11)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_115",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 4x - 96) / (x - 8)",
+      "acceptedAnswers": [
+        "x+12",
+        "x + 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 4x - 96 = (x-8)(x+12)",
+        "Divide by (x - 8)",
+        "x + 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-8)(x+12)/(x-8)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_116",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 19x + 84) / (x - 7)",
+      "acceptedAnswers": [
+        "x-12",
+        "x - 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 19x + 84 = (x-7)(x-12)",
+        "Divide by (x - 7)",
+        "x - 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-12)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_117",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 18x + 77) / (x - 7)",
+      "acceptedAnswers": [
+        "x-11",
+        "x - 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 18x + 77 = (x-7)(x-11)",
+        "Divide by (x - 7)",
+        "x - 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-11)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_118",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 70) / (x - 7)",
+      "acceptedAnswers": [
+        "x-10",
+        "x - 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 70 = (x-7)(x-10)",
+        "Divide by (x - 7)",
+        "x - 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-10)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_119",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 16x + 63) / (x - 7)",
+      "acceptedAnswers": [
+        "x-9",
+        "x - 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 16x + 63 = (x-7)(x-9)",
+        "Divide by (x - 7)",
+        "x - 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-9)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_120",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 56) / (x - 7)",
+      "acceptedAnswers": [
+        "x-8",
+        "x - 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 56 = (x-7)(x-8)",
+        "Divide by (x - 7)",
+        "x - 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-8)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_121",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 42) / (x - 7)",
+      "acceptedAnswers": [
+        "x-6",
+        "x - 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 42 = (x-7)(x-6)",
+        "Divide by (x - 7)",
+        "x - 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-6)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_122",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 12x + 35) / (x - 7)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 12x + 35 = (x-7)(x-5)",
+        "Divide by (x - 7)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-5)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_123",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 11x + 28) / (x - 7)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 11x + 28 = (x-7)(x-4)",
+        "Divide by (x - 7)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-4)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_124",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 10x + 21) / (x - 7)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 10x + 21 = (x-7)(x-3)",
+        "Divide by (x - 7)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-3)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_125",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 9x + 14) / (x - 7)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 9x + 14 = (x-7)(x-2)",
+        "Divide by (x - 7)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-2)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_126",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 8x + 7) / (x - 7)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 8x + 7 = (x-7)(x-1)",
+        "Divide by (x - 7)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x-1)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_127",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 6x - 7) / (x - 7)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 6x - 7 = (x-7)(x+1)",
+        "Divide by (x - 7)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+1)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_128",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 14) / (x - 7)",
+      "acceptedAnswers": [
+        "x+2",
+        "x + 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 14 = (x-7)(x+2)",
+        "Divide by (x - 7)",
+        "x + 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+2)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_129",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 4x - 21) / (x - 7)",
+      "acceptedAnswers": [
+        "x+3",
+        "x + 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 4x - 21 = (x-7)(x+3)",
+        "Divide by (x - 7)",
+        "x + 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+3)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_130",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 3x - 28) / (x - 7)",
+      "acceptedAnswers": [
+        "x+4",
+        "x + 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 3x - 28 = (x-7)(x+4)",
+        "Divide by (x - 7)",
+        "x + 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+4)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_131",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 2x - 35) / (x - 7)",
+      "acceptedAnswers": [
+        "x+5",
+        "x + 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 2x - 35 = (x-7)(x+5)",
+        "Divide by (x - 7)",
+        "x + 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+5)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_132",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - x - 42) / (x - 7)",
+      "acceptedAnswers": [
+        "x+6",
+        "x + 6"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - x - 42 = (x-7)(x+6)",
+        "Divide by (x - 7)",
+        "x + 6"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 6."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+6)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_133",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 49) / (x - 7)",
+      "acceptedAnswers": [
+        "x+7",
+        "x + 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 49 = (x-7)(x+7)",
+        "Divide by (x - 7)",
+        "x + 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+7)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_134",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + x - 56) / (x - 7)",
+      "acceptedAnswers": [
+        "x+8",
+        "x + 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + x - 56 = (x-7)(x+8)",
+        "Divide by (x - 7)",
+        "x + 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+8)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_135",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 2x - 63) / (x - 7)",
+      "acceptedAnswers": [
+        "x+9",
+        "x + 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 2x - 63 = (x-7)(x+9)",
+        "Divide by (x - 7)",
+        "x + 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+9)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_136",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 3x - 70) / (x - 7)",
+      "acceptedAnswers": [
+        "x+10",
+        "x + 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 3x - 70 = (x-7)(x+10)",
+        "Divide by (x - 7)",
+        "x + 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+10)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_137",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 4x - 77) / (x - 7)",
+      "acceptedAnswers": [
+        "x+11",
+        "x + 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 4x - 77 = (x-7)(x+11)",
+        "Divide by (x - 7)",
+        "x + 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+11)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_138",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 + 5x - 84) / (x - 7)",
+      "acceptedAnswers": [
+        "x+12",
+        "x + 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 + 5x - 84 = (x-7)(x+12)",
+        "Divide by (x - 7)",
+        "x + 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-7)(x+12)/(x-7)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_139",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 18x + 72) / (x - 6)",
+      "acceptedAnswers": [
+        "x-12",
+        "x - 12"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 18x + 72 = (x-6)(x-12)",
+        "Divide by (x - 6)",
+        "x - 12"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 12."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-12)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_140",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 3,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 17x + 66) / (x - 6)",
+      "acceptedAnswers": [
+        "x-11",
+        "x - 11"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 17x + 66 = (x-6)(x-11)",
+        "Divide by (x - 6)",
+        "x - 11"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 11."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-11)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_141",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 16x + 60) / (x - 6)",
+      "acceptedAnswers": [
+        "x-10",
+        "x - 10"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 16x + 60 = (x-6)(x-10)",
+        "Divide by (x - 6)",
+        "x - 10"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 10."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-10)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_142",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 15x + 54) / (x - 6)",
+      "acceptedAnswers": [
+        "x-9",
+        "x - 9"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 15x + 54 = (x-6)(x-9)",
+        "Divide by (x - 6)",
+        "x - 9"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 9."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-9)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_143",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 14x + 48) / (x - 6)",
+      "acceptedAnswers": [
+        "x-8",
+        "x - 8"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 14x + 48 = (x-6)(x-8)",
+        "Divide by (x - 6)",
+        "x - 8"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 8."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-8)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_144",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 2,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 13x + 42) / (x - 6)",
+      "acceptedAnswers": [
+        "x-7",
+        "x - 7"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 13x + 42 = (x-6)(x-7)",
+        "Divide by (x - 6)",
+        "x - 7"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 7."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-7)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_145",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 11x + 30) / (x - 6)",
+      "acceptedAnswers": [
+        "x-5",
+        "x - 5"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 11x + 30 = (x-6)(x-5)",
+        "Divide by (x - 6)",
+        "x - 5"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 5."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-5)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_146",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 10x + 24) / (x - 6)",
+      "acceptedAnswers": [
+        "x-4",
+        "x - 4"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 10x + 24 = (x-6)(x-4)",
+        "Divide by (x - 6)",
+        "x - 4"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 4."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-4)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_147",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 9x + 18) / (x - 6)",
+      "acceptedAnswers": [
+        "x-3",
+        "x - 3"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 9x + 18 = (x-6)(x-3)",
+        "Divide by (x - 6)",
+        "x - 3"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 3."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-3)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_148",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 8x + 12) / (x - 6)",
+      "acceptedAnswers": [
+        "x-2",
+        "x - 2"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 8x + 12 = (x-6)(x-2)",
+        "Divide by (x - 6)",
+        "x - 2"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 2."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-2)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_149",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 7x + 6) / (x - 6)",
+      "acceptedAnswers": [
+        "x-1",
+        "x - 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 7x + 6 = (x-6)(x-1)",
+        "Divide by (x - 6)",
+        "x - 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x - 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x-1)/(x-6)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Q_RAT_C1_GEN_150",
+      "conceptId": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "difficulty": 1,
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "stem": "Simplify: (x^2 - 5x - 6) / (x - 6)",
+      "acceptedAnswers": [
+        "x+1",
+        "x + 1"
+      ],
+      "misconceptionsTested": [
+        "INCOMPLETE_FACTOR_EXTRACTION"
+      ],
+      "solutionSteps": [
+        "x^2 - 5x - 6 = (x-6)(x+1)",
+        "Divide by (x - 6)",
+        "x + 1"
+      ],
+      "hintLadder": [
+        "Factor the numerator into two binomials first.",
+        "One of them should match the denominator exactly — cancel it.",
+        "x + 1."
+      ],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "prerequisiteConceptIds": [
+        "FAC_C1_COMMON_FACTOR",
+        "RAT_P1_VARIABLES_IN_FRACTIONS"
+      ],
+      "unitId": "rational-expressions",
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "INCOMPLETE_FACTOR_EXTRACTION",
+          "answers": [
+            "(x-6)(x+1)/(x-6)"
+          ]
+        }
+      ]
+    }
+  ]
+}

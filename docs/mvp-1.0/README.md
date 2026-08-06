@@ -33,15 +33,16 @@ You may start production code only when these are frozen:
 ```text
 [x] Canonical MVP documentation folder          → this folder
 [x] Stable concept and prerequisite IDs         → README_CONTENT_SPEC.md
-[ ] Initial reviewed question bank (~200)       → content/question-bank/ (DRAFT; human review required)
+[~] Initial reviewed question bank (~200)       → content/question-bank/ (DRAFT JSON; **~9 APPROVED milestone IDs** seeded for C2 path — S001/S014)
 [x] Misconception taxonomy                      → README_CONTENT_SPEC.md
 [x] Exact diagnostic and decision rules         → README_RULES.md
 [x] Shared API and event contracts              → README_SHARED_CONTRACTS.md
 [x] Database schema                             → README_DATA_MODEL.md
 [x] Golden test cases                           → README_TEST_PLAN.md
+[x] First construction milestone                → backend + practice UI + reports/revision (2026-07-13)
 ```
 
-**Blocked on human math review:** question bank items must move from `PENDING_REVIEW` → `APPROVED` before serving to students.
+**Blocked on human math review:** full bank items must move from `PENDING_REVIEW` → `APPROVED` before external pilot (S014). Local/staging dev may use `ALLOW_PENDING_REVIEW_QUESTIONS=true` only in local environments.
 
 ## First construction milestone
 

@@ -16,7 +16,9 @@
       "masteryThreshold": 0.7,
       "minimumEvidence": 3,
       "sortOrder": 2,
-      "prerequisites": ["P1_INTEGER_ADD_SUB"]
+      "prerequisites": [
+        "P1_INTEGER_ADD_SUB"
+      ]
     },
     {
       "id": "P3_VARIABLES_CONSTANTS",
@@ -25,7 +27,9 @@
       "masteryThreshold": 0.7,
       "minimumEvidence": 3,
       "sortOrder": 3,
-      "prerequisites": ["P1_INTEGER_ADD_SUB"]
+      "prerequisites": [
+        "P1_INTEGER_ADD_SUB"
+      ]
     },
     {
       "id": "P4_SIMPLE_EXPRESSIONS",
@@ -34,7 +38,9 @@
       "masteryThreshold": 0.7,
       "minimumEvidence": 3,
       "sortOrder": 4,
-      "prerequisites": ["P3_VARIABLES_CONSTANTS"]
+      "prerequisites": [
+        "P3_VARIABLES_CONSTANTS"
+      ]
     },
     {
       "id": "P5_EQUALITY_BALANCE",
@@ -43,7 +49,10 @@
       "masteryThreshold": 0.75,
       "minimumEvidence": 3,
       "sortOrder": 5,
-      "prerequisites": ["P1_INTEGER_ADD_SUB", "P3_VARIABLES_CONSTANTS"]
+      "prerequisites": [
+        "P1_INTEGER_ADD_SUB",
+        "P3_VARIABLES_CONSTANTS"
+      ]
     },
     {
       "id": "C1_ONE_STEP_ADDITION",
@@ -52,7 +61,10 @@
       "masteryThreshold": 0.75,
       "minimumEvidence": 4,
       "sortOrder": 6,
-      "prerequisites": ["P1_INTEGER_ADD_SUB", "P5_EQUALITY_BALANCE"]
+      "prerequisites": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ]
     },
     {
       "id": "C2_ONE_STEP_SUBTRACTION",
@@ -61,7 +73,10 @@
       "masteryThreshold": 0.75,
       "minimumEvidence": 4,
       "sortOrder": 7,
-      "prerequisites": ["P1_INTEGER_ADD_SUB", "P5_EQUALITY_BALANCE"]
+      "prerequisites": [
+        "P1_INTEGER_ADD_SUB",
+        "P5_EQUALITY_BALANCE"
+      ]
     },
     {
       "id": "C3_ONE_STEP_MULTIPLICATION",
@@ -70,7 +85,10 @@
       "masteryThreshold": 0.75,
       "minimumEvidence": 4,
       "sortOrder": 8,
-      "prerequisites": ["P2_NEGATIVE_OPS", "P5_EQUALITY_BALANCE"]
+      "prerequisites": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ]
     },
     {
       "id": "C4_ONE_STEP_DIVISION",
@@ -79,7 +97,10 @@
       "masteryThreshold": 0.75,
       "minimumEvidence": 4,
       "sortOrder": 9,
-      "prerequisites": ["P2_NEGATIVE_OPS", "P5_EQUALITY_BALANCE"]
+      "prerequisites": [
+        "P2_NEGATIVE_OPS",
+        "P5_EQUALITY_BALANCE"
+      ]
     },
     {
       "id": "C5_TWO_STEP_EQUATIONS",
@@ -88,7 +109,11 @@
       "masteryThreshold": 0.75,
       "minimumEvidence": 5,
       "sortOrder": 10,
-      "prerequisites": ["C1_ONE_STEP_ADDITION", "C2_ONE_STEP_SUBTRACTION", "C3_ONE_STEP_MULTIPLICATION"]
+      "prerequisites": [
+        "C1_ONE_STEP_ADDITION",
+        "C2_ONE_STEP_SUBTRACTION",
+        "C3_ONE_STEP_MULTIPLICATION"
+      ]
     },
     {
       "id": "C6_SIMPLE_WORD_PROBLEMS",
@@ -97,7 +122,32 @@
       "masteryThreshold": 0.7,
       "minimumEvidence": 4,
       "sortOrder": 11,
-      "prerequisites": ["C5_TWO_STEP_EQUATIONS", "P5_EQUALITY_BALANCE"]
+      "prerequisites": [
+        "C5_TWO_STEP_EQUATIONS",
+        "P5_EQUALITY_BALANCE"
+      ]
+    },
+    {
+      "id": "C7_VARIABLE_BOTH_SIDES",
+      "name": "Equations with the variable on both sides",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 18,
+      "prerequisites": [
+        "C5_TWO_STEP_EQUATIONS"
+      ]
+    },
+    {
+      "id": "C8_FRACTIONAL_COEFFICIENTS",
+      "name": "Linear equations with fractional coefficients",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 37,
+      "prerequisites": [
+        "C7_VARIABLE_BOTH_SIDES"
+      ]
     }
   ]
 }

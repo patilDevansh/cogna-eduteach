@@ -243,8 +243,6 @@ The Learning Loop may use:
 - Option matching for MCQs
 - Rule-based short-answer parsing
 
-An LLM should not decide whether a simple numerical or algebraic answer is correct when deterministic grading is available.
-
 ---
 
 ## Diagnostic Engine Call

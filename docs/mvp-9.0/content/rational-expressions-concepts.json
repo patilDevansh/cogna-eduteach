@@ -1,0 +1,22 @@
+{
+  "concepts": [
+    {
+      "id": "RAT_P1_VARIABLES_IN_FRACTIONS",
+      "name": "Simplifying fractions with a variable",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 35,
+      "prerequisites": ["P4_SIMPLE_EXPRESSIONS"]
+    },
+    {
+      "id": "RAT_C1_SIMPLIFYING_ALGEBRAIC_FRACTIONS",
+      "name": "Simplifying algebraic fractions by factorising first",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 5,
+      "sortOrder": 36,
+      "prerequisites": ["RAT_P1_VARIABLES_IN_FRACTIONS", "FAC_C1_COMMON_FACTOR"]
+    }
+  ]
+}

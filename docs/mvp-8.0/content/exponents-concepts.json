@@ -1,0 +1,31 @@
+{
+  "concepts": [
+    {
+      "id": "EXP_P1_LAWS_OF_EXPONENTS",
+      "name": "Laws of exponents (product, quotient, power)",
+      "kind": "PREREQ",
+      "masteryThreshold": 0.7,
+      "minimumEvidence": 3,
+      "sortOrder": 32,
+      "prerequisites": ["P4_SIMPLE_EXPRESSIONS"]
+    },
+    {
+      "id": "EXP_C1_NEGATIVE_EXPONENTS",
+      "name": "Negative exponents",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 33,
+      "prerequisites": ["EXP_P1_LAWS_OF_EXPONENTS"]
+    },
+    {
+      "id": "EXP_C2_EXPONENTS_IN_SIMPLIFICATION",
+      "name": "Using exponent laws to simplify algebraic expressions",
+      "kind": "CORE",
+      "masteryThreshold": 0.75,
+      "minimumEvidence": 4,
+      "sortOrder": 34,
+      "prerequisites": ["EXP_C1_NEGATIVE_EXPONENTS"]
+    }
+  ]
+}

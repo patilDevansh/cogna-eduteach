@@ -41,6 +41,23 @@ export interface ExplanationViewedEvent {
   clientTimestamp: string;
 }
 
+export interface QuestionSkippedEvent {
+  eventId: string;
+  eventType: "QUESTION_SKIPPED";
+  studentId: string;
+  sessionId: string;
+  questionId: string;
+  questionVersion: number;
+  clientTimestamp: string;
+}
+
+export interface QuestionSkippedResponse {
+  processingStatus: ProcessingStatus;
+  decision: LearningDecision;
+  decisionId: string;
+  next: PracticeNextResponse;
+}
+
 export interface AnswerSubmittedResponse {
   processingStatus: ProcessingStatus;
   grade: Grade;
@@ -56,6 +73,49 @@ export interface ExplanationViewedResponse {
   decision: LearningDecision;
   decisionId: string;
   next: PracticeNextResponse;
+}
+
+export interface RevisionItemCompletedEvent {
+  eventId: string;
+  eventType: "REVISION_ITEM_COMPLETED";
+  studentId: string;
+  sessionId?: string;
+  revisionItemId: string;
+  conceptId: string;
+  outcome: "COMPLETED" | "SKIPPED" | "EXPIRED";
+  clientTimestamp: string;
+}
+
+export interface WeeklyReportRequestedEvent {
+  eventId: string;
+  eventType: "WEEKLY_REPORT_REQUESTED";
+  studentId: string;
+  periodStart: string;
+  periodEnd: string;
+  requestId?: string;
+  clientTimestamp: string;
+}
+
+export interface ReportDeliveryAttemptedEvent {
+  eventId: string;
+  eventType: "REPORT_DELIVERY_ATTEMPTED";
+  studentId: string;
+  reportId: string;
+  deliveryId: string;
+  channel: "EMAIL" | "IN_APP";
+  status: "PENDING" | "SENT" | "FAILED" | "RETRYING";
+  clientTimestamp: string;
+}
+
+export interface ContentReviewedEvent {
+  eventId: string;
+  eventType: "CONTENT_REVIEWED";
+  contentType: "QUESTION" | "EXPLANATION";
+  contentId: string;
+  contentVersion: number;
+  status: "APPROVED" | "CHANGES_REQUESTED" | "REJECTED";
+  reviewer: string;
+  clientTimestamp: string;
 }
 
 export interface RawEventRecord {

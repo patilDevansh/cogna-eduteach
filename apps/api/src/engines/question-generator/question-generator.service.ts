@@ -113,7 +113,40 @@ export class QuestionGeneratorService {
       }
     }
 
+    const allowPending = process.env.ALLOW_PENDING_REVIEW_QUESTIONS === "true";
+    if (!allowPending) {
+      const approvedExists = await this.prisma.question.count({
+        where: { conceptId: primaryConcept, reviewStatus: ReviewStatus.APPROVED },
+      });
+      if (approvedExists === 0) {
+        throw new NotFoundException("NO_APPROVED_CONTENT");
+      }
+    }
     throw new NotFoundException("NO_ELIGIBLE_QUESTION");
+  }
+
+  /** Staging gate check for CLI R12 — never serves PENDING_REVIEW when ALLOW_PENDING is off. */
+  async approvalGateStatus(): Promise<{
+    allowPendingReview: boolean;
+    approvedCount: number;
+    pendingReviewCount: number;
+    wouldServePendingToStudent: boolean;
+    stagingGate: "ENFORCED" | "RELAXED";
+  }> {
+    const allowPending = process.env.ALLOW_PENDING_REVIEW_QUESTIONS === "true";
+    const approvedCount = await this.prisma.question.count({
+      where: { reviewStatus: ReviewStatus.APPROVED },
+    });
+    const pendingReviewCount = await this.prisma.question.count({
+      where: { reviewStatus: ReviewStatus.PENDING_REVIEW },
+    });
+    return {
+      allowPendingReview: allowPending,
+      approvedCount,
+      pendingReviewCount,
+      wouldServePendingToStudent: allowPending,
+      stagingGate: allowPending ? "RELAXED" : "ENFORCED",
+    };
   }
 
   private async trySelect(
@@ -156,6 +189,15 @@ export class QuestionGeneratorService {
     });
 
     if (candidates.length === 0) return null;
+
+    // Shuffle before scoring so ties (very common — most candidates for a given
+    // concept/difficulty score identically) don't always resolve to the same
+    // question. Array.sort is stable, so without this the DB's fixed row order
+    // would deterministically pick the same "top" candidate every time.
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
 
     const ranked = candidates
       .map((q) => ({

@@ -1,0 +1,25 @@
+{
+  "era": "mvp-5.0",
+  "specStatus": "Draft / Vision",
+  "status": "stub-targets",
+  "notes": "Multi-subject + modality stub targets. Text banks inherit prior eras. No student-facing assets until APPROVED.",
+  "subjects": {
+    "mathematics": {
+      "units": {
+        "linear-equations-one-variable": {
+          "textTargetApproved": 280,
+          "modalityTargetApproved": 20
+        },
+        "algebraic-expressions-grade8": {
+          "textTargetApproved": 120,
+          "modalityTargetApproved": 10
+        }
+      }
+    },
+    "science": {
+      "units": {},
+      "notes": "Placeholder subject; not scheduled until math path proven."
+    }
+  },
+  "idPolicy": "Keep all frozen math concept IDs from MVP 1.0/2.0. Modality IDs use MOD_ prefix."
+}

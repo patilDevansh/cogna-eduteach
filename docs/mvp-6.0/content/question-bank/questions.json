@@ -1,0 +1,1031 @@
+{
+  "questions": [
+    {
+      "id": "Q_ID_P1_D1_001",
+      "conceptId": "ID_P1_TERM_BASICS",
+      "difficulty": 1,
+      "stem": "Simplify: 4x + 3x",
+      "acceptedAnswers": [
+        "7x",
+        "7*x",
+        "7 x"
+      ],
+      "solutionSteps": [
+        "4x + 3x = 7x"
+      ],
+      "hintLadder": [
+        "Add the coefficients of the like terms.",
+        "4 + 3 = 7, so the answer is 7x."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_P1_D2_001",
+      "conceptId": "ID_P1_TERM_BASICS",
+      "difficulty": 2,
+      "stem": "Simplify: 5x + 2y - 3x + y",
+      "acceptedAnswers": [
+        "2x+3y",
+        "2x + 3y"
+      ],
+      "solutionSteps": [
+        "(5x - 3x) + (2y + y)",
+        "2x + 3y"
+      ],
+      "hintLadder": [
+        "Group the x terms together and the y terms together.",
+        "5x - 3x = 2x and 2y + y = 3y."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_P1_D3_001",
+      "conceptId": "ID_P1_TERM_BASICS",
+      "difficulty": 3,
+      "stem": "Simplify: 3(x + 2) - (x - 5)",
+      "acceptedAnswers": [
+        "2x+11",
+        "2x + 11"
+      ],
+      "solutionSteps": [
+        "3x + 6 - x + 5",
+        "2x + 11"
+      ],
+      "hintLadder": [
+        "Distribute the 3, and distribute the minus sign across the second bracket too.",
+        "3x + 6 - x + 5 = 2x + 11."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_P2_D2_001",
+      "conceptId": "ID_P2_BINOMIAL_MULTIPLICATION",
+      "difficulty": 2,
+      "stem": "Multiply: (x + 2)(x + 3)",
+      "acceptedAnswers": [
+        "x^2+5x+6",
+        "x^2 + 5x + 6"
+      ],
+      "solutionSteps": [
+        "x*x + x*3 + 2*x + 2*3",
+        "x^2 + 5x + 6"
+      ],
+      "hintLadder": [
+        "Multiply each term in the first bracket by each term in the second.",
+        "x^2 + 3x + 2x + 6 = x^2 + 5x + 6."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_P2_D3_001",
+      "conceptId": "ID_P2_BINOMIAL_MULTIPLICATION",
+      "difficulty": 3,
+      "stem": "Multiply: (x - 1)(x + 4)",
+      "acceptedAnswers": [
+        "x^2+3x-4",
+        "x^2 + 3x - 4"
+      ],
+      "solutionSteps": [
+        "x^2 + 4x - x - 4",
+        "x^2 + 3x - 4"
+      ],
+      "hintLadder": [
+        "Multiply each term across, keeping track of signs.",
+        "x^2 + 4x - x - 4 = x^2 + 3x - 4."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_P2_D3_002",
+      "conceptId": "ID_P2_BINOMIAL_MULTIPLICATION",
+      "difficulty": 3,
+      "stem": "Multiply: (2x + 1)(x + 3)",
+      "acceptedAnswers": [
+        "2x^2+7x+3",
+        "2x^2 + 7x + 3"
+      ],
+      "solutionSteps": [
+        "2x*x + 2x*3 + 1*x + 1*3",
+        "2x^2 + 7x + 3"
+      ],
+      "hintLadder": [
+        "Multiply each term in the first bracket by each term in the second.",
+        "2x^2 + 6x + x + 3 = 2x^2 + 7x + 3."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "misconceptionsTested": [],
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C1_D1_001",
+      "conceptId": "ID_C1_SQUARE_OF_SUM",
+      "difficulty": 1,
+      "stem": "Expand using the identity: (x + 4)^2",
+      "acceptedAnswers": [
+        "x^2+8x+16",
+        "x^2 + 8x + 16"
+      ],
+      "misconceptionsTested": [
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+16",
+            "x^2 + 16"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(a+b)^2 = a^2 + 2ab + b^2, with a=x, b=4",
+        "x^2 + 2(4)x + 16",
+        "x^2 + 8x + 16"
+      ],
+      "hintLadder": [
+        "Use (a+b)^2 = a^2 + 2ab + b^2 with a=x, b=4.",
+        "Don't forget the middle term 2ab.",
+        "x^2 + 8x + 16."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C1_D2_001",
+      "conceptId": "ID_C1_SQUARE_OF_SUM",
+      "difficulty": 2,
+      "stem": "Expand using the identity: (2x + 3)^2",
+      "acceptedAnswers": [
+        "4x^2+12x+9",
+        "4x^2 + 12x + 9"
+      ],
+      "misconceptionsTested": [
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "4x^2+9",
+            "4x^2 + 9"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=2x, b=3",
+        "(2x)^2 + 2(2x)(3) + 3^2",
+        "4x^2 + 12x + 9"
+      ],
+      "hintLadder": [
+        "Square the first term, double the product of both terms, square the last term.",
+        "(2x)^2 = 4x^2, 2(2x)(3) = 12x, 3^2 = 9."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C1_D3_001",
+      "conceptId": "ID_C1_SQUARE_OF_SUM",
+      "difficulty": 3,
+      "stem": "Expand using the identity: (x + 7)^2",
+      "acceptedAnswers": [
+        "x^2+14x+49",
+        "x^2 + 14x + 49"
+      ],
+      "misconceptionsTested": [
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+49",
+            "x^2 + 49"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=x, b=7",
+        "x^2 + 2(7)x + 49",
+        "x^2 + 14x + 49"
+      ],
+      "hintLadder": [
+        "Use (a+b)^2 = a^2 + 2ab + b^2.",
+        "x^2 + 14x + 49."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C2_D1_001",
+      "conceptId": "ID_C2_SQUARE_OF_DIFFERENCE",
+      "difficulty": 1,
+      "stem": "Expand using the identity: (x - 5)^2",
+      "acceptedAnswers": [
+        "x^2-10x+25",
+        "x^2 - 10x + 25"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2+10x+25",
+            "x^2 + 10x + 25"
+          ]
+        },
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+25",
+            "x^2 + 25"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(a-b)^2 = a^2 - 2ab + b^2, a=x, b=5",
+        "x^2 - 10x + 25"
+      ],
+      "hintLadder": [
+        "Use (a-b)^2 = a^2 - 2ab + b^2 \u2014 the middle term is negative.",
+        "x^2 - 10x + 25."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C2_D2_001",
+      "conceptId": "ID_C2_SQUARE_OF_DIFFERENCE",
+      "difficulty": 2,
+      "stem": "Expand using the identity: (3x - 2)^2",
+      "acceptedAnswers": [
+        "9x^2-12x+4",
+        "9x^2 - 12x + 4"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "9x^2+12x+4",
+            "9x^2 + 12x + 4"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=3x, b=2",
+        "(3x)^2 - 2(3x)(2) + 2^2",
+        "9x^2 - 12x + 4"
+      ],
+      "hintLadder": [
+        "Square the first term, subtract double the product, add the square of the last term.",
+        "9x^2 - 12x + 4."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C2_D3_001",
+      "conceptId": "ID_C2_SQUARE_OF_DIFFERENCE",
+      "difficulty": 3,
+      "stem": "Expand using the identity: (x - 9)^2",
+      "acceptedAnswers": [
+        "x^2-18x+81",
+        "x^2 - 18x + 81"
+      ],
+      "misconceptionsTested": [
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+81",
+            "x^2 + 81"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=x, b=9",
+        "x^2 - 18x + 81"
+      ],
+      "hintLadder": [
+        "Use (a-b)^2 = a^2 - 2ab + b^2.",
+        "x^2 - 18x + 81."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C3_D1_001",
+      "conceptId": "ID_C3_DIFFERENCE_OF_SQUARES",
+      "difficulty": 1,
+      "stem": "Expand using the identity: (x + 6)(x - 6)",
+      "acceptedAnswers": [
+        "x^2-36",
+        "x^2 - 36"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2+36",
+            "x^2 + 36"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(a+b)(a-b) = a^2 - b^2, a=x, b=6",
+        "x^2 - 36"
+      ],
+      "hintLadder": [
+        "This matches (a+b)(a-b) = a^2 - b^2.",
+        "The middle terms always cancel.",
+        "x^2 - 36."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C3_D2_001",
+      "conceptId": "ID_C3_DIFFERENCE_OF_SQUARES",
+      "difficulty": 2,
+      "stem": "Expand using the identity: (2x + 5)(2x - 5)",
+      "acceptedAnswers": [
+        "4x^2-25",
+        "4x^2 - 25"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "4x^2+25",
+            "4x^2 + 25"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=2x, b=5",
+        "(2x)^2 - 5^2",
+        "4x^2 - 25"
+      ],
+      "hintLadder": [
+        "a=2x, b=5 in a^2 - b^2.",
+        "4x^2 - 25."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C3_D3_001",
+      "conceptId": "ID_C3_DIFFERENCE_OF_SQUARES",
+      "difficulty": 3,
+      "stem": "Expand using the identity: (x + 10)(x - 10)",
+      "acceptedAnswers": [
+        "x^2-100",
+        "x^2 - 100"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2+100",
+            "x^2 + 100"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=x, b=10",
+        "x^2 - 100"
+      ],
+      "hintLadder": [
+        "a^2 - b^2 with a=x, b=10.",
+        "x^2 - 100."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D1_001",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 1,
+      "stem": "Expand using the identity: (x + 3)(x + 5)",
+      "acceptedAnswers": [
+        "x^2+8x+15",
+        "x^2 + 8x + 15"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR",
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+8x+8",
+            "x^2 + 8x + 8"
+          ]
+        },
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+15",
+            "x^2 + 15"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(x+a)(x+b) = x^2 + (a+b)x + ab",
+        "= x^2+8x+15"
+      ],
+      "hintLadder": [
+        "Use (x+a)(x+b) = x^2 + (a+b)x + ab.",
+        "The middle term's coefficient is a+b, ADDED. The last term is a\u00d7b, MULTIPLIED.",
+        "x^2+8x+15."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D1_002",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 1,
+      "stem": "Expand using the identity: (x + 2)(x + 7)",
+      "acceptedAnswers": [
+        "x^2+9x+14",
+        "x^2 + 9x + 14"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR",
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+9x+9",
+            "x^2 + 9x + 9"
+          ]
+        },
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+14",
+            "x^2 + 14"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(x+a)(x+b) = x^2 + (a+b)x + ab",
+        "= x^2+9x+14"
+      ],
+      "hintLadder": [
+        "Use (x+a)(x+b) = x^2 + (a+b)x + ab.",
+        "The middle term's coefficient is a+b, ADDED. The last term is a\u00d7b, MULTIPLIED.",
+        "x^2+9x+14."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D2_001",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 2,
+      "stem": "Expand using the identity: (x + 4)(x + 6)",
+      "acceptedAnswers": [
+        "x^2+10x+24",
+        "x^2 + 10x + 24"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR",
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+10x+10",
+            "x^2 + 10x + 10"
+          ]
+        },
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+24",
+            "x^2 + 24"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "(x+a)(x+b) = x^2 + (a+b)x + ab",
+        "= x^2+10x+24"
+      ],
+      "hintLadder": [
+        "Use (x+a)(x+b) = x^2 + (a+b)x + ab.",
+        "The middle term's coefficient is a+b, ADDED. The last term is a\u00d7b, MULTIPLIED.",
+        "x^2+10x+24."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D2_002",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 2,
+      "stem": "Expand using the identity: (x - 3)(x + 8)",
+      "acceptedAnswers": [
+        "x^2+5x-24",
+        "x^2 + 5x - 24"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+5x+5",
+            "x^2 + 5x + 5"
+          ]
+        },
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2+5x+24",
+            "x^2 + 5x + 24"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Here a=-3, b=8",
+        "x^2 + (-3+8)x + (-3)(8)",
+        "x^2 + 5x - 24"
+      ],
+      "hintLadder": [
+        "Treat a = -3 here \u2014 carry its sign through both the sum and the product.",
+        "a+b = 5, a\u00d7b = -24.",
+        "x^2 + 5x - 24."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D3_001",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 3,
+      "stem": "Expand using the identity: (x - 5)(x - 2)",
+      "acceptedAnswers": [
+        "x^2-7x+10",
+        "x^2 - 7x + 10"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "CONSTANT_ADDITION_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2-7x-10",
+            "x^2 - 7x - 10"
+          ]
+        },
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2-7x-7",
+            "x^2 - 7x - 7"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "Here a=-5, b=-2",
+        "x^2 + (-5-2)x + (-5)(-2)",
+        "x^2 - 7x + 10"
+      ],
+      "hintLadder": [
+        "Both a and b are negative \u2014 their product is positive.",
+        "a+b = -7, a\u00d7b = 10.",
+        "x^2 - 7x + 10."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D3_002",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 3,
+      "stem": "Expand using the identity: (x + 9)(x - 4)",
+      "acceptedAnswers": [
+        "x^2+5x-36",
+        "x^2 + 5x - 36"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+5x+5",
+            "x^2 + 5x + 5"
+          ]
+        },
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2+5x+36",
+            "x^2 + 5x + 36"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=9, b=-4",
+        "x^2 + (9-4)x + (9)(-4)",
+        "x^2 + 5x - 36"
+      ],
+      "hintLadder": [
+        "a=9, b=-4 \u2014 the product of a positive and a negative is negative.",
+        "a+b = 5, a\u00d7b = -36.",
+        "x^2 + 5x - 36."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D4_001",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 4,
+      "stem": "Expand using the identity: (x - 7)(x - 3)",
+      "acceptedAnswers": [
+        "x^2-10x+21",
+        "x^2 - 10x + 21"
+      ],
+      "misconceptionsTested": [
+        "SIGN_HANDLING",
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2-10x-21",
+            "x^2 - 10x - 21"
+          ]
+        },
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "x^2+21",
+            "x^2 + 21"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=-7, b=-3",
+        "x^2 + (-7-3)x + (-7)(-3)",
+        "x^2 - 10x + 21"
+      ],
+      "hintLadder": [
+        "Negative times negative gives a positive last term.",
+        "a+b = -10, a\u00d7b = 21.",
+        "x^2 - 10x + 21."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D4_002",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 4,
+      "stem": "Expand using the identity: (x + 11)(x - 6)",
+      "acceptedAnswers": [
+        "x^2+5x-66",
+        "x^2 + 5x - 66"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+5x+5",
+            "x^2 + 5x + 5"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=11, b=-6",
+        "x^2 + (11-6)x + (11)(-6)",
+        "x^2 + 5x - 66"
+      ],
+      "hintLadder": [
+        "a=11, b=-6.",
+        "a+b = 5, a\u00d7b = -66 \u2014 multiply, don't add, for the last term.",
+        "x^2 + 5x - 66."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C4_D5_001",
+      "conceptId": "ID_C4_TWO_BINOMIAL_IDENTITY",
+      "difficulty": 5,
+      "stem": "Expand using the identity: (x + 12)(x - 9)",
+      "acceptedAnswers": [
+        "x^2+3x-108",
+        "x^2 + 3x - 108"
+      ],
+      "misconceptionsTested": [
+        "CONSTANT_ADDITION_ERROR",
+        "SIGN_HANDLING"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "CONSTANT_ADDITION_ERROR",
+          "answers": [
+            "x^2+3x+3",
+            "x^2 + 3x + 3"
+          ]
+        },
+        {
+          "misconceptionId": "SIGN_HANDLING",
+          "answers": [
+            "x^2+3x+108",
+            "x^2 + 3x + 108"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "a=12, b=-9",
+        "x^2 + (12-9)x + (12)(-9)",
+        "x^2 + 3x - 108"
+      ],
+      "hintLadder": [
+        "a=12, b=-9 \u2014 larger numbers, same rule.",
+        "a+b = 3, a\u00d7b = -108.",
+        "x^2 + 3x - 108."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C5_D2_001",
+      "conceptId": "ID_C5_MENTAL_MATH_APPLICATION",
+      "difficulty": 2,
+      "stem": "Use an identity to compute 102^2 without long multiplication.",
+      "acceptedAnswers": [
+        "10404"
+      ],
+      "misconceptionsTested": [
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "10004"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "102 = 100 + 2",
+        "(100+2)^2 = 100^2 + 2(100)(2) + 2^2",
+        "10000 + 400 + 4 = 10404"
+      ],
+      "hintLadder": [
+        "Write 102 as 100 + 2.",
+        "Use (a+b)^2 = a^2 + 2ab + b^2.",
+        "10000 + 400 + 4 = 10404."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C5_D3_001",
+      "conceptId": "ID_C5_MENTAL_MATH_APPLICATION",
+      "difficulty": 3,
+      "stem": "Use an identity to compute 97^2 without long multiplication.",
+      "acceptedAnswers": [
+        "9409"
+      ],
+      "misconceptionsTested": [
+        "MIDDLE_TERM_OMISSION"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "MIDDLE_TERM_OMISSION",
+          "answers": [
+            "10009"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "97 = 100 - 3",
+        "(100-3)^2 = 100^2 - 2(100)(3) + 3^2",
+        "10000 - 600 + 9 = 9409"
+      ],
+      "hintLadder": [
+        "Write 97 as 100 - 3.",
+        "Use (a-b)^2 = a^2 - 2ab + b^2.",
+        "10000 - 600 + 9 = 9409."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    },
+    {
+      "id": "Q_ID_C5_D3_002",
+      "conceptId": "ID_C5_MENTAL_MATH_APPLICATION",
+      "difficulty": 3,
+      "stem": "Use an identity to compute 104 x 96 without long multiplication.",
+      "acceptedAnswers": [
+        "9984"
+      ],
+      "misconceptionsTested": [
+        "ARITHMETIC_SLIP"
+      ],
+      "misconceptionAnswerPatterns": [
+        {
+          "misconceptionId": "ARITHMETIC_SLIP",
+          "answers": [
+            "10016"
+          ]
+        }
+      ],
+      "solutionSteps": [
+        "104 x 96 = (100+4)(100-4)",
+        "= 100^2 - 4^2",
+        "= 10000 - 16 = 9984"
+      ],
+      "hintLadder": [
+        "Write it as (100+4)(100-4).",
+        "Use (a+b)(a-b) = a^2 - b^2.",
+        "10000 - 16 = 9984."
+      ],
+      "questionIntent": "STANDARD_PRACTICE",
+      "type": "NUMERIC",
+      "prerequisiteConceptIds": [],
+      "reviewStatus": "PENDING_REVIEW",
+      "version": 1,
+      "itemQualityWeight": 1,
+      "unitId": "algebraic-identities"
+    }
+  ]
+}

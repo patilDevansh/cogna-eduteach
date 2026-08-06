@@ -84,6 +84,52 @@ export function computeConfidenceCalibration(
   return "reasonably_calibrated";
 }
 
+/** Below this ratio of the student's own average pace, an answer counts as "fast" for confidence inference. */
+const FAST_PACE_RATIO = 0.7;
+/** Above this ratio, an answer counts as "slow" — one of several hesitation signals. */
+const SLOW_PACE_RATIO = 1.5;
+
+/**
+ * Passive confidence proxy from behavior already collected on every attempt
+ * — no prompt required. Research basis: response time carries substantial,
+ * partly-independent information about confidence/correctness (Type-2 ROC
+ * analysis on response time vs. confidence), and intelligent-tutoring-system
+ * "wheel-spinning" research treats time/hints/hesitation as a standard proxy
+ * for hidden affect state. Returns the same 1..5 scale as selfRatedConfidence
+ * so it can substitute directly wherever that field is consumed.
+ */
+export function inferConfidenceFromBehavior(input: {
+  totalTimeMs: number;
+  /** The student's own recent average totalTimeMs for comparable questions; null when there isn't enough history yet. */
+  studentAverageTimeMs: number | null;
+  hintCount: number;
+  answerChangedBeforeSubmit: boolean;
+}): number {
+  const hesitant = input.hintCount > 0 || input.answerChangedBeforeSubmit;
+
+  if (input.studentAverageTimeMs === null || input.studentAverageTimeMs <= 0) {
+    // No pace baseline yet — fall back to hint/edit signals only.
+    return hesitant ? 2 : 3;
+  }
+
+  const paceRatio = input.totalTimeMs / input.studentAverageTimeMs;
+
+  if (hesitant || paceRatio >= SLOW_PACE_RATIO) return 2;
+  if (paceRatio <= FAST_PACE_RATIO) return 5;
+  return 3;
+}
+
+/** Prefers a student's explicit rating; falls back to the passive proxy only when they never rated. Keeps computeConfidenceCalibration itself unchanged. */
+export function resolveConfidenceForCalibration(a: {
+  selfRatedConfidence: number | null;
+  inferredConfidence?: number | null;
+}): number | null {
+  if (a.selfRatedConfidence !== null && a.selfRatedConfidence !== undefined) {
+    return a.selfRatedConfidence;
+  }
+  return a.inferredConfidence ?? null;
+}
+
 export function computeHintDependence(
   attempts: Array<{ highestHintLevel: number; hintsAvailable: boolean }>,
 ): number {
@@ -106,3 +152,213 @@ export function computeMisconceptionConfidence(
 export function decayMisconceptionConfidence(current: number): number {
   return Math.max(0, current - 0.2);
 }
+
+/** Evidence expiry weights for misconception activation (diagnostic-rules-v2). */
+export function evidenceAgeWeight(daysOld: number): number {
+  if (daysOld <= 21) return 1.0;
+  if (daysOld <= 45) return 0.5;
+  return 0;
+}
+
+export type MisconceptionMatchStats = {
+  misconceptionId?: string;
+  weightedMatchingCount: number;
+  confidence: number;
+};
+
+/**
+ * R14 / README_RULES §2 — alternativeExplanationDominant.
+ * True when an alternative outranks primary by weighted count, or ties with
+ * confidence(E) >= confidence(P). Blocks TARGETING / TARGET_MISCONCEPTION.
+ */
+export function isAlternativeExplanationDominant(input: {
+  primary: MisconceptionMatchStats;
+  alternatives: MisconceptionMatchStats[];
+}): boolean {
+  const { primary, alternatives } = input;
+  for (const alt of alternatives) {
+    if (alt.weightedMatchingCount > primary.weightedMatchingCount) return true;
+    if (
+      alt.weightedMatchingCount === primary.weightedMatchingCount &&
+      alt.confidence >= primary.confidence
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Default taxonomy alternatives when question patterns do not list them. */
+export const DEFAULT_ALTERNATIVE_EXPLANATIONS: Record<string, string[]> = {
+  SIGN_HANDLING: ["ARITHMETIC_SLIP", "question_misread"],
+  DISTRIBUTIVE_ERROR: ["ARITHMETIC_SLIP", "SIGN_HANDLING"],
+  INVERSE_OPERATION_CONFUSION: ["ARITHMETIC_SLIP", "EQUALITY_BALANCE_ERROR"],
+  VARIABLE_AS_LABEL: ["ARITHMETIC_SLIP"],
+  EQUALITY_BALANCE_ERROR: ["ARITHMETIC_SLIP", "INVERSE_OPERATION_CONFUSION"],
+  ARITHMETIC_SLIP: ["question_misread"],
+};
+
+// ─── MVP 2.0: retention-rules-v2 ────────────────────────────────────────────
+
+export function hasSufficientRetentionEvidence(input: {
+  independentAttemptCount: number;
+  independentCorrectCount: number;
+}): boolean {
+  return (
+    input.independentAttemptCount >= 2 && input.independentCorrectCount >= 1
+  );
+}
+
+/** Independent = CORRECT AND highestHintLevel <= 1 */
+export function isIndependentCorrect(
+  grade: Grade,
+  highestHintLevel: number,
+): boolean {
+  return grade === "CORRECT" && highestHintLevel <= 1;
+}
+
+export function computeRetentionEstimate(input: {
+  mastery: number;
+  daysSinceSuccess: number;
+  completedRevisionsLast14Days: number;
+}): number {
+  const revisionBoost = Math.min(0.2, 0.05 * input.completedRevisionsLast14Days);
+  const forgettingPenalty = Math.min(0.45, 0.04 * input.daysSinceSuccess);
+  // Round to 2dp for deterministic golden replay (IEEE float on 0.04×N).
+  return Math.round(clamp(input.mastery + revisionBoost - forgettingPenalty, 0, 1) * 100) / 100;
+}
+
+export function isRetentionReviewEligible(retentionEstimate: number): boolean {
+  return retentionEstimate < 0.55;
+}
+
+export function isHighPriorityRetention(retentionEstimate: number): boolean {
+  return retentionEstimate < 0.4;
+}
+
+// ─── MVP 2.0: learning velocity ────────────────────────────────────────────
+
+export type VelocityInterpretation = "improving" | "steady" | "needs_support" | "unknown";
+
+export function computeLearningVelocity(input: {
+  masteryNow: number;
+  masterySevenDaysAgo: number;
+  eligibleAttempts: number;
+}): { velocity: number; interpretation: VelocityInterpretation } {
+  if (input.eligibleAttempts < 3) {
+    return { velocity: 0, interpretation: "unknown" };
+  }
+
+  const velocity =
+    (input.masteryNow - input.masterySevenDaysAgo) /
+    Math.max(1, input.eligibleAttempts);
+
+  let interpretation: VelocityInterpretation;
+  if (velocity >= 0.03) interpretation = "improving";
+  else if (velocity >= -0.02) interpretation = "steady";
+  else interpretation = "needs_support";
+
+  return { velocity, interpretation };
+}
+
+// ─── MVP 2.0: error recovery ───────────────────────────────────────────────
+
+export function computeErrorRecoveryRate(input: {
+  correctAfterFeedbackAttempts: number;
+  feedbackOpportunities: number;
+}): number | null {
+  if (input.feedbackOpportunities < 3) return null;
+  return input.correctAfterFeedbackAttempts / input.feedbackOpportunities;
+}
+
+export function preferStepByStepExplanation(
+  errorRecoveryRate: number | null,
+  misconceptionActive: boolean,
+): boolean {
+  return (
+    misconceptionActive &&
+    errorRecoveryRate !== null &&
+    errorRecoveryRate < 0.35
+  );
+}
+
+export function preferShorterHintFirst(errorRecoveryRate: number | null): boolean {
+  return errorRecoveryRate !== null && errorRecoveryRate >= 0.65;
+}
+
+// ─── MVP 2.0: explanation effectiveness ────────────────────────────────────
+
+export function isExplanationEffective(input: {
+  explanationViewed: boolean;
+  nextAttemptCorrect: boolean;
+  highestHintLevel: number;
+}): boolean {
+  return (
+    input.explanationViewed &&
+    input.nextAttemptCorrect &&
+    input.highestHintLevel <= 1
+  );
+}
+
+export function computeExplanationEffectivenessScore(input: {
+  effectiveCount: number;
+  opportunityCount: number;
+}): number | null {
+  if (input.opportunityCount < 5) return null;
+  return input.effectiveCount / input.opportunityCount;
+}
+
+// ─── MVP 2.0: engagement / fatigue ─────────────────────────────────────────
+
+export const IDLE_SPIKE_MS = 45_000;
+export const LONG_HESITATION_MS = 30_000;
+export const FATIGUE_SESSION_MINUTES = 12;
+export const HARD_STOP_SESSION_MINUTES = 15;
+export const DEFAULT_BREAK_MINUTES = 3;
+
+export function isIdleSpike(idleTimeMs: number): boolean {
+  return idleTimeMs > IDLE_SPIKE_MS;
+}
+
+export function isLongHesitation(timeToFirstResponseMs: number): boolean {
+  return timeToFirstResponseMs > LONG_HESITATION_MS;
+}
+
+export function computeFatigueRisk(input: {
+  sessionMinutes: number;
+  recentIncorrectStreak?: number;
+  averageTimeIncreasing50Pct?: boolean;
+  idleSpikeCount?: number;
+}): boolean {
+  if (input.sessionMinutes >= FATIGUE_SESSION_MINUTES) return true;
+  if (
+    (input.recentIncorrectStreak ?? 0) >= 3 &&
+    input.averageTimeIncreasing50Pct === true
+  ) {
+    return true;
+  }
+  if ((input.idleSpikeCount ?? 0) >= 2) return true;
+  return false;
+}
+
+// ─── MVP 2.0: recommendation-rules-v2 priority ──────────────────────────────
+
+export function computeRecommendationPriority(input: {
+  weakness: number;
+  misconceptionSeverity: number;
+  retentionRisk: number;
+  prereqImportance: number;
+  parentGoalBoost: number;
+}): number {
+  return (
+    0.3 * input.weakness +
+    0.25 * input.misconceptionSeverity +
+    0.2 * input.retentionRisk +
+    0.15 * input.prereqImportance +
+    0.1 * input.parentGoalBoost
+  );
+}
+
+export const MAX_QUESTIONS_PER_DAY = 10;
+export const MAX_CONCEPTS_PER_DAY = 3;
+export const MAX_TARGETED_MISCONCEPTION_QUESTIONS = 3;

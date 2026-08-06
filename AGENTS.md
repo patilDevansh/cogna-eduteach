@@ -1,24 +1,68 @@
 # AGENTS.md — Cogna / eduTeach
 
-## MVP 1.0 source of truth
+## Dual era (read this first)
 
-- **Spec:** `/docs/mvp-1.0/` only  
-- **Build tracking:** `/COGNA 1.0/`  
-- **Do not implement from:** `/COGNA/` mature docs (future architecture only)
+| Era | Spec | Tracking | Status |
+|---|---|---|---|
+| **MVP 1.0** | [`/docs/mvp-1.0/`](./docs/mvp-1.0/) | [`/COGNA 1.0/`](./COGNA%201.0/) | **Complete / archive** — reference and hotfixes only |
+| **MVP 2.0** | [`/docs/mvp-2.0/`](./docs/mvp-2.0/) | [`/COGNA 2.0/`](./COGNA%202.0/) | **Complete** — pilot shipped; maintenance only |
+| **MVP 3.0** | [`/docs/mvp-3.0/`](./docs/mvp-3.0/) | [`/COGNA 3.0/`](./COGNA%203.0/) | **Complete** — engineering done; maintenance only |
+| **MVP 4.0** | [`/docs/mvp-4.0/`](./docs/mvp-4.0/) | [`/COGNA 4.0/`](./COGNA%204.0/) | **Complete** — engineering done; maintenance only |
+| **MVP 5.0** | [`/docs/mvp-5.0/`](./docs/mvp-5.0/) | [`/COGNA 5.0/`](./COGNA%205.0/) | **Complete** — engineering done; maintenance only |
 
-## Mandatory tracking updates (every session)
+- **Do not implement from:** [`/COGNA/`](./COGNA/README.md) mature engine essays (future architecture only). Manager visibility docs under the same folder (`HOW_THE_PRODUCT_WORKS.md`, `LIVE_AGENTIC_PLAN.md`, etc.) are the plain-English companion for live-agentic delivery — they do not replace `/docs/mvp-*` contracts.
+- **Do not implement from** `/docs/mvp-5.0/` until that era's README status is Canonical / Frozen **and** this table marks it **Active**.
+- **Repo / GitHub ops:** [`COGNA 2.0/REPO_AND_GITHUB.md`](./COGNA%202.0/REPO_AND_GITHUB.md) (3.0/4.0/5.0 folders point here).
+- **Live agentic (current workstream):** [`COGNA/LIVE_AGENTIC_PLAN.md`](./COGNA/LIVE_AGENTIC_PLAN.md) · [`testUI-claude/`](./testUI-claude/) design reference · Flags `LIVE_AGENTIC_GENERATE` / `LIVE_AGENTIC_SERVE_GENERATED`.
 
-When you complete, skip, or discover work on Cogna MVP 1.0, **in the same turn** update:
+## MVP 5.0 — Complete (engineering)
 
-1. [`COGNA 1.0/BUILD_PLAN_7_DAY.md`](./COGNA%201.0/BUILD_PLAN_7_DAY.md) — strikethrough finished tasks (`~~…~~`)  
-2. [`COGNA 1.0/SKIPPED.md`](./COGNA%201.0/SKIPPED.md) — log intentional deferrals  
-3. [`COGNA 1.0/BUILD_CARE.md`](./COGNA%201.0/BUILD_CARE.md) — add/check guardrails  
-4. [`COGNA 1.0/README.md`](./COGNA%201.0/README.md) — keep status snapshot current  
+- **Spec:** `/docs/mvp-5.0/` (Canonical / Frozen)
+- **Build tracking:** `/COGNA 5.0/` 
+- **Status:** Engineering complete per spec; pilot-ready infrastructure
+- **Branch:** `feat/mvp-2.0-build`
+- **Maintenance only:** Hotfixes or explicit new-era work only
 
-Do not leave these stale after code or content changes.
+### Delivered (MVP 5.0)
+
+- Multi-subject architecture (Subject table, FK to CurriculumUnit)
+- Learned policy infrastructure (PolicyEngineService, shadow mode, promote/rollback)
+- Safety evaluation gates (SafetyEvalService, metrics suite)
+- Modality director (ModalityDirectorService, APPROVED-only asset selection)
+- Dual-control policy ops API (PolicyController: request/approve/reject promotion, rollback)
+- Contracts: uiAction set = 5, modality via contentStyle, new intents (SHOW_TEACHING_MODULE, MODALITY_RETEST)
+- Golden tests: 16/16 functional (A01–A16); full suite 162/162 passing
+
+### Deferred to Pilot / Post-MVP 5.0
+
+- Learned policy training (offline job, requires production data)
+- Modality asset review pipeline (human workflows)
+- Production auth middleware on policy endpoints (policy_ops role per PRODUCTION_AUTH.md)
+- A12 full hot-path LLM instrumentation (stub test documents ban)
+
+## Completed eras (MVP 3.0 / 4.0)
+
+- **MVP 3.0 / 4.0** engineering complete; specs and tracking frozen.
+- Use only for maintenance, hotfixes, or reference.
+- If hotfixing, update the same four files under the appropriate `/COGNA X.0/` folder and label the work with era tag.
+
+## Planning eras (Future)
+
+- Future eras will be documented under `/docs/mvp-X.0/` with tracking under `/COGNA X.0/`.
+- When a new era is created, it starts as **Draft / Vision** status.
+- When promoted to active implementation, update this table, freeze the era README, and apply the same four-file tracking discipline.
+
+## MVP 1.0 — archive
+
+- **Spec:** `/docs/mvp-1.0/` (frozen) 
+- **Build tracking:** `/COGNA 1.0/` (historical) 
+- Use only for archive reference, demo walkthrough, or explicit 1.0 hotfixes.
+- If you must change 1.0 tracking for a hotfix, update the same four files under `/COGNA 1.0/` and label the work `mvp-1.0-archive`.
 
 ## Contracts reminder
 
-- `LearningDecision`: `uiAction` + `learningIntent` + `contentStyle` + `parameters`  
-- `uiAction` only: `SHOW_QUESTION` | `SHOW_EXPLANATION` | `SHOW_HINT` | `END_SESSION` | `SUGGEST_BREAK`  
-- No legacy flat actions (`EASIER_QUESTION`, etc.)
+- `LearningDecision`: `uiAction` + `learningIntent` + `contentStyle` + `parameters` 
+- `uiAction` only: `SHOW_QUESTION` | `SHOW_EXPLANATION` | `SHOW_HINT` | `END_SESSION` | `SUGGEST_BREAK` 
+- No legacy flat actions (`EASIER_QUESTION`, etc.) 
+- Active-era extensions only as specified in `/docs/mvp-5.0/` today — never invent flat UI action aliases. Future eras may add intents/parameters only after that era is Canonical and Active.
+- **No unchecked LLM math to students** (carries through 3.0–5.0).

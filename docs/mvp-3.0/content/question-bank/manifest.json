@@ -1,0 +1,34 @@
+{
+  "unit": "linear-equations-one-variable",
+  "curriculum": "CBSE-style Grade 8",
+  "era": "mvp-3.0",
+  "specStatus": "Draft / Planning",
+  "targetApproved": 280,
+  "targetApprovedPolicy": "pilot-floor",
+  "targetApprovedNotes": "280 is the minimum pilot-ready floor for Canonical promotion, not an aspirational stretch goal. Pilot launch requires ≥280 APPROVED items passing review checklist. Growth beyond 280 via LLM-assisted drafts is encouraged but not required for freeze.",
+  "approvedCount": 0,
+  "status": "stub-targets",
+  "idPolicy": "Keep MVP 1.0/2.0 concept IDs. Do not use P2_INTEGER_MUL_DIV or C6_WORD_PROBLEMS.",
+  "notes": "Stub targets for MVP 3.0. Growth expected via LLM-assisted drafts under validation + human review. Do not serve non-APPROVED items.",
+  "draftFunnel": {
+    "created": 0,
+    "validated": 0,
+    "pendingReview": 0,
+    "rejected": 0,
+    "promoted": 0
+  },
+  "coverage": {
+    "P1_INTEGER_ADD_SUB": { "target": 25, "approved": 0 },
+    "P2_NEGATIVE_OPS": { "target": 20, "approved": 0 },
+    "P3_VARIABLES_CONSTANTS": { "target": 20, "approved": 0 },
+    "P4_SIMPLE_EXPRESSIONS": { "target": 25, "approved": 0 },
+    "P5_EQUALITY_BALANCE": { "target": 25, "approved": 0 },
+    "C1_ONE_STEP_ADDITION": { "target": 25, "approved": 0 },
+    "C2_ONE_STEP_SUBTRACTION": { "target": 30, "approved": 0 },
+    "C3_ONE_STEP_MULTIPLICATION": { "target": 25, "approved": 0 },
+    "C4_ONE_STEP_DIVISION": { "target": 25, "approved": 0 },
+    "C5_TWO_STEP_EQUATIONS": { "target": 30, "approved": 0 },
+    "C6_SIMPLE_WORD_PROBLEMS": { "target": 30, "approved": 0 }
+  },
+  "inheritsApprovedBankFrom": "docs/mvp-2.0/content/question-bank/"
+}

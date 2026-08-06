@@ -22,8 +22,8 @@ function mockSession(overrides: Partial<LearningSession> = {}): LearningSession 
 describe("G30 — Empty profile cold start (baseline)", () => {
   const engine = new DecisionEngineService();
 
-  it("returns BASELINE_ASSESSMENT with blueprint concept for slot 0", () => {
-    const decision = engine.decide({
+  it("returns BASELINE_ASSESSMENT with blueprint concept for slot 0", async () => {
+    const decision = await engine.decide({
       session: mockSession({
         sessionMode: "BASELINE",
         baselineSlotIndex: 0,
@@ -44,8 +44,8 @@ describe("G30 — Empty profile cold start (baseline)", () => {
 describe("G13 — No infinite targeting", () => {
   const engine = new DecisionEngineService();
 
-  it("prefers REVIEW_PREREQUISITE when STILL_ACTIVE with weak prereq", () => {
-    const decision = engine.decide({
+  it("prefers REVIEW_PREREQUISITE when STILL_ACTIVE with weak prereq", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 2,
@@ -60,8 +60,8 @@ describe("G13 — No infinite targeting", () => {
     assert.notEqual(decision.learningIntent, "TARGET_MISCONCEPTION");
   });
 
-  it("prefers DECREASE_DIFFICULTY when STILL_ACTIVE without prereq path", () => {
-    const decision = engine.decide({
+  it("prefers DECREASE_DIFFICULTY when STILL_ACTIVE without prereq path", async () => {
+    const decision = await engine.decide({
       session: mockSession(),
       recentCorrectStreak: 0,
       recentIncorrectStreak: 0,
