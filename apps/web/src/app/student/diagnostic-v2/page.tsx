@@ -83,6 +83,9 @@ function DiagnosticV2Content() {
   const searchParams = useSearchParams();
   const debugParam = searchParams.get("debug");
   const debugEnabled = debugParam !== null && debugParam !== "0";
+  const trackParam = searchParams.get("track");
+  const sessionTrack =
+    trackParam === "FRACTION_LINEAR" ? "FRACTION_LINEAR" : undefined;
 
   const [phase, setPhase] = useState<Phase>("checking");
   const [studentId, setStudentId] = useState("");
@@ -151,7 +154,7 @@ function DiagnosticV2Content() {
     setBusy(true);
     setError("");
     try {
-      const session = await api.startDiagnosticV2Session(studentId);
+      const session = await api.startDiagnosticV2Session(studentId, sessionTrack);
       setSessionId(session.sessionId);
       setAttempt({
         attemptId: session.attemptId,
