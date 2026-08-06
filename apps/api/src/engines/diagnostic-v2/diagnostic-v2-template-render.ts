@@ -16,6 +16,11 @@ import {
   ratToString,
   foldMinusLookalikes,
 } from "./linear-bracket-verifier";
+import {
+  lineHasFractionSyntax,
+  solveFractionEquationForDisplay,
+  verifyFractionStepValidity,
+} from "./fraction-linear-verifier";
 import type { DiagnosticV2ItemOrigin, MicroSkillId } from "@cogna/shared";
 
 export type DiagnosticV2TemplateId =
@@ -24,7 +29,11 @@ export type DiagnosticV2TemplateId =
   | "TPL_NEG_DISTRIBUTION"
   | "TPL_NEG_DISTRIBUTION_BARE"
   | "TPL_TRANSFER_NEG_DISTRIBUTION"
-  | "TPL_SIGN_MUL_DIV";
+  | "TPL_SIGN_MUL_DIV"
+  | "TPL_FRAC_SIMPLE"
+  | "TPL_FRAC_CLEAR"
+  | "TPL_FRAC_CLEAR_BARE"
+  | "TPL_TRANSFER_FRAC_CLEAR";
 
 export const KNOWN_TEMPLATE_IDS: DiagnosticV2TemplateId[] = [
   "TPL_TWO_STEP",
@@ -33,6 +42,10 @@ export const KNOWN_TEMPLATE_IDS: DiagnosticV2TemplateId[] = [
   "TPL_NEG_DISTRIBUTION_BARE",
   "TPL_TRANSFER_NEG_DISTRIBUTION",
   "TPL_SIGN_MUL_DIV",
+  "TPL_FRAC_SIMPLE",
+  "TPL_FRAC_CLEAR",
+  "TPL_FRAC_CLEAR_BARE",
+  "TPL_TRANSFER_FRAC_CLEAR",
 ];
 
 export function isKnownTemplateId(v: string): v is DiagnosticV2TemplateId {
@@ -57,7 +70,12 @@ export type DiagnosticV2ItemStageId =
    * FND_SIGN_MUL_DIV untested or weak while LIN_DISTRIBUTE_NEG kept failing.
    * The prerequisite the selector could see but had nothing to serve for.
    */
-  | "PREREQ_SIGN_PROBE";
+  | "PREREQ_SIGN_PROBE"
+  /** Phase B1 — fraction-linear track stages. */
+  | "ENTRY_FRAC_SIMPLE"
+  | "FRAC_CLEAR_MAIN"
+  | "FRAC_CLEAR_CONTRAST"
+  | "TRANSFER_FRAC_CLEAR";
 
 /**
  * What each template can produce, in one line, so the selector can tell
@@ -76,6 +94,14 @@ export const TEMPLATE_DESCRIPTIONS: Record<DiagnosticV2TemplateId, string> = {
     "same shape as TPL_NEG_DISTRIBUTION but tagged as a post-teaching transfer check",
   TPL_SIGN_MUL_DIV:
     "(m)(n), two signed integers multiplied with no variable and no equation — a prerequisite probe for LIN_DISTRIBUTE_NEG, m,n ∈ 2..6 magnitude, sign chosen so the product's sign is the point",
+  TPL_FRAC_SIMPLE:
+    "v/d + b = c, single fraction on the left, d ∈ {2,3,4}, integer solution — entry for the fraction track",
+  TPL_FRAC_CLEAR:
+    "(v ± a)/d1 = (v ± b)/d2 + c with distinct denominators d1,d2 ∈ {2,3,4,6}, integer solution — primary clear-fractions target",
+  TPL_FRAC_CLEAR_BARE:
+    "(v ± a)/d = k, one fraction equals an integer, d ∈ {2,3,4}, contrast probe for clearing only",
+  TPL_TRANSFER_FRAC_CLEAR:
+    "same clear-fractions shape as TPL_FRAC_CLEAR but tagged as a post-teaching transfer check",
 };
 
 export const TEMPLATE_STAGES: Record<DiagnosticV2TemplateId, DiagnosticV2ItemStageId> = {
@@ -85,6 +111,10 @@ export const TEMPLATE_STAGES: Record<DiagnosticV2TemplateId, DiagnosticV2ItemSta
   TPL_NEG_DISTRIBUTION_BARE: "NEG_DIST_CONTRAST",
   TPL_TRANSFER_NEG_DISTRIBUTION: "TRANSFER_NEG_DIST",
   TPL_SIGN_MUL_DIV: "PREREQ_SIGN_PROBE",
+  TPL_FRAC_SIMPLE: "ENTRY_FRAC_SIMPLE",
+  TPL_FRAC_CLEAR: "FRAC_CLEAR_MAIN",
+  TPL_FRAC_CLEAR_BARE: "FRAC_CLEAR_CONTRAST",
+  TPL_TRANSFER_FRAC_CLEAR: "TRANSFER_FRAC_CLEAR",
 };
 
 export interface DiagnosticV2Item {
@@ -179,6 +209,55 @@ export const FIXED_ITEMS: readonly DiagnosticV2Item[] = [
     isTransferCheck: false,
     isBareExpression: true,
   },
+  // ── Phase B1 fraction-linear track ───────────────────────────────────────
+  {
+    itemKey: "ENTRY_FRAC_SIMPLE",
+    templateId: "TPL_FRAC_SIMPLE",
+    origin: "PRE_WRITTEN",
+    stageId: "ENTRY_FRAC_SIMPLE",
+    prompt: "Solve for x:  x/2 + 3 = 7",
+    openingLine: "x/2 + 3 = 7",
+    primaryMicroSkillId: "LIN_SOLVE_FRACTIONS",
+    supportingMicroSkillIds: ["FND_FRACTION_OPS", "LIN_CLEAR_FRACTIONS"],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
+  {
+    itemKey: "FRAC_CLEAR_MAIN",
+    templateId: "TPL_FRAC_CLEAR",
+    origin: "PRE_WRITTEN",
+    stageId: "FRAC_CLEAR_MAIN",
+    prompt: "Solve for x:  (x + 1)/2 = (x - 1)/3 + 1",
+    openingLine: "(x + 1)/2 = (x - 1)/3 + 1",
+    primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
+    supportingMicroSkillIds: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
+  {
+    itemKey: "FRAC_CLEAR_CONTRAST",
+    templateId: "TPL_FRAC_CLEAR_BARE",
+    origin: "PRE_WRITTEN",
+    stageId: "FRAC_CLEAR_CONTRAST",
+    prompt: "Solve for y:  (y + 2)/4 = 3",
+    openingLine: "(y + 2)/4 = 3",
+    primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
+    supportingMicroSkillIds: ["FND_FRACTION_OPS"],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
+  {
+    itemKey: "TRANSFER_FRAC_CLEAR",
+    templateId: "TPL_TRANSFER_FRAC_CLEAR",
+    origin: "PRE_WRITTEN",
+    stageId: "TRANSFER_FRAC_CLEAR",
+    prompt: "Solve for z:  (z - 2)/3 = (z + 1)/6 + 1",
+    openingLine: "(z - 2)/3 = (z + 1)/6 + 1",
+    primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
+    supportingMicroSkillIds: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+    isTransferCheck: true,
+    isBareExpression: false,
+  },
 ] as const;
 
 export function findFixedItem(itemKey: string): DiagnosticV2Item | undefined {
@@ -215,6 +294,7 @@ const INNER_CONSTANTS = [2, 3, 4, 5, 6] as const;
 const OUTER_CONSTANTS = [1, 2, 3, 4] as const;
 const COEFFICIENTS = [2, 3, 4, 5, 6] as const;
 const VARIABLES = ["x", "y", "z", "n"] as const;
+const FRAC_DENOMS = [2, 3, 4, 6] as const;
 
 /**
  * Renders a fresh instance of a known template. Returns the item plus the
@@ -330,6 +410,107 @@ export function renderTemplate(
         isBareExpression: true,
       };
     }
+    case "TPL_FRAC_SIMPLE": {
+      // v/d + b = c with integer solution x = d·quot.
+      const d = pick([2, 3, 4] as const, s, 0);
+      const b = pick(OUTER_CONSTANTS, s, 1);
+      const quot = pick(INNER_CONSTANTS, s, 2);
+      const c = quot + b;
+      const opening = `x/${d} + ${b} = ${c}`;
+      return {
+        itemKey: `GEN_FRAC_SIMPLE_${d}_${b}_${c}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Solve for x:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "LIN_SOLVE_FRACTIONS",
+        supportingMicroSkillIds: ["FND_FRACTION_OPS", "LIN_CLEAR_FRACTIONS"],
+        isTransferCheck: false,
+        isBareExpression: false,
+      };
+    }
+    case "TPL_FRAC_CLEAR":
+    case "TPL_TRANSFER_FRAC_CLEAR": {
+      // (v + a)/d1 = (v - b)/d2 + c  with distinct dens and integer solution.
+      let d1 = pick(FRAC_DENOMS, s, 0);
+      let d2 = pick(FRAC_DENOMS, s, 1);
+      if (d1 === d2) d2 = d1 === 2 ? 3 : 2;
+      const a = pick([1, 2, 3] as const, s, 2);
+      const bInner = pick([1, 2, 3] as const, s, 3);
+      const c = pick([1, 2] as const, s, 4);
+      const v = pick(VARIABLES, s, 5);
+      // Choose integer x in 1..8 such that the equation holds:
+      // (x+a)/d1 - (x-bInner)/d2 = c
+      // x/d1 + a/d1 - x/d2 + bInner/d2 = c
+      // x (1/d1 - 1/d2) = c - a/d1 - bInner/d2
+      let xSol = 1;
+      let found = false;
+      for (let trial = 1; trial <= 12; trial++) {
+        const lhs = (trial + a) / d1;
+        const rhs = (trial - bInner) / d2 + c;
+        if (Math.abs(lhs - rhs) < 1e-9) {
+          xSol = trial;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // Fall back to the canonical fixed shape numbers with a fresh variable.
+        const opening = `(${v} + 1)/2 = (${v} - 1)/3 + 1`;
+        const isTransfer = templateId === "TPL_TRANSFER_FRAC_CLEAR";
+        return {
+          itemKey: `${isTransfer ? "GEN_TRANSFER_FRAC_CLEAR" : "GEN_FRAC_CLEAR"}_fallback_${v}`,
+          templateId,
+          origin: "TEMPLATE_RENDERED",
+          stageId: TEMPLATE_STAGES[templateId],
+          prompt: `Solve for ${v}:  ${opening}`,
+          openingLine: opening,
+          primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
+          supportingMicroSkillIds: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+          isTransferCheck: isTransfer,
+          isBareExpression: false,
+        };
+      }
+      void xSol;
+      const opening = `(${v} + ${a})/${d1} = (${v} - ${bInner})/${d2} + ${c}`;
+      const isTransfer = templateId === "TPL_TRANSFER_FRAC_CLEAR";
+      return {
+        itemKey: `${isTransfer ? "GEN_TRANSFER_FRAC_CLEAR" : "GEN_FRAC_CLEAR"}_${d1}_${d2}_${a}_${bInner}_${c}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Solve for ${v}:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
+        supportingMicroSkillIds: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+        isTransferCheck: isTransfer,
+        isBareExpression: false,
+      };
+    }
+    case "TPL_FRAC_CLEAR_BARE": {
+      const d = pick([2, 3, 4] as const, s, 0);
+      const a = pick([1, 2, 3] as const, s, 1);
+      const v = pick(["y", "n", "t"] as const, s, 2);
+      const x = pick(INNER_CONSTANTS, s, 3);
+      const k = (x + a) / d;
+      const kInt = Number.isInteger(k) ? k : Math.round((pick(INNER_CONSTANTS, s, 4) + a) / d) || 3;
+      const xAdj = kInt * d - a;
+      void xAdj;
+      const opening = `(${v} + ${a})/${d} = ${kInt}`;
+      return {
+        itemKey: `GEN_FRAC_CLEAR_BARE_${d}_${a}_${kInt}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Solve for ${v}:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
+        supportingMicroSkillIds: ["FND_FRACTION_OPS"],
+        isTransferCheck: false,
+        isBareExpression: false,
+      };
+    }
   }
 }
 
@@ -419,6 +600,10 @@ export interface RenderVerification {
  */
 export function verifyRendered(item: DiagnosticV2Item): RenderVerification {
   const failures: string[] = [];
+  const fractionItem =
+    lineHasFractionSyntax(item.openingLine) ||
+    item.primaryMicroSkillId === "LIN_CLEAR_FRACTIONS" ||
+    item.primaryMicroSkillId === "LIN_SOLVE_FRACTIONS";
 
   let parsed;
   try {
@@ -460,12 +645,23 @@ export function verifyRendered(item: DiagnosticV2Item): RenderVerification {
   // Re-derive the solution, then require it to verify as a VALID step from the
   // original line — the same check the student's own final line will face.
   const variable = parsed.variable ?? "x";
-  const candidate = solveForDisplay(item.openingLine, variable);
+  const candidate = fractionItem
+    ? solveFractionEquationForDisplay(item.openingLine, variable) ??
+      solveForDisplay(item.openingLine, variable)
+    : solveForDisplay(item.openingLine, variable);
   if (!candidate) {
     failures.push("could not re-derive a solution for this equation");
     return { passed: false, failures };
   }
-  const check = verifyStepValidity(item.openingLine, candidate);
+  if (fractionItem) {
+    // B1 templates require an integer solution.
+    if (candidate.includes("/")) {
+      failures.push(`fraction-track item must have an integer solution, got "${candidate}"`);
+    }
+  }
+  const check = fractionItem
+    ? verifyFractionStepValidity(item.openingLine, candidate)
+    : verifyStepValidity(item.openingLine, candidate);
   if (check.validity !== "VALID") {
     failures.push(`re-derived solution "${candidate}" did not verify as valid (${check.validity})`);
   }

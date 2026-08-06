@@ -44,6 +44,14 @@ const RULE_PROMPT_TEXT: Record<MicroSkillId, string> = {
     "Collect the letter terms on one side first, then the plain numbers on the other.",
   LIN_CHECK_SOLUTION:
     "Put your answer back into the original equation and check both sides come out the same.",
+  FND_FRACTION_EQUIV:
+    "Multiplying the top and bottom of a fraction by the same number keeps its value the same.",
+  FND_FRACTION_OPS:
+    "When you multiply a fraction by a whole number, that number multiplies the top.",
+  LIN_CLEAR_FRACTIONS:
+    "Multiply every term on both sides by the same common multiple of the denominators — not a different number on each side.",
+  LIN_SOLVE_FRACTIONS:
+    "Clear the fractions first by multiplying through, then finish the equation like a normal linear one.",
 };
 
 /** Said once the student has told us twice that they don't know. Fuller than a rule prompt, still one or two sentences. */
@@ -66,6 +74,14 @@ const FULL_EXPLANATION_TEXT: Record<MicroSkillId, string> = {
     "Subtract the smaller letter term from both sides so the letter only appears once, then finish it like an ordinary two-step equation.",
   LIN_CHECK_SOLUTION:
     "Swap your answer in wherever the letter appears in the original equation, work out each side, and see whether they match.",
+  FND_FRACTION_EQUIV:
+    "If you multiply (or divide) the top and the bottom by the same number, the fraction's value does not change — that is how equivalent fractions work.",
+  FND_FRACTION_OPS:
+    "Treat the whole fraction as one piece. When you multiply through an equation, every fraction and every plain number gets multiplied by that same amount.",
+  LIN_CLEAR_FRACTIONS:
+    "Find one number that is a multiple of every denominator. Multiply every term on the left and every term on the right by that same number so the fractions disappear together.",
+  LIN_SOLVE_FRACTIONS:
+    "Once the fractions are gone, collect like terms and finish with the usual two-step moves — move the constant, then divide by the coefficient.",
 };
 
 /**

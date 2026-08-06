@@ -20,6 +20,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   EVIDENCE_POLICY_MICROSKILL_V1,
+  STEP_VERIFICATION_RULES_FRACTION_V1,
   STEP_VERIFICATION_RULES_V1,
   isDiagnosticV2ItemOrigin,
   type AssistanceLevel,
@@ -29,6 +30,7 @@ import {
   type DiagnosticV2ItemOrigin,
   type DiagnosticV2SessionStatus,
   type DiagnosticV2SummaryResponse,
+  type DiagnosticV2Track,
   type HypothesisSource,
   type MicroSkillEvidenceKind,
   type MicroSkillId,
@@ -50,13 +52,16 @@ import {
   type DiagnosticV2TemplateId,
 } from "./diagnostic-v2-template-render";
 import {
-  checkBareFinalAnswer,
   isSolvedForm,
   matchSingleBracket,
   parseLinearWithBracket,
-  verifyStepValidity,
   type ParsedLine,
 } from "./linear-bracket-verifier";
+import {
+  checkBareFinalAnswerForTrack,
+  verifyDiagnosticV2Step,
+} from "./diagnostic-v2-verifier-router";
+import { lineHasFractionSyntax } from "./fraction-linear-verifier";
 import { assistanceTextFor } from "./diagnostic-v2-assistance-text";
 import {
   ASSISTANCE_RANK,
@@ -85,9 +90,13 @@ export type DiagnosticV2StageId =
   | "RULE_PROMPT"
   | "TRANSFER_NEG_DIST"
   | "PREREQ_SIGN_PROBE"
+  | "ENTRY_FRAC_SIMPLE"
+  | "FRAC_CLEAR_MAIN"
+  | "FRAC_CLEAR_CONTRAST"
+  | "TRANSFER_FRAC_CLEAR"
   | "COMPLETE";
 
-/** Item-bearing stages, in the order the deterministic sequence walks them. */
+/** Item-bearing stages for the Phase A negative-distribution track. */
 export const ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
   "ENTRY_TWO_STEP",
   "ENTRY_VARIABLE_BOTH",
@@ -96,7 +105,24 @@ export const ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
   "TRANSFER_NEG_DIST",
 ];
 
+/** Item-bearing stages for the Phase B1 fraction-linear track. */
+export const FRAC_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_FRAC_SIMPLE",
+  "FRAC_CLEAR_MAIN",
+  "FRAC_CLEAR_CONTRAST",
+  "TRANSFER_FRAC_CLEAR",
+];
+
 export const FIRST_STAGE_ID: DiagnosticV2StageId = "ENTRY_TWO_STEP";
+export const FIRST_FRAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FRAC_SIMPLE";
+
+export function itemStageOrderForTrack(track: DiagnosticV2Track): DiagnosticV2StageId[] {
+  return track === "FRACTION_LINEAR" ? FRAC_ITEM_STAGE_ORDER : ITEM_STAGE_ORDER;
+}
+
+export function firstStageForTrack(track: DiagnosticV2Track): DiagnosticV2StageId {
+  return track === "FRACTION_LINEAR" ? FIRST_FRAC_STAGE_ID : FIRST_STAGE_ID;
+}
 
 /**
  * A served item's stage comes from the item itself (stageId), never from
@@ -117,6 +143,14 @@ export function stageForTemplate(templateId: DiagnosticV2TemplateId): Diagnostic
       return "TRANSFER_NEG_DIST";
     case "TPL_SIGN_MUL_DIV":
       return "PREREQ_SIGN_PROBE";
+    case "TPL_FRAC_SIMPLE":
+      return "ENTRY_FRAC_SIMPLE";
+    case "TPL_FRAC_CLEAR":
+      return "FRAC_CLEAR_MAIN";
+    case "TPL_FRAC_CLEAR_BARE":
+      return "FRAC_CLEAR_CONTRAST";
+    case "TPL_TRANSFER_FRAC_CLEAR":
+      return "TRANSFER_FRAC_CLEAR";
   }
 }
 
@@ -153,6 +187,14 @@ export function nextStagesAfter(
     // not this routing decision.
     case "PREREQ_SIGN_PROBE":
       return ["NEG_DIST_CONTRAST"];
+    case "ENTRY_FRAC_SIMPLE":
+      return ["FRAC_CLEAR_MAIN"];
+    case "FRAC_CLEAR_MAIN":
+      return ctx.targetSkillFailed ? ["FRAC_CLEAR_CONTRAST"] : ["TRANSFER_FRAC_CLEAR"];
+    case "FRAC_CLEAR_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_FRAC_CLEAR"]
+        : ["TRANSFER_FRAC_CLEAR"];
     default:
       return ["COMPLETE"];
   }
@@ -163,6 +205,25 @@ export interface StageHistoryEntry {
   source: "RULE" | "AI";
   reasoning?: string;
   at: string;
+  /** Present on the opening history entry — which vertical slice this session runs. */
+  track?: DiagnosticV2Track;
+}
+
+export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
+  if (!Array.isArray(history) || history.length === 0) return "NEGATIVE_DISTRIBUTION";
+  const first = history[0] as StageHistoryEntry;
+  if (first.track === "FRACTION_LINEAR" || first.track === "NEGATIVE_DISTRIBUTION") {
+    return first.track;
+  }
+  const stageId = String(first.stageId ?? "");
+  if (
+    stageId.startsWith("FRAC_") ||
+    stageId === "ENTRY_FRAC_SIMPLE" ||
+    stageId === "TRANSFER_FRAC_CLEAR"
+  ) {
+    return "FRACTION_LINEAR";
+  }
+  return "NEGATIVE_DISTRIBUTION";
 }
 
 // ─── Micro-skill attribution ────────────────────────────────────────────────
@@ -205,6 +266,21 @@ export function attributeMicroSkill(input: {
     if (prevBothSidesHaveVar && nextOneSideHasVar) {
       return { primary: "LIN_COMBINE_LIKE", supporting: [] };
     }
+  }
+
+  // Fraction-track clearing: MULTIPLY_BOTH_SIDES on a line that still (or
+  // just) involved fractions is evidence about LIN_CLEAR_FRACTIONS, not about
+  // removing a coefficient after the equation is already integer.
+  if (
+    input.transformation === "MULTIPLY_BOTH_SIDES" &&
+    (lineHasFractionSyntax(input.previousLine) ||
+      input.item.primaryMicroSkillId === "LIN_CLEAR_FRACTIONS" ||
+      input.item.primaryMicroSkillId === "LIN_SOLVE_FRACTIONS")
+  ) {
+    return {
+      primary: "LIN_CLEAR_FRACTIONS",
+      supporting: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+    };
   }
 
   switch (input.transformation) {
@@ -252,16 +328,19 @@ export function assistanceInForce(input: {
   return "NONE";
 }
 
-/** Layer 5 tags for one submitted line. Phase A's vocabulary is deliberately three values wide. */
+/** Layer 5 tags for one submitted line. */
 export function contextModifiersForStep(input: {
   assistanceLevel: AssistanceLevel;
   isTransferCheck: boolean;
   /** The answer was given as a bare value, with no working shown. */
   finalAnswerOnly?: boolean;
+  /** Phase B1 — step taken on the fraction-linear track / a fraction item. */
+  hasFractions?: boolean;
 }): ContextModifierId[] {
   const modifiers: ContextModifierId[] = [isAssisted(input.assistanceLevel) ? "ASSISTED" : "INDEPENDENT"];
   if (input.isTransferCheck) modifiers.push("NEAR_TRANSFER");
   if (input.finalAnswerOnly) modifiers.push("FINAL_ANSWER_ONLY");
+  if (input.hasFractions) modifiers.push("HAS_FRACTIONS");
   return modifiers;
 }
 
@@ -296,6 +375,10 @@ const MICRO_SKILL_TO_CONCEPT: Record<MicroSkillId, string> = {
   LIN_SOLVE_TWO_STEP: "C5_TWO_STEP_EQUATIONS",
   LIN_SOLVE_VARIABLE_BOTH: "C7_VARIABLE_BOTH_SIDES",
   LIN_CHECK_SOLUTION: "C5_TWO_STEP_EQUATIONS",
+  FND_FRACTION_EQUIV: "C8_FRACTIONAL_COEFFICIENTS",
+  FND_FRACTION_OPS: "C8_FRACTIONAL_COEFFICIENTS",
+  LIN_CLEAR_FRACTIONS: "C8_FRACTIONAL_COEFFICIENTS",
+  LIN_SOLVE_FRACTIONS: "C8_FRACTIONAL_COEFFICIENTS",
 };
 
 const RETENTION_CHECK_TYPE = "MICRO_SKILL_RETENTION_CHECK";
@@ -317,6 +400,10 @@ const CHILD_FACING_SKILL_NAMES: Record<MicroSkillId, string> = {
   LIN_SOLVE_TWO_STEP: "two-step equations",
   LIN_SOLVE_VARIABLE_BOTH: "equations with the letter on both sides",
   LIN_CHECK_SOLUTION: "checking an answer by putting it back in",
+  FND_FRACTION_EQUIV: "writing the same fraction in a different way",
+  FND_FRACTION_OPS: "working with fractions",
+  LIN_CLEAR_FRACTIONS: "clearing fractions by multiplying both sides",
+  LIN_SOLVE_FRACTIONS: "solving equations that have fractions in them",
 };
 
 export function childFacingSkillName(microSkillId: string): string {
@@ -369,21 +456,35 @@ export class DiagnosticV2SessionService {
     private readonly grader: DiagnosticV2AiGraderService,
   ) {}
 
-  async startSession(studentId: string): Promise<StartDiagnosticV2SessionResponse> {
+  async startSession(
+    studentId: string,
+    track: DiagnosticV2Track = "NEGATIVE_DISTRIBUTION",
+  ): Promise<StartDiagnosticV2SessionResponse> {
     const student = await this.prisma.student.findUnique({ where: { id: studentId } });
     if (!student) throw new NotFoundException("Student not found.");
 
-    const item = requireFixedItem(FIRST_STAGE_ID);
+    const firstStage = firstStageForTrack(track);
+    const item = requireFixedItem(firstStage);
     const at = new Date().toISOString();
+    const openingReason =
+      track === "FRACTION_LINEAR"
+        ? "Opening item of the fraction-linear diagnostic track."
+        : "Opening item of the fixed entry sequence.";
 
     const { session, attempt } = await this.prisma.$transaction(async (tx) => {
       const createdSession = await tx.diagnosticV2Session.create({
         data: {
           studentId,
           status: "ACTIVE",
-          currentStageId: FIRST_STAGE_ID,
+          currentStageId: firstStage,
           stageHistory: [
-            { stageId: FIRST_STAGE_ID, source: "RULE", reasoning: "Opening item of the fixed entry sequence.", at },
+            {
+              stageId: firstStage,
+              source: "RULE",
+              reasoning: openingReason,
+              at,
+              track,
+            },
           ] as unknown as never,
           policyVersion: EVIDENCE_POLICY_MICROSKILL_V1,
         },
@@ -404,7 +505,7 @@ export class DiagnosticV2SessionService {
 
     return {
       sessionId: session.id,
-      stageId: FIRST_STAGE_ID,
+      stageId: firstStage,
       ...attemptView(attempt.id, item),
     };
   }
@@ -452,9 +553,13 @@ export class DiagnosticV2SessionService {
       throw new BadRequestException("submittedLine is required unless dontKnow is set.");
     }
 
+    const track = trackFromStageHistory(session.stageHistory);
+
     // 1. Deterministic verification — ground truth. Skipped entirely for a
-    //    decline: there is no line to verify.
-    const verification = declined ? null : verifyStepValidity(expectedPreviousLine, submittedLine);
+    //    decline: there is no line to verify. Track picks the verifier module.
+    const verification = declined
+      ? null
+      : verifyDiagnosticV2Step(expectedPreviousLine, submittedLine, track);
     let validity: StepValidity | null = verification?.validity ?? null;
     let verificationSource: VerificationSource = "DETERMINISTIC";
     let aiGraderConfidence: number | null = null;
@@ -467,7 +572,7 @@ export class DiagnosticV2SessionService {
     //     "right answer, no working shown" and which used to call it INVALID.
     let finalAnswerOnly = false;
     if (verification && (validity === "PARSE_FAILED" || validity === "AMBIGUOUS")) {
-      const bare = checkBareFinalAnswer(expectedPreviousLine, submittedLine);
+      const bare = checkBareFinalAnswerForTrack(expectedPreviousLine, submittedLine, track);
       if (bare.isBareAnswer && bare.matchesSolution !== undefined) {
         validity = bare.matchesSolution ? "VALID" : "INVALID";
         verificationSource = "DETERMINISTIC";
@@ -527,8 +632,14 @@ export class DiagnosticV2SessionService {
       assistanceLevel,
       isTransferCheck: item.isTransferCheck,
       finalAnswerOnly,
+      hasFractions:
+        track === "FRACTION_LINEAR" ||
+        lineHasFractionSyntax(item.openingLine) ||
+        lineHasFractionSyntax(expectedPreviousLine),
     });
     const layers = layersForMicroSkill(attribution.primary);
+    const verifierVersion =
+      track === "FRACTION_LINEAR" ? STEP_VERIFICATION_RULES_FRACTION_V1 : STEP_VERIFICATION_RULES_V1;
 
     // 4. Evidence. Unresolved lines produce none at all — an unreadable line is
     //    explicitly not a wrong line. A decline produces SKIPPED, which is a
@@ -643,9 +754,12 @@ export class DiagnosticV2SessionService {
     let selectorReasoning: string | undefined;
 
     if (itemComplete) {
+      // Pattern confirmation is about the item's headline skill (negative
+      // distribution on the Phase A track, clear-fractions on B1) — not a
+      // hardcoded id, or a later topic's contrast stage can never trigger teaching.
       const patternConfirmed = await this.hasConfirmedGap(
         session.studentId,
-        "LIN_DISTRIBUTE_NEG",
+        item.primaryMicroSkillId,
         stepEvidence,
       );
       nextStageIds = nextStagesAfter(completedStage, {
@@ -660,6 +774,7 @@ export class DiagnosticV2SessionService {
         const selected = await this.selectNextItem({
           session: { id: sessionId, studentId: session.studentId },
           ruleStage: nextItemStage,
+          track,
           lastStepSummary: summarizeStep(
             validity,
             verification?.firstInvalidActionDescription,
@@ -729,7 +844,7 @@ export class DiagnosticV2SessionService {
               contextModifierIds,
               assistanceLevel,
               selfCorrectionOfStepId,
-              verifierVersion: STEP_VERIFICATION_RULES_V1,
+              verifierVersion,
             },
           })
         : null;
@@ -1118,11 +1233,13 @@ export class DiagnosticV2SessionService {
   private async selectNextItem(input: {
     session: { id: string; studentId: string };
     ruleStage: DiagnosticV2StageId;
+    track: DiagnosticV2Track;
     lastStepSummary: string;
   }): Promise<{ item: DiagnosticV2Item; source: "RULE" | "AI"; reasoning?: string }> {
     const requestedRulePick = requireFixedItem(input.ruleStage);
     const servedItemKeys = await this.servedItemKeys(input.session.id);
-    const unserved = ITEM_STAGE_ORDER.map((stage) => requireFixedItem(stage)).filter(
+    const backbone = itemStageOrderForTrack(input.track);
+    const unserved = backbone.map((stage) => requireFixedItem(stage)).filter(
       (i) => !servedItemKeys.has(i.itemKey),
     );
     // A rule stage normally names an item that hasn't been shown yet — the
@@ -1372,7 +1489,40 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
   const openingLine = openingLineFromPrompt(attempt.equationPrompt);
   const isBareExpression = !openingLine.includes("=");
   const isTransferCheck =
-    stageId === "TRANSFER_NEG_DIST" || templateId === "TPL_TRANSFER_NEG_DISTRIBUTION";
+    stageId === "TRANSFER_NEG_DIST" ||
+    stageId === "TRANSFER_FRAC_CLEAR" ||
+    templateId === "TPL_TRANSFER_NEG_DISTRIBUTION" ||
+    templateId === "TPL_TRANSFER_FRAC_CLEAR";
+
+  const primaryMicroSkillId: MicroSkillId =
+    templateId === "TPL_TWO_STEP"
+      ? "LIN_SOLVE_TWO_STEP"
+      : templateId === "TPL_VARIABLE_BOTH"
+        ? "LIN_SOLVE_VARIABLE_BOTH"
+        : templateId === "TPL_SIGN_MUL_DIV"
+          ? "FND_SIGN_MUL_DIV"
+          : templateId === "TPL_FRAC_SIMPLE"
+            ? "LIN_SOLVE_FRACTIONS"
+            : templateId === "TPL_FRAC_CLEAR" ||
+                templateId === "TPL_FRAC_CLEAR_BARE" ||
+                templateId === "TPL_TRANSFER_FRAC_CLEAR"
+              ? "LIN_CLEAR_FRACTIONS"
+              : "LIN_DISTRIBUTE_NEG";
+
+  const supportingMicroSkillIds: MicroSkillId[] =
+    templateId === "TPL_TWO_STEP"
+      ? ["LIN_REMOVE_CONSTANT", "LIN_REMOVE_COEFFICIENT"]
+      : templateId === "TPL_VARIABLE_BOTH"
+        ? ["LIN_COMBINE_LIKE", "LIN_REMOVE_COEFFICIENT"]
+        : templateId === "TPL_SIGN_MUL_DIV"
+          ? []
+          : templateId === "TPL_FRAC_SIMPLE"
+            ? ["FND_FRACTION_OPS", "LIN_CLEAR_FRACTIONS"]
+            : templateId === "TPL_FRAC_CLEAR" ||
+                templateId === "TPL_FRAC_CLEAR_BARE" ||
+                templateId === "TPL_TRANSFER_FRAC_CLEAR"
+              ? ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"]
+              : ["FND_SIGN_MUL_DIV"];
 
   return {
     itemKey: attempt.itemKey,
@@ -1381,22 +1531,8 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
     stageId,
     prompt: attempt.equationPrompt,
     openingLine,
-    primaryMicroSkillId:
-      templateId === "TPL_TWO_STEP"
-        ? "LIN_SOLVE_TWO_STEP"
-        : templateId === "TPL_VARIABLE_BOTH"
-          ? "LIN_SOLVE_VARIABLE_BOTH"
-          : templateId === "TPL_SIGN_MUL_DIV"
-            ? "FND_SIGN_MUL_DIV"
-            : "LIN_DISTRIBUTE_NEG",
-    supportingMicroSkillIds:
-      templateId === "TPL_TWO_STEP"
-        ? ["LIN_REMOVE_CONSTANT", "LIN_REMOVE_COEFFICIENT"]
-        : templateId === "TPL_VARIABLE_BOTH"
-          ? ["LIN_COMBINE_LIKE", "LIN_REMOVE_COEFFICIENT"]
-          : templateId === "TPL_SIGN_MUL_DIV"
-            ? []
-            : ["FND_SIGN_MUL_DIV"],
+    primaryMicroSkillId,
+    supportingMicroSkillIds,
     isTransferCheck,
     isBareExpression,
   };
@@ -1409,7 +1545,11 @@ function isItemStageId(v: string): v is DiagnosticV2ItemStageId {
     v === "NEG_DIST_MAIN" ||
     v === "NEG_DIST_CONTRAST" ||
     v === "TRANSFER_NEG_DIST" ||
-    v === "PREREQ_SIGN_PROBE"
+    v === "PREREQ_SIGN_PROBE" ||
+    v === "ENTRY_FRAC_SIMPLE" ||
+    v === "FRAC_CLEAR_MAIN" ||
+    v === "FRAC_CLEAR_CONTRAST" ||
+    v === "TRANSFER_FRAC_CLEAR"
   );
 }
 
@@ -1419,6 +1559,10 @@ function templateIdFromGeneratedKey(itemKey: string): DiagnosticV2TemplateId {
   if (itemKey.startsWith("GEN_NEG_DIST_BARE")) return "TPL_NEG_DISTRIBUTION_BARE";
   if (itemKey.startsWith("GEN_TRANSFER_NEG_DIST")) return "TPL_TRANSFER_NEG_DISTRIBUTION";
   if (itemKey.startsWith("GEN_SIGN_MUL")) return "TPL_SIGN_MUL_DIV";
+  if (itemKey.startsWith("GEN_FRAC_SIMPLE")) return "TPL_FRAC_SIMPLE";
+  if (itemKey.startsWith("GEN_FRAC_CLEAR_BARE")) return "TPL_FRAC_CLEAR_BARE";
+  if (itemKey.startsWith("GEN_TRANSFER_FRAC_CLEAR")) return "TPL_TRANSFER_FRAC_CLEAR";
+  if (itemKey.startsWith("GEN_FRAC_CLEAR")) return "TPL_FRAC_CLEAR";
   return "TPL_NEG_DISTRIBUTION";
 }
 

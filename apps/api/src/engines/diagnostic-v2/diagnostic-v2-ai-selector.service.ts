@@ -306,7 +306,8 @@ export class DiagnosticV2AiSelectorService {
     const gate = gateAuthoredItem({
       authored: authored.candidate,
       stageId: ctx.ruleStageId,
-      isTransferCheck: ctx.ruleStageId === "TRANSFER_NEG_DIST",
+      isTransferCheck:
+        ctx.ruleStageId === "TRANSFER_NEG_DIST" || ctx.ruleStageId === "TRANSFER_FRAC_CLEAR",
       alreadyServed: alreadyServedKeys(ctx),
     });
 
@@ -396,6 +397,13 @@ function templateForSkill(skill: MicroSkillId): DiagnosticV2TemplateId | null {
       return "TPL_TWO_STEP";
     case "LIN_SOLVE_VARIABLE_BOTH":
       return "TPL_VARIABLE_BOTH";
+    case "LIN_CLEAR_FRACTIONS":
+      return "TPL_FRAC_CLEAR";
+    case "LIN_SOLVE_FRACTIONS":
+      return "TPL_FRAC_SIMPLE";
+    case "FND_FRACTION_EQUIV":
+    case "FND_FRACTION_OPS":
+      return "TPL_FRAC_CLEAR";
     default:
       return null;
   }

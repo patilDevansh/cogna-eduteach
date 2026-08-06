@@ -19,7 +19,12 @@ export type MicroSkillId =
   | "LIN_REMOVE_COEFFICIENT"
   | "LIN_SOLVE_TWO_STEP"
   | "LIN_SOLVE_VARIABLE_BOTH"
-  | "LIN_CHECK_SOLUTION";
+  | "LIN_CHECK_SOLUTION"
+  /** Phase B1 — Topic 2 fractions vertical slice. */
+  | "FND_FRACTION_EQUIV"
+  | "FND_FRACTION_OPS"
+  | "LIN_CLEAR_FRACTIONS"
+  | "LIN_SOLVE_FRACTIONS";
 
 export const MICRO_SKILL_IDS: MicroSkillId[] = [
   "FND_SIGN_MUL_DIV",
@@ -31,6 +36,10 @@ export const MICRO_SKILL_IDS: MicroSkillId[] = [
   "LIN_SOLVE_TWO_STEP",
   "LIN_SOLVE_VARIABLE_BOTH",
   "LIN_CHECK_SOLUTION",
+  "FND_FRACTION_EQUIV",
+  "FND_FRACTION_OPS",
+  "LIN_CLEAR_FRACTIONS",
+  "LIN_SOLVE_FRACTIONS",
 ];
 
 export function isMicroSkillId(v: unknown): v is MicroSkillId {
@@ -53,7 +62,20 @@ export type ContextModifierId =
    * marks the evidence as lower resolution rather than crediting every step
    * they never wrote.
    */
-  | "FINAL_ANSWER_ONLY";
+  | "FINAL_ANSWER_ONLY"
+  /** Phase B1 — the step was taken on a fraction-linear item / track. */
+  | "HAS_FRACTIONS";
+
+export type DiagnosticV2Track = "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR";
+
+export const DIAGNOSTIC_V2_TRACKS: DiagnosticV2Track[] = [
+  "NEGATIVE_DISTRIBUTION",
+  "FRACTION_LINEAR",
+];
+
+export function isDiagnosticV2Track(v: unknown): v is DiagnosticV2Track {
+  return typeof v === "string" && (DIAGNOSTIC_V2_TRACKS as string[]).includes(v);
+}
 
 // ─── Layer 6: step-level evidence ───────────────────────────────────────────
 
@@ -305,6 +327,11 @@ export function assertDiagnosticV2GraderResultShape(v: unknown): DiagnosticV2Gra
 
 export interface StartDiagnosticV2SessionRequest {
   studentId: string;
+  /**
+   * Which vertical slice to run. Default `NEGATIVE_DISTRIBUTION` keeps the
+   * Phase A Arun path unchanged. `FRACTION_LINEAR` is Phase B1.
+   */
+  track?: DiagnosticV2Track;
 }
 
 export function assertStartDiagnosticV2SessionRequestShape(
@@ -317,7 +344,15 @@ export function assertStartDiagnosticV2SessionRequestShape(
   if (typeof o.studentId !== "string" || !o.studentId.trim()) {
     throw new Error("StartDiagnosticV2SessionRequest: studentId required");
   }
-  return { studentId: o.studentId };
+  if (o.track !== undefined && !isDiagnosticV2Track(o.track)) {
+    throw new Error(
+      `StartDiagnosticV2SessionRequest: track must be one of ${DIAGNOSTIC_V2_TRACKS.join(", ")}, got ${String(o.track)}`,
+    );
+  }
+  return {
+    studentId: o.studentId,
+    ...(o.track ? { track: o.track } : {}),
+  };
 }
 
 export interface DiagnosticV2AttemptView {

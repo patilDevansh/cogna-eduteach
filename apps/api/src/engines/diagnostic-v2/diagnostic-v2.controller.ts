@@ -33,9 +33,8 @@ export class DiagnosticV2Controller {
 
   @Post("sessions")
   start(@Body() body: unknown): Promise<StartDiagnosticV2SessionResponse> {
-    return this.sessions.startSession(
-      validated(assertStartDiagnosticV2SessionRequestShape, body).studentId,
-    );
+    const req = validated(assertStartDiagnosticV2SessionRequestShape, body);
+    return this.sessions.startSession(req.studentId, req.track ?? "NEGATIVE_DISTRIBUTION");
   }
 
   @Post("sessions/:id/steps")
