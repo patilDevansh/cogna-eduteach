@@ -117,5 +117,6 @@
 - Elapsed/idle time per step (fatigue detection only, never mastery evidence) — Phase B or C.
 - Breadth coverage across all 5 topics — later Phase B topics after B1.
 - Execution and recording of the delayed retention check — Phase A schedules only.
-- Parent/student report content — Phase D.
+- ~~Parent/student report content — Phase D~~ — **D.v1 + D.v2 shipped** (LearningSession polish + DiagnosticV2-native STUDENT/PARENT via `diagnostic-v2-report.service.ts`). Still out: weekly rollup of DiagnosticV2, email-copy changes, INTERNAL polish.
+- ~~Instant AI-selected next items (sync generate lag) — Phase C plan~~ — **C.v1 shipped** (process-local verified buffer). Still deferred: cross-process durable queues; AUTHOR-into-buffer fill. See [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md).
 - Telemetry for the four `AssistanceLevelV2` levels this phase never produces (`GENERAL_PROMPT`, `LOCATION_HINT`, `MICRO_QUESTION`, `PARTIAL_WORKED_STEP`).

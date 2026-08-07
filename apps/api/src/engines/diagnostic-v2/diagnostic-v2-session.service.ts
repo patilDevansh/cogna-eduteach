@@ -17,7 +17,13 @@
  * via its additive nullable microSkillId column, and only to *schedule* a
  * retention check — running it is a later phase.
  */
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import {
   EVIDENCE_POLICY_MICROSKILL_V1,
   STEP_VERIFICATION_RULES_FRACTION_V1,
@@ -50,10 +56,17 @@ import {
   findFixedItem,
   FIXED_ITEMS,
   isKnownTemplateId,
+  normalizedQuestionKey,
+  renderFreshInstance,
   type DiagnosticV2Item,
   type DiagnosticV2ItemStageId,
   type DiagnosticV2TemplateId,
 } from "./diagnostic-v2-template-render";
+import {
+  likelyPrefetchTemplates,
+  peekBufferedItem,
+  putBufferedItem,
+} from "./diagnostic-v2-next-item-buffer";
 import {
   isSolvedForm,
   matchSingleBracket,
@@ -82,6 +95,13 @@ import {
 } from "./diagnostic-v2-ai-selector.service";
 import { DiagnosticV2AiInterpreterService } from "./diagnostic-v2-ai-interpreter.service";
 import { DiagnosticV2AiGraderService } from "./diagnostic-v2-ai-grader.service";
+import { DiagnosticV2ReportService } from "./diagnostic-v2-report.service";
+import {
+  buildChildFacingSummary,
+  childFacingSkillName,
+} from "./diagnostic-v2-summary";
+
+export { buildChildFacingSummary, childFacingSkillName } from "./diagnostic-v2-summary";
 
 // ─── Stages ─────────────────────────────────────────────────────────────────
 
@@ -230,6 +250,29 @@ export function stageForTemplate(templateId: DiagnosticV2TemplateId): Diagnostic
 
 export function stageForItem(item: DiagnosticV2Item): DiagnosticV2StageId {
   return item.stageId;
+}
+
+/** Next fixed-backbone template for Phase C prefetch (skill/template likelihood). */
+export function nextBackboneTemplateId(
+  currentStage: DiagnosticV2StageId,
+  track?: DiagnosticV2Track,
+): DiagnosticV2TemplateId | null {
+  const orders = track
+    ? [itemStageOrderForTrack(track)]
+    : [
+        ITEM_STAGE_ORDER,
+        FRAC_ITEM_STAGE_ORDER,
+        ID_ITEM_STAGE_ORDER,
+        FAC_ITEM_STAGE_ORDER,
+        QUAD_ITEM_STAGE_ORDER,
+      ];
+  for (const order of orders) {
+    const idx = order.indexOf(currentStage);
+    if (idx >= 0 && idx + 1 < order.length) {
+      return findFixedItem(order[idx + 1]!)?.templateId ?? null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -526,52 +569,6 @@ const MICRO_SKILL_TO_CONCEPT: Record<MicroSkillId, string> = {
 const RETENTION_CHECK_TYPE = "MICRO_SKILL_RETENTION_CHECK";
 const RETENTION_CHECK_DELAY_DAYS = 2;
 
-/**
- * The catalogue's skill names are precise and unreadable to a 13-year-old
- * ("distribute a negative multiplier and preserve sign products"). These are
- * the same nine skills said out loud. Used for the summary and for the
- * interpreter's prompt, which is explicitly writing in a child's register.
- */
-const CHILD_FACING_SKILL_NAMES: Record<MicroSkillId, string> = {
-  FND_SIGN_MUL_DIV: "multiplying and dividing with minus signs",
-  LIN_DISTRIBUTE_NEG: "expanding brackets that have a minus in front",
-  LIN_DISTRIBUTE_POS: "expanding brackets",
-  LIN_COMBINE_LIKE: "tidying up like terms",
-  LIN_REMOVE_CONSTANT: "moving a number across the equals sign",
-  LIN_REMOVE_COEFFICIENT: "dividing to get the letter on its own",
-  LIN_SOLVE_TWO_STEP: "two-step equations",
-  LIN_SOLVE_VARIABLE_BOTH: "equations with the letter on both sides",
-  LIN_CHECK_SOLUTION: "checking an answer by putting it back in",
-  FND_FRACTION_EQUIV: "writing the same fraction in a different way",
-  FND_FRACTION_OPS: "working with fractions",
-  LIN_CLEAR_FRACTIONS: "clearing fractions by multiplying both sides",
-  LIN_SOLVE_FRACTIONS: "solving equations that have fractions in them",
-  ALG_IDENTIFY_STRUCTURE: "spotting the shape of an expression",
-  EXP_EXPAND_BINOMIALS: "multiplying two brackets",
-  ID_DIFF_SQUARES: "difference of squares",
-  ID_VERIFY_EXPANSION: "checking an expansion",
-  FAC_READ_ABC_SIGNS: "reading the numbers in a trinomial",
-  FAC_PAIR_PRODUCT_SUM: "finding two numbers that multiply and add correctly",
-  FAC_MONIC_TRINOMIAL: "factorising a trinomial that starts with x²",
-  FAC_COMPUTE_AC: "working out a times c",
-  FAC_SPLIT_MIDDLE: "splitting the middle term",
-  FAC_NONMONIC_GROUP: "factorising a trinomial with a number in front of x²",
-  FAC_VERIFY_EXPAND: "checking factors by expanding them",
-  QUAD_STANDARD_FORM: "rewriting a quadratic so it equals zero",
-  QUAD_FACTOR_EXPRESSION: "factorising a quadratic",
-  QUAD_ZERO_PRODUCT: "using the zero-product rule to find roots",
-  QUAD_CREATE_BRANCHES: "setting each factor equal to zero",
-  QUAD_SOLVE_UNIT_FACTOR: "solving a bracket for the letter",
-  QUAD_VERIFY_ROOTS: "checking roots in the original equation",
-};
-
-export function childFacingSkillName(microSkillId: string): string {
-  return CHILD_FACING_SKILL_NAMES[microSkillId as MicroSkillId] ?? "this skill";
-}
-
-/** Long lists stop being readable — name a few things the student did well, not all of them. */
-const MAX_SKILLS_NAMED_IN_SUMMARY = 3;
-
 // ─── Service ────────────────────────────────────────────────────────────────
 
 interface AttemptRow {
@@ -614,6 +611,8 @@ export class DiagnosticV2SessionService {
     private readonly selector: DiagnosticV2AiSelectorService,
     private readonly interpreter: DiagnosticV2AiInterpreterService,
     private readonly grader: DiagnosticV2AiGraderService,
+    /** Optional so goldens that construct the service with four deps still compile. */
+    @Optional() private readonly reports?: DiagnosticV2ReportService,
   ) {}
 
   async startSession(
@@ -661,6 +660,19 @@ export class DiagnosticV2SessionService {
         },
       });
       return { session: createdSession, attempt: createdAttempt };
+    });
+
+    // Phase C: fire-and-forget prefetch for likely early skill/template targets.
+    // Never blocks the startSession response.
+    this.prefetchInBackground({
+      sessionId: session.id,
+      templates: likelyPrefetchTemplates({
+        currentTemplateId: item.templateId,
+        currentSkillId: item.primaryMicroSkillId,
+        nextBackboneTemplateId: nextBackboneTemplateId(firstStage, track),
+      }),
+      alreadyServed: new Set([normalizedQuestionKey(item.openingLine)]),
+      serveOrdinal: 1,
     });
 
     return {
@@ -957,6 +969,32 @@ export class DiagnosticV2SessionService {
         nextStageIds = nextStageIds.map((s) =>
           s === nextItemStage ? stageForItem(selected.item) : s,
         );
+        // Phase C: after consuming a buffered item, refill that skill/template slot
+        // without blocking the submit response (same F&F shape as mid-item refill).
+        if (selected.consumedBufferTemplateId) {
+          const consumedTemplate = selected.consumedBufferTemplateId;
+          const consumedOpening = normalizedQuestionKey(selected.item.openingLine);
+          void Promise.all([
+            this.servedOpeningKeys(sessionId),
+            this.prisma.diagnosticV2Attempt.count({ where: { sessionId } }),
+          ])
+            .then(([served, attemptCount]) => {
+              served.add(consumedOpening);
+              this.prefetchInBackground({
+                sessionId,
+                templates: [consumedTemplate],
+                alreadyServed: served,
+                serveOrdinal: attemptCount + 1,
+              });
+            })
+            .catch((err) => {
+              this.logger.warn(
+                `diagnostic_v2 buffer post-consume refill schedule failed for ${sessionId}: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            });
+        }
       }
     }
 
@@ -1154,6 +1192,35 @@ export class DiagnosticV2SessionService {
         })
       : undefined;
 
+    // Phase C: on a mid-item step (student still working), refill likely next targets.
+    if (!itemComplete) {
+      void this.servedOpeningKeys(sessionId)
+        .then((served) => {
+          this.prefetchInBackground({
+            sessionId,
+            templates: likelyPrefetchTemplates({
+              currentTemplateId: item.templateId,
+              currentSkillId: item.primaryMicroSkillId,
+              nextBackboneTemplateId: nextBackboneTemplateId(stageForItem(item)),
+            }),
+            alreadyServed: served,
+            serveOrdinal: Math.max(1, priorSteps.length + 1),
+          });
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `diagnostic_v2 buffer mid-item prefetch schedule failed for ${sessionId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+    }
+
+    // Phase D.v2: polish + persist student/parent reports off the hot path.
+    if (sessionComplete) {
+      this.reports?.ensureSessionReportsInBackground(sessionId);
+    }
+
     const shared = {
       ...(assistanceOffered ? { assistanceOffered } : {}),
       ...(assistanceMessage ? { assistanceMessage } : {}),
@@ -1294,6 +1361,16 @@ export class DiagnosticV2SessionService {
     const session = await this.prisma.diagnosticV2Session.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException("Diagnostic session not found.");
 
+    if (this.reports) {
+      const summaries = await this.reports.getOrBuildSummaries(sessionId);
+      return {
+        sessionId,
+        status: session.status as DiagnosticV2SessionStatus,
+        childFacingSummary: summaries.childFacingSummary,
+        parentFacingSummary: summaries.parentFacingSummary,
+      };
+    }
+
     const states = await this.prisma.microSkillStateV2.findMany({
       where: { studentId: session.studentId },
       orderBy: { microSkillId: "asc" },
@@ -1404,12 +1481,94 @@ export class DiagnosticV2SessionService {
     return new Set(attempts.map((a) => a.itemKey));
   }
 
+  /** Normalized opening lines already shown — used by the Phase C buffer fill path. */
+  private async servedOpeningKeys(sessionId: string): Promise<Set<string>> {
+    const attempts = await this.prisma.diagnosticV2Attempt.findMany({
+      where: { sessionId },
+      select: { equationPrompt: true },
+    });
+    const keys = new Set<string>();
+    for (const a of attempts) {
+      const idx = a.equationPrompt.indexOf(":");
+      const opening = (idx === -1 ? a.equationPrompt : a.equationPrompt.slice(idx + 1)).trim();
+      keys.add(normalizedQuestionKey(opening));
+    }
+    return keys;
+  }
+
+  /**
+   * Phase C prefetch worker. GENERATE-primary through existing verify
+   * (`renderFreshInstance` → `verifyRendered`). Fire-and-forget wrapper must
+   * not throw into the request path.
+   */
+  private prefetchInBackground(input: {
+    sessionId: string;
+    templates: DiagnosticV2TemplateId[];
+    alreadyServed: ReadonlySet<string>;
+    serveOrdinal: number;
+  }): void {
+    void this.fillVerifiedBuffer(input).catch((err) => {
+      this.logger.warn(
+        `diagnostic_v2 buffer prefetch failed for ${input.sessionId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+  }
+
+  private async fillVerifiedBuffer(input: {
+    sessionId: string;
+    templates: DiagnosticV2TemplateId[];
+    alreadyServed: ReadonlySet<string>;
+    serveOrdinal: number;
+  }): Promise<void> {
+    for (const templateId of input.templates) {
+      if (peekBufferedItem(input.sessionId, templateId)) continue;
+      const fresh = renderFreshInstance({
+        templateId,
+        seedBase: `${input.sessionId}:${templateId}:prefetch:${input.serveOrdinal}`,
+        alreadyServed: input.alreadyServed,
+      });
+      if (!fresh.item) {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.fill_skip",
+            sessionId: input.sessionId,
+            templateId,
+            reason: fresh.failure ?? "no instance",
+          }),
+        );
+        continue;
+      }
+      putBufferedItem({
+        sessionId: input.sessionId,
+        templateId,
+        skillId: fresh.item.primaryMicroSkillId,
+        item: fresh.item,
+      });
+      this.logger.log(
+        JSON.stringify({
+          event: "diagnostic_v2_buffer.filled",
+          sessionId: input.sessionId,
+          templateId,
+          itemKey: fresh.item.itemKey,
+        }),
+      );
+    }
+  }
+
   private async selectNextItem(input: {
     session: { id: string; studentId: string };
     ruleStage: DiagnosticV2StageId;
     track: DiagnosticV2Track;
     lastStepSummary: string;
-  }): Promise<{ item: DiagnosticV2Item; source: "RULE" | "AI"; reasoning?: string }> {
+  }): Promise<{
+    item: DiagnosticV2Item;
+    source: "RULE" | "AI";
+    reasoning?: string;
+    fromBuffer?: boolean;
+    consumedBufferTemplateId?: DiagnosticV2TemplateId;
+  }> {
     const requestedRulePick = requireFixedItem(input.ruleStage);
     const servedItemKeys = await this.servedItemKeys(input.session.id);
     const backbone = itemStageOrderForTrack(input.track);
@@ -1476,7 +1635,13 @@ export class DiagnosticV2SessionService {
         `Discarded an AI-generated/authored item for session ${input.session.id}: ${result.discardedGeneration}`,
       );
     }
-    return { item: result.item, source: result.source, reasoning: result.reasoning };
+    return {
+      item: result.item,
+      source: result.source,
+      reasoning: result.reasoning,
+      fromBuffer: result.fromBuffer,
+      consumedBufferTemplateId: result.consumedBufferTemplateId,
+    };
   }
 
   /**
@@ -1890,47 +2055,3 @@ function readStageHistory(raw: unknown): StageHistoryEntry[] {
   );
 }
 
-/**
- * Deterministic, never a model call: the summary is assembled from the
- * hypotheses that were already written (AI- or rule-authored), so this endpoint
- * stays fast and cannot introduce new unreviewed student-facing text.
- */
-export function buildChildFacingSummary(
-  states: Array<{ microSkillId: string; status: MicroSkillStatus }>,
-  hypotheses: Array<{ microSkillId: string; childFacingSummary: string | null }>,
-): string {
-  // RELIABLE first: if the list has to be trimmed, keep the strongest evidence.
-  const solid = [
-    ...states.filter((s) => s.status === "RELIABLE"),
-    ...states.filter((s) => s.status === "DEVELOPING"),
-  ]
-    .slice(0, MAX_SKILLS_NAMED_IN_SUMMARY)
-    .map((s) => childFacingSkillName(s.microSkillId));
-  const gaps = states.filter((s) => s.status === "LIKELY_GAP");
-
-  const parts: string[] = [];
-  if (solid.length > 0) {
-    parts.push(`You handled ${joinWords(solid)} on your own today.`);
-  } else {
-    parts.push("Thanks for working through those questions.");
-  }
-
-  for (const gap of gaps) {
-    const latest = [...hypotheses].reverse().find((h) => h.microSkillId === gap.microSkillId);
-    parts.push(
-      latest?.childFacingSummary ??
-        `Next time we'll spend a bit of time on ${childFacingSkillName(gap.microSkillId)}.`,
-    );
-  }
-
-  if (gaps.length > 0) {
-    parts.push("We'll come back to it in a few days to make sure it stuck.");
-  }
-
-  return parts.join(" ");
-}
-
-function joinWords(words: string[]): string {
-  if (words.length <= 1) return words[0] ?? "";
-  return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
-}

@@ -590,4 +590,6 @@ export interface DiagnosticV2SummaryResponse {
   sessionId: string;
   status: DiagnosticV2SessionStatus;
   childFacingSummary: string;
+  /** D.v2 — deterministic parent template, optionally AI-polished. */
+  parentFacingSummary?: string;
 }

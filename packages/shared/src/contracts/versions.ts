@@ -139,3 +139,6 @@ export const STEP_VERIFICATION_RULES_FACTOR_V1 = "step-verification-rules-factor
 
 /** Phase B4 — quadratic zero-product track. */
 export const STEP_VERIFICATION_RULES_QUADRATIC_V1 = "step-verification-rules-quadratic-v1";
+
+/** Phase D.v2 — DiagnosticV2-native student/parent report rows. */
+export const DIAGNOSTIC_V2_REPORT_V1 = "diagnostic-v2-report-v1";

@@ -30,3 +30,6 @@
 - [x] **B3 non-monic transfer is intentional.** Owner example `2x²−5x−3` uses `FAC_NONMONIC_GROUP` on transfer while the track id stays `FACTOR_MONIC_TRINOMIAL`.
 - [x] **B4 rejects non-integer-factorable quadratics.** Content gate + runtime `NOT_INTEGER_FACTORABLE`; roots are checked by substitution, not trusted from the student string alone.
 - [x] **AUTHOR stays off for B3/B4** until B3.5 / B4.5 (same B1 → B1.5 pattern).
+- [x] **Phase C buffer hit rate is an observation metric, not a correctness gate.** Log `diagnostic_v2_buffer.hit` / `.miss` / `.filled` and tune session cap (~2–3) from hit rate; never raise `TIMEOUT_MS` to compensate for a cold buffer.
+- [x] **Phase D report polish: numbers are a hard gate.** Forbidden-term reject alone is not enough — every count / % / mastery figure in AI prose must appear in `structuredData` (`report-numeric-gate.ts`). Flags default OFF in `.env.example`.
+- [x] **DiagnosticV2 reports reuse the same polish gates as D.v1.** Structured facts come from MicroSkillStateV2 / hypotheses / attempts — never LearningSession mastery inventing.

@@ -20,8 +20,8 @@ The user's full target for this milestone family (MVP 9.0.1–10.0) is larger th
   - **B3** factorisation (trinomial + non-monic transfer): [`BUILD_PLAN_B3.md`](./BUILD_PLAN_B3.md) (~~shipped~~)
   - **B4** quadratics (zero-product): [`BUILD_PLAN_B4.md`](./BUILD_PLAN_B4.md) (~~shipped~~)
   - Topic order is serial by curriculum dependency: brackets/fractions → identities → **factorisation** → **quadratics**. Each topic rebuilds the three-piece kit (parser / solver / first-invalid finder) — diffing does not generalize from `linear-bracket-verifier`.
-- **(C) — not yet planned.** A pre-generation/caching layer so "AI decides what's next" is actually fast. A synchronous generate-and-verify call is realistically 2–6 seconds — too slow to feel instant. The fix is pre-fetching a small verified buffer in the background while the student works the current question, not making the model faster.
-- **(D) — not yet planned.** LLM-assisted report generation. Lowest risk, not latency-sensitive, can ship independently of (A)–(C).
+- **(C) — verified next-item buffer:** [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md). ~~Pre-fetch a small verified buffer in the background while the student works the current question so AI-selected next items feel instant.~~ **C.v1 implemented** (process-local session Map, GENERATE-primary fill, consume-before-sync; B-track templates included in prefetch map).
+- **(D) — LLM-assisted reports:** [`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md). ~~D.v1~~ LearningSession STUDENT/PARENT + weekly PARENT polish with numeric gate. ~~**D.v2**~~ DiagnosticV2-native student/parent prose from micro-skill facts (same polish stack; all 5 tracks).
 
 ## Non-negotiable constraints for this phase
 
@@ -65,7 +65,7 @@ Why `topicId`/`competencyFamilyId`/`contextModifierIds` are added now rather tha
 - Elapsed/idle time per step, for fatigue detection only (never as mastery evidence) — Phase B or C.
 - Breadth-coverage tracking across all 5 topics — Phase B (this slice only touches 2 topics).
 - Retention/delayed-check *execution and results* — Phase A only schedules a `RevisionQueueItem`; running and recording the actual delayed check is later.
-- Parent/student report content — Phase D.
+- Parent/student report content — ~~D.v1 LearningSession polish shipped~~; DiagnosticV2-native remains **D.v2** ([`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md)).
 - Telemetry for the 4 assistance levels this phase doesn't exercise (`GENERAL_PROMPT`, `LOCATION_HINT`, `MICRO_QUESTION`, `PARTIAL_WORKED_STEP`) — the enum defines all 8, this phase only produces `NONE`/`REVIEW_OPPORTUNITY`/`RULE_PROMPT`/`FULL_EXPLANATION`.
 
 ## Phase 0 — Scope and content
@@ -139,6 +139,6 @@ Why `topicId`/`competencyFamilyId`/`contextModifierIds` are added now rather tha
 
 - The 73-skill catalogue / 125-template / 2,000-question bank
 - Breadth coverage across all 5 topics; the general adaptive scoring formula from Work Order 03
-- Pre-generation/caching for instant AI-selected questions (Phase C)
-- LLM-assisted report generation (Phase D)
+- ~~Pre-generation/caching for instant AI-selected questions (Phase C)~~ — see [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md) (C.v1 shipped)
+- ~~LLM-assisted report generation (Phase D)~~ — see [`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md) (D.v1 LearningSession polish shipped; DiagnosticV2-native = D.v2)
 - Any decision on replacing vs. running alongside the mvp-1.0–9.0 concept-based system
