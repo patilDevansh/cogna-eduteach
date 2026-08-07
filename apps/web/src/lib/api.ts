@@ -442,10 +442,15 @@ export const api = {
 
   /** MVP 9.0.1 Phase A — micro-skill step diagnostic; standalone from the
    * MVP 1.0-9.0 session/practice routes above. May 404 until the backend lands.
-   * Optional `track` selects NEGATIVE_DISTRIBUTION (default) or FRACTION_LINEAR (B1). */
+   * Optional `track`: NEGATIVE_DISTRIBUTION | FRACTION_LINEAR | IDENTITY_DIFF_SQUARES | FACTOR_MONIC_TRINOMIAL | QUAD_ZERO_PRODUCT. */
   startDiagnosticV2Session: (
     studentId: string,
-    track: "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR" = "FRACTION_LINEAR",
+    track:
+      | "NEGATIVE_DISTRIBUTION"
+      | "FRACTION_LINEAR"
+      | "IDENTITY_DIFF_SQUARES"
+      | "FACTOR_MONIC_TRINOMIAL"
+      | "QUAD_ZERO_PRODUCT" = "FRACTION_LINEAR",
   ) =>
     apiFetch<StartDiagnosticV2SessionResponse>("/diagnostic-v2/sessions", {
       method: "POST",

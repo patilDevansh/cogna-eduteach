@@ -11,6 +11,9 @@ import {
   type BareAnswerCheck,
 } from "./linear-bracket-verifier";
 import { verifyFractionStepValidity } from "./fraction-linear-verifier";
+import { verifyIdentityStepValidity } from "./identity-expr-verifier";
+import { verifyFactorStepValidity } from "./factor-trinomial-verifier";
+import { verifyQuadraticStepValidity } from "./quadratic-zero-product-verifier";
 
 export function verifyDiagnosticV2Step(
   previousLine: string,
@@ -19,6 +22,15 @@ export function verifyDiagnosticV2Step(
 ): StepVerification {
   if (track === "FRACTION_LINEAR") {
     return verifyFractionStepValidity(previousLine, submittedLine);
+  }
+  if (track === "IDENTITY_DIFF_SQUARES") {
+    return verifyIdentityStepValidity(previousLine, submittedLine);
+  }
+  if (track === "FACTOR_MONIC_TRINOMIAL") {
+    return verifyFactorStepValidity(previousLine, submittedLine);
+  }
+  if (track === "QUAD_ZERO_PRODUCT") {
+    return verifyQuadraticStepValidity(previousLine, submittedLine);
   }
   return verifyStepValidity(previousLine, submittedLine);
 }

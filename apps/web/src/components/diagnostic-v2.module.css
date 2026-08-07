@@ -44,11 +44,52 @@
 
 .workingLine {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--s-3);
   font-family: var(--font-math);
   font-size: var(--text-lg);
   overflow-wrap: anywhere;
+}
+
+/* Stacked fraction display (slash ASCII remains the wire/input format). */
+.mathLine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15em;
+  line-height: 1.2;
+}
+
+.mathText {
+  white-space: pre-wrap;
+}
+
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin: 0 0.12em;
+  padding: 0 0.1em;
+  line-height: 1.05;
+}
+
+.fracNum,
+.fracDen {
+  display: block;
+  text-align: center;
+  padding: 0 0.15em;
+  font-size: 0.92em;
+}
+
+.fracBar {
+  display: block;
+  width: 100%;
+  min-width: 0.85em;
+  height: 0;
+  border-top: 1.5px solid currentColor;
+  margin: 0.08em 0;
 }
 
 .lineTag {

@@ -35,6 +35,10 @@ import {
   parseLinearWithBracket,
 } from "./linear-bracket-verifier";
 import {
+  denominatorsOf,
+  lineHasFractionSyntax,
+} from "./fraction-linear-verifier";
+import {
   normalizedQuestionKey,
   type DiagnosticV2Item,
   type DiagnosticV2ItemStageId,
@@ -111,6 +115,16 @@ const SKILL_REQUIREMENTS: Partial<
     requirement: "a non-unit coefficient on the variable",
     holds: (f) => f.hasNonUnitCoefficient,
   },
+  // B1.5 — fraction grammar (verified via the same parse + independent substitute path;
+  // fraction-linear-verifier owns step classification; authoring only needs checkable shape).
+  LIN_CLEAR_FRACTIONS: {
+    requirement: "fraction syntax with at least one denominator greater than 1 to clear",
+    holds: (f) => f.hasFractionSyntax && f.fractionDenominatorCount >= 1,
+  },
+  LIN_SOLVE_FRACTIONS: {
+    requirement: "a linear equation that uses fraction syntax",
+    holds: (f) => f.hasFractionSyntax,
+  },
 };
 
 const SUPPORTING_SKILLS: Partial<Record<MicroSkillId, MicroSkillId[]>> = {
@@ -118,6 +132,8 @@ const SUPPORTING_SKILLS: Partial<Record<MicroSkillId, MicroSkillId[]>> = {
   LIN_DISTRIBUTE_POS: ["FND_SIGN_MUL_DIV"],
   LIN_SOLVE_TWO_STEP: ["LIN_REMOVE_CONSTANT", "LIN_REMOVE_COEFFICIENT"],
   LIN_SOLVE_VARIABLE_BOTH: ["LIN_COMBINE_LIKE", "LIN_REMOVE_COEFFICIENT"],
+  LIN_CLEAR_FRACTIONS: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+  LIN_SOLVE_FRACTIONS: ["FND_FRACTION_OPS", "LIN_CLEAR_FRACTIONS"],
 };
 
 interface EquationFacts {
@@ -126,6 +142,8 @@ interface EquationFacts {
   variableOnBothSides: boolean;
   hasNonUnitCoefficient: boolean;
   hasConstantTerm: boolean;
+  hasFractionSyntax: boolean;
+  fractionDenominatorCount: number;
 }
 
 export interface AuthoredItemGateInput {
@@ -238,12 +256,15 @@ export function gateAuthoredItem(input: AuthoredItemGateInput): AuthoredItemGate
     );
   }
   const bracket = matchSingleBracket(equation);
+  const dens = denominatorsOf(parsed);
   const facts: EquationFacts = {
     hasBracket: parsed.hadBracket,
     bracketMultiplier: parsed.hadBracket && bracket ? bracket.multiplier : null,
     variableOnBothSides: parsed.lhs.a.n !== 0 && parsed.rhs.a.n !== 0,
     hasNonUnitCoefficient: Math.abs(a.n) !== a.d,
     hasConstantTerm: parsed.lhs.b.n !== 0 || parsed.rhs.b.n !== 0,
+    hasFractionSyntax: lineHasFractionSyntax(equation),
+    fractionDenominatorCount: dens.length,
   };
   if (!requirement.holds(facts)) {
     return reject(

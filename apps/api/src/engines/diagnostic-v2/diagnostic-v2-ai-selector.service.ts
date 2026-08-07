@@ -404,6 +404,13 @@ function templateForSkill(skill: MicroSkillId): DiagnosticV2TemplateId | null {
     case "FND_FRACTION_EQUIV":
     case "FND_FRACTION_OPS":
       return "TPL_FRAC_CLEAR";
+    case "ID_DIFF_SQUARES":
+      return "TPL_DIFF_SQUARES";
+    case "EXP_EXPAND_BINOMIALS":
+      return "TPL_EXPAND_BINOMIAL";
+    case "ALG_IDENTIFY_STRUCTURE":
+    case "ID_VERIFY_EXPANSION":
+      return "TPL_DIFF_SQUARES";
     default:
       return null;
   }
@@ -506,6 +513,8 @@ export function buildSelectorPrompts(ctx: SelectorContext): { system: string; us
     "Describe the mathematical step in plain words. Do not use the words diagnose, diagnostic, " +
     "misconception, mastery, threshold, retention, fatigue, failure or clinical, and never say a " +
     "student is \"weak in\" something. " +
+    "In reasoning, refer to the next question by its itemKey or template id — never write \"option 0\", " +
+    "\"option 1\", or any choice-index phrase. " +
     "You may never invent an index, a template id, or a micro-skill id that is not listed. " +
     "Never infer attention, mood, effort, or any clinical trait. " +
     'Return JSON only: {"choice":"EXISTING","index":integer,"confidence":number 0..1,"reasoning":string} ' +

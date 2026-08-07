@@ -21,6 +21,9 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from "@nes
 import {
   EVIDENCE_POLICY_MICROSKILL_V1,
   STEP_VERIFICATION_RULES_FRACTION_V1,
+  STEP_VERIFICATION_RULES_IDENTITY_V1,
+  STEP_VERIFICATION_RULES_FACTOR_V1,
+  STEP_VERIFICATION_RULES_QUADRATIC_V1,
   STEP_VERIFICATION_RULES_V1,
   isDiagnosticV2ItemOrigin,
   type AssistanceLevel,
@@ -94,6 +97,18 @@ export type DiagnosticV2StageId =
   | "FRAC_CLEAR_MAIN"
   | "FRAC_CLEAR_CONTRAST"
   | "TRANSFER_FRAC_CLEAR"
+  | "ENTRY_EXPAND_BINOMIAL"
+  | "ID_DIFF_MAIN"
+  | "ID_DIFF_CONTRAST"
+  | "TRANSFER_ID_DIFF"
+  | "ENTRY_FACTOR_EXPAND"
+  | "FAC_MONIC_MAIN"
+  | "FAC_MONIC_CONTRAST"
+  | "TRANSFER_FAC_NONMONIC"
+  | "ENTRY_QUAD_STANDARD"
+  | "QUAD_ZP_MAIN"
+  | "QUAD_ZP_CONTRAST"
+  | "TRANSFER_QUAD_ZP"
   | "COMPLETE";
 
 /** Item-bearing stages for the Phase A negative-distribution track. */
@@ -113,15 +128,50 @@ export const FRAC_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
   "TRANSFER_FRAC_CLEAR",
 ];
 
+/** Item-bearing stages for the Phase B2 difference-of-squares track. */
+export const ID_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_EXPAND_BINOMIAL",
+  "ID_DIFF_MAIN",
+  "ID_DIFF_CONTRAST",
+  "TRANSFER_ID_DIFF",
+];
+
+/** Item-bearing stages for the Phase B3 factorisation track. */
+export const FAC_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_FACTOR_EXPAND",
+  "FAC_MONIC_MAIN",
+  "FAC_MONIC_CONTRAST",
+  "TRANSFER_FAC_NONMONIC",
+];
+
+/** Item-bearing stages for the Phase B4 quadratic zero-product track. */
+export const QUAD_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_QUAD_STANDARD",
+  "QUAD_ZP_MAIN",
+  "QUAD_ZP_CONTRAST",
+  "TRANSFER_QUAD_ZP",
+];
+
 export const FIRST_STAGE_ID: DiagnosticV2StageId = "ENTRY_TWO_STEP";
 export const FIRST_FRAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FRAC_SIMPLE";
+export const FIRST_ID_STAGE_ID: DiagnosticV2StageId = "ENTRY_EXPAND_BINOMIAL";
+export const FIRST_FAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FACTOR_EXPAND";
+export const FIRST_QUAD_STAGE_ID: DiagnosticV2StageId = "ENTRY_QUAD_STANDARD";
 
 export function itemStageOrderForTrack(track: DiagnosticV2Track): DiagnosticV2StageId[] {
-  return track === "FRACTION_LINEAR" ? FRAC_ITEM_STAGE_ORDER : ITEM_STAGE_ORDER;
+  if (track === "FRACTION_LINEAR") return FRAC_ITEM_STAGE_ORDER;
+  if (track === "IDENTITY_DIFF_SQUARES") return ID_ITEM_STAGE_ORDER;
+  if (track === "FACTOR_MONIC_TRINOMIAL") return FAC_ITEM_STAGE_ORDER;
+  if (track === "QUAD_ZERO_PRODUCT") return QUAD_ITEM_STAGE_ORDER;
+  return ITEM_STAGE_ORDER;
 }
 
 export function firstStageForTrack(track: DiagnosticV2Track): DiagnosticV2StageId {
-  return track === "FRACTION_LINEAR" ? FIRST_FRAC_STAGE_ID : FIRST_STAGE_ID;
+  if (track === "FRACTION_LINEAR") return FIRST_FRAC_STAGE_ID;
+  if (track === "IDENTITY_DIFF_SQUARES") return FIRST_ID_STAGE_ID;
+  if (track === "FACTOR_MONIC_TRINOMIAL") return FIRST_FAC_STAGE_ID;
+  if (track === "QUAD_ZERO_PRODUCT") return FIRST_QUAD_STAGE_ID;
+  return FIRST_STAGE_ID;
 }
 
 /**
@@ -151,6 +201,30 @@ export function stageForTemplate(templateId: DiagnosticV2TemplateId): Diagnostic
       return "FRAC_CLEAR_CONTRAST";
     case "TPL_TRANSFER_FRAC_CLEAR":
       return "TRANSFER_FRAC_CLEAR";
+    case "TPL_EXPAND_BINOMIAL":
+      return "ENTRY_EXPAND_BINOMIAL";
+    case "TPL_DIFF_SQUARES":
+      return "ID_DIFF_MAIN";
+    case "TPL_DIFF_SQUARES_BARE":
+      return "ID_DIFF_CONTRAST";
+    case "TPL_TRANSFER_DIFF_SQUARES":
+      return "TRANSFER_ID_DIFF";
+    case "TPL_FACTOR_EXPAND":
+      return "ENTRY_FACTOR_EXPAND";
+    case "TPL_FAC_MONIC":
+      return "FAC_MONIC_MAIN";
+    case "TPL_FAC_MONIC_BARE":
+      return "FAC_MONIC_CONTRAST";
+    case "TPL_TRANSFER_FAC_NONMONIC":
+      return "TRANSFER_FAC_NONMONIC";
+    case "TPL_QUAD_STANDARD":
+      return "ENTRY_QUAD_STANDARD";
+    case "TPL_QUAD_ZERO_PRODUCT":
+      return "QUAD_ZP_MAIN";
+    case "TPL_QUAD_ZP_BARE":
+      return "QUAD_ZP_CONTRAST";
+    case "TPL_TRANSFER_QUAD_ZP":
+      return "TRANSFER_QUAD_ZP";
   }
 }
 
@@ -195,6 +269,30 @@ export function nextStagesAfter(
       return ctx.patternConfirmed
         ? ["RULE_PROMPT", "TRANSFER_FRAC_CLEAR"]
         : ["TRANSFER_FRAC_CLEAR"];
+    case "ENTRY_EXPAND_BINOMIAL":
+      return ["ID_DIFF_MAIN"];
+    case "ID_DIFF_MAIN":
+      return ctx.targetSkillFailed ? ["ID_DIFF_CONTRAST"] : ["TRANSFER_ID_DIFF"];
+    case "ID_DIFF_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_ID_DIFF"]
+        : ["TRANSFER_ID_DIFF"];
+    case "ENTRY_FACTOR_EXPAND":
+      return ["FAC_MONIC_MAIN"];
+    case "FAC_MONIC_MAIN":
+      return ctx.targetSkillFailed ? ["FAC_MONIC_CONTRAST"] : ["TRANSFER_FAC_NONMONIC"];
+    case "FAC_MONIC_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_FAC_NONMONIC"]
+        : ["TRANSFER_FAC_NONMONIC"];
+    case "ENTRY_QUAD_STANDARD":
+      return ["QUAD_ZP_MAIN"];
+    case "QUAD_ZP_MAIN":
+      return ctx.targetSkillFailed ? ["QUAD_ZP_CONTRAST"] : ["TRANSFER_QUAD_ZP"];
+    case "QUAD_ZP_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_QUAD_ZP"]
+        : ["TRANSFER_QUAD_ZP"];
     default:
       return ["COMPLETE"];
   }
@@ -212,7 +310,13 @@ export interface StageHistoryEntry {
 export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
   if (!Array.isArray(history) || history.length === 0) return "NEGATIVE_DISTRIBUTION";
   const first = history[0] as StageHistoryEntry;
-  if (first.track === "FRACTION_LINEAR" || first.track === "NEGATIVE_DISTRIBUTION") {
+  if (
+    first.track === "FRACTION_LINEAR" ||
+    first.track === "NEGATIVE_DISTRIBUTION" ||
+    first.track === "IDENTITY_DIFF_SQUARES" ||
+    first.track === "FACTOR_MONIC_TRINOMIAL" ||
+    first.track === "QUAD_ZERO_PRODUCT"
+  ) {
     return first.track;
   }
   const stageId = String(first.stageId ?? "");
@@ -222,6 +326,27 @@ export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
     stageId === "TRANSFER_FRAC_CLEAR"
   ) {
     return "FRACTION_LINEAR";
+  }
+  if (
+    stageId.startsWith("ID_") ||
+    stageId === "ENTRY_EXPAND_BINOMIAL" ||
+    stageId === "TRANSFER_ID_DIFF"
+  ) {
+    return "IDENTITY_DIFF_SQUARES";
+  }
+  if (
+    stageId.startsWith("FAC_") ||
+    stageId === "ENTRY_FACTOR_EXPAND" ||
+    stageId === "TRANSFER_FAC_NONMONIC"
+  ) {
+    return "FACTOR_MONIC_TRINOMIAL";
+  }
+  if (
+    stageId.startsWith("QUAD_") ||
+    stageId === "ENTRY_QUAD_STANDARD" ||
+    stageId === "TRANSFER_QUAD_ZP"
+  ) {
+    return "QUAD_ZERO_PRODUCT";
   }
   return "NEGATIVE_DISTRIBUTION";
 }
@@ -379,6 +504,23 @@ const MICRO_SKILL_TO_CONCEPT: Record<MicroSkillId, string> = {
   FND_FRACTION_OPS: "C8_FRACTIONAL_COEFFICIENTS",
   LIN_CLEAR_FRACTIONS: "C8_FRACTIONAL_COEFFICIENTS",
   LIN_SOLVE_FRACTIONS: "C8_FRACTIONAL_COEFFICIENTS",
+  ALG_IDENTIFY_STRUCTURE: "ALG_IDENTITIES",
+  EXP_EXPAND_BINOMIALS: "ALG_IDENTITIES",
+  ID_DIFF_SQUARES: "ALG_IDENTITIES",
+  ID_VERIFY_EXPANSION: "ALG_IDENTITIES",
+  FAC_READ_ABC_SIGNS: "ALG_FACTORISATION",
+  FAC_PAIR_PRODUCT_SUM: "ALG_FACTORISATION",
+  FAC_MONIC_TRINOMIAL: "ALG_FACTORISATION",
+  FAC_COMPUTE_AC: "ALG_FACTORISATION",
+  FAC_SPLIT_MIDDLE: "ALG_FACTORISATION",
+  FAC_NONMONIC_GROUP: "ALG_FACTORISATION",
+  FAC_VERIFY_EXPAND: "ALG_FACTORISATION",
+  QUAD_STANDARD_FORM: "ALG_QUADRATICS",
+  QUAD_FACTOR_EXPRESSION: "ALG_QUADRATICS",
+  QUAD_ZERO_PRODUCT: "ALG_QUADRATICS",
+  QUAD_CREATE_BRANCHES: "ALG_QUADRATICS",
+  QUAD_SOLVE_UNIT_FACTOR: "ALG_QUADRATICS",
+  QUAD_VERIFY_ROOTS: "ALG_QUADRATICS",
 };
 
 const RETENTION_CHECK_TYPE = "MICRO_SKILL_RETENTION_CHECK";
@@ -404,6 +546,23 @@ const CHILD_FACING_SKILL_NAMES: Record<MicroSkillId, string> = {
   FND_FRACTION_OPS: "working with fractions",
   LIN_CLEAR_FRACTIONS: "clearing fractions by multiplying both sides",
   LIN_SOLVE_FRACTIONS: "solving equations that have fractions in them",
+  ALG_IDENTIFY_STRUCTURE: "spotting the shape of an expression",
+  EXP_EXPAND_BINOMIALS: "multiplying two brackets",
+  ID_DIFF_SQUARES: "difference of squares",
+  ID_VERIFY_EXPANSION: "checking an expansion",
+  FAC_READ_ABC_SIGNS: "reading the numbers in a trinomial",
+  FAC_PAIR_PRODUCT_SUM: "finding two numbers that multiply and add correctly",
+  FAC_MONIC_TRINOMIAL: "factorising a trinomial that starts with x²",
+  FAC_COMPUTE_AC: "working out a times c",
+  FAC_SPLIT_MIDDLE: "splitting the middle term",
+  FAC_NONMONIC_GROUP: "factorising a trinomial with a number in front of x²",
+  FAC_VERIFY_EXPAND: "checking factors by expanding them",
+  QUAD_STANDARD_FORM: "rewriting a quadratic so it equals zero",
+  QUAD_FACTOR_EXPRESSION: "factorising a quadratic",
+  QUAD_ZERO_PRODUCT: "using the zero-product rule to find roots",
+  QUAD_CREATE_BRANCHES: "setting each factor equal to zero",
+  QUAD_SOLVE_UNIT_FACTOR: "solving a bracket for the letter",
+  QUAD_VERIFY_ROOTS: "checking roots in the original equation",
 };
 
 export function childFacingSkillName(microSkillId: string): string {
@@ -435,6 +594,7 @@ interface StepRow {
   validity: StepValidity;
   verificationSource: VerificationSource;
   attemptedTransformation: StepTransformation;
+  firstInvalidActionCode: string | null;
   firstInvalidActionDescription: string | null;
   primaryMicroSkillId: string | null;
   topicId: string | null;
@@ -639,7 +799,15 @@ export class DiagnosticV2SessionService {
     });
     const layers = layersForMicroSkill(attribution.primary);
     const verifierVersion =
-      track === "FRACTION_LINEAR" ? STEP_VERIFICATION_RULES_FRACTION_V1 : STEP_VERIFICATION_RULES_V1;
+      track === "FRACTION_LINEAR"
+        ? STEP_VERIFICATION_RULES_FRACTION_V1
+        : track === "IDENTITY_DIFF_SQUARES"
+          ? STEP_VERIFICATION_RULES_IDENTITY_V1
+          : track === "FACTOR_MONIC_TRINOMIAL"
+            ? STEP_VERIFICATION_RULES_FACTOR_V1
+            : track === "QUAD_ZERO_PRODUCT"
+              ? STEP_VERIFICATION_RULES_QUADRATIC_V1
+              : STEP_VERIFICATION_RULES_V1;
 
     // 4. Evidence. Unresolved lines produce none at all — an unreadable line is
     //    explicitly not a wrong line. A decline produces SKIPPED, which is a
@@ -1015,6 +1183,9 @@ export class DiagnosticV2SessionService {
       validity: validity!,
       verificationSource,
       attemptedTransformation: verification.transformation,
+      ...(verification.firstInvalidActionCode
+        ? { firstInvalidActionCode: verification.firstInvalidActionCode }
+        : {}),
       ...(verification.firstInvalidActionDescription
         ? { firstInvalidActionDescription: verification.firstInvalidActionDescription }
         : graderReasoning
@@ -1086,6 +1257,9 @@ export class DiagnosticV2SessionService {
         validity: s.validity,
         verificationSource: s.verificationSource,
         attemptedTransformation: s.attemptedTransformation,
+        ...(s.firstInvalidActionCode
+          ? { firstInvalidActionCode: s.firstInvalidActionCode }
+          : {}),
         ...(s.firstInvalidActionDescription
           ? { firstInvalidActionDescription: s.firstInvalidActionDescription }
           : {}),
@@ -1491,8 +1665,14 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
   const isTransferCheck =
     stageId === "TRANSFER_NEG_DIST" ||
     stageId === "TRANSFER_FRAC_CLEAR" ||
+    stageId === "TRANSFER_ID_DIFF" ||
+    stageId === "TRANSFER_FAC_NONMONIC" ||
+    stageId === "TRANSFER_QUAD_ZP" ||
     templateId === "TPL_TRANSFER_NEG_DISTRIBUTION" ||
-    templateId === "TPL_TRANSFER_FRAC_CLEAR";
+    templateId === "TPL_TRANSFER_FRAC_CLEAR" ||
+    templateId === "TPL_TRANSFER_DIFF_SQUARES" ||
+    templateId === "TPL_TRANSFER_FAC_NONMONIC" ||
+    templateId === "TPL_TRANSFER_QUAD_ZP";
 
   const primaryMicroSkillId: MicroSkillId =
     templateId === "TPL_TWO_STEP"
@@ -1507,7 +1687,24 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
                 templateId === "TPL_FRAC_CLEAR_BARE" ||
                 templateId === "TPL_TRANSFER_FRAC_CLEAR"
               ? "LIN_CLEAR_FRACTIONS"
-              : "LIN_DISTRIBUTE_NEG";
+              : templateId === "TPL_EXPAND_BINOMIAL" || templateId === "TPL_FACTOR_EXPAND"
+                ? "EXP_EXPAND_BINOMIALS"
+                : templateId === "TPL_DIFF_SQUARES" ||
+                    templateId === "TPL_DIFF_SQUARES_BARE" ||
+                    templateId === "TPL_TRANSFER_DIFF_SQUARES"
+                  ? "ID_DIFF_SQUARES"
+                  : templateId === "TPL_FAC_MONIC" || templateId === "TPL_FAC_MONIC_BARE"
+                    ? "FAC_MONIC_TRINOMIAL"
+                    : templateId === "TPL_TRANSFER_FAC_NONMONIC"
+                      ? "FAC_NONMONIC_GROUP"
+                      : templateId === "TPL_QUAD_STANDARD"
+                        ? "QUAD_STANDARD_FORM"
+                        : templateId === "TPL_QUAD_ZP_BARE"
+                          ? "QUAD_SOLVE_UNIT_FACTOR"
+                          : templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+                              templateId === "TPL_TRANSFER_QUAD_ZP"
+                            ? "QUAD_ZERO_PRODUCT"
+                            : "LIN_DISTRIBUTE_NEG";
 
   const supportingMicroSkillIds: MicroSkillId[] =
     templateId === "TPL_TWO_STEP"
@@ -1522,7 +1719,26 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
                 templateId === "TPL_FRAC_CLEAR_BARE" ||
                 templateId === "TPL_TRANSFER_FRAC_CLEAR"
               ? ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"]
-              : ["FND_SIGN_MUL_DIV"];
+              : templateId === "TPL_EXPAND_BINOMIAL"
+                ? ["ALG_IDENTIFY_STRUCTURE"]
+                : templateId === "TPL_DIFF_SQUARES" ||
+                    templateId === "TPL_DIFF_SQUARES_BARE" ||
+                    templateId === "TPL_TRANSFER_DIFF_SQUARES"
+                  ? ["EXP_EXPAND_BINOMIALS", "ID_VERIFY_EXPANSION"]
+                  : templateId === "TPL_FACTOR_EXPAND"
+                    ? ["FAC_VERIFY_EXPAND", "ALG_IDENTIFY_STRUCTURE"]
+                    : templateId === "TPL_FAC_MONIC" || templateId === "TPL_FAC_MONIC_BARE"
+                      ? ["FAC_PAIR_PRODUCT_SUM", "FAC_READ_ABC_SIGNS", "FAC_VERIFY_EXPAND"]
+                      : templateId === "TPL_TRANSFER_FAC_NONMONIC"
+                        ? ["FAC_COMPUTE_AC", "FAC_SPLIT_MIDDLE", "FAC_VERIFY_EXPAND"]
+                        : templateId === "TPL_QUAD_STANDARD"
+                          ? ["QUAD_FACTOR_EXPRESSION"]
+                          : templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+                              templateId === "TPL_QUAD_ZP_BARE"
+                            ? ["QUAD_CREATE_BRANCHES", "QUAD_SOLVE_UNIT_FACTOR", "QUAD_VERIFY_ROOTS"]
+                            : templateId === "TPL_TRANSFER_QUAD_ZP"
+                              ? ["QUAD_FACTOR_EXPRESSION", "QUAD_VERIFY_ROOTS"]
+                              : ["FND_SIGN_MUL_DIV"];
 
   return {
     itemKey: attempt.itemKey,
@@ -1549,7 +1765,19 @@ function isItemStageId(v: string): v is DiagnosticV2ItemStageId {
     v === "ENTRY_FRAC_SIMPLE" ||
     v === "FRAC_CLEAR_MAIN" ||
     v === "FRAC_CLEAR_CONTRAST" ||
-    v === "TRANSFER_FRAC_CLEAR"
+    v === "TRANSFER_FRAC_CLEAR" ||
+    v === "ENTRY_EXPAND_BINOMIAL" ||
+    v === "ID_DIFF_MAIN" ||
+    v === "ID_DIFF_CONTRAST" ||
+    v === "TRANSFER_ID_DIFF" ||
+    v === "ENTRY_FACTOR_EXPAND" ||
+    v === "FAC_MONIC_MAIN" ||
+    v === "FAC_MONIC_CONTRAST" ||
+    v === "TRANSFER_FAC_NONMONIC" ||
+    v === "ENTRY_QUAD_STANDARD" ||
+    v === "QUAD_ZP_MAIN" ||
+    v === "QUAD_ZP_CONTRAST" ||
+    v === "TRANSFER_QUAD_ZP"
   );
 }
 
@@ -1563,6 +1791,18 @@ function templateIdFromGeneratedKey(itemKey: string): DiagnosticV2TemplateId {
   if (itemKey.startsWith("GEN_FRAC_CLEAR_BARE")) return "TPL_FRAC_CLEAR_BARE";
   if (itemKey.startsWith("GEN_TRANSFER_FRAC_CLEAR")) return "TPL_TRANSFER_FRAC_CLEAR";
   if (itemKey.startsWith("GEN_FRAC_CLEAR")) return "TPL_FRAC_CLEAR";
+  if (itemKey.startsWith("GEN_EXPAND_BIN")) return "TPL_EXPAND_BINOMIAL";
+  if (itemKey.startsWith("GEN_TRANSFER_DIFF")) return "TPL_TRANSFER_DIFF_SQUARES";
+  if (itemKey.startsWith("GEN_DIFF_SQ_") && itemKey.endsWith("_C")) return "TPL_DIFF_SQUARES_BARE";
+  if (itemKey.startsWith("GEN_DIFF_SQ_")) return "TPL_DIFF_SQUARES";
+  if (itemKey.startsWith("GEN_FACTOR_EXPAND")) return "TPL_FACTOR_EXPAND";
+  if (itemKey.startsWith("GEN_TRANSFER_FAC_NONMONIC")) return "TPL_TRANSFER_FAC_NONMONIC";
+  if (itemKey.startsWith("GEN_FAC_MONIC_") && itemKey.endsWith("_C")) return "TPL_FAC_MONIC_BARE";
+  if (itemKey.startsWith("GEN_FAC_MONIC_")) return "TPL_FAC_MONIC";
+  if (itemKey.startsWith("GEN_QUAD_STD_")) return "TPL_QUAD_STANDARD";
+  if (itemKey.startsWith("GEN_QUAD_ZP_BARE_")) return "TPL_QUAD_ZP_BARE";
+  if (itemKey.startsWith("GEN_TRANSFER_QUAD_ZP_")) return "TPL_TRANSFER_QUAD_ZP";
+  if (itemKey.startsWith("GEN_QUAD_ZP_")) return "TPL_QUAD_ZERO_PRODUCT";
   return "TPL_NEG_DISTRIBUTION";
 }
 
@@ -1584,6 +1824,40 @@ export function lastAcceptedLine(
 
 /** There is no separate "final answer" button — an item ends when the work reaches its end state. */
 export function reachedEndState(item: DiagnosticV2Item, submittedLine: string): boolean {
+  const compact = submittedLine.replace(/\s+/g, "");
+  // B2 transfer / B3 factor stages: end state *has* parentheses (a product).
+  if (
+    item.stageId === "TRANSFER_ID_DIFF" ||
+    item.templateId === "TPL_TRANSFER_DIFF_SQUARES" ||
+    item.stageId === "FAC_MONIC_MAIN" ||
+    item.stageId === "FAC_MONIC_CONTRAST" ||
+    item.stageId === "TRANSFER_FAC_NONMONIC" ||
+    item.templateId === "TPL_FAC_MONIC" ||
+    item.templateId === "TPL_FAC_MONIC_BARE" ||
+    item.templateId === "TPL_TRANSFER_FAC_NONMONIC"
+  ) {
+    return /^\([+-]?\d*[a-z][+-]\d+\)\([+-]?\d*[a-z][+-]\d+\)$/i.test(compact);
+  }
+  // B4: roots list is the end state for zero-product / transfer.
+  if (
+    item.stageId === "QUAD_ZP_MAIN" ||
+    item.stageId === "QUAD_ZP_CONTRAST" ||
+    item.stageId === "TRANSFER_QUAD_ZP" ||
+    item.templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+    item.templateId === "TPL_QUAD_ZP_BARE" ||
+    item.templateId === "TPL_TRANSFER_QUAD_ZP"
+  ) {
+    return /^[a-z]=[+-]?\d+(?:\/\d+)?(?:or|,)(?:[a-z]=)?[+-]?\d+(?:\/\d+)?$/i.test(
+      compact.toLowerCase(),
+    );
+  }
+  // B4 entry: rearranged to …=0
+  if (
+    item.stageId === "ENTRY_QUAD_STANDARD" ||
+    item.templateId === "TPL_QUAD_STANDARD"
+  ) {
+    return /=0$/i.test(compact) && /\^2/.test(compact);
+  }
   if (item.isBareExpression) return !submittedLine.includes("(");
   const parsed = tryParse(submittedLine);
   return parsed ? isSolvedForm(parsed) : false;

@@ -52,6 +52,40 @@ const RULE_PROMPT_TEXT: Record<MicroSkillId, string> = {
     "Multiply every term on both sides by the same common multiple of the denominators — not a different number on each side.",
   LIN_SOLVE_FRACTIONS:
     "Clear the fractions first by multiplying through, then finish the equation like a normal linear one.",
+  ALG_IDENTIFY_STRUCTURE:
+    "Look at the shape first — two brackets multiplied, or a square minus a number — before you expand or factor.",
+  EXP_EXPAND_BINOMIALS:
+    "Multiply each term in the first bracket by each term in the second, then tidy like terms.",
+  ID_DIFF_SQUARES:
+    "When the brackets are (x + a)(x − a), the middle terms cancel and you get x² − a².",
+  ID_VERIFY_EXPANSION:
+    "Expand your factors again (or factor your expansion) and check you get back to the same expression.",
+  FAC_READ_ABC_SIGNS:
+    "Write down a (the number with x²), b (the number with x), and c (the plain number), including their signs.",
+  FAC_PAIR_PRODUCT_SUM:
+    "You need two numbers that multiply to the constant and add to the middle coefficient.",
+  FAC_MONIC_TRINOMIAL:
+    "For x² + bx + c, find two numbers that multiply to c and add to b, then write (x + …)(x + …).",
+  FAC_COMPUTE_AC:
+    "When there is a number in front of x², first multiply a times c — that product is what the factor pair must make.",
+  FAC_SPLIT_MIDDLE:
+    "Split the middle term into two pieces that multiply to a×c and add to b, then group.",
+  FAC_NONMONIC_GROUP:
+    "Group the four terms into two pairs, factor each pair, then pull out the common bracket.",
+  FAC_VERIFY_EXPAND:
+    "Multiply your two brackets back out — you should get exactly the quadratic you started with.",
+  QUAD_STANDARD_FORM:
+    "Move every term to one side so the equation ends with = 0.",
+  QUAD_FACTOR_EXPRESSION:
+    "Factor the quadratic first, then you can use the zero-product rule.",
+  QUAD_ZERO_PRODUCT:
+    "If two things multiply to zero, at least one of them must be zero — set each bracket equal to zero.",
+  QUAD_CREATE_BRANCHES:
+    "Write a separate little equation for each factor: first bracket = 0, and second bracket = 0.",
+  QUAD_SOLVE_UNIT_FACTOR:
+    "Solve each linear factor for the letter — remember to divide by the coefficient if it is not 1.",
+  QUAD_VERIFY_ROOTS:
+    "Put each root back into the original equation and check both sides match.",
 };
 
 /** Said once the student has told us twice that they don't know. Fuller than a rule prompt, still one or two sentences. */
@@ -82,6 +116,40 @@ const FULL_EXPLANATION_TEXT: Record<MicroSkillId, string> = {
     "Find one number that is a multiple of every denominator. Multiply every term on the left and every term on the right by that same number so the fractions disappear together.",
   LIN_SOLVE_FRACTIONS:
     "Once the fractions are gone, collect like terms and finish with the usual two-step moves — move the constant, then divide by the coefficient.",
+  ALG_IDENTIFY_STRUCTURE:
+    "Name the pieces you see: is this a product of two brackets, or already a difference of squares like x² − 9?",
+  EXP_EXPAND_BINOMIALS:
+    "Write four products (first×first, first×second, second×first, second×second), then combine the middle terms if they match.",
+  ID_DIFF_SQUARES:
+    "(x + a)(x − a) always expands to x² − a² — there is no middle x term. Factoring goes the other way: x² − 16 becomes (x + 4)(x − 4).",
+  ID_VERIFY_EXPANSION:
+    "Whatever you wrote, reverse the step once. If expanding and factoring do not match, fix the constants first.",
+  FAC_READ_ABC_SIGNS:
+    "In 2x² − 5x − 3, a is 2, b is −5, and c is −3. Keep every minus with its number.",
+  FAC_PAIR_PRODUCT_SUM:
+    "List factor pairs of the constant. Keep the pair whose sum (or weighted sum) matches the middle term.",
+  FAC_MONIC_TRINOMIAL:
+    "For x² + 5x + 6 the pair is 2 and 3, so the factors are (x + 2)(x + 3). Order of the brackets does not matter.",
+  FAC_COMPUTE_AC:
+    "For 2x² − 5x − 3, a×c = 2 × (−3) = −6. Find two numbers that multiply to −6 and add to −5.",
+  FAC_SPLIT_MIDDLE:
+    "Those two numbers rewrite the middle term, so you can group and factor by grouping.",
+  FAC_NONMONIC_GROUP:
+    "2x² − 5x − 3 becomes (2x + 1)(x − 3). Expand to check: 2x·x + 2x·(−3) + 1·x + 1·(−3).",
+  FAC_VERIFY_EXPAND:
+    "Expand carefully term by term. If you do not get the original quadratic back, one of the constants is wrong.",
+  QUAD_STANDARD_FORM:
+    "From x² + 5x = −6, add 6 to both sides to get x² + 5x + 6 = 0.",
+  QUAD_FACTOR_EXPRESSION:
+    "Once it is = 0, factor the left side the same way you factor any trinomial.",
+  QUAD_ZERO_PRODUCT:
+    "(x + 2)(x − 3) = 0 means x + 2 = 0 or x − 3 = 0, so x = −2 or x = 3.",
+  QUAD_CREATE_BRANCHES:
+    "Do not skip a branch. Both equations matter, and both roots belong in the answer.",
+  QUAD_SOLVE_UNIT_FACTOR:
+    "From 2x + 1 = 0 you get 2x = −1, so x = −1/2. From x − 3 = 0 you get x = 3.",
+  QUAD_VERIFY_ROOTS:
+    "Substitute each root into the original equation. If a side does not match, that root is wrong.",
 };
 
 /**

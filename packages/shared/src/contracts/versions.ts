@@ -130,3 +130,12 @@ export const AUTHORED_ITEM_GATE_V1 = "authored-item-gate-v1";
 // STEP_VERIFICATION_RULES_V1 so changing clearing localization does not
 // silently rewrite the negative-distribution audit trail.
 export const STEP_VERIFICATION_RULES_FRACTION_V1 = "step-verification-rules-fraction-v1";
+
+/** Phase B2 — difference-of-squares / binomial-expand identity track. */
+export const STEP_VERIFICATION_RULES_IDENTITY_V1 = "step-verification-rules-identity-v1";
+
+/** Phase B3 — trinomial factorisation track. */
+export const STEP_VERIFICATION_RULES_FACTOR_V1 = "step-verification-rules-factor-v1";
+
+/** Phase B4 — quadratic zero-product track. */
+export const STEP_VERIFICATION_RULES_QUADRATIC_V1 = "step-verification-rules-quadratic-v1";

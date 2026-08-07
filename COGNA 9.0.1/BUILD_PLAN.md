@@ -13,7 +13,13 @@ The user's full target for this milestone family (MVP 9.0.1–10.0) is larger th
 ## Sequencing (agreed before this plan)
 
 - **(A) — this document.** One narrow, real, end-to-end vertical slice — negative distribution in linear equations, the canonical Arun scenario — with three real AI responsibilities, wired through real UI → API → Postgres. Proves the loop works before scaling it.
-- **(B) — planned topic-by-topic.** Expand verifier + template coverage one topic at a time (brackets/fractions → identities → factorisation → quadratics). This *is* the "2,000 questions" work — the bottleneck is a verified solver per topic, not authoring volume. **B1 (Topic 2 fractions vertical slice):** [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md).
+- **(B) — topic-by-topic.** Expand verifier + template coverage one topic at a time. Bottleneck is a verified solver per topic, not authoring volume.
+  - **B1** fractions: [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md) (~~shipped~~)
+  - **B1.5** fraction AUTHOR: [`BUILD_PLAN_B1.5.md`](./BUILD_PLAN_B1.5.md) (~~shipped~~)
+  - **B2** identities (`ID_DIFF_SQUARES`): [`BUILD_PLAN_B2.md`](./BUILD_PLAN_B2.md) (~~shipped~~; square identities deferred)
+  - **B3** factorisation (trinomial + non-monic transfer): [`BUILD_PLAN_B3.md`](./BUILD_PLAN_B3.md) (~~shipped~~)
+  - **B4** quadratics (zero-product): [`BUILD_PLAN_B4.md`](./BUILD_PLAN_B4.md) (~~shipped~~)
+  - Topic order is serial by curriculum dependency: brackets/fractions → identities → **factorisation** → **quadratics**. Each topic rebuilds the three-piece kit (parser / solver / first-invalid finder) — diffing does not generalize from `linear-bracket-verifier`.
 - **(C) — not yet planned.** A pre-generation/caching layer so "AI decides what's next" is actually fast. A synchronous generate-and-verify call is realistically 2–6 seconds — too slow to feel instant. The fix is pre-fetching a small verified buffer in the background while the student works the current question, not making the model faster.
 - **(D) — not yet planned.** LLM-assisted report generation. Lowest risk, not latency-sensitive, can ship independently of (A)–(C).
 

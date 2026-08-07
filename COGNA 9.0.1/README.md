@@ -70,6 +70,16 @@ Two things get *scheduled* but not yet *done* in this phase: a follow-up check t
 - AI-written parent/student reports — a separate, easier piece we can build in parallel, but it's not part of this phase (Phase D).
 - Any decision about whether this replaces the older version of Cogna's diagnostic system — we're deliberately not deciding that yet.
 
-## Phase B1 (shipped)
+## Phase B status
 
-See [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md). Adds a second diagnostic **track** for linear equations with fractions: a fraction-linear verifier that can tell a wrong common multiple apart from a dropped term, plus templates for entry / clear / contrast / transfer. The original negative-distribution track is unchanged (default). AUTHOR for the fraction grammar stays off until B1.5.
+| Slice | Doc | Status |
+|---|---|---|
+| **B1** fractions track | [`BUILD_PLAN_B.md`](./BUILD_PLAN_B.md) | **Shipped** — Rational/Frac clearing is fraction-safe with dedicated first-invalid codes |
+| **B1.5** fraction AUTHOR | [`BUILD_PLAN_B1.5.md`](./BUILD_PLAN_B1.5.md) | **Shipped** (gate + goldens; live AUTHOR still rare per G1.3) |
+| **B2** difference of squares | [`BUILD_PLAN_B2.md`](./BUILD_PLAN_B2.md) | **Shipped** (DoS expand/factor thin track). `(a±b)²` square identities → B2.x / SKIPPED |
+| **B3** trinomial factorisation | [`BUILD_PLAN_B3.md`](./BUILD_PLAN_B3.md) | **Shipped** — monic primary + non-monic transfer (`2x²−5x−3`); three-piece kit |
+| **B4** quadratic zero-product | [`BUILD_PLAN_B4.md`](./BUILD_PLAN_B4.md) | **Shipped** — rearrange → zero-product → roots; integer-factorability reject |
+
+Every topic uses the same three-piece kit: **parser → independent solver → first-invalid-action finder** (rebuild per topic; do not generalize bracket diffing).
+
+UI adversarial audit of B1 + AI Why/hypothesis: [`eval-ledgers/UI_FRACTION_AUDIT.md`](./eval-ledgers/UI_FRACTION_AUDIT.md).

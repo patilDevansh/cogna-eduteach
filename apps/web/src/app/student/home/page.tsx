@@ -116,13 +116,28 @@ export default function StudentHomePage() {
         ) : (
           <>
             <div className={styles.heroCard}>
-              <span className={styles.kicker}>Up next</span>
-              <h2>{summary?.nextAction ? conceptLabelStudent(summary.nextAction.conceptId) : "Practice"}</h2>
-              <span className={styles.meta}>
-                About 10 minutes · {summary?.nextAction?.reason === "revision" ? "a quick refresh" : "picks up where you left off"}
-              </span>
-              <Link href="/student/practice?mode=ADAPTIVE_PRACTICE" className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
-                Continue practicing
+              <span className={styles.kicker}>Phase B1 — try this</span>
+              <h2>Step check: equations with fractions</h2>
+              <p className={styles.meta}>
+                Write working one line at a time. Starts with a simple fraction equation, then clearing
+                denominators — not the old linear baseline.
+              </p>
+              <Link
+                href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+                className="btn btn-primary"
+                style={{ alignSelf: "flex-start" }}
+              >
+                Start fractions check
+              </Link>
+              <Link
+                href="/student/practice?mode=ADAPTIVE_PRACTICE"
+                className="btn btn-ghost"
+                style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
+              >
+                Or continue practicing
+                {summary?.nextAction
+                  ? ` · ${conceptLabelStudent(summary.nextAction.conceptId)}`
+                  : ""}
               </Link>
             </div>
 

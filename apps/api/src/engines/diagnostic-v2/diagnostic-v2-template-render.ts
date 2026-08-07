@@ -21,6 +21,22 @@ import {
   solveFractionEquationForDisplay,
   verifyFractionStepValidity,
 } from "./fraction-linear-verifier";
+import {
+  parseBinomialProduct,
+  parseExpandedQuadratic,
+} from "./identity-expr-verifier";
+import {
+  factorQuadraticInteger,
+  isIntegerFactorable,
+  parseLinearFactorPair,
+  parseQuadraticPoly,
+} from "./factor-trinomial-verifier";
+import {
+  parseFactoredZeroProduct,
+  parseQuadraticEquation,
+  rearrangeToStandardForm,
+  rootsFromFactors,
+} from "./quadratic-zero-product-verifier";
 import type { DiagnosticV2ItemOrigin, MicroSkillId } from "@cogna/shared";
 
 export type DiagnosticV2TemplateId =
@@ -33,7 +49,19 @@ export type DiagnosticV2TemplateId =
   | "TPL_FRAC_SIMPLE"
   | "TPL_FRAC_CLEAR"
   | "TPL_FRAC_CLEAR_BARE"
-  | "TPL_TRANSFER_FRAC_CLEAR";
+  | "TPL_TRANSFER_FRAC_CLEAR"
+  | "TPL_EXPAND_BINOMIAL"
+  | "TPL_DIFF_SQUARES"
+  | "TPL_DIFF_SQUARES_BARE"
+  | "TPL_TRANSFER_DIFF_SQUARES"
+  | "TPL_FACTOR_EXPAND"
+  | "TPL_FAC_MONIC"
+  | "TPL_FAC_MONIC_BARE"
+  | "TPL_TRANSFER_FAC_NONMONIC"
+  | "TPL_QUAD_STANDARD"
+  | "TPL_QUAD_ZERO_PRODUCT"
+  | "TPL_QUAD_ZP_BARE"
+  | "TPL_TRANSFER_QUAD_ZP";
 
 export const KNOWN_TEMPLATE_IDS: DiagnosticV2TemplateId[] = [
   "TPL_TWO_STEP",
@@ -46,6 +74,18 @@ export const KNOWN_TEMPLATE_IDS: DiagnosticV2TemplateId[] = [
   "TPL_FRAC_CLEAR",
   "TPL_FRAC_CLEAR_BARE",
   "TPL_TRANSFER_FRAC_CLEAR",
+  "TPL_EXPAND_BINOMIAL",
+  "TPL_DIFF_SQUARES",
+  "TPL_DIFF_SQUARES_BARE",
+  "TPL_TRANSFER_DIFF_SQUARES",
+  "TPL_FACTOR_EXPAND",
+  "TPL_FAC_MONIC",
+  "TPL_FAC_MONIC_BARE",
+  "TPL_TRANSFER_FAC_NONMONIC",
+  "TPL_QUAD_STANDARD",
+  "TPL_QUAD_ZERO_PRODUCT",
+  "TPL_QUAD_ZP_BARE",
+  "TPL_TRANSFER_QUAD_ZP",
 ];
 
 export function isKnownTemplateId(v: string): v is DiagnosticV2TemplateId {
@@ -75,7 +115,22 @@ export type DiagnosticV2ItemStageId =
   | "ENTRY_FRAC_SIMPLE"
   | "FRAC_CLEAR_MAIN"
   | "FRAC_CLEAR_CONTRAST"
-  | "TRANSFER_FRAC_CLEAR";
+  | "TRANSFER_FRAC_CLEAR"
+  /** Phase B2 — difference-of-squares track. */
+  | "ENTRY_EXPAND_BINOMIAL"
+  | "ID_DIFF_MAIN"
+  | "ID_DIFF_CONTRAST"
+  | "TRANSFER_ID_DIFF"
+  /** Phase B3 — factorisation track. */
+  | "ENTRY_FACTOR_EXPAND"
+  | "FAC_MONIC_MAIN"
+  | "FAC_MONIC_CONTRAST"
+  | "TRANSFER_FAC_NONMONIC"
+  /** Phase B4 — quadratic zero-product track. */
+  | "ENTRY_QUAD_STANDARD"
+  | "QUAD_ZP_MAIN"
+  | "QUAD_ZP_CONTRAST"
+  | "TRANSFER_QUAD_ZP";
 
 /**
  * What each template can produce, in one line, so the selector can tell
@@ -102,6 +157,30 @@ export const TEMPLATE_DESCRIPTIONS: Record<DiagnosticV2TemplateId, string> = {
     "(v ± a)/d = k, one fraction equals an integer, d ∈ {2,3,4}, contrast probe for clearing only",
   TPL_TRANSFER_FRAC_CLEAR:
     "same clear-fractions shape as TPL_FRAC_CLEAR but tagged as a post-teaching transfer check",
+  TPL_EXPAND_BINOMIAL:
+    "(v+a)(v+b) with a≠−b, a,b ∈ 1..5 — entry expand for the identities track",
+  TPL_DIFF_SQUARES:
+    "(v+k)(v−k), k ∈ 2..6 — primary difference-of-squares expand target",
+  TPL_DIFF_SQUARES_BARE:
+    "(v+k)(v−k) with a different k — contrast probe for the same identity",
+  TPL_TRANSFER_DIFF_SQUARES:
+    "v^2 − k^2 to factor (k ∈ 2..6) — post-teaching transfer check",
+  TPL_FACTOR_EXPAND:
+    "(v+a)(v+b) with a≠−b — entry expand linking into the factorisation track",
+  TPL_FAC_MONIC:
+    "v^2 + b v + c monic trinomial that factors over the integers — primary factor target",
+  TPL_FAC_MONIC_BARE:
+    "monic trinomial with mixed signs — contrast probe for pair product/sum",
+  TPL_TRANSFER_FAC_NONMONIC:
+    "av^2+bv+c with a>1 that factors over the integers — non-monic AC transfer",
+  TPL_QUAD_STANDARD:
+    "v^2 + b v = k rearrange to standard form = 0 — entry for the quadratic track",
+  TPL_QUAD_ZERO_PRODUCT:
+    "(v+a)(v+b)=0 → roots — primary zero-product target",
+  TPL_QUAD_ZP_BARE:
+    "(pv+q)(v+r)=0 with a non-unit factor — contrast for solving branches",
+  TPL_TRANSFER_QUAD_ZP:
+    "monic quadratic = 0 to factor then find roots — post-teaching transfer",
 };
 
 export const TEMPLATE_STAGES: Record<DiagnosticV2TemplateId, DiagnosticV2ItemStageId> = {
@@ -115,6 +194,18 @@ export const TEMPLATE_STAGES: Record<DiagnosticV2TemplateId, DiagnosticV2ItemSta
   TPL_FRAC_CLEAR: "FRAC_CLEAR_MAIN",
   TPL_FRAC_CLEAR_BARE: "FRAC_CLEAR_CONTRAST",
   TPL_TRANSFER_FRAC_CLEAR: "TRANSFER_FRAC_CLEAR",
+  TPL_EXPAND_BINOMIAL: "ENTRY_EXPAND_BINOMIAL",
+  TPL_DIFF_SQUARES: "ID_DIFF_MAIN",
+  TPL_DIFF_SQUARES_BARE: "ID_DIFF_CONTRAST",
+  TPL_TRANSFER_DIFF_SQUARES: "TRANSFER_ID_DIFF",
+  TPL_FACTOR_EXPAND: "ENTRY_FACTOR_EXPAND",
+  TPL_FAC_MONIC: "FAC_MONIC_MAIN",
+  TPL_FAC_MONIC_BARE: "FAC_MONIC_CONTRAST",
+  TPL_TRANSFER_FAC_NONMONIC: "TRANSFER_FAC_NONMONIC",
+  TPL_QUAD_STANDARD: "ENTRY_QUAD_STANDARD",
+  TPL_QUAD_ZERO_PRODUCT: "QUAD_ZP_MAIN",
+  TPL_QUAD_ZP_BARE: "QUAD_ZP_CONTRAST",
+  TPL_TRANSFER_QUAD_ZP: "TRANSFER_QUAD_ZP",
 };
 
 export interface DiagnosticV2Item {
@@ -255,6 +346,153 @@ export const FIXED_ITEMS: readonly DiagnosticV2Item[] = [
     openingLine: "(z - 2)/3 = (z + 1)/6 + 1",
     primaryMicroSkillId: "LIN_CLEAR_FRACTIONS",
     supportingMicroSkillIds: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+    isTransferCheck: true,
+    isBareExpression: false,
+  },
+  // ── Phase B2 difference-of-squares track ─────────────────────────────────
+  {
+    itemKey: "ENTRY_EXPAND_BINOMIAL",
+    templateId: "TPL_EXPAND_BINOMIAL",
+    origin: "PRE_WRITTEN",
+    stageId: "ENTRY_EXPAND_BINOMIAL",
+    prompt: "Expand:  (x + 2)(x + 3)",
+    openingLine: "(x + 2)(x + 3)",
+    primaryMicroSkillId: "EXP_EXPAND_BINOMIALS",
+    supportingMicroSkillIds: ["ALG_IDENTIFY_STRUCTURE"],
+    isTransferCheck: false,
+    isBareExpression: true,
+  },
+  {
+    itemKey: "ID_DIFF_MAIN",
+    templateId: "TPL_DIFF_SQUARES",
+    origin: "PRE_WRITTEN",
+    stageId: "ID_DIFF_MAIN",
+    prompt: "Expand:  (x + 3)(x - 3)",
+    openingLine: "(x + 3)(x - 3)",
+    primaryMicroSkillId: "ID_DIFF_SQUARES",
+    supportingMicroSkillIds: ["EXP_EXPAND_BINOMIALS", "ID_VERIFY_EXPANSION"],
+    isTransferCheck: false,
+    isBareExpression: true,
+  },
+  {
+    itemKey: "ID_DIFF_CONTRAST",
+    templateId: "TPL_DIFF_SQUARES_BARE",
+    origin: "PRE_WRITTEN",
+    stageId: "ID_DIFF_CONTRAST",
+    prompt: "Expand:  (y + 5)(y - 5)",
+    openingLine: "(y + 5)(y - 5)",
+    primaryMicroSkillId: "ID_DIFF_SQUARES",
+    supportingMicroSkillIds: ["EXP_EXPAND_BINOMIALS"],
+    isTransferCheck: false,
+    isBareExpression: true,
+  },
+  {
+    itemKey: "TRANSFER_ID_DIFF",
+    templateId: "TPL_TRANSFER_DIFF_SQUARES",
+    origin: "PRE_WRITTEN",
+    stageId: "TRANSFER_ID_DIFF",
+    prompt: "Factor:  z^2 - 16",
+    openingLine: "z^2 - 16",
+    primaryMicroSkillId: "ID_DIFF_SQUARES",
+    supportingMicroSkillIds: ["ID_VERIFY_EXPANSION", "ALG_IDENTIFY_STRUCTURE"],
+    isTransferCheck: true,
+    isBareExpression: true,
+  },
+  // ── Phase B3 factorisation track ─────────────────────────────────────────
+  {
+    itemKey: "ENTRY_FACTOR_EXPAND",
+    templateId: "TPL_FACTOR_EXPAND",
+    origin: "PRE_WRITTEN",
+    stageId: "ENTRY_FACTOR_EXPAND",
+    prompt: "Expand:  (x + 2)(x + 3)",
+    openingLine: "(x + 2)(x + 3)",
+    primaryMicroSkillId: "EXP_EXPAND_BINOMIALS",
+    supportingMicroSkillIds: ["FAC_VERIFY_EXPAND", "ALG_IDENTIFY_STRUCTURE"],
+    isTransferCheck: false,
+    isBareExpression: true,
+  },
+  {
+    itemKey: "FAC_MONIC_MAIN",
+    templateId: "TPL_FAC_MONIC",
+    origin: "PRE_WRITTEN",
+    stageId: "FAC_MONIC_MAIN",
+    prompt: "Factor:  x^2 + 5x + 6",
+    openingLine: "x^2 + 5x + 6",
+    primaryMicroSkillId: "FAC_MONIC_TRINOMIAL",
+    supportingMicroSkillIds: ["FAC_PAIR_PRODUCT_SUM", "FAC_READ_ABC_SIGNS", "FAC_VERIFY_EXPAND"],
+    isTransferCheck: false,
+    isBareExpression: true,
+  },
+  {
+    itemKey: "FAC_MONIC_CONTRAST",
+    templateId: "TPL_FAC_MONIC_BARE",
+    origin: "PRE_WRITTEN",
+    stageId: "FAC_MONIC_CONTRAST",
+    prompt: "Factor:  x^2 - x - 6",
+    openingLine: "x^2 - x - 6",
+    primaryMicroSkillId: "FAC_MONIC_TRINOMIAL",
+    supportingMicroSkillIds: ["FAC_PAIR_PRODUCT_SUM", "FAC_READ_ABC_SIGNS"],
+    isTransferCheck: false,
+    isBareExpression: true,
+  },
+  {
+    itemKey: "TRANSFER_FAC_NONMONIC",
+    templateId: "TPL_TRANSFER_FAC_NONMONIC",
+    origin: "PRE_WRITTEN",
+    stageId: "TRANSFER_FAC_NONMONIC",
+    prompt: "Factor:  2x^2 - 5x - 3",
+    openingLine: "2x^2 - 5x - 3",
+    primaryMicroSkillId: "FAC_NONMONIC_GROUP",
+    supportingMicroSkillIds: ["FAC_COMPUTE_AC", "FAC_SPLIT_MIDDLE", "FAC_VERIFY_EXPAND"],
+    isTransferCheck: true,
+    isBareExpression: true,
+  },
+  // ── Phase B4 quadratic zero-product track ────────────────────────────────
+  {
+    itemKey: "ENTRY_QUAD_STANDARD",
+    templateId: "TPL_QUAD_STANDARD",
+    origin: "PRE_WRITTEN",
+    stageId: "ENTRY_QUAD_STANDARD",
+    prompt: "Rewrite in standard form:  x^2 + 5x = -6",
+    openingLine: "x^2 + 5x = -6",
+    primaryMicroSkillId: "QUAD_STANDARD_FORM",
+    supportingMicroSkillIds: ["QUAD_FACTOR_EXPRESSION"],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
+  {
+    itemKey: "QUAD_ZP_MAIN",
+    templateId: "TPL_QUAD_ZERO_PRODUCT",
+    origin: "PRE_WRITTEN",
+    stageId: "QUAD_ZP_MAIN",
+    prompt: "Solve:  (x + 2)(x - 3) = 0",
+    openingLine: "(x + 2)(x - 3) = 0",
+    primaryMicroSkillId: "QUAD_ZERO_PRODUCT",
+    supportingMicroSkillIds: ["QUAD_CREATE_BRANCHES", "QUAD_SOLVE_UNIT_FACTOR", "QUAD_VERIFY_ROOTS"],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
+  {
+    itemKey: "QUAD_ZP_CONTRAST",
+    templateId: "TPL_QUAD_ZP_BARE",
+    origin: "PRE_WRITTEN",
+    stageId: "QUAD_ZP_CONTRAST",
+    prompt: "Solve:  (2x + 1)(x - 3) = 0",
+    openingLine: "(2x + 1)(x - 3) = 0",
+    primaryMicroSkillId: "QUAD_SOLVE_UNIT_FACTOR",
+    supportingMicroSkillIds: ["QUAD_ZERO_PRODUCT", "QUAD_CREATE_BRANCHES", "QUAD_VERIFY_ROOTS"],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
+  {
+    itemKey: "TRANSFER_QUAD_ZP",
+    templateId: "TPL_TRANSFER_QUAD_ZP",
+    origin: "PRE_WRITTEN",
+    stageId: "TRANSFER_QUAD_ZP",
+    prompt: "Solve:  x^2 - x - 6 = 0",
+    openingLine: "x^2 - x - 6 = 0",
+    primaryMicroSkillId: "QUAD_ZERO_PRODUCT",
+    supportingMicroSkillIds: ["QUAD_FACTOR_EXPRESSION", "QUAD_VERIFY_ROOTS"],
     isTransferCheck: true,
     isBareExpression: false,
   },
@@ -511,6 +749,235 @@ export function renderTemplate(
         isBareExpression: false,
       };
     }
+    case "TPL_EXPAND_BINOMIAL": {
+      const a = pick([1, 2, 3, 4] as const, s, 0);
+      let b = pick([2, 3, 4, 5] as const, s, 1);
+      if (b === a) b = a + 1;
+      const v = pick(VARIABLES, s, 2);
+      const opening = `(${v} + ${a})(${v} + ${b})`;
+      return {
+        itemKey: `GEN_EXPAND_BIN_${a}_${b}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Expand:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "EXP_EXPAND_BINOMIALS",
+        supportingMicroSkillIds: ["ALG_IDENTIFY_STRUCTURE"],
+        isTransferCheck: false,
+        isBareExpression: true,
+      };
+    }
+    case "TPL_DIFF_SQUARES":
+    case "TPL_DIFF_SQUARES_BARE": {
+      const k = pick([2, 3, 4, 5, 6] as const, s, 0);
+      const v = pick(VARIABLES, s, 1);
+      const opening = `(${v} + ${k})(${v} - ${k})`;
+      return {
+        itemKey: `GEN_DIFF_SQ_${k}_${v}_${templateId === "TPL_DIFF_SQUARES_BARE" ? "C" : "M"}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Expand:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "ID_DIFF_SQUARES",
+        supportingMicroSkillIds: ["EXP_EXPAND_BINOMIALS", "ID_VERIFY_EXPANSION"],
+        isTransferCheck: false,
+        isBareExpression: true,
+      };
+    }
+    case "TPL_TRANSFER_DIFF_SQUARES": {
+      const k = pick([2, 3, 4, 5, 6] as const, s, 0);
+      const v = pick(["z", "n", "t"] as const, s, 1);
+      const opening = `${v}^2 - ${k * k}`;
+      return {
+        itemKey: `GEN_TRANSFER_DIFF_${k}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Factor:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "ID_DIFF_SQUARES",
+        supportingMicroSkillIds: ["ID_VERIFY_EXPANSION", "ALG_IDENTIFY_STRUCTURE"],
+        isTransferCheck: true,
+        isBareExpression: true,
+      };
+    }
+    case "TPL_FACTOR_EXPAND": {
+      const a = pick([1, 2, 3, 4] as const, s, 0);
+      let b = pick([2, 3, 4, 5] as const, s, 1);
+      if (b === a) b = a + 1;
+      const v = pick(VARIABLES, s, 2);
+      const opening = `(${v} + ${a})(${v} + ${b})`;
+      return {
+        itemKey: `GEN_FACTOR_EXPAND_${a}_${b}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Expand:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "EXP_EXPAND_BINOMIALS",
+        supportingMicroSkillIds: ["FAC_VERIFY_EXPAND", "ALG_IDENTIFY_STRUCTURE"],
+        isTransferCheck: false,
+        isBareExpression: true,
+      };
+    }
+    case "TPL_FAC_MONIC":
+    case "TPL_FAC_MONIC_BARE": {
+      // Pools of (p,q) → x^2+(p+q)x+pq that factor cleanly.
+      const pairs: ReadonlyArray<readonly [number, number]> =
+        templateId === "TPL_FAC_MONIC_BARE"
+          ? [
+              [-3, 2],
+              [-4, 1],
+              [3, -2],
+              [-5, 2],
+            ]
+          : [
+              [2, 3],
+              [1, 4],
+              [2, 4],
+              [1, 5],
+              [3, 4],
+            ];
+      const pair = pick(pairs, s, 0);
+      const v = pick(VARIABLES, s, 1);
+      const b = pair[0] + pair[1];
+      const c = pair[0] * pair[1];
+      const mid = b === 0 ? "" : b > 0 ? `+${b}${v}` : `${b}${v}`;
+      const opening = `${v}^2${mid}${c >= 0 ? `+${c}` : `${c}`}`;
+      return {
+        itemKey: `GEN_FAC_MONIC_${pair[0]}_${pair[1]}_${v}_${templateId === "TPL_FAC_MONIC_BARE" ? "C" : "M"}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Factor:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "FAC_MONIC_TRINOMIAL",
+        supportingMicroSkillIds: ["FAC_PAIR_PRODUCT_SUM", "FAC_READ_ABC_SIGNS", "FAC_VERIFY_EXPAND"],
+        isTransferCheck: false,
+        isBareExpression: true,
+      };
+    }
+    case "TPL_TRANSFER_FAC_NONMONIC": {
+      // Known integer-factorable non-monics: (2x+1)(x-3)=2x^2-5x-3, etc.
+      const pool = [
+        { a: 2, b: -5, c: -3 },
+        { a: 2, b: 7, c: 3 },
+        { a: 3, b: 7, c: 2 },
+        { a: 2, b: -7, c: 3 },
+      ] as const;
+      const t = pick(pool, s, 0);
+      const v = pick(["x", "y", "z"] as const, s, 1);
+      const mid = t.b > 0 ? `+${t.b}${v}` : `${t.b}${v}`;
+      const opening = `${t.a}${v}^2${mid}${t.c >= 0 ? `+${t.c}` : `${t.c}`}`;
+      return {
+        itemKey: `GEN_TRANSFER_FAC_NONMONIC_${t.a}_${t.b}_${t.c}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Factor:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "FAC_NONMONIC_GROUP",
+        supportingMicroSkillIds: ["FAC_COMPUTE_AC", "FAC_SPLIT_MIDDLE", "FAC_VERIFY_EXPAND"],
+        isTransferCheck: true,
+        isBareExpression: true,
+      };
+    }
+    case "TPL_QUAD_STANDARD": {
+      const p = pick([2, 3, 1, 4] as const, s, 0);
+      const q = pick([3, 2, 4, 1] as const, s, 1);
+      const v = pick(VARIABLES, s, 2);
+      const b = p + q;
+      const c = p * q;
+      // v^2 + b v = -c
+      const mid = b > 0 ? `+${b}${v}` : `${b}${v}`;
+      const opening = `${v}^2${mid}=${-c}`;
+      return {
+        itemKey: `GEN_QUAD_STD_${p}_${q}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Rewrite in standard form:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "QUAD_STANDARD_FORM",
+        supportingMicroSkillIds: ["QUAD_FACTOR_EXPRESSION"],
+        isTransferCheck: false,
+        isBareExpression: false,
+      };
+    }
+    case "TPL_QUAD_ZERO_PRODUCT": {
+      const a = pick([2, 3, 1, 4] as const, s, 0);
+      let b = pick([-3, -2, -4, -1, 3] as const, s, 1);
+      if (b === -a) b = -a - 1;
+      const v = pick(VARIABLES, s, 2);
+      const left = a >= 0 ? `${v} + ${a}` : `${v} - ${-a}`;
+      const right = b >= 0 ? `${v} + ${b}` : `${v} - ${-b}`;
+      const opening = `(${left})(${right}) = 0`;
+      return {
+        itemKey: `GEN_QUAD_ZP_${a}_${b}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Solve:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "QUAD_ZERO_PRODUCT",
+        supportingMicroSkillIds: ["QUAD_CREATE_BRANCHES", "QUAD_SOLVE_UNIT_FACTOR", "QUAD_VERIFY_ROOTS"],
+        isTransferCheck: false,
+        isBareExpression: false,
+      };
+    }
+    case "TPL_QUAD_ZP_BARE": {
+      const pool = [
+        { p: 2, q: 1, r: -3 },
+        { p: 2, q: -1, r: 3 },
+        { p: 3, q: 1, r: -2 },
+      ] as const;
+      const t = pick(pool, s, 0);
+      const v = pick(["x", "y", "n"] as const, s, 1);
+      const left =
+        t.q >= 0 ? `${t.p}${v} + ${t.q}` : `${t.p}${v} - ${-t.q}`;
+      const right = t.r >= 0 ? `${v} + ${t.r}` : `${v} - ${-t.r}`;
+      const opening = `(${left})(${right}) = 0`;
+      return {
+        itemKey: `GEN_QUAD_ZP_BARE_${t.p}_${t.q}_${t.r}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Solve:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "QUAD_SOLVE_UNIT_FACTOR",
+        supportingMicroSkillIds: ["QUAD_ZERO_PRODUCT", "QUAD_CREATE_BRANCHES", "QUAD_VERIFY_ROOTS"],
+        isTransferCheck: false,
+        isBareExpression: false,
+      };
+    }
+    case "TPL_TRANSFER_QUAD_ZP": {
+      const pairs = [
+        [2, -3],
+        [3, -2],
+        [1, -4],
+        [4, -1],
+      ] as const;
+      const pair = pick(pairs, s, 0);
+      const v = pick(["x", "z", "n"] as const, s, 1);
+      const b = pair[0] + pair[1];
+      const c = pair[0] * pair[1];
+      const mid = b === 0 ? "" : b > 0 ? `+${b}${v}` : `${b}${v}`;
+      const opening = `${v}^2${mid}${c >= 0 ? `+${c}` : `${c}`} = 0`;
+      return {
+        itemKey: `GEN_TRANSFER_QUAD_ZP_${pair[0]}_${pair[1]}_${v}`,
+        templateId,
+        origin: "TEMPLATE_RENDERED",
+        stageId: TEMPLATE_STAGES[templateId],
+        prompt: `Solve:  ${opening}`,
+        openingLine: opening,
+        primaryMicroSkillId: "QUAD_ZERO_PRODUCT",
+        supportingMicroSkillIds: ["QUAD_FACTOR_EXPRESSION", "QUAD_VERIFY_ROOTS"],
+        isTransferCheck: true,
+        isBareExpression: false,
+      };
+    }
   }
 }
 
@@ -600,6 +1067,114 @@ export interface RenderVerification {
  */
 export function verifyRendered(item: DiagnosticV2Item): RenderVerification {
   const failures: string[] = [];
+
+  // Phase B3 factorisation items.
+  const factorItem =
+    item.stageId === "ENTRY_FACTOR_EXPAND" ||
+    item.stageId.startsWith("FAC_") ||
+    item.stageId === "TRANSFER_FAC_NONMONIC" ||
+    item.primaryMicroSkillId === "FAC_MONIC_TRINOMIAL" ||
+    item.primaryMicroSkillId === "FAC_NONMONIC_GROUP";
+  if (factorItem) {
+    if (!item.prompt.includes(item.openingLine)) {
+      failures.push("prompt text does not contain the opening line the student will work from");
+    }
+    if (item.stageId === "ENTRY_FACTOR_EXPAND") {
+      if (!parseLinearFactorPair(item.openingLine)) {
+        failures.push("factor entry must open as a binomial product");
+      }
+    } else {
+      const quad = parseQuadraticPoly(item.openingLine);
+      if (!quad) {
+        failures.push("factor item opening line must be a quadratic polynomial");
+      } else if (!isIntegerFactorable(quad)) {
+        failures.push("factor item must factor over the integers");
+      } else if (
+        (item.stageId === "TRANSFER_FAC_NONMONIC" ||
+          item.templateId === "TPL_TRANSFER_FAC_NONMONIC") &&
+        quad.a === 1
+      ) {
+        failures.push("non-monic transfer must have leading coefficient ≠ 1");
+      }
+      void factorQuadraticInteger;
+    }
+    return { passed: failures.length === 0, failures };
+  }
+
+  // Phase B4 quadratic zero-product items.
+  const quadItem =
+    item.stageId.startsWith("QUAD_") ||
+    item.stageId === "ENTRY_QUAD_STANDARD" ||
+    item.stageId === "TRANSFER_QUAD_ZP" ||
+    item.primaryMicroSkillId === "QUAD_ZERO_PRODUCT" ||
+    item.primaryMicroSkillId === "QUAD_STANDARD_FORM" ||
+    item.primaryMicroSkillId === "QUAD_SOLVE_UNIT_FACTOR";
+  if (quadItem) {
+    if (!item.prompt.includes(item.openingLine)) {
+      failures.push("prompt text does not contain the opening line the student will work from");
+    }
+    if (item.stageId === "ENTRY_QUAD_STANDARD") {
+      const std = rearrangeToStandardForm(item.openingLine);
+      if (!std || std.rhs !== 0) {
+        failures.push("quad entry must rearrange to a standard-form quadratic = 0");
+      } else if (!isIntegerFactorable(std.lhs)) {
+        failures.push("quad entry standard form must be integer-factorable");
+      }
+    } else if (
+      item.stageId === "QUAD_ZP_MAIN" ||
+      item.stageId === "QUAD_ZP_CONTRAST" ||
+      item.templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+      item.templateId === "TPL_QUAD_ZP_BARE"
+    ) {
+      const factored = parseFactoredZeroProduct(item.openingLine);
+      if (!factored) {
+        failures.push("zero-product item must open as (px+q)(rx+s)=0");
+      } else {
+        const roots = rootsFromFactors(factored);
+        if (roots.roots.length !== 2) {
+          failures.push("zero-product item must yield two roots");
+        }
+      }
+    } else {
+      const eq = parseQuadraticEquation(item.openingLine);
+      if (!eq || eq.rhs !== 0) {
+        failures.push("transfer quad item must be a quadratic = 0");
+      } else if (!isIntegerFactorable(eq.lhs)) {
+        failures.push("transfer quad must be integer-factorable");
+      }
+    }
+    return { passed: failures.length === 0, failures };
+  }
+
+  // Phase B2 identity items — binomial products / difference-of-squares quadratics.
+  const identityItem =
+    item.primaryMicroSkillId === "ID_DIFF_SQUARES" ||
+    (item.primaryMicroSkillId === "EXP_EXPAND_BINOMIALS" &&
+      (item.stageId.startsWith("ID_") ||
+        item.stageId === "ENTRY_EXPAND_BINOMIAL" ||
+        item.stageId === "TRANSFER_ID_DIFF")) ||
+    item.stageId.startsWith("ID_") ||
+    item.stageId === "ENTRY_EXPAND_BINOMIAL" ||
+    item.stageId === "TRANSFER_ID_DIFF";
+  if (identityItem) {
+    if (!item.prompt.includes(item.openingLine)) {
+      failures.push("prompt text does not contain the opening line the student will work from");
+    }
+    const product = parseBinomialProduct(item.openingLine);
+    const quad = parseExpandedQuadratic(item.openingLine);
+    if (!product && !quad) {
+      failures.push("identity opening line is neither a binomial product nor a quadratic");
+    }
+    if (item.stageId === "TRANSFER_ID_DIFF" || item.templateId === "TPL_TRANSFER_DIFF_SQUARES") {
+      if (!quad || quad.b !== 0 || quad.c >= 0) {
+        failures.push("transfer identity item must be a difference of squares (x² − k)");
+      }
+    } else if (!product) {
+      failures.push("expand identity item must open as a binomial product");
+    }
+    return { passed: failures.length === 0, failures };
+  }
+
   const fractionItem =
     lineHasFractionSyntax(item.openingLine) ||
     item.primaryMicroSkillId === "LIN_CLEAR_FRACTIONS" ||

@@ -17,11 +17,17 @@ import {
   humanizeDiagnosticCodesInText,
 } from "@/lib/diagnostic-v2-labels";
 import { getStudent } from "@/lib/session";
+import { MathLine } from "@/components/math-line";
 import styles from "@/components/diagnostic-v2.module.css";
 
 type Phase = "checking" | "intro" | "working" | "complete";
 
-type DiagnosticTrackChoice = "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR";
+type DiagnosticTrackChoice =
+  | "NEGATIVE_DISTRIBUTION"
+  | "FRACTION_LINEAR"
+  | "IDENTITY_DIFF_SQUARES"
+  | "FACTOR_MONIC_TRINOMIAL"
+  | "QUAD_ZERO_PRODUCT";
 
 type Attempt = DiagnosticV2AttemptView;
 
@@ -91,7 +97,13 @@ function DiagnosticV2Content() {
       ? "FRACTION_LINEAR"
       : trackParam === "NEGATIVE_DISTRIBUTION"
         ? "NEGATIVE_DISTRIBUTION"
-        : "FRACTION_LINEAR";
+        : trackParam === "IDENTITY_DIFF_SQUARES"
+          ? "IDENTITY_DIFF_SQUARES"
+          : trackParam === "FACTOR_MONIC_TRINOMIAL"
+            ? "FACTOR_MONIC_TRINOMIAL"
+            : trackParam === "QUAD_ZERO_PRODUCT"
+              ? "QUAD_ZERO_PRODUCT"
+              : "FRACTION_LINEAR";
 
   const [phase, setPhase] = useState<Phase>("checking");
   const [studentId, setStudentId] = useState("");
@@ -165,7 +177,15 @@ function DiagnosticV2Content() {
       const track = sessionTrack;
       const session = await api.startDiagnosticV2Session(studentId, track);
       const expectedOpening =
-        track === "FRACTION_LINEAR" ? "ENTRY_FRAC_SIMPLE" : "ENTRY_TWO_STEP";
+        track === "FRACTION_LINEAR"
+          ? "ENTRY_FRAC_SIMPLE"
+          : track === "IDENTITY_DIFF_SQUARES"
+            ? "ENTRY_EXPAND_BINOMIAL"
+            : track === "FACTOR_MONIC_TRINOMIAL"
+              ? "ENTRY_FACTOR_EXPAND"
+              : track === "QUAD_ZERO_PRODUCT"
+                ? "ENTRY_QUAD_STANDARD"
+                : "ENTRY_TWO_STEP";
       if (session.itemKey !== expectedOpening) {
         setError(
           `Track mismatch: asked for ${track} but server opened ${session.itemKey} (${session.equationPrompt}). Refresh and try again.`,
@@ -186,7 +206,13 @@ function DiagnosticV2Content() {
         reasoning:
           track === "FRACTION_LINEAR"
             ? "Opening item of the fraction-linear diagnostic track."
-            : OPENING_WHY,
+            : track === "IDENTITY_DIFF_SQUARES"
+              ? "Opening item of the difference-of-squares identities track."
+              : track === "FACTOR_MONIC_TRINOMIAL"
+                ? "Opening item of the factorisation track."
+                : track === "QUAD_ZERO_PRODUCT"
+                  ? "Opening item of the quadratic zero-product track."
+                  : OPENING_WHY,
         itemKey: session.itemKey,
         stageId: session.stageId,
         origin: "PRE_WRITTEN",
@@ -369,6 +395,50 @@ function DiagnosticV2Content() {
             <input
               type="radio"
               name="diagnosticTrack"
+              checked={sessionTrack === "IDENTITY_DIFF_SQUARES"}
+              onChange={() => setSessionTrack("IDENTITY_DIFF_SQUARES")}
+            />
+            <span>
+              <strong>Difference of squares</strong>
+              <span className={styles.trackHint}>
+                Expand <code>(x+3)(x−3)</code>, then factor <code>z²−16</code> —
+                Phase B2 identities path.
+              </span>
+            </span>
+          </label>
+          <label className={styles.trackOption}>
+            <input
+              type="radio"
+              name="diagnosticTrack"
+              checked={sessionTrack === "FACTOR_MONIC_TRINOMIAL"}
+              onChange={() => setSessionTrack("FACTOR_MONIC_TRINOMIAL")}
+            />
+            <span>
+              <strong>Factorising trinomials</strong>
+              <span className={styles.trackHint}>
+                Factor <code>x²+5x+6</code>, then the non-monic{" "}
+                <code>2x²−5x−3</code> — Phase B3.
+              </span>
+            </span>
+          </label>
+          <label className={styles.trackOption}>
+            <input
+              type="radio"
+              name="diagnosticTrack"
+              checked={sessionTrack === "QUAD_ZERO_PRODUCT"}
+              onChange={() => setSessionTrack("QUAD_ZERO_PRODUCT")}
+            />
+            <span>
+              <strong>Quadratics via factorising</strong>
+              <span className={styles.trackHint}>
+                From <code>(x+2)(x−3)=0</code> to roots — Phase B4 zero-product.
+              </span>
+            </span>
+          </label>
+          <label className={styles.trackOption}>
+            <input
+              type="radio"
+              name="diagnosticTrack"
               checked={sessionTrack === "NEGATIVE_DISTRIBUTION"}
               onChange={() => setSessionTrack("NEGATIVE_DISTRIBUTION")}
             />
@@ -443,7 +513,13 @@ function DiagnosticV2Content() {
       <p className={styles.trackBadge} role="status">
         {sessionTrack === "FRACTION_LINEAR"
           ? "Track: equations with fractions (clearing denominators)"
-          : "Track: brackets & negative signs"}
+          : sessionTrack === "IDENTITY_DIFF_SQUARES"
+            ? "Track: difference of squares (identities)"
+            : sessionTrack === "FACTOR_MONIC_TRINOMIAL"
+              ? "Track: factorising trinomials"
+              : sessionTrack === "QUAD_ZERO_PRODUCT"
+                ? "Track: quadratics via zero-product"
+                : "Track: brackets & negative signs"}
       </p>
 
       {notice && (
@@ -487,7 +563,9 @@ function DiagnosticV2Content() {
       <ol className={styles.working}>
         <li className={`${styles.workingLine} ${styles.givenLine}`}>
           <span className={styles.lineTag}>Given</span>
-          <span>{attempt?.equationPrompt}</span>
+          {attempt?.equationPrompt ? (
+            <MathLine text={attempt.equationPrompt} />
+          ) : null}
         </li>
         {acceptedLines.map((line, i) => (
           <li
@@ -495,7 +573,7 @@ function DiagnosticV2Content() {
             className={`${styles.workingLine} ${styles.acceptedLine} settle`}
           >
             <span className={styles.lineTag}>Line {i + 1}</span>
-            <span>{line}</span>
+            <MathLine text={line} />
           </li>
         ))}
       </ol>
