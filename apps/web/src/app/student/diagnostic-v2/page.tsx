@@ -346,7 +346,7 @@ function DiagnosticV2Content() {
   const chrome = (
     <div className={styles.chrome}>
       <Link href="/" className="wordmark">
-        cogna<span className="dot">.</span>
+        Cogna<span className="dot">.</span>
       </Link>
       <span className="time-note">No timer, no score — just your working.</span>
     </div>

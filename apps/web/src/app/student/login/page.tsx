@@ -50,7 +50,7 @@ export default function StudentLoginPage() {
     <div className={styles.stage}>
       <div className={styles.chrome}>
         <Link href="/" className="wordmark">
-          cogna<span className="dot">.</span>
+          Cogna<span className="dot">.</span>
         </Link>
         <Link href="/parent/login" className="btn-quiet">
           I&apos;m a parent

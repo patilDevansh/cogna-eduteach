@@ -26,7 +26,7 @@ function Chrome() {
   return (
     <div className={styles.chrome}>
       <Link href="/" className="wordmark">
-        cogna<span className="dot">.</span>
+        Cogna<span className="dot">.</span>
       </Link>
       <Link href="/student/login" className="btn-quiet">
         I&apos;m a student
