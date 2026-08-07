@@ -4,6 +4,7 @@ import {
   DiagnosticV2ReportService,
   type DiagnosticV2ReportStructuredData,
 } from "../../src/engines/diagnostic-v2/diagnostic-v2-report.service";
+import { buildSummaryOverview } from "../../src/engines/diagnostic-v2/diagnostic-v2-summary";
 import { ReportGeneratorAgentService } from "../../src/engines/report-generator/report-generator-agent.service";
 import { mockOrchestrator } from "./helpers/diagnostic-v2-fakes";
 
@@ -68,6 +69,28 @@ describe("DiagnosticV2ReportService — D.v2 templates", () => {
     assert.match(text, /clearing fractions/);
     assert.match(text, /solving equations that have fractions/);
     assert.match(text, /come back to it in a few days/);
+  });
+
+  it("buildSummaryOverview keeps qualitative skill rows for the end screen", () => {
+    const overview = buildSummaryOverview({
+      itemsAttempted: 3,
+      itemsCompleted: 2,
+      states: [
+        { microSkillId: "LIN_CLEAR_FRACTIONS", status: "RELIABLE" },
+        { microSkillId: "LIN_SOLVE_FRACTIONS", status: "LIKELY_GAP" },
+      ],
+      hypotheses: [
+        {
+          microSkillId: "LIN_SOLVE_FRACTIONS",
+          childFacingSummary: "Next time we'll spend a bit of time on fraction equations.",
+        },
+      ],
+    });
+    assert.equal(overview.itemsCompleted, 2);
+    assert.equal(overview.solidSkillNames.length, 1);
+    assert.equal(overview.gapSkillNames.length, 1);
+    assert.equal(overview.skills[1]?.note?.includes("fraction"), true);
+    assert.doesNotMatch(JSON.stringify(overview), /\d+%/);
   });
 
   it("parent rule summary states completed counts from structured facts", () => {

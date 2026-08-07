@@ -68,4 +68,5 @@ Add AI-authored student/parent report prose on top of the existing deterministic
 - [x] ~~Reuse `ReportGeneratorAgentService.polishSummary` + numeric/forbidden gates~~
 - [x] ~~Persist STUDENT + PARENT `Report` rows with `reportVersion = diagnostic-v2-report-v1`~~
 - [x] ~~`GET …/summary` returns polished `childFacingSummary` + `parentFacingSummary` (all 5 tracks)~~
+- [x] ~~`GET …/summary` also returns student `overview` (skills + solid/gap names + item counts) for the end-screen graphs~~
 - [x] ~~Goldens: template shape, AI-off, invented-number reject, happy path~~

@@ -34,7 +34,7 @@ Picking from an already-checked question is fast — close to instant, just a da
 2. Does one practice question just to learn how to type a line at a time (this one doesn't count).
 3. Solves a few real equations, one line at a time, hitting "submit" after each line.
 4. If a line is wrong, the system doesn't just say "wrong" — it may quietly let them look again, or eventually ask a small guiding question like "what's negative two times negative five?"
-5. Gets a short, plain summary at the end: what they already know, what we're going to work on, no scores or jargon.
+5. Gets a structured summary at the end: plain prose, a skill overview ring, “Going well” / “We'll work on” sections — no scores or jargon.
 
 ## What we track, and what we deliberately don't
 

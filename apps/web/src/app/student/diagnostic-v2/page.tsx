@@ -8,6 +8,7 @@ import type {
   DiagnosticV2AttemptView,
   DiagnosticV2DebugView,
   DiagnosticV2ItemOrigin,
+  DiagnosticV2SummaryOverview,
   StepValidity,
   SubmitDiagnosticV2StepResponse,
 } from "@cogna/shared";
@@ -18,6 +19,7 @@ import {
 } from "@/lib/diagnostic-v2-labels";
 import { getStudent } from "@/lib/session";
 import { MathLine } from "@/components/math-line";
+import { DiagnosticV2SummaryPanel } from "@/components/diagnostic-v2-summary";
 import styles from "@/components/diagnostic-v2.module.css";
 
 type Phase = "checking" | "intro" | "working" | "complete";
@@ -128,6 +130,8 @@ function DiagnosticV2Content() {
   const [lastStep, setLastStep] = useState<StepLogEntry | null>(null);
   const [notice, setNotice] = useState("");
   const [summaryText, setSummaryText] = useState("");
+  const [summaryOverview, setSummaryOverview] =
+    useState<DiagnosticV2SummaryOverview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [stepLog, setStepLog] = useState<StepLogEntry[]>([]);
@@ -243,10 +247,12 @@ function DiagnosticV2Content() {
     try {
       const summary = await api.getDiagnosticV2Summary(id);
       setSummaryText(summary.childFacingSummary);
+      setSummaryOverview(summary.overview ?? null);
       setPhase("complete");
       return true;
     } catch (err) {
       setSummaryText("");
+      setSummaryOverview(null);
       setError(friendlyError(err, "Your summary isn't ready yet."));
       return false;
     }
@@ -499,14 +505,10 @@ function DiagnosticV2Content() {
       <>
         <p className="eyebrow">All done</p>
         <h1>Thanks for working through that.</h1>
-        {summaryText ? (
-          <div className={styles.summaryBody}>{summaryText}</div>
-        ) : (
-          <p className="lead">
-            Your summary isn&apos;t ready yet — everything you wrote has been
-            saved, so nothing is lost.
-          </p>
-        )}
+        <DiagnosticV2SummaryPanel
+          summaryText={summaryText}
+          overview={summaryOverview}
+        />
         {error && <p className="error">{error}</p>}
         <div className="actions" style={{ marginTop: "var(--s-6)" }}>
           <Link href="/student/home" className="btn btn-primary">

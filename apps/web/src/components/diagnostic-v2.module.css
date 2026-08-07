@@ -260,6 +260,156 @@
   margin-top: var(--s-4);
   color: var(--accent-deep);
   white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.summaryPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  margin-top: var(--s-2);
+}
+
+.summaryOverview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.overviewRing {
+  flex: 0 0 auto;
+}
+
+.summaryLegend {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.summaryFinished {
+  margin: 0 0 var(--s-3);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.summaryLegend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.summaryLegend li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.summaryLegend strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.summarySection h2 {
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 var(--s-3);
+}
+
+.skillList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.skillList > li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+}
+
+.skillHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.skillName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  text-transform: capitalize;
+}
+
+.skillBand {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  white-space: nowrap;
+}
+
+.skillGap .skillBand { color: var(--caution); }
+.skillQuiet .skillBand { color: var(--ink-faint); }
+
+.skillTrack {
+  margin-top: 0.55rem;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.skillFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.45s ease;
+}
+
+.skillGap .skillFill { background: var(--caution); }
+.skillQuiet .skillFill { background: var(--line-strong); }
+.skillBuilding .skillFill { background: var(--accent-deep); }
+
+.skillNote {
+  margin: var(--s-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.summaryNext p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skillFill { transition: none; }
 }
 
 /* ---------- debug panel (?debug=1 only — never shown to students) ---------- */

@@ -31,6 +31,23 @@
 .heroCard h2 { font-size: var(--text-lg); line-height: 1.2; }
 .heroCard .meta { font-size: var(--text-sm); color: var(--ink-soft); }
 
+/* Demo-only entry to diagnostic-v2 — kept visually secondary to practice. */
+.demoDiagCard {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--s-4) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  background: var(--surface);
+}
+.demoDiagCard .kicker {
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+.demoDiagCard h3 { font-size: var(--text-md); line-height: 1.25; margin: 0; }
+.demoDiagCard .meta { font-size: var(--text-sm); color: var(--ink-soft); margin: 0 0 var(--s-2); }
+
 .momentum { display: flex; align-items: center; justify-content: space-between; }
 .momentum .label { font-size: var(--text-sm); color: var(--ink-soft); }
 
