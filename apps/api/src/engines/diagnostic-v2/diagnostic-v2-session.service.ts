@@ -45,10 +45,17 @@ import {
   findFixedItem,
   FIXED_ITEMS,
   isKnownTemplateId,
+  normalizedQuestionKey,
+  renderFreshInstance,
   type DiagnosticV2Item,
   type DiagnosticV2ItemStageId,
   type DiagnosticV2TemplateId,
 } from "./diagnostic-v2-template-render";
+import {
+  likelyPrefetchTemplates,
+  peekBufferedItem,
+  putBufferedItem,
+} from "./diagnostic-v2-next-item-buffer";
 import {
   checkBareFinalAnswer,
   isSolvedForm,
@@ -122,6 +129,16 @@ export function stageForTemplate(templateId: DiagnosticV2TemplateId): Diagnostic
 
 export function stageForItem(item: DiagnosticV2Item): DiagnosticV2StageId {
   return item.stageId;
+}
+
+/** Next fixed-backbone template for Phase C prefetch (skill/template likelihood). */
+export function nextBackboneTemplateId(
+  currentStage: DiagnosticV2StageId,
+): DiagnosticV2TemplateId | null {
+  const idx = ITEM_STAGE_ORDER.indexOf(currentStage);
+  if (idx < 0 || idx + 1 >= ITEM_STAGE_ORDER.length) return null;
+  const nextStage = ITEM_STAGE_ORDER[idx + 1]!;
+  return findFixedItem(nextStage)?.templateId ?? null;
 }
 
 /**
@@ -402,6 +419,19 @@ export class DiagnosticV2SessionService {
       return { session: createdSession, attempt: createdAttempt };
     });
 
+    // Phase C: fire-and-forget prefetch for likely early skill/template targets.
+    // Never blocks the startSession response.
+    this.prefetchInBackground({
+      sessionId: session.id,
+      templates: likelyPrefetchTemplates({
+        currentTemplateId: item.templateId,
+        currentSkillId: item.primaryMicroSkillId,
+        nextBackboneTemplateId: nextBackboneTemplateId(FIRST_STAGE_ID),
+      }),
+      alreadyServed: new Set([normalizedQuestionKey(item.openingLine)]),
+      serveOrdinal: 1,
+    });
+
     return {
       sessionId: session.id,
       stageId: FIRST_STAGE_ID,
@@ -674,6 +704,32 @@ export class DiagnosticV2SessionService {
         nextStageIds = nextStageIds.map((s) =>
           s === nextItemStage ? stageForItem(selected.item) : s,
         );
+        // Phase C: after consuming a buffered item, refill that skill/template slot
+        // without blocking the submit response (same F&F shape as mid-item refill).
+        if (selected.consumedBufferTemplateId) {
+          const consumedTemplate = selected.consumedBufferTemplateId;
+          const consumedOpening = normalizedQuestionKey(selected.item.openingLine);
+          void Promise.all([
+            this.servedOpeningKeys(sessionId),
+            this.prisma.diagnosticV2Attempt.count({ where: { sessionId } }),
+          ])
+            .then(([served, attemptCount]) => {
+              served.add(consumedOpening);
+              this.prefetchInBackground({
+                sessionId,
+                templates: [consumedTemplate],
+                alreadyServed: served,
+                serveOrdinal: attemptCount + 1,
+              });
+            })
+            .catch((err) => {
+              this.logger.warn(
+                `diagnostic_v2 buffer post-consume refill schedule failed for ${sessionId}: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            });
+        }
       }
     }
 
@@ -870,6 +926,30 @@ export class DiagnosticV2SessionService {
           line: expectedPreviousLine,
         })
       : undefined;
+
+    // Phase C: on a mid-item step (student still working), refill likely next targets.
+    if (!itemComplete) {
+      void this.servedOpeningKeys(sessionId)
+        .then((served) => {
+          this.prefetchInBackground({
+            sessionId,
+            templates: likelyPrefetchTemplates({
+              currentTemplateId: item.templateId,
+              currentSkillId: item.primaryMicroSkillId,
+              nextBackboneTemplateId: nextBackboneTemplateId(stageForItem(item)),
+            }),
+            alreadyServed: served,
+            serveOrdinal: Math.max(1, priorSteps.length + 1),
+          });
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `diagnostic_v2 buffer mid-item prefetch schedule failed for ${sessionId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+    }
 
     const shared = {
       ...(assistanceOffered ? { assistanceOffered } : {}),
@@ -1115,11 +1195,93 @@ export class DiagnosticV2SessionService {
     return new Set(attempts.map((a) => a.itemKey));
   }
 
+  /** Normalized opening lines already shown — used by the Phase C buffer fill path. */
+  private async servedOpeningKeys(sessionId: string): Promise<Set<string>> {
+    const attempts = await this.prisma.diagnosticV2Attempt.findMany({
+      where: { sessionId },
+      select: { equationPrompt: true },
+    });
+    const keys = new Set<string>();
+    for (const a of attempts) {
+      const idx = a.equationPrompt.indexOf(":");
+      const opening = (idx === -1 ? a.equationPrompt : a.equationPrompt.slice(idx + 1)).trim();
+      keys.add(normalizedQuestionKey(opening));
+    }
+    return keys;
+  }
+
+  /**
+   * Phase C prefetch worker. GENERATE-primary through existing verify
+   * (`renderFreshInstance` → `verifyRendered`). Fire-and-forget wrapper must
+   * not throw into the request path.
+   */
+  private prefetchInBackground(input: {
+    sessionId: string;
+    templates: DiagnosticV2TemplateId[];
+    alreadyServed: ReadonlySet<string>;
+    serveOrdinal: number;
+  }): void {
+    void this.fillVerifiedBuffer(input).catch((err) => {
+      this.logger.warn(
+        `diagnostic_v2 buffer prefetch failed for ${input.sessionId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+  }
+
+  private async fillVerifiedBuffer(input: {
+    sessionId: string;
+    templates: DiagnosticV2TemplateId[];
+    alreadyServed: ReadonlySet<string>;
+    serveOrdinal: number;
+  }): Promise<void> {
+    for (const templateId of input.templates) {
+      if (peekBufferedItem(input.sessionId, templateId)) continue;
+      const fresh = renderFreshInstance({
+        templateId,
+        seedBase: `${input.sessionId}:${templateId}:prefetch:${input.serveOrdinal}`,
+        alreadyServed: input.alreadyServed,
+      });
+      if (!fresh.item) {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.fill_skip",
+            sessionId: input.sessionId,
+            templateId,
+            reason: fresh.failure ?? "no instance",
+          }),
+        );
+        continue;
+      }
+      putBufferedItem({
+        sessionId: input.sessionId,
+        templateId,
+        skillId: fresh.item.primaryMicroSkillId,
+        item: fresh.item,
+      });
+      this.logger.log(
+        JSON.stringify({
+          event: "diagnostic_v2_buffer.filled",
+          sessionId: input.sessionId,
+          templateId,
+          itemKey: fresh.item.itemKey,
+        }),
+      );
+    }
+  }
+
   private async selectNextItem(input: {
     session: { id: string; studentId: string };
     ruleStage: DiagnosticV2StageId;
     lastStepSummary: string;
-  }): Promise<{ item: DiagnosticV2Item; source: "RULE" | "AI"; reasoning?: string }> {
+  }): Promise<{
+    item: DiagnosticV2Item;
+    source: "RULE" | "AI";
+    reasoning?: string;
+    fromBuffer?: boolean;
+    consumedBufferTemplateId?: DiagnosticV2TemplateId;
+  }> {
     const requestedRulePick = requireFixedItem(input.ruleStage);
     const servedItemKeys = await this.servedItemKeys(input.session.id);
     const unserved = ITEM_STAGE_ORDER.map((stage) => requireFixedItem(stage)).filter(
@@ -1185,7 +1347,13 @@ export class DiagnosticV2SessionService {
         `Discarded an AI-generated/authored item for session ${input.session.id}: ${result.discardedGeneration}`,
       );
     }
-    return { item: result.item, source: result.source, reasoning: result.reasoning };
+    return {
+      item: result.item,
+      source: result.source,
+      reasoning: result.reasoning,
+      fromBuffer: result.fromBuffer,
+      consumedBufferTemplateId: result.consumedBufferTemplateId,
+    };
   }
 
   /**

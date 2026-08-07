@@ -13,6 +13,8 @@ export const KNOWN_CAPABILITIES = [
   "DIAGNOSTIC_V2_INTERPRETER",
   "DIAGNOSTIC_V2_GRADER",
   "DIAGNOSTIC_V2_AUTHOR",
+  // MVP 9.0.1 Phase D — LLM-assisted report prose (LearningSession reports)
+  "REPORT_GENERATOR",
 ] as const;
 
 const DEFAULT_WINDOW_DAYS = 30;

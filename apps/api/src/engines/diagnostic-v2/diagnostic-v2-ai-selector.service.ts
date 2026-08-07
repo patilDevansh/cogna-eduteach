@@ -40,6 +40,7 @@ import {
   type DiagnosticV2ItemStageId,
   type DiagnosticV2TemplateId,
 } from "./diagnostic-v2-template-render";
+import { takeBufferedItem } from "./diagnostic-v2-next-item-buffer";
 
 const CAPABILITY = "DIAGNOSTIC_V2_SELECTOR";
 /**
@@ -151,6 +152,10 @@ export interface SelectorResult {
   discardedGeneration?: string;
   /** Wall time of the authoring round-trip when one ran, for the audit trail. */
   authorLatencyMs?: number;
+  /** Phase C: true when the item was taken from the verified next-item buffer. */
+  fromBuffer?: boolean;
+  /** Phase C: template slot that was consumed — session service refills this. */
+  consumedBufferTemplateId?: DiagnosticV2TemplateId;
 }
 
 @Injectable()
@@ -235,6 +240,49 @@ export class DiagnosticV2AiSelectorService {
     ctx: SelectorContext,
     ruleFallback: SelectorResult,
   ): Promise<SelectorResult> {
+    // Phase C: consume a pre-verified buffer hit before sync render / LLM wait.
+    const buffered = takeBufferedItem(ctx.sessionId, templateId);
+    if (buffered) {
+      const alreadyServed = alreadyServedKeys(ctx);
+      if (alreadyServed.has(normalizedQuestionKey(buffered.openingLine))) {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.stale",
+            sessionId: ctx.sessionId,
+            templateId,
+            itemKey: buffered.itemKey,
+          }),
+        );
+        // Entry already consumed via take; fall through to sync generate.
+      } else {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.hit",
+            sessionId: ctx.sessionId,
+            templateId,
+            itemKey: buffered.itemKey,
+          }),
+        );
+        return {
+          item: buffered,
+          source: "AI",
+          reasoning,
+          fromBuffer: true,
+          consumedBufferTemplateId: templateId,
+          discardedGeneration: ruleFallback.discardedGeneration,
+          authorLatencyMs: ruleFallback.authorLatencyMs,
+        };
+      }
+    }
+
+    this.logger.log(
+      JSON.stringify({
+        event: "diagnostic_v2_buffer.miss",
+        sessionId: ctx.sessionId,
+        templateId,
+      }),
+    );
+
     const alreadyServed = alreadyServedKeys(ctx);
     const fresh = renderFreshInstance({
       templateId,

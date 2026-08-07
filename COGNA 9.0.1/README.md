@@ -50,7 +50,7 @@ When AI writes an explanation or picks a question, we keep a record of that too 
 
 **What we don't track, on purpose:** how long a line took to type (timing isn't used to judge ability — a slow answer isn't a worse answer), any camera or microphone data, mood or attention guesses, how the student rates their own confidence, school marks, or anything resembling an IQ or clinical label. If a question ever comes down to "should we record X to make the AI smarter," the default answer is no unless there's a clear, specific reason a human tutor would also want to know it.
 
-Two things get *scheduled* but not yet *done* in this phase: a follow-up check to see if a repaired skill stuck around next session (we note that it's due, we don't run it yet), and anything resembling a parent-facing report (that's its own later piece, Phase D).
+One thing gets *scheduled* but not yet *done* in this phase: a follow-up check to see if a repaired skill stuck around next session (we note that it's due, we don't run it yet). Parent/student LearningSession report polish is **D.v1** ([`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md)); DiagnosticV2-native report content remains **D.v2**.
 
 ## How we're going to build it, in order
 
@@ -65,6 +65,6 @@ Two things get *scheduled* but not yet *done* in this phase: a follow-up check t
 
 - All the other algebra topics (brackets/fractions, identities, factorising, quadratics) — one topic at a time, after this.
 - The full 2,000-question bank — this phase only needs a handful of questions to prove the idea works.
-- Making AI-generated questions feel instant — that's a background-preparation trick we'll build once this works.
-- AI-written parent/student reports — a separate, easier piece we can build in parallel, but it's not part of this phase.
+- ~~Making AI-generated questions feel instant~~ — **C.v1 shipped:** [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md) (verified background buffer on the Phase A GENERATE path).
+- ~~AI-written parent/student reports (LearningSession)~~ — **D.v1 shipped:** [`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md). Still out: DiagnosticV2-native reports (**D.v2**).
 - Any decision about whether this replaces the older version of Cogna's diagnostic system — we're deliberately not deciding that yet.
