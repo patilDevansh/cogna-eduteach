@@ -586,10 +586,33 @@ export interface DiagnosticV2DebugView {
   microSkillStates: DiagnosticV2DebugMicroSkillStateView[];
 }
 
+/** One skill row for the student end-of-check screen (qualitative — never a score). */
+export interface DiagnosticV2SummarySkillView {
+  microSkillId: string;
+  childFacingName: string;
+  status: MicroSkillStatus;
+  /** Latest child-facing hypothesis note for this skill, if any. */
+  note?: string | null;
+}
+
+/**
+ * Structured facts for the student complete screen. Counts and qualitative
+ * status only — no percentages, grades, or confidence numbers.
+ */
+export interface DiagnosticV2SummaryOverview {
+  itemsAttempted: number;
+  itemsCompleted: number;
+  solidSkillNames: string[];
+  gapSkillNames: string[];
+  skills: DiagnosticV2SummarySkillView[];
+}
+
 export interface DiagnosticV2SummaryResponse {
   sessionId: string;
   status: DiagnosticV2SessionStatus;
   childFacingSummary: string;
   /** D.v2 — deterministic parent template, optionally AI-polished. */
   parentFacingSummary?: string;
+  /** Structured breakdown for graphs / sections on the student end screen. */
+  overview?: DiagnosticV2SummaryOverview;
 }

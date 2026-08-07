@@ -98,10 +98,15 @@ import { DiagnosticV2AiGraderService } from "./diagnostic-v2-ai-grader.service";
 import { DiagnosticV2ReportService } from "./diagnostic-v2-report.service";
 import {
   buildChildFacingSummary,
+  buildSummaryOverview,
   childFacingSkillName,
 } from "./diagnostic-v2-summary";
 
-export { buildChildFacingSummary, childFacingSkillName } from "./diagnostic-v2-summary";
+export {
+  buildChildFacingSummary,
+  buildSummaryOverview,
+  childFacingSkillName,
+} from "./diagnostic-v2-summary";
 
 // ─── Stages ─────────────────────────────────────────────────────────────────
 
@@ -1363,33 +1368,72 @@ export class DiagnosticV2SessionService {
 
     if (this.reports) {
       const summaries = await this.reports.getOrBuildSummaries(sessionId);
+      const data = summaries.structuredData;
       return {
         sessionId,
         status: session.status as DiagnosticV2SessionStatus,
         childFacingSummary: summaries.childFacingSummary,
         parentFacingSummary: summaries.parentFacingSummary,
+        overview: {
+          itemsAttempted: data.itemsAttempted,
+          itemsCompleted: data.itemsCompleted,
+          solidSkillNames: data.solidSkillNames,
+          gapSkillNames: data.gapSkillNames,
+          skills: data.skills.map((s) => ({
+            microSkillId: s.microSkillId,
+            childFacingName: s.childFacingName,
+            status: s.status as MicroSkillStatus,
+            note: s.childFacingSummary ?? null,
+          })),
+        },
       };
     }
 
-    const states = await this.prisma.microSkillStateV2.findMany({
-      where: { studentId: session.studentId },
-      orderBy: { microSkillId: "asc" },
-    });
-    const hypotheses = await this.prisma.diagnosticV2Hypothesis.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: "asc" },
-    });
+    const [states, hypotheses, attempts, sessionSteps] = await Promise.all([
+      this.prisma.microSkillStateV2.findMany({
+        where: { studentId: session.studentId },
+        orderBy: { microSkillId: "asc" },
+      }),
+      this.prisma.diagnosticV2Hypothesis.findMany({
+        where: { sessionId },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.diagnosticV2Attempt.findMany({
+        where: { sessionId },
+        select: { status: true },
+      }),
+      this.prisma.diagnosticV2Step.findMany({
+        where: { attempt: { sessionId } },
+        select: { primaryMicroSkillId: true },
+      }),
+    ]);
+
+    const sessionSkillIds = new Set<string>();
+    for (const h of hypotheses) sessionSkillIds.add(h.microSkillId);
+    for (const step of sessionSteps) {
+      if (step.primaryMicroSkillId) sessionSkillIds.add(step.primaryMicroSkillId);
+    }
+    const touched = states.filter((s) => sessionSkillIds.has(s.microSkillId));
+
+    const stateViews = touched.map((s) => ({
+      microSkillId: s.microSkillId,
+      status: s.status as MicroSkillStatus,
+    }));
+    const hypViews = hypotheses.map((h) => ({
+      microSkillId: h.microSkillId,
+      childFacingSummary: h.childFacingSummary,
+    }));
 
     return {
       sessionId,
       status: session.status as DiagnosticV2SessionStatus,
-      childFacingSummary: buildChildFacingSummary(
-        states.map((s) => ({ microSkillId: s.microSkillId, status: s.status as MicroSkillStatus })),
-        hypotheses.map((h) => ({
-          microSkillId: h.microSkillId,
-          childFacingSummary: h.childFacingSummary,
-        })),
-      ),
+      childFacingSummary: buildChildFacingSummary(stateViews, hypViews),
+      overview: buildSummaryOverview({
+        itemsAttempted: attempts.length,
+        itemsCompleted: attempts.filter((a) => a.status === "COMPLETED").length,
+        states: stateViews,
+        hypotheses: hypViews,
+      }),
     };
   }
 

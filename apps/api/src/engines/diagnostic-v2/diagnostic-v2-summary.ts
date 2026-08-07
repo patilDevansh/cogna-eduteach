@@ -2,7 +2,12 @@
  * Deterministic DiagnosticV2 student/parent summary helpers (no LLM).
  * Shared by the session service and D.v2 report polish.
  */
-import type { MicroSkillId, MicroSkillStatus } from "@cogna/shared";
+import type {
+  DiagnosticV2SummaryOverview,
+  DiagnosticV2SummarySkillView,
+  MicroSkillId,
+  MicroSkillStatus,
+} from "@cogna/shared";
 
 /**
  * The catalogue's skill names are precise and unreadable to a 13-year-old
@@ -93,4 +98,40 @@ export function buildChildFacingSummary(
   }
 
   return parts.join(" ");
+}
+
+/**
+ * Structured overview for the student end screen (qualitative status + names).
+ * Same inputs as `buildChildFacingSummary` — never invents skills the session
+ * did not touch.
+ */
+export function buildSummaryOverview(input: {
+  itemsAttempted: number;
+  itemsCompleted: number;
+  states: Array<{ microSkillId: string; status: MicroSkillStatus }>;
+  hypotheses: Array<{ microSkillId: string; childFacingSummary: string | null }>;
+}): DiagnosticV2SummaryOverview {
+  const hypBySkill = new Map<string, string | null>();
+  for (const h of input.hypotheses) hypBySkill.set(h.microSkillId, h.childFacingSummary);
+
+  const skills: DiagnosticV2SummarySkillView[] = input.states.map((s) => ({
+    microSkillId: s.microSkillId,
+    childFacingName: childFacingSkillName(s.microSkillId),
+    status: s.status,
+    note: hypBySkill.get(s.microSkillId) ?? null,
+  }));
+
+  const solid = [
+    ...skills.filter((s) => s.status === "RELIABLE"),
+    ...skills.filter((s) => s.status === "DEVELOPING"),
+  ];
+  const gaps = skills.filter((s) => s.status === "LIKELY_GAP");
+
+  return {
+    itemsAttempted: input.itemsAttempted,
+    itemsCompleted: input.itemsCompleted,
+    solidSkillNames: solid.slice(0, MAX_SKILLS_NAMED_IN_SUMMARY).map((s) => s.childFacingName),
+    gapSkillNames: gaps.map((s) => s.childFacingName),
+    skills,
+  };
 }

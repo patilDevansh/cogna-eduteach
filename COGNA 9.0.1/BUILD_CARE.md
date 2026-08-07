@@ -21,7 +21,8 @@
 - [x] **Selector Why must not say "option N".** Live UI audit (`UI_FRACTION_AUDIT.md`) caught choice-index jargon; `OPTION_INDEX_PATTERN` rejects it and the selector prompt forbids it.
 - [x] **Step API returns `firstInvalidActionCode`.** Description alone left the client unable to show stable codes (WRONG_COMMON_MULTIPLE etc.).
 - [x] **Fraction prompts display as stacked fractions** in the Given/working area (`MathLine`); slash ASCII remains the input/API format.
-- [x] **Home always surfaces Start fractions check** for returning students (not only first-time / no-history).
+- [x] **Demo student home keeps practice primary.** Diagnostic is a separate dashed “Do diagnostic test” card for `dev_student_001` / Demo Student only — not the hero CTA for every student.
+- [x] **Student diagnostic end screen uses structured overview.** `GET …/summary` returns qualitative skill facts (`overview`) for ring + section layout — no score percentages.
 - [ ] **Interpreter hypotheses should prefer the current item's primary skill / this-session evidence.** Shared demo-student history makes "What we think is going on" narrate unrelated skills (e.g. LIN_REMOVE_CONSTANT during fraction clear).
 - [x] **B2 identity track is a separate verifier.** `IDENTITY_DIFF_SQUARES` uses `identity-expr-verifier.ts` — never the fraction or bracket mega-parser.
 - [x] **Fraction clearing stays fraction-safe.** B1 `fraction-linear-verifier` owns LCD / dropped-term / sign-after-clear codes; Rational/Frac syntax does not fall through the bracket mega-parser.
