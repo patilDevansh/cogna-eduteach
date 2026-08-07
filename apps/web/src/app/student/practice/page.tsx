@@ -591,7 +591,7 @@ function PracticeContent() {
   const chrome = (
     <div className={styles.chrome}>
       <Link href="/" className="wordmark">
-        cogna<span className="dot">.</span>
+        Cogna<span className="dot">.</span>
       </Link>
       <button type="button" className="btn-quiet" onClick={signOut}>
         Pause and sign out

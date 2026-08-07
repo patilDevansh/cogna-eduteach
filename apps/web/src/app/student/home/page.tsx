@@ -67,7 +67,7 @@ export default function StudentHomePage() {
   const chrome = (
     <div className={styles.dashHead} style={{ maxWidth: 420, width: "100%", margin: "0 auto var(--s-5)" }}>
       <Link href="/" className="wordmark">
-        cogna<span className="dot">.</span>
+        Cogna<span className="dot">.</span>
       </Link>
       <span className="faint" style={{ fontSize: "var(--text-sm)" }}>Good to see you, {studentName || "there"}</span>
     </div>
