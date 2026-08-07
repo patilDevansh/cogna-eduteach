@@ -18,3 +18,18 @@
 - [x] **Session routes by track/grammar, not one mega-parser.** Negative-distribution default track must stay byte-stable; fraction track opts in via `track: "FRACTION_LINEAR"`.
 - [x] **AUTHOR stays off for fraction grammar in B1.** Templates + `verifyRendered` only; B1.5 reuses the A2 authored-item gate.
 - [x] **Any new raw-text reader folds minus lookalikes** through the shared `foldMinusLookalikes()` helper (A2 D4 lesson) — including fraction templates and verifier string scans.
+- [x] **Selector Why must not say "option N".** Live UI audit (`UI_FRACTION_AUDIT.md`) caught choice-index jargon; `OPTION_INDEX_PATTERN` rejects it and the selector prompt forbids it.
+- [x] **Step API returns `firstInvalidActionCode`.** Description alone left the client unable to show stable codes (WRONG_COMMON_MULTIPLE etc.).
+- [x] **Fraction prompts display as stacked fractions** in the Given/working area (`MathLine`); slash ASCII remains the input/API format.
+- [x] **Home always surfaces Start fractions check** for returning students (not only first-time / no-history).
+- [ ] **Interpreter hypotheses should prefer the current item's primary skill / this-session evidence.** Shared demo-student history makes "What we think is going on" narrate unrelated skills (e.g. LIN_REMOVE_CONSTANT during fraction clear).
+- [x] **B2 identity track is a separate verifier.** `IDENTITY_DIFF_SQUARES` uses `identity-expr-verifier.ts` — never the fraction or bracket mega-parser.
+- [x] **Fraction clearing stays fraction-safe.** B1 `fraction-linear-verifier` owns LCD / dropped-term / sign-after-clear codes; Rational/Frac syntax does not fall through the bracket mega-parser.
+- [x] **Every Phase B topic rebuilds the three-piece kit.** Parser → independent solver → first-invalid finder. Do not reuse bracket/fraction/identity diffing for factorisation or quadratics.
+- [x] **Factorisation compares polynomials, not strings.** Factor order may swap; incomplete forms (`k(quadratic)`, decimals) are `INCOMPLETE_FACTORISATION`, not a wrong-pair code.
+- [x] **B3 non-monic transfer is intentional.** Owner example `2x²−5x−3` uses `FAC_NONMONIC_GROUP` on transfer while the track id stays `FACTOR_MONIC_TRINOMIAL`.
+- [x] **B4 rejects non-integer-factorable quadratics.** Content gate + runtime `NOT_INTEGER_FACTORABLE`; roots are checked by substitution, not trusted from the student string alone.
+- [x] **AUTHOR stays off for B3/B4** until B3.5 / B4.5 (same B1 → B1.5 pattern).
+- [x] **Phase C buffer hit rate is an observation metric, not a correctness gate.** Log `diagnostic_v2_buffer.hit` / `.miss` / `.filled` and tune session cap (~2–3) from hit rate; never raise `TIMEOUT_MS` to compensate for a cold buffer.
+- [x] **Phase D report polish: numbers are a hard gate.** Forbidden-term reject alone is not enough — every count / % / mastery figure in AI prose must appear in `structuredData` (`report-numeric-gate.ts`). Flags default OFF in `.env.example`.
+- [x] **DiagnosticV2 reports reuse the same polish gates as D.v1.** Structured facts come from MicroSkillStateV2 / hypotheses / attempts — never LearningSession mastery inventing.

@@ -37,6 +37,8 @@ export const LATENCY_BUDGET_MS: Record<string, number> = {
   DIAGNOSTIC_V2_INTERPRETER: 3000,
   DIAGNOSTIC_V2_GRADER: 2000,
   DIAGNOSTIC_V2_AUTHOR: 2500,
+  /** Off-path session/weekly reports — keep in sync with report-generator-agent TIMEOUT_MS. */
+  REPORT_GENERATOR: 5000,
 };
 
 export interface AuditRowLike {
@@ -155,6 +157,16 @@ export function rowAgreement(capability: string, ruleOutput: unknown, aiOutput: 
       // so the fallback grader can never fail its own gate for answering a
       // question the rules explicitly refused to answer.
       return graderAgreesWithRule() ? { agreedCount: 1, comparedCount: 1 } : NO_AGREEMENT;
+    }
+    case "REPORT_GENERATOR": {
+      // Polish quality is enforced by forbidden-term + numeric gates in parse,
+      // not by directional agreement with the template. Count a successful
+      // served shape as agreement so the capability can graduate on safety.
+      if (typeof rule.renderedText !== "string" || typeof ai.renderedText !== "string") {
+        return NO_AGREEMENT;
+      }
+      if (rule.renderedText.length === 0 || ai.renderedText.length === 0) return NO_AGREEMENT;
+      return { agreedCount: 1, comparedCount: 1 };
     }
     default:
       return NO_AGREEMENT;

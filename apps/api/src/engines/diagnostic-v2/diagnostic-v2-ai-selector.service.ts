@@ -40,6 +40,7 @@ import {
   type DiagnosticV2ItemStageId,
   type DiagnosticV2TemplateId,
 } from "./diagnostic-v2-template-render";
+import { takeBufferedItem } from "./diagnostic-v2-next-item-buffer";
 
 const CAPABILITY = "DIAGNOSTIC_V2_SELECTOR";
 /**
@@ -151,6 +152,10 @@ export interface SelectorResult {
   discardedGeneration?: string;
   /** Wall time of the authoring round-trip when one ran, for the audit trail. */
   authorLatencyMs?: number;
+  /** Phase C: true when the item was taken from the verified next-item buffer. */
+  fromBuffer?: boolean;
+  /** Phase C: template slot that was consumed — session service refills this. */
+  consumedBufferTemplateId?: DiagnosticV2TemplateId;
 }
 
 @Injectable()
@@ -235,6 +240,49 @@ export class DiagnosticV2AiSelectorService {
     ctx: SelectorContext,
     ruleFallback: SelectorResult,
   ): Promise<SelectorResult> {
+    // Phase C: consume a pre-verified buffer hit before sync render / LLM wait.
+    const buffered = takeBufferedItem(ctx.sessionId, templateId);
+    if (buffered) {
+      const alreadyServed = alreadyServedKeys(ctx);
+      if (alreadyServed.has(normalizedQuestionKey(buffered.openingLine))) {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.stale",
+            sessionId: ctx.sessionId,
+            templateId,
+            itemKey: buffered.itemKey,
+          }),
+        );
+        // Entry already consumed via take; fall through to sync generate.
+      } else {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.hit",
+            sessionId: ctx.sessionId,
+            templateId,
+            itemKey: buffered.itemKey,
+          }),
+        );
+        return {
+          item: buffered,
+          source: "AI",
+          reasoning,
+          fromBuffer: true,
+          consumedBufferTemplateId: templateId,
+          discardedGeneration: ruleFallback.discardedGeneration,
+          authorLatencyMs: ruleFallback.authorLatencyMs,
+        };
+      }
+    }
+
+    this.logger.log(
+      JSON.stringify({
+        event: "diagnostic_v2_buffer.miss",
+        sessionId: ctx.sessionId,
+        templateId,
+      }),
+    );
+
     const alreadyServed = alreadyServedKeys(ctx);
     const fresh = renderFreshInstance({
       templateId,
@@ -404,6 +452,13 @@ function templateForSkill(skill: MicroSkillId): DiagnosticV2TemplateId | null {
     case "FND_FRACTION_EQUIV":
     case "FND_FRACTION_OPS":
       return "TPL_FRAC_CLEAR";
+    case "ID_DIFF_SQUARES":
+      return "TPL_DIFF_SQUARES";
+    case "EXP_EXPAND_BINOMIALS":
+      return "TPL_EXPAND_BINOMIAL";
+    case "ALG_IDENTIFY_STRUCTURE":
+    case "ID_VERIFY_EXPANSION":
+      return "TPL_DIFF_SQUARES";
     default:
       return null;
   }
@@ -506,6 +561,8 @@ export function buildSelectorPrompts(ctx: SelectorContext): { system: string; us
     "Describe the mathematical step in plain words. Do not use the words diagnose, diagnostic, " +
     "misconception, mastery, threshold, retention, fatigue, failure or clinical, and never say a " +
     "student is \"weak in\" something. " +
+    "In reasoning, refer to the next question by its itemKey or template id — never write \"option 0\", " +
+    "\"option 1\", or any choice-index phrase. " +
     "You may never invent an index, a template id, or a micro-skill id that is not listed. " +
     "Never infer attention, mood, effort, or any clinical trait. " +
     'Return JSON only: {"choice":"EXISTING","index":integer,"confidence":number 0..1,"reasoning":string} ' +

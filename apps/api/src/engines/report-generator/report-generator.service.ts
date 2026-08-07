@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { REPORT_TEMPLATES_V1, REPORT_TEMPLATES_V2 } from "@cogna/shared";
 import {
   ReportAudience,
@@ -8,6 +8,7 @@ import {
 } from "@cogna/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RecommendationEngineService } from "../recommendation-engine/recommendation-engine.service";
+import { ReportGeneratorAgentService } from "./report-generator-agent.service";
 
 export interface SessionReportResult {
   id: string;
@@ -26,6 +27,8 @@ export class ReportGeneratorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly recommendationEngine: RecommendationEngineService,
+    /** Optional so golden tests that construct the service with null deps still exercise templates. */
+    @Optional() private readonly reportAgent?: ReportGeneratorAgentService,
   ) {}
 
   async generateSessionSummary(sessionId: string): Promise<SessionReportResult> {
@@ -95,8 +98,15 @@ export class ReportGeneratorService {
       })),
     };
 
-    const studentText = this.renderStudentSummary(structuredData);
-    const parentText = this.renderParentSummary(structuredData);
+    // AI polish slots in only at render — structuredData assembly above is untouched.
+    const studentRule = this.renderStudentSummary(structuredData);
+    const parentRule = this.renderParentSummary(structuredData);
+    const studentText =
+      (await this.tryPolish("STUDENT", session.studentId, sessionId, structuredData, studentRule)) ??
+      studentRule;
+    const parentText =
+      (await this.tryPolish("PARENT", session.studentId, sessionId, structuredData, parentRule)) ??
+      parentRule;
 
     const studentReport = await this.prisma.report.create({
       data: {
@@ -124,6 +134,7 @@ export class ReportGeneratorService {
       },
     });
 
+    // INTERNAL stays template-only in D.v1 — machine string is already precise.
     await this.prisma.report.create({
       data: {
         studentId: session.studentId,
@@ -298,7 +309,10 @@ export class ReportGeneratorService {
       weakEvidence,
     };
 
-    const renderedText = this.renderWeeklyParentReport(structuredData);
+    const weeklyRule = this.renderWeeklyParentReport(structuredData);
+    const renderedText =
+      (await this.tryPolish("WEEKLY_PARENT", studentId, undefined, structuredData, weeklyRule)) ??
+      weeklyRule;
 
     const report = await this.prisma.report.create({
       data: {
@@ -489,6 +503,36 @@ export class ReportGeneratorService {
       },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  /**
+   * Slot-in polish: returns AI text when served, else null (caller keeps template).
+   * Never throws into the report create path.
+   */
+  private async tryPolish(
+    audience: "STUDENT" | "PARENT" | "WEEKLY_PARENT",
+    studentId: string,
+    sessionId: string | undefined,
+    structuredData: unknown,
+    ruleText: string,
+  ): Promise<string | null> {
+    if (!this.reportAgent) return null;
+    try {
+      return await this.reportAgent.polishSummary({
+        audience,
+        studentId,
+        sessionId,
+        structuredData,
+        ruleText,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `REPORT_GENERATOR polish failed for ${audience}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return null;
+    }
   }
 
   private renderWeeklyParentReport(data: {

@@ -9,7 +9,12 @@
  */
 import type { MicroSkillId } from "@cogna/shared";
 
-export type TopicId = "LINEAR_EQUATIONS" | "BRACKETS_SIGNS_FRACTIONS";
+export type TopicId =
+  | "LINEAR_EQUATIONS"
+  | "BRACKETS_SIGNS_FRACTIONS"
+  | "ALGEBRAIC_IDENTITIES"
+  | "FACTORISATION"
+  | "QUADRATICS";
 
 export type CompetencyFamilyId =
   | "EQUALITY_AND_INVERSE_OPERATIONS"
@@ -18,7 +23,14 @@ export type CompetencyFamilyId =
   | "CHECKING_AND_APPLYING"
   | "SIGNED_NUMBER_ARITHMETIC"
   | "FRACTIONS_AND_ORDER"
-  | "DISTRIBUTING_AND_CLEARING";
+  | "DISTRIBUTING_AND_CLEARING"
+  | "READING_ALGEBRA"
+  | "WORKING_WITH_EXPRESSIONS"
+  | "RECOGNISING_IDENTITIES"
+  | "TRINOMIAL_FACTORISATION"
+  | "FACTOR_FINISHING"
+  | "QUADRATIC_PREP"
+  | "QUADRATIC_ROOTS";
 
 /** Mirrors the MicroSkillDefinition authoring contract (Master Prompt §6.8), scoped to what this phase needs. */
 export interface MicroSkillDefinition {
@@ -136,6 +148,144 @@ export const MICRO_SKILL_CATALOGUE: readonly MicroSkillDefinition[] = [
     topicId: "LINEAR_EQUATIONS",
     competencyFamilyId: "CHECKING_AND_APPLYING",
     prerequisiteMicroSkillIds: [],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "ALG_IDENTIFY_STRUCTURE",
+    name: "Identify the structure of an algebraic expression",
+    topicId: "ALGEBRAIC_IDENTITIES",
+    competencyFamilyId: "READING_ALGEBRA",
+    prerequisiteMicroSkillIds: [],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "EXP_EXPAND_BINOMIALS",
+    name: "Expand a product of two binomials",
+    topicId: "ALGEBRAIC_IDENTITIES",
+    competencyFamilyId: "WORKING_WITH_EXPRESSIONS",
+    prerequisiteMicroSkillIds: ["ALG_IDENTIFY_STRUCTURE"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "ID_DIFF_SQUARES",
+    name: "Use the difference-of-squares identity",
+    topicId: "ALGEBRAIC_IDENTITIES",
+    competencyFamilyId: "RECOGNISING_IDENTITIES",
+    prerequisiteMicroSkillIds: ["EXP_EXPAND_BINOMIALS"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "ID_VERIFY_EXPANSION",
+    name: "Verify an expansion or factorisation",
+    topicId: "ALGEBRAIC_IDENTITIES",
+    competencyFamilyId: "RECOGNISING_IDENTITIES",
+    prerequisiteMicroSkillIds: ["EXP_EXPAND_BINOMIALS"],
+    status: "EXECUTABLE",
+  },
+  // ── Phase B3 factorisation ───────────────────────────────────────────────
+  {
+    id: "FAC_READ_ABC_SIGNS",
+    name: "Read signed a, b, c from a trinomial",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "TRINOMIAL_FACTORISATION",
+    prerequisiteMicroSkillIds: ["ALG_IDENTIFY_STRUCTURE"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FAC_PAIR_PRODUCT_SUM",
+    name: "Find a factor pair by product and sum",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "TRINOMIAL_FACTORISATION",
+    prerequisiteMicroSkillIds: ["FAC_READ_ABC_SIGNS"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FAC_MONIC_TRINOMIAL",
+    name: "Factor a monic trinomial",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "TRINOMIAL_FACTORISATION",
+    prerequisiteMicroSkillIds: ["FAC_PAIR_PRODUCT_SUM", "EXP_EXPAND_BINOMIALS"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FAC_COMPUTE_AC",
+    name: "Compute a×c for a non-monic trinomial",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "TRINOMIAL_FACTORISATION",
+    prerequisiteMicroSkillIds: ["FAC_READ_ABC_SIGNS"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FAC_SPLIT_MIDDLE",
+    name: "Split the middle term using an AC pair",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "TRINOMIAL_FACTORISATION",
+    prerequisiteMicroSkillIds: ["FAC_COMPUTE_AC", "FAC_PAIR_PRODUCT_SUM"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FAC_NONMONIC_GROUP",
+    name: "Group a non-monic trinomial into linear factors",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "TRINOMIAL_FACTORISATION",
+    prerequisiteMicroSkillIds: ["FAC_SPLIT_MIDDLE", "FAC_MONIC_TRINOMIAL"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "FAC_VERIFY_EXPAND",
+    name: "Verify a factorisation by expanding",
+    topicId: "FACTORISATION",
+    competencyFamilyId: "FACTOR_FINISHING",
+    prerequisiteMicroSkillIds: ["EXP_EXPAND_BINOMIALS"],
+    status: "EXECUTABLE",
+  },
+  // ── Phase B4 quadratics ──────────────────────────────────────────────────
+  {
+    id: "QUAD_STANDARD_FORM",
+    name: "Rearrange a quadratic into standard form",
+    topicId: "QUADRATICS",
+    competencyFamilyId: "QUADRATIC_PREP",
+    prerequisiteMicroSkillIds: [],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "QUAD_FACTOR_EXPRESSION",
+    name: "Factorise a quadratic expression (bridge to Topic 4)",
+    topicId: "QUADRATICS",
+    competencyFamilyId: "QUADRATIC_PREP",
+    prerequisiteMicroSkillIds: ["FAC_MONIC_TRINOMIAL", "QUAD_STANDARD_FORM"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "QUAD_ZERO_PRODUCT",
+    name: "Apply the zero-product rule to find roots",
+    topicId: "QUADRATICS",
+    competencyFamilyId: "QUADRATIC_ROOTS",
+    prerequisiteMicroSkillIds: ["QUAD_FACTOR_EXPRESSION"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "QUAD_CREATE_BRANCHES",
+    name: "Set every factor equal to zero",
+    topicId: "QUADRATICS",
+    competencyFamilyId: "QUADRATIC_ROOTS",
+    prerequisiteMicroSkillIds: ["QUAD_ZERO_PRODUCT"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "QUAD_SOLVE_UNIT_FACTOR",
+    name: "Solve a linear factor for its root",
+    topicId: "QUADRATICS",
+    competencyFamilyId: "QUADRATIC_ROOTS",
+    prerequisiteMicroSkillIds: ["QUAD_CREATE_BRANCHES"],
+    status: "EXECUTABLE",
+  },
+  {
+    id: "QUAD_VERIFY_ROOTS",
+    name: "Verify roots by substitution",
+    topicId: "QUADRATICS",
+    competencyFamilyId: "QUADRATIC_ROOTS",
+    prerequisiteMicroSkillIds: ["QUAD_ZERO_PRODUCT"],
     status: "EXECUTABLE",
   },
 ] as const;

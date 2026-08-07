@@ -24,9 +24,16 @@ export const FORBIDDEN_STUDENT_TERMS: readonly string[] = [
 /** Rough concept-id shape never shown to humans. */
 export const CONCEPT_ID_PATTERN = /\b[PC]\d+_[A-Z0-9_]+\b/;
 
+/**
+ * Choice-index jargon from the selector ("option 0", "option 1") must never
+ * reach students — live Phase B audit caught this in Why-this-question prose.
+ */
+export const OPTION_INDEX_PATTERN = /\boption\s*\d+\b/i;
+
 export function containsForbiddenTerm(text: string): boolean {
   const lower = text.toLowerCase();
   if (CONCEPT_ID_PATTERN.test(text)) return true;
+  if (OPTION_INDEX_PATTERN.test(text)) return true;
   return FORBIDDEN_STUDENT_TERMS.some((t) => lower.includes(t));
 }
 

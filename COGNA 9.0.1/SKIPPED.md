@@ -59,11 +59,46 @@
 - **Return when:** Pilot data shows templates systematically miss a needed shape, or we add a forced-AUTHOR staging flag for observability drills. Until then, prefer-templates is working as designed.
 - **Spec refs:** `COGNA 9.0.1/BUILD_PLAN_A2.md` T5 / G1.3
 
-### 9.0.1B1 — AUTHOR deferred for the fraction grammar
+### ~~9.0.1B1 — AUTHOR deferred for the fraction grammar~~ (returned in B1.5)
 
-- **Reason:** Templates-only until `fraction-linear-verifier` is green. AUTHOR needs that verifier anyway; enabling it earlier would reintroduce the A2 failure mode (model arithmetic wrong, no gate) on a new topic.
-- **Return when:** B1.5 — after fraction goldens + adversarial reject cases pass; then reuse the A2 authored-item gate against the fraction verifier.
-- **Spec refs:** `BUILD_PLAN_B.md` Decisions locked §1
+- **Returned:** `gateAuthoredItem` accepts `LIN_CLEAR_FRACTIONS` / `LIN_SOLVE_FRACTIONS` with fraction syntax; goldens in `diagnostic-v2-fraction-author.v1.spec.ts`. Prefer-templates (G1.3) still means live AUTHOR is rare.
+- **Spec refs:** `BUILD_PLAN_B1.5.md`
+
+### 9.0.1B2 — AUTHOR deferred for identity grammar
+
+- **Reason:** Templates-only until live AUTHOR demand on `IDENTITY_DIFF_SQUARES` is proven; same B1 → B1.5 pattern.
+- **Return when:** B2.5 after identity goldens stay green and pilot shows templates miss a needed shape.
+- **Spec refs:** `BUILD_PLAN_B2.md` Decisions locked §4
+
+### 9.0.1B2 — square-of-binomial identities (`(a±b)²`)
+
+- **Reason:** B2 shipped difference-of-squares only (`ID_DIFF_SQUARES` expand + reverse). Catalogue skills `ID_SQUARE_SUM` / `ID_SQUARE_DIFF` need their own first-invalid codes (middle-term doubling, sign of ±2ab) and item set; not a one-line extension of the DoS verifier.
+- **Return when:** A B2.x thin column explicitly targets perfect-square identities as entry/contrast beside DoS, with goldens for wrong middle coefficient and wrong sign on `2ab`.
+- **Spec refs:** `BUILD_PLAN_B2.md` Out of this thin slice · catalogue Topic 3
+
+### 9.0.1B3 — AUTHOR deferred for factorisation grammar (B3.5)
+
+- **Reason:** Templates-only until `factor-trinomial-verifier` goldens + wrong-answer matrix stay green and pilot shows templates miss a needed shape. Same B1 → B1.5 pattern.
+- **Return when:** B3.5 after adversarial reject suite for authored trinomials (must factor over integers; claimed factors expand-check).
+- **Spec refs:** `BUILD_PLAN_B3.md` Decisions locked §5
+
+### 9.0.1B3 — Remaining Topic 4 skills not in the B3 slice
+
+- **Reason:** Thin column is monic + non-monic AC transfer. Common-monomial, GCF, perfect-square factorisation, and full grouping pedagogy stay catalogue-only.
+- **Return when:** A later B3.x slice needs them as entry/glue with their own templates and codes.
+- **Spec refs:** `BUILD_PLAN_B3.md` Decisions locked §4
+
+### 9.0.1B4 — AUTHOR deferred for quadratic grammar (B4.5)
+
+- **Reason:** Templates-only until zero-product verifier + integer-factorability gate are proven in goldens.
+- **Return when:** B4.5 after authored items must rearrange/factor/root-check independently before serve.
+- **Spec refs:** `BUILD_PLAN_B4.md` Decisions locked §5
+
+### 9.0.1B4 — Remaining Topic 5 skills not in the B4 slice
+
+- **Reason:** Thin column covers standard form, zero-product, unit/non-unit solve, verify roots. Formula method, preserve-roots edge cases, and full non-unit pedagogy beyond the contrast item stay later.
+- **Return when:** Pilot needs richer quadratic paths or a B4.x column.
+- **Spec refs:** `BUILD_PLAN_B4.md`
 
 ### 9.0.1B1 — Remaining Topic 2 skills not in the B1 slice
 
@@ -82,5 +117,6 @@
 - Elapsed/idle time per step (fatigue detection only, never mastery evidence) — Phase B or C.
 - Breadth coverage across all 5 topics — later Phase B topics after B1.
 - Execution and recording of the delayed retention check — Phase A schedules only.
-- Parent/student report content — Phase D.
+- ~~Parent/student report content — Phase D~~ — **D.v1 + D.v2 shipped** (LearningSession polish + DiagnosticV2-native STUDENT/PARENT via `diagnostic-v2-report.service.ts`). Still out: weekly rollup of DiagnosticV2, email-copy changes, INTERNAL polish.
+- ~~Instant AI-selected next items (sync generate lag) — Phase C plan~~ — **C.v1 shipped** (process-local verified buffer). Still deferred: cross-process durable queues; AUTHOR-into-buffer fill. See [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md).
 - Telemetry for the four `AssistanceLevelV2` levels this phase never produces (`GENERAL_PROMPT`, `LOCATION_HINT`, `MICRO_QUESTION`, `PARTIAL_WORKED_STEP`).

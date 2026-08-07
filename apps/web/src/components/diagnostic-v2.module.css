@@ -44,11 +44,52 @@
 
 .workingLine {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--s-3);
   font-family: var(--font-math);
   font-size: var(--text-lg);
   overflow-wrap: anywhere;
+}
+
+/* Stacked fraction display (slash ASCII remains the wire/input format). */
+.mathLine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15em;
+  line-height: 1.2;
+}
+
+.mathText {
+  white-space: pre-wrap;
+}
+
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin: 0 0.12em;
+  padding: 0 0.1em;
+  line-height: 1.05;
+}
+
+.fracNum,
+.fracDen {
+  display: block;
+  text-align: center;
+  padding: 0 0.15em;
+  font-size: 0.92em;
+}
+
+.fracBar {
+  display: block;
+  width: 100%;
+  min-width: 0.85em;
+  height: 0;
+  border-top: 1.5px solid currentColor;
+  margin: 0.08em 0;
 }
 
 .lineTag {
@@ -120,6 +161,65 @@
 
 /* Shown above the prompt whenever the item on screen was AI-selected, so an
    AI-chosen question is never indistinguishable from a pre-written one. */
+.trackPicker {
+  margin: var(--s-5) 0 0;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.trackPicker legend {
+  padding: 0 var(--s-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.trackOption {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.trackOption input {
+  margin-top: 0.3rem;
+}
+
+.trackOption strong {
+  display: block;
+}
+
+.trackHint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--ink-faint);
+}
+
+.trackHint code {
+  font-family: var(--font-math);
+  font-size: 0.95em;
+}
+
+.trackBadge {
+  margin: var(--s-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.hypothesisBox {
+  margin: var(--s-4) 0 0;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
 .aiChip {
   display: flex;
   align-items: center;

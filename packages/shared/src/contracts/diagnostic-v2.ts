@@ -24,7 +24,27 @@ export type MicroSkillId =
   | "FND_FRACTION_EQUIV"
   | "FND_FRACTION_OPS"
   | "LIN_CLEAR_FRACTIONS"
-  | "LIN_SOLVE_FRACTIONS";
+  | "LIN_SOLVE_FRACTIONS"
+  /** Phase B2 — Topic 3 difference-of-squares thin slice. */
+  | "ALG_IDENTIFY_STRUCTURE"
+  | "EXP_EXPAND_BINOMIALS"
+  | "ID_DIFF_SQUARES"
+  | "ID_VERIFY_EXPANSION"
+  /** Phase B3 — Topic 4 factorisation thin slice. */
+  | "FAC_READ_ABC_SIGNS"
+  | "FAC_PAIR_PRODUCT_SUM"
+  | "FAC_MONIC_TRINOMIAL"
+  | "FAC_COMPUTE_AC"
+  | "FAC_SPLIT_MIDDLE"
+  | "FAC_NONMONIC_GROUP"
+  | "FAC_VERIFY_EXPAND"
+  /** Phase B4 — Topic 5 quadratic zero-product thin slice. */
+  | "QUAD_STANDARD_FORM"
+  | "QUAD_FACTOR_EXPRESSION"
+  | "QUAD_ZERO_PRODUCT"
+  | "QUAD_CREATE_BRANCHES"
+  | "QUAD_SOLVE_UNIT_FACTOR"
+  | "QUAD_VERIFY_ROOTS";
 
 export const MICRO_SKILL_IDS: MicroSkillId[] = [
   "FND_SIGN_MUL_DIV",
@@ -40,6 +60,23 @@ export const MICRO_SKILL_IDS: MicroSkillId[] = [
   "FND_FRACTION_OPS",
   "LIN_CLEAR_FRACTIONS",
   "LIN_SOLVE_FRACTIONS",
+  "ALG_IDENTIFY_STRUCTURE",
+  "EXP_EXPAND_BINOMIALS",
+  "ID_DIFF_SQUARES",
+  "ID_VERIFY_EXPANSION",
+  "FAC_READ_ABC_SIGNS",
+  "FAC_PAIR_PRODUCT_SUM",
+  "FAC_MONIC_TRINOMIAL",
+  "FAC_COMPUTE_AC",
+  "FAC_SPLIT_MIDDLE",
+  "FAC_NONMONIC_GROUP",
+  "FAC_VERIFY_EXPAND",
+  "QUAD_STANDARD_FORM",
+  "QUAD_FACTOR_EXPRESSION",
+  "QUAD_ZERO_PRODUCT",
+  "QUAD_CREATE_BRANCHES",
+  "QUAD_SOLVE_UNIT_FACTOR",
+  "QUAD_VERIFY_ROOTS",
 ];
 
 export function isMicroSkillId(v: unknown): v is MicroSkillId {
@@ -66,11 +103,19 @@ export type ContextModifierId =
   /** Phase B1 — the step was taken on a fraction-linear item / track. */
   | "HAS_FRACTIONS";
 
-export type DiagnosticV2Track = "NEGATIVE_DISTRIBUTION" | "FRACTION_LINEAR";
+export type DiagnosticV2Track =
+  | "NEGATIVE_DISTRIBUTION"
+  | "FRACTION_LINEAR"
+  | "IDENTITY_DIFF_SQUARES"
+  | "FACTOR_MONIC_TRINOMIAL"
+  | "QUAD_ZERO_PRODUCT";
 
 export const DIAGNOSTIC_V2_TRACKS: DiagnosticV2Track[] = [
   "NEGATIVE_DISTRIBUTION",
   "FRACTION_LINEAR",
+  "IDENTITY_DIFF_SQUARES",
+  "FACTOR_MONIC_TRINOMIAL",
+  "QUAD_ZERO_PRODUCT",
 ];
 
 export function isDiagnosticV2Track(v: unknown): v is DiagnosticV2Track {
@@ -443,6 +488,8 @@ export interface DiagnosticV2SubmittedStepResponse extends DiagnosticV2StepOutco
   validity: StepValidity;
   verificationSource: VerificationSource;
   attemptedTransformation: StepTransformation;
+  /** Stable taxonomy code when INVALID (e.g. WRONG_COMMON_MULTIPLE). */
+  firstInvalidActionCode?: string;
   firstInvalidActionDescription?: string;
 }
 
@@ -473,6 +520,7 @@ export interface DiagnosticV2DebugStepView {
   validity: StepValidity;
   verificationSource: VerificationSource;
   attemptedTransformation: StepTransformation;
+  firstInvalidActionCode?: string;
   firstInvalidActionDescription?: string;
   primaryMicroSkillId?: string;
   topicId?: string;
@@ -542,4 +590,6 @@ export interface DiagnosticV2SummaryResponse {
   sessionId: string;
   status: DiagnosticV2SessionStatus;
   childFacingSummary: string;
+  /** D.v2 — deterministic parent template, optionally AI-polished. */
+  parentFacingSummary?: string;
 }

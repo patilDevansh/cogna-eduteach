@@ -1,0 +1,595 @@
+{
+  "caseId": "06_gibberish",
+  "label": "Gibberish / PARSE_FAILED on MAIN",
+  "track": "FRACTION_LINEAR",
+  "sessionId": "cmsj9wdbe006gy2eu6ohxr628",
+  "studentId": "dev_student_001",
+  "opening": {
+    "itemKey": "ENTRY_FRAC_SIMPLE",
+    "equationPrompt": "Solve for x:  x/2 + 3 = 7",
+    "stageId": "ENTRY_FRAC_SIMPLE",
+    "source": "RULE",
+    "whyRuleNotAi": "opening item is fixed entry sequence"
+  },
+  "transitions": [
+    {
+      "fromItemKey": "ENTRY_FRAC_SIMPLE",
+      "studentAction": "correct",
+      "submittedLine": "x/2 = 4",
+      "dontKnow": false,
+      "outcome": "SUBMITTED",
+      "validity": "VALID",
+      "verificationSource": "DETERMINISTIC",
+      "firstInvalidActionCode": null,
+      "firstInvalidActionDescription": null,
+      "assistanceOffered": null,
+      "itemComplete": false,
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextEquationPrompt": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 28 times independently and only made 3 independent errors, showing strong understanding despite a few slips.",
+        "childFacingSummary": "You're doing great moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "microSkillStates": [
+        {
+          "microSkillId": "LIN_CLEAR_FRACTIONS",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 8,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_COMBINE_LIKE",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 12,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_DISTRIBUTE_NEG",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 9,
+          "independentFailureCount": 33
+        },
+        {
+          "microSkillId": "LIN_DISTRIBUTE_POS",
+          "status": "RELIABLE",
+          "independentSuccessCount": 2,
+          "independentFailureCount": 0
+        },
+        {
+          "microSkillId": "LIN_REMOVE_COEFFICIENT",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 31,
+          "independentFailureCount": 2
+        },
+        {
+          "microSkillId": "LIN_REMOVE_CONSTANT",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 28,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_SOLVE_FRACTIONS",
+          "status": "RELIABLE",
+          "independentSuccessCount": 6,
+          "independentFailureCount": 0
+        },
+        {
+          "microSkillId": "LIN_SOLVE_TWO_STEP",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 22,
+          "independentFailureCount": 7
+        },
+        {
+          "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+          "status": "RELIABLE",
+          "independentSuccessCount": 10,
+          "independentFailureCount": 0
+        }
+      ],
+      "trailMatch": "PASS",
+      "failureModeTag": null,
+      "whyRuleNotAi": null,
+      "whyAiNotRule": null,
+      "stageHistoryTail": [
+        {
+          "at": "2026-08-07T18:23:19.658Z",
+          "track": "FRACTION_LINEAR",
+          "source": "RULE",
+          "stageId": "ENTRY_FRAC_SIMPLE",
+          "reasoning": "Opening item of the fraction-linear diagnostic track."
+        }
+      ]
+    },
+    {
+      "fromItemKey": "ENTRY_FRAC_SIMPLE",
+      "studentAction": "correct",
+      "submittedLine": "x = 8",
+      "dontKnow": false,
+      "outcome": "SUBMITTED",
+      "validity": "VALID",
+      "verificationSource": "DETERMINISTIC",
+      "firstInvalidActionCode": null,
+      "firstInvalidActionDescription": null,
+      "assistanceOffered": null,
+      "itemComplete": true,
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "FRAC_CLEAR_MAIN",
+      "nextEquationPrompt": "Solve for x:  (x + 1)/2 = (x - 1)/3 + 1",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "confidence": 0.8,
+        "reasoning": "The student solved problems correctly more often than not but still made errors multiple times when working independently with fractions, indicating a recurring issue.",
+        "childFacingSummary": "You’re doing pretty well with clearing fractions, but sometimes you make mistakes when working on your own.",
+        "microSkillId": "LIN_CLEAR_FRACTIONS"
+      },
+      "microSkillStates": [
+        {
+          "microSkillId": "LIN_CLEAR_FRACTIONS",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 9,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_COMBINE_LIKE",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 12,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_DISTRIBUTE_NEG",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 9,
+          "independentFailureCount": 33
+        },
+        {
+          "microSkillId": "LIN_DISTRIBUTE_POS",
+          "status": "RELIABLE",
+          "independentSuccessCount": 2,
+          "independentFailureCount": 0
+        },
+        {
+          "microSkillId": "LIN_REMOVE_COEFFICIENT",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 31,
+          "independentFailureCount": 2
+        },
+        {
+          "microSkillId": "LIN_REMOVE_CONSTANT",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 28,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_SOLVE_FRACTIONS",
+          "status": "RELIABLE",
+          "independentSuccessCount": 7,
+          "independentFailureCount": 0
+        },
+        {
+          "microSkillId": "LIN_SOLVE_TWO_STEP",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 22,
+          "independentFailureCount": 7
+        },
+        {
+          "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+          "status": "RELIABLE",
+          "independentSuccessCount": 10,
+          "independentFailureCount": 0
+        }
+      ],
+      "trailMatch": "PASS",
+      "failureModeTag": null,
+      "whyRuleNotAi": "selector fell back to rule sequence (timeout/reject/flag/shadow)",
+      "whyAiNotRule": null,
+      "stageHistoryTail": [
+        {
+          "at": "2026-08-07T18:23:19.658Z",
+          "track": "FRACTION_LINEAR",
+          "source": "RULE",
+          "stageId": "ENTRY_FRAC_SIMPLE",
+          "reasoning": "Opening item of the fraction-linear diagnostic track."
+        },
+        {
+          "at": "2026-08-07T18:23:25.609Z",
+          "source": "RULE",
+          "stageId": "FRAC_CLEAR_MAIN",
+          "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+        }
+      ]
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_MAIN",
+      "studentAction": "gibberish",
+      "submittedLine": "asdf qwerty !!!",
+      "dontKnow": false,
+      "outcome": "SUBMITTED",
+      "validity": "INVALID",
+      "verificationSource": "AI_FALLBACK",
+      "firstInvalidActionCode": null,
+      "firstInvalidActionDescription": "The new line contains nonsensical characters and does not represent a valid mathematical step from the previous line.",
+      "assistanceOffered": null,
+      "itemComplete": true,
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student showed difficulty on LIN_CLEAR_FRACTIONS with the last step, so giving a simpler fraction clearing problem with one fraction equal to an integer (FRAC_CLEAR_CONTRAST) will directly target their gap in clearing fractions before solving."
+      },
+      "nextItemKey": "FRAC_CLEAR_CONTRAST",
+      "nextEquationPrompt": "Solve for y:  (y + 2)/4 = 3",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student solved problems correctly more often than not but still made several errors independently, showing a recurring difficulty with clearing fractions by multiplying both sides.",
+        "childFacingSummary": "You're getting these problems right most of the time, but sometimes you make mistakes when working on your own with fractions.",
+        "microSkillId": "LIN_CLEAR_FRACTIONS"
+      },
+      "microSkillStates": [
+        {
+          "microSkillId": "LIN_CLEAR_FRACTIONS",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 9,
+          "independentFailureCount": 4
+        },
+        {
+          "microSkillId": "LIN_COMBINE_LIKE",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 12,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_DISTRIBUTE_NEG",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 9,
+          "independentFailureCount": 33
+        },
+        {
+          "microSkillId": "LIN_DISTRIBUTE_POS",
+          "status": "RELIABLE",
+          "independentSuccessCount": 2,
+          "independentFailureCount": 0
+        },
+        {
+          "microSkillId": "LIN_REMOVE_COEFFICIENT",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 31,
+          "independentFailureCount": 2
+        },
+        {
+          "microSkillId": "LIN_REMOVE_CONSTANT",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 28,
+          "independentFailureCount": 3
+        },
+        {
+          "microSkillId": "LIN_SOLVE_FRACTIONS",
+          "status": "RELIABLE",
+          "independentSuccessCount": 7,
+          "independentFailureCount": 0
+        },
+        {
+          "microSkillId": "LIN_SOLVE_TWO_STEP",
+          "status": "LIKELY_GAP",
+          "independentSuccessCount": 22,
+          "independentFailureCount": 7
+        },
+        {
+          "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+          "status": "RELIABLE",
+          "independentSuccessCount": 10,
+          "independentFailureCount": 0
+        }
+      ],
+      "trailMatch": "PASS",
+      "failureModeTag": null,
+      "whyRuleNotAi": null,
+      "whyAiNotRule": "AI served (GENERATE+SERVE on, parse/gates passed) — agree-with-rule still shows AI",
+      "stageHistoryTail": [
+        {
+          "at": "2026-08-07T18:23:19.658Z",
+          "track": "FRACTION_LINEAR",
+          "source": "RULE",
+          "stageId": "ENTRY_FRAC_SIMPLE",
+          "reasoning": "Opening item of the fraction-linear diagnostic track."
+        },
+        {
+          "at": "2026-08-07T18:23:25.609Z",
+          "source": "RULE",
+          "stageId": "FRAC_CLEAR_MAIN",
+          "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+        },
+        {
+          "at": "2026-08-07T18:23:31.214Z",
+          "source": "AI",
+          "stageId": "FRAC_CLEAR_CONTRAST",
+          "reasoning": "The student showed difficulty on LIN_CLEAR_FRACTIONS with the last step, so giving a simpler fraction clearing problem with one fraction equal to an integer (FRAC_CLEAR_CONTRAST) will directly target their gap in clearing fractions before solving."
+        }
+      ]
+    }
+  ],
+  "notes": [],
+  "finalDebug": {
+    "sessionId": "cmsj9wdbe006gy2eu6ohxr628",
+    "status": "ACTIVE",
+    "currentStageId": "FRAC_CLEAR_CONTRAST",
+    "stageHistory": [
+      {
+        "at": "2026-08-07T18:23:19.658Z",
+        "track": "FRACTION_LINEAR",
+        "source": "RULE",
+        "stageId": "ENTRY_FRAC_SIMPLE",
+        "reasoning": "Opening item of the fraction-linear diagnostic track."
+      },
+      {
+        "at": "2026-08-07T18:23:25.609Z",
+        "source": "RULE",
+        "stageId": "FRAC_CLEAR_MAIN",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T18:23:31.214Z",
+        "source": "AI",
+        "stageId": "FRAC_CLEAR_CONTRAST",
+        "reasoning": "The student showed difficulty on LIN_CLEAR_FRACTIONS with the last step, so giving a simpler fraction clearing problem with one fraction equal to an integer (FRAC_CLEAR_CONTRAST) will directly target their gap in clearing fractions before solving."
+      }
+    ],
+    "items": [
+      {
+        "itemKey": "ENTRY_FRAC_SIMPLE",
+        "equationPrompt": "Solve for x:  x/2 + 3 = 7",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_SIMPLE",
+        "primaryMicroSkillId": "LIN_SOLVE_FRACTIONS",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "FRAC_CLEAR_MAIN",
+        "equationPrompt": "Solve for x:  (x + 1)/2 = (x - 1)/3 + 1",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_CLEAR",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "FRAC_CLEAR_CONTRAST",
+        "equationPrompt": "Solve for y:  (y + 2)/4 = 3",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_CLEAR_BARE",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "IN_PROGRESS"
+      }
+    ],
+    "declines": [],
+    "steps": [
+      {
+        "id": "cmsj9wel4006ly2eur3ce5it9",
+        "attemptId": "cmsj9wdbg006iy2eupyyzrt7g",
+        "stepIndex": 0,
+        "previousLine": "x/2 + 3 = 7",
+        "submittedLine": "x/2 = 4",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsj9whws006ty2eucfuqygwg",
+        "attemptId": "cmsj9wdbg006iy2eupyyzrt7g",
+        "stepIndex": 1,
+        "previousLine": "x/2 = 4",
+        "submittedLine": "x = 8",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsj9wm8g0076y2eulhuruljz",
+        "attemptId": "cmsj9whxq0071y2euqgxkcs6a",
+        "stepIndex": 0,
+        "previousLine": "(x + 1)/2 = (x - 1)/3 + 1",
+        "submittedLine": "asdf qwerty !!!",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The new line contains nonsensical characters and does not represent a valid mathematical step from the previous line.",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      }
+    ],
+    "hypotheses": [
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 28 times independently and only made 3 independent errors, showing strong understanding despite a few slips.",
+        "source": "AI",
+        "childFacingSummary": "You're doing great moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.8,
+        "reasoning": "The student solved problems correctly more often than not but still made errors multiple times when working independently with fractions, indicating a recurring issue.",
+        "source": "AI",
+        "childFacingSummary": "You’re doing pretty well with clearing fractions, but sometimes you make mistakes when working on your own."
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student solved problems correctly more often than not but still made several errors independently, showing a recurring difficulty with clearing fractions by multiplying both sides.",
+        "source": "AI",
+        "childFacingSummary": "You're getting these problems right most of the time, but sometimes you make mistakes when working on your own with fractions."
+      }
+    ],
+    "microSkillStates": [
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 17,
+        "independentSuccessCount": 9,
+        "independentFailureCount": 4,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 16,
+        "independentSuccessCount": 12,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 44,
+        "independentSuccessCount": 9,
+        "independentFailureCount": 33,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "ASSISTED",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "status": "RELIABLE",
+        "evidenceCount": 2,
+        "independentSuccessCount": 2,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 34,
+        "independentSuccessCount": 31,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 33,
+        "independentSuccessCount": 28,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 2,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_FRACTIONS",
+        "status": "RELIABLE",
+        "evidenceCount": 7,
+        "independentSuccessCount": 7,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 29,
+        "independentSuccessCount": 22,
+        "independentFailureCount": 7,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "RELIABLE",
+        "evidenceCount": 11,
+        "independentSuccessCount": 10,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      }
+    ]
+  }
+}

@@ -92,26 +92,52 @@ export default function StudentHomePage() {
 
         {!hasHistory ? (
           <div className={styles.heroCard}>
-            <span className={styles.kicker}>Let&apos;s get started</span>
-            <h2>A quick baseline first</h2>
+            <span className={styles.kicker}>Phase B1 — try this</span>
+            <h2>Step check: equations with fractions</h2>
             <p className={styles.meta}>
-              About 12 short questions to find the right starting point — not a test, just a way to
-              begin in the right place.
+              Write working one line at a time. Starts with a simple fraction equation, then clearing
+              denominators — not the old linear baseline.
             </p>
-            <Link href="/student/baseline" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
-              Start baseline
+            <Link
+              href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+              className="btn btn-primary"
+              style={{ alignSelf: "flex-start" }}
+            >
+              Start fractions check
+            </Link>
+            <Link
+              href="/student/baseline"
+              className="btn btn-ghost"
+              style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
+            >
+              Or start the old baseline
             </Link>
           </div>
         ) : (
           <>
             <div className={styles.heroCard}>
-              <span className={styles.kicker}>Up next</span>
-              <h2>{summary?.nextAction ? conceptLabelStudent(summary.nextAction.conceptId) : "Practice"}</h2>
-              <span className={styles.meta}>
-                About 10 minutes · {summary?.nextAction?.reason === "revision" ? "a quick refresh" : "picks up where you left off"}
-              </span>
-              <Link href="/student/practice?mode=ADAPTIVE_PRACTICE" className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
-                Continue practicing
+              <span className={styles.kicker}>Phase B1 — try this</span>
+              <h2>Step check: equations with fractions</h2>
+              <p className={styles.meta}>
+                Write working one line at a time. Starts with a simple fraction equation, then clearing
+                denominators — not the old linear baseline.
+              </p>
+              <Link
+                href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+                className="btn btn-primary"
+                style={{ alignSelf: "flex-start" }}
+              >
+                Start fractions check
+              </Link>
+              <Link
+                href="/student/practice?mode=ADAPTIVE_PRACTICE"
+                className="btn btn-ghost"
+                style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
+              >
+                Or continue practicing
+                {summary?.nextAction
+                  ? ` · ${conceptLabelStudent(summary.nextAction.conceptId)}`
+                  : ""}
               </Link>
             </div>
 
@@ -197,6 +223,9 @@ export default function StudentHomePage() {
         )}
 
         <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>
+          <Link href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1">
+            Step check (fractions)
+          </Link>
           <Link href="/student/revision">Plan</Link>
           <button type="button" className="btn-quiet" onClick={signOut} style={{ padding: 0 }}>
             Sign out

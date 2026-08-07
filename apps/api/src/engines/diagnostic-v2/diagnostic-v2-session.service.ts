@@ -17,10 +17,19 @@
  * via its additive nullable microSkillId column, and only to *schedule* a
  * retention check — running it is a later phase.
  */
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from "@nestjs/common";
 import {
   EVIDENCE_POLICY_MICROSKILL_V1,
   STEP_VERIFICATION_RULES_FRACTION_V1,
+  STEP_VERIFICATION_RULES_IDENTITY_V1,
+  STEP_VERIFICATION_RULES_FACTOR_V1,
+  STEP_VERIFICATION_RULES_QUADRATIC_V1,
   STEP_VERIFICATION_RULES_V1,
   isDiagnosticV2ItemOrigin,
   type AssistanceLevel,
@@ -47,10 +56,17 @@ import {
   findFixedItem,
   FIXED_ITEMS,
   isKnownTemplateId,
+  normalizedQuestionKey,
+  renderFreshInstance,
   type DiagnosticV2Item,
   type DiagnosticV2ItemStageId,
   type DiagnosticV2TemplateId,
 } from "./diagnostic-v2-template-render";
+import {
+  likelyPrefetchTemplates,
+  peekBufferedItem,
+  putBufferedItem,
+} from "./diagnostic-v2-next-item-buffer";
 import {
   isSolvedForm,
   matchSingleBracket,
@@ -79,6 +95,13 @@ import {
 } from "./diagnostic-v2-ai-selector.service";
 import { DiagnosticV2AiInterpreterService } from "./diagnostic-v2-ai-interpreter.service";
 import { DiagnosticV2AiGraderService } from "./diagnostic-v2-ai-grader.service";
+import { DiagnosticV2ReportService } from "./diagnostic-v2-report.service";
+import {
+  buildChildFacingSummary,
+  childFacingSkillName,
+} from "./diagnostic-v2-summary";
+
+export { buildChildFacingSummary, childFacingSkillName } from "./diagnostic-v2-summary";
 
 // ─── Stages ─────────────────────────────────────────────────────────────────
 
@@ -94,6 +117,18 @@ export type DiagnosticV2StageId =
   | "FRAC_CLEAR_MAIN"
   | "FRAC_CLEAR_CONTRAST"
   | "TRANSFER_FRAC_CLEAR"
+  | "ENTRY_EXPAND_BINOMIAL"
+  | "ID_DIFF_MAIN"
+  | "ID_DIFF_CONTRAST"
+  | "TRANSFER_ID_DIFF"
+  | "ENTRY_FACTOR_EXPAND"
+  | "FAC_MONIC_MAIN"
+  | "FAC_MONIC_CONTRAST"
+  | "TRANSFER_FAC_NONMONIC"
+  | "ENTRY_QUAD_STANDARD"
+  | "QUAD_ZP_MAIN"
+  | "QUAD_ZP_CONTRAST"
+  | "TRANSFER_QUAD_ZP"
   | "COMPLETE";
 
 /** Item-bearing stages for the Phase A negative-distribution track. */
@@ -113,15 +148,50 @@ export const FRAC_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
   "TRANSFER_FRAC_CLEAR",
 ];
 
+/** Item-bearing stages for the Phase B2 difference-of-squares track. */
+export const ID_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_EXPAND_BINOMIAL",
+  "ID_DIFF_MAIN",
+  "ID_DIFF_CONTRAST",
+  "TRANSFER_ID_DIFF",
+];
+
+/** Item-bearing stages for the Phase B3 factorisation track. */
+export const FAC_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_FACTOR_EXPAND",
+  "FAC_MONIC_MAIN",
+  "FAC_MONIC_CONTRAST",
+  "TRANSFER_FAC_NONMONIC",
+];
+
+/** Item-bearing stages for the Phase B4 quadratic zero-product track. */
+export const QUAD_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  "ENTRY_QUAD_STANDARD",
+  "QUAD_ZP_MAIN",
+  "QUAD_ZP_CONTRAST",
+  "TRANSFER_QUAD_ZP",
+];
+
 export const FIRST_STAGE_ID: DiagnosticV2StageId = "ENTRY_TWO_STEP";
 export const FIRST_FRAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FRAC_SIMPLE";
+export const FIRST_ID_STAGE_ID: DiagnosticV2StageId = "ENTRY_EXPAND_BINOMIAL";
+export const FIRST_FAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FACTOR_EXPAND";
+export const FIRST_QUAD_STAGE_ID: DiagnosticV2StageId = "ENTRY_QUAD_STANDARD";
 
 export function itemStageOrderForTrack(track: DiagnosticV2Track): DiagnosticV2StageId[] {
-  return track === "FRACTION_LINEAR" ? FRAC_ITEM_STAGE_ORDER : ITEM_STAGE_ORDER;
+  if (track === "FRACTION_LINEAR") return FRAC_ITEM_STAGE_ORDER;
+  if (track === "IDENTITY_DIFF_SQUARES") return ID_ITEM_STAGE_ORDER;
+  if (track === "FACTOR_MONIC_TRINOMIAL") return FAC_ITEM_STAGE_ORDER;
+  if (track === "QUAD_ZERO_PRODUCT") return QUAD_ITEM_STAGE_ORDER;
+  return ITEM_STAGE_ORDER;
 }
 
 export function firstStageForTrack(track: DiagnosticV2Track): DiagnosticV2StageId {
-  return track === "FRACTION_LINEAR" ? FIRST_FRAC_STAGE_ID : FIRST_STAGE_ID;
+  if (track === "FRACTION_LINEAR") return FIRST_FRAC_STAGE_ID;
+  if (track === "IDENTITY_DIFF_SQUARES") return FIRST_ID_STAGE_ID;
+  if (track === "FACTOR_MONIC_TRINOMIAL") return FIRST_FAC_STAGE_ID;
+  if (track === "QUAD_ZERO_PRODUCT") return FIRST_QUAD_STAGE_ID;
+  return FIRST_STAGE_ID;
 }
 
 /**
@@ -151,11 +221,58 @@ export function stageForTemplate(templateId: DiagnosticV2TemplateId): Diagnostic
       return "FRAC_CLEAR_CONTRAST";
     case "TPL_TRANSFER_FRAC_CLEAR":
       return "TRANSFER_FRAC_CLEAR";
+    case "TPL_EXPAND_BINOMIAL":
+      return "ENTRY_EXPAND_BINOMIAL";
+    case "TPL_DIFF_SQUARES":
+      return "ID_DIFF_MAIN";
+    case "TPL_DIFF_SQUARES_BARE":
+      return "ID_DIFF_CONTRAST";
+    case "TPL_TRANSFER_DIFF_SQUARES":
+      return "TRANSFER_ID_DIFF";
+    case "TPL_FACTOR_EXPAND":
+      return "ENTRY_FACTOR_EXPAND";
+    case "TPL_FAC_MONIC":
+      return "FAC_MONIC_MAIN";
+    case "TPL_FAC_MONIC_BARE":
+      return "FAC_MONIC_CONTRAST";
+    case "TPL_TRANSFER_FAC_NONMONIC":
+      return "TRANSFER_FAC_NONMONIC";
+    case "TPL_QUAD_STANDARD":
+      return "ENTRY_QUAD_STANDARD";
+    case "TPL_QUAD_ZERO_PRODUCT":
+      return "QUAD_ZP_MAIN";
+    case "TPL_QUAD_ZP_BARE":
+      return "QUAD_ZP_CONTRAST";
+    case "TPL_TRANSFER_QUAD_ZP":
+      return "TRANSFER_QUAD_ZP";
   }
 }
 
 export function stageForItem(item: DiagnosticV2Item): DiagnosticV2StageId {
   return item.stageId;
+}
+
+/** Next fixed-backbone template for Phase C prefetch (skill/template likelihood). */
+export function nextBackboneTemplateId(
+  currentStage: DiagnosticV2StageId,
+  track?: DiagnosticV2Track,
+): DiagnosticV2TemplateId | null {
+  const orders = track
+    ? [itemStageOrderForTrack(track)]
+    : [
+        ITEM_STAGE_ORDER,
+        FRAC_ITEM_STAGE_ORDER,
+        ID_ITEM_STAGE_ORDER,
+        FAC_ITEM_STAGE_ORDER,
+        QUAD_ITEM_STAGE_ORDER,
+      ];
+  for (const order of orders) {
+    const idx = order.indexOf(currentStage);
+    if (idx >= 0 && idx + 1 < order.length) {
+      return findFixedItem(order[idx + 1]!)?.templateId ?? null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -195,6 +312,30 @@ export function nextStagesAfter(
       return ctx.patternConfirmed
         ? ["RULE_PROMPT", "TRANSFER_FRAC_CLEAR"]
         : ["TRANSFER_FRAC_CLEAR"];
+    case "ENTRY_EXPAND_BINOMIAL":
+      return ["ID_DIFF_MAIN"];
+    case "ID_DIFF_MAIN":
+      return ctx.targetSkillFailed ? ["ID_DIFF_CONTRAST"] : ["TRANSFER_ID_DIFF"];
+    case "ID_DIFF_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_ID_DIFF"]
+        : ["TRANSFER_ID_DIFF"];
+    case "ENTRY_FACTOR_EXPAND":
+      return ["FAC_MONIC_MAIN"];
+    case "FAC_MONIC_MAIN":
+      return ctx.targetSkillFailed ? ["FAC_MONIC_CONTRAST"] : ["TRANSFER_FAC_NONMONIC"];
+    case "FAC_MONIC_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_FAC_NONMONIC"]
+        : ["TRANSFER_FAC_NONMONIC"];
+    case "ENTRY_QUAD_STANDARD":
+      return ["QUAD_ZP_MAIN"];
+    case "QUAD_ZP_MAIN":
+      return ctx.targetSkillFailed ? ["QUAD_ZP_CONTRAST"] : ["TRANSFER_QUAD_ZP"];
+    case "QUAD_ZP_CONTRAST":
+      return ctx.patternConfirmed
+        ? ["RULE_PROMPT", "TRANSFER_QUAD_ZP"]
+        : ["TRANSFER_QUAD_ZP"];
     default:
       return ["COMPLETE"];
   }
@@ -212,7 +353,13 @@ export interface StageHistoryEntry {
 export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
   if (!Array.isArray(history) || history.length === 0) return "NEGATIVE_DISTRIBUTION";
   const first = history[0] as StageHistoryEntry;
-  if (first.track === "FRACTION_LINEAR" || first.track === "NEGATIVE_DISTRIBUTION") {
+  if (
+    first.track === "FRACTION_LINEAR" ||
+    first.track === "NEGATIVE_DISTRIBUTION" ||
+    first.track === "IDENTITY_DIFF_SQUARES" ||
+    first.track === "FACTOR_MONIC_TRINOMIAL" ||
+    first.track === "QUAD_ZERO_PRODUCT"
+  ) {
     return first.track;
   }
   const stageId = String(first.stageId ?? "");
@@ -222,6 +369,27 @@ export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
     stageId === "TRANSFER_FRAC_CLEAR"
   ) {
     return "FRACTION_LINEAR";
+  }
+  if (
+    stageId.startsWith("ID_") ||
+    stageId === "ENTRY_EXPAND_BINOMIAL" ||
+    stageId === "TRANSFER_ID_DIFF"
+  ) {
+    return "IDENTITY_DIFF_SQUARES";
+  }
+  if (
+    stageId.startsWith("FAC_") ||
+    stageId === "ENTRY_FACTOR_EXPAND" ||
+    stageId === "TRANSFER_FAC_NONMONIC"
+  ) {
+    return "FACTOR_MONIC_TRINOMIAL";
+  }
+  if (
+    stageId.startsWith("QUAD_") ||
+    stageId === "ENTRY_QUAD_STANDARD" ||
+    stageId === "TRANSFER_QUAD_ZP"
+  ) {
+    return "QUAD_ZERO_PRODUCT";
   }
   return "NEGATIVE_DISTRIBUTION";
 }
@@ -379,39 +547,27 @@ const MICRO_SKILL_TO_CONCEPT: Record<MicroSkillId, string> = {
   FND_FRACTION_OPS: "C8_FRACTIONAL_COEFFICIENTS",
   LIN_CLEAR_FRACTIONS: "C8_FRACTIONAL_COEFFICIENTS",
   LIN_SOLVE_FRACTIONS: "C8_FRACTIONAL_COEFFICIENTS",
+  ALG_IDENTIFY_STRUCTURE: "ALG_IDENTITIES",
+  EXP_EXPAND_BINOMIALS: "ALG_IDENTITIES",
+  ID_DIFF_SQUARES: "ALG_IDENTITIES",
+  ID_VERIFY_EXPANSION: "ALG_IDENTITIES",
+  FAC_READ_ABC_SIGNS: "ALG_FACTORISATION",
+  FAC_PAIR_PRODUCT_SUM: "ALG_FACTORISATION",
+  FAC_MONIC_TRINOMIAL: "ALG_FACTORISATION",
+  FAC_COMPUTE_AC: "ALG_FACTORISATION",
+  FAC_SPLIT_MIDDLE: "ALG_FACTORISATION",
+  FAC_NONMONIC_GROUP: "ALG_FACTORISATION",
+  FAC_VERIFY_EXPAND: "ALG_FACTORISATION",
+  QUAD_STANDARD_FORM: "ALG_QUADRATICS",
+  QUAD_FACTOR_EXPRESSION: "ALG_QUADRATICS",
+  QUAD_ZERO_PRODUCT: "ALG_QUADRATICS",
+  QUAD_CREATE_BRANCHES: "ALG_QUADRATICS",
+  QUAD_SOLVE_UNIT_FACTOR: "ALG_QUADRATICS",
+  QUAD_VERIFY_ROOTS: "ALG_QUADRATICS",
 };
 
 const RETENTION_CHECK_TYPE = "MICRO_SKILL_RETENTION_CHECK";
 const RETENTION_CHECK_DELAY_DAYS = 2;
-
-/**
- * The catalogue's skill names are precise and unreadable to a 13-year-old
- * ("distribute a negative multiplier and preserve sign products"). These are
- * the same nine skills said out loud. Used for the summary and for the
- * interpreter's prompt, which is explicitly writing in a child's register.
- */
-const CHILD_FACING_SKILL_NAMES: Record<MicroSkillId, string> = {
-  FND_SIGN_MUL_DIV: "multiplying and dividing with minus signs",
-  LIN_DISTRIBUTE_NEG: "expanding brackets that have a minus in front",
-  LIN_DISTRIBUTE_POS: "expanding brackets",
-  LIN_COMBINE_LIKE: "tidying up like terms",
-  LIN_REMOVE_CONSTANT: "moving a number across the equals sign",
-  LIN_REMOVE_COEFFICIENT: "dividing to get the letter on its own",
-  LIN_SOLVE_TWO_STEP: "two-step equations",
-  LIN_SOLVE_VARIABLE_BOTH: "equations with the letter on both sides",
-  LIN_CHECK_SOLUTION: "checking an answer by putting it back in",
-  FND_FRACTION_EQUIV: "writing the same fraction in a different way",
-  FND_FRACTION_OPS: "working with fractions",
-  LIN_CLEAR_FRACTIONS: "clearing fractions by multiplying both sides",
-  LIN_SOLVE_FRACTIONS: "solving equations that have fractions in them",
-};
-
-export function childFacingSkillName(microSkillId: string): string {
-  return CHILD_FACING_SKILL_NAMES[microSkillId as MicroSkillId] ?? "this skill";
-}
-
-/** Long lists stop being readable — name a few things the student did well, not all of them. */
-const MAX_SKILLS_NAMED_IN_SUMMARY = 3;
 
 // ─── Service ────────────────────────────────────────────────────────────────
 
@@ -435,6 +591,7 @@ interface StepRow {
   validity: StepValidity;
   verificationSource: VerificationSource;
   attemptedTransformation: StepTransformation;
+  firstInvalidActionCode: string | null;
   firstInvalidActionDescription: string | null;
   primaryMicroSkillId: string | null;
   topicId: string | null;
@@ -454,6 +611,8 @@ export class DiagnosticV2SessionService {
     private readonly selector: DiagnosticV2AiSelectorService,
     private readonly interpreter: DiagnosticV2AiInterpreterService,
     private readonly grader: DiagnosticV2AiGraderService,
+    /** Optional so goldens that construct the service with four deps still compile. */
+    @Optional() private readonly reports?: DiagnosticV2ReportService,
   ) {}
 
   async startSession(
@@ -501,6 +660,19 @@ export class DiagnosticV2SessionService {
         },
       });
       return { session: createdSession, attempt: createdAttempt };
+    });
+
+    // Phase C: fire-and-forget prefetch for likely early skill/template targets.
+    // Never blocks the startSession response.
+    this.prefetchInBackground({
+      sessionId: session.id,
+      templates: likelyPrefetchTemplates({
+        currentTemplateId: item.templateId,
+        currentSkillId: item.primaryMicroSkillId,
+        nextBackboneTemplateId: nextBackboneTemplateId(firstStage, track),
+      }),
+      alreadyServed: new Set([normalizedQuestionKey(item.openingLine)]),
+      serveOrdinal: 1,
     });
 
     return {
@@ -639,7 +811,15 @@ export class DiagnosticV2SessionService {
     });
     const layers = layersForMicroSkill(attribution.primary);
     const verifierVersion =
-      track === "FRACTION_LINEAR" ? STEP_VERIFICATION_RULES_FRACTION_V1 : STEP_VERIFICATION_RULES_V1;
+      track === "FRACTION_LINEAR"
+        ? STEP_VERIFICATION_RULES_FRACTION_V1
+        : track === "IDENTITY_DIFF_SQUARES"
+          ? STEP_VERIFICATION_RULES_IDENTITY_V1
+          : track === "FACTOR_MONIC_TRINOMIAL"
+            ? STEP_VERIFICATION_RULES_FACTOR_V1
+            : track === "QUAD_ZERO_PRODUCT"
+              ? STEP_VERIFICATION_RULES_QUADRATIC_V1
+              : STEP_VERIFICATION_RULES_V1;
 
     // 4. Evidence. Unresolved lines produce none at all — an unreadable line is
     //    explicitly not a wrong line. A decline produces SKIPPED, which is a
@@ -789,6 +969,32 @@ export class DiagnosticV2SessionService {
         nextStageIds = nextStageIds.map((s) =>
           s === nextItemStage ? stageForItem(selected.item) : s,
         );
+        // Phase C: after consuming a buffered item, refill that skill/template slot
+        // without blocking the submit response (same F&F shape as mid-item refill).
+        if (selected.consumedBufferTemplateId) {
+          const consumedTemplate = selected.consumedBufferTemplateId;
+          const consumedOpening = normalizedQuestionKey(selected.item.openingLine);
+          void Promise.all([
+            this.servedOpeningKeys(sessionId),
+            this.prisma.diagnosticV2Attempt.count({ where: { sessionId } }),
+          ])
+            .then(([served, attemptCount]) => {
+              served.add(consumedOpening);
+              this.prefetchInBackground({
+                sessionId,
+                templates: [consumedTemplate],
+                alreadyServed: served,
+                serveOrdinal: attemptCount + 1,
+              });
+            })
+            .catch((err) => {
+              this.logger.warn(
+                `diagnostic_v2 buffer post-consume refill schedule failed for ${sessionId}: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            });
+        }
       }
     }
 
@@ -986,6 +1192,35 @@ export class DiagnosticV2SessionService {
         })
       : undefined;
 
+    // Phase C: on a mid-item step (student still working), refill likely next targets.
+    if (!itemComplete) {
+      void this.servedOpeningKeys(sessionId)
+        .then((served) => {
+          this.prefetchInBackground({
+            sessionId,
+            templates: likelyPrefetchTemplates({
+              currentTemplateId: item.templateId,
+              currentSkillId: item.primaryMicroSkillId,
+              nextBackboneTemplateId: nextBackboneTemplateId(stageForItem(item)),
+            }),
+            alreadyServed: served,
+            serveOrdinal: Math.max(1, priorSteps.length + 1),
+          });
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `diagnostic_v2 buffer mid-item prefetch schedule failed for ${sessionId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+    }
+
+    // Phase D.v2: polish + persist student/parent reports off the hot path.
+    if (sessionComplete) {
+      this.reports?.ensureSessionReportsInBackground(sessionId);
+    }
+
     const shared = {
       ...(assistanceOffered ? { assistanceOffered } : {}),
       ...(assistanceMessage ? { assistanceMessage } : {}),
@@ -1015,6 +1250,9 @@ export class DiagnosticV2SessionService {
       validity: validity!,
       verificationSource,
       attemptedTransformation: verification.transformation,
+      ...(verification.firstInvalidActionCode
+        ? { firstInvalidActionCode: verification.firstInvalidActionCode }
+        : {}),
       ...(verification.firstInvalidActionDescription
         ? { firstInvalidActionDescription: verification.firstInvalidActionDescription }
         : graderReasoning
@@ -1086,6 +1324,9 @@ export class DiagnosticV2SessionService {
         validity: s.validity,
         verificationSource: s.verificationSource,
         attemptedTransformation: s.attemptedTransformation,
+        ...(s.firstInvalidActionCode
+          ? { firstInvalidActionCode: s.firstInvalidActionCode }
+          : {}),
         ...(s.firstInvalidActionDescription
           ? { firstInvalidActionDescription: s.firstInvalidActionDescription }
           : {}),
@@ -1119,6 +1360,16 @@ export class DiagnosticV2SessionService {
   async getSummary(sessionId: string): Promise<DiagnosticV2SummaryResponse> {
     const session = await this.prisma.diagnosticV2Session.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException("Diagnostic session not found.");
+
+    if (this.reports) {
+      const summaries = await this.reports.getOrBuildSummaries(sessionId);
+      return {
+        sessionId,
+        status: session.status as DiagnosticV2SessionStatus,
+        childFacingSummary: summaries.childFacingSummary,
+        parentFacingSummary: summaries.parentFacingSummary,
+      };
+    }
 
     const states = await this.prisma.microSkillStateV2.findMany({
       where: { studentId: session.studentId },
@@ -1230,12 +1481,94 @@ export class DiagnosticV2SessionService {
     return new Set(attempts.map((a) => a.itemKey));
   }
 
+  /** Normalized opening lines already shown — used by the Phase C buffer fill path. */
+  private async servedOpeningKeys(sessionId: string): Promise<Set<string>> {
+    const attempts = await this.prisma.diagnosticV2Attempt.findMany({
+      where: { sessionId },
+      select: { equationPrompt: true },
+    });
+    const keys = new Set<string>();
+    for (const a of attempts) {
+      const idx = a.equationPrompt.indexOf(":");
+      const opening = (idx === -1 ? a.equationPrompt : a.equationPrompt.slice(idx + 1)).trim();
+      keys.add(normalizedQuestionKey(opening));
+    }
+    return keys;
+  }
+
+  /**
+   * Phase C prefetch worker. GENERATE-primary through existing verify
+   * (`renderFreshInstance` → `verifyRendered`). Fire-and-forget wrapper must
+   * not throw into the request path.
+   */
+  private prefetchInBackground(input: {
+    sessionId: string;
+    templates: DiagnosticV2TemplateId[];
+    alreadyServed: ReadonlySet<string>;
+    serveOrdinal: number;
+  }): void {
+    void this.fillVerifiedBuffer(input).catch((err) => {
+      this.logger.warn(
+        `diagnostic_v2 buffer prefetch failed for ${input.sessionId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+  }
+
+  private async fillVerifiedBuffer(input: {
+    sessionId: string;
+    templates: DiagnosticV2TemplateId[];
+    alreadyServed: ReadonlySet<string>;
+    serveOrdinal: number;
+  }): Promise<void> {
+    for (const templateId of input.templates) {
+      if (peekBufferedItem(input.sessionId, templateId)) continue;
+      const fresh = renderFreshInstance({
+        templateId,
+        seedBase: `${input.sessionId}:${templateId}:prefetch:${input.serveOrdinal}`,
+        alreadyServed: input.alreadyServed,
+      });
+      if (!fresh.item) {
+        this.logger.log(
+          JSON.stringify({
+            event: "diagnostic_v2_buffer.fill_skip",
+            sessionId: input.sessionId,
+            templateId,
+            reason: fresh.failure ?? "no instance",
+          }),
+        );
+        continue;
+      }
+      putBufferedItem({
+        sessionId: input.sessionId,
+        templateId,
+        skillId: fresh.item.primaryMicroSkillId,
+        item: fresh.item,
+      });
+      this.logger.log(
+        JSON.stringify({
+          event: "diagnostic_v2_buffer.filled",
+          sessionId: input.sessionId,
+          templateId,
+          itemKey: fresh.item.itemKey,
+        }),
+      );
+    }
+  }
+
   private async selectNextItem(input: {
     session: { id: string; studentId: string };
     ruleStage: DiagnosticV2StageId;
     track: DiagnosticV2Track;
     lastStepSummary: string;
-  }): Promise<{ item: DiagnosticV2Item; source: "RULE" | "AI"; reasoning?: string }> {
+  }): Promise<{
+    item: DiagnosticV2Item;
+    source: "RULE" | "AI";
+    reasoning?: string;
+    fromBuffer?: boolean;
+    consumedBufferTemplateId?: DiagnosticV2TemplateId;
+  }> {
     const requestedRulePick = requireFixedItem(input.ruleStage);
     const servedItemKeys = await this.servedItemKeys(input.session.id);
     const backbone = itemStageOrderForTrack(input.track);
@@ -1302,7 +1635,13 @@ export class DiagnosticV2SessionService {
         `Discarded an AI-generated/authored item for session ${input.session.id}: ${result.discardedGeneration}`,
       );
     }
-    return { item: result.item, source: result.source, reasoning: result.reasoning };
+    return {
+      item: result.item,
+      source: result.source,
+      reasoning: result.reasoning,
+      fromBuffer: result.fromBuffer,
+      consumedBufferTemplateId: result.consumedBufferTemplateId,
+    };
   }
 
   /**
@@ -1491,8 +1830,14 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
   const isTransferCheck =
     stageId === "TRANSFER_NEG_DIST" ||
     stageId === "TRANSFER_FRAC_CLEAR" ||
+    stageId === "TRANSFER_ID_DIFF" ||
+    stageId === "TRANSFER_FAC_NONMONIC" ||
+    stageId === "TRANSFER_QUAD_ZP" ||
     templateId === "TPL_TRANSFER_NEG_DISTRIBUTION" ||
-    templateId === "TPL_TRANSFER_FRAC_CLEAR";
+    templateId === "TPL_TRANSFER_FRAC_CLEAR" ||
+    templateId === "TPL_TRANSFER_DIFF_SQUARES" ||
+    templateId === "TPL_TRANSFER_FAC_NONMONIC" ||
+    templateId === "TPL_TRANSFER_QUAD_ZP";
 
   const primaryMicroSkillId: MicroSkillId =
     templateId === "TPL_TWO_STEP"
@@ -1507,7 +1852,24 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
                 templateId === "TPL_FRAC_CLEAR_BARE" ||
                 templateId === "TPL_TRANSFER_FRAC_CLEAR"
               ? "LIN_CLEAR_FRACTIONS"
-              : "LIN_DISTRIBUTE_NEG";
+              : templateId === "TPL_EXPAND_BINOMIAL" || templateId === "TPL_FACTOR_EXPAND"
+                ? "EXP_EXPAND_BINOMIALS"
+                : templateId === "TPL_DIFF_SQUARES" ||
+                    templateId === "TPL_DIFF_SQUARES_BARE" ||
+                    templateId === "TPL_TRANSFER_DIFF_SQUARES"
+                  ? "ID_DIFF_SQUARES"
+                  : templateId === "TPL_FAC_MONIC" || templateId === "TPL_FAC_MONIC_BARE"
+                    ? "FAC_MONIC_TRINOMIAL"
+                    : templateId === "TPL_TRANSFER_FAC_NONMONIC"
+                      ? "FAC_NONMONIC_GROUP"
+                      : templateId === "TPL_QUAD_STANDARD"
+                        ? "QUAD_STANDARD_FORM"
+                        : templateId === "TPL_QUAD_ZP_BARE"
+                          ? "QUAD_SOLVE_UNIT_FACTOR"
+                          : templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+                              templateId === "TPL_TRANSFER_QUAD_ZP"
+                            ? "QUAD_ZERO_PRODUCT"
+                            : "LIN_DISTRIBUTE_NEG";
 
   const supportingMicroSkillIds: MicroSkillId[] =
     templateId === "TPL_TWO_STEP"
@@ -1522,7 +1884,26 @@ function itemForAttempt(attempt: AttemptRow): DiagnosticV2Item {
                 templateId === "TPL_FRAC_CLEAR_BARE" ||
                 templateId === "TPL_TRANSFER_FRAC_CLEAR"
               ? ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"]
-              : ["FND_SIGN_MUL_DIV"];
+              : templateId === "TPL_EXPAND_BINOMIAL"
+                ? ["ALG_IDENTIFY_STRUCTURE"]
+                : templateId === "TPL_DIFF_SQUARES" ||
+                    templateId === "TPL_DIFF_SQUARES_BARE" ||
+                    templateId === "TPL_TRANSFER_DIFF_SQUARES"
+                  ? ["EXP_EXPAND_BINOMIALS", "ID_VERIFY_EXPANSION"]
+                  : templateId === "TPL_FACTOR_EXPAND"
+                    ? ["FAC_VERIFY_EXPAND", "ALG_IDENTIFY_STRUCTURE"]
+                    : templateId === "TPL_FAC_MONIC" || templateId === "TPL_FAC_MONIC_BARE"
+                      ? ["FAC_PAIR_PRODUCT_SUM", "FAC_READ_ABC_SIGNS", "FAC_VERIFY_EXPAND"]
+                      : templateId === "TPL_TRANSFER_FAC_NONMONIC"
+                        ? ["FAC_COMPUTE_AC", "FAC_SPLIT_MIDDLE", "FAC_VERIFY_EXPAND"]
+                        : templateId === "TPL_QUAD_STANDARD"
+                          ? ["QUAD_FACTOR_EXPRESSION"]
+                          : templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+                              templateId === "TPL_QUAD_ZP_BARE"
+                            ? ["QUAD_CREATE_BRANCHES", "QUAD_SOLVE_UNIT_FACTOR", "QUAD_VERIFY_ROOTS"]
+                            : templateId === "TPL_TRANSFER_QUAD_ZP"
+                              ? ["QUAD_FACTOR_EXPRESSION", "QUAD_VERIFY_ROOTS"]
+                              : ["FND_SIGN_MUL_DIV"];
 
   return {
     itemKey: attempt.itemKey,
@@ -1549,7 +1930,19 @@ function isItemStageId(v: string): v is DiagnosticV2ItemStageId {
     v === "ENTRY_FRAC_SIMPLE" ||
     v === "FRAC_CLEAR_MAIN" ||
     v === "FRAC_CLEAR_CONTRAST" ||
-    v === "TRANSFER_FRAC_CLEAR"
+    v === "TRANSFER_FRAC_CLEAR" ||
+    v === "ENTRY_EXPAND_BINOMIAL" ||
+    v === "ID_DIFF_MAIN" ||
+    v === "ID_DIFF_CONTRAST" ||
+    v === "TRANSFER_ID_DIFF" ||
+    v === "ENTRY_FACTOR_EXPAND" ||
+    v === "FAC_MONIC_MAIN" ||
+    v === "FAC_MONIC_CONTRAST" ||
+    v === "TRANSFER_FAC_NONMONIC" ||
+    v === "ENTRY_QUAD_STANDARD" ||
+    v === "QUAD_ZP_MAIN" ||
+    v === "QUAD_ZP_CONTRAST" ||
+    v === "TRANSFER_QUAD_ZP"
   );
 }
 
@@ -1563,6 +1956,18 @@ function templateIdFromGeneratedKey(itemKey: string): DiagnosticV2TemplateId {
   if (itemKey.startsWith("GEN_FRAC_CLEAR_BARE")) return "TPL_FRAC_CLEAR_BARE";
   if (itemKey.startsWith("GEN_TRANSFER_FRAC_CLEAR")) return "TPL_TRANSFER_FRAC_CLEAR";
   if (itemKey.startsWith("GEN_FRAC_CLEAR")) return "TPL_FRAC_CLEAR";
+  if (itemKey.startsWith("GEN_EXPAND_BIN")) return "TPL_EXPAND_BINOMIAL";
+  if (itemKey.startsWith("GEN_TRANSFER_DIFF")) return "TPL_TRANSFER_DIFF_SQUARES";
+  if (itemKey.startsWith("GEN_DIFF_SQ_") && itemKey.endsWith("_C")) return "TPL_DIFF_SQUARES_BARE";
+  if (itemKey.startsWith("GEN_DIFF_SQ_")) return "TPL_DIFF_SQUARES";
+  if (itemKey.startsWith("GEN_FACTOR_EXPAND")) return "TPL_FACTOR_EXPAND";
+  if (itemKey.startsWith("GEN_TRANSFER_FAC_NONMONIC")) return "TPL_TRANSFER_FAC_NONMONIC";
+  if (itemKey.startsWith("GEN_FAC_MONIC_") && itemKey.endsWith("_C")) return "TPL_FAC_MONIC_BARE";
+  if (itemKey.startsWith("GEN_FAC_MONIC_")) return "TPL_FAC_MONIC";
+  if (itemKey.startsWith("GEN_QUAD_STD_")) return "TPL_QUAD_STANDARD";
+  if (itemKey.startsWith("GEN_QUAD_ZP_BARE_")) return "TPL_QUAD_ZP_BARE";
+  if (itemKey.startsWith("GEN_TRANSFER_QUAD_ZP_")) return "TPL_TRANSFER_QUAD_ZP";
+  if (itemKey.startsWith("GEN_QUAD_ZP_")) return "TPL_QUAD_ZERO_PRODUCT";
   return "TPL_NEG_DISTRIBUTION";
 }
 
@@ -1584,6 +1989,40 @@ export function lastAcceptedLine(
 
 /** There is no separate "final answer" button — an item ends when the work reaches its end state. */
 export function reachedEndState(item: DiagnosticV2Item, submittedLine: string): boolean {
+  const compact = submittedLine.replace(/\s+/g, "");
+  // B2 transfer / B3 factor stages: end state *has* parentheses (a product).
+  if (
+    item.stageId === "TRANSFER_ID_DIFF" ||
+    item.templateId === "TPL_TRANSFER_DIFF_SQUARES" ||
+    item.stageId === "FAC_MONIC_MAIN" ||
+    item.stageId === "FAC_MONIC_CONTRAST" ||
+    item.stageId === "TRANSFER_FAC_NONMONIC" ||
+    item.templateId === "TPL_FAC_MONIC" ||
+    item.templateId === "TPL_FAC_MONIC_BARE" ||
+    item.templateId === "TPL_TRANSFER_FAC_NONMONIC"
+  ) {
+    return /^\([+-]?\d*[a-z][+-]\d+\)\([+-]?\d*[a-z][+-]\d+\)$/i.test(compact);
+  }
+  // B4: roots list is the end state for zero-product / transfer.
+  if (
+    item.stageId === "QUAD_ZP_MAIN" ||
+    item.stageId === "QUAD_ZP_CONTRAST" ||
+    item.stageId === "TRANSFER_QUAD_ZP" ||
+    item.templateId === "TPL_QUAD_ZERO_PRODUCT" ||
+    item.templateId === "TPL_QUAD_ZP_BARE" ||
+    item.templateId === "TPL_TRANSFER_QUAD_ZP"
+  ) {
+    return /^[a-z]=[+-]?\d+(?:\/\d+)?(?:or|,)(?:[a-z]=)?[+-]?\d+(?:\/\d+)?$/i.test(
+      compact.toLowerCase(),
+    );
+  }
+  // B4 entry: rearranged to …=0
+  if (
+    item.stageId === "ENTRY_QUAD_STANDARD" ||
+    item.templateId === "TPL_QUAD_STANDARD"
+  ) {
+    return /=0$/i.test(compact) && /\^2/.test(compact);
+  }
   if (item.isBareExpression) return !submittedLine.includes("(");
   const parsed = tryParse(submittedLine);
   return parsed ? isSolvedForm(parsed) : false;
@@ -1616,47 +2055,3 @@ function readStageHistory(raw: unknown): StageHistoryEntry[] {
   );
 }
 
-/**
- * Deterministic, never a model call: the summary is assembled from the
- * hypotheses that were already written (AI- or rule-authored), so this endpoint
- * stays fast and cannot introduce new unreviewed student-facing text.
- */
-export function buildChildFacingSummary(
-  states: Array<{ microSkillId: string; status: MicroSkillStatus }>,
-  hypotheses: Array<{ microSkillId: string; childFacingSummary: string | null }>,
-): string {
-  // RELIABLE first: if the list has to be trimmed, keep the strongest evidence.
-  const solid = [
-    ...states.filter((s) => s.status === "RELIABLE"),
-    ...states.filter((s) => s.status === "DEVELOPING"),
-  ]
-    .slice(0, MAX_SKILLS_NAMED_IN_SUMMARY)
-    .map((s) => childFacingSkillName(s.microSkillId));
-  const gaps = states.filter((s) => s.status === "LIKELY_GAP");
-
-  const parts: string[] = [];
-  if (solid.length > 0) {
-    parts.push(`You handled ${joinWords(solid)} on your own today.`);
-  } else {
-    parts.push("Thanks for working through those questions.");
-  }
-
-  for (const gap of gaps) {
-    const latest = [...hypotheses].reverse().find((h) => h.microSkillId === gap.microSkillId);
-    parts.push(
-      latest?.childFacingSummary ??
-        `Next time we'll spend a bit of time on ${childFacingSkillName(gap.microSkillId)}.`,
-    );
-  }
-
-  if (gaps.length > 0) {
-    parts.push("We'll come back to it in a few days to make sure it stuck.");
-  }
-
-  return parts.join(" ");
-}
-
-function joinWords(words: string[]): string {
-  if (words.length <= 1) return words[0] ?? "";
-  return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
-}
