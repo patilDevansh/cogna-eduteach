@@ -1,0 +1,1048 @@
+{
+  "caseId": "02_combined_arun_then_continue",
+  "label": "Combined: NegDist Arun error then correct transfer into fractions",
+  "track": "COMBINED_ALGEBRA",
+  "studentId": "dev_student_001",
+  "sessionId": "cmsjby9pv009dy2xlw1j14omz",
+  "opening": {
+    "itemKey": "ENTRY_TWO_STEP",
+    "equationPrompt": "Solve for x:  3x + 5 = 20",
+    "stageId": "ENTRY_TWO_STEP",
+    "source": "RULE"
+  },
+  "transitions": [
+    {
+      "fromItemKey": "ENTRY_TWO_STEP",
+      "studentAction": "ok",
+      "submittedLine": "3x = 15",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 37 times on their own with only 3 mistakes, showing strong independent skill despite a few errors.",
+        "childFacingSummary": "You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_TWO_STEP",
+      "studentAction": "ok",
+      "submittedLine": "x = 5",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown some success; moving next to solving equations with variables on both sides (LIN_SOLVE_VARIABLE_BOTH) is the natural next step to build on their current progress and address the prerequisite LIN_COMBINE_LIKE, which is still LIKELY_GAP."
+      },
+      "nextItemKey": "ENTRY_VARIABLE_BOTH",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly isolated the letter by dividing most of the time on their own, with very few mistakes and minimal help needed.",
+        "childFacingSummary": "You're doing a great job figuring out how to get the letter by itself when dividing, with just a couple of small slips.",
+        "microSkillId": "LIN_REMOVE_COEFFICIENT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "2x - 7 = 9",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made several errors on their own while tidying up like terms, showing a consistent pattern of difficulty despite some correct attempts.",
+        "childFacingSummary": "You're getting some parts right when combining like terms, but there are still quite a few mistakes to work on.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "2x = 16",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 38 times on their own and only made 3 mistakes, showing strong understanding despite a few errors.",
+        "childFacingSummary": "You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "x = 8",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "NEG_DIST_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "RULE",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The same kind of error appeared 2 times on dividing to get the letter on its own.",
+        "childFacingSummary": "Let's spend a little time on dividing to get the letter on its own — it came up more than once.",
+        "microSkillId": "LIN_REMOVE_COEFFICIENT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "NEG_DIST_MAIN",
+      "studentAction": "arun",
+      "submittedLine": "-2x - 10 + 3 = 11",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "NEGATIVE_SIGN_PRODUCT",
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student made a sign error in distributing a negative multiplier, so the next question should directly target LIN_DISTRIBUTE_NEG with a simple expansion of a negative multiplier over a binomial to reinforce correct sign handling."
+      },
+      "nextItemKey": "NEG_DIST_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made many more mistakes than correct attempts independently, and the most recent error shows a consistent misunderstanding of how to handle the minus sign in brackets.",
+        "childFacingSummary": "You often mix up the minus signs when expanding brackets, so keep practicing to get it right more often.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "NEG_DIST_CONTRAST",
+      "studentAction": "arun2",
+      "submittedLine": "-3y - 12",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "NEGATIVE_SIGN_PRODUCT",
+      "assistanceOffered": "RULE_PROMPT",
+      "assistanceMessage": "The number outside the bracket multiplies every term inside it — including its sign. What is (-3) x (-4)? Two negatives multiplied together give a positive, so it is 12, not -12.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student made a sign error in distributing a negative multiplier in LIN_DISTRIBUTE_NEG, so the next question should continue practicing negative distribution to reinforce correct sign handling, making itemKey TRANSFER_NEG_DIST the best fit."
+      },
+      "nextItemKey": "TRANSFER_NEG_DIST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student frequently makes the same mistake when expanding brackets with a minus in front, as shown by many incorrect attempts and no correct answers even with help.",
+        "childFacingSummary": "You often mix up the signs when expanding brackets with a minus, so keep practicing to get it right more often.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_NEG_DIST",
+      "studentAction": "ok",
+      "submittedLine": "-4z + 8 + 3 = 19",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student got this wrong 40 times on their own and never got it right with help, showing a consistent difficulty with expanding brackets that have a minus in front.",
+        "childFacingSummary": "You often mix up expanding brackets with a minus in front, so it might help to practice this more.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_NEG_DIST",
+      "studentAction": "ok",
+      "submittedLine": "-4z + 11 = 19",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made mistakes on their own 9 times compared to 16 correct attempts, showing a consistent pattern of errors when working independently.",
+        "childFacingSummary": "You sometimes mix up like terms when working on your own, so keep practicing to get even better at it.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_NEG_DIST",
+      "studentAction": "ok",
+      "submittedLine": "-4z = 8",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 39 times on their own and only made 3 mistakes, showing strong understanding despite a few slips.",
+        "childFacingSummary": "You're doing great moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_NEG_DIST",
+      "studentAction": "ok",
+      "submittedLine": "z = -2",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and shows some gaps in LIN_CLEAR_FRACTIONS, which is a prerequisite; choosing FRAC_CLEAR_MAIN targets LIN_CLEAR_FRACTIONS with a suitable fraction-clearing equation to support progress on the prerequisite skill."
+      },
+      "nextItemKey": "FRAC_CLEAR_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly isolated the letter by dividing most of the time on their own, with very few errors and minimal need for help, showing strong understanding.",
+        "childFacingSummary": "You’re doing great at getting the letter alone by dividing, with just a couple of small mistakes.",
+        "microSkillId": "LIN_REMOVE_COEFFICIENT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "x/2 = 4",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "FRACTION_NOT_CLEARED",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made more mistakes than correct attempts on their own, especially struggling with clearing fractions when expanding brackets, indicating a recurring difficulty.",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, but keep practicing and it will get easier.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "x = 8",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Multiply the number outside the bracket by the first term inside, then by the second term, and write both results.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "TRANSFER_FRAC_CLEAR",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student frequently gets the skill wrong on their own and has not succeeded even with help, indicating a consistent difficulty rather than a one-time mistake.",
+        "childFacingSummary": "It looks like you're having a hard time with expanding brackets, especially when fractions are involved, so keep practicing to get better at it.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    }
+  ],
+  "topicEntriesSeen": [
+    "ENTRY_TWO_STEP"
+  ],
+  "aiSelectorCount": 4,
+  "ruleSelectorCount": 2,
+  "generateOriginCount": 0,
+  "summary": {
+    "sessionId": "cmsjby9pv009dy2xlw1j14omz",
+    "status": "ACTIVE",
+    "childFacingSummary": "Thanks for working through those questions. You sometimes mix up like terms when working on your own, so keep practicing to get even better at it. You often mix up expanding brackets with a minus in front, so it might help to practice this more. It looks like you're having a hard time with expanding brackets, especially when fractions are involved, so keep practicing to get better at it. You’re doing great at getting the letter alone by dividing, with just a couple of small mistakes. You're doing great moving numbers across the equals sign, with just a few small mistakes here and there. We'll come back to it in a few days to make sure it stuck.",
+    "parentFacingSummary": "Today your child worked through a short step-by-step algebra check (0 of 7 questions finished). They stayed engaged with the working lines. Areas to revisit: tidying up like terms, expanding brackets that have a minus in front, expanding brackets, dividing to get the letter on its own and moving a number across the equals sign (5 skill gaps noted). Spend a short practice block revisiting tidying up like terms, expanding brackets that have a minus in front, expanding brackets, dividing to get the letter on its own and moving a number across the equals sign. We'll schedule a short follow-up check in a few days."
+  },
+  "finalDebug": {
+    "sessionId": "cmsjby9pv009dy2xlw1j14omz",
+    "status": "ACTIVE",
+    "currentStageId": "TRANSFER_FRAC_CLEAR",
+    "stageHistory": [
+      {
+        "at": "2026-08-07T19:20:47.539Z",
+        "track": "COMBINED_ALGEBRA",
+        "source": "RULE",
+        "stageId": "ENTRY_TWO_STEP",
+        "reasoning": "Opening item of the combined algebra diagnostic (starts with brackets / negative distribution)."
+      },
+      {
+        "at": "2026-08-07T19:20:53.627Z",
+        "source": "AI",
+        "stageId": "ENTRY_VARIABLE_BOTH",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown some success; moving next to solving equations with variables on both sides (LIN_SOLVE_VARIABLE_BOTH) is the natural next step to build on their current progress and address the prerequisite LIN_COMBINE_LIKE, which is still LIKELY_GAP."
+      },
+      {
+        "at": "2026-08-07T19:21:01.336Z",
+        "source": "RULE",
+        "stageId": "NEG_DIST_MAIN",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:21:05.125Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_CONTRAST",
+        "reasoning": "The student made a sign error in distributing a negative multiplier, so the next question should directly target LIN_DISTRIBUTE_NEG with a simple expansion of a negative multiplier over a binomial to reinforce correct sign handling."
+      },
+      {
+        "at": "2026-08-07T19:21:09.054Z",
+        "source": "RULE",
+        "stageId": "RULE_PROMPT",
+        "reasoning": "Same distribution error twice on structurally different problems — taught the sign rule before re-testing."
+      },
+      {
+        "at": "2026-08-07T19:21:09.054Z",
+        "source": "AI",
+        "stageId": "TRANSFER_NEG_DIST",
+        "reasoning": "The student made a sign error in distributing a negative multiplier in LIN_DISTRIBUTE_NEG, so the next question should continue practicing negative distribution to reinforce correct sign handling, making itemKey TRANSFER_NEG_DIST the best fit."
+      },
+      {
+        "at": "2026-08-07T19:21:17.005Z",
+        "source": "AI",
+        "stageId": "FRAC_CLEAR_MAIN",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and shows some gaps in LIN_CLEAR_FRACTIONS, which is a prerequisite; choosing FRAC_CLEAR_MAIN targets LIN_CLEAR_FRACTIONS with a suitable fraction-clearing equation to support progress on the prerequisite skill."
+      },
+      {
+        "at": "2026-08-07T19:21:23.568Z",
+        "source": "RULE",
+        "stageId": "TRANSFER_FRAC_CLEAR",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      }
+    ],
+    "items": [
+      {
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP",
+        "primaryMicroSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "ENTRY_VARIABLE_BOTH",
+        "equationPrompt": "Solve for x:  4x - 7 = 2x + 9",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_VARIABLE_BOTH",
+        "primaryMicroSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "NEG_DIST_MAIN",
+        "equationPrompt": "Solve for x:  -2(x - 5) + 3 = 11",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "NEG_DIST_CONTRAST",
+        "equationPrompt": "Expand:  -3(y - 4)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION_BARE",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "TRANSFER_NEG_DIST",
+        "equationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "FRAC_CLEAR_MAIN",
+        "equationPrompt": "Solve for x:  (x + 1)/2 = (x - 1)/3 + 1",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_CLEAR",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "TRANSFER_FRAC_CLEAR",
+        "equationPrompt": "Solve for z:  (z - 2)/3 = (z + 1)/6 + 1",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_FRAC_CLEAR",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "IN_PROGRESS"
+      }
+    ],
+    "declines": [],
+    "steps": [
+      {
+        "id": "cmsjbybe8009iy2xlfc0ys9c0",
+        "attemptId": "cmsjby9py009fy2xldk0qaccf",
+        "stepIndex": 0,
+        "previousLine": "3x + 5 = 20",
+        "submittedLine": "3x = 15",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbyef1009wy2xly9di3aa5",
+        "attemptId": "cmsjby9py009fy2xldk0qaccf",
+        "stepIndex": 1,
+        "previousLine": "3x = 15",
+        "submittedLine": "x = 5",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DIVIDE_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_COEFFICIENT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbyfjo00a7y2xl5u2dm68r",
+        "attemptId": "cmsjbyefm00a4y2xln41fhyeu",
+        "stepIndex": 0,
+        "previousLine": "4x - 7 = 2x + 9",
+        "submittedLine": "2x - 7 = 9",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbygrv00aey2xlar4vj0hx",
+        "attemptId": "cmsjbyefm00a4y2xln41fhyeu",
+        "stepIndex": 1,
+        "previousLine": "2x - 7 = 9",
+        "submittedLine": "2x = 16",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "ADD_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbykd500amy2xl0a8bz2ty",
+        "attemptId": "cmsjbyefm00a4y2xln41fhyeu",
+        "stepIndex": 2,
+        "previousLine": "2x = 16",
+        "submittedLine": "x = 8",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DIVIDE_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_COEFFICIENT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbynag00ayy2xlc0yzpc6x",
+        "attemptId": "cmsjbykdr00auy2xl402k504k",
+        "stepIndex": 0,
+        "previousLine": "-2(x - 5) + 3 = 11",
+        "submittedLine": "-2x - 10 + 3 = 11",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DISTRIBUTE",
+        "firstInvalidActionCode": "NEGATIVE_SIGN_PRODUCT",
+        "firstInvalidActionDescription": "(-2)(-5) was evaluated as -10, but multiplying those two signs gives 10",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbyqbk00b8y2xlqoisnyk9",
+        "attemptId": "cmsjbynar00b4y2xlf1f36myn",
+        "stepIndex": 0,
+        "previousLine": "-3(y - 4)",
+        "submittedLine": "-3y - 12",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DISTRIBUTE",
+        "firstInvalidActionCode": "NEGATIVE_SIGN_PRODUCT",
+        "firstInvalidActionDescription": "(-3)(-4) was evaluated as -12, but multiplying those two signs gives 12",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbyrjs00bhy2xle8dgn5vc",
+        "attemptId": "cmsjbyqbr00bey2xlg1h6ymnf",
+        "stepIndex": 0,
+        "previousLine": "-4(z - 2) + 3 = 19",
+        "submittedLine": "-4z + 8 + 3 = 19",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DISTRIBUTE",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbyskb00boy2xl3jefaj1u",
+        "attemptId": "cmsjbyqbr00bey2xlg1h6ymnf",
+        "stepIndex": 1,
+        "previousLine": "-4z + 8 + 3 = 19",
+        "submittedLine": "-4z + 11 = 19",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "COMBINE_LIKE_TERMS",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbytri00bvy2xlfwiujp1x",
+        "attemptId": "cmsjbyqbr00bey2xlg1h6ymnf",
+        "stepIndex": 2,
+        "previousLine": "-4z + 11 = 19",
+        "submittedLine": "-4z = 8",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbywge00c3y2xllcokazif",
+        "attemptId": "cmsjbyqbr00bey2xlg1h6ymnf",
+        "stepIndex": 3,
+        "previousLine": "-4z = 8",
+        "submittedLine": "z = -2",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DIVIDE_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_COEFFICIENT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbyxmr00ccy2xlylm4wy29",
+        "attemptId": "cmsjbywgo00c9y2xldzt5sns4",
+        "stepIndex": 0,
+        "previousLine": "(x + 1)/2 = (x - 1)/3 + 1",
+        "submittedLine": "x/2 = 4",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DISTRIBUTE",
+        "firstInvalidActionCode": "FRACTION_NOT_CLEARED",
+        "firstInvalidActionDescription": "a denominator is still present — both sides need multiplying by a common multiple that clears every fraction",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbz1ip00cky2xlueijfkck",
+        "attemptId": "cmsjbywgo00c9y2xldzt5sns4",
+        "stepIndex": 1,
+        "previousLine": "(x + 1)/2 = (x - 1)/3 + 1",
+        "submittedLine": "x = 8",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 2, 3 (need 6 on every term)",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      }
+    ],
+    "hypotheses": [
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 37 times on their own with only 3 mistakes, showing strong independent skill despite a few errors.",
+        "source": "AI",
+        "childFacingSummary": "You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly isolated the letter by dividing most of the time on their own, with very few mistakes and minimal help needed.",
+        "source": "AI",
+        "childFacingSummary": "You're doing a great job figuring out how to get the letter by itself when dividing, with just a couple of small slips."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made several errors on their own while tidying up like terms, showing a consistent pattern of difficulty despite some correct attempts.",
+        "source": "AI",
+        "childFacingSummary": "You're getting some parts right when combining like terms, but there are still quite a few mistakes to work on."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 38 times on their own and only made 3 mistakes, showing strong understanding despite a few errors.",
+        "source": "AI",
+        "childFacingSummary": "You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.7,
+        "reasoning": "The same kind of error appeared 2 times on dividing to get the letter on its own.",
+        "source": "RULE",
+        "childFacingSummary": "Let's spend a little time on dividing to get the letter on its own — it came up more than once."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student made many more mistakes than correct attempts independently, and the most recent error shows a consistent misunderstanding of how to handle the minus sign in brackets.",
+        "source": "AI",
+        "childFacingSummary": "You often mix up the minus signs when expanding brackets, so keep practicing to get it right more often."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student frequently makes the same mistake when expanding brackets with a minus in front, as shown by many incorrect attempts and no correct answers even with help.",
+        "source": "AI",
+        "childFacingSummary": "You often mix up the signs when expanding brackets with a minus, so keep practicing to get it right more often."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student got this wrong 40 times on their own and never got it right with help, showing a consistent difficulty with expanding brackets that have a minus in front.",
+        "source": "AI",
+        "childFacingSummary": "You often mix up expanding brackets with a minus in front, so it might help to practice this more."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made mistakes on their own 9 times compared to 16 correct attempts, showing a consistent pattern of errors when working independently.",
+        "source": "AI",
+        "childFacingSummary": "You sometimes mix up like terms when working on your own, so keep practicing to get even better at it."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 39 times on their own and only made 3 mistakes, showing strong understanding despite a few slips.",
+        "source": "AI",
+        "childFacingSummary": "You're doing great moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly isolated the letter by dividing most of the time on their own, with very few errors and minimal need for help, showing strong understanding.",
+        "source": "AI",
+        "childFacingSummary": "You’re doing great at getting the letter alone by dividing, with just a couple of small mistakes."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student made more mistakes than correct attempts on their own, especially struggling with clearing fractions when expanding brackets, indicating a recurring difficulty.",
+        "source": "AI",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, but keep practicing and it will get easier."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student frequently gets the skill wrong on their own and has not succeeded even with help, indicating a consistent difficulty rather than a one-time mistake.",
+        "source": "AI",
+        "childFacingSummary": "It looks like you're having a hard time with expanding brackets, especially when fractions are involved, so keep practicing to get better at it."
+      }
+    ],
+    "microSkillStates": [
+      {
+        "microSkillId": "EXP_EXPAND_BINOMIALS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 2,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "FAC_MONIC_TRINOMIAL",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 3,
+        "independentSuccessCount": 1,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "FAC_NONMONIC_GROUP",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "ID_DIFF_SQUARES",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 3,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 30,
+        "independentSuccessCount": 16,
+        "independentFailureCount": 10,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 26,
+        "independentSuccessCount": 16,
+        "independentFailureCount": 9,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 52,
+        "independentSuccessCount": 10,
+        "independentFailureCount": 40,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "ASSISTED",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 13,
+        "independentSuccessCount": 3,
+        "independentFailureCount": 10,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 41,
+        "independentSuccessCount": 38,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 44,
+        "independentSuccessCount": 39,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 2,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_FRACTIONS",
+        "status": "RELIABLE",
+        "evidenceCount": 11,
+        "independentSuccessCount": 11,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 33,
+        "independentSuccessCount": 26,
+        "independentFailureCount": 7,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "RELIABLE",
+        "evidenceCount": 13,
+        "independentSuccessCount": 12,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "QUAD_SOLVE_UNIT_FACTOR",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "QUAD_STANDARD_FORM",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "QUAD_ZERO_PRODUCT",
+        "status": "EMERGING",
+        "evidenceCount": 2,
+        "independentSuccessCount": 1,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      }
+    ]
+  }
+}

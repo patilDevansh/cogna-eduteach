@@ -115,7 +115,7 @@
 ## Carried from the plan (already documented there, restated so nothing is lost)
 
 - Elapsed/idle time per step (fatigue detection only, never mastery evidence) — Phase B or C.
-- Breadth coverage across all 5 topics — later Phase B topics after B1.
+- ~~Breadth coverage across all 5 topics~~ — **COMBINED_ALGEBRA v1 shipped** (one session chains the five thin backbones). Still deferred: bank depth, adaptive cross-topic routing, Work Order 03 scoring formula. See [`eval-ledgers/COMBINED_DIAGNOSTIC_GAPS.md`](./eval-ledgers/COMBINED_DIAGNOSTIC_GAPS.md).
 - Execution and recording of the delayed retention check — Phase A schedules only.
 - ~~Parent/student report content — Phase D~~ — **D.v1 + D.v2 shipped** (LearningSession polish + DiagnosticV2-native STUDENT/PARENT via `diagnostic-v2-report.service.ts`). Still out: weekly rollup of DiagnosticV2, email-copy changes, INTERNAL polish.
 - ~~Instant AI-selected next items (sync generate lag) — Phase C plan~~ — **C.v1 shipped** (process-local verified buffer). Still deferred: cross-process durable queues; AUTHOR-into-buffer fill. See [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md).

@@ -108,7 +108,9 @@ export type DiagnosticV2Track =
   | "FRACTION_LINEAR"
   | "IDENTITY_DIFF_SQUARES"
   | "FACTOR_MONIC_TRINOMIAL"
-  | "QUAD_ZERO_PRODUCT";
+  | "QUAD_ZERO_PRODUCT"
+  /** One session: NegDist → fractions → identities → factorising → quadratics. */
+  | "COMBINED_ALGEBRA";
 
 export const DIAGNOSTIC_V2_TRACKS: DiagnosticV2Track[] = [
   "NEGATIVE_DISTRIBUTION",
@@ -116,6 +118,7 @@ export const DIAGNOSTIC_V2_TRACKS: DiagnosticV2Track[] = [
   "IDENTITY_DIFF_SQUARES",
   "FACTOR_MONIC_TRINOMIAL",
   "QUAD_ZERO_PRODUCT",
+  "COMBINED_ALGEBRA",
 ];
 
 export function isDiagnosticV2Track(v: unknown): v is DiagnosticV2Track {

@@ -27,7 +27,8 @@ type DiagnosticTrackChoice =
   | "FRACTION_LINEAR"
   | "IDENTITY_DIFF_SQUARES"
   | "FACTOR_MONIC_TRINOMIAL"
-  | "QUAD_ZERO_PRODUCT";
+  | "QUAD_ZERO_PRODUCT"
+  | "COMBINED_ALGEBRA";
 
 type Attempt = DiagnosticV2AttemptView;
 
@@ -93,17 +94,19 @@ function DiagnosticV2Content() {
   const debugEnabled = debugParam !== null && debugParam !== "0";
   const trackParam = searchParams.get("track");
   const initialTrack: DiagnosticTrackChoice =
-    trackParam === "FRACTION_LINEAR"
-      ? "FRACTION_LINEAR"
-      : trackParam === "NEGATIVE_DISTRIBUTION"
-        ? "NEGATIVE_DISTRIBUTION"
-        : trackParam === "IDENTITY_DIFF_SQUARES"
-          ? "IDENTITY_DIFF_SQUARES"
-          : trackParam === "FACTOR_MONIC_TRINOMIAL"
-            ? "FACTOR_MONIC_TRINOMIAL"
-            : trackParam === "QUAD_ZERO_PRODUCT"
-              ? "QUAD_ZERO_PRODUCT"
-              : "FRACTION_LINEAR";
+    trackParam === "COMBINED_ALGEBRA"
+      ? "COMBINED_ALGEBRA"
+      : trackParam === "FRACTION_LINEAR"
+        ? "FRACTION_LINEAR"
+        : trackParam === "NEGATIVE_DISTRIBUTION"
+          ? "NEGATIVE_DISTRIBUTION"
+          : trackParam === "IDENTITY_DIFF_SQUARES"
+            ? "IDENTITY_DIFF_SQUARES"
+            : trackParam === "FACTOR_MONIC_TRINOMIAL"
+              ? "FACTOR_MONIC_TRINOMIAL"
+              : trackParam === "QUAD_ZERO_PRODUCT"
+                ? "QUAD_ZERO_PRODUCT"
+                : "COMBINED_ALGEBRA";
 
   const [phase, setPhase] = useState<Phase>("checking");
   const [studentId, setStudentId] = useState("");
@@ -185,7 +188,7 @@ function DiagnosticV2Content() {
               ? "ENTRY_FACTOR_EXPAND"
               : track === "QUAD_ZERO_PRODUCT"
                 ? "ENTRY_QUAD_STANDARD"
-                : "ENTRY_TWO_STEP";
+                : "ENTRY_TWO_STEP"; // NEGATIVE_DISTRIBUTION + COMBINED_ALGEBRA
       if (session.itemKey !== expectedOpening) {
         setError(
           `Track mismatch: asked for ${track} but server opened ${session.itemKey} (${session.equationPrompt}). Refresh and try again.`,
@@ -204,15 +207,17 @@ function DiagnosticV2Content() {
       setWhyThisQuestion({
         source: "RULE",
         reasoning:
-          track === "FRACTION_LINEAR"
-            ? "Opening item of the fraction-linear diagnostic track."
-            : track === "IDENTITY_DIFF_SQUARES"
-              ? "Opening item of the difference-of-squares identities track."
-              : track === "FACTOR_MONIC_TRINOMIAL"
-                ? "Opening item of the factorisation track."
-                : track === "QUAD_ZERO_PRODUCT"
-                  ? "Opening item of the quadratic zero-product track."
-                  : OPENING_WHY,
+          track === "COMBINED_ALGEBRA"
+            ? "Opening item of the combined algebra diagnostic (starts with brackets / negative distribution)."
+            : track === "FRACTION_LINEAR"
+              ? "Opening item of the fraction-linear diagnostic track."
+              : track === "IDENTITY_DIFF_SQUARES"
+                ? "Opening item of the difference-of-squares identities track."
+                : track === "FACTOR_MONIC_TRINOMIAL"
+                  ? "Opening item of the factorisation track."
+                  : track === "QUAD_ZERO_PRODUCT"
+                    ? "Opening item of the quadratic zero-product track."
+                    : OPENING_WHY,
         itemKey: session.itemKey,
         stageId: session.stageId,
         origin: "PRE_WRITTEN",
@@ -375,6 +380,21 @@ function DiagnosticV2Content() {
         </p>
         <fieldset className={styles.trackPicker}>
           <legend>What should we check?</legend>
+          <label className={styles.trackOption}>
+            <input
+              type="radio"
+              name="diagnosticTrack"
+              checked={sessionTrack === "COMBINED_ALGEBRA"}
+              onChange={() => setSessionTrack("COMBINED_ALGEBRA")}
+            />
+            <span>
+              <strong>Full algebra check (all five topics)</strong>
+              <span className={styles.trackHint}>
+                One session: brackets → fractions → difference of squares →
+                factorising → quadratics.
+              </span>
+            </span>
+          </label>
           <label className={styles.trackOption}>
             <input
               type="radio"

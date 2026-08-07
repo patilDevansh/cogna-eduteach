@@ -1,0 +1,662 @@
+{
+  "caseId": "03_combined_decline_on_main",
+  "label": "Combined: decline twice on NegDist MAIN",
+  "track": "COMBINED_ALGEBRA",
+  "studentId": "dev_student_001",
+  "sessionId": "cmsjbz1m700cuy2xlimm2dkh6",
+  "opening": {
+    "itemKey": "ENTRY_TWO_STEP",
+    "equationPrompt": "Solve for x:  3x + 5 = 20",
+    "stageId": "ENTRY_TWO_STEP",
+    "source": "RULE"
+  },
+  "transitions": [
+    {
+      "fromItemKey": "ENTRY_TWO_STEP",
+      "studentAction": "ok",
+      "submittedLine": "3x = 15",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 40 times independently and only made a few errors, showing strong understanding despite minor slips.",
+        "childFacingSummary": "You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_TWO_STEP",
+      "studentAction": "ok",
+      "submittedLine": "x = 5",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown some success; the next question with variables on both sides (ENTRY_VARIABLE_BOTH) will further practice solving linear equations with variables on both sides, which builds on LIN_REMOVE_COEFFICIENT and supports progress toward LIN_SOLVE_VARIABLE_BOTH."
+      },
+      "nextItemKey": "ENTRY_VARIABLE_BOTH",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly isolated the letter by dividing on their own 39 times and only made 2 mistakes, showing strong independent skill with minimal help needed.",
+        "childFacingSummary": "You're doing great at getting the letter alone by dividing, with just a couple of small mistakes.",
+        "microSkillId": "LIN_REMOVE_COEFFICIENT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "2x - 7 = 9",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made mistakes nearly as often as they got it right on their own, showing a consistent struggle with tidying up like terms independently.",
+        "childFacingSummary": "You're getting some parts right when working with like terms, but there are still quite a few mistakes to work on.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "2x = 16",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 41 times on their own and only made 3 errors, showing strong understanding despite a few independent struggles.",
+        "childFacingSummary": "You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "x = 8",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown difficulty with LIN_DISTRIBUTE_NEG, which is a prerequisite skill; itemKey NEG_DIST_MAIN (template TPL_NEG_DISTRIBUTION) is the next in the planned sequence and targets LIN_DISTRIBUTE_NEG, so it is the best next question to help strengthen the foundational step of distributing a negative multiplier before continuing with solving linear equations."
+      },
+      "nextItemKey": "NEG_DIST_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "RULE",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The same kind of error appeared 2 times on dividing to get the letter on its own.",
+        "childFacingSummary": "Let's spend a little time on dividing to get the letter on its own — it came up more than once.",
+        "microSkillId": "LIN_REMOVE_COEFFICIENT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "NEG_DIST_MAIN",
+      "studentAction": "decline",
+      "submittedLine": null,
+      "dontKnow": true,
+      "validity": null,
+      "firstInvalidActionCode": null,
+      "assistanceOffered": "RULE_PROMPT",
+      "assistanceMessage": "The number outside the bracket multiplies every term inside it — including its sign. What is (-2) x (-5)? Two negatives multiplied together give a positive, so it is 10, not -10.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student got this skill wrong 40 times on their own and never right with help, showing consistent difficulty even when trying independently or with some support.",
+        "childFacingSummary": "It looks like you often find it tricky to expand brackets with a minus sign, so practicing this more could really help you get better.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "NEG_DIST_MAIN",
+      "studentAction": "decline",
+      "submittedLine": null,
+      "dontKnow": true,
+      "validity": null,
+      "firstInvalidActionCode": null,
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Multiply the number outside the bracket by each term inside, one at a time, and keep track of the signs as you go. What is (-2) x (-5)? Two negatives multiplied together give a positive, so it is 10, not -10.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student explicitly said they do not know how to start LIN_DISTRIBUTE_NEG, so giving a focused, single-step expansion of a negative distribution expression (NEG_DIST_CONTRAST) will directly target the initial step they struggle with before moving on to solving equations involving distribution."
+      },
+      "nextItemKey": "NEG_DIST_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student got this skill wrong 40 times on their own and never got it right with help, showing consistent difficulty.",
+        "childFacingSummary": "You're having a hard time with expanding brackets that have a minus in front, so keep practicing to get better at it.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    }
+  ],
+  "topicEntriesSeen": [
+    "ENTRY_TWO_STEP"
+  ],
+  "aiSelectorCount": 3,
+  "ruleSelectorCount": 0,
+  "generateOriginCount": 0,
+  "summary": {
+    "sessionId": "cmsjbz1m700cuy2xlimm2dkh6",
+    "status": "ACTIVE",
+    "childFacingSummary": "Thanks for working through those questions. You're getting some parts right when working with like terms, but there are still quite a few mistakes to work on. You're having a hard time with expanding brackets that have a minus in front, so keep practicing to get better at it. Let's spend a little time on dividing to get the letter on its own — it came up more than once. You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there. We'll come back to it in a few days to make sure it stuck.",
+    "parentFacingSummary": "Today your child worked through a short step-by-step algebra check (0 of 4 questions finished). They stayed engaged with the working lines. Areas to revisit: tidying up like terms, expanding brackets that have a minus in front, dividing to get the letter on its own and moving a number across the equals sign (4 skill gaps noted). Spend a short practice block revisiting tidying up like terms, expanding brackets that have a minus in front, dividing to get the letter on its own and moving a number across the equals sign. We'll schedule a short follow-up check in a few days."
+  },
+  "finalDebug": {
+    "sessionId": "cmsjbz1m700cuy2xlimm2dkh6",
+    "status": "ACTIVE",
+    "currentStageId": "NEG_DIST_CONTRAST",
+    "stageHistory": [
+      {
+        "at": "2026-08-07T19:21:23.695Z",
+        "track": "COMBINED_ALGEBRA",
+        "source": "RULE",
+        "stageId": "ENTRY_TWO_STEP",
+        "reasoning": "Opening item of the combined algebra diagnostic (starts with brackets / negative distribution)."
+      },
+      {
+        "at": "2026-08-07T19:21:29.521Z",
+        "source": "AI",
+        "stageId": "ENTRY_VARIABLE_BOTH",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown some success; the next question with variables on both sides (ENTRY_VARIABLE_BOTH) will further practice solving linear equations with variables on both sides, which builds on LIN_REMOVE_COEFFICIENT and supports progress toward LIN_SOLVE_VARIABLE_BOTH."
+      },
+      {
+        "at": "2026-08-07T19:21:38.356Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_MAIN",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown difficulty with LIN_DISTRIBUTE_NEG, which is a prerequisite skill; itemKey NEG_DIST_MAIN (template TPL_NEG_DISTRIBUTION) is the next in the planned sequence and targets LIN_DISTRIBUTE_NEG, so it is the best next question to help strengthen the foundational step of distributing a negative multiplier before continuing with solving linear equations."
+      },
+      {
+        "at": "2026-08-07T19:21:44.787Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_CONTRAST",
+        "reasoning": "The student explicitly said they do not know how to start LIN_DISTRIBUTE_NEG, so giving a focused, single-step expansion of a negative distribution expression (NEG_DIST_CONTRAST) will directly target the initial step they struggle with before moving on to solving equations involving distribution."
+      }
+    ],
+    "items": [
+      {
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP",
+        "primaryMicroSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "ENTRY_VARIABLE_BOTH",
+        "equationPrompt": "Solve for x:  4x - 7 = 2x + 9",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_VARIABLE_BOTH",
+        "primaryMicroSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "NEG_DIST_MAIN",
+        "equationPrompt": "Solve for x:  -2(x - 5) + 3 = 11",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "DECLINED"
+      },
+      {
+        "itemKey": "NEG_DIST_CONTRAST",
+        "equationPrompt": "Expand:  -3(y - 4)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION_BARE",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "IN_PROGRESS"
+      }
+    ],
+    "declines": [
+      {
+        "itemKey": "NEG_DIST_MAIN",
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "assistanceLevel": "NONE",
+        "at": "2026-08-07T19:21:39.799Z"
+      },
+      {
+        "itemKey": "NEG_DIST_MAIN",
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "assistanceLevel": "RULE_PROMPT",
+        "at": "2026-08-07T19:21:44.789Z"
+      }
+    ],
+    "steps": [
+      {
+        "id": "cmsjbz2pz00czy2xlvrxv1w1j",
+        "attemptId": "cmsjbz1mb00cwy2xltv0srj12",
+        "stepIndex": 0,
+        "previousLine": "3x + 5 = 20",
+        "submittedLine": "3x = 15",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbz64300d7y2xlz3qgnpeb",
+        "attemptId": "cmsjbz1mb00cwy2xltv0srj12",
+        "stepIndex": 1,
+        "previousLine": "3x = 15",
+        "submittedLine": "x = 5",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DIVIDE_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_COEFFICIENT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbz78g00diy2xlal9xqaj8",
+        "attemptId": "cmsjbz64i00dfy2xlzqphvr5m",
+        "stepIndex": 0,
+        "previousLine": "4x - 7 = 2x + 9",
+        "submittedLine": "2x - 7 = 9",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbz8gg00dty2xlb6ljol93",
+        "attemptId": "cmsjbz64i00dfy2xlzqphvr5m",
+        "stepIndex": 1,
+        "previousLine": "2x - 7 = 9",
+        "submittedLine": "2x = 16",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "ADD_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbzcxh00e1y2xl3jfkbvbo",
+        "attemptId": "cmsjbz64i00dfy2xlzqphvr5m",
+        "stepIndex": 2,
+        "previousLine": "2x = 16",
+        "submittedLine": "x = 8",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DIVIDE_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_COEFFICIENT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      }
+    ],
+    "hypotheses": [
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 40 times independently and only made a few errors, showing strong understanding despite minor slips.",
+        "source": "AI",
+        "childFacingSummary": "You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.9,
+        "reasoning": "The student correctly isolated the letter by dividing on their own 39 times and only made 2 mistakes, showing strong independent skill with minimal help needed.",
+        "source": "AI",
+        "childFacingSummary": "You're doing great at getting the letter alone by dividing, with just a couple of small mistakes."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made mistakes nearly as often as they got it right on their own, showing a consistent struggle with tidying up like terms independently.",
+        "source": "AI",
+        "childFacingSummary": "You're getting some parts right when working with like terms, but there are still quite a few mistakes to work on."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 41 times on their own and only made 3 errors, showing strong understanding despite a few independent struggles.",
+        "source": "AI",
+        "childFacingSummary": "You’re doing a great job moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.7,
+        "reasoning": "The same kind of error appeared 2 times on dividing to get the letter on its own.",
+        "source": "RULE",
+        "childFacingSummary": "Let's spend a little time on dividing to get the letter on its own — it came up more than once."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.95,
+        "reasoning": "The student got this skill wrong 40 times on their own and never right with help, showing consistent difficulty even when trying independently or with some support.",
+        "source": "AI",
+        "childFacingSummary": "It looks like you often find it tricky to expand brackets with a minus sign, so practicing this more could really help you get better."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student got this skill wrong 40 times on their own and never got it right with help, showing consistent difficulty.",
+        "source": "AI",
+        "childFacingSummary": "You're having a hard time with expanding brackets that have a minus in front, so keep practicing to get better at it."
+      }
+    ],
+    "microSkillStates": [
+      {
+        "microSkillId": "EXP_EXPAND_BINOMIALS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 2,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "FAC_MONIC_TRINOMIAL",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 3,
+        "independentSuccessCount": 1,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "FAC_NONMONIC_GROUP",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "ID_DIFF_SQUARES",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 3,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 30,
+        "independentSuccessCount": 16,
+        "independentFailureCount": 10,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 27,
+        "independentSuccessCount": 17,
+        "independentFailureCount": 9,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 54,
+        "independentSuccessCount": 10,
+        "independentFailureCount": 40,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "ASSISTED",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 13,
+        "independentSuccessCount": 3,
+        "independentFailureCount": 10,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 44,
+        "independentSuccessCount": 40,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 46,
+        "independentSuccessCount": 41,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 2,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_FRACTIONS",
+        "status": "RELIABLE",
+        "evidenceCount": 11,
+        "independentSuccessCount": 11,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 34,
+        "independentSuccessCount": 27,
+        "independentFailureCount": 7,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "RELIABLE",
+        "evidenceCount": 14,
+        "independentSuccessCount": 13,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "QUAD_SOLVE_UNIT_FACTOR",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "QUAD_STANDARD_FORM",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "QUAD_ZERO_PRODUCT",
+        "status": "EMERGING",
+        "evidenceCount": 2,
+        "independentSuccessCount": 1,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      }
+    ]
+  }
+}

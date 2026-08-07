@@ -22,6 +22,7 @@ The user's full target for this milestone family (MVP 9.0.1–10.0) is larger th
   - Topic order is serial by curriculum dependency: brackets/fractions → identities → **factorisation** → **quadratics**. Each topic rebuilds the three-piece kit (parser / solver / first-invalid finder) — diffing does not generalize from `linear-bracket-verifier`.
 - **(C) — verified next-item buffer:** [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md). ~~Pre-fetch a small verified buffer in the background while the student works the current question so AI-selected next items feel instant.~~ **C.v1 implemented** (process-local session Map, GENERATE-primary fill, consume-before-sync; B-track templates included in prefetch map).
 - **(D) — LLM-assisted reports:** [`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md). ~~D.v1~~ LearningSession STUDENT/PARENT + weekly PARENT polish with numeric gate. ~~**D.v2**~~ DiagnosticV2-native student/parent prose from micro-skill facts (same polish stack; all 5 tracks).
+- **Combined session v1:** track `COMBINED_ALGEBRA` walks NegDist → fractions → identities → factorising → quadratics in one session (thin backbones). Gaps vs a trustworthy exam: [`eval-ledgers/COMBINED_DIAGNOSTIC_GAPS.md`](./eval-ledgers/COMBINED_DIAGNOSTIC_GAPS.md).
 
 ## Non-negotiable constraints for this phase
 
@@ -138,7 +139,7 @@ Why `topicId`/`competencyFamilyId`/`contextModifierIds` are added now rather tha
 ## Not in this phase (see Phase B–D above)
 
 - The 73-skill catalogue / 125-template / 2,000-question bank
-- Breadth coverage across all 5 topics; the general adaptive scoring formula from Work Order 03
+- ~~Breadth coverage across all 5 topics~~ — COMBINED_ALGEBRA v1 shipped; still out: bank depth + the general adaptive scoring formula from Work Order 03
 - ~~Pre-generation/caching for instant AI-selected questions (Phase C)~~ — see [`BUILD_PLAN_C.md`](./BUILD_PLAN_C.md) (C.v1 shipped)
 - ~~LLM-assisted report generation (Phase D)~~ — see [`BUILD_PLAN_D.md`](./BUILD_PLAN_D.md) (D.v1 LearningSession polish shipped; DiagnosticV2-native = D.v2)
 - Any decision on replacing vs. running alongside the mvp-1.0–9.0 concept-based system

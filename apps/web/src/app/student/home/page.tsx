@@ -91,19 +91,26 @@ export default function StudentHomePage() {
         {error && <p className="error">{error}</p>}
 
         {!hasHistory ? (
-          <div className={styles.heroCard}>
-            <span className={styles.kicker}>Phase B1 — try this</span>
-            <h2>Step check: equations with fractions</h2>
+            <div className={styles.heroCard}>
+            <span className={styles.kicker}>Combined algebra check</span>
+            <h2>Full step check: five topics in one go</h2>
             <p className={styles.meta}>
-              Write working one line at a time. Starts with a simple fraction equation, then clearing
-              denominators — not the old linear baseline.
+              Write working one line at a time. Walks brackets → fractions → identities →
+              factorising → quadratics in a single session.
             </p>
             <Link
-              href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+              href="/student/diagnostic-v2?track=COMBINED_ALGEBRA&debug=1"
               className="btn btn-primary"
               style={{ alignSelf: "flex-start" }}
             >
-              Start fractions check
+              Start full algebra check
+            </Link>
+            <Link
+              href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+              className="btn btn-ghost"
+              style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
+            >
+              Or fractions only
             </Link>
             <Link
               href="/student/baseline"
@@ -116,18 +123,25 @@ export default function StudentHomePage() {
         ) : (
           <>
             <div className={styles.heroCard}>
-              <span className={styles.kicker}>Phase B1 — try this</span>
-              <h2>Step check: equations with fractions</h2>
+              <span className={styles.kicker}>Combined algebra check</span>
+              <h2>Full step check: five topics in one go</h2>
               <p className={styles.meta}>
-                Write working one line at a time. Starts with a simple fraction equation, then clearing
-                denominators — not the old linear baseline.
+                Write working one line at a time. Walks brackets → fractions → identities →
+                factorising → quadratics in a single session.
               </p>
               <Link
-                href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+                href="/student/diagnostic-v2?track=COMBINED_ALGEBRA&debug=1"
                 className="btn btn-primary"
                 style={{ alignSelf: "flex-start" }}
               >
-                Start fractions check
+                Start full algebra check
+              </Link>
+              <Link
+                href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1"
+                className="btn btn-ghost"
+                style={{ alignSelf: "flex-start", marginTop: "0.5rem" }}
+              >
+                Or fractions only
               </Link>
               <Link
                 href="/student/practice?mode=ADAPTIVE_PRACTICE"
@@ -223,8 +237,8 @@ export default function StudentHomePage() {
         )}
 
         <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>
-          <Link href="/student/diagnostic-v2?track=FRACTION_LINEAR&debug=1">
-            Step check (fractions)
+          <Link href="/student/diagnostic-v2?track=COMBINED_ALGEBRA&debug=1">
+            Full algebra check
           </Link>
           <Link href="/student/revision">Plan</Link>
           <button type="button" className="btn-quiet" onClick={signOut} style={{ padding: 0 }}>

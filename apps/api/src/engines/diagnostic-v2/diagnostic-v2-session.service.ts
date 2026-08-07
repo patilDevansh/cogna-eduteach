@@ -75,6 +75,7 @@ import {
 } from "./linear-bracket-verifier";
 import {
   checkBareFinalAnswerForTrack,
+  effectiveVerifierTrack,
   verifyDiagnosticV2Step,
 } from "./diagnostic-v2-verifier-router";
 import { lineHasFractionSyntax } from "./fraction-linear-verifier";
@@ -178,7 +179,25 @@ export const FIRST_ID_STAGE_ID: DiagnosticV2StageId = "ENTRY_EXPAND_BINOMIAL";
 export const FIRST_FAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FACTOR_EXPAND";
 export const FIRST_QUAD_STAGE_ID: DiagnosticV2StageId = "ENTRY_QUAD_STANDARD";
 
+/** Full combined backbone for prefetch / next-template lookup across topics. */
+export const COMBINED_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
+  ...ITEM_STAGE_ORDER,
+  ...FRAC_ITEM_STAGE_ORDER,
+  ...ID_ITEM_STAGE_ORDER,
+  ...FAC_ITEM_STAGE_ORDER,
+  ...QUAD_ITEM_STAGE_ORDER,
+];
+
+/** After a topic transfer on COMBINED_ALGEBRA, hop to the next topic entry. */
+const COMBINED_NEXT_AFTER_TRANSFER: Partial<Record<DiagnosticV2StageId, DiagnosticV2StageId>> = {
+  TRANSFER_NEG_DIST: "ENTRY_FRAC_SIMPLE",
+  TRANSFER_FRAC_CLEAR: "ENTRY_EXPAND_BINOMIAL",
+  TRANSFER_ID_DIFF: "ENTRY_FACTOR_EXPAND",
+  TRANSFER_FAC_NONMONIC: "ENTRY_QUAD_STANDARD",
+};
+
 export function itemStageOrderForTrack(track: DiagnosticV2Track): DiagnosticV2StageId[] {
+  if (track === "COMBINED_ALGEBRA") return COMBINED_ITEM_STAGE_ORDER;
   if (track === "FRACTION_LINEAR") return FRAC_ITEM_STAGE_ORDER;
   if (track === "IDENTITY_DIFF_SQUARES") return ID_ITEM_STAGE_ORDER;
   if (track === "FACTOR_MONIC_TRINOMIAL") return FAC_ITEM_STAGE_ORDER;
@@ -191,7 +210,42 @@ export function firstStageForTrack(track: DiagnosticV2Track): DiagnosticV2StageI
   if (track === "IDENTITY_DIFF_SQUARES") return FIRST_ID_STAGE_ID;
   if (track === "FACTOR_MONIC_TRINOMIAL") return FIRST_FAC_STAGE_ID;
   if (track === "QUAD_ZERO_PRODUCT") return FIRST_QUAD_STAGE_ID;
+  // COMBINED_ALGEBRA and NEGATIVE_DISTRIBUTION both open on NegDist entry.
   return FIRST_STAGE_ID;
+}
+
+export function openingReasonForTrack(track: DiagnosticV2Track): string {
+  switch (track) {
+    case "COMBINED_ALGEBRA":
+      return "Opening item of the combined algebra diagnostic (starts with brackets / negative distribution).";
+    case "FRACTION_LINEAR":
+      return "Opening item of the fraction-linear diagnostic track.";
+    case "IDENTITY_DIFF_SQUARES":
+      return "Opening item of the difference-of-squares identities track.";
+    case "FACTOR_MONIC_TRINOMIAL":
+      return "Opening item of the factorisation track.";
+    case "QUAD_ZERO_PRODUCT":
+      return "Opening item of the quadratic zero-product track.";
+    default:
+      return "Opening item of the fixed entry sequence.";
+  }
+}
+
+export function rulePromptReasoningForStage(completedStage: DiagnosticV2StageId): string {
+  switch (completedStage) {
+    case "NEG_DIST_CONTRAST":
+      return "Same distribution error twice on structurally different problems — taught the sign rule before re-testing.";
+    case "FRAC_CLEAR_CONTRAST":
+      return "Same fraction-clearing error twice on structurally different problems — taught the clearing rule before re-testing.";
+    case "ID_DIFF_CONTRAST":
+      return "Same difference-of-squares error twice on structurally different problems — taught the identity before re-testing.";
+    case "FAC_MONIC_CONTRAST":
+      return "Same factorisation error twice on structurally different problems — taught the factor pair rule before re-testing.";
+    case "QUAD_ZP_CONTRAST":
+      return "Same zero-product error twice on structurally different problems — taught the zero-product rule before re-testing.";
+    default:
+      return "Same error twice on structurally different problems — taught the rule before re-testing.";
+  }
 }
 
 /**
@@ -284,7 +338,11 @@ export function nextBackboneTemplateId(
  */
 export function nextStagesAfter(
   completed: DiagnosticV2StageId,
-  ctx: { targetSkillFailed: boolean; patternConfirmed: boolean },
+  ctx: {
+    targetSkillFailed: boolean;
+    patternConfirmed: boolean;
+    track?: DiagnosticV2Track;
+  },
 ): DiagnosticV2StageId[] {
   switch (completed) {
     case "ENTRY_TWO_STEP":
@@ -336,6 +394,17 @@ export function nextStagesAfter(
       return ctx.patternConfirmed
         ? ["RULE_PROMPT", "TRANSFER_QUAD_ZP"]
         : ["TRANSFER_QUAD_ZP"];
+    case "TRANSFER_NEG_DIST":
+    case "TRANSFER_FRAC_CLEAR":
+    case "TRANSFER_ID_DIFF":
+    case "TRANSFER_FAC_NONMONIC":
+    case "TRANSFER_QUAD_ZP": {
+      if (ctx.track === "COMBINED_ALGEBRA") {
+        const nextTopic = COMBINED_NEXT_AFTER_TRANSFER[completed];
+        if (nextTopic) return [nextTopic];
+      }
+      return ["COMPLETE"];
+    }
     default:
       return ["COMPLETE"];
   }
@@ -358,7 +427,8 @@ export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
     first.track === "NEGATIVE_DISTRIBUTION" ||
     first.track === "IDENTITY_DIFF_SQUARES" ||
     first.track === "FACTOR_MONIC_TRINOMIAL" ||
-    first.track === "QUAD_ZERO_PRODUCT"
+    first.track === "QUAD_ZERO_PRODUCT" ||
+    first.track === "COMBINED_ALGEBRA"
   ) {
     return first.track;
   }
@@ -625,10 +695,7 @@ export class DiagnosticV2SessionService {
     const firstStage = firstStageForTrack(track);
     const item = requireFixedItem(firstStage);
     const at = new Date().toISOString();
-    const openingReason =
-      track === "FRACTION_LINEAR"
-        ? "Opening item of the fraction-linear diagnostic track."
-        : "Opening item of the fixed entry sequence.";
+    const openingReason = openingReasonForTrack(track);
 
     const { session, attempt } = await this.prisma.$transaction(async (tx) => {
       const createdSession = await tx.diagnosticV2Session.create({
@@ -726,12 +793,18 @@ export class DiagnosticV2SessionService {
     }
 
     const track = trackFromStageHistory(session.stageHistory);
+    const grammarTrack = effectiveVerifierTrack(track, item.stageId);
 
     // 1. Deterministic verification — ground truth. Skipped entirely for a
-    //    decline: there is no line to verify. Track picks the verifier module.
+    //    decline: there is no line to verify. Track/stage picks the verifier.
     const verification = declined
       ? null
-      : verifyDiagnosticV2Step(expectedPreviousLine, submittedLine, track);
+      : verifyDiagnosticV2Step(
+          expectedPreviousLine,
+          submittedLine,
+          track,
+          item.stageId,
+        );
     let validity: StepValidity | null = verification?.validity ?? null;
     let verificationSource: VerificationSource = "DETERMINISTIC";
     let aiGraderConfidence: number | null = null;
@@ -805,19 +878,19 @@ export class DiagnosticV2SessionService {
       isTransferCheck: item.isTransferCheck,
       finalAnswerOnly,
       hasFractions:
-        track === "FRACTION_LINEAR" ||
+        grammarTrack === "FRACTION_LINEAR" ||
         lineHasFractionSyntax(item.openingLine) ||
         lineHasFractionSyntax(expectedPreviousLine),
     });
     const layers = layersForMicroSkill(attribution.primary);
     const verifierVersion =
-      track === "FRACTION_LINEAR"
+      grammarTrack === "FRACTION_LINEAR"
         ? STEP_VERIFICATION_RULES_FRACTION_V1
-        : track === "IDENTITY_DIFF_SQUARES"
+        : grammarTrack === "IDENTITY_DIFF_SQUARES"
           ? STEP_VERIFICATION_RULES_IDENTITY_V1
-          : track === "FACTOR_MONIC_TRINOMIAL"
+          : grammarTrack === "FACTOR_MONIC_TRINOMIAL"
             ? STEP_VERIFICATION_RULES_FACTOR_V1
-            : track === "QUAD_ZERO_PRODUCT"
+            : grammarTrack === "QUAD_ZERO_PRODUCT"
               ? STEP_VERIFICATION_RULES_QUADRATIC_V1
               : STEP_VERIFICATION_RULES_V1;
 
@@ -945,6 +1018,7 @@ export class DiagnosticV2SessionService {
       nextStageIds = nextStagesAfter(completedStage, {
         targetSkillFailed: isTargetSkillFailure,
         patternConfirmed,
+        track,
       });
       if (nextStageIds.includes("RULE_PROMPT")) {
         assistanceOffered = "RULE_PROMPT";
@@ -1005,9 +1079,14 @@ export class DiagnosticV2SessionService {
       stageId,
       source: stageId === "RULE_PROMPT" || stageId === "COMPLETE" ? "RULE" : selectorSource,
       ...(stageId === "RULE_PROMPT"
-        ? { reasoning: "Same distribution error twice on structurally different problems — taught the sign rule before re-testing." }
+        ? { reasoning: rulePromptReasoningForStage(completedStage) }
         : stageId === "COMPLETE"
-          ? { reasoning: "All planned items complete." }
+          ? {
+              reasoning:
+                track === "COMBINED_ALGEBRA"
+                  ? "All five topic backbones in the combined algebra diagnostic are complete."
+                  : "All planned items complete.",
+            }
           : selectorReasoning
             ? { reasoning: selectorReasoning }
             : {}),

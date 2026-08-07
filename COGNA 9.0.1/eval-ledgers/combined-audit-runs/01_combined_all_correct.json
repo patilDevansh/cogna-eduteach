@@ -1,0 +1,2399 @@
+{
+  "caseId": "01_combined_all_correct",
+  "label": "Combined all-correct through five topics",
+  "track": "COMBINED_ALGEBRA",
+  "studentId": "dev_student_001",
+  "sessionId": "cmsjbvjlc0001y2xlgul9lm7q",
+  "opening": {
+    "itemKey": "ENTRY_TWO_STEP",
+    "equationPrompt": "Solve for x:  3x + 5 = 20",
+    "stageId": "ENTRY_TWO_STEP",
+    "source": "RULE"
+  },
+  "transitions": [
+    {
+      "fromItemKey": "ENTRY_TWO_STEP",
+      "studentAction": "ok",
+      "submittedLine": "3x = 15",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 35 times on their own and only made a few mistakes, showing strong understanding despite some independent challenges.",
+        "childFacingSummary": "You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_TWO_STEP",
+      "studentAction": "ok",
+      "submittedLine": "x = 5",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown some difficulty with LIN_COMBINE_LIKE and LIN_DISTRIBUTE_NEG, which are prerequisites for solving equations with variables on both sides. Presenting a TPL_VARIABLE_BOTH question will reinforce combining like terms and removing coefficients in a slightly more complex context, supporting progress on LIN_REMOVE_COEFFICIENT and related skills."
+      },
+      "nextItemKey": "GEN_VAR_BOTH_5_1_2_5",
+      "nextOrigin": "TEMPLATE_RENDERED",
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly isolated the letter by dividing 35 times independently and only made 2 errors, showing strong understanding with minimal mistakes.",
+        "childFacingSummary": "You're doing great at getting the letter on its own by dividing, with just a couple of small mistakes.",
+        "microSkillId": "LIN_REMOVE_COEFFICIENT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "GEN_VAR_BOTH_5_1_2_5",
+      "studentAction": "ok",
+      "submittedLine": "2x - 7 = 9",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "NOT_EQUIVALENT",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made several errors on their own and needed help once, showing a consistent struggle with tidying up like terms independently.",
+        "childFacingSummary": "You sometimes mix up terms when you work alone, so keep practicing to get even better at it.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "GEN_VAR_BOTH_5_1_2_5",
+      "studentAction": "ok",
+      "submittedLine": "2x = 16",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "NOT_EQUIVALENT",
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Group the terms with the same letter together and add their number parts; leave the plain numbers in their own group.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "NEG_DIST_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made several mistakes on their own and only occasionally got it right without help, indicating a recurring difficulty with tidying up like terms.",
+        "childFacingSummary": "You sometimes mix up combining like terms, so keep practicing to get even better at it.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "NEG_DIST_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "x = 8",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "OUTER_SIGN_DROPPED",
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_NEG by not applying the negative factor correctly to the variable term, so the next question should directly target negative distribution without solving, to isolate and reinforce this step; itemKey NEG_DIST_CONTRAST with template TPL_NEG_DISTRIBUTION_BARE fits perfectly."
+      },
+      "nextItemKey": "NEG_DIST_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student frequently made the same mistake of not applying the minus sign correctly when expanding brackets, showing a consistent pattern of errors.",
+        "childFacingSummary": "You often forget to multiply the minus sign when opening brackets, so keep practicing that part to get better.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "NEG_DIST_CONTRAST",
+      "studentAction": "ok",
+      "submittedLine": "-2x + 10 + 3 = 11",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": "RULE_PROMPT",
+      "assistanceMessage": "The number outside the bracket multiplies every term inside it — including its sign. What is (-3) x (-4)? Two negatives multiplied together give a positive, so it is 12, not -12.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_NEG by dropping the outer negative sign, so the next question should target LIN_DISTRIBUTE_NEG again to reinforce correct distribution of a negative multiplier, making itemKey=TRANSFER_NEG_DIST the best choice."
+      },
+      "nextItemKey": "TRANSFER_NEG_DIST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made many more mistakes than correct answers on their own, showing a consistent difficulty with expanding brackets that have a minus in front.",
+        "childFacingSummary": "You often find it tricky to expand brackets with a minus sign, so keep practicing to get better at it.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_NEG_DIST",
+      "studentAction": "ok",
+      "submittedLine": "-2x + 13 = 11",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "OUTER_SIGN_DROPPED",
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error applying the negative distribution in LIN_DISTRIBUTE_NEG by not multiplying the outer factor correctly; choosing the existing variable on both sides question (ENTRY_VARIABLE_BOTH) will require combining like terms and solving an equation with variables on both sides, reinforcing correct distribution and combination steps relevant to the recent error and the LIN_COMBINE_LIKE prerequisite."
+      },
+      "nextItemKey": "ENTRY_VARIABLE_BOTH",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "RULE",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The same kind of error appeared 38 times on expanding brackets that have a minus in front — most recently, the outer factor -4 was not applied to z — the coefficient became -2 instead of -4.",
+        "childFacingSummary": "Let's spend a little time on expanding brackets that have a minus in front — it came up more than once.",
+        "microSkillId": "LIN_DISTRIBUTE_NEG"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "-2x = -2",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "NOT_EQUIVALENT",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made several errors on their own and only occasionally needed help, indicating a recurring difficulty with tidying up like terms independently.",
+        "childFacingSummary": "You're getting some parts right when working alone, but you still mix up like terms quite a bit, so keep practicing to get even better.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_VARIABLE_BOTH",
+      "studentAction": "ok",
+      "submittedLine": "x = 1",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "NOT_EQUIVALENT",
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Group the terms with the same letter together and add their number parts; leave the plain numbers in their own group.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error combining like terms (LIN_COMBINE_LIKE), which is a prerequisite for LIN_CLEAR_FRACTIONS; choosing FRAC_CLEAR_MAIN (TPL_FRAC_CLEAR) targets LIN_CLEAR_FRACTIONS to strengthen foundational fraction clearing skills that support combining like terms and solving linear equations with fractions."
+      },
+      "nextItemKey": "FRAC_CLEAR_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made nearly as many mistakes as correct answers when working alone, showing a consistent difficulty with tidying up like terms independently.",
+        "childFacingSummary": "You're still having some trouble putting like terms together on your own, but keep practicing and you'll get better!",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "-4z + 8 + 3 = 19",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has more incorrect attempts than correct ones when expanding brackets independently, showing a consistent difficulty with this skill.",
+        "childFacingSummary": "You're having some trouble with expanding brackets, especially when working on your own, but keep practicing and you'll get better.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "-4z + 11 = 19",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Multiply the number outside the bracket by the first term inside, then by the second term, and write both results.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_POS involving clearing fractions with denominators 2 and 3, needing a common multiple of 6; itemKey TRANSFER_FRAC_CLEAR with template TPL_TRANSFER_FRAC_CLEAR directly targets LIN_CLEAR_FRACTIONS and will reinforce correct fraction clearing with multiple denominators, addressing the root cause of the recent error."
+      },
+      "nextItemKey": "TRANSFER_FRAC_CLEAR",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has more incorrect attempts than correct ones when expanding brackets independently, showing a consistent difficulty with the multipliers needed for fractions.",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, but keep practicing and you’ll get better at it.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_FRAC_CLEAR",
+      "studentAction": "ok",
+      "submittedLine": "-4z = 8",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has more incorrect attempts than correct ones when working alone, showing a consistent issue with using the right multipliers in fraction problems.",
+        "childFacingSummary": "You're having some trouble with expanding brackets, especially when fractions are involved, so keep practicing to get better at it.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_FRAC_CLEAR",
+      "studentAction": "ok",
+      "submittedLine": "z = -2",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Multiply the number outside the bracket by the first term inside, then by the second term, and write both results.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_POS related to clearing fractions, so giving a simpler fraction clearing problem (TPL_FRAC_CLEAR_BARE) will help reinforce correct clearing of denominators before moving back to more complex distribution problems."
+      },
+      "nextItemKey": "FRAC_CLEAR_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has more incorrect attempts than correct ones when expanding brackets on their own, showing a consistent difficulty with the multipliers used for fractions.",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, so keep practicing to get more comfortable.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_CONTRAST",
+      "studentAction": "ok",
+      "submittedLine": "x/2 = 4",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student got it wrong more often than right on their own and struggled even when working independently with fractions, showing a consistent issue with expanding brackets.",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, but keep practicing and you’ll get there!",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FRAC_CLEAR_CONTRAST",
+      "studentAction": "ok",
+      "submittedLine": "x = 8",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "DROPPED_TERM_WHEN_CLEARING",
+      "assistanceOffered": "RULE_PROMPT",
+      "assistanceMessage": "The number outside the bracket multiplies every term inside it, not just the first one.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error in LIN_DISTRIBUTE_POS when clearing fractions by multiplying every term; reinforcing LIN_SOLVE_FRACTIONS with a simple fraction equation like 'x/2 + 3 = 7' will help consolidate correct fraction handling and multiplication across all terms before moving on."
+      },
+      "nextItemKey": "ENTRY_FRAC_SIMPLE",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has made the same type of mistake multiple times when expanding brackets, especially missing terms when multiplying by a number.",
+        "childFacingSummary": "You’re having some trouble remembering to multiply every part when you expand brackets, so keep practicing to get it right more often.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_FRAC_SIMPLE",
+      "studentAction": "ok",
+      "submittedLine": "3(x + 1) = 2(x - 1) + 6",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "REVIEW_OPPORTUNITY",
+      "assistanceMessage": "Have another look at that line whenever you're ready — you can just write it again.",
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has a significant number of errors when clearing fractions independently, often using incorrect multipliers, showing a consistent difficulty with this skill.",
+        "childFacingSummary": "You're getting some answers right when clearing fractions, but you often mix up the numbers you multiply by, so keep practicing to get it just right.",
+        "microSkillId": "LIN_CLEAR_FRACTIONS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_FRAC_SIMPLE",
+      "studentAction": "ok",
+      "submittedLine": "3x + 3 = 2x - 2 + 6",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+      "assistanceOffered": "FULL_EXPLANATION",
+      "assistanceMessage": "Find one number that is a multiple of every denominator. Multiply every term on the left and every term on the right by that same number so the fractions disappear together.",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error in LIN_CLEAR_FRACTIONS by not using a valid common multiple to clear denominators; a fresh instance of TPL_FRAC_CLEAR will directly target this skill and help reinforce correct clearing of fractions."
+      },
+      "nextItemKey": "GEN_FRAC_CLEAR_fallback_z",
+      "nextOrigin": "TEMPLATE_RENDERED",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has made a significant number of errors on their own when clearing fractions, often using incorrect multipliers, indicating a consistent difficulty with this skill.",
+        "childFacingSummary": "You're still having some trouble picking the right numbers to clear fractions, but keep practicing and you'll get it!",
+        "microSkillId": "LIN_CLEAR_FRACTIONS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "GEN_FRAC_CLEAR_fallback_z",
+      "studentAction": "ok",
+      "submittedLine": "3x + 3 = 2x + 4",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made more than twice as many mistakes as correct answers when working alone, showing a consistent difficulty with expanding brackets, especially with fractions and similar problems.",
+        "childFacingSummary": "You’re having a hard time with expanding brackets right now, and it’s happening often, especially when fractions are involved.",
+        "microSkillId": "LIN_DISTRIBUTE_POS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "GEN_FRAC_CLEAR_fallback_z",
+      "studentAction": "ok",
+      "submittedLine": "x + 3 = 4",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student correctly tidies up like terms more often than not but still makes a significant number of errors independently, indicating a recurring difficulty.",
+        "childFacingSummary": "You’re getting many of these right on your own, but there are still some mistakes that happen again and again.",
+        "microSkillId": "LIN_COMBINE_LIKE"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "GEN_FRAC_CLEAR_fallback_z",
+      "studentAction": "ok",
+      "submittedLine": "x = 1",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "ENTRY_EXPAND_BINOMIAL",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "WORKING_WELL",
+        "reasoning": "The student correctly moved numbers across the equals sign 36 times independently and only made 3 mistakes on their own, showing strong understanding despite a few errors.",
+        "childFacingSummary": "You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there.",
+        "microSkillId": "LIN_REMOVE_CONSTANT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_EXPAND_BINOMIAL",
+      "studentAction": "ok",
+      "submittedLine": "2(z - 2) = (z + 1) + 6",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error expanding binomials, so giving a difference of squares expansion like (x + 3)(x - 3) will reinforce the distributive property and correct application of signs, directly targeting the LIN_DISTRIBUTE_NEG skill where the student often drops the outer sign factor."
+      },
+      "nextItemKey": "ID_DIFF_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student has only one recorded attempt and got it wrong without help, suggesting it might be a one-time mistake rather than a repeated issue.",
+        "childFacingSummary": "You made a small mistake when multiplying two brackets this time, but that's okay and you can try again to get it right!",
+        "microSkillId": "EXP_EXPAND_BINOMIALS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ID_DIFF_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "2z - 4 = z + 1 + 6",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "ID_DIFF_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student made one mistake when working alone and has not yet demonstrated success with this skill, suggesting it might be a one-time error rather than a consistent issue.",
+        "childFacingSummary": "You made a small mistake with this idea once, but you might get it with a bit more practice.",
+        "microSkillId": "ID_DIFF_SQUARES"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ID_DIFF_CONTRAST",
+      "studentAction": "ok",
+      "submittedLine": "2z - 4 = z + 7",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": "RULE_PROMPT",
+      "assistanceMessage": "When the brackets are (x + a)(x − a), the middle terms cancel and you get x² − a².",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student recently made an error on ID_DIFF_SQUARES by introducing unrelated variables and expressions, so the next question should target the same skill with a simpler factoring problem (z^2 - 16) to reinforce the difference of squares concept and correct the pattern of errors."
+      },
+      "nextItemKey": "TRANSFER_ID_DIFF",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has not answered any difference of squares problems correctly on their own and has made mistakes twice, indicating a consistent difficulty with this skill.",
+        "childFacingSummary": "It looks like you’re having some trouble with problems about difference of squares, so keep practicing to get better at it.",
+        "microSkillId": "ID_DIFF_SQUARES"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_ID_DIFF",
+      "studentAction": "ok",
+      "submittedLine": "z - 4 = 7",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student is currently emerging on expanding binomials and has just made an error on difference of squares, which builds on expanding binomials; returning to a standard expand binomial question (TPL_FACTOR_EXPAND) will reinforce the foundational skill EXP_EXPAND_BINOMIALS before moving forward."
+      },
+      "nextItemKey": "ENTRY_FACTOR_EXPAND",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has made the same mistake three times independently without any correct attempts, showing a consistent difficulty with this skill.",
+        "childFacingSummary": "It looks like you’ve had some trouble with this type of problem a few times, so it might help to practice it more.",
+        "microSkillId": "ID_DIFF_SQUARES"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_FACTOR_EXPAND",
+      "studentAction": "ok",
+      "submittedLine": "z = 11",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "FAC_MONIC_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has not correctly multiplied two brackets independently even once and has made mistakes twice, indicating a consistent difficulty with this skill.",
+        "childFacingSummary": "It looks like multiplying two brackets is tricky right now, so keep practicing to get better at it.",
+        "microSkillId": "EXP_EXPAND_BINOMIALS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FAC_MONIC_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "x^2 + 5x + 6",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student has not correctly multiplied two brackets independently even once and has made mistakes twice, indicating a consistent difficulty with this skill.",
+        "childFacingSummary": "It looks like multiplying two brackets is tricky right now, so keep practicing to get better at it.",
+        "microSkillId": "EXP_EXPAND_BINOMIALS"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FAC_MONIC_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "x^2 - 9",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student made an error on FAC_MONIC_TRINOMIAL, so the next question should reinforce factoring monic trinomials with a contrast example, which is FAC_MONIC_CONTRAST using template TPL_FAC_MONIC_BARE to help solidify this skill before moving on."
+      },
+      "nextItemKey": "FAC_MONIC_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student has both a correct and an incorrect attempt independently, suggesting occasional mistakes rather than a consistent problem.",
+        "childFacingSummary": "You sometimes get these problems right on your own, but sometimes you make a small mistake.",
+        "microSkillId": "FAC_MONIC_TRINOMIAL"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "FAC_MONIC_CONTRAST",
+      "studentAction": "ok",
+      "submittedLine": "(z + 4)(z - 4)",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "EXPAND_CHECK_FAIL",
+      "assistanceOffered": "RULE_PROMPT",
+      "assistanceMessage": "For x² + bx + c, find two numbers that multiply to c and add to b, then write (x + …)(x + …).",
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "AI",
+        "reasoning": "The student has shown difficulty with factoring monic trinomials and expanding binomials, and the next logical step is to practice factoring a non-monic trinomial (FAC_NONMONIC_GROUP) to build on their current emerging skills and address gaps in factoring, as indicated by their recent errors and statuses."
+      },
+      "nextItemKey": "TRANSFER_FAC_NONMONIC",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "REPEATED_PATTERN",
+        "reasoning": "The student made more errors than successes independently, showing a consistent difficulty with matching letters in factors.",
+        "childFacingSummary": "You're having some trouble matching the letters when breaking down these expressions, so keep practicing to get it right more often.",
+        "microSkillId": "FAC_MONIC_TRINOMIAL"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_FAC_NONMONIC",
+      "studentAction": "ok",
+      "submittedLine": "x^2 + 5x + 6",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "ENTRY_QUAD_STANDARD",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student made one mistake when working alone and has not yet shown success, suggesting it might be a one-time error rather than a repeated issue.",
+        "childFacingSummary": "You had a little trouble with this once, but it might just be a small mistake, so keep trying!",
+        "microSkillId": "FAC_NONMONIC_GROUP"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_QUAD_STANDARD",
+      "studentAction": "ok",
+      "submittedLine": "(x + 2)(x + 3)",
+      "dontKnow": false,
+      "validity": "PARSE_FAILED",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": false,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": null,
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student made one mistake when working alone and has not yet shown success, suggesting it might be a one-time error rather than a repeated issue.",
+        "childFacingSummary": "You had a little trouble with this once, but it might just be a small mistake, so keep trying!",
+        "microSkillId": "FAC_NONMONIC_GROUP"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "ENTRY_QUAD_STANDARD",
+      "studentAction": "ok",
+      "submittedLine": "(2x + 1)(x - 3)",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "QUAD_ZP_MAIN",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student has only one recorded attempt and got it wrong independently, which suggests it might be a one-time mistake rather than a consistent issue.",
+        "childFacingSummary": "You had a little trouble rewriting a quadratic to equal zero this time, but that might just be a small slip.",
+        "microSkillId": "QUAD_STANDARD_FORM"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "QUAD_ZP_MAIN",
+      "studentAction": "ok",
+      "submittedLine": "x^2 + 5x + 6 = 0",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "QUAD_ZP_CONTRAST",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student has only one recorded attempt and got it wrong without help, which might be a one-time mistake rather than a consistent issue.",
+        "childFacingSummary": "You made a small mistake with this skill, but it's likely just a slip and not a big problem yet.",
+        "microSkillId": "QUAD_ZERO_PRODUCT"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "QUAD_ZP_CONTRAST",
+      "studentAction": "ok",
+      "submittedLine": "x = -2 or x = 3",
+      "dontKnow": false,
+      "validity": "INVALID",
+      "firstInvalidActionCode": "DROPPED_ROOT",
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "ACTIVE",
+      "selectorDecision": {
+        "source": "RULE",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      "nextItemKey": "TRANSFER_QUAD_ZP",
+      "nextOrigin": "PRE_WRITTEN",
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student has only one recorded attempt and got it wrong independently, with one root correct but the other missing or wrong, suggesting it might be a one-time mistake rather than a repeated issue.",
+        "childFacingSummary": "You almost got it right with the bracket problem, just missing one part this time.",
+        "microSkillId": "QUAD_SOLVE_UNIT_FACTOR"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    },
+    {
+      "fromItemKey": "TRANSFER_QUAD_ZP",
+      "studentAction": "ok",
+      "submittedLine": "x = 3 or x = -2",
+      "dontKnow": false,
+      "validity": "VALID",
+      "firstInvalidActionCode": null,
+      "assistanceOffered": null,
+      "assistanceMessage": null,
+      "itemComplete": true,
+      "sessionStatus": "COMPLETED",
+      "selectorDecision": {
+        "source": "RULE"
+      },
+      "nextItemKey": null,
+      "nextOrigin": null,
+      "hypothesis": {
+        "source": "AI",
+        "label": "POSSIBLE_SLIP",
+        "reasoning": "The student has only one recorded attempt and got it wrong independently, with one root correct but the other missing or wrong, suggesting it might be a one-time mistake rather than a repeated issue.",
+        "childFacingSummary": "You almost got it right with the bracket problem, just missing one part this time.",
+        "microSkillId": "QUAD_SOLVE_UNIT_FACTOR"
+      },
+      "trailMatch": "PASS",
+      "failureModeTag": null
+    }
+  ],
+  "topicEntriesSeen": [
+    "ENTRY_TWO_STEP",
+    "ENTRY_FRAC_SIMPLE",
+    "ENTRY_EXPAND_BINOMIAL",
+    "ENTRY_FACTOR_EXPAND",
+    "ENTRY_QUAD_STANDARD"
+  ],
+  "aiSelectorCount": 14,
+  "ruleSelectorCount": 9,
+  "generateOriginCount": 2,
+  "summary": {
+    "sessionId": "cmsjbvjlc0001y2xlgul9lm7q",
+    "status": "COMPLETED",
+    "childFacingSummary": "Thanks for working through those questions. It looks like multiplying two brackets is tricky right now, so keep practicing to get better at it. You're having some trouble matching the letters when breaking down these expressions, so keep practicing to get it right more often. It looks like you’ve had some trouble with this type of problem a few times, so it might help to practice it more. You're still having some trouble picking the right numbers to clear fractions, but keep practicing and you'll get it! You’re getting many of these right on your own, but there are still some mistakes that happen again and again. Let's spend a little time on expanding brackets that have a minus in front — it came up more than once. You’re having a hard time with expanding brackets right now, and it’s happening often, especially when fractions are involved. You're doing great at getting the letter on its own by dividing, with just a couple of small mistakes. You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there. We'll come back to it in a few days to make sure it stuck.",
+    "parentFacingSummary": "Today your child worked through a short step-by-step algebra check (0 of 23 questions finished). They stayed engaged with the working lines. Areas to revisit: multiplying two brackets, factorising a trinomial that starts with x², difference of squares, clearing fractions by multiplying both sides, tidying up like terms, expanding brackets that have a minus in front, expanding brackets, dividing to get the letter on its own and moving a number across the equals sign (9 skill gaps noted). Spend a short practice block revisiting multiplying two brackets, factorising a trinomial that starts with x², difference of squares, clearing fractions by multiplying both sides, tidying up like terms, expanding brackets that have a minus in front, expanding brackets, dividing to get the letter on its own and moving a number across the equals sign. We'll schedule a short follow-up check in a few days."
+  },
+  "finalDebug": {
+    "sessionId": "cmsjbvjlc0001y2xlgul9lm7q",
+    "status": "COMPLETED",
+    "currentStageId": "COMPLETE",
+    "stageHistory": [
+      {
+        "at": "2026-08-07T19:18:40.360Z",
+        "track": "COMBINED_ALGEBRA",
+        "source": "RULE",
+        "stageId": "ENTRY_TWO_STEP",
+        "reasoning": "Opening item of the combined algebra diagnostic (starts with brackets / negative distribution)."
+      },
+      {
+        "at": "2026-08-07T19:18:49.540Z",
+        "source": "AI",
+        "stageId": "ENTRY_VARIABLE_BOTH",
+        "reasoning": "The student is currently working on LIN_REMOVE_COEFFICIENT and has shown some difficulty with LIN_COMBINE_LIKE and LIN_DISTRIBUTE_NEG, which are prerequisites for solving equations with variables on both sides. Presenting a TPL_VARIABLE_BOTH question will reinforce combining like terms and removing coefficients in a slightly more complex context, supporting progress on LIN_REMOVE_COEFFICIENT and related skills."
+      },
+      {
+        "at": "2026-08-07T19:18:56.518Z",
+        "source": "RULE",
+        "stageId": "NEG_DIST_MAIN",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:19:01.124Z",
+        "source": "AI",
+        "stageId": "NEG_DIST_CONTRAST",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_NEG by not applying the negative factor correctly to the variable term, so the next question should directly target negative distribution without solving, to isolate and reinforce this step; itemKey NEG_DIST_CONTRAST with template TPL_NEG_DISTRIBUTION_BARE fits perfectly."
+      },
+      {
+        "at": "2026-08-07T19:19:07.022Z",
+        "source": "RULE",
+        "stageId": "RULE_PROMPT",
+        "reasoning": "Same distribution error twice on structurally different problems — taught the sign rule before re-testing."
+      },
+      {
+        "at": "2026-08-07T19:19:07.022Z",
+        "source": "AI",
+        "stageId": "TRANSFER_NEG_DIST",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_NEG by dropping the outer negative sign, so the next question should target LIN_DISTRIBUTE_NEG again to reinforce correct distribution of a negative multiplier, making itemKey=TRANSFER_NEG_DIST the best choice."
+      },
+      {
+        "at": "2026-08-07T19:19:11.061Z",
+        "source": "AI",
+        "stageId": "ENTRY_VARIABLE_BOTH",
+        "reasoning": "The student recently made an error applying the negative distribution in LIN_DISTRIBUTE_NEG by not multiplying the outer factor correctly; choosing the existing variable on both sides question (ENTRY_VARIABLE_BOTH) will require combining like terms and solving an equation with variables on both sides, reinforcing correct distribution and combination steps relevant to the recent error and the LIN_COMBINE_LIKE prerequisite."
+      },
+      {
+        "at": "2026-08-07T19:19:16.586Z",
+        "source": "AI",
+        "stageId": "FRAC_CLEAR_MAIN",
+        "reasoning": "The student recently made an error combining like terms (LIN_COMBINE_LIKE), which is a prerequisite for LIN_CLEAR_FRACTIONS; choosing FRAC_CLEAR_MAIN (TPL_FRAC_CLEAR) targets LIN_CLEAR_FRACTIONS to strengthen foundational fraction clearing skills that support combining like terms and solving linear equations with fractions."
+      },
+      {
+        "at": "2026-08-07T19:19:22.142Z",
+        "source": "AI",
+        "stageId": "TRANSFER_FRAC_CLEAR",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_POS involving clearing fractions with denominators 2 and 3, needing a common multiple of 6; itemKey TRANSFER_FRAC_CLEAR with template TPL_TRANSFER_FRAC_CLEAR directly targets LIN_CLEAR_FRACTIONS and will reinforce correct fraction clearing with multiple denominators, addressing the root cause of the recent error."
+      },
+      {
+        "at": "2026-08-07T19:19:28.458Z",
+        "source": "AI",
+        "stageId": "FRAC_CLEAR_CONTRAST",
+        "reasoning": "The student recently made an error on LIN_DISTRIBUTE_POS related to clearing fractions, so giving a simpler fraction clearing problem (TPL_FRAC_CLEAR_BARE) will help reinforce correct clearing of denominators before moving back to more complex distribution problems."
+      },
+      {
+        "at": "2026-08-07T19:19:33.727Z",
+        "source": "RULE",
+        "stageId": "RULE_PROMPT",
+        "reasoning": "Same fraction-clearing error twice on structurally different problems — taught the clearing rule before re-testing."
+      },
+      {
+        "at": "2026-08-07T19:19:33.727Z",
+        "source": "AI",
+        "stageId": "ENTRY_FRAC_SIMPLE",
+        "reasoning": "The student recently made an error in LIN_DISTRIBUTE_POS when clearing fractions by multiplying every term; reinforcing LIN_SOLVE_FRACTIONS with a simple fraction equation like 'x/2 + 3 = 7' will help consolidate correct fraction handling and multiplication across all terms before moving on."
+      },
+      {
+        "at": "2026-08-07T19:19:38.947Z",
+        "source": "AI",
+        "stageId": "FRAC_CLEAR_MAIN",
+        "reasoning": "The student recently made an error in LIN_CLEAR_FRACTIONS by not using a valid common multiple to clear denominators; a fresh instance of TPL_FRAC_CLEAR will directly target this skill and help reinforce correct clearing of fractions."
+      },
+      {
+        "at": "2026-08-07T19:19:47.303Z",
+        "source": "RULE",
+        "stageId": "ENTRY_EXPAND_BINOMIAL",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:19:52.168Z",
+        "source": "AI",
+        "stageId": "ID_DIFF_MAIN",
+        "reasoning": "The student recently made an error expanding binomials, so giving a difference of squares expansion like (x + 3)(x - 3) will reinforce the distributive property and correct application of signs, directly targeting the LIN_DISTRIBUTE_NEG skill where the student often drops the outer sign factor."
+      },
+      {
+        "at": "2026-08-07T19:19:57.279Z",
+        "source": "RULE",
+        "stageId": "ID_DIFF_CONTRAST",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:20:02.503Z",
+        "source": "RULE",
+        "stageId": "RULE_PROMPT",
+        "reasoning": "Same difference-of-squares error twice on structurally different problems — taught the identity before re-testing."
+      },
+      {
+        "at": "2026-08-07T19:20:02.503Z",
+        "source": "AI",
+        "stageId": "TRANSFER_ID_DIFF",
+        "reasoning": "The student recently made an error on ID_DIFF_SQUARES by introducing unrelated variables and expressions, so the next question should target the same skill with a simpler factoring problem (z^2 - 16) to reinforce the difference of squares concept and correct the pattern of errors."
+      },
+      {
+        "at": "2026-08-07T19:20:08.286Z",
+        "source": "AI",
+        "stageId": "ENTRY_FACTOR_EXPAND",
+        "reasoning": "The student is currently emerging on expanding binomials and has just made an error on difference of squares, which builds on expanding binomials; returning to a standard expand binomial question (TPL_FACTOR_EXPAND) will reinforce the foundational skill EXP_EXPAND_BINOMIALS before moving forward."
+      },
+      {
+        "at": "2026-08-07T19:20:14.161Z",
+        "source": "RULE",
+        "stageId": "FAC_MONIC_MAIN",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:20:19.114Z",
+        "source": "AI",
+        "stageId": "FAC_MONIC_CONTRAST",
+        "reasoning": "The student made an error on FAC_MONIC_TRINOMIAL, so the next question should reinforce factoring monic trinomials with a contrast example, which is FAC_MONIC_CONTRAST using template TPL_FAC_MONIC_BARE to help solidify this skill before moving on."
+      },
+      {
+        "at": "2026-08-07T19:20:23.624Z",
+        "source": "RULE",
+        "stageId": "RULE_PROMPT",
+        "reasoning": "Same factorisation error twice on structurally different problems — taught the factor pair rule before re-testing."
+      },
+      {
+        "at": "2026-08-07T19:20:23.624Z",
+        "source": "AI",
+        "stageId": "TRANSFER_FAC_NONMONIC",
+        "reasoning": "The student has shown difficulty with factoring monic trinomials and expanding binomials, and the next logical step is to practice factoring a non-monic trinomial (FAC_NONMONIC_GROUP) to build on their current emerging skills and address gaps in factoring, as indicated by their recent errors and statuses."
+      },
+      {
+        "at": "2026-08-07T19:20:29.424Z",
+        "source": "RULE",
+        "stageId": "ENTRY_QUAD_STANDARD",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:20:37.158Z",
+        "source": "RULE",
+        "stageId": "QUAD_ZP_MAIN",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:20:43.293Z",
+        "source": "RULE",
+        "stageId": "QUAD_ZP_CONTRAST",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:20:47.272Z",
+        "source": "RULE",
+        "stageId": "TRANSFER_QUAD_ZP",
+        "reasoning": "Rule sequence: next item in the fixed diagnostic sequence."
+      },
+      {
+        "at": "2026-08-07T19:20:47.349Z",
+        "source": "RULE",
+        "stageId": "COMPLETE",
+        "reasoning": "All five topic backbones in the combined algebra diagnostic are complete."
+      }
+    ],
+    "items": [
+      {
+        "itemKey": "ENTRY_TWO_STEP",
+        "equationPrompt": "Solve for x:  3x + 5 = 20",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TWO_STEP",
+        "primaryMicroSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "GEN_VAR_BOTH_5_1_2_5",
+        "equationPrompt": "Solve for x:  5x - 1 = 2x + 5",
+        "origin": "TEMPLATE_RENDERED",
+        "templateId": "TPL_VARIABLE_BOTH",
+        "primaryMicroSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "NEG_DIST_MAIN",
+        "equationPrompt": "Solve for x:  -2(x - 5) + 3 = 11",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "NEG_DIST_CONTRAST",
+        "equationPrompt": "Expand:  -3(y - 4)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_NEG_DISTRIBUTION_BARE",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "TRANSFER_NEG_DIST",
+        "equationPrompt": "Solve for z:  -4(z - 2) + 3 = 19",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_NEG_DISTRIBUTION",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "ENTRY_VARIABLE_BOTH",
+        "equationPrompt": "Solve for x:  4x - 7 = 2x + 9",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_VARIABLE_BOTH",
+        "primaryMicroSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "FRAC_CLEAR_MAIN",
+        "equationPrompt": "Solve for x:  (x + 1)/2 = (x - 1)/3 + 1",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_CLEAR",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "TRANSFER_FRAC_CLEAR",
+        "equationPrompt": "Solve for z:  (z - 2)/3 = (z + 1)/6 + 1",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_FRAC_CLEAR",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "FRAC_CLEAR_CONTRAST",
+        "equationPrompt": "Solve for y:  (y + 2)/4 = 3",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_CLEAR_BARE",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "ENTRY_FRAC_SIMPLE",
+        "equationPrompt": "Solve for x:  x/2 + 3 = 7",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FRAC_SIMPLE",
+        "primaryMicroSkillId": "LIN_SOLVE_FRACTIONS",
+        "status": "EXPLAINED"
+      },
+      {
+        "itemKey": "GEN_FRAC_CLEAR_fallback_z",
+        "equationPrompt": "Solve for z:  (z + 1)/2 = (z - 1)/3 + 1",
+        "origin": "TEMPLATE_RENDERED",
+        "templateId": "TPL_FRAC_CLEAR",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "SOLVED"
+      },
+      {
+        "itemKey": "ENTRY_EXPAND_BINOMIAL",
+        "equationPrompt": "Expand:  (x + 2)(x + 3)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_EXPAND_BINOMIAL",
+        "primaryMicroSkillId": "EXP_EXPAND_BINOMIALS",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "ID_DIFF_MAIN",
+        "equationPrompt": "Expand:  (x + 3)(x - 3)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_DIFF_SQUARES",
+        "primaryMicroSkillId": "ID_DIFF_SQUARES",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "ID_DIFF_CONTRAST",
+        "equationPrompt": "Expand:  (y + 5)(y - 5)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_DIFF_SQUARES_BARE",
+        "primaryMicroSkillId": "ID_DIFF_SQUARES",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "TRANSFER_ID_DIFF",
+        "equationPrompt": "Factor:  z^2 - 16",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_DIFF_SQUARES",
+        "primaryMicroSkillId": "ID_DIFF_SQUARES",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "ENTRY_FACTOR_EXPAND",
+        "equationPrompt": "Expand:  (x + 2)(x + 3)",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FACTOR_EXPAND",
+        "primaryMicroSkillId": "EXP_EXPAND_BINOMIALS",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "FAC_MONIC_MAIN",
+        "equationPrompt": "Factor:  x^2 + 5x + 6",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FAC_MONIC",
+        "primaryMicroSkillId": "FAC_MONIC_TRINOMIAL",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "FAC_MONIC_CONTRAST",
+        "equationPrompt": "Factor:  x^2 - x - 6",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_FAC_MONIC_BARE",
+        "primaryMicroSkillId": "FAC_MONIC_TRINOMIAL",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "TRANSFER_FAC_NONMONIC",
+        "equationPrompt": "Factor:  2x^2 - 5x - 3",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_FAC_NONMONIC",
+        "primaryMicroSkillId": "FAC_NONMONIC_GROUP",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "ENTRY_QUAD_STANDARD",
+        "equationPrompt": "Rewrite in standard form:  x^2 + 5x = -6",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_QUAD_STANDARD",
+        "primaryMicroSkillId": "QUAD_STANDARD_FORM",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "QUAD_ZP_MAIN",
+        "equationPrompt": "Solve:  (x + 2)(x - 3) = 0",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_QUAD_ZERO_PRODUCT",
+        "primaryMicroSkillId": "QUAD_ZERO_PRODUCT",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "QUAD_ZP_CONTRAST",
+        "equationPrompt": "Solve:  (2x + 1)(x - 3) = 0",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_QUAD_ZP_BARE",
+        "primaryMicroSkillId": "QUAD_SOLVE_UNIT_FACTOR",
+        "status": "TARGET_ERROR_OBSERVED"
+      },
+      {
+        "itemKey": "TRANSFER_QUAD_ZP",
+        "equationPrompt": "Solve:  x^2 - x - 6 = 0",
+        "origin": "PRE_WRITTEN",
+        "templateId": "TPL_TRANSFER_QUAD_ZP",
+        "primaryMicroSkillId": "QUAD_ZERO_PRODUCT",
+        "status": "SOLVED"
+      }
+    ],
+    "declines": [],
+    "steps": [
+      {
+        "id": "cmsjbvm290006y2xl42voqqpb",
+        "attemptId": "cmsjbvjrc0003y2xljv0fttqx",
+        "stepIndex": 0,
+        "previousLine": "3x + 5 = 20",
+        "submittedLine": "3x = 15",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbvqo5000ey2xl1w93z40e",
+        "attemptId": "cmsjbvjrc0003y2xljv0fttqx",
+        "stepIndex": 1,
+        "previousLine": "3x = 15",
+        "submittedLine": "x = 5",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DIVIDE_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_COEFFICIENT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbvrz2000py2xli90f3q7f",
+        "attemptId": "cmsjbvqp8000my2xlqvpwa8px",
+        "stepIndex": 0,
+        "previousLine": "5x - 1 = 2x + 5",
+        "submittedLine": "2x - 7 = 9",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "firstInvalidActionCode": "NOT_EQUIVALENT",
+        "firstInvalidActionDescription": "this line does not have the same solution as the line above it",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbvw20000xy2xli8a0hlkj",
+        "attemptId": "cmsjbvqp8000my2xlqvpwa8px",
+        "stepIndex": 1,
+        "previousLine": "5x - 1 = 2x + 5",
+        "submittedLine": "2x = 16",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "firstInvalidActionCode": "NOT_EQUIVALENT",
+        "firstInvalidActionDescription": "this line does not have the same solution as the line above it",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      },
+      {
+        "id": "cmsjbvzm00017y2xlhr3ng0o7",
+        "attemptId": "cmsjbvw290013y2xlcnpeb61p",
+        "stepIndex": 0,
+        "previousLine": "-2(x - 5) + 3 = 11",
+        "submittedLine": "x = 8",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DISTRIBUTE",
+        "firstInvalidActionCode": "OUTER_SIGN_DROPPED",
+        "firstInvalidActionDescription": "the outer factor -2 was not applied to x — the coefficient became 1 instead of -2",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbw45s001iy2xlzvkbln75",
+        "attemptId": "cmsjbvzma001dy2xli8jqawrn",
+        "stepIndex": 0,
+        "previousLine": "-3(y - 4)",
+        "submittedLine": "-2x + 10 + 3 = 11",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "DISTRIBUTE",
+        "firstInvalidActionDescription": "The new line introduces variables and constants unrelated to the previous expression, so it does not follow validly.",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbw79z001sy2xlmcznore2",
+        "attemptId": "cmsjbw466001oy2xl5bs0yhk9",
+        "stepIndex": 0,
+        "previousLine": "-4(z - 2) + 3 = 19",
+        "submittedLine": "-2x + 13 = 11",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "DISTRIBUTE",
+        "firstInvalidActionCode": "OUTER_SIGN_DROPPED",
+        "firstInvalidActionDescription": "the outer factor -4 was not applied to z — the coefficient became -2 instead of -4",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_NEG",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbw8fg0021y2xlnxd65gwm",
+        "attemptId": "cmsjbw7aa001yy2xlubd7iyri",
+        "stepIndex": 0,
+        "previousLine": "4x - 7 = 2x + 9",
+        "submittedLine": "-2x = -2",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "firstInvalidActionCode": "NOT_EQUIVALENT",
+        "firstInvalidActionDescription": "this line does not have the same solution as the line above it",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbwbjg0029y2xl0brqfuay",
+        "attemptId": "cmsjbw7aa001yy2xlubd7iyri",
+        "stepIndex": 1,
+        "previousLine": "4x - 7 = 2x + 9",
+        "submittedLine": "x = 1",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "firstInvalidActionCode": "NOT_EQUIVALENT",
+        "firstInvalidActionDescription": "this line does not have the same solution as the line above it",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      },
+      {
+        "id": "cmsjbwd3z002iy2xl42fgti92",
+        "attemptId": "cmsjbwbjq002fy2xlt4pk12ix",
+        "stepIndex": 0,
+        "previousLine": "(x + 1)/2 = (x - 1)/3 + 1",
+        "submittedLine": "-4z + 8 + 3 = 19",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 2, 3 (need 6 on every term)",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbwftr002qy2xlgiwx6ppw",
+        "attemptId": "cmsjbwbjq002fy2xlt4pk12ix",
+        "stepIndex": 1,
+        "previousLine": "(x + 1)/2 = (x - 1)/3 + 1",
+        "submittedLine": "-4z + 11 = 19",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 2, 3 (need 6 on every term)",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      },
+      {
+        "id": "cmsjbwh5s002zy2xlffaueykq",
+        "attemptId": "cmsjbwftz002wy2xl2y3pp4z6",
+        "stepIndex": 0,
+        "previousLine": "(z - 2)/3 = (z + 1)/6 + 1",
+        "submittedLine": "-4z = 8",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 3, 6 (need 6 on every term)",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbwkp80037y2xlhg75rnf2",
+        "attemptId": "cmsjbwftz002wy2xl2y3pp4z6",
+        "stepIndex": 1,
+        "previousLine": "(z - 2)/3 = (z + 1)/6 + 1",
+        "submittedLine": "z = -2",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 3, 6 (need 6 on every term)",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      },
+      {
+        "id": "cmsjbwm2e003gy2xl528nyyu1",
+        "attemptId": "cmsjbwkpi003dy2xlh9cphfrg",
+        "stepIndex": 0,
+        "previousLine": "(y + 2)/4 = 3",
+        "submittedLine": "x/2 = 4",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 2, 4 (need 4 on every term)",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbwork003oy2xlnftu93k4",
+        "attemptId": "cmsjbwkpi003dy2xlh9cphfrg",
+        "stepIndex": 1,
+        "previousLine": "(y + 2)/4 = 3",
+        "submittedLine": "x = 8",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "DROPPED_TERM_WHEN_CLEARING",
+        "firstInvalidActionDescription": "when clearing denominators by multiplying by 4, every term on both sides must be multiplied — a constant term was dropped",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      },
+      {
+        "id": "cmsjbwq0k003xy2xljgbtsa5g",
+        "attemptId": "cmsjbworw003uy2xl8cge9k5n",
+        "stepIndex": 0,
+        "previousLine": "x/2 + 3 = 7",
+        "submittedLine": "3(x + 1) = 2(x - 1) + 6",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 2 (need 2 on every term)",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbwssl0045y2xlqyttqgal",
+        "attemptId": "cmsjbworw003uy2xl8cge9k5n",
+        "stepIndex": 1,
+        "previousLine": "x/2 + 3 = 7",
+        "submittedLine": "3x + 3 = 2x - 2 + 6",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "firstInvalidActionCode": "WRONG_COMMON_MULTIPLE",
+        "firstInvalidActionDescription": "the multipliers used when clearing are not a valid common multiple of the denominators 2 (need 2 on every term)",
+        "primaryMicroSkillId": "LIN_CLEAR_FRACTIONS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "REVIEW_OPPORTUNITY"
+      },
+      {
+        "id": "cmsjbwuvy004ey2xlcobtymxs",
+        "attemptId": "cmsjbwssv004by2xlv87rhurc",
+        "stepIndex": 0,
+        "previousLine": "(z + 1)/2 = (z - 1)/3 + 1",
+        "submittedLine": "3x + 3 = 2x + 4",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "MULTIPLY_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_DISTRIBUTE_POS",
+        "topicId": "BRACKETS_SIGNS_FRACTIONS",
+        "competencyFamilyId": "DISTRIBUTING_AND_CLEARING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbww64004ly2xl36t9a60s",
+        "attemptId": "cmsjbwssv004by2xlv87rhurc",
+        "stepIndex": 1,
+        "previousLine": "3x + 3 = 2x + 4",
+        "submittedLine": "x + 3 = 4",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_COMBINE_LIKE",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "SIMPLIFYING_BEFORE_ISOLATING",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbwz8p004ty2xldudgk7cw",
+        "attemptId": "cmsjbwssv004by2xlv87rhurc",
+        "stepIndex": 2,
+        "previousLine": "x + 3 = 4",
+        "submittedLine": "x = 1",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SUBTRACT_BOTH_SIDES",
+        "primaryMicroSkillId": "LIN_REMOVE_CONSTANT",
+        "topicId": "LINEAR_EQUATIONS",
+        "competencyFamilyId": "EQUALITY_AND_INVERSE_OPERATIONS",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "HAS_FRACTIONS"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbx2zs0056y2xllufoz5xu",
+        "attemptId": "cmsjbwz910051y2xlzoj5f4xb",
+        "stepIndex": 0,
+        "previousLine": "(x + 2)(x + 3)",
+        "submittedLine": "2(z - 2) = (z + 1) + 6",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The new line involves different variables and expressions unrelated to the previous line, so it does not follow validly.",
+        "primaryMicroSkillId": "EXP_EXPAND_BINOMIALS",
+        "topicId": "ALGEBRAIC_IDENTITIES",
+        "competencyFamilyId": "WORKING_WITH_EXPRESSIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbx6xs005hy2xl4jxa2ynn",
+        "attemptId": "cmsjbx2zy005cy2xlivryw57b",
+        "stepIndex": 0,
+        "previousLine": "(x + 3)(x - 3)",
+        "submittedLine": "2z - 4 = z + 1 + 6",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The new line introduces different variables and an unrelated equation, so it does not follow from the previous line.",
+        "primaryMicroSkillId": "ID_DIFF_SQUARES",
+        "topicId": "ALGEBRAIC_IDENTITIES",
+        "competencyFamilyId": "RECOGNISING_IDENTITIES",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxayw005sy2xlw4xudaz1",
+        "attemptId": "cmsjbx6y0005ny2xlgzvghu1a",
+        "stepIndex": 0,
+        "previousLine": "(y + 5)(y - 5)",
+        "submittedLine": "2z - 4 = z + 7",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The new line introduces different variables and an unrelated equation, so it does not follow from the previous line.",
+        "primaryMicroSkillId": "ID_DIFF_SQUARES",
+        "topicId": "ALGEBRAIC_IDENTITIES",
+        "competencyFamilyId": "RECOGNISING_IDENTITIES",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxffk0063y2xlalm1r109",
+        "attemptId": "cmsjbxaz1005yy2xlkpplza8g",
+        "stepIndex": 0,
+        "previousLine": "z^2 - 16",
+        "submittedLine": "z - 4 = 7",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The previous line is an expression, but the new line is an equation unrelated to factoring or simplifying z^2 - 16.",
+        "primaryMicroSkillId": "ID_DIFF_SQUARES",
+        "topicId": "ALGEBRAIC_IDENTITIES",
+        "competencyFamilyId": "RECOGNISING_IDENTITIES",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxjyr006ey2xlvz3yq8hg",
+        "attemptId": "cmsjbxfft0069y2xlo62r343i",
+        "stepIndex": 0,
+        "previousLine": "(x + 2)(x + 3)",
+        "submittedLine": "z = 11",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The new line introduces a variable z unrelated to the previous expression and does not follow from the factorization step.",
+        "primaryMicroSkillId": "EXP_EXPAND_BINOMIALS",
+        "topicId": "ALGEBRAIC_IDENTITIES",
+        "competencyFamilyId": "WORKING_WITH_EXPRESSIONS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxjzz006my2xlzun3t08w",
+        "attemptId": "cmsjbxjyy006ky2xlrgus7jba",
+        "stepIndex": 0,
+        "previousLine": "x^2 + 5x + 6",
+        "submittedLine": "x^2 + 5x + 6",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "SIMPLIFY",
+        "primaryMicroSkillId": "FAC_MONIC_TRINOMIAL",
+        "topicId": "FACTORISATION",
+        "competencyFamilyId": "TRINOMIAL_FACTORISATION",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxnsb006ty2xluowrpzj4",
+        "attemptId": "cmsjbxjyy006ky2xlrgus7jba",
+        "stepIndex": 1,
+        "previousLine": "x^2 + 5x + 6",
+        "submittedLine": "x^2 - 9",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "x^2 + 5x + 6 does not simplify or transform into x^2 - 9 by any valid algebraic step.",
+        "primaryMicroSkillId": "FAC_MONIC_TRINOMIAL",
+        "topicId": "FACTORISATION",
+        "competencyFamilyId": "TRINOMIAL_FACTORISATION",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxra40073y2xl2yksa1j2",
+        "attemptId": "cmsjbxnsg006zy2xl9lqrplzf",
+        "stepIndex": 0,
+        "previousLine": "x^2 - x - 6",
+        "submittedLine": "(z + 4)(z - 4)",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "OTHER",
+        "firstInvalidActionCode": "EXPAND_CHECK_FAIL",
+        "firstInvalidActionDescription": "the letter in the factors must match the quadratic",
+        "primaryMicroSkillId": "FAC_MONIC_TRINOMIAL",
+        "topicId": "FACTORISATION",
+        "competencyFamilyId": "TRINOMIAL_FACTORISATION",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxvqq007ey2xllzsyajq6",
+        "attemptId": "cmsjbxrar0079y2xlmunuppc4",
+        "stepIndex": 0,
+        "previousLine": "2x^2 - 5x - 3",
+        "submittedLine": "x^2 + 5x + 6",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The new line is a different quadratic expression and does not follow from the previous line by any valid algebraic manipulation.",
+        "primaryMicroSkillId": "FAC_NONMONIC_GROUP",
+        "topicId": "FACTORISATION",
+        "competencyFamilyId": "TRINOMIAL_FACTORISATION",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjbxxe1007ny2xlejyygrib",
+        "attemptId": "cmsjbxvr2007ky2xlt1xzd28i",
+        "stepIndex": 0,
+        "previousLine": "x^2 + 5x = -6",
+        "submittedLine": "(x + 2)(x + 3)",
+        "validity": "PARSE_FAILED",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "UNKNOWN",
+        "primaryMicroSkillId": "QUAD_STANDARD_FORM",
+        "topicId": "QUADRATICS",
+        "competencyFamilyId": "QUADRATIC_PREP",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjby1pj007sy2xlzdly6w1v",
+        "attemptId": "cmsjbxvr2007ky2xlt1xzd28i",
+        "stepIndex": 1,
+        "previousLine": "x^2 + 5x = -6",
+        "submittedLine": "(2x + 1)(x - 3)",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "The factored form (2x + 1)(x - 3) does not expand to x^2 + 5x + 6, so it does not follow from x^2 + 5x = -6.",
+        "primaryMicroSkillId": "QUAD_STANDARD_FORM",
+        "topicId": "QUADRATICS",
+        "competencyFamilyId": "QUADRATIC_PREP",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjby6fy0083y2xldrugawd0",
+        "attemptId": "cmsjby1pv007yy2xlpmfqebp3",
+        "stepIndex": 0,
+        "previousLine": "(x + 2)(x - 3) = 0",
+        "submittedLine": "x^2 + 5x + 6 = 0",
+        "validity": "INVALID",
+        "verificationSource": "AI_FALLBACK",
+        "attemptedTransformation": "UNKNOWN",
+        "firstInvalidActionDescription": "Expanding (x + 2)(x - 3) yields x^2 - x - 6, not x^2 + 5x + 6.",
+        "primaryMicroSkillId": "QUAD_ZERO_PRODUCT",
+        "topicId": "QUADRATICS",
+        "competencyFamilyId": "QUADRATIC_ROOTS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjby9ih008dy2xlv6k1nv2r",
+        "attemptId": "cmsjby6g30089y2xla0mi9623",
+        "stepIndex": 0,
+        "previousLine": "(2x + 1)(x - 3) = 0",
+        "submittedLine": "x = -2 or x = 3",
+        "validity": "INVALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "OTHER",
+        "firstInvalidActionCode": "DROPPED_ROOT",
+        "firstInvalidActionDescription": "one root is right but the other is missing or wrong",
+        "primaryMicroSkillId": "QUAD_SOLVE_UNIT_FACTOR",
+        "topicId": "QUADRATICS",
+        "competencyFamilyId": "QUADRATIC_ROOTS",
+        "contextModifierIds": [
+          "INDEPENDENT"
+        ],
+        "assistanceLevel": "NONE"
+      },
+      {
+        "id": "cmsjby9ko008ly2xl6l99tksm",
+        "attemptId": "cmsjby9j4008jy2xlaw3ql0qi",
+        "stepIndex": 0,
+        "previousLine": "x^2 - x - 6 = 0",
+        "submittedLine": "x = 3 or x = -2",
+        "validity": "VALID",
+        "verificationSource": "DETERMINISTIC",
+        "attemptedTransformation": "OTHER",
+        "primaryMicroSkillId": "QUAD_ZERO_PRODUCT",
+        "topicId": "QUADRATICS",
+        "competencyFamilyId": "QUADRATIC_ROOTS",
+        "contextModifierIds": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "assistanceLevel": "NONE"
+      }
+    ],
+    "hypotheses": [
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 35 times on their own and only made a few mistakes, showing strong understanding despite some independent challenges.",
+        "source": "AI",
+        "childFacingSummary": "You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly isolated the letter by dividing 35 times independently and only made 2 errors, showing strong understanding with minimal mistakes.",
+        "source": "AI",
+        "childFacingSummary": "You're doing great at getting the letter on its own by dividing, with just a couple of small mistakes."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made several errors on their own and needed help once, showing a consistent struggle with tidying up like terms independently.",
+        "source": "AI",
+        "childFacingSummary": "You sometimes mix up terms when you work alone, so keep practicing to get even better at it."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made several mistakes on their own and only occasionally got it right without help, indicating a recurring difficulty with tidying up like terms.",
+        "source": "AI",
+        "childFacingSummary": "You sometimes mix up combining like terms, so keep practicing to get even better at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student frequently made the same mistake of not applying the minus sign correctly when expanding brackets, showing a consistent pattern of errors.",
+        "source": "AI",
+        "childFacingSummary": "You often forget to multiply the minus sign when opening brackets, so keep practicing that part to get better."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student made many more mistakes than correct answers on their own, showing a consistent difficulty with expanding brackets that have a minus in front.",
+        "source": "AI",
+        "childFacingSummary": "You often find it tricky to expand brackets with a minus sign, so keep practicing to get better at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.7,
+        "reasoning": "The same kind of error appeared 38 times on expanding brackets that have a minus in front — most recently, the outer factor -4 was not applied to z — the coefficient became -2 instead of -4.",
+        "source": "RULE",
+        "childFacingSummary": "Let's spend a little time on expanding brackets that have a minus in front — it came up more than once."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made several errors on their own and only occasionally needed help, indicating a recurring difficulty with tidying up like terms independently.",
+        "source": "AI",
+        "childFacingSummary": "You're getting some parts right when working alone, but you still mix up like terms quite a bit, so keep practicing to get even better."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made nearly as many mistakes as correct answers when working alone, showing a consistent difficulty with tidying up like terms independently.",
+        "source": "AI",
+        "childFacingSummary": "You're still having some trouble putting like terms together on your own, but keep practicing and you'll get better!"
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student has more incorrect attempts than correct ones when expanding brackets independently, showing a consistent difficulty with this skill.",
+        "source": "AI",
+        "childFacingSummary": "You're having some trouble with expanding brackets, especially when working on your own, but keep practicing and you'll get better."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student has more incorrect attempts than correct ones when expanding brackets independently, showing a consistent difficulty with the multipliers needed for fractions.",
+        "source": "AI",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, but keep practicing and you’ll get better at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student has more incorrect attempts than correct ones when working alone, showing a consistent issue with using the right multipliers in fraction problems.",
+        "source": "AI",
+        "childFacingSummary": "You're having some trouble with expanding brackets, especially when fractions are involved, so keep practicing to get better at it."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student has more incorrect attempts than correct ones when expanding brackets on their own, showing a consistent difficulty with the multipliers used for fractions.",
+        "source": "AI",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, so keep practicing to get more comfortable."
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student got it wrong more often than right on their own and struggled even when working independently with fractions, showing a consistent issue with expanding brackets.",
+        "source": "AI",
+        "childFacingSummary": "You’re having some trouble with expanding brackets, especially when fractions are involved, but keep practicing and you’ll get there!"
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student has made the same type of mistake multiple times when expanding brackets, especially missing terms when multiplying by a number.",
+        "source": "AI",
+        "childFacingSummary": "You’re having some trouble remembering to multiply every part when you expand brackets, so keep practicing to get it right more often."
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student has a significant number of errors when clearing fractions independently, often using incorrect multipliers, showing a consistent difficulty with this skill.",
+        "source": "AI",
+        "childFacingSummary": "You're getting some answers right when clearing fractions, but you often mix up the numbers you multiply by, so keep practicing to get it just right."
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student has made a significant number of errors on their own when clearing fractions, often using incorrect multipliers, indicating a consistent difficulty with this skill.",
+        "source": "AI",
+        "childFacingSummary": "You're still having some trouble picking the right numbers to clear fractions, but keep practicing and you'll get it!"
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student made more than twice as many mistakes as correct answers when working alone, showing a consistent difficulty with expanding brackets, especially with fractions and similar problems.",
+        "source": "AI",
+        "childFacingSummary": "You’re having a hard time with expanding brackets right now, and it’s happening often, especially when fractions are involved."
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student correctly tidies up like terms more often than not but still makes a significant number of errors independently, indicating a recurring difficulty.",
+        "source": "AI",
+        "childFacingSummary": "You’re getting many of these right on your own, but there are still some mistakes that happen again and again."
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "hypothesisLabel": "WORKING_WELL",
+        "confidence": 0.85,
+        "reasoning": "The student correctly moved numbers across the equals sign 36 times independently and only made 3 mistakes on their own, showing strong understanding despite a few errors.",
+        "source": "AI",
+        "childFacingSummary": "You're doing a great job moving numbers across the equals sign, with just a few small mistakes here and there."
+      },
+      {
+        "microSkillId": "EXP_EXPAND_BINOMIALS",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student has only one recorded attempt and got it wrong without help, suggesting it might be a one-time mistake rather than a repeated issue.",
+        "source": "AI",
+        "childFacingSummary": "You made a small mistake when multiplying two brackets this time, but that's okay and you can try again to get it right!"
+      },
+      {
+        "microSkillId": "ID_DIFF_SQUARES",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student made one mistake when working alone and has not yet demonstrated success with this skill, suggesting it might be a one-time error rather than a consistent issue.",
+        "source": "AI",
+        "childFacingSummary": "You made a small mistake with this idea once, but you might get it with a bit more practice."
+      },
+      {
+        "microSkillId": "ID_DIFF_SQUARES",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student has not answered any difference of squares problems correctly on their own and has made mistakes twice, indicating a consistent difficulty with this skill.",
+        "source": "AI",
+        "childFacingSummary": "It looks like you’re having some trouble with problems about difference of squares, so keep practicing to get better at it."
+      },
+      {
+        "microSkillId": "ID_DIFF_SQUARES",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student has made the same mistake three times independently without any correct attempts, showing a consistent difficulty with this skill.",
+        "source": "AI",
+        "childFacingSummary": "It looks like you’ve had some trouble with this type of problem a few times, so it might help to practice it more."
+      },
+      {
+        "microSkillId": "EXP_EXPAND_BINOMIALS",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.9,
+        "reasoning": "The student has not correctly multiplied two brackets independently even once and has made mistakes twice, indicating a consistent difficulty with this skill.",
+        "source": "AI",
+        "childFacingSummary": "It looks like multiplying two brackets is tricky right now, so keep practicing to get better at it."
+      },
+      {
+        "microSkillId": "FAC_MONIC_TRINOMIAL",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student has both a correct and an incorrect attempt independently, suggesting occasional mistakes rather than a consistent problem.",
+        "source": "AI",
+        "childFacingSummary": "You sometimes get these problems right on your own, but sometimes you make a small mistake."
+      },
+      {
+        "microSkillId": "FAC_MONIC_TRINOMIAL",
+        "hypothesisLabel": "REPEATED_PATTERN",
+        "confidence": 0.85,
+        "reasoning": "The student made more errors than successes independently, showing a consistent difficulty with matching letters in factors.",
+        "source": "AI",
+        "childFacingSummary": "You're having some trouble matching the letters when breaking down these expressions, so keep practicing to get it right more often."
+      },
+      {
+        "microSkillId": "FAC_NONMONIC_GROUP",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student made one mistake when working alone and has not yet shown success, suggesting it might be a one-time error rather than a repeated issue.",
+        "source": "AI",
+        "childFacingSummary": "You had a little trouble with this once, but it might just be a small mistake, so keep trying!"
+      },
+      {
+        "microSkillId": "QUAD_STANDARD_FORM",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student has only one recorded attempt and got it wrong independently, which suggests it might be a one-time mistake rather than a consistent issue.",
+        "source": "AI",
+        "childFacingSummary": "You had a little trouble rewriting a quadratic to equal zero this time, but that might just be a small slip."
+      },
+      {
+        "microSkillId": "QUAD_ZERO_PRODUCT",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student has only one recorded attempt and got it wrong without help, which might be a one-time mistake rather than a consistent issue.",
+        "source": "AI",
+        "childFacingSummary": "You made a small mistake with this skill, but it's likely just a slip and not a big problem yet."
+      },
+      {
+        "microSkillId": "QUAD_SOLVE_UNIT_FACTOR",
+        "hypothesisLabel": "POSSIBLE_SLIP",
+        "confidence": 0.7,
+        "reasoning": "The student has only one recorded attempt and got it wrong independently, with one root correct but the other missing or wrong, suggesting it might be a one-time mistake rather than a repeated issue.",
+        "source": "AI",
+        "childFacingSummary": "You almost got it right with the bracket problem, just missing one part this time."
+      }
+    ],
+    "microSkillStates": [
+      {
+        "microSkillId": "EXP_EXPAND_BINOMIALS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 2,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "FAC_MONIC_TRINOMIAL",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 3,
+        "independentSuccessCount": 1,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "FAC_NONMONIC_GROUP",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "ID_DIFF_SQUARES",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 3,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_CLEAR_FRACTIONS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 30,
+        "independentSuccessCount": 16,
+        "independentFailureCount": 10,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_COMBINE_LIKE",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 24,
+        "independentSuccessCount": 14,
+        "independentFailureCount": 9,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_NEG",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 49,
+        "independentSuccessCount": 9,
+        "independentFailureCount": 38,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "ASSISTED",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_DISTRIBUTE_POS",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 11,
+        "independentSuccessCount": 3,
+        "independentFailureCount": 8,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_COEFFICIENT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 38,
+        "independentSuccessCount": 35,
+        "independentFailureCount": 2,
+        "assistedSuccessCount": 1,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ]
+      },
+      {
+        "microSkillId": "LIN_REMOVE_CONSTANT",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 41,
+        "independentSuccessCount": 36,
+        "independentFailureCount": 3,
+        "assistedSuccessCount": 2,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_FRACTIONS",
+        "status": "RELIABLE",
+        "evidenceCount": 11,
+        "independentSuccessCount": 11,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "HAS_FRACTIONS",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "LIN_SOLVE_TWO_STEP",
+        "status": "LIKELY_GAP",
+        "evidenceCount": 32,
+        "independentSuccessCount": 25,
+        "independentFailureCount": 7,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": [
+          "FINAL_ANSWER_ONLY",
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "LIN_SOLVE_VARIABLE_BOTH",
+        "status": "RELIABLE",
+        "evidenceCount": 12,
+        "independentSuccessCount": 11,
+        "independentFailureCount": 0,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT"
+        ],
+        "observedContextGaps": []
+      },
+      {
+        "microSkillId": "QUAD_SOLVE_UNIT_FACTOR",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "QUAD_STANDARD_FORM",
+        "status": "EMERGING",
+        "evidenceCount": 1,
+        "independentSuccessCount": 0,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      },
+      {
+        "microSkillId": "QUAD_ZERO_PRODUCT",
+        "status": "EMERGING",
+        "evidenceCount": 2,
+        "independentSuccessCount": 1,
+        "independentFailureCount": 1,
+        "assistedSuccessCount": 0,
+        "observedContextStrengths": [
+          "INDEPENDENT",
+          "NEAR_TRANSFER"
+        ],
+        "observedContextGaps": [
+          "INDEPENDENT"
+        ]
+      }
+    ]
+  }
+}
