@@ -197,6 +197,31 @@ function matchesSwappedClearMultipliers(
   );
 }
 
+/**
+ * Catches the classic "forgot the division sign" slip: a student meaning
+ * `(x+2)/7` types `(x+2)7` instead. That still parses — a bracket directly
+ * followed by a number is valid implicit multiplication in this grammar — so
+ * it silently computes `(x+2)*7` and fails equivalence with no clue why.
+ *
+ * Only fires when inserting `/` at every `)<digit>` boundary makes the line
+ * an exact solution-set match for the line above — never a guess, always
+ * confirmed by re-solving. A coincidental false positive would require a
+ * different equation to happen to share the same solution, which the caller
+ * already rules out by checking equivalence, not just "did this parse".
+ */
+export function detectMissingFractionSlash(
+  previousLine: string,
+  submittedLine: string,
+): { correctedLine: string } | null {
+  const folded = foldMinusLookalikes(submittedLine);
+  if (!/\)\s*\d/.test(folded)) return null;
+  const corrected = folded.replace(/\)\s*(\d)/g, ")/$1");
+  if (corrected === folded) return null;
+  const check = verifyStepValidity(previousLine, corrected);
+  if (check.validity !== "VALID") return null;
+  return { correctedLine: corrected };
+}
+
 export function findFirstInvalidFractionAction(
   previousLineRaw: string,
   prev: ParsedLine,
@@ -322,6 +347,22 @@ export function verifyFractionStepValidity(
       transformation,
       normalizedPreviousLine,
       normalizedSubmittedLine,
+    };
+  }
+
+  // Checked before the generic localizer: a missing "/" produces a real,
+  // confirmed-wrong equation (e.g. `(x+2)7` = `(x+2)*7`), so the generic path
+  // would otherwise call it NOT_EQUIVALENT with no way for the student to see
+  // what actually went wrong.
+  const typoFix = detectMissingFractionSlash(previousLine, submittedLine);
+  if (typoFix) {
+    return {
+      validity: "INVALID" satisfies StepValidity,
+      transformation,
+      normalizedPreviousLine,
+      normalizedSubmittedLine,
+      firstInvalidActionCode: "MISSING_FRACTION_SLASH",
+      firstInvalidActionDescription: `this reads as multiplying, not dividing — ${submittedLine.trim()} means "times", so try ${typoFix.correctedLine} instead (a "/" for the fraction bar)`,
     };
   }
 

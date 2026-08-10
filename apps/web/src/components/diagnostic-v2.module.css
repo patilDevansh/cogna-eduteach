@@ -205,13 +205,6 @@
   font-size: 0.95em;
 }
 
-.trackBadge {
-  margin: var(--s-3) 0 0;
-  font-size: var(--text-sm);
-  color: var(--accent-deep);
-  font-weight: 600;
-}
-
 .hypothesisBox {
   margin: var(--s-4) 0 0;
   padding: var(--s-3) var(--s-4);
@@ -524,6 +517,284 @@
   margin-top: var(--s-2);
   color: var(--ink-soft);
   font-style: italic;
+}
+
+/* ---------- debug panel: tabs ---------- */
+
+.debugTabs {
+  display: flex;
+  gap: var(--s-1);
+  margin-top: var(--s-4);
+  padding-bottom: 0;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.debugTab {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.debugTab:hover {
+  color: var(--ink);
+}
+.debugTabActive {
+  color: var(--accent-deep);
+  border-bottom-color: var(--accent);
+}
+
+.debugBody {
+  padding-top: var(--s-4);
+}
+
+/* ---------- debug panel: step timeline (most recent first) ---------- */
+
+.debugTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.debugStep {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s-4);
+  background: var(--bg);
+}
+.debugStepLatest {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.debugStepHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-3);
+}
+
+.qChip {
+  font-family: var(--font-math);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0.15rem 0.5rem;
+  border-radius: 5px;
+}
+
+.latestChip {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep);
+  background: var(--success-wash);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.debugStep .debugLine {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+/* ---------- debug panel: plain-English cards (Items served, Micro-skill states) ---------- */
+
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-top: var(--s-3);
+}
+
+.infoCard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s-4);
+  background: var(--bg);
+}
+
+.infoEnglish {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 0.3rem;
+}
+
+.infoDetail {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: var(--s-3);
+}
+
+.infoCodeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-top: var(--s-2);
+  border-top: 1px dashed var(--line);
+}
+
+.infoCodeLabel {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+
+.codeChip {
+  font-family: var(--font-math);
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  padding: 0.15rem 0.45rem;
+  border-radius: 5px;
+}
+
+/* ---------- question numbering / topic progress badge ---------- */
+
+.qBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin: var(--s-2) 0 0;
+}
+
+.qBadge {
+  font-family: var(--font-math);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0.28rem 0.6rem;
+  border-radius: 6px;
+}
+
+.qTopic {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.qDots {
+  display: flex;
+  gap: 0.32rem;
+  margin-left: auto;
+}
+.qDots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  display: block;
+}
+.qDotDone {
+  background: var(--accent) !important;
+}
+.qDotNow {
+  background: var(--ink) !important;
+  transform: scale(1.35);
+}
+.qDotUpcoming {
+  /* default .qDots span appearance already reads as "not yet reached" */
+}
+
+/* ---------- chrome: student identity ---------- */
+
+.chromeLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.wordmarkWithLogo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.logoMark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.studentPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.3rem;
+  border-radius: 999px;
+  background: var(--accent-wash);
+}
+
+.studentAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-deep);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.65rem;
+}
+
+.studentPillName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+
+/* ---------- fraction live preview ---------- */
+
+.fracPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: var(--bg);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-math);
+  font-size: var(--text-lg);
+}
+
+.fracPreviewLabel {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
 }
 
 /* Prominent testing-only rationale for the item currently on screen. */

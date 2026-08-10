@@ -18,6 +18,7 @@ import {
   humanizeDiagnosticCodesInText,
 } from "@/lib/diagnostic-v2-labels";
 import { getStudent } from "@/lib/session";
+import { topicProgressForStage } from "@/lib/diagnostic-v2-progress";
 import { MathLine } from "@/components/math-line";
 import { DiagnosticV2SummaryPanel } from "@/components/diagnostic-v2-summary";
 import styles from "@/components/diagnostic-v2.module.css";
@@ -123,6 +124,9 @@ function DiagnosticV2Content() {
    * so an AI-chosen question is never silently indistinguishable from a
    * pre-written one. */
   const [attemptSource, setAttemptSource] = useState<"RULE" | "AI">("RULE");
+  /** 1-based count of items seen this sitting, shown to the student as
+   * "Question N" — incremented whenever a new item replaces the current one. */
+  const [questionNumber, setQuestionNumber] = useState(1);
   /** Debug-only: why the current question was selected (selectorDecision). */
   const [whyThisQuestion, setWhyThisQuestion] = useState<WhyThisQuestion | null>(null);
   const [acceptedLines, setAcceptedLines] = useState<string[]>([]);
@@ -205,6 +209,7 @@ function DiagnosticV2Content() {
         itemKey: session.itemKey,
         equationPrompt: session.equationPrompt,
         openingLine: session.openingLine,
+        stageId: session.stageId,
       });
       // The opening item is the fixed first stage — never AI-chosen.
       setAttemptSource("RULE");
@@ -231,6 +236,7 @@ function DiagnosticV2Content() {
       setLastStep(null);
       setNotice("");
       setDraft("");
+      setQuestionNumber(1);
       setPhase("working");
       void refreshDebugView(session.sessionId);
     } catch (err) {
@@ -294,6 +300,7 @@ function DiagnosticV2Content() {
 
       if (response.itemComplete && response.nextAttempt) {
         setAttempt(response.nextAttempt);
+        setQuestionNumber((n) => n + 1);
         // A missing selectorDecision means the rules picked it — the AI path
         // always reports itself, so absence is never ambiguous.
         const source = response.selectorDecision?.source === "AI" ? "AI" : "RULE";
@@ -343,11 +350,30 @@ function DiagnosticV2Content() {
     // A failed fetch leaves the student on their working, with the error shown.
   }
 
+  const studentInitials = studentName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join("");
+
   const chrome = (
     <div className={styles.chrome}>
-      <Link href="/" className="wordmark">
-        Cogna<span className="dot">.</span>
-      </Link>
+      <div className={styles.chromeLeft}>
+        <Link href="/" className={`wordmark ${styles.wordmarkWithLogo}`}>
+          <span className={styles.logoMark} aria-hidden="true">C</span>
+          Cogna<span className="dot">.</span>
+        </Link>
+        {studentName && (
+          <span className={styles.studentPill}>
+            <span className={styles.studentAvatar} aria-hidden="true">
+              {studentInitials || "S"}
+            </span>
+            <span className={styles.studentPillName}>{studentName}</span>
+          </span>
+        )}
+      </div>
       <span className="time-note">No timer, no score — just your working.</span>
     </div>
   );
@@ -527,22 +553,47 @@ function DiagnosticV2Content() {
 
   const enrichedWhy = enrichWhyThisQuestion(whyThisQuestion, debugView);
   const latestHypothesis = debugView?.hypotheses?.at(-1);
+  const topicProgress =
+    sessionTrack === "COMBINED_ALGEBRA" ? topicProgressForStage(attempt?.stageId) : null;
+  const trackBadgeText =
+    sessionTrack === "FRACTION_LINEAR"
+      ? "Track: equations with fractions (clearing denominators)"
+      : sessionTrack === "IDENTITY_DIFF_SQUARES"
+        ? "Track: difference of squares (identities)"
+        : sessionTrack === "FACTOR_MONIC_TRINOMIAL"
+          ? "Track: factorising trinomials"
+          : sessionTrack === "QUAD_ZERO_PRODUCT"
+            ? "Track: quadratics via zero-product"
+            : "Track: brackets & negative signs";
 
   return shell(
     <>
       <p className="eyebrow">One line at a time</p>
+      <div className={styles.qBadgeRow}>
+        <span className={styles.qBadge}>Question {questionNumber}</span>
+        <span className={styles.qTopic}>
+          {topicProgress
+            ? `Topic ${topicProgress.topicIndex + 1} of ${topicProgress.topicCount} — ${topicProgress.topicName}`
+            : trackBadgeText}
+        </span>
+        {topicProgress && (
+          <div className={styles.qDots} aria-hidden="true">
+            {Array.from({ length: topicProgress.topicCount }, (_, i) => (
+              <span
+                key={i}
+                className={
+                  i < topicProgress.topicIndex
+                    ? styles.qDotDone
+                    : i === topicProgress.topicIndex
+                      ? styles.qDotNow
+                      : styles.qDotUpcoming
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
       <h1 style={{ fontSize: "var(--text-lg)" }}>Solve this, showing each step</h1>
-      <p className={styles.trackBadge} role="status">
-        {sessionTrack === "FRACTION_LINEAR"
-          ? "Track: equations with fractions (clearing denominators)"
-          : sessionTrack === "IDENTITY_DIFF_SQUARES"
-            ? "Track: difference of squares (identities)"
-            : sessionTrack === "FACTOR_MONIC_TRINOMIAL"
-              ? "Track: factorising trinomials"
-              : sessionTrack === "QUAD_ZERO_PRODUCT"
-                ? "Track: quadratics via zero-product"
-                : "Track: brackets & negative signs"}
-      </p>
 
       {notice && (
         <div className={`${styles.note} ${styles.noteAccepted}`} role="status">
@@ -622,6 +673,12 @@ function DiagnosticV2Content() {
           spellCheck={false}
           disabled={busy}
         />
+        {draft.includes("/") && (
+          <div className={styles.fracPreview} aria-live="polite">
+            <span className={styles.fracPreviewLabel}>Reads as</span>
+            <MathLine text={draft} />
+          </div>
+        )}
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -634,7 +691,11 @@ function DiagnosticV2Content() {
 
       {outcome?.outcome === "SUBMITTED" && validity === "INVALID" && (
         <div className={`${styles.note} ${styles.noteLookAgain}`} role="status">
-          <strong>Let&apos;s look at that line again.</strong>
+          <strong>
+            {outcome.firstInvalidActionCode === "MISSING_FRACTION_SLASH"
+              ? "Looks like a missing fraction bar."
+              : "Let's look at that line again."}
+          </strong>
           {outcome.firstInvalidActionDescription && (
             <p className={styles.noteDetail}>{outcome.firstInvalidActionDescription}</p>
           )}
@@ -798,6 +859,43 @@ function WhyThisQuestionBox({
   );
 }
 
+type DebugTabKey =
+  | "steps"
+  | "why"
+  | "items"
+  | "stages"
+  | "selection"
+  | "declines"
+  | "hypotheses"
+  | "skills";
+
+/** Debug steps carry `attemptId` but not a question ordinal, and items[] carries
+ * no join key back to steps[] — so the only reliable way to group steps by
+ * question is watching for `stepIndex` resetting to 0, which the server
+ * guarantees happens exactly once per new item. */
+function annotateStepsWithQuestionNumber(
+  steps: DiagnosticV2DebugView["steps"],
+): Array<DiagnosticV2DebugView["steps"][number] & { questionNumber: number }> {
+  let q = 0;
+  return steps.map((step, i) => {
+    if (i === 0 || step.stepIndex === 0) q += 1;
+    return { ...step, questionNumber: q };
+  });
+}
+
+function originEnglish(origin: string): string {
+  switch (origin) {
+    case "PRE_WRITTEN":
+      return "From the fixed question bank";
+    case "GENERATED":
+      return "Freshly generated from a template";
+    case "AI_AUTHORED":
+      return "Written by the AI, then checked deterministically";
+    default:
+      return origin;
+  }
+}
+
 function DebugPanel({
   view,
   log,
@@ -809,6 +907,23 @@ function DebugPanel({
   note: string;
   why: WhyThisQuestion | null;
 }) {
+  const [activeTab, setActiveTab] = useState<DebugTabKey>("steps");
+
+  const annotatedSteps = view ? annotateStepsWithQuestionNumber(view.steps) : [];
+  const stepsMostRecentFirst = [...annotatedSteps].reverse();
+  const logMostRecentFirst = [...log].reverse();
+
+  const tabs: Array<{ key: DebugTabKey; label: string }> = [
+    { key: "steps", label: `Steps (${view?.steps.length ?? log.length})` },
+    { key: "why", label: "Why this question" },
+    { key: "items", label: `Items served (${view?.items.length ?? 0})` },
+    { key: "stages", label: "Stage decisions" },
+    { key: "selection", label: "Next-item selection" },
+    { key: "declines", label: "“I don’t know”" },
+    { key: "hypotheses", label: "Hypotheses" },
+    { key: "skills", label: "Micro-skill states" },
+  ];
+
   return (
     <aside className={styles.debug} aria-label="Diagnostic debug view">
       <div className={styles.debugHead}>
@@ -825,266 +940,299 @@ function DebugPanel({
         </p>
       )}
 
-      <section className={styles.debugSection}>
-        <h3>Why this question (current)</h3>
-        {why ? (
-          <WhyThisQuestionBox why={why} placement="panel" />
-        ) : (
-          <p className="faint">
-            Complete an item to see the selector&apos;s reason for the next one.
-            The opening item is always the fixed entry sequence.
-          </p>
-        )}
-      </section>
+      <div className={styles.debugTabs} role="tablist">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            className={`${styles.debugTab} ${activeTab === tab.key ? styles.debugTabActive : ""}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <section className={styles.debugSection}>
-        <h3>Items served (origin)</h3>
-        {view && view.items && view.items.length > 0 ? (
-          <ul className={styles.debugList}>
-            {view.items.map((item, i) => (
-              <li key={`${item.itemKey}-${i}`}>
-                <div className={styles.debugMeta}>
-                  <CodeTag code={item.origin} />
-                  <CodeTag code={item.itemKey} />
-                  {item.templateId && <CodeTag code={item.templateId} />}
-                  <CodeTag code={item.primaryMicroSkillId} />
-                  <span className={styles.tag}>{item.status}</span>
-                </div>
-                <p className={styles.debugReasoning}>{item.equationPrompt}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No items recorded yet.</p>
-        )}
-      </section>
-
-      <section className={styles.debugSection}>
-        <h3>Stage decisions</h3>
-        {view && view.stageHistory.length > 0 ? (
-          <ul className={styles.debugList}>
-            {view.stageHistory.map((entry, i) => (
-              <li key={`${entry.stageId}-${i}`}>
-                <div className={styles.debugMeta}>
-                  {sourceTag(entry.source)}
-                  <CodeTag code={entry.stageId} />
-                  <span className={styles.tag}>{entry.at}</span>
-                </div>
-                {entry.reasoning && (
-                  <p className={styles.debugReasoning}>
-                    {humanizeDiagnosticCodesInText(entry.reasoning)}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No stage decisions recorded yet.</p>
-        )}
-      </section>
-
-      <section className={styles.debugSection}>
-        <h3>Next-item selection (per submitted step)</h3>
-        {log.some((entry) => entry.response.selectorDecision) ? (
-          <ul className={styles.debugList}>
-            {log
-              .filter((entry) => entry.response.selectorDecision)
-              .map((entry, i) => (
-                <li key={`selector-${i}`}>
-                  <div className={styles.debugMeta}>
-                    {sourceTag(entry.response.selectorDecision!.source)}
-                    <span className={styles.tag}>{entryLabel(entry)}</span>
-                    {entry.response.nextAttempt && (
-                      <CodeTag
-                        code={entry.response.nextAttempt!.itemKey}
-                        prefix="next: "
-                      />
-                    )}
-                  </div>
-                  {entry.response.selectorDecision!.reasoning ? (
-                    <p className={styles.debugReasoning}>
-                      {humanizeDiagnosticCodesInText(
-                        entry.response.selectorDecision!.reasoning,
-                      )}
-                    </p>
-                  ) : (
-                    <p className={styles.debugReasoning}>
-                      {entry.response.selectorDecision!.source === "RULE"
-                        ? RULE_WHY_FALLBACK
-                        : "No selection reasoning returned."}
-                    </p>
-                  )}
-                </li>
-              ))}
-          </ul>
-        ) : (
-          <p className="faint">No selector decision returned yet.</p>
-        )}
-      </section>
-
-      <section className={styles.debugSection}>
-        <h3>&ldquo;I don&apos;t know&rdquo; (no step row — evidence only)</h3>
-        {view && view.declines.length > 0 ? (
-          <ul className={styles.debugList}>
-            {view.declines.map((decline, i) => (
-              <li key={`decline-${i}`}>
-                <div className={styles.debugMeta}>
-                  <span className={`${styles.tag} ${styles.tagRule}`}>SKIPPED</span>
-                  <CodeTag code={decline.itemKey} />
-                  <CodeTag code={decline.microSkillId} />
-                  <span className={styles.tag}>{decline.assistanceLevel}</span>
-                  <span className={styles.tag}>{decline.at}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No declines in this session.</p>
-        )}
-      </section>
-
-      <section className={styles.debugSection}>
-        <h3>Steps and verification source</h3>
-        {view && view.steps.length > 0 ? (
-          <ul className={styles.debugList}>
-            {view.steps.map((step) => (
-              <li key={step.id ?? `${step.attemptId}-${step.stepIndex}`}>
-                <div className={styles.debugLine}>
-                  {step.previousLine} → {step.submittedLine || "(no line submitted)"}
-                </div>
-                <div className={styles.debugMeta}>
-                  <span className={styles.tag}>{step.validity}</span>
-                  <span
-                    className={`${styles.tag} ${
-                      step.verificationSource === "AI_FALLBACK"
-                        ? styles.tagAi
-                        : styles.tagRule
-                    }`}
+      <div className={styles.debugBody}>
+        {activeTab === "steps" && (
+          <section>
+            {annotatedSteps.length > 0 ? (
+              <div className={styles.debugTimeline}>
+                {stepsMostRecentFirst.map((step, i) => (
+                  <div
+                    key={step.id ?? `${step.attemptId}-${step.stepIndex}`}
+                    className={`${styles.debugStep} ${i === 0 ? styles.debugStepLatest : ""}`}
                   >
-                    {step.verificationSource}
-                  </span>
-                  <span className={styles.tag}>{step.attemptedTransformation}</span>
-                  <span className={styles.tag}>{step.assistanceLevel}</span>
-                  {step.primaryMicroSkillId && (
-                    <CodeTag code={step.primaryMicroSkillId} />
-                  )}
-                  {step.topicId && <span className={styles.tag}>{step.topicId}</span>}
-                  {step.competencyFamilyId && (
-                    <span className={styles.tag}>{step.competencyFamilyId}</span>
-                  )}
-                  {step.contextModifierIds.map((id) => (
-                    <span key={id} className={styles.tag}>
-                      {id}
-                    </span>
-                  ))}
-                </div>
-                {step.firstInvalidActionDescription && (
-                  <p className={styles.debugReasoning}>
-                    {step.firstInvalidActionDescription}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : log.length > 0 ? (
-          <ul className={styles.debugList}>
-            {log.map((entry, i) => (
-              <li key={`local-${i}`}>
-                <div className={styles.debugLine}>
-                  {entry.submittedLine || "(no line — I don't know)"}
-                </div>
-                <div className={styles.debugMeta}>
-                  {entry.response.outcome === "SUBMITTED" ? (
-                    <>
-                      <span className={styles.tag}>{entry.response.validity}</span>
+                    <div className={styles.debugStepHead}>
+                      <span className={styles.qChip}>Q{step.questionNumber}</span>
+                      {i === 0 && <span className={styles.latestChip}>most recent</span>}
+                      <span className={styles.tag}>{step.validity}</span>
                       <span
                         className={`${styles.tag} ${
-                          entry.response.verificationSource === "AI_FALLBACK"
-                            ? styles.tagAi
-                            : styles.tagRule
+                          step.verificationSource === "AI_FALLBACK" ? styles.tagAi : styles.tagRule
                         }`}
                       >
-                        {entry.response.verificationSource}
+                        {step.verificationSource}
                       </span>
-                      <span className={styles.tag}>
-                        {entry.response.attemptedTransformation}
-                      </span>
-                    </>
-                  ) : (
-                    <span className={styles.tag}>DECLINED · not verified</span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No steps submitted yet.</p>
+                      <span className={styles.tag}>{step.attemptedTransformation}</span>
+                      <span className={styles.tag}>{step.assistanceLevel}</span>
+                      {step.primaryMicroSkillId && <CodeTag code={step.primaryMicroSkillId} />}
+                      {step.topicId && <span className={styles.tag}>{step.topicId}</span>}
+                      {step.competencyFamilyId && (
+                        <span className={styles.tag}>{step.competencyFamilyId}</span>
+                      )}
+                      {step.contextModifierIds.map((id) => (
+                        <span key={id} className={styles.tag}>
+                          {id}
+                        </span>
+                      ))}
+                    </div>
+                    <div className={styles.debugLine}>
+                      {step.previousLine} → {step.submittedLine || "(no line submitted)"}
+                    </div>
+                    {step.firstInvalidActionDescription && (
+                      <p className={styles.debugReasoning}>{step.firstInvalidActionDescription}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : log.length > 0 ? (
+              <div className={styles.debugTimeline}>
+                {logMostRecentFirst.map((entry, i) => (
+                  <div
+                    key={`local-${log.length - 1 - i}`}
+                    className={`${styles.debugStep} ${i === 0 ? styles.debugStepLatest : ""}`}
+                  >
+                    <div className={styles.debugStepHead}>
+                      {i === 0 && <span className={styles.latestChip}>most recent</span>}
+                      {entry.response.outcome === "SUBMITTED" ? (
+                        <>
+                          <span className={styles.tag}>{entry.response.validity}</span>
+                          <span
+                            className={`${styles.tag} ${
+                              entry.response.verificationSource === "AI_FALLBACK"
+                                ? styles.tagAi
+                                : styles.tagRule
+                            }`}
+                          >
+                            {entry.response.verificationSource}
+                          </span>
+                          <span className={styles.tag}>{entry.response.attemptedTransformation}</span>
+                        </>
+                      ) : (
+                        <span className={styles.tag}>DECLINED · not verified</span>
+                      )}
+                    </div>
+                    <div className={styles.debugLine}>
+                      {entry.submittedLine || "(no line — I don't know)"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="faint">No steps submitted yet.</p>
+            )}
+          </section>
         )}
-      </section>
 
-      <section className={styles.debugSection}>
-        <h3>Hypotheses</h3>
-        {view && view.hypotheses.length > 0 ? (
-          <ul className={styles.debugList}>
-            {view.hypotheses.map((h, i) => (
-              <li key={`${h.microSkillId}-${i}`}>
-                <div className={styles.debugMeta}>
-                  {sourceTag(h.source)}
-                  <CodeTag code={h.microSkillId} />
-                  <span className={styles.tag}>{h.hypothesisLabel}</span>
-                  <span className={styles.tag}>
-                    confidence {h.confidence.toFixed(2)}
-                  </span>
-                </div>
-                <p className={styles.debugReasoning}>
-                  {humanizeDiagnosticCodesInText(h.reasoning)}
-                </p>
-                {h.childFacingSummary && <p>{h.childFacingSummary}</p>}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No hypotheses yet.</p>
+        {activeTab === "why" && (
+          <section>
+            {why ? (
+              <WhyThisQuestionBox why={why} placement="panel" />
+            ) : (
+              <p className="faint">
+                Complete an item to see the selector&apos;s reason for the next one. The
+                opening item is always the fixed entry sequence.
+              </p>
+            )}
+          </section>
         )}
-      </section>
 
-      <section className={styles.debugSection}>
-        <h3>Micro-skill states</h3>
-        {view && view.microSkillStates.length > 0 ? (
-          <ul className={styles.debugList}>
-            {view.microSkillStates.map((state) => (
-              <li key={state.microSkillId}>
-                <div className={styles.debugMeta}>
-                  <CodeTag code={state.microSkillId} />
-                  <span className={styles.tag}>{state.status}</span>
-                  <span className={styles.tag}>
-                    evidence {state.evidenceCount}
-                  </span>
-                  <span className={styles.tag}>
-                    independent {state.independentSuccessCount}/
-                    {state.independentSuccessCount + state.independentFailureCount}
-                  </span>
-                  <span className={styles.tag}>
-                    assisted correct {state.assistedSuccessCount}
-                  </span>
-                </div>
-                {state.observedContextStrengths.length > 0 && (
-                  <p className="faint">
-                    strengths: {state.observedContextStrengths.join(", ")}
-                  </p>
-                )}
-                {state.observedContextGaps.length > 0 && (
-                  <p className="faint">
-                    gaps: {state.observedContextGaps.join(", ")}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="faint">No micro-skill state yet.</p>
+        {activeTab === "items" && (
+          <section>
+            {view && view.items.length > 0 ? (
+              <div className={styles.infoList}>
+                {view.items.map((item, i) => {
+                  const skillEnglish = englishLabelForDiagnosticCode(item.primaryMicroSkillId);
+                  return (
+                    <div className={styles.infoCard} key={`${item.itemKey}-${i}`}>
+                      <div className={styles.infoEnglish}>
+                        Q{i + 1} · {originEnglish(item.origin)}
+                        {skillEnglish ? ` — practicing ${skillEnglish}` : ""}
+                      </div>
+                      <div className={styles.infoDetail}>{item.equationPrompt}</div>
+                      <div className={styles.infoCodeRow}>
+                        <span className={styles.infoCodeLabel}>codes</span>
+                        <span className={styles.codeChip}>origin: {item.origin}</span>
+                        <span className={styles.codeChip}>{item.itemKey}</span>
+                        {item.templateId && <span className={styles.codeChip}>{item.templateId}</span>}
+                        <span className={styles.codeChip}>{item.primaryMicroSkillId}</span>
+                        <span className={styles.codeChip}>{item.status}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="faint">No items recorded yet.</p>
+            )}
+          </section>
         )}
-      </section>
+
+        {activeTab === "stages" && (
+          <section>
+            {view && view.stageHistory.length > 0 ? (
+              <ul className={styles.debugList}>
+                {view.stageHistory.map((entry, i) => (
+                  <li key={`${entry.stageId}-${i}`}>
+                    <div className={styles.debugMeta}>
+                      {sourceTag(entry.source)}
+                      <CodeTag code={entry.stageId} />
+                      <span className={styles.tag}>{entry.at}</span>
+                    </div>
+                    {entry.reasoning && (
+                      <p className={styles.debugReasoning}>
+                        {humanizeDiagnosticCodesInText(entry.reasoning)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="faint">No stage decisions recorded yet.</p>
+            )}
+          </section>
+        )}
+
+        {activeTab === "selection" && (
+          <section>
+            {log.some((entry) => entry.response.selectorDecision) ? (
+              <ul className={styles.debugList}>
+                {log
+                  .filter((entry) => entry.response.selectorDecision)
+                  .map((entry, i) => (
+                    <li key={`selector-${i}`}>
+                      <div className={styles.debugMeta}>
+                        {sourceTag(entry.response.selectorDecision!.source)}
+                        <span className={styles.tag}>{entryLabel(entry)}</span>
+                        {entry.response.nextAttempt && (
+                          <CodeTag code={entry.response.nextAttempt!.itemKey} prefix="next: " />
+                        )}
+                      </div>
+                      {entry.response.selectorDecision!.reasoning ? (
+                        <p className={styles.debugReasoning}>
+                          {humanizeDiagnosticCodesInText(entry.response.selectorDecision!.reasoning)}
+                        </p>
+                      ) : (
+                        <p className={styles.debugReasoning}>
+                          {entry.response.selectorDecision!.source === "RULE"
+                            ? RULE_WHY_FALLBACK
+                            : "No selection reasoning returned."}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className="faint">No selector decision returned yet.</p>
+            )}
+          </section>
+        )}
+
+        {activeTab === "declines" && (
+          <section>
+            {view && view.declines.length > 0 ? (
+              <ul className={styles.debugList}>
+                {view.declines.map((decline, i) => (
+                  <li key={`decline-${i}`}>
+                    <div className={styles.debugMeta}>
+                      <span className={`${styles.tag} ${styles.tagRule}`}>SKIPPED</span>
+                      <CodeTag code={decline.itemKey} />
+                      <CodeTag code={decline.microSkillId} />
+                      <span className={styles.tag}>{decline.assistanceLevel}</span>
+                      <span className={styles.tag}>{decline.at}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="faint">No declines in this session.</p>
+            )}
+          </section>
+        )}
+
+        {activeTab === "hypotheses" && (
+          <section>
+            {view && view.hypotheses.length > 0 ? (
+              <ul className={styles.debugList}>
+                {view.hypotheses.map((h, i) => (
+                  <li key={`${h.microSkillId}-${i}`}>
+                    <div className={styles.debugMeta}>
+                      {sourceTag(h.source)}
+                      <CodeTag code={h.microSkillId} />
+                      <span className={styles.tag}>{h.hypothesisLabel}</span>
+                      <span className={styles.tag}>confidence {h.confidence.toFixed(2)}</span>
+                    </div>
+                    <p className={styles.debugReasoning}>
+                      {humanizeDiagnosticCodesInText(h.reasoning)}
+                    </p>
+                    {h.childFacingSummary && <p>{h.childFacingSummary}</p>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="faint">No hypotheses yet.</p>
+            )}
+          </section>
+        )}
+
+        {activeTab === "skills" && (
+          <section>
+            {view && view.microSkillStates.length > 0 ? (
+              <div className={styles.infoList}>
+                {view.microSkillStates.map((state) => {
+                  const skillEnglish = englishLabelForDiagnosticCode(state.microSkillId) ?? state.microSkillId;
+                  const independentTotal = state.independentSuccessCount + state.independentFailureCount;
+                  return (
+                    <div className={styles.infoCard} key={state.microSkillId}>
+                      <div className={styles.infoEnglish}>{skillEnglish}</div>
+                      <div className={styles.infoDetail}>
+                        {state.evidenceCount} question{state.evidenceCount === 1 ? "" : "s"} touched this
+                        skill so far.
+                        {independentTotal > 0
+                          ? ` Working independently, the student got it right ${state.independentSuccessCount} out of ${independentTotal} time${independentTotal === 1 ? "" : "s"}.`
+                          : " No independent attempts yet — too early to call this a pattern."}
+                        {state.assistedSuccessCount > 0
+                          ? ` ${state.assistedSuccessCount} more correct with help.`
+                          : ""}
+                        {state.observedContextStrengths.length > 0
+                          ? ` Goes well with: ${state.observedContextStrengths.join(", ")}.`
+                          : ""}
+                        {state.observedContextGaps.length > 0
+                          ? ` Struggles more with: ${state.observedContextGaps.join(", ")}.`
+                          : ""}
+                      </div>
+                      <div className={styles.infoCodeRow}>
+                        <span className={styles.infoCodeLabel}>codes</span>
+                        <span className={styles.codeChip}>{state.microSkillId}</span>
+                        <span className={styles.codeChip}>{state.status}</span>
+                        <span className={styles.codeChip}>evidence: {state.evidenceCount}</span>
+                        <span className={styles.codeChip}>
+                          independent: {state.independentSuccessCount}/{independentTotal}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="faint">No micro-skill state yet.</p>
+            )}
+          </section>
+        )}
+      </div>
     </aside>
   );
 }

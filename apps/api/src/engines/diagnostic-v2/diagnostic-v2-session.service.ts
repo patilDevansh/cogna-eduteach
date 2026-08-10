@@ -1909,6 +1909,7 @@ function attemptView(attemptId: string, item: DiagnosticV2Item): DiagnosticV2Att
     itemKey: item.itemKey,
     equationPrompt: item.prompt,
     openingLine: item.openingLine,
+    stageId: item.stageId,
   };
 }
 

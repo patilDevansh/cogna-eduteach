@@ -410,6 +410,8 @@ export interface DiagnosticV2AttemptView {
   equationPrompt: string;
   /** The bare equation or expression the first step is checked against, e.g. `3x + 5 = 20`. Distinct from equationPrompt, which carries the instruction wording — a client must send this, not the prompt, as the first `previousLine`. */
   openingLine: string;
+  /** Where this item sits in the fixed stage backbone (e.g. `NEG_DIST_MAIN`) — lets a client derive topic/question progress without the debug view. Stated by the server, same value whether the item was pre-written, generated, or AI-authored. */
+  stageId?: string;
 }
 
 export interface StartDiagnosticV2SessionResponse extends DiagnosticV2AttemptView {
