@@ -788,6 +788,18 @@
   font-size: var(--text-lg);
 }
 
+/* Demo-student affordance only — flags that the greyed placeholder is a
+   suggested next line, not something the student is required to write. */
+.demoHintTag {
+  margin-left: var(--s-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  font-style: italic;
+  color: var(--ink-faint);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .fracPreviewLabel {
   font-family: var(--font-body);
   font-size: var(--text-xs);

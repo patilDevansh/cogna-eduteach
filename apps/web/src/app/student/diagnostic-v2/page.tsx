@@ -127,6 +127,10 @@ function DiagnosticV2Content() {
   /** 1-based count of items seen this sitting, shown to the student as
    * "Question N" — incremented whenever a new item replaces the current one. */
   const [questionNumber, setQuestionNumber] = useState(1);
+  /** Demo-only: one conventional next line, shown as greyed-out placeholder
+   * text. Server sends it for the dev student only; a real student gets
+   * undefined and the generic placeholder. Never prefilled, never enforced. */
+  const [demoHint, setDemoHint] = useState<string | undefined>(undefined);
   /** Debug-only: why the current question was selected (selectorDecision). */
   const [whyThisQuestion, setWhyThisQuestion] = useState<WhyThisQuestion | null>(null);
   const [acceptedLines, setAcceptedLines] = useState<string[]>([]);
@@ -211,6 +215,7 @@ function DiagnosticV2Content() {
         openingLine: session.openingLine,
         stageId: session.stageId,
       });
+      setDemoHint(session.demoNextLineHint);
       // The opening item is the fixed first stage — never AI-chosen.
       setAttemptSource("RULE");
       setWhyThisQuestion({
@@ -297,6 +302,12 @@ function DiagnosticV2Content() {
       }
 
       void refreshDebugView(sessionId);
+
+      // Mid-item the hint follows the line the next step is checked against;
+      // on a new item it comes with that item instead.
+      setDemoHint(
+        response.nextAttempt?.demoNextLineHint ?? response.demoNextLineHint,
+      );
 
       if (response.itemComplete && response.nextAttempt) {
         setAttempt(response.nextAttempt);
@@ -652,7 +663,12 @@ function DiagnosticV2Content() {
       </ol>
 
       <div className={`${styles.entry} field`}>
-        <label htmlFor="nextLine">Your next line</label>
+        <label htmlFor="nextLine">
+          Your next line
+          {demoHint && (
+            <span className={styles.demoHintTag}> demo hint — type over it</span>
+          )}
+        </label>
         <input
           id="nextLine"
           className={`input ${styles.entryInput}`}
@@ -668,7 +684,7 @@ function DiagnosticV2Content() {
               onSubmitStep();
             }
           }}
-          placeholder="e.g. -2x + 10 + 3 = 11"
+          placeholder={demoHint ?? "e.g. -2x + 10 + 3 = 11"}
           autoComplete="off"
           spellCheck={false}
           disabled={busy}

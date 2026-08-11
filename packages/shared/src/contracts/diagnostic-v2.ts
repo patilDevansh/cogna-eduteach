@@ -412,6 +412,16 @@ export interface DiagnosticV2AttemptView {
   openingLine: string;
   /** Where this item sits in the fixed stage backbone (e.g. `NEG_DIST_MAIN`) — lets a client derive topic/question progress without the debug view. Stated by the server, same value whether the item was pre-written, generated, or AI-authored. */
   stageId?: string;
+  /**
+   * Demo/testing only: one conventional next line, shown as greyed-out
+   * placeholder text so a tester need not hand-compute every step. Present
+   * only for the dev student, absent for everyone else.
+   *
+   * Display-only. The verifier accepts any route that preserves meaning, so
+   * this is a suggestion and never a requirement — it is not prefilled, not
+   * validated against, and contributes nothing to grading or evidence.
+   */
+  demoNextLineHint?: string;
 }
 
 export interface StartDiagnosticV2SessionResponse extends DiagnosticV2AttemptView {
@@ -482,6 +492,14 @@ interface DiagnosticV2StepOutcomeBase {
   assistanceMessage?: string;
   selectorDecision?: DiagnosticV2StepDecisionSource;
   nextAttempt?: DiagnosticV2AttemptView;
+  /**
+   * Demo/testing only: one conventional next line for the working the student
+   * is now on, so the placeholder hint keeps up mid-item rather than only at
+   * the start of a question. Same rules as
+   * `DiagnosticV2AttemptView.demoNextLineHint` — dev student only, display-only,
+   * never part of grading.
+   */
+  demoNextLineHint?: string;
 }
 
 /** The student wrote a line, and it was checked. */
