@@ -515,6 +515,93 @@ export type SubmitDiagnosticV2StepResponse =
   | DiagnosticV2SubmittedStepResponse
   | DiagnosticV2DeclinedStepResponse;
 
+/**
+ * Debug-only trail for one submitted line. Reconstructed in getDebugView —
+ * never shipped on SubmitDiagnosticV2StepResponse (that reaches students).
+ */
+export interface DiagnosticV2StepProvenance {
+  /** ① exactly what the verifier was handed. */
+  input: {
+    previousLine: string;
+    submittedLine: string;
+    /** e.g. "linear-bracket-verifier-v1" — the VERIFIER_VERSION that ran. */
+    verifierVersion: string;
+    /** Which grammar the router resolved to, and the stage that decided it. */
+    resolvedGrammar: string;
+    resolvedFromStageId: string;
+  };
+  /** ② what the deterministic pass computed. Present even when it abstained. */
+  ruleAnalysis: {
+    /** normalizeLine() of each side — the canonical a·x + b the verifier compared. */
+    normalizedPreviousLine?: string;
+    normalizedSubmittedLine?: string;
+    /** Solution of each line when it has one, as a display string ("x = 1", "x = -9"). */
+    previousSolution?: string;
+    submittedSolution?: string;
+    outcome: "DECIDED" | "ABSTAINED";
+    validity: StepValidity;
+    transformation: StepTransformation;
+    firstInvalidActionCode?: string;
+    firstInvalidActionDescription?: string;
+    /** Only when it abstained: the parse error, verbatim. */
+    parseError?: string;
+  };
+  /** ③ what was handed to the AI selector afterwards. Null when no AI call was made. */
+  handedToAi: {
+    lastStepSummary: string;
+    skillLines: string[];
+  } | null;
+  /** ④ present only when the AI grader actually ran. */
+  aiGraderFallback: {
+    whyItRan: string;
+    validity: StepValidity | null;
+    confidence: number | null;
+    reasoning?: string;
+  } | null;
+}
+
+/**
+ * Debug-only record of one item transition (rules → shortlist → AI → served).
+ * Captured when selectNextItem runs and attached to stageHistory for getDebugView.
+ */
+export interface DiagnosticV2SelectionProvenance {
+  /** ① the rules' own decision, before the AI saw anything. */
+  rulePick: {
+    itemKey: string;
+    stageId: string;
+    origin: DiagnosticV2ItemOrigin;
+    /** Which routing rule produced this stage, in words. */
+    routeReason: string;
+  };
+  /** ② the exact shortlist handed to the selector. */
+  candidates: Array<{
+    index: number;
+    itemKey: string;
+    prompt: string;
+    origin: DiagnosticV2ItemOrigin;
+    templateId: string | null;
+    primaryMicroSkillId: string;
+    legalityReason: string;
+    isRulePick: boolean;
+  }>;
+  /** ③ what the AI did with it. Null when the AI never ran (flag off / timeout). */
+  aiDecision: {
+    choice: "EXISTING" | "GENERATE" | "AUTHOR";
+    chosenIndex: number | null;
+    templateId: string | null;
+    targetMicroSkillId: string | null;
+    confidence: number | null;
+    reasoning: string;
+    agreedWithRule: boolean;
+    latencyMs: number | null;
+    /** Set when the AI asked to generate/author and the candidate was rejected by the verifier gate. */
+    discardedReason?: string;
+  } | null;
+  /** Which one the student actually got. */
+  servedItemKey: string;
+  servedSource: "RULE" | "AI";
+}
+
 export interface DiagnosticV2DebugStepView {
   /** Stable row id — required for React list keys; stepIndex alone resets per attempt. */
   id: string;
@@ -532,6 +619,8 @@ export interface DiagnosticV2DebugStepView {
   competencyFamilyId?: string;
   contextModifierIds: string[];
   assistanceLevel: AssistanceLevel;
+  /** Present on ?debug=1 views only — additive observability, never on student responses. */
+  provenance?: DiagnosticV2StepProvenance;
 }
 
 export interface DiagnosticV2DebugHypothesisView {
@@ -541,6 +630,10 @@ export interface DiagnosticV2DebugHypothesisView {
   reasoning: string;
   source: HypothesisSource;
   childFacingSummary?: string;
+  /** This-session independent failure count used for present-tense hypothesis wording. */
+  sessionIndependentFailureCount?: number;
+  /** Lifetime independent failure count — only meaningful when it differs from the session count. */
+  lifetimeIndependentFailureCount?: number;
 }
 
 export interface DiagnosticV2DebugMicroSkillStateView {
@@ -552,6 +645,11 @@ export interface DiagnosticV2DebugMicroSkillStateView {
   assistedSuccessCount: number;
   observedContextStrengths: string[];
   observedContextGaps: string[];
+  /** Counts derived from this session's evidence events only (Defect A visibility). */
+  sessionEvidenceCount?: number;
+  sessionIndependentSuccessCount?: number;
+  sessionIndependentFailureCount?: number;
+  sessionAssistedSuccessCount?: number;
 }
 
 /**
@@ -589,6 +687,8 @@ export interface DiagnosticV2DebugView {
   declines: DiagnosticV2DebugDeclineView[];
   hypotheses: DiagnosticV2DebugHypothesisView[];
   microSkillStates: DiagnosticV2DebugMicroSkillStateView[];
+  /** One entry per item transition where selectNextItem ran (opening item excluded). */
+  selections?: DiagnosticV2SelectionProvenance[];
 }
 
 /** One skill row for the student end-of-check screen (qualitative — never a score). */

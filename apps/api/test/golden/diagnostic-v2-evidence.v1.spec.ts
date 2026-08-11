@@ -140,6 +140,41 @@ describe("computeMicroSkillStatus", () => {
     assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 2, independentFailureCount: 2 })), "LIKELY_GAP");
   });
 
+  it("Defect B: a 50/50 independent split stays EMERGING, not LIKELY_GAP", () => {
+    assert.equal(
+      computeMicroSkillStatus(
+        counts({ evidenceCount: 4, independentSuccessCount: 2, independentFailureCount: 2 }),
+      ),
+      "EMERGING",
+    );
+  });
+
+  it("Defect B: failure rate above half can call LIKELY_GAP with two failures", () => {
+    assert.equal(
+      computeMicroSkillStatus(
+        counts({ evidenceCount: 3, independentSuccessCount: 1, independentFailureCount: 2 }),
+      ),
+      "LIKELY_GAP",
+    );
+  });
+
+  it("Defect B: 8 right / 5 wrong is not LIKELY_GAP while 0 right / 2 wrong still is", () => {
+    assert.equal(
+      computeMicroSkillStatus(
+        counts({
+          evidenceCount: 13,
+          independentSuccessCount: 8,
+          independentFailureCount: 5,
+        }),
+      ),
+      "EMERGING",
+    );
+    assert.equal(
+      computeMicroSkillStatus(counts({ evidenceCount: 2, independentFailureCount: 2 })),
+      "LIKELY_GAP",
+    );
+  });
+
   it("needs two clean independent successes before calling it reliable", () => {
     assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 1, independentSuccessCount: 1 })), "DEVELOPING");
     assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 2, independentSuccessCount: 2 })), "RELIABLE");
@@ -192,10 +227,12 @@ describe("computeMicroSkillStateUpdate", () => {
 
 describe("buildRuleHypothesis — the always-available fallback", () => {
   it("calls one error a possible slip, not a diagnosis", () => {
+    const counts = { ...EMPTY_COUNTS, evidenceCount: 1, independentFailureCount: 1 };
     const h = buildRuleHypothesis({
       microSkillId: "LIN_DISTRIBUTE_NEG",
       microSkillName: "Distribute a negative multiplier and preserve sign products",
-      counts: { ...EMPTY_COUNTS, evidenceCount: 1, independentFailureCount: 1 },
+      sessionCounts: counts,
+      lifetimeCounts: counts,
       firstInvalidActionDescription: "(-2)(-5) was evaluated as -10",
     });
     assert.equal(h.hypothesisLabel, "POSSIBLE_SLIP");
@@ -203,20 +240,35 @@ describe("buildRuleHypothesis — the always-available fallback", () => {
   });
 
   it("escalates to a repeated pattern only on the second independent failure", () => {
+    const counts = { ...EMPTY_COUNTS, evidenceCount: 2, independentFailureCount: 2 };
     const h = buildRuleHypothesis({
       microSkillId: "LIN_DISTRIBUTE_NEG",
       microSkillName: "Distribute a negative multiplier and preserve sign products",
-      counts: { ...EMPTY_COUNTS, evidenceCount: 2, independentFailureCount: 2 },
+      sessionCounts: counts,
+      lifetimeCounts: counts,
     });
     assert.equal(h.hypothesisLabel, "REPEATED_PATTERN");
   });
 
+  it("Defect A: lifetime failures do not escalate a first-sitting slip to REPEATED_PATTERN", () => {
+    const h = buildRuleHypothesis({
+      microSkillId: "LIN_DISTRIBUTE_NEG",
+      microSkillName: "Distribute a negative multiplier and preserve sign products",
+      sessionCounts: { ...EMPTY_COUNTS, evidenceCount: 1, independentFailureCount: 1 },
+      lifetimeCounts: { ...EMPTY_COUNTS, evidenceCount: 10, independentFailureCount: 5 },
+    });
+    assert.equal(h.hypothesisLabel, "POSSIBLE_SLIP");
+    assert.match(h.reasoning, /once here|only once/i);
+  });
+
   it("never puts a forbidden term in front of a child", () => {
     for (const failures of [0, 1, 2]) {
+      const counts = { ...EMPTY_COUNTS, evidenceCount: failures, independentFailureCount: failures };
       const h = buildRuleHypothesis({
         microSkillId: "LIN_DISTRIBUTE_NEG",
         microSkillName: "Distribute a negative multiplier and preserve sign products",
-        counts: { ...EMPTY_COUNTS, evidenceCount: failures, independentFailureCount: failures },
+        sessionCounts: counts,
+        lifetimeCounts: counts,
       });
       assert.equal(containsForbiddenTerm(h.childFacingSummary), false, h.childFacingSummary);
     }

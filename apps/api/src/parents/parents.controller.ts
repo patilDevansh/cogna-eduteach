@@ -8,8 +8,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post("student/login")
-  studentLogin(@Body() body: { accessCode: string }) {
-    return this.auth.studentLogin(body.accessCode);
+  studentLogin(@Body() body: { accessCode: string; reuseTemplate?: boolean }) {
+    return this.auth.studentLogin(body.accessCode, { reuseTemplate: body.reuseTemplate === true });
   }
 }
 
@@ -34,6 +34,11 @@ export class ParentsController {
       throw new NotFoundException("Seeded demo parent missing — run pnpm db:seed");
     }
     return parent;
+  }
+
+  @Get("dev/demo-runs")
+  listDemoRuns() {
+    return this.auth.listDemoRuns();
   }
 
   @Get("me/students")

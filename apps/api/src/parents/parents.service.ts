@@ -4,6 +4,11 @@ import { ReportAudience, UserRole } from "@cogna/database";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReportGeneratorService } from "../engines/report-generator/report-generator.service";
 import { ClerkAuthService } from "./clerk-auth.service";
+import {
+  DEMO_STUDENT_NAME,
+  DEMO_STUDENT_TEMPLATE_ID,
+  isDemoFreshStudentPerLoginEnabled,
+} from "../engines/diagnostic-v2/demo-student";
 
 function normalizeAccessCode(code: string): string {
   return code.trim().toLowerCase();
@@ -261,7 +266,7 @@ export class AuthService {
     private readonly clerkAuth: ClerkAuthService,
   ) {}
 
-  async studentLogin(accessCode: string) {
+  async studentLogin(accessCode: string, opts?: { reuseTemplate?: boolean }) {
     const hash = hashAccessCode(accessCode);
     const student = await this.prisma.student.findFirst({
       where: { accessCodeHash: hash, deletedAt: null },
@@ -271,11 +276,79 @@ export class AuthService {
       throw new UnauthorizedException("Invalid access code.");
     }
 
+    const isTemplate = student.id === DEMO_STUDENT_TEMPLATE_ID;
+    if (isTemplate && isDemoFreshStudentPerLoginEnabled() && !opts?.reuseTemplate) {
+      const clone = await this.mintDemoStudentClone(student);
+      return { studentId: clone.id, name: clone.name, grade: clone.grade };
+    }
+
     return {
       studentId: student.id,
       name: student.name,
       grade: student.grade,
     };
+  }
+
+  async listDemoRuns() {
+    if (!isDemoFreshStudentPerLoginEnabled() && process.env.NODE_ENV === "production") {
+      throw new NotFoundException();
+    }
+    const clones = await this.prisma.student.findMany({
+      where: { id: { startsWith: "demo_" }, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        _count: { select: { diagnosticV2Sessions: true } },
+      },
+    });
+    return clones.map((c, i) => ({
+      studentId: c.id,
+      name: c.name,
+      runLabel: `Demo Student ${i + 1}`,
+      createdAt: c.createdAt.toISOString(),
+      sessionCount: c._count.diagnosticV2Sessions,
+    }));
+  }
+
+  private async mintDemoStudentClone(template: {
+    id: string;
+    primaryParentId: string;
+    grade: number;
+    curriculum: string;
+  }) {
+    const id = `demo_${randomBytes(12).toString("hex")}`;
+    const accessCodeHash = hashAccessCode(`demo-clone-${id}-${randomBytes(8).toString("hex")}`);
+
+    const clone = await this.prisma.student.create({
+      data: {
+        id,
+        primaryParentId: template.primaryParentId,
+        name: DEMO_STUDENT_NAME,
+        grade: template.grade,
+        curriculum: template.curriculum,
+        accessCodeHash,
+      },
+    });
+
+    const link = await this.prisma.parentStudentLink.findUnique({
+      where: {
+        parentId_studentId: { parentId: template.primaryParentId, studentId: template.id },
+      },
+    });
+    if (link) {
+      await this.prisma.parentStudentLink.create({
+        data: {
+          parentId: template.primaryParentId,
+          studentId: clone.id,
+          relationship: link.relationship,
+          canViewReports: link.canViewReports,
+        },
+      });
+    }
+
+    return clone;
   }
 
   async resolveParentId(
