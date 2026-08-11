@@ -362,3 +362,31 @@ export function computeRecommendationPriority(input: {
 export const MAX_QUESTIONS_PER_DAY = 10;
 export const MAX_CONCEPTS_PER_DAY = 3;
 export const MAX_TARGETED_MISCONCEPTION_QUESTIONS = 3;
+
+export type MisconceptionPattern = { misconceptionId: string; answers: string[] };
+
+/**
+ * Matches a submitted answer against a question's misconceptionPatterns,
+ * independent of NestJS/Prisma so it can be reused anywhere an attempt needs
+ * to be checked for a known error pattern — both DiagnosticEngineService
+ * (gated on grade === "INCORRECT") and the item-statistics refresh job's
+ * misconceptionHits tally (scheduled-jobs.service.ts) call this same function
+ * rather than each re-implementing the normalization/matching rules.
+ */
+export function matchMisconceptionPattern(
+  patterns: MisconceptionPattern[],
+  submittedAnswer: string,
+): string | null {
+  const normalized = submittedAnswer.trim().toLowerCase().replace(/\s+/g, "");
+
+  for (const pattern of patterns) {
+    for (const ans of pattern.answers) {
+      const normAns = ans.trim().toLowerCase().replace(/\s+/g, "");
+      if (normAns === normalized || normalized === `x=${normAns}`) {
+        return pattern.misconceptionId;
+      }
+    }
+  }
+
+  return null;
+}

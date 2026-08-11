@@ -1,20 +1,33 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import type { ParentStudentLink } from "@cogna/database";
+import { ReviewStatus, type ParentStudentLink } from "@cogna/database";
 import {
+  assertConfidenceCalibrationSummaryShape,
   assertStudentSafetySettingsShape,
   type ConceptMasteryBand,
+  type ConfidenceCalibration,
+  type ConfidenceCalibrationSummary,
   type MasteryTrendPoint,
+  type PatternHistoryExample,
   type PatternHistoryItem,
   type PracticeCalendarDay,
   type StudentSafetySettings,
 } from "@cogna/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { matchMisconceptionPattern, type MisconceptionPattern } from "../engines/diagnostic-engine/diagnostic-formulas";
 import {
   aggregatePracticeCalendar,
   bandConceptMastery,
   bucketMasteryTrend,
+  enrichPatternHistoryItems,
   summarizePatternHistory,
 } from "./parent-analytics.formulas";
+
+const VALID_CALIBRATIONS: ConfidenceCalibration[] = [
+  "possibly_overconfident",
+  "possibly_underconfident",
+  "reasonably_calibrated",
+  "unknown",
+];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -85,7 +98,73 @@ export class ParentAnalyticsService {
       where: { studentId, createdAt: { gte: since } },
       orderBy: { createdAt: "asc" },
     });
-    return summarizePatternHistory(rows);
+    const items = summarizePatternHistory(rows);
+    if (items.length === 0) return items;
+
+    const misconceptionIds = [...new Set(items.map((i) => i.misconceptionId))];
+    const conceptIds = [...new Set(items.map((i) => i.conceptId))];
+
+    // Same lenient reviewStatus set explanation-engine.service.ts already uses
+    // for live explanation-serving — PENDING_REVIEW content is still shown
+    // (never to APPROVED-only, which would hide everything authored this pass).
+    const explanationRows = await this.prisma.explanation.findMany({
+      where: {
+        misconceptionId: { in: misconceptionIds },
+        reviewStatus: { in: [ReviewStatus.APPROVED, ReviewStatus.PENDING_REVIEW] },
+      },
+      orderBy: { version: "desc" },
+    });
+    const explanationByMisconception = new Map<string, string>();
+    for (const e of explanationRows) {
+      if (e.misconceptionId && !explanationByMisconception.has(e.misconceptionId)) {
+        explanationByMisconception.set(e.misconceptionId, e.content);
+      }
+    }
+
+    // One concrete recent wrong attempt per (misconceptionId, conceptId), matched
+    // via the same shared matchMisconceptionPattern the live diagnostic pipeline
+    // uses — so the spotlight example is never invented, only ever something the
+    // student actually submitted.
+    const wrongAttempts = await this.prisma.attempt.findMany({
+      where: {
+        studentId,
+        grade: "INCORRECT",
+        createdAt: { gte: since },
+        question: { conceptId: { in: conceptIds } },
+      },
+      select: {
+        submittedAnswer: true,
+        question: { select: { conceptId: true, stem: true, misconceptionPatterns: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const exampleByKey = new Map<string, PatternHistoryExample>();
+    for (const a of wrongAttempts) {
+      const patterns = (a.question.misconceptionPatterns as MisconceptionPattern[] | null) ?? [];
+      const matched = matchMisconceptionPattern(patterns, a.submittedAnswer);
+      if (!matched) continue;
+      const key = `${matched}|${a.question.conceptId}`;
+      if (!exampleByKey.has(key)) {
+        exampleByKey.set(key, { stem: a.question.stem, submittedAnswer: a.submittedAnswer });
+      }
+    }
+
+    return enrichPatternHistoryItems(items, explanationByMisconception, exampleByKey);
+  }
+
+  /** The diagnostic engine's own confidenceCalibration label, stored on LearnerProfile —
+   * exposed as-is, not recomputed, so this can never drift from what the engine believes. */
+  async getConfidenceCalibration(
+    parentId: string,
+    studentId: string,
+  ): Promise<ConfidenceCalibrationSummary> {
+    await this.requireLink(parentId, studentId);
+    const profile = await this.prisma.learnerProfile.findUnique({ where: { studentId } });
+    const raw = profile?.confidenceCalibration;
+    const calibration: ConfidenceCalibration = (VALID_CALIBRATIONS as string[]).includes(raw ?? "")
+      ? (raw as ConfidenceCalibration)
+      : "unknown";
+    return assertConfidenceCalibrationSummaryShape({ calibration });
   }
 
   async getSafetySettings(parentId: string, studentId: string): Promise<StudentSafetySettings> {

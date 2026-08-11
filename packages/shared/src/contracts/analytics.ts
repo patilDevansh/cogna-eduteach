@@ -47,6 +47,10 @@ export interface ConceptMasteryBand {
   band: MasteryBand;
   value: number; // 0..1, retained for internal sort/threshold use — never rendered raw to a parent
   lastPracticedAt: string; // ISO timestamp — the real recency signal, used to pick "what's newest"
+  /** How many pieces of evidence back this band — the same counter the diagnostic
+   * engine uses internally (MasteryScore.evidenceCount). Surfaced so a parent can
+   * tell "this is based on 3 tries" apart from "this is based on 40". */
+  evidenceCount: number;
 }
 
 export function assertConceptMasteryBandShape(v: unknown): ConceptMasteryBand {
@@ -65,6 +69,9 @@ export function assertConceptMasteryBandShape(v: unknown): ConceptMasteryBand {
   }
   if (typeof o.lastPracticedAt !== "string" || !o.lastPracticedAt) {
     throw new Error("ConceptMasteryBand: lastPracticedAt required");
+  }
+  if (typeof o.evidenceCount !== "number" || o.evidenceCount < 0) {
+    throw new Error("ConceptMasteryBand: evidenceCount must be a non-negative number");
   }
   return v as ConceptMasteryBand;
 }
@@ -94,6 +101,13 @@ export function assertPracticeCalendarDayShape(v: unknown): PracticeCalendarDay 
 
 export type PatternHistoryStatus = "checking" | "resolved";
 
+export interface PatternHistoryExample {
+  /** The question stem the student saw (already parent/student-safe content). */
+  stem: string;
+  /** What the student actually submitted for that attempt. */
+  submittedAnswer: string;
+}
+
 export interface PatternHistoryItem {
   misconceptionId: string;
   conceptId: string;
@@ -101,6 +115,13 @@ export interface PatternHistoryItem {
   firstSeenAt: string; // ISO datetime — earliest transition into this misconception's active states
   lastSeenAt: string; // ISO datetime — most recent transition
   occurrenceCount: number; // number of transition-log rows for this misconception in the window
+  /** Plain-language explanation of the pattern, from the authored explanation
+   * library — undefined when no explanation has been authored for this
+   * misconception yet (falls back to the generic label in the UI, never blank). */
+  explanation?: string;
+  /** One concrete example of this pattern actually happening, for the "spotlight" —
+   * omitted when no matching wrong attempt could be found in the window. */
+  example?: PatternHistoryExample;
 }
 
 export function assertPatternHistoryItemShape(v: unknown): PatternHistoryItem {
@@ -126,6 +147,15 @@ export function assertPatternHistoryItemShape(v: unknown): PatternHistoryItem {
   if (typeof o.occurrenceCount !== "number" || o.occurrenceCount < 0) {
     throw new Error("PatternHistoryItem: occurrenceCount must be a non-negative number");
   }
+  if (o.explanation !== undefined && typeof o.explanation !== "string") {
+    throw new Error("PatternHistoryItem: explanation must be a string when present");
+  }
+  if (o.example !== undefined) {
+    const ex = o.example as Record<string, unknown>;
+    if (!ex || typeof ex !== "object" || typeof ex.stem !== "string" || typeof ex.submittedAnswer !== "string") {
+      throw new Error("PatternHistoryItem: example must have string stem and submittedAnswer when present");
+    }
+  }
   return v as PatternHistoryItem;
 }
 
@@ -142,4 +172,35 @@ export function assertStudentSafetySettingsShape(v: unknown): StudentSafetySetti
     throw new Error("StudentSafetySettings: aiAssistedPracticePaused must be boolean");
   }
   return v as StudentSafetySettings;
+}
+
+/** Mirrors diagnostic-formulas.ts's CalibrationLabel — kept as a separate parent-
+ * facing type rather than importing the engine's internal type, matching this
+ * file's existing convention of hand-written, dependency-free contract shapes. */
+export type ConfidenceCalibration =
+  | "possibly_overconfident"
+  | "possibly_underconfident"
+  | "reasonably_calibrated"
+  | "unknown";
+
+const CONFIDENCE_CALIBRATIONS: ConfidenceCalibration[] = [
+  "possibly_overconfident",
+  "possibly_underconfident",
+  "reasonably_calibrated",
+  "unknown",
+];
+
+export interface ConfidenceCalibrationSummary {
+  calibration: ConfidenceCalibration;
+}
+
+export function assertConfidenceCalibrationSummaryShape(v: unknown): ConfidenceCalibrationSummary {
+  if (!v || typeof v !== "object") {
+    throw new Error("ConfidenceCalibrationSummary: not an object");
+  }
+  const o = v as Record<string, unknown>;
+  if (!(CONFIDENCE_CALIBRATIONS as string[]).includes(o.calibration as string)) {
+    throw new Error(`ConfidenceCalibrationSummary: invalid calibration ${String(o.calibration)}`);
+  }
+  return v as ConfidenceCalibrationSummary;
 }

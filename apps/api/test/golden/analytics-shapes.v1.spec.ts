@@ -5,6 +5,7 @@ import {
   isMasteryBand,
   assertMasteryTrendPointShape,
   assertConceptMasteryBandShape,
+  assertConfidenceCalibrationSummaryShape,
   assertPracticeCalendarDayShape,
   assertPatternHistoryItemShape,
   assertStudentSafetySettingsShape,
@@ -52,6 +53,7 @@ describe("analytics payload shapes", () => {
       band: "STRONG",
       value: 0.88,
       lastPracticedAt: "2026-07-06T00:00:00.000Z",
+      evidenceCount: 12,
     });
     assert.equal(b.band, "STRONG");
     assert.throws(() =>
@@ -60,10 +62,19 @@ describe("analytics payload shapes", () => {
         band: "ACED_IT",
         value: 0.9,
         lastPracticedAt: "2026-07-06T00:00:00.000Z",
+        evidenceCount: 12,
       }),
     );
     assert.throws(() =>
-      assertConceptMasteryBandShape({ conceptId: "X", band: "STRONG", value: 0.9 }),
+      assertConceptMasteryBandShape({ conceptId: "X", band: "STRONG", value: 0.9, evidenceCount: 12 }),
+    );
+    assert.throws(() =>
+      assertConceptMasteryBandShape({
+        conceptId: "X",
+        band: "STRONG",
+        value: 0.9,
+        lastPracticedAt: "2026-07-06T00:00:00.000Z",
+      }),
     );
   });
 
@@ -101,11 +112,53 @@ describe("analytics payload shapes", () => {
     );
   });
 
+  it("accepts a PatternHistoryItem with explanation and example attached", () => {
+    const item = assertPatternHistoryItemShape({
+      misconceptionId: "SIGN_HANDLING",
+      conceptId: "C5_TWO_STEP_EQUATIONS",
+      status: "checking",
+      firstSeenAt: "2026-06-29T00:00:00.000Z",
+      lastSeenAt: "2026-07-12T00:00:00.000Z",
+      occurrenceCount: 4,
+      explanation: "Undo by adding, not subtracting.",
+      example: { stem: "Solve: x - 7 = 11", submittedAnswer: "4" },
+    });
+    assert.equal(item.explanation, "Undo by adding, not subtracting.");
+    assert.equal(item.example?.submittedAnswer, "4");
+  });
+
+  it("rejects a malformed example (missing submittedAnswer)", () => {
+    assert.throws(() =>
+      assertPatternHistoryItemShape({
+        misconceptionId: "X",
+        conceptId: "Y",
+        status: "checking",
+        firstSeenAt: "2026-06-29T00:00:00.000Z",
+        lastSeenAt: "2026-07-12T00:00:00.000Z",
+        occurrenceCount: 1,
+        example: { stem: "Solve: x - 7 = 11" },
+      }),
+    );
+  });
+
   it("accepts a valid StudentSafetySettings and rejects a non-boolean flag", () => {
     const s = assertStudentSafetySettingsShape({ aiAssistedPracticePaused: true });
     assert.equal(s.aiAssistedPracticePaused, true);
     assert.throws(() =>
       assertStudentSafetySettingsShape({ aiAssistedPracticePaused: "yes" }),
     );
+  });
+
+  it("accepts every valid ConfidenceCalibration value and rejects an unknown one", () => {
+    for (const calibration of [
+      "possibly_overconfident",
+      "possibly_underconfident",
+      "reasonably_calibrated",
+      "unknown",
+    ] as const) {
+      assert.equal(assertConfidenceCalibrationSummaryShape({ calibration }).calibration, calibration);
+    }
+    assert.throws(() => assertConfidenceCalibrationSummaryShape({ calibration: "definitely_wrong" }));
+    assert.throws(() => assertConfidenceCalibrationSummaryShape({}));
   });
 });

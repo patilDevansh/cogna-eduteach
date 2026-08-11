@@ -6,6 +6,7 @@ import {
   bandConceptMastery,
   aggregatePracticeCalendar,
   summarizePatternHistory,
+  enrichPatternHistoryItems,
   clampWeeks,
 } from "../../src/parents/parent-analytics.formulas";
 
@@ -57,9 +58,9 @@ describe("bucketMasteryTrend", () => {
 describe("bandConceptMastery", () => {
   it("bands each concept independently", () => {
     const bands = bandConceptMastery([
-      { conceptId: "A", value: 0.2, updatedAt: new Date("2026-07-06T00:00:00.000Z") },
-      { conceptId: "B", value: 0.5, updatedAt: new Date("2026-07-10T00:00:00.000Z") },
-      { conceptId: "C", value: 0.9, updatedAt: new Date("2026-07-14T00:00:00.000Z") },
+      { conceptId: "A", value: 0.2, updatedAt: new Date("2026-07-06T00:00:00.000Z"), evidenceCount: 2 },
+      { conceptId: "B", value: 0.5, updatedAt: new Date("2026-07-10T00:00:00.000Z"), evidenceCount: 6 },
+      { conceptId: "C", value: 0.9, updatedAt: new Date("2026-07-14T00:00:00.000Z"), evidenceCount: 20 },
     ]);
     assert.deepEqual(
       bands.map((b) => b.band),
@@ -69,13 +70,20 @@ describe("bandConceptMastery", () => {
 
   it("carries each concept's own updatedAt through as lastPracticedAt", () => {
     const bands = bandConceptMastery([
-      { conceptId: "A", value: 0.2, updatedAt: new Date("2026-07-06T00:00:00.000Z") },
-      { conceptId: "B", value: 0.5, updatedAt: new Date("2026-07-14T00:00:00.000Z") },
+      { conceptId: "A", value: 0.2, updatedAt: new Date("2026-07-06T00:00:00.000Z"), evidenceCount: 2 },
+      { conceptId: "B", value: 0.5, updatedAt: new Date("2026-07-14T00:00:00.000Z"), evidenceCount: 6 },
     ]);
     const mostRecent = [...bands].sort((a, b) =>
       b.lastPracticedAt.localeCompare(a.lastPracticedAt),
     )[0];
     assert.equal(mostRecent?.conceptId, "B");
+  });
+
+  it("carries evidenceCount through unchanged", () => {
+    const bands = bandConceptMastery([
+      { conceptId: "A", value: 0.6, updatedAt: new Date("2026-07-06T00:00:00.000Z"), evidenceCount: 9 },
+    ]);
+    assert.equal(bands[0]?.evidenceCount, 9);
   });
 });
 
@@ -143,6 +151,45 @@ describe("summarizePatternHistory", () => {
       { misconceptionId: "NEW", conceptId: "C2", toState: "TARGETING", createdAt: new Date("2026-07-01T00:00:00.000Z") },
     ]);
     assert.equal(items[0]!.misconceptionId, "NEW");
+  });
+});
+
+describe("enrichPatternHistoryItems", () => {
+  const baseItem = {
+    misconceptionId: "SIGN_HANDLING",
+    conceptId: "C2_ONE_STEP_SUBTRACTION",
+    status: "checking" as const,
+    firstSeenAt: "2026-07-01T00:00:00.000Z",
+    lastSeenAt: "2026-07-10T00:00:00.000Z",
+    occurrenceCount: 3,
+  };
+
+  it("attaches both explanation and example when both are available", () => {
+    const [enriched] = enrichPatternHistoryItems(
+      [baseItem],
+      new Map([["SIGN_HANDLING", "Undo by adding, not subtracting."]]),
+      new Map([["SIGN_HANDLING|C2_ONE_STEP_SUBTRACTION", { stem: "Solve: x - 7 = 11", submittedAnswer: "4" }]]),
+    );
+    assert.equal(enriched.explanation, "Undo by adding, not subtracting.");
+    assert.deepEqual(enriched.example, { stem: "Solve: x - 7 = 11", submittedAnswer: "4" });
+  });
+
+  it("omits explanation when none is authored for this misconception, without throwing", () => {
+    const [enriched] = enrichPatternHistoryItems([baseItem], new Map(), new Map());
+    assert.equal(enriched.explanation, undefined);
+    assert.equal(enriched.example, undefined);
+    // still a valid item — everything else survives untouched
+    assert.equal(enriched.misconceptionId, "SIGN_HANDLING");
+    assert.equal(enriched.occurrenceCount, 3);
+  });
+
+  it("keys the example lookup by BOTH misconceptionId and conceptId — a same-misconception example on a different concept must not leak in", () => {
+    const [enriched] = enrichPatternHistoryItems(
+      [baseItem],
+      new Map(),
+      new Map([["SIGN_HANDLING|SOME_OTHER_CONCEPT", { stem: "irrelevant", submittedAnswer: "x" }]]),
+    );
+    assert.equal(enriched.example, undefined);
   });
 });
 

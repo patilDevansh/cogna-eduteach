@@ -173,6 +173,16 @@ export class ParentsController {
     return this.analytics.getPatternHistory(parentId, studentId, weeks);
   }
 
+  @Get("me/students/:studentId/confidence-calibration")
+  async getConfidenceCalibration(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.analytics.getConfidenceCalibration(parentId, studentId);
+  }
+
   @Get("me/students/:studentId/settings")
   async getSafetySettings(
     @Headers("x-parent-id") parentIdHeader: string | undefined,

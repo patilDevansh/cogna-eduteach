@@ -12,6 +12,7 @@ import {
   masteryValueToBand,
   type ConceptMasteryBand,
   type MasteryTrendPoint,
+  type PatternHistoryExample,
   type PatternHistoryItem,
   type PracticeCalendarDay,
 } from "@cogna/shared";
@@ -51,6 +52,7 @@ export interface MasteryScoreRow {
   conceptId: string;
   value: number;
   updatedAt: Date;
+  evidenceCount: number;
 }
 
 export function bandConceptMastery(scores: MasteryScoreRow[]): ConceptMasteryBand[] {
@@ -60,6 +62,7 @@ export function bandConceptMastery(scores: MasteryScoreRow[]): ConceptMasteryBan
       band: masteryValueToBand(s.value),
       value: s.value,
       lastPracticedAt: s.updatedAt.toISOString(),
+      evidenceCount: s.evidenceCount,
     }),
   );
 }
@@ -140,6 +143,28 @@ export function summarizePatternHistory(rows: RemediationHistoryRow[]): PatternH
         occurrenceCount: v.count,
       }),
     );
+}
+
+/**
+ * Attaches a plain-language explanation and one concrete example to each
+ * pattern-history item where available. Pure merge — the service does the
+ * Prisma lookups (Explanation content, a matching wrong Attempt) and passes
+ * the results in as plain maps, so this stays unit-testable without a DB.
+ * Both are optional: an item with no authored explanation yet, or no example
+ * attempt found in the window, still renders — just without that extra.
+ */
+export function enrichPatternHistoryItems(
+  items: PatternHistoryItem[],
+  explanationByMisconception: Map<string, string>,
+  exampleByKey: Map<string, PatternHistoryExample>,
+): PatternHistoryItem[] {
+  return items.map((item) =>
+    assertPatternHistoryItemShape({
+      ...item,
+      explanation: explanationByMisconception.get(item.misconceptionId),
+      example: exampleByKey.get(`${item.misconceptionId}|${item.conceptId}`),
+    }),
+  );
 }
 
 /** Clamps a query-string weeks param to a sane range; falls back to `fallback` if absent/invalid. */
