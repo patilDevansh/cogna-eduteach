@@ -80,6 +80,9 @@ import {
   verifyDiagnosticV2Step,
 } from "./diagnostic-v2-verifier-router";
 import { lineHasFractionSyntax } from "./fraction-linear-verifier";
+import { nextStepHint } from "./diagnostic-v2-next-step-hint";
+// Re-exported below for callers, but also needed locally to gate the demo hint.
+import { isDemoStudent as isDemoStudentId } from "./demo-student";
 import { assistanceTextFor } from "./diagnostic-v2-assistance-text";
 import {
   applyEvidenceToCounts,
@@ -761,7 +764,11 @@ export class DiagnosticV2SessionService {
     return {
       sessionId: session.id,
       stageId: firstStage,
-      ...attemptView(attempt.id, item),
+      ...attemptView(
+        attempt.id,
+        item,
+        demoHintFor(studentId, item.openingLine, track, item.stageId),
+      ),
     };
   }
 
@@ -1352,8 +1359,30 @@ export class DiagnosticV2SessionService {
           }
         : {}),
       ...(nextItem && written.nextAttemptId
-        ? { nextAttempt: attemptView(written.nextAttemptId, nextItem) }
+        ? {
+            nextAttempt: attemptView(
+              written.nextAttemptId,
+              nextItem,
+              demoHintFor(session.studentId, nextItem.openingLine, track, nextItem.stageId),
+            ),
+          }
         : {}),
+      // Staying on this item: hint against the line the student's next step
+      // will be compared to — their own line when it was accepted, otherwise
+      // the one they are still working from.
+      ...(itemComplete
+        ? {}
+        : (() => {
+            const nextPreviousLine =
+              validity === "VALID" ? submittedLine : expectedPreviousLine;
+            const hint = demoHintFor(
+              session.studentId,
+              nextPreviousLine,
+              track,
+              item.stageId,
+            );
+            return hint ? { demoNextLineHint: hint } : {};
+          })()),
     };
 
     if (!verification || !written.step) {
@@ -2060,14 +2089,39 @@ interface EvidencePlan {
 // ─── Pure helpers ───────────────────────────────────────────────────────────
 
 /** The client needs the bare opening line, not just the prompt wording, because that is what it must send back as the first `previousLine`. */
-function attemptView(attemptId: string, item: DiagnosticV2Item): DiagnosticV2AttemptView {
+function attemptView(
+  attemptId: string,
+  item: DiagnosticV2Item,
+  /** Demo-only placeholder hint; omitted entirely for a real student. */
+  demoNextLineHint?: string | null,
+): DiagnosticV2AttemptView {
   return {
     attemptId,
     itemKey: item.itemKey,
     equationPrompt: item.prompt,
     openingLine: item.openingLine,
     stageId: item.stageId,
+    ...(demoNextLineHint ? { demoNextLineHint } : {}),
   };
+}
+
+/**
+ * The hint for whatever line the student will be writing against next, or
+ * null for anyone who is not a demo account. Computed behind the demo check so
+ * a real student never pays for work that is discarded.
+ *
+ * Must use isDemoStudent, never an equality test against the template id:
+ * every demo login now mints a fresh `demo_<cuid>` student, so an exact match
+ * would silently stop matching and the hint would just quietly disappear.
+ */
+function demoHintFor(
+  studentId: string,
+  line: string,
+  track: DiagnosticV2Track,
+  stageId?: string | null,
+): string | null {
+  if (!isDemoStudentId(studentId)) return null;
+  return nextStepHint(line, track, stageId);
 }
 
 function requireFixedItem(stage: DiagnosticV2StageId): DiagnosticV2Item {
