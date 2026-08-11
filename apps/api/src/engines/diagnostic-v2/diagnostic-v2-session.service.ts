@@ -49,6 +49,7 @@ import {
   type StepValidity,
   type SubmitDiagnosticV2StepRequest,
   type SubmitDiagnosticV2StepResponse,
+  type DiagnosticV2SelectionProvenance,
   type VerificationSource,
 } from "@cogna/shared";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -81,8 +82,10 @@ import {
 import { lineHasFractionSyntax } from "./fraction-linear-verifier";
 import { assistanceTextFor } from "./diagnostic-v2-assistance-text";
 import {
+  applyEvidenceToCounts,
   ASSISTANCE_RANK,
   computeMicroSkillStateUpdate,
+  EMPTY_COUNTS,
   evidenceKindForStep,
   evidenceWeight,
   isAssisted,
@@ -91,9 +94,11 @@ import {
 import { findMicroSkill, layersForMicroSkill } from "./micro-skills.catalog";
 import {
   DiagnosticV2AiSelectorService,
+  formatSkillLine,
   type SelectorCandidate,
   type SelectorSkillLine,
 } from "./diagnostic-v2-ai-selector.service";
+import { buildStepProvenance, describeRouteReason } from "./diagnostic-v2-provenance";
 import { DiagnosticV2AiInterpreterService } from "./diagnostic-v2-ai-interpreter.service";
 import { DiagnosticV2AiGraderService } from "./diagnostic-v2-ai-grader.service";
 import { DiagnosticV2ReportService } from "./diagnostic-v2-report.service";
@@ -108,6 +113,7 @@ export {
   buildSummaryOverview,
   childFacingSkillName,
 } from "./diagnostic-v2-summary";
+export { isDemoStudent, DEMO_STUDENT_TEMPLATE_ID } from "./demo-student";
 
 // ─── Stages ─────────────────────────────────────────────────────────────────
 
@@ -422,6 +428,10 @@ export interface StageHistoryEntry {
   at: string;
   /** Present on the opening history entry — which vertical slice this session runs. */
   track?: DiagnosticV2Track;
+  /** Debug-only selection trail when this entry advanced onto a new item. */
+  selection?: DiagnosticV2SelectionProvenance;
+  /** Debug-only: what was handed to the selector for this transition (for step provenance.handedToAi). */
+  selectorHanded?: { lastStepSummary: string; skillLines: string[] };
 }
 
 export function trackFromStageHistory(history: unknown): DiagnosticV2Track {
@@ -673,6 +683,7 @@ interface StepRow {
   competencyFamilyId: string | null;
   contextModifierIds: string[];
   assistanceLevel: AssistanceLevel;
+  aiGraderConfidence: number | null;
 }
 
 @Injectable()
@@ -985,6 +996,12 @@ export class DiagnosticV2SessionService {
         : null;
 
     // 6. AI interpreter — prose about the evidence, never into it.
+    const sessionCountsAfter = stepEvidence
+      ? applyEvidenceToCounts(
+          await this.sessionCountsForMicroSkill(sessionId, stepEvidence.microSkillId),
+          stepEvidence.kind,
+        )
+      : null;
     const interpretation =
       stepEvidence && isInterestingPattern({
         kind: stepEvidence.kind,
@@ -997,6 +1014,8 @@ export class DiagnosticV2SessionService {
             microSkillId: stepEvidence.microSkillId,
             microSkillName: childFacingSkillName(stepEvidence.microSkillId),
             counts: stepEvidence.update.counts,
+            sessionCounts: sessionCountsAfter!,
+            lifetimeCounts: stepEvidence.update.counts,
             observedContextStrengths: stepEvidence.update.observedContextStrengths,
             observedContextGaps: stepEvidence.update.observedContextGaps,
             firstInvalidActionDescription: verification?.firstInvalidActionDescription,
@@ -1010,6 +1029,8 @@ export class DiagnosticV2SessionService {
     let nextItem: DiagnosticV2Item | null = null;
     let selectorSource: "RULE" | "AI" = "RULE";
     let selectorReasoning: string | undefined;
+    let selectionProvenance: DiagnosticV2SelectionProvenance | undefined;
+    let selectorHanded: StageHistoryEntry["selectorHanded"];
 
     if (itemComplete) {
       // Pattern confirmation is about the item's headline skill (negative
@@ -1030,6 +1051,12 @@ export class DiagnosticV2SessionService {
       }
       const nextItemStage = nextStageIds.find((s) => s !== "RULE_PROMPT" && s !== "COMPLETE");
       if (nextItemStage) {
+        const routeReason = describeRouteReason({
+          completedStageId: completedStage,
+          ruleStageId: nextItemStage,
+          targetSkillFailed: isTargetSkillFailure,
+          patternConfirmed,
+        });
         const selected = await this.selectNextItem({
           session: { id: sessionId, studentId: session.studentId },
           ruleStage: nextItemStage,
@@ -1039,10 +1066,13 @@ export class DiagnosticV2SessionService {
             verification?.firstInvalidActionDescription,
             attribution.primary,
           ),
+          routeReason,
         });
         nextItem = selected.item;
         selectorSource = selected.source;
         selectorReasoning = selected.reasoning;
+        selectionProvenance = selected.selection;
+        selectorHanded = selected.handedToAi;
         // The AI may serve a different (or freshly generated/authored) item;
         // the stage it occupies always comes from that item's stated stageId.
         nextStageIds = nextStageIds.map((s) =>
@@ -1096,6 +1126,9 @@ export class DiagnosticV2SessionService {
             ? { reasoning: selectorReasoning }
             : {}),
       at,
+      ...(selectionProvenance && stageId !== "RULE_PROMPT" && stageId !== "COMPLETE"
+        ? { selection: selectionProvenance, selectorHanded }
+        : {}),
     }));
 
     const currentStageId = appendedHistory.length > 0
@@ -1367,6 +1400,35 @@ export class DiagnosticV2SessionService {
       orderBy: { microSkillId: "asc" },
     });
 
+    const track = trackFromStageHistory(session.stageHistory);
+    const stageHistory = readStageHistory(session.stageHistory);
+    const attemptStageById = new Map(attempts.map((a) => [a.id, a.stageId]));
+
+    const lastStepIndexByAttempt = new Map<string, number>();
+    for (const s of steps) {
+      lastStepIndexByAttempt.set(s.attemptId, s.stepIndex);
+    }
+
+    const selectionHandedEntries = stageHistory.filter((h) => h.selectorHanded);
+    const handedToAiByAttempt = new Map<string, StageHistoryEntry["selectorHanded"]>();
+    for (let i = 0; i < selectionHandedEntries.length && i < attempts.length; i++) {
+      handedToAiByAttempt.set(attempts[i]!.id, selectionHandedEntries[i]!.selectorHanded);
+    }
+
+    const selections = stageHistory
+      .filter((h): h is StageHistoryEntry & { selection: DiagnosticV2SelectionProvenance } =>
+        !!h.selection,
+      )
+      .map((h) => h.selection);
+
+    const sessionCountsBySkill = new Map<string, MicroSkillCounts>();
+    for (const st of states) {
+      sessionCountsBySkill.set(
+        st.microSkillId,
+        await this.sessionCountsForMicroSkill(sessionId, st.microSkillId),
+      );
+    }
+
     // A decline has no step row, so it would otherwise be an invisible gap
     // between two steps — and an unexplained jump in assistance level.
     const itemKeyByAttempt = new Map(attempts.map((a) => [a.id, a.itemKey]));
@@ -1386,7 +1448,12 @@ export class DiagnosticV2SessionService {
       sessionId,
       status: session.status as DiagnosticV2SessionStatus,
       currentStageId: session.currentStageId,
-      stageHistory: readStageHistory(session.stageHistory),
+      stageHistory: stageHistory.map(({ stageId, source, reasoning, at }) => ({
+        stageId,
+        source,
+        ...(reasoning ? { reasoning } : {}),
+        at,
+      })),
       items: (attempts as AttemptRow[]).map((a) => {
         const item = itemForAttempt(a);
         return {
@@ -1399,45 +1466,82 @@ export class DiagnosticV2SessionService {
         };
       }),
       declines,
-      steps: steps.map((s) => ({
-        id: s.id,
-        attemptId: s.attemptId,
-        stepIndex: s.stepIndex,
-        previousLine: s.previousLine,
-        submittedLine: s.submittedLine,
-        validity: s.validity,
-        verificationSource: s.verificationSource,
-        attemptedTransformation: s.attemptedTransformation,
-        ...(s.firstInvalidActionCode
-          ? { firstInvalidActionCode: s.firstInvalidActionCode }
-          : {}),
-        ...(s.firstInvalidActionDescription
-          ? { firstInvalidActionDescription: s.firstInvalidActionDescription }
-          : {}),
-        ...(s.primaryMicroSkillId ? { primaryMicroSkillId: s.primaryMicroSkillId } : {}),
-        ...(s.topicId ? { topicId: s.topicId } : {}),
-        ...(s.competencyFamilyId ? { competencyFamilyId: s.competencyFamilyId } : {}),
-        contextModifierIds: s.contextModifierIds,
-        assistanceLevel: s.assistanceLevel,
-      })),
-      hypotheses: hypotheses.map((h) => ({
-        microSkillId: h.microSkillId,
-        hypothesisLabel: h.hypothesisLabel,
-        confidence: h.confidence,
-        reasoning: h.reasoning,
-        source: h.source as HypothesisSource,
-        ...(h.childFacingSummary ? { childFacingSummary: h.childFacingSummary } : {}),
-      })),
-      microSkillStates: states.map((st) => ({
-        microSkillId: st.microSkillId,
-        status: st.status as MicroSkillStatus,
-        evidenceCount: st.evidenceCount,
-        independentSuccessCount: st.independentSuccessCount,
-        independentFailureCount: st.independentFailureCount,
-        assistedSuccessCount: st.assistedSuccessCount,
-        observedContextStrengths: st.observedContextStrengths,
-        observedContextGaps: st.observedContextGaps,
-      })),
+      steps: steps.map((s) => {
+        const stageId = attemptStageById.get(s.attemptId) ?? "";
+        const isLastStepOfAttempt = s.stepIndex === lastStepIndexByAttempt.get(s.attemptId);
+        const handedToAi =
+          isLastStepOfAttempt && handedToAiByAttempt.has(s.attemptId)
+            ? (handedToAiByAttempt.get(s.attemptId) ?? null)
+            : null;
+        return {
+          id: s.id,
+          attemptId: s.attemptId,
+          stepIndex: s.stepIndex,
+          previousLine: s.previousLine,
+          submittedLine: s.submittedLine,
+          validity: s.validity,
+          verificationSource: s.verificationSource,
+          attemptedTransformation: s.attemptedTransformation,
+          ...(s.firstInvalidActionCode
+            ? { firstInvalidActionCode: s.firstInvalidActionCode }
+            : {}),
+          ...(s.firstInvalidActionDescription
+            ? { firstInvalidActionDescription: s.firstInvalidActionDescription }
+            : {}),
+          ...(s.primaryMicroSkillId ? { primaryMicroSkillId: s.primaryMicroSkillId } : {}),
+          ...(s.topicId ? { topicId: s.topicId } : {}),
+          ...(s.competencyFamilyId ? { competencyFamilyId: s.competencyFamilyId } : {}),
+          contextModifierIds: s.contextModifierIds,
+          assistanceLevel: s.assistanceLevel,
+          provenance: buildStepProvenance({
+            previousLine: s.previousLine,
+            submittedLine: s.submittedLine,
+            track,
+            stageId,
+            storedValidity: s.validity,
+            verificationSource: s.verificationSource,
+            aiGraderConfidence: s.aiGraderConfidence,
+            storedFirstInvalidActionCode: s.firstInvalidActionCode,
+            storedFirstInvalidActionDescription: s.firstInvalidActionDescription,
+            handedToAi,
+          }),
+        };
+      }),
+      hypotheses: hypotheses.map((h) => {
+        const sessionCounts = sessionCountsBySkill.get(h.microSkillId) ?? EMPTY_COUNTS;
+        const lifetimeState = states.find((st) => st.microSkillId === h.microSkillId);
+        return {
+          microSkillId: h.microSkillId,
+          hypothesisLabel: h.hypothesisLabel,
+          confidence: h.confidence,
+          reasoning: h.reasoning,
+          source: h.source as HypothesisSource,
+          ...(h.childFacingSummary ? { childFacingSummary: h.childFacingSummary } : {}),
+          sessionIndependentFailureCount: sessionCounts.independentFailureCount,
+          ...(lifetimeState &&
+          lifetimeState.independentFailureCount !== sessionCounts.independentFailureCount
+            ? { lifetimeIndependentFailureCount: lifetimeState.independentFailureCount }
+            : {}),
+        };
+      }),
+      microSkillStates: states.map((st) => {
+        const sessionCounts = sessionCountsBySkill.get(st.microSkillId) ?? EMPTY_COUNTS;
+        return {
+          microSkillId: st.microSkillId,
+          status: st.status as MicroSkillStatus,
+          evidenceCount: st.evidenceCount,
+          independentSuccessCount: st.independentSuccessCount,
+          independentFailureCount: st.independentFailureCount,
+          assistedSuccessCount: st.assistedSuccessCount,
+          observedContextStrengths: st.observedContextStrengths,
+          observedContextGaps: st.observedContextGaps,
+          sessionEvidenceCount: sessionCounts.evidenceCount,
+          sessionIndependentSuccessCount: sessionCounts.independentSuccessCount,
+          sessionIndependentFailureCount: sessionCounts.independentFailureCount,
+          sessionAssistedSuccessCount: sessionCounts.assistedSuccessCount,
+        };
+      }),
+      ...(selections.length > 0 ? { selections } : {}),
     };
   }
 
@@ -1685,12 +1789,15 @@ export class DiagnosticV2SessionService {
     ruleStage: DiagnosticV2StageId;
     track: DiagnosticV2Track;
     lastStepSummary: string;
+    routeReason?: string;
   }): Promise<{
     item: DiagnosticV2Item;
     source: "RULE" | "AI";
     reasoning?: string;
     fromBuffer?: boolean;
     consumedBufferTemplateId?: DiagnosticV2TemplateId;
+    selection: DiagnosticV2SelectionProvenance;
+    handedToAi: { lastStepSummary: string; skillLines: string[] };
   }> {
     const requestedRulePick = requireFixedItem(input.ruleStage);
     const servedItemKeys = await this.servedItemKeys(input.session.id);
@@ -1758,13 +1865,63 @@ export class DiagnosticV2SessionService {
         `Discarded an AI-generated/authored item for session ${input.session.id}: ${result.discardedGeneration}`,
       );
     }
+
+    const handedToAi = {
+      lastStepSummary: input.lastStepSummary,
+      skillLines: skillLines.map(formatSkillLine),
+    };
+    const selection: DiagnosticV2SelectionProvenance = {
+      rulePick: {
+        itemKey: rulePick.itemKey,
+        stageId: rulePick.stageId,
+        origin: rulePick.origin,
+        routeReason: input.routeReason ?? `backbone advance -> ${input.ruleStage}`,
+      },
+      candidates: candidates.map((c, index) => ({
+        index,
+        itemKey: c.item.itemKey,
+        prompt: c.item.prompt,
+        origin: c.item.origin,
+        templateId: c.item.templateId,
+        primaryMicroSkillId: c.item.primaryMicroSkillId,
+        legalityReason: c.legalityReason,
+        isRulePick: index === ruleSelectedIndex,
+      })),
+      aiDecision: result.aiDecision
+        ? {
+            ...result.aiDecision,
+            latencyMs: result.authorLatencyMs ?? null,
+            ...(result.discardedGeneration ? { discardedReason: result.discardedGeneration } : {}),
+          }
+        : null,
+      servedItemKey: result.item.itemKey,
+      servedSource: result.source,
+    };
+
     return {
       item: result.item,
       source: result.source,
       reasoning: result.reasoning,
       fromBuffer: result.fromBuffer,
       consumedBufferTemplateId: result.consumedBufferTemplateId,
+      selection,
+      handedToAi,
     };
+  }
+
+  /** Session-scoped evidence counters for one skill — used for present-tense wording. */
+  private async sessionCountsForMicroSkill(
+    sessionId: string,
+    microSkillId: string,
+  ): Promise<MicroSkillCounts> {
+    const events = await this.prisma.microSkillEvidenceEventV2.findMany({
+      where: { sessionId, microSkillId },
+      select: { evidenceKind: true },
+    });
+    return events.reduce(
+      (acc, e) => applyEvidenceToCounts(acc, e.evidenceKind as MicroSkillEvidenceKind),
+      EMPTY_COUNTS,
+    );
   }
 
   /**

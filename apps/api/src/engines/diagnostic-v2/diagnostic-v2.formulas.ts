@@ -141,6 +141,23 @@ export function applyEvidenceToCounts(
 }
 
 /**
+ * Two independent failures remain *necessary* for LIKELY_GAP (one wrong line
+ * is a hypothesis, not a diagnosis — Master Prompt §3.4). They are no longer
+ * *sufficient* on their own: without a failure-rate floor, 8 right / 5 wrong
+ * (62% independent success) wore the same label as 0 right / 2 wrong, and that
+ * label drove both the hypothesis panel and the end-of-session report.
+ *
+ * Rate is among independent trials only (assisted work does not dilute or
+ * inflate the gap call). Threshold is exclusive (`>`): a 50/50 split stays
+ * EMERGING rather than flipping to a gap on a coin toss.
+ */
+export const LIKELY_GAP_MIN_INDEPENDENT_FAILURES = 2;
+/** Floor on independent trials before a gap label is allowed at all. */
+export const LIKELY_GAP_MIN_INDEPENDENT_TRIALS = 2;
+/** Independent failure rate must exceed this (strict) to call LIKELY_GAP. */
+export const LIKELY_GAP_FAILURE_RATE_THRESHOLD = 0.5;
+
+/**
  * Discrete status, not a continuous score — the whole point of this track is
  * to avoid a single "algebra percentage".
  *
@@ -154,7 +171,18 @@ export function computeMicroSkillStatus(counts: MicroSkillCounts): MicroSkillSta
     counts;
 
   if (evidenceCount === 0) return "UNKNOWN";
-  if (independentFailureCount >= 2) return "LIKELY_GAP";
+
+  const independentTrials = independentSuccessCount + independentFailureCount;
+  const failureRate =
+    independentTrials === 0 ? 0 : independentFailureCount / independentTrials;
+  if (
+    independentFailureCount >= LIKELY_GAP_MIN_INDEPENDENT_FAILURES &&
+    independentTrials >= LIKELY_GAP_MIN_INDEPENDENT_TRIALS &&
+    failureRate > LIKELY_GAP_FAILURE_RATE_THRESHOLD
+  ) {
+    return "LIKELY_GAP";
+  }
+
   if (independentSuccessCount >= 2 && independentFailureCount === 0) return "RELIABLE";
   if (independentSuccessCount >= 1 && independentFailureCount === 0) return "DEVELOPING";
   if (assistedSuccessCount >= 1 || independentSuccessCount >= 1) return "EMERGING";
@@ -203,32 +231,62 @@ export function computeMicroSkillStateUpdate(input: {
   };
 }
 
-/** The deterministic hypothesis used whenever the AI interpreter is off, fails, or times out — so a hypothesis always exists and is never fabricated by absence. */
+/**
+ * The deterministic hypothesis used whenever the AI interpreter is off, fails,
+ * or times out — so a hypothesis always exists and is never fabricated by absence.
+ *
+ * Present-tense wording uses `sessionCounts` only. Lifetime counters may be
+ * mentioned explicitly when they differ — never rendered as if they happened
+ * "just now". A first-ever sitting with one failure must never claim a
+ * "repeated pattern" just because an older shared account had five.
+ */
 export function buildRuleHypothesis(input: {
   microSkillId: string;
   microSkillName: string;
-  counts: MicroSkillCounts;
+  /** Counts from this session only — drive present-tense wording and the label. */
+  sessionCounts: MicroSkillCounts;
+  /** All-time counters — named only when they exceed the session counts. */
+  lifetimeCounts: MicroSkillCounts;
   firstInvalidActionDescription?: string;
+  /**
+   * @deprecated Prefer sessionCounts + lifetimeCounts. Kept so older call sites
+   * that still pass a single `counts` blob compile during the migration; treated
+   * as both session and lifetime (identical).
+   */
+  counts?: MicroSkillCounts;
 }): { hypothesisLabel: string; confidence: number; reasoning: string; childFacingSummary: string } {
-  const status = computeMicroSkillStatus(input.counts);
-  const repeated = input.counts.independentFailureCount >= 2;
+  const sessionCounts = input.sessionCounts ?? input.counts ?? EMPTY_COUNTS;
+  const lifetimeCounts = input.lifetimeCounts ?? input.counts ?? sessionCounts;
+  // Label from this session's evidence alone — lifetime pollution must not
+  // escalate a first-sitting slip into REPEATED_PATTERN.
+  const status = computeMicroSkillStatus(sessionCounts);
+  const sessionFailures = sessionCounts.independentFailureCount;
+  const lifetimeFailures = lifetimeCounts.independentFailureCount;
 
-  if (status === "LIKELY_GAP") {
+  if (status === "LIKELY_GAP" && sessionFailures >= 2) {
+    const lifetimeNote =
+      lifetimeFailures > sessionFailures
+        ? ` (${lifetimeFailures} times across earlier sittings)`
+        : "";
     return {
       hypothesisLabel: "REPEATED_PATTERN",
       confidence: 0.7,
-      reasoning: `The same kind of error appeared ${input.counts.independentFailureCount} times on ${input.microSkillName.toLowerCase()}${
+      reasoning: `The same kind of error appeared ${sessionFailures} times in this session${lifetimeNote} on ${input.microSkillName.toLowerCase()}${
         input.firstInvalidActionDescription ? ` — most recently, ${input.firstInvalidActionDescription}` : ""
       }.`,
       childFacingSummary: `Let's spend a little time on ${input.microSkillName.toLowerCase()} — it came up more than once.`,
     };
   }
 
-  if (input.counts.independentFailureCount === 1 && !repeated) {
+  if (sessionFailures === 1) {
+    const lifetimeNote =
+      lifetimeFailures > sessionFailures
+        ? ` (seen ${lifetimeFailures} times across earlier sittings, but only once here)`
+        : "";
     return {
       hypothesisLabel: "POSSIBLE_SLIP",
       confidence: 0.4,
-      reasoning: `One error on ${input.microSkillName.toLowerCase()}${
+      reasoning: `One error on ${input.microSkillName.toLowerCase()} in this session${lifetimeNote}${
         input.firstInvalidActionDescription ? ` (${input.firstInvalidActionDescription})` : ""
       }, which is not yet enough to tell a slip from a real gap.`,
       childFacingSummary: `We'll check ${input.microSkillName.toLowerCase()} once more to be sure.`,
@@ -238,7 +296,7 @@ export function buildRuleHypothesis(input: {
   return {
     hypothesisLabel: "WORKING_WELL",
     confidence: 0.6,
-    reasoning: `No errors observed on ${input.microSkillName.toLowerCase()} so far.`,
+    reasoning: `No errors observed on ${input.microSkillName.toLowerCase()} so far in this session.`,
     childFacingSummary: `You're handling ${input.microSkillName.toLowerCase()} well.`,
   };
 }

@@ -383,6 +383,26 @@ function solutionSet(parsed: ParsedLine): SolutionSet {
   return { kind: "unique", value: ratDiv(b, a) };
 }
 
+/**
+ * Display form of a line's solution for debug provenance — reuses the same
+ * `solutionSet` arithmetic the verifier already uses for equivalence. Returns
+ * null when the line has no unique solution (identity, contradiction, bare
+ * expression, or unparseable input). Do not re-implement solving elsewhere.
+ */
+export function solveLineForDisplay(line: string): string | null {
+  let parsed: ParsedLine;
+  try {
+    parsed = parseLinearWithBracket(line);
+  } catch {
+    return null;
+  }
+  if (!parsed.rhs) return null;
+  const set = solutionSet(parsed);
+  if (set.kind !== "unique") return null;
+  const variable = parsed.variable ?? "x";
+  return `${variable} = ${ratToString(set.value)}`;
+}
+
 // ─── Step verification ──────────────────────────────────────────────────────
 
 export interface StepVerification {

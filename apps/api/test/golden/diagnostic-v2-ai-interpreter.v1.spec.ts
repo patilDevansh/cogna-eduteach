@@ -10,21 +10,29 @@ import { containsForbiddenTerm } from "@cogna/shared";
 import { mockOrchestrator } from "./helpers/diagnostic-v2-fakes";
 
 function context(overrides: Partial<InterpreterContext> = {}): InterpreterContext {
+  const defaultCounts = {
+    evidenceCount: 2,
+    independentSuccessCount: 0,
+    independentFailureCount: 2,
+    assistedSuccessCount: 0,
+  };
+  const counts = overrides.counts ?? defaultCounts;
   return {
     studentId: "student-1",
     sessionId: "session-1",
     microSkillId: "LIN_DISTRIBUTE_NEG",
     microSkillName: "Distribute a negative multiplier and preserve sign products",
-    counts: {
-      evidenceCount: 2,
-      independentSuccessCount: 0,
-      independentFailureCount: 2,
-      assistedSuccessCount: 0,
-    },
+    counts,
+    sessionCounts: overrides.sessionCounts ?? counts,
+    lifetimeCounts: overrides.lifetimeCounts ?? counts,
     observedContextStrengths: [],
     observedContextGaps: ["INDEPENDENT"],
     firstInvalidActionDescription: "(-2)(-5) was evaluated as -10, but multiplying those two signs gives 10",
     ...overrides,
+    // Re-apply so a counts-only override cannot leave stale sessionCounts.
+    counts,
+    sessionCounts: overrides.sessionCounts ?? counts,
+    lifetimeCounts: overrides.lifetimeCounts ?? counts,
   };
 }
 

@@ -26,7 +26,15 @@ export interface InterpreterContext {
   sessionId: string;
   microSkillId: string;
   microSkillName: string;
+  /**
+   * Counts shown to the AI prompt. Prefer lifetime after this step so the
+   * model sees the full picture; rule hypothesis wording uses sessionCounts.
+   */
   counts: MicroSkillCounts;
+  /** This-session counters — drive present-tense rule hypothesis wording. */
+  sessionCounts: MicroSkillCounts;
+  /** All-time counters after applying this step's evidence. */
+  lifetimeCounts: MicroSkillCounts;
   observedContextStrengths: string[];
   observedContextGaps: string[];
   firstInvalidActionDescription?: string;
@@ -51,7 +59,8 @@ export class DiagnosticV2AiInterpreterService {
     const rule = buildRuleHypothesis({
       microSkillId: ctx.microSkillId,
       microSkillName: ctx.microSkillName,
-      counts: ctx.counts,
+      sessionCounts: ctx.sessionCounts,
+      lifetimeCounts: ctx.lifetimeCounts,
       firstInvalidActionDescription: ctx.firstInvalidActionDescription,
     });
     const ruleResult: InterpreterResult = { ...rule, source: "RULE" };

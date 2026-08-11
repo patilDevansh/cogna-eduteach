@@ -156,6 +156,19 @@ export interface SelectorResult {
   fromBuffer?: boolean;
   /** Phase C: template slot that was consumed — session service refills this. */
   consumedBufferTemplateId?: DiagnosticV2TemplateId;
+  /**
+   * Debug-only: what the AI chose before gates / fallbacks. Null when the
+   * orchestrator never returned a served choice (flag off / timeout / reject).
+   */
+  aiDecision?: {
+    choice: "EXISTING" | "GENERATE" | "AUTHOR";
+    chosenIndex: number | null;
+    templateId: string | null;
+    targetMicroSkillId: string | null;
+    confidence: number | null;
+    reasoning: string;
+    agreedWithRule: boolean;
+  } | null;
 }
 
 @Injectable()
@@ -181,6 +194,7 @@ export class DiagnosticV2AiSelectorService {
       // Always explain RULE picks (including AI timeout / reject fallbacks) so
       // the debug "Why this question" panel is never blank on the rule path.
       reasoning: `Rule sequence: ${ruleLegality}.`,
+      aiDecision: null,
     };
 
     if (ctx.candidates.length === 0) return ruleFallback;
@@ -208,30 +222,49 @@ export class DiagnosticV2AiSelectorService {
     }
 
     const choice = result.aiOutput;
+    const agreedWithRule = selectorAgreesWithRule(ruleOutput, choice);
     this.logger.log(
       JSON.stringify({
         event: "diagnostic_v2_selector.served",
         sessionId: ctx.sessionId,
         ruleSelectedIndex: ctx.ruleSelectedIndex,
         aiChoice: choice.choice,
-        agrees: selectorAgreesWithRule(ruleOutput, choice),
+        agrees: agreedWithRule,
       }),
     );
+
+    const aiDecision: NonNullable<SelectorResult["aiDecision"]> = {
+      choice: choice.choice,
+      chosenIndex: choice.choice === "EXISTING" ? choice.index : null,
+      templateId: choice.choice === "GENERATE" ? choice.templateId : null,
+      targetMicroSkillId: choice.choice === "AUTHOR" ? choice.targetMicroSkillId : null,
+      confidence: choice.confidence ?? null,
+      reasoning: choice.reasoning,
+      agreedWithRule,
+    };
 
     if (choice.choice === "EXISTING") {
       return {
         item: ctx.candidates[choice.index]!.item,
         source: "AI",
         reasoning: choice.reasoning,
+        aiDecision,
       };
     }
 
     if (choice.choice === "GENERATE") {
-      return this.serveGenerated(choice.templateId as DiagnosticV2TemplateId, choice.reasoning, ctx, ruleFallback);
+      const generated = await this.serveGenerated(
+        choice.templateId as DiagnosticV2TemplateId,
+        choice.reasoning,
+        ctx,
+        ruleFallback,
+      );
+      return { ...generated, aiDecision };
     }
 
     // AUTHOR
-    return this.serveAuthored(choice, ctx, ruleFallback);
+    const authored = await this.serveAuthored(choice, ctx, ruleFallback);
+    return { ...authored, aiDecision };
   }
 
   private async serveGenerated(
