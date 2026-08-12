@@ -17,9 +17,9 @@ import {
   englishLabelForDiagnosticCode,
   humanizeDiagnosticCodesInText,
 } from "@/lib/diagnostic-v2-labels";
-import { getStudent } from "@/lib/session";
+import { getStudent, saveStudent } from "@/lib/session";
 import { topicProgressForStage } from "@/lib/diagnostic-v2-progress";
-import { MathLine } from "@/components/math-line";
+import { MathLine, MathText } from "@/components/math-line";
 import { DiagnosticV2SummaryPanel } from "@/components/diagnostic-v2-summary";
 import styles from "@/components/diagnostic-v2.module.css";
 
@@ -34,6 +34,14 @@ type DiagnosticTrackChoice =
   | "COMBINED_ALGEBRA";
 
 type Attempt = DiagnosticV2AttemptView;
+
+type StudentIdentity = { studentId: string; name: string };
+
+// React development mode mounts effects twice. Keep one in-flight demo login
+// across that immediate remount, then clear it after a real route exit so the
+// next opening of the full diagnostic gets a new student identity.
+let demoRunLoginPromise: Promise<StudentIdentity> | null = null;
+let demoRunResetTimer: ReturnType<typeof setTimeout> | null = null;
 
 type StepLogEntry = {
   /** What the student typed, or "" for an "I don't know". */
@@ -58,6 +66,63 @@ const OPENING_WHY =
   "Opening item of the fixed entry sequence.";
 const RULE_WHY_FALLBACK =
   "Rule sequence: next item in the fixed diagnostic sequence.";
+
+const DEBUG_PROTOTYPE_VIEW = {
+  sessionId: "prototype-session",
+  status: "ACTIVE",
+  currentStageId: "NEG_DIST_MAIN",
+  stageHistory: [],
+  items: [{ itemKey: "ENTRY_TWO_STEP", equationPrompt: "3(x + 2) = 18", origin: "PRE_WRITTEN", templateId: "TPL_ENTRY_TWO_STEP", primaryMicroSkillId: "LIN_DISTRIBUTE_POS", status: "COMPLETE" }],
+  steps: [
+    { id: "prototype-step-1", attemptId: "prototype-attempt", stepIndex: 0, previousLine: "3(x + 2) = 18", submittedLine: "3x + 2 = 18", validity: "INVALID", verificationSource: "DETERMINISTIC", attemptedTransformation: "DISTRIBUTE", firstInvalidActionCode: "INCOMPLETE_DISTRIBUTION", firstInvalidActionDescription: "The 3 was multiplied by x but not by 2: the constant should change from 2 to 6.", primaryMicroSkillId: "LIN_DISTRIBUTE_POS", topicId: "LINEAR_EQUATIONS", competencyFamilyId: "DISTRIBUTION", contextModifierIds: [], assistanceLevel: "RULE_PROMPT", provenance: { input: { previousLine: "3(x + 2) = 18", submittedLine: "3x + 2 = 18", verifierVersion: "linear-bracket-verifier-v1", resolvedGrammar: "linear-bracket", resolvedFromStageId: "ENTRY_TWO_STEP" }, ruleAnalysis: { normalizedPreviousLine: "3x + 6 = 18", normalizedSubmittedLine: "3x + 2 = 18", previousSolution: "x = 4", submittedSolution: "x = 16/3", outcome: "DECIDED", validity: "INVALID", transformation: "DISTRIBUTE", firstInvalidActionCode: "INCOMPLETE_DISTRIBUTION", firstInvalidActionDescription: "3 × x was applied, but 3 × 2 was not: expected +6, observed +2." }, handedToAi: { lastStepSummary: "Invalid expansion: 3(x + 2) became 3x + 2.", skillLines: ["LIN_DISTRIBUTE_POS: 0 successes, 1 independent failure this session", "Evidence: 3(x + 2) → 3x + 2"] }, aiGraderFallback: null } },
+  ],
+  declines: [],
+  hypotheses: [{ microSkillId: "LIN_DISTRIBUTE_POS", hypothesisLabel: "Incomplete distribution", confidence: 0.72, reasoning: "On 1 current-session attempt, the multiplier reached the variable but not the constant.", source: "RULE", childFacingSummary: "Check that the number outside a bracket multiplies every term inside.", sessionIndependentFailureCount: 1, lifetimeIndependentFailureCount: 1 }],
+  microSkillStates: [{ microSkillId: "LIN_DISTRIBUTE_POS", status: "EMERGING", evidenceCount: 1, independentSuccessCount: 0, independentFailureCount: 1, assistedSuccessCount: 0, observedContextStrengths: [], observedContextGaps: ["positive brackets"], sessionEvidenceCount: 1, sessionIndependentSuccessCount: 0, sessionIndependentFailureCount: 1, sessionAssistedSuccessCount: 0 }],
+  selections: [{ rulePick: { itemKey: "NEG_DIST_MAIN", stageId: "NEG_DIST_MAIN", origin: "PRE_WRITTEN", routeReason: "One incomplete-distribution error was observed, so the rules selected a near-transfer item with a negative multiplier." }, candidates: [{ index: 0, itemKey: "NEG_DIST_MAIN", prompt: "-2(x - 5) + 3 = 11", origin: "PRE_WRITTEN", templateId: null, primaryMicroSkillId: "LIN_DISTRIBUTE_NEG", legalityReason: "Approved bank item; targets the prerequisite with one context change.", isRulePick: true }, { index: 1, itemKey: "NEG_DIST_TEMPLATE_04", prompt: "-3(x + 4) = 6", origin: "TEMPLATE_RENDERED", templateId: "TPL_NEG_DISTRIBUTION", primaryMicroSkillId: "LIN_DISTRIBUTE_NEG", legalityReason: "Approved template and deterministic answer key available.", isRulePick: false }], aiDecision: { choice: "EXISTING", chosenIndex: 0, templateId: null, targetMicroSkillId: "LIN_DISTRIBUTE_NEG", confidence: 0.81, reasoning: "Selected candidate 1 because the single observed error was incomplete distribution. It keeps the same operation while changing the sign context; there is not enough evidence to author a new item.", agreedWithRule: true, latencyMs: 184 }, servedItemKey: "NEG_DIST_MAIN", servedSource: "AI" }],
+} satisfies DiagnosticV2DebugView;
+
+const MICRO_SKILL_MANAGEMENT_GROUPS = [
+  {
+    name: "Linear equations",
+    groups: [
+      { name: "Equality & inverse operations", ids: ["LIN_REMOVE_CONSTANT", "LIN_REMOVE_COEFFICIENT"] },
+      { name: "Simplifying before isolating", ids: ["LIN_COMBINE_LIKE"] },
+      { name: "Solving different forms", ids: ["LIN_SOLVE_TWO_STEP", "LIN_SOLVE_VARIABLE_BOTH"] },
+      { name: "Checking solutions", ids: ["LIN_CHECK_SOLUTION"] },
+    ],
+  },
+  {
+    name: "Brackets, signs & fractions",
+    groups: [
+      { name: "Signed-number arithmetic", ids: ["FND_SIGN_MUL_DIV"] },
+      { name: "Fractions", ids: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"] },
+      { name: "Distributing & clearing", ids: ["LIN_DISTRIBUTE_POS", "LIN_DISTRIBUTE_NEG", "LIN_CLEAR_FRACTIONS", "LIN_SOLVE_FRACTIONS"] },
+    ],
+  },
+  {
+    name: "Algebraic identities",
+    groups: [
+      { name: "Reading algebra", ids: ["ALG_IDENTIFY_STRUCTURE"] },
+      { name: "Working with expressions", ids: ["EXP_EXPAND_BINOMIALS"] },
+      { name: "Recognising identities", ids: ["ID_DIFF_SQUARES", "ID_VERIFY_EXPANSION"] },
+    ],
+  },
+  {
+    name: "Factorisation",
+    groups: [
+      { name: "Trinomial factorisation", ids: ["FAC_READ_ABC_SIGNS", "FAC_PAIR_PRODUCT_SUM", "FAC_MONIC_TRINOMIAL", "FAC_COMPUTE_AC", "FAC_SPLIT_MIDDLE", "FAC_NONMONIC_GROUP"] },
+      { name: "Checking factors", ids: ["FAC_VERIFY_EXPAND"] },
+    ],
+  },
+  {
+    name: "Quadratics",
+    groups: [
+      { name: "Preparing the equation", ids: ["QUAD_STANDARD_FORM", "QUAD_FACTOR_EXPRESSION"] },
+      { name: "Finding & checking roots", ids: ["QUAD_ZERO_PRODUCT", "QUAD_CREATE_BRANCHES", "QUAD_SOLVE_UNIT_FACTOR", "QUAD_VERIFY_ROOTS"] },
+    ],
+  },
+] as const;
 
 /**
  * Fallback framing only, used when the server sends an assistance level with
@@ -95,6 +160,7 @@ function DiagnosticV2Content() {
   const searchParams = useSearchParams();
   const debugParam = searchParams.get("debug");
   const debugEnabled = debugParam !== null && debugParam !== "0";
+  const prototypeEnabled = searchParams.get("prototype") === "1";
   const trackParam = searchParams.get("track");
   const initialTrack: DiagnosticTrackChoice =
     trackParam === "COMBINED_ALGEBRA"
@@ -103,13 +169,7 @@ function DiagnosticV2Content() {
         ? "FRACTION_LINEAR"
         : trackParam === "NEGATIVE_DISTRIBUTION"
           ? "NEGATIVE_DISTRIBUTION"
-          : trackParam === "IDENTITY_DIFF_SQUARES"
-            ? "IDENTITY_DIFF_SQUARES"
-            : trackParam === "FACTOR_MONIC_TRINOMIAL"
-              ? "FACTOR_MONIC_TRINOMIAL"
-              : trackParam === "QUAD_ZERO_PRODUCT"
-                ? "QUAD_ZERO_PRODUCT"
-                : "COMBINED_ALGEBRA";
+          : "COMBINED_ALGEBRA";
 
   const [phase, setPhase] = useState<Phase>("checking");
   const [studentId, setStudentId] = useState("");
@@ -143,27 +203,61 @@ function DiagnosticV2Content() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [stepLog, setStepLog] = useState<StepLogEntry[]>([]);
-  const [debugView, setDebugView] = useState<DiagnosticV2DebugView | null>(null);
+  const [debugView, setDebugView] = useState<DiagnosticV2DebugView | null>(prototypeEnabled ? DEBUG_PROTOTYPE_VIEW : null);
   const [debugNote, setDebugNote] = useState("");
+  const [debugOpen, setDebugOpen] = useState(debugEnabled);
 
   useEffect(() => {
     document.title = "Step-by-step check — Cogna";
   }, []);
 
   useEffect(() => {
+    if (prototypeEnabled) {
+      setStudentId("prototype-student");
+      setStudentName("Maya");
+      setSessionId("prototype-session");
+      setAttempt({ attemptId: "prototype-attempt", itemKey: "ENTRY_TWO_STEP", equationPrompt: "3(x + 2) = 18", openingLine: "3(x + 2) = 18", stageId: "ENTRY_TWO_STEP" });
+      setPhase("working");
+      return;
+    }
     const student = getStudent();
     if (!student) {
       router.replace("/student/login");
       return;
     }
-    setStudentId(student.studentId);
-    setStudentName(student.name);
-    setPhase("intro");
-  }, [router]);
+    let cancelled = false;
+    async function loadStudentForThisRun() {
+      let activeStudent = student!;
+      const isDemo = activeStudent.studentId === "dev_student_001" || activeStudent.studentId.startsWith("demo_");
+      if (isDemo) {
+        if (demoRunResetTimer) {
+          clearTimeout(demoRunResetTimer);
+          demoRunResetTimer = null;
+        }
+        demoRunLoginPromise ??= api.health().then((health) => api.studentLogin(health.devAccessCode));
+        activeStudent = await demoRunLoginPromise;
+        saveStudent(activeStudent);
+      }
+      if (cancelled) return;
+      setStudentId(activeStudent.studentId);
+      setStudentName(activeStudent.name);
+      setPhase("intro");
+    }
+    void loadStudentForThisRun().catch((err) => {
+      if (!cancelled) setError(friendlyError(err, "A fresh demo student could not be created."));
+    });
+    return () => {
+      cancelled = true;
+      demoRunResetTimer = setTimeout(() => {
+        demoRunLoginPromise = null;
+        demoRunResetTimer = null;
+      }, 0);
+    };
+  }, [prototypeEnabled, router]);
 
   const refreshDebugView = useCallback(
     async (id: string) => {
-      if (!debugEnabled || !id) return;
+      if (!id) return;
       try {
         const view = await api.getDiagnosticV2Session(id);
         setDebugView(view);
@@ -174,8 +268,22 @@ function DiagnosticV2Content() {
         );
       }
     },
-    [debugEnabled],
+    [],
   );
+
+  useEffect(() => {
+    if (!debugOpen) return;
+    if (sessionId && !prototypeEnabled) void refreshDebugView(sessionId);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDebugOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [debugOpen, prototypeEnabled, refreshDebugView, sessionId]);
 
   function friendlyError(err: unknown, fallback: string): string {
     if (isUnavailable(err)) {
@@ -385,7 +493,19 @@ function DiagnosticV2Content() {
           </span>
         )}
       </div>
-      <span className="time-note">No timer, no score — just your working.</span>
+      <div className={styles.chromeActions}>
+        <span className="time-note">No timer, no score — just your working.</span>
+        <button
+          type="button"
+          className={styles.debugTrigger}
+          aria-expanded={debugOpen}
+          aria-controls="diagnostic-debug-drawer"
+          onClick={() => setDebugOpen(true)}
+        >
+          <span className={styles.debugTriggerDot} aria-hidden="true" />
+          Debug view
+        </button>
+      </div>
     </div>
   );
 
@@ -395,12 +515,13 @@ function DiagnosticV2Content() {
       <div className={styles.stage}>
         {chrome}
         <div className={`${styles.panel} phase-in`}>{children}</div>
-        {debugEnabled && (
+        {debugOpen && (
           <DebugPanel
             view={debugView}
             log={stepLog}
             note={debugNote}
             why={why}
+            onClose={() => setDebugOpen(false)}
           />
         )}
       </div>
@@ -431,10 +552,9 @@ function DiagnosticV2Content() {
               onChange={() => setSessionTrack("COMBINED_ALGEBRA")}
             />
             <span>
-              <strong>Full algebra check (all five topics)</strong>
+              <strong>Algebra check (first two topics)</strong>
               <span className={styles.trackHint}>
-                One session: brackets → fractions → difference of squares →
-                factorising → quadratics.
+                One session: linear equations and brackets → fractions.
               </span>
             </span>
           </label>
@@ -448,53 +568,9 @@ function DiagnosticV2Content() {
             <span>
               <strong>Equations with fractions</strong>
               <span className={styles.trackHint}>
-                Starts with something like <code>x/2 + 3 = 7</code>, then moves
+                Starts with something like <span className={styles.inlineMath}><MathLine text="x/2 + 3 = 7" /></span>, then moves
                 to clearing denominators — e.g.{" "}
-                <code>(x+1)/2 = (x-1)/3 + 1</code>.
-              </span>
-            </span>
-          </label>
-          <label className={styles.trackOption}>
-            <input
-              type="radio"
-              name="diagnosticTrack"
-              checked={sessionTrack === "IDENTITY_DIFF_SQUARES"}
-              onChange={() => setSessionTrack("IDENTITY_DIFF_SQUARES")}
-            />
-            <span>
-              <strong>Difference of squares</strong>
-              <span className={styles.trackHint}>
-                Expand <code>(x+3)(x−3)</code>, then factor <code>z²−16</code> —
-                Phase B2 identities path.
-              </span>
-            </span>
-          </label>
-          <label className={styles.trackOption}>
-            <input
-              type="radio"
-              name="diagnosticTrack"
-              checked={sessionTrack === "FACTOR_MONIC_TRINOMIAL"}
-              onChange={() => setSessionTrack("FACTOR_MONIC_TRINOMIAL")}
-            />
-            <span>
-              <strong>Factorising trinomials</strong>
-              <span className={styles.trackHint}>
-                Factor <code>x²+5x+6</code>, then the non-monic{" "}
-                <code>2x²−5x−3</code> — Phase B3.
-              </span>
-            </span>
-          </label>
-          <label className={styles.trackOption}>
-            <input
-              type="radio"
-              name="diagnosticTrack"
-              checked={sessionTrack === "QUAD_ZERO_PRODUCT"}
-              onChange={() => setSessionTrack("QUAD_ZERO_PRODUCT")}
-            />
-            <span>
-              <strong>Quadratics via factorising</strong>
-              <span className={styles.trackHint}>
-                From <code>(x+2)(x−3)=0</code> to roots — Phase B4 zero-product.
+                <span className={styles.inlineMath}><MathLine text="(x+1)/2 = (x-1)/3 + 1" /></span>.
               </span>
             </span>
           </label>
@@ -545,6 +621,7 @@ function DiagnosticV2Content() {
         <DiagnosticV2SummaryPanel
           summaryText={summaryText}
           overview={summaryOverview}
+          evidence={debugView}
         />
         {error && <p className="error">{error}</p>}
         <div className="actions" style={{ marginTop: "var(--s-6)" }}>
@@ -561,9 +638,11 @@ function DiagnosticV2Content() {
   const declined = outcome?.outcome === "DECLINED";
   const assistance =
     outcome?.assistanceMessage ?? assistanceFallback(outcome?.assistanceOffered);
+  const isTranscriptionSlip =
+    outcome?.outcome === "SUBMITTED" &&
+    outcome.firstInvalidActionCode === "COPIED_UNCHANGED_SIDE";
 
   const enrichedWhy = enrichWhyThisQuestion(whyThisQuestion, debugView);
-  const latestHypothesis = debugView?.hypotheses?.at(-1);
   const topicProgress =
     sessionTrack === "COMBINED_ALGEBRA" ? topicProgressForStage(attempt?.stageId) : null;
   const trackBadgeText =
@@ -612,14 +691,6 @@ function DiagnosticV2Content() {
         </div>
       )}
 
-      {enrichedWhy && (
-        <WhyThisQuestionBox
-          why={enrichedWhy}
-          placement="inline"
-          showMeta={debugEnabled}
-        />
-      )}
-
       {attemptSource === "AI" && !enrichedWhy?.reasoning && (
         <p className={styles.aiChip} role="note">
           <span className={styles.aiChipMark} aria-hidden="true">
@@ -627,21 +698,6 @@ function DiagnosticV2Content() {
           </span>
           <span>This question was chosen for you, based on your last answer.</span>
         </p>
-      )}
-
-      {latestHypothesis?.reasoning && (
-        <div className={styles.hypothesisBox} role="status">
-          <div className={styles.whyHead}>
-            <strong>What we think is going on</strong>
-            {sourceTag(latestHypothesis.source)}
-          </div>
-          <p className={styles.whyReasoning}>
-            {humanizeDiagnosticCodesInText(latestHypothesis.reasoning)}
-          </p>
-          {latestHypothesis.childFacingSummary && (
-            <p className={styles.noteDetail}>{latestHypothesis.childFacingSummary}</p>
-          )}
-        </div>
       )}
 
       <ol className={styles.working}>
@@ -666,7 +722,7 @@ function DiagnosticV2Content() {
         <label htmlFor="nextLine">
           Your next line
           {demoHint && (
-            <span className={styles.demoHintTag}> demo hint — type over it</span>
+            <span className={styles.demoHintTag}> demo hint · press Tab to fill</span>
           )}
         </label>
         <input
@@ -679,6 +735,12 @@ function DiagnosticV2Content() {
             if (error) setError("");
           }}
           onKeyDown={(e) => {
+            if (e.key === "Tab" && demoHint && draft.trim() === "") {
+              e.preventDefault();
+              setDraft(demoHint);
+              if (error) setError("");
+              return;
+            }
             if (e.key === "Enter" && !busy) {
               e.preventDefault();
               onSubmitStep();
@@ -706,14 +768,19 @@ function DiagnosticV2Content() {
       )}
 
       {outcome?.outcome === "SUBMITTED" && validity === "INVALID" && (
-        <div className={`${styles.note} ${styles.noteLookAgain}`} role="status">
+        <div
+          className={`${styles.note} ${styles.noteLookAgain} ${isTranscriptionSlip ? styles.slipShake : ""}`}
+          role="status"
+        >
           <strong>
             {outcome.firstInvalidActionCode === "MISSING_FRACTION_SLASH"
               ? "Looks like a missing fraction bar."
+              : isTranscriptionSlip
+                ? "The algebra step works — check what you copied."
               : "Let's look at that line again."}
           </strong>
           {outcome.firstInvalidActionDescription && (
-            <p className={styles.noteDetail}>{outcome.firstInvalidActionDescription}</p>
+            <p className={styles.noteDetail}><MathText text={outcome.firstInvalidActionDescription} /></p>
           )}
           {assistance && <p className={styles.noteDetail}>{assistance}</p>}
         </div>
@@ -863,7 +930,7 @@ function WhyThisQuestionBox({
         {sourceTag(why.source)}
         {showMeta && why.origin && <CodeTag code={why.origin} />}
       </div>
-      <p className={styles.whyReasoning}>{readableReasoning}</p>
+      <p className={styles.whyReasoning}><MathText text={readableReasoning} /></p>
       {showMeta && (
         <div className={styles.debugMeta}>
           {why.itemKey && <CodeTag code={why.itemKey} />}
@@ -903,7 +970,7 @@ function originEnglish(origin: string): string {
   switch (origin) {
     case "PRE_WRITTEN":
       return "From the fixed question bank";
-    case "GENERATED":
+    case "TEMPLATE_RENDERED":
       return "Freshly generated from a template";
     case "AI_AUTHORED":
       return "Written by the AI, then checked deterministically";
@@ -912,344 +979,382 @@ function originEnglish(origin: string): string {
   }
 }
 
+function MicroSkillName({ code }: { code: string }) {
+  const name = englishLabelForDiagnosticCode(code) ?? code;
+  return (
+    <span className={styles.microSkillName} tabIndex={0} data-code={code} aria-label={`${name}, code ${code}`}>
+      {name}
+    </span>
+  );
+}
+
+function MicroSkillCode({ code }: { code: string }) {
+  const name = englishLabelForDiagnosticCode(code) ?? code;
+  return <code className={styles.microSkillCode} tabIndex={0} data-name={name} aria-label={`${code}, ${name}`}>{code}</code>;
+}
+
+function parseSkillEvidenceLine(line: string) {
+  const prototypeMatch = line.match(/^([A-Z][A-Z0-9_]+):\s*(\d+)\s+success(?:es)?,\s*(\d+)\s+(?:independent\s+)?failure(?:s)?/i);
+  if (prototypeMatch) return { code: prototypeMatch[1]!, scope: "this session", successes: Number(prototypeMatch[2]), failures: Number(prototypeMatch[3]) };
+  const liveMatch = line.match(/^([A-Z][A-Z0-9_]+)\s+\[([^\]]+)\].*?right alone\s+(\d+).*?wrong alone\s+(\d+)/i);
+  return liveMatch ? { code: liveMatch[1]!, scope: liveMatch[2]!, successes: Number(liveMatch[3]), failures: Number(liveMatch[4]) } : null;
+}
+
+function managementStatus(status: string | undefined): { label: string; tone: string } {
+  switch (status) {
+    case "RELIABLE": return { label: "Reliable", tone: styles.managementReliable };
+    case "LIKELY_GAP": return { label: "Weak", tone: styles.managementWeak };
+    case "EMERGING":
+    case "DEVELOPING": return { label: "Emerging", tone: styles.managementEmerging };
+    default: return { label: "Not assessed", tone: styles.managementUnknown };
+  }
+}
+
 function DebugPanel({
   view,
   log,
   note,
   why,
+  onClose,
 }: {
   view: DiagnosticV2DebugView | null;
   log: StepLogEntry[];
   note: string;
   why: WhyThisQuestion | null;
+  onClose: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<DebugTabKey>("steps");
+  const [activeTab, setActiveTab] = useState<"analysis" | "selection" | "learning" | "management">("selection");
+  const [selectedEvidenceCode, setSelectedEvidenceCode] = useState<string | null>(null);
 
   const annotatedSteps = view ? annotateStepsWithQuestionNumber(view.steps) : [];
-  const stepsMostRecentFirst = [...annotatedSteps].reverse();
-  const logMostRecentFirst = [...log].reverse();
+  const questionGroups = annotatedSteps.reduce<Array<{ questionNumber: number; steps: typeof annotatedSteps }>>(
+    (groups, step) => {
+      const current = groups.at(-1);
+      if (!current || current.questionNumber !== step.questionNumber) {
+        groups.push({ questionNumber: step.questionNumber, steps: [step] });
+      } else {
+        current.steps.push(step);
+      }
+      return groups;
+    },
+    [],
+  );
 
-  const tabs: Array<{ key: DebugTabKey; label: string }> = [
-    { key: "steps", label: `Steps (${view?.steps.length ?? log.length})` },
-    { key: "why", label: "Why this question" },
-    { key: "items", label: `Items served (${view?.items.length ?? 0})` },
-    { key: "stages", label: "Stage decisions" },
-    { key: "selection", label: "Next-item selection" },
-    { key: "declines", label: "“I don’t know”" },
-    { key: "hypotheses", label: "Hypotheses" },
-    { key: "skills", label: "Micro-skill states" },
+  const tabs = [
+    { key: "selection" as const, label: `Question picking (${view?.selections?.length ?? 0})` },
+    { key: "analysis" as const, label: `Answer analysis (${view?.steps.length ?? log.length})` },
+    { key: "learning" as const, label: "Learning picture" },
+    { key: "management" as const, label: "Micro-skill management" },
   ];
+  const allStudentStatuses = view?.microSkillStates.map((state) => state.status) ?? [];
+  const subjectStatus = allStudentStatuses.includes("LIKELY_GAP")
+    ? "LIKELY_GAP"
+    : allStudentStatuses.includes("EMERGING") || allStudentStatuses.includes("DEVELOPING")
+      ? "EMERGING"
+      : allStudentStatuses.includes("RELIABLE")
+        ? "RELIABLE"
+        : "UNKNOWN";
+  const subjectDisplay = managementStatus(subjectStatus);
 
   return (
-    <aside className={styles.debug} aria-label="Diagnostic debug view">
-      <div className={styles.debugHead}>
-        <strong>Debug view</strong>
-        <span className="faint">?debug=1 · internal only</span>
-      </div>
-      {note && <p className="faint" style={{ marginTop: "var(--s-2)" }}>{note}</p>}
-      {view && (
-        <p className="faint" style={{ marginTop: "var(--s-2)" }}>
-          Session {view.sessionId} · {view.status} · stage {view.currentStageId}
-          {englishLabelForDiagnosticCode(view.currentStageId)
-            ? ` — ${englishLabelForDiagnosticCode(view.currentStageId)}`
-            : ""}
-        </p>
-      )}
-
-      <div className={styles.debugTabs} role="tablist">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            className={`${styles.debugTab} ${activeTab === tab.key ? styles.debugTabActive : ""}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.debugBody}>
-        {activeTab === "steps" && (
-          <section>
-            {annotatedSteps.length > 0 ? (
-              <div className={styles.debugTimeline}>
-                {stepsMostRecentFirst.map((step, i) => (
-                  <div
-                    key={step.id ?? `${step.attemptId}-${step.stepIndex}`}
-                    className={`${styles.debugStep} ${i === 0 ? styles.debugStepLatest : ""}`}
-                  >
-                    <div className={styles.debugStepHead}>
-                      <span className={styles.qChip}>Q{step.questionNumber}</span>
-                      {i === 0 && <span className={styles.latestChip}>most recent</span>}
-                      <span className={styles.tag}>{step.validity}</span>
-                      <span
-                        className={`${styles.tag} ${
-                          step.verificationSource === "AI_FALLBACK" ? styles.tagAi : styles.tagRule
-                        }`}
-                      >
-                        {step.verificationSource}
-                      </span>
-                      <span className={styles.tag}>{step.attemptedTransformation}</span>
-                      <span className={styles.tag}>{step.assistanceLevel}</span>
-                      {step.primaryMicroSkillId && <CodeTag code={step.primaryMicroSkillId} />}
-                      {step.topicId && <span className={styles.tag}>{step.topicId}</span>}
-                      {step.competencyFamilyId && (
-                        <span className={styles.tag}>{step.competencyFamilyId}</span>
-                      )}
-                      {step.contextModifierIds.map((id) => (
-                        <span key={id} className={styles.tag}>
-                          {id}
-                        </span>
-                      ))}
-                    </div>
-                    <div className={styles.debugLine}>
-                      {step.previousLine} → {step.submittedLine || "(no line submitted)"}
-                    </div>
-                    {step.firstInvalidActionDescription && (
-                      <p className={styles.debugReasoning}>{step.firstInvalidActionDescription}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : log.length > 0 ? (
-              <div className={styles.debugTimeline}>
-                {logMostRecentFirst.map((entry, i) => (
-                  <div
-                    key={`local-${log.length - 1 - i}`}
-                    className={`${styles.debugStep} ${i === 0 ? styles.debugStepLatest : ""}`}
-                  >
-                    <div className={styles.debugStepHead}>
-                      {i === 0 && <span className={styles.latestChip}>most recent</span>}
-                      {entry.response.outcome === "SUBMITTED" ? (
-                        <>
-                          <span className={styles.tag}>{entry.response.validity}</span>
-                          <span
-                            className={`${styles.tag} ${
-                              entry.response.verificationSource === "AI_FALLBACK"
-                                ? styles.tagAi
-                                : styles.tagRule
-                            }`}
-                          >
-                            {entry.response.verificationSource}
-                          </span>
-                          <span className={styles.tag}>{entry.response.attemptedTransformation}</span>
-                        </>
-                      ) : (
-                        <span className={styles.tag}>DECLINED · not verified</span>
-                      )}
-                    </div>
-                    <div className={styles.debugLine}>
-                      {entry.submittedLine || "(no line — I don't know)"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="faint">No steps submitted yet.</p>
-            )}
-          </section>
-        )}
-
-        {activeTab === "why" && (
-          <section>
-            {why ? (
-              <WhyThisQuestionBox why={why} placement="panel" />
-            ) : (
-              <p className="faint">
-                Complete an item to see the selector&apos;s reason for the next one. The
-                opening item is always the fixed entry sequence.
+    <div className={styles.debugScrim} role="presentation" onMouseDown={(e) => {
+      if (e.target === e.currentTarget) onClose();
+    }}>
+      <aside
+        id="diagnostic-debug-drawer"
+        className={styles.debug}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Diagnostic debug view"
+      >
+        <div className={styles.debugHead}>
+          <div>
+            <p className={styles.debugEyebrow}>Internal inspector</p>
+            <h2>Debug view</h2>
+            {view && (
+              <p className={styles.debugSession}>
+                Session {view.status.toLowerCase()} · {view.items.length} question{view.items.length === 1 ? "" : "s"}
+                · {view.steps.length} submitted step{view.steps.length === 1 ? "" : "s"}
               </p>
             )}
-          </section>
-        )}
+          </div>
+          <button type="button" className={styles.debugClose} onClick={onClose} aria-label="Close debug view">
+            Close <span aria-hidden="true">×</span>
+          </button>
+        </div>
+        {note && <p className={styles.debugAlert}>{note}</p>}
 
-        {activeTab === "items" && (
-          <section>
-            {view && view.items.length > 0 ? (
-              <div className={styles.infoList}>
-                {view.items.map((item, i) => {
-                  const skillEnglish = englishLabelForDiagnosticCode(item.primaryMicroSkillId);
-                  return (
-                    <div className={styles.infoCard} key={`${item.itemKey}-${i}`}>
-                      <div className={styles.infoEnglish}>
-                        Q{i + 1} · {originEnglish(item.origin)}
-                        {skillEnglish ? ` — practicing ${skillEnglish}` : ""}
-                      </div>
-                      <div className={styles.infoDetail}>{item.equationPrompt}</div>
-                      <div className={styles.infoCodeRow}>
-                        <span className={styles.infoCodeLabel}>codes</span>
-                        <span className={styles.codeChip}>origin: {item.origin}</span>
-                        <span className={styles.codeChip}>{item.itemKey}</span>
-                        {item.templateId && <span className={styles.codeChip}>{item.templateId}</span>}
-                        <span className={styles.codeChip}>{item.primaryMicroSkillId}</span>
-                        <span className={styles.codeChip}>{item.status}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+        <div className={styles.debugTabs} role="tablist">
+          {tabs.map((tab) => (
+            <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key}
+              className={`${styles.debugTab} ${activeTab === tab.key ? styles.debugTabActive : ""}`}
+              onClick={() => setActiveTab(tab.key)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className={styles.debugBody}>
+          {!view && !note && <p className={styles.debugEmpty}>Start the diagnostic to see live evidence here.</p>}
+
+          {activeTab === "analysis" && view && (
+            <section aria-label="Answer analysis">
+              <div className={styles.debugIntro}>
+                <strong>Follow each answer through the system</strong>
+                <span>Input → rule analysis → AI handoff → optional grading fallback</span>
               </div>
-            ) : (
-              <p className="faint">No items recorded yet.</p>
-            )}
-          </section>
-        )}
-
-        {activeTab === "stages" && (
-          <section>
-            {view && view.stageHistory.length > 0 ? (
-              <ul className={styles.debugList}>
-                {view.stageHistory.map((entry, i) => (
-                  <li key={`${entry.stageId}-${i}`}>
-                    <div className={styles.debugMeta}>
-                      {sourceTag(entry.source)}
-                      <CodeTag code={entry.stageId} />
-                      <span className={styles.tag}>{entry.at}</span>
+              {questionGroups.length ? questionGroups.map((group, groupIndex) => {
+                const item = view.items[group.questionNumber - 1];
+                const invalidCount = group.steps.filter((step) => step.validity === "INVALID").length;
+                return (
+                  <details className={styles.questionAccordion} key={group.questionNumber} open={groupIndex === questionGroups.length - 1}>
+                    <summary>
+                      <span className={styles.questionNumber}>Q{group.questionNumber}</span>
+                      <span className={styles.questionSummaryText}>
+                        <strong><MathLine text={item?.equationPrompt ?? `Question ${group.questionNumber}`} /></strong>
+                        <small>{group.steps.length} step{group.steps.length === 1 ? "" : "s"} · {invalidCount} flagged</small>
+                      </span>
+                      <span className={styles.accordionChevron} aria-hidden="true">⌄</span>
+                    </summary>
+                    <div className={styles.questionSteps}>
+                      {group.steps.map((step) => {
+                        const p = step.provenance;
+                        return (
+                          <article className={styles.analysisCard} key={step.id}>
+                            <div className={styles.analysisCardHead}>
+                              <strong>Step {step.stepIndex + 1}</strong>
+                              <span className={`${styles.resultPill} ${step.validity === "VALID" ? styles.resultValid : styles.resultInvalid}`}>{step.validity}</span>
+                              <span className={styles.sourcePill}>{step.verificationSource === "AI_FALLBACK" ? "AI graded" : "Rules graded"}</span>
+                            </div>
+                            <div className={styles.mathEvidence}><MathLine text={step.previousLine} /><span>→</span><MathLine text={step.submittedLine} /></div>
+                            <div className={styles.analysisGrid}>
+                              <div className={styles.analysisSection}>
+                                <span className={styles.analysisIndex}>1</span>
+                                <div><h3>Data fed to the rules</h3>
+                                  <table className={styles.debugDataTable}><tbody>
+                                    <tr><th scope="row">Previous line</th><td><MathLine text={p?.input.previousLine ?? step.previousLine} /></td></tr>
+                                    <tr><th scope="row">Student answer</th><td><MathLine text={p?.input.submittedLine ?? step.submittedLine} /></td></tr>
+                                    <tr><th scope="row">Grammar</th><td>{p?.input.resolvedGrammar ?? "Not recorded"}</td></tr>
+                                  </tbody></table>
+                                </div>
+                              </div>
+                              <div className={styles.analysisSection}>
+                                <span className={styles.analysisIndex}>2</span>
+                                <div><h3>What the rules analysed</h3>
+                                  {p ? <><p>Compared <MathLine text={p.ruleAnalysis.normalizedPreviousLine ?? "unparsed"} /> with <MathLine text={p.ruleAnalysis.normalizedSubmittedLine ?? "unparsed"} />.</p><p><strong>{p.ruleAnalysis.outcome === "ABSTAINED" ? "Rules could not decide" : `${p.ruleAnalysis.validity}: ${p.ruleAnalysis.transformation}`}</strong></p>{p.ruleAnalysis.firstInvalidActionDescription && <p className={styles.evidenceCallout}><MathText text={p.ruleAnalysis.firstInvalidActionDescription} /></p>}{p.ruleAnalysis.parseError && <p className={styles.evidenceCallout}><MathText text={`Parse evidence: ${p.ruleAnalysis.parseError}`} /></p>}</> : <p>Detailed rule provenance was not recorded for this step.</p>}
+                                </div>
+                              </div>
+                              <div className={styles.analysisSection}>
+                                <span className={styles.analysisIndex}>3</span>
+                                <div><h3>What the rules gave the AI</h3>
+                                  {(() => {
+                                    const state = view.microSkillStates.find((candidate) => candidate.microSkillId === step.primaryMicroSkillId);
+                                    const exactHypothesis = [...view.hypotheses].reverse().find((candidate) => candidate.stepId === step.id);
+                                    const legacyHypothesis = exactHypothesis ? undefined : [...view.hypotheses].reverse().find((candidate) => !candidate.stepId && candidate.attemptId === step.attemptId && candidate.microSkillId === step.primaryMicroSkillId);
+                                    const hypothesis = exactHypothesis ?? legacyHypothesis;
+                                    const transcriptionSlip = step.firstInvalidActionCode === "COPIED_UNCHANGED_SIDE";
+                                    const interpreterEvidence = <>
+                                      <p className={styles.interpreterSubheading}><strong>Evidence sent to the step interpreter</strong></p>
+                                      <div className={styles.interpreterHandoffFacts}>
+                                        <span>Exact change</span><MathLine text={`${step.previousLine} → ${step.submittedLine}`} />
+                                        <span>Rule result</span><strong>{transcriptionSlip ? "LIKELY TRANSCRIPTION SLIP" : `${step.validity} · ${step.attemptedTransformation}`}</strong>
+                                        <span>Micro-skill</span>{transcriptionSlip ? <span>No skill penalty — checking/copy accuracy only</span> : step.primaryMicroSkillId ? <MicroSkillName code={step.primaryMicroSkillId} /> : <span>Not attributed</span>}
+                                        <span>This session</span><span>{state?.sessionIndependentSuccessCount ?? 0} independent successes · {state?.sessionIndependentFailureCount ?? 0} independent failures · {state?.sessionAssistedSuccessCount ?? 0} assisted successes</span>
+                                      </div>
+                                      {step.firstInvalidActionDescription && <p className={styles.evidenceCallout}><MathText text={step.firstInvalidActionDescription} /></p>}
+                                      {hypothesis
+                                        ? <div className={styles.interpreterResult}><div><strong>Interpreter result</strong><span className={`${styles.sourcePill} ${hypothesis.source === "AI" ? styles.tagAi : styles.tagRule}`}>{hypothesis.source === "AI" ? "Accepted AI" : "Rule fallback"}</span></div><p><MathText text={hypothesis.reasoning} /></p><small>{Math.round(hypothesis.confidence * 100)}% confidence</small></div>
+                                        : transcriptionSlip
+                                          ? <p className={styles.noAi}>No AI skill inference was requested. The rules found that the algebra operation was correct and isolated the changed, untouched value as a likely copying slip; this step does not change any micro-skill score.</p>
+                                          : <p className={styles.noAi}>No interpreter record exists for this historical step. This does not mean the selector received nothing; it means no step-level interpretation was persisted.</p>}
+                                    </>;
+                                    if (!p?.handedToAi) return interpreterEvidence;
+                                    const skillRows = p.handedToAi.skillLines.map(parseSkillEvidenceLine).filter((row): row is NonNullable<typeof row> => row !== null);
+                                    const evidenceLines = p.handedToAi.skillLines.filter((line) => line.startsWith("Evidence:"));
+                                    return <>{interpreterEvidence}<div className={styles.selectorHandoffDivider}><strong>Package sent to the next-question selector</strong><span>This is separate from the interpreter result above.</span></div><p>{p.handedToAi.lastStepSummary}</p>
+                                      {skillRows[0] && <p className={styles.handoffSkillName}><MicroSkillName code={skillRows[0].code} /></p>}
+                                      {skillRows.length > 0 && <table className={`${styles.debugDataTable} ${styles.skillEvidenceTable}`}>
+                                        <thead><tr><th scope="col">Code</th><th scope="col">Scope</th><th scope="col">Successes</th><th scope="col">Failures</th></tr></thead>
+                                        <tbody>{skillRows.map((row) => <tr key={row.code}><td><button type="button" className={styles.evidenceDrilldownButton} onClick={() => setSelectedEvidenceCode(row.code)}><MicroSkillCode code={row.code} /></button></td><td>{row.scope}</td><td><button type="button" className={styles.evidenceCountButton} onClick={() => setSelectedEvidenceCode(row.code)}>{row.successes}</button></td><td><button type="button" className={styles.evidenceCountButton} onClick={() => setSelectedEvidenceCode(row.code)}>{row.failures}</button></td></tr>)}</tbody>
+                                      </table>}
+                                      {evidenceLines.map((line) => <p className={styles.handoffEvidence} key={line}><MathText text={line} /></p>)}
+                                    </>;
+                                  })()}
+                                </div>
+                              </div>
+                              <div className={styles.analysisSection}>
+                                <span className={styles.analysisIndex}>4</span>
+                                <div><h3>AI grading fallback</h3>
+                                  {p?.aiGraderFallback ? <><p><strong>Why it ran:</strong> <MathText text={p.aiGraderFallback.whyItRan} /></p><p><strong>Decision:</strong> {p.aiGraderFallback.validity ?? "No decision"} · confidence {p.aiGraderFallback.confidence?.toFixed(2) ?? "not returned"}</p>{p.aiGraderFallback.reasoning && <p><MathText text={p.aiGraderFallback.reasoning} /></p>}</> : <p className={styles.noAi}>Not used — the deterministic rules reached a decision.</p>}
+                                </div>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
                     </div>
-                    {entry.reasoning && (
-                      <p className={styles.debugReasoning}>
-                        {humanizeDiagnosticCodesInText(entry.reasoning)}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="faint">No stage decisions recorded yet.</p>
-            )}
-          </section>
-        )}
+                  </details>
+                );
+              }) : <p className={styles.debugEmpty}>No submitted steps yet.</p>}
+            </section>
+          )}
 
-        {activeTab === "selection" && (
-          <section>
-            {log.some((entry) => entry.response.selectorDecision) ? (
-              <ul className={styles.debugList}>
-                {log
-                  .filter((entry) => entry.response.selectorDecision)
-                  .map((entry, i) => (
-                    <li key={`selector-${i}`}>
-                      <div className={styles.debugMeta}>
-                        {sourceTag(entry.response.selectorDecision!.source)}
-                        <span className={styles.tag}>{entryLabel(entry)}</span>
-                        {entry.response.nextAttempt && (
-                          <CodeTag code={entry.response.nextAttempt!.itemKey} prefix="next: " />
-                        )}
-                      </div>
-                      {entry.response.selectorDecision!.reasoning ? (
-                        <p className={styles.debugReasoning}>
-                          {humanizeDiagnosticCodesInText(entry.response.selectorDecision!.reasoning)}
-                        </p>
-                      ) : (
-                        <p className={styles.debugReasoning}>
-                          {entry.response.selectorDecision!.source === "RULE"
-                            ? RULE_WHY_FALLBACK
-                            : "No selection reasoning returned."}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-              </ul>
-            ) : (
-              <p className="faint">No selector decision returned yet.</p>
-            )}
-          </section>
-        )}
+          {activeTab === "selection" && view && (
+            <section aria-label="Question picking">
+              {why && <div className={styles.currentPick}><span>Currently served</span><strong>{originEnglish(why.origin ?? "PRE_WRITTEN")}</strong>{view.items.at(-1) && <MathLine text={view.items.at(-1)!.equationPrompt} />}</div>}
+              {view.selections?.length ? view.selections.map((selection, i) => {
+                const servedItem = view.items[i + 1];
+                const readableServedName = englishLabelForDiagnosticCode(selection.servedItemKey)
+                  ?? englishLabelForDiagnosticCode(servedItem?.primaryMicroSkillId ?? "")
+                  ?? (servedItem ? originEnglish(servedItem.origin) : "Generated algebra question");
+                return (
+                <details className={styles.selectionCard} key={`${selection.servedItemKey}-${i}`} open={i === view.selections!.length - 1}>
+                  <summary><span className={styles.questionNumber}>Q{i + 2}</span><div><small>Final question served</small><h3>{readableServedName}</h3>{servedItem && <span className={styles.servedQuestionPrompt}><MathLine text={servedItem.equationPrompt} /></span>}<code>{selection.servedItemKey}</code></div><span className={styles.sourcePill}>{selection.servedSource}</span><span className={styles.accordionChevron} aria-hidden="true">⌄</span></summary>
+                  <div className={styles.selectionFlow}>
+                    <section><span className={styles.analysisIndex}>1</span><h4>Why the rules chose this</h4>
+                      <table className={styles.debugDataTable}><tbody>
+                        <tr><th scope="row">Selected</th><td>{englishLabelForDiagnosticCode(selection.rulePick.itemKey) ?? selection.rulePick.itemKey}</td></tr>
+                        <tr><th scope="row">Code</th><td><code>{selection.rulePick.itemKey}</code></td></tr>
+                        <tr><th scope="row">Source</th><td>{originEnglish(selection.rulePick.origin)}</td></tr>
+                      </tbody></table>
+                      {selection.verificationGate && <div className={styles.verificationGateCard}>
+                        <strong>Neutral verification evidence bar: {selection.verificationGate.eligible ? "PASSED" : "NOT PASSED"}</strong>
+                        <p>{selection.verificationGate.reason}</p>
+                        <dl>
+                          <div><dt>Independent division opportunities</dt><dd>{selection.verificationGate.independentOpportunities} / 3 required</dd></div>
+                          <div><dt>Incorrect quotients</dt><dd>{selection.verificationGate.quotientFailures} / 2 required</dd></div>
+                          <div><dt>Distinct questions</dt><dd>{selection.verificationGate.distinctQuestions} / 2 required</dd></div>
+                          <div><dt>Contradictory success evidence</dt><dd>{selection.verificationGate.independentSuccesses + selection.verificationGate.contradictoryStrengthEvidence}</dd></div>
+                        </dl>
+                        <small>Cogna records an inconsistent response pattern only. It does not infer that the student answered incorrectly deliberately.</small>
+                      </div>}
+                      <p className={styles.selectionReason}>{selection.rulePick.routeReason}</p>
+                    </section>
+                    <section><span className={styles.analysisIndex}>2</span><h4>Shortlist sent to AI</h4><p>{selection.candidates.length} legal candidate{selection.candidates.length === 1 ? "" : "s"}:</p><ol className={styles.candidateList}>{selection.candidates.map((candidate) => <li key={`${candidate.index}-${candidate.itemKey}`} className={candidate.isRulePick ? styles.ruleCandidate : ""}><strong>{candidate.index + 1}. <MathLine text={candidate.prompt} /></strong><span>{originEnglish(candidate.origin)} · {candidate.itemKey}</span><small>{candidate.legalityReason}</small></li>)}</ol></section>
+                    <section><span className={styles.analysisIndex}>3</span><h4>Why the AI chose this</h4>{selection.aiDecision ? <><p className={styles.decisionHeadline}>{selection.aiDecision.choice === "EXISTING" ? "Selected an existing question" : selection.aiDecision.choice === "GENERATE" ? "Generated from a template" : "Authored a new question"}</p><p className={styles.selectionReason}><MathText text={humanizeDiagnosticCodesInText(selection.aiDecision.reasoning)} /></p><div className={styles.decisionFacts}><span>confidence {selection.aiDecision.confidence?.toFixed(2) ?? "—"}</span><span>{selection.aiDecision.agreedWithRule ? "agreed with rule pick" : "changed the rule pick"}</span></div>{selection.aiDecision.discardedReason && <p className={styles.evidenceCallout}><MathText text={`Rejected by safety gate: ${selection.aiDecision.discardedReason}`} /></p>}</> : <><p className={styles.aiRejectedHeadline}>AI reasoning not accepted → going to rule-based fallback</p>{selection.aiFallback?.rejectedReasoning && <div className={styles.rejectedReasoning}><strong>Rejected AI reasoning</strong><p><MathText text={humanizeDiagnosticCodesInText(selection.aiFallback.rejectedReasoning)} /></p></div>}<p className={styles.evidenceCallout}><strong>Exact fallback reason:</strong> {selection.aiFallback?.reason ?? "Not recorded for this older decision."}{selection.aiFallback?.latencyMs != null ? ` (${selection.aiFallback.latencyMs} ms)` : ""}</p>{selection.aiFallback?.forbiddenTerm && <p className={styles.forbiddenTermCallout}><strong>Forbidden term:</strong> <code>{selection.aiFallback.forbiddenTerm}</code></p>}</>}</section>
+                  </div>
+                  <div className={styles.servedExplanation}><strong>Why this question was ultimately served</strong><p>{selection.servedSource === "AI" && selection.aiDecision ? `The AI decision passed validation and was allowed to serve. ${selection.aiDecision.agreedWithRule ? "It confirmed the rule-based pick." : "It changed the rule-based pick to a different legal candidate."}` : "No AI decision was eligible to serve, so Cogna used the deterministic rule-based pick."}</p></div>
+                </details>
+              );}) : <p className={styles.debugEmpty}>The opening question is fixed. Complete it to see the next-question decision trail.</p>}
+            </section>
+          )}
 
-        {activeTab === "declines" && (
-          <section>
-            {view && view.declines.length > 0 ? (
-              <ul className={styles.debugList}>
-                {view.declines.map((decline, i) => (
-                  <li key={`decline-${i}`}>
-                    <div className={styles.debugMeta}>
-                      <span className={`${styles.tag} ${styles.tagRule}`}>SKIPPED</span>
-                      <CodeTag code={decline.itemKey} />
-                      <CodeTag code={decline.microSkillId} />
-                      <span className={styles.tag}>{decline.assistanceLevel}</span>
-                      <span className={styles.tag}>{decline.at}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="faint">No declines in this session.</p>
-            )}
-          </section>
-        )}
+          {activeTab === "learning" && view && (
+            <section aria-label="Learning picture">
+              <div className={styles.debugIntro}><strong>Session learning picture</strong><span>Rule evidence and AI interpretation are kept separate.</span></div>
+              {(() => {
+                const validSteps = annotatedSteps.filter((step) => step.validity === "VALID");
+                const invalidSteps = annotatedSteps.filter((step) => step.validity === "INVALID");
+                const unresolvedSteps = annotatedSteps.filter((step) => step.validity === "AMBIGUOUS" || step.validity === "PARSE_FAILED");
+                const aiHypotheses = view.hypotheses.filter((h) => h.source === "AI");
+                const latestAiBySkill = [...aiHypotheses].reduce<Map<string, typeof aiHypotheses[number]>>((map, h) => map.set(h.microSkillId, h), new Map());
+                return <>
+                  <div className={styles.sessionSummaryGrid}>
+                    <article className={styles.sessionSummaryCard}>
+                      <span className={`${styles.tag} ${styles.tagRule}`}>RULE BASED</span>
+                      <h3>What the rules think is going on in this session</h3>
+                      <p>The rules analysed <strong>{annotatedSteps.length}</strong> submitted steps across <strong>{questionGroups.length}</strong> questions: <strong>{validSteps.length}</strong> valid, <strong>{invalidSteps.length}</strong> invalid, and <strong>{unresolvedSteps.length}</strong> unresolved.</p>
+                      {invalidSteps.length > 0 ? <div className={styles.evidenceExamples}>{invalidSteps.map((step) => <div key={step.id}><MathLine text={`${step.previousLine} → ${step.submittedLine}`} /></div>)}</div> : <p className={styles.noAi}>No rule-verified errors in this session yet.</p>}
+                    </article>
+                    <article className={styles.sessionSummaryCard}>
+                      <span className={`${styles.tag} ${styles.tagAi}`}>AI BASED</span>
+                      <h3>What the AI thinks is going on in this session</h3>
+                      {latestAiBySkill.size > 0 ? <ul className={styles.aiSummaryList}>{[...latestAiBySkill.values()].map((h) => <li key={h.microSkillId}><strong><MicroSkillName code={h.microSkillId} /></strong><p><MathText text={humanizeDiagnosticCodesInText(h.reasoning)} /></p><span>{Math.round(h.confidence * 100)}% confidence</span></li>)}</ul> : <p className={styles.noAi}>No accepted AI learning interpretation has been recorded yet.</p>}
+                    </article>
+                  </div>
+                  <div className={styles.questionLearningList}>
+                    <h3>Question-by-question learning picture</h3>
+                    {questionGroups.map((group, index) => {
+                      const item = view.items[group.questionNumber - 1];
+                      const invalid = group.steps.filter((step) => step.validity === "INVALID");
+                      const valid = group.steps.filter((step) => step.validity === "VALID");
+                      const attemptIds = new Set(group.steps.map((step) => step.attemptId));
+                      const questionAi = aiHypotheses.filter((h) => h.attemptId && attemptIds.has(h.attemptId));
+                      return <details className={styles.questionAccordion} key={group.questionNumber} open={index === questionGroups.length - 1}>
+                        <summary><span className={styles.questionNumber}>Q{group.questionNumber}</span><span className={styles.questionSummaryText}><strong><MathLine text={item?.equationPrompt ?? `Question ${group.questionNumber}`} /></strong><small>{valid.length} valid · {invalid.length} flagged</small></span><span className={styles.accordionChevron} aria-hidden="true">⌄</span></summary>
+                        <div className={styles.questionLearningBody}>
+                          <article><span className={`${styles.tag} ${styles.tagRule}`}>RULE BASED</span><h4>What the rules observed</h4><p>{group.steps.length} steps analysed: {valid.length} valid and {invalid.length} invalid.</p>{invalid.length > 0 ? invalid.map((step) => <div className={styles.questionEvidence} key={step.id}><MathLine text={`${step.previousLine} → ${step.submittedLine}`} />{step.firstInvalidActionDescription && <p><MathText text={step.firstInvalidActionDescription} /></p>}</div>) : <p className={styles.noAi}>No rule-verified error in this question.</p>}</article>
+                          <article><span className={`${styles.tag} ${styles.tagAi}`}>AI BASED</span><h4>What the AI inferred from this question</h4>{questionAi.length > 0 ? questionAi.map((h) => <div className={styles.questionAiFinding} key={`${h.stepId ?? h.attemptId}-${h.microSkillId}`}><strong><MicroSkillName code={h.microSkillId} /></strong><p><MathText text={humanizeDiagnosticCodesInText(h.reasoning)} /></p><span>{Math.round(h.confidence * 100)}% confidence</span></div>) : <p className={styles.noAi}>No AI inference was generated for this question. Legacy inferences without a question link are shown only in the session summary.</p>}</article>
+                        </div>
+                      </details>;
+                    })}
+                  </div>
+                </>;
+              })()}
+              <div className={styles.skillGrid}>{view.microSkillStates.map((state) => <article className={styles.skillDebugCard} key={state.microSkillId}><h3>{englishLabelForDiagnosticCode(state.microSkillId) ?? state.microSkillId}</h3><div><strong>{state.sessionEvidenceCount ?? 0}</strong> session evidence · <strong>{state.evidenceCount}</strong> lifetime</div><p>{state.independentSuccessCount} independent success · {state.independentFailureCount} independent failure · {state.assistedSuccessCount} assisted</p><CodeTag code={state.status} /></article>)}</div>
+            </section>
+          )}
 
-        {activeTab === "hypotheses" && (
-          <section>
-            {view && view.hypotheses.length > 0 ? (
-              <ul className={styles.debugList}>
-                {view.hypotheses.map((h, i) => (
-                  <li key={`${h.microSkillId}-${i}`}>
-                    <div className={styles.debugMeta}>
-                      {sourceTag(h.source)}
-                      <CodeTag code={h.microSkillId} />
-                      <span className={styles.tag}>{h.hypothesisLabel}</span>
-                      <span className={styles.tag}>confidence {h.confidence.toFixed(2)}</span>
-                    </div>
-                    <p className={styles.debugReasoning}>
-                      {humanizeDiagnosticCodesInText(h.reasoning)}
-                    </p>
-                    {h.childFacingSummary && <p>{h.childFacingSummary}</p>}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="faint">No hypotheses yet.</p>
-            )}
-          </section>
-        )}
-
-        {activeTab === "skills" && (
-          <section>
-            {view && view.microSkillStates.length > 0 ? (
-              <div className={styles.infoList}>
-                {view.microSkillStates.map((state) => {
-                  const skillEnglish = englishLabelForDiagnosticCode(state.microSkillId) ?? state.microSkillId;
-                  const independentTotal = state.independentSuccessCount + state.independentFailureCount;
-                  return (
-                    <div className={styles.infoCard} key={state.microSkillId}>
-                      <div className={styles.infoEnglish}>{skillEnglish}</div>
-                      <div className={styles.infoDetail}>
-                        {state.evidenceCount} question{state.evidenceCount === 1 ? "" : "s"} touched this
-                        skill so far.
-                        {independentTotal > 0
-                          ? ` Working independently, the student got it right ${state.independentSuccessCount} out of ${independentTotal} time${independentTotal === 1 ? "" : "s"}.`
-                          : " No independent attempts yet — too early to call this a pattern."}
-                        {state.assistedSuccessCount > 0
-                          ? ` ${state.assistedSuccessCount} more correct with help.`
-                          : ""}
-                        {state.observedContextStrengths.length > 0
-                          ? ` Goes well with: ${state.observedContextStrengths.join(", ")}.`
-                          : ""}
-                        {state.observedContextGaps.length > 0
-                          ? ` Struggles more with: ${state.observedContextGaps.join(", ")}.`
-                          : ""}
-                      </div>
-                      <div className={styles.infoCodeRow}>
-                        <span className={styles.infoCodeLabel}>codes</span>
-                        <span className={styles.codeChip}>{state.microSkillId}</span>
-                        <span className={styles.codeChip}>{state.status}</span>
-                        <span className={styles.codeChip}>evidence: {state.evidenceCount}</span>
-                        <span className={styles.codeChip}>
-                          independent: {state.independentSuccessCount}/{independentTotal}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+          {activeTab === "management" && view && (
+            <section aria-label="Micro-skill management">
+              <div className={styles.debugIntro}>
+                <strong>Algebra micro-skill management</strong>
+                <span>Live curriculum status for this student</span>
               </div>
-            ) : (
-              <p className="faint">No micro-skill state yet.</p>
-            )}
-          </section>
-        )}
-      </div>
-    </aside>
+              <nav className={styles.managementHierarchy} aria-label="Micro-skill hierarchy">
+                <span>Algebra</span><span aria-hidden="true">→</span>
+                <span>Topic</span><span aria-hidden="true">→</span>
+                <span>Competency family / subtopic</span><span aria-hidden="true">→</span>
+                <span>Micro-skill</span>
+              </nav>
+              <div className={styles.managementLegend} aria-label="Status legend">
+                {[
+                  { label: "Reliable", tone: styles.managementReliable },
+                  { label: "Emerging", tone: styles.managementEmerging },
+                  { label: "Weak", tone: styles.managementWeak },
+                  { label: "Not assessed", tone: styles.managementUnknown },
+                ].map((item) => <span className={`${styles.managementStatus} ${item.tone}`} key={item.label}>{item.label}</span>)}
+              </div>
+              <div className={styles.managementSubject}>
+                <header><div><span className={styles.managementLevel}>Subject</span><h3>Algebra</h3></div><span className={`${styles.managementStatus} ${subjectDisplay.tone}`}>{subjectDisplay.label}</span></header>
+                <div className={styles.managementTopics}>
+                  {MICRO_SKILL_MANAGEMENT_GROUPS.map((topic) => {
+                    const topicStates = topic.groups.flatMap((group) => group.ids).map((id) => view.microSkillStates.find((state) => state.microSkillId === id)?.status);
+                    const topicStatus = topicStates.includes("LIKELY_GAP") ? "LIKELY_GAP" : topicStates.includes("EMERGING") || topicStates.includes("DEVELOPING") ? "EMERGING" : topicStates.includes("RELIABLE") ? "RELIABLE" : "UNKNOWN";
+                    const topicDisplay = managementStatus(topicStatus);
+                    return <details className={styles.managementTopic} key={topic.name} open={topic.name === "Brackets, signs & fractions"}>
+                      <summary><div><span className={styles.managementLevel}>Topic</span><strong>{topic.name}</strong></div><span className={`${styles.managementStatus} ${topicDisplay.tone}`}>{topicDisplay.label}</span><span className={styles.accordionChevron} aria-hidden="true">⌄</span></summary>
+                      <div className={styles.managementSubtopics}>
+                        {topic.groups.map((group) => {
+                          const states = group.ids.map((id) => view.microSkillStates.find((state) => state.microSkillId === id)?.status);
+                          const groupStatus = states.includes("LIKELY_GAP") ? "LIKELY_GAP" : states.includes("EMERGING") || states.includes("DEVELOPING") ? "EMERGING" : states.includes("RELIABLE") ? "RELIABLE" : "UNKNOWN";
+                          const groupDisplay = managementStatus(groupStatus);
+                          return <div className={styles.managementSubtopic} key={group.name}>
+                            <div className={styles.managementSubtopicHead}><div><span className={styles.managementLevel}>Competency family / subtopic</span><h4>{group.name}</h4></div><span className={`${styles.managementStatus} ${groupDisplay.tone}`}>{groupDisplay.label}</span></div>
+                            <ul>{group.ids.map((id) => {
+                              const studentState = view.microSkillStates.find((state) => state.microSkillId === id);
+                              const display = managementStatus(studentState?.status);
+                              return <li key={id}><button type="button" className={styles.managementSkillButton} onClick={() => setSelectedEvidenceCode(id)}><div><span className={styles.managementLevel}>Micro-skill</span><MicroSkillName code={id} /></div><span className={`${styles.managementStatus} ${display.tone}`}>{display.label}</span></button></li>;
+                            })}</ul>
+                          </div>;
+                        })}
+                      </div>
+                    </details>;
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
+        {selectedEvidenceCode && (() => {
+          const matching = annotatedSteps.filter((step) => step.primaryMicroSkillId === selectedEvidenceCode);
+          const failures = matching.filter((step) => step.validity === "INVALID");
+          const state = view?.microSkillStates.find((candidate) => candidate.microSkillId === selectedEvidenceCode);
+          const statusDisplay = managementStatus(state?.status);
+          const skillHypotheses = view?.hypotheses.filter((hypothesis) => hypothesis.microSkillId === selectedEvidenceCode) ?? [];
+          const latestAi = [...skillHypotheses].reverse().find((hypothesis) => hypothesis.source === "AI");
+          return <div className={styles.evidencePopupScrim} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedEvidenceCode(null); }}>
+            <section className={styles.evidencePopup} role="dialog" aria-modal="true" aria-label={`Evidence for ${selectedEvidenceCode}`}>
+              <header><div><span>Micro-skill evidence</span><h3><MicroSkillName code={selectedEvidenceCode} /></h3><MicroSkillCode code={selectedEvidenceCode} /></div><div className={styles.evidencePopupActions}><span className={`${styles.managementStatus} ${statusDisplay.tone}`}>{statusDisplay.label}</span><button type="button" onClick={() => setSelectedEvidenceCode(null)} aria-label="Close evidence details">Close ×</button></div></header>
+              <p><strong>{matching.length}</strong> recorded step{matching.length === 1 ? "" : "s"} in this test · <strong className={styles.evidenceFailureText}>{failures.length} failure{failures.length === 1 ? "" : "s"}</strong></p>
+              {state && <div className={styles.statusEvidenceSummary}><strong>Why the rules assigned {statusDisplay.label}</strong><p>{state.sessionIndependentSuccessCount ?? 0} independent success{(state.sessionIndependentSuccessCount ?? 0) === 1 ? "" : "es"}, {state.sessionIndependentFailureCount ?? 0} independent failure{(state.sessionIndependentFailureCount ?? 0) === 1 ? "" : "s"}, and {state.sessionAssistedSuccessCount ?? 0} assisted success{(state.sessionAssistedSuccessCount ?? 0) === 1 ? "" : "es"} in this session.</p></div>}
+              <div className={styles.statusAiExplanation}><span className={`${styles.tag} ${styles.tagAi}`}>AI BASED</span><strong>Why the AI interprets this status this way</strong>{latestAi ? <><p><MathText text={humanizeDiagnosticCodesInText(latestAi.reasoning)} /></p><small>{Math.round(latestAi.confidence * 100)}% confidence</small></> : <p>No accepted AI interpretation has been recorded for this skill yet.</p>}</div>
+              {matching.length > 0 ? <ol className={styles.evidenceOccurrenceList}>{matching.map((step) => <li key={step.id} className={step.validity === "INVALID" ? styles.evidenceOccurrenceFailure : styles.evidenceOccurrenceSuccess}><div><strong>Question {step.questionNumber}, Step {step.stepIndex + 1}</strong><span>{step.validity}</span></div><MathLine text={`${step.previousLine} → ${step.submittedLine}`} />{step.validity === "INVALID" && <p><MathText text={step.firstInvalidActionDescription ?? "The rules marked this transformation invalid."} /></p>}</li>)}</ol> : <p>No step in this test is linked to this micro-skill. Any larger total shown was historical data from the reused demo account.</p>}
+            </section>
+          </div>;
+        })()}
+      </aside>
+    </div>
   );
 }
 

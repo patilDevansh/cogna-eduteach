@@ -31,10 +31,17 @@ export const CONCEPT_ID_PATTERN = /\b[PC]\d+_[A-Z0-9_]+\b/;
 export const OPTION_INDEX_PATTERN = /\boption\s*\d+\b/i;
 
 export function containsForbiddenTerm(text: string): boolean {
+  return findForbiddenTerm(text) !== null;
+}
+
+/** Returns the exact matched token/pattern for internal audit UIs. */
+export function findForbiddenTerm(text: string): string | null {
   const lower = text.toLowerCase();
-  if (CONCEPT_ID_PATTERN.test(text)) return true;
-  if (OPTION_INDEX_PATTERN.test(text)) return true;
-  return FORBIDDEN_STUDENT_TERMS.some((t) => lower.includes(t));
+  const conceptId = text.match(CONCEPT_ID_PATTERN)?.[0];
+  if (conceptId) return conceptId;
+  const optionIndex = text.match(OPTION_INDEX_PATTERN)?.[0];
+  if (optionIndex) return optionIndex;
+  return FORBIDDEN_STUDENT_TERMS.find((term) => lower.includes(term)) ?? null;
 }
 
 export function assertNoForbiddenTerms(text: string, label = "text"): void {

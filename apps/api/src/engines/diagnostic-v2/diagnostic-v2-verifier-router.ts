@@ -4,7 +4,7 @@
  * fraction-linear-verifier. Never one mega-parser.
  *
  * COMBINED_ALGEBRA resolves to a solo-track grammar from the current stageId
- * so each topic keeps its own verifier while the session walks all five.
+ * so each enabled topic keeps its own verifier while the combined session advances.
  */
 import type { DiagnosticV2Track } from "@cogna/shared";
 import {

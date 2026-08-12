@@ -19,6 +19,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   assertDiagnosticV2SelectorChoiceShape,
   containsForbiddenTerm,
+  findForbiddenTerm,
   type DiagnosticV2SelectorChoice,
   type MicroSkillId,
 } from "@cogna/shared";
@@ -47,14 +48,16 @@ const CAPABILITY = "DIAGNOSTIC_V2_SELECTOR";
  * Raised 2000 -> 3000 after a live Phase A session showed two of three
  * selector calls landing at 2002ms and 2015ms — just over the old budget —
  * so the student was silently getting the rule-chosen item most of the time.
- * 3000 buys enough headroom to see the AI path actually run. This is a
+ * Raised again to 3500 after live combined-algebra calls repeatedly reached
+ * the 3000ms boundary. This buys enough headroom to see the AI path actually
+ * run while keeping the student wait bounded. This is a
  * deliberate Phase A observation setting, not a permanent answer: the real
  * fix for latency is pre-generating a verified buffer in the background
  * (Phase C), not making the student wait longer.
  *
  * Keep in sync with LATENCY_BUDGET_MS in ai/shadow-gate-evaluator.formulas.ts.
  */
-const TIMEOUT_MS = 3000;
+const TIMEOUT_MS = 3500;
 
 /** How slow an authoring call may be before the next AUTHOR request is refused up front and a template is preferred. */
 const AUTHOR_P95_BUDGET_MS = 2500;
@@ -136,6 +139,8 @@ export interface SelectorContext {
   serveOrdinal: number;
   /** The deterministic reading of the student's most recent step, if any. */
   lastStepSummary?: string;
+  /** Exact earlier submitted transitions, with question/step and rule result. */
+  workEvidenceLines?: string[];
   /**
    * Observed authoring-path latencies for this process, newest last. When the
    * recent p95 exceeds the authoring budget, AUTHOR is refused before the
@@ -187,7 +192,7 @@ export class DiagnosticV2AiSelectorService {
     }
     const ruleLegality =
       ctx.candidates[ctx.ruleSelectedIndex]?.legalityReason ??
-      "next item in the fixed diagnostic sequence";
+      "next planned question in the rule sequence";
     const ruleFallback: SelectorResult = {
       item: ruleItem,
       source: "RULE",
@@ -418,14 +423,14 @@ export class DiagnosticV2AiSelectorService {
     const shaped = assertDiagnosticV2SelectorChoiceShape(body);
 
     if (containsForbiddenTerm(shaped.reasoning)) {
-      throw new Error("selector reasoning contains a forbidden term");
+      throw new Error(`selector reasoning contains forbidden term "${findForbiddenTerm(shaped.reasoning) ?? "unknown"}"`);
     }
     // G1.4: when there is something to cite, reasoning must cite it. On a blank
     // slate (no skill lines and no prior step) there is nothing observed yet.
     const hasObservable =
       ctx.skillLines.length > 0 || Boolean(ctx.lastStepSummary && ctx.lastStepSummary.trim());
     if (hasObservable && !reasoningCitesEvidence(shaped.reasoning, ctx)) {
-      throw new Error("selector reasoning must cite a skill status or a specific observed error");
+      throw new Error("selector reasoning must cite an observed skill status or an exact observed step");
     }
 
     if (shaped.choice === "EXISTING") {
@@ -504,7 +509,7 @@ function authoringOverBudget(latencies: number[] | undefined): boolean {
   return (sorted[idx] ?? 0) > AUTHOR_P95_BUDGET_MS;
 }
 
-/** Reasoning must name a status or quote a concrete error fragment — not a generic platitude (G1.4). */
+/** Reasoning must name a status or ground itself in a concrete submitted step — not a generic platitude (G1.4). */
 export function reasoningCitesEvidence(reasoning: string, ctx: SelectorContext): boolean {
   const lower = reasoning.toLowerCase();
   for (const line of ctx.skillLines) {
@@ -518,6 +523,47 @@ export function reasoningCitesEvidence(reasoning: string, ctx: SelectorContext):
   }
   if (ctx.lastStepSummary && lower.includes(ctx.lastStepSummary.slice(0, 24).toLowerCase())) {
     return true;
+  }
+  // The current submission is routed before its evidence transaction commits,
+  // so its micro-skill may not be in skillLines yet. Accept a paraphrase only
+  // when it names the exact skill from the current summary and explicitly
+  // describes an error; a generic "student made an error" still fails.
+  if (ctx.lastStepSummary) {
+    const summaryLower = ctx.lastStepSummary.toLowerCase();
+    const currentSkillIds = ctx.lastStepSummary.match(/\b[A-Z][A-Z0-9_]+\b/g) ?? [];
+    const summaryIsIncorrect = /\b(?:incorrect|invalid|wrong|error)\b/.test(summaryLower);
+    const reasoningNamesError = /\b(?:incorrect|invalid|wrong|error|mistake)\b/.test(lower);
+    if (
+      summaryIsIncorrect &&
+      reasoningNamesError &&
+      currentSkillIds.some((id) => lower.includes(id.toLowerCase()))
+    ) {
+      return true;
+    }
+
+    // A correct current step has not committed its skill line yet. Accept a
+    // paraphrase only when it names that exact skill and cites both sides of
+    // the exact submitted transition. This accepts “3x=15 to x=5” for the
+    // stored “3x = 15 -> x = 5”, while “the student did well” still fails.
+    const exactChange = ctx.lastStepSummary.match(/exact submitted change:\s*(.*?)\s*->\s*(.+)$/i);
+    const summaryIsCorrect = /\bcorrect\b/.test(summaryLower);
+    const reasoningNamesSuccess = /\b(?:correct|correctly|valid|succeed|succeeded|success)\b/.test(lower);
+    if (summaryIsCorrect && reasoningNamesSuccess && exactChange) {
+      const normalizeMathEvidence = (value: string) =>
+        value.toLowerCase().replace(/[\s`*_]/g, "").replace(/[−–—]/g, "-");
+      const normalizedReasoning = normalizeMathEvidence(reasoning);
+      const previous = normalizeMathEvidence(exactChange[1]!);
+      const submitted = normalizeMathEvidence(exactChange[2]!);
+      if (
+        previous.length >= 3 &&
+        submitted.length >= 3 &&
+        normalizedReasoning.includes(previous) &&
+        normalizedReasoning.includes(submitted) &&
+        currentSkillIds.some((id) => lower.includes(id.toLowerCase()))
+      ) {
+        return true;
+      }
+    }
   }
   // Status words that only appear when a skill line carried them.
   for (const status of ["unknown", "emerging", "developing", "reliable", "likely_gap", "likely gap"]) {
@@ -568,7 +614,7 @@ export function formatSkillLine(line: SelectorSkillLine): string {
 
 export function buildSelectorPrompts(ctx: SelectorContext): { system: string; user: string } {
   const system =
-    "You choose the next algebra question for one student in a short diagnostic. " +
+    "You choose the next algebra question for one student in a short algebra check. " +
     "Every listed option has already been checked as mathematically correct and appropriate. " +
     "Prefer a listed EXISTING option or a GENERATE of a listed template whenever one fits. " +
     "AUTHOR only when you can state what specifically the available template shapes cannot cover. " +
@@ -587,8 +633,8 @@ export function buildSelectorPrompts(ctx: SelectorContext): { system: string; us
     // root-cause reasoning drags the model toward the exact assessment
     // vocabulary the voice check rejects ("diagnose the misconception", "weak
     // in signs"). Naming the skill id satisfies the first without touching the
-    // second — this reasoning is an internal audit trail, never shown to a
-    // student, so ids are fine here.
+    // second. The debug UI can display this verbatim to staff, so keep it
+    // readable even though exact ids remain useful for auditing.
     "Your reasoning must name the exact micro-skill id it is about (for example LIN_DISTRIBUTE_NEG) " +
     "and say what the student actually did — a generic statement is rejected. " +
     "Describe the mathematical step in plain words. Do not use the words diagnose, diagnostic, " +
@@ -627,6 +673,9 @@ export function buildSelectorPrompts(ctx: SelectorContext): { system: string; us
     "What this student has shown so far (labelled this session vs earlier):",
     skillBlock,
     ctx.lastStepSummary ? `\nMost recent step: ${ctx.lastStepSummary}` : "",
+    ctx.workEvidenceLines?.length
+      ? `\nExact earlier work from this session:\n${ctx.workEvidenceLines.join("\n")}`
+      : "",
     "\nQuestions already shown this session (do not repeat):",
     servedLines.join("\n"),
     "\nOptions:",

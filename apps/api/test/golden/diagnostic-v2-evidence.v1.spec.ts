@@ -22,6 +22,7 @@ import {
 } from "../../src/engines/diagnostic-v2/micro-skills.catalog";
 import {
   assistanceInForce,
+  assessCoefficientVerificationGate,
   attributeMicroSkill,
   buildChildFacingSummary,
   contextModifiersForStep,
@@ -135,9 +136,10 @@ describe("computeMicroSkillStatus", () => {
     assert.equal(computeMicroSkillStatus(EMPTY_COUNTS), "UNKNOWN");
   });
 
-  it("needs two independent failures before calling it a gap — one error is a hypothesis", () => {
+  it("needs three independent opportunities before calling two errors a gap", () => {
     assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 1, independentFailureCount: 1 })), "EMERGING");
-    assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 2, independentFailureCount: 2 })), "LIKELY_GAP");
+    assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 2, independentFailureCount: 2 })), "EMERGING");
+    assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 3, independentSuccessCount: 1, independentFailureCount: 2 })), "LIKELY_GAP");
   });
 
   it("Defect B: a 50/50 independent split stays EMERGING, not LIKELY_GAP", () => {
@@ -158,7 +160,7 @@ describe("computeMicroSkillStatus", () => {
     );
   });
 
-  it("Defect B: 8 right / 5 wrong is not LIKELY_GAP while 0 right / 2 wrong still is", () => {
+  it("Defect B: neither 8 right / 5 wrong nor only 0 right / 2 wrong is enough for LIKELY_GAP", () => {
     assert.equal(
       computeMicroSkillStatus(
         counts({
@@ -171,7 +173,7 @@ describe("computeMicroSkillStatus", () => {
     );
     assert.equal(
       computeMicroSkillStatus(counts({ evidenceCount: 2, independentFailureCount: 2 })),
-      "LIKELY_GAP",
+      "EMERGING",
     );
   });
 
@@ -186,6 +188,51 @@ describe("computeMicroSkillStatus", () => {
 
   it("does not promote assisted success to reliable", () => {
     assert.equal(computeMicroSkillStatus(counts({ evidenceCount: 3, assistedSuccessCount: 3 })), "EMERGING");
+  });
+});
+
+describe("coefficient verification evidence bar", () => {
+  const observation = (
+    questionId: string,
+    validity: "VALID" | "INVALID",
+    primaryMicroSkillId = "LIN_REMOVE_COEFFICIENT",
+  ) => ({
+    questionId,
+    validity,
+    primaryMicroSkillId,
+    attemptedTransformation: primaryMicroSkillId === "LIN_REMOVE_COEFFICIENT" ? "REMOVE_COEFFICIENT" : "REMOVE_CONSTANT",
+    assistanceLevel: "NONE" as const,
+  });
+
+  it("does not interrupt the flow after only two quotient mistakes", () => {
+    const gate = assessCoefficientVerificationGate([
+      observation("q1", "INVALID"),
+      observation("q2", "INVALID"),
+      observation("q1", "VALID", "LIN_REMOVE_CONSTANT"),
+      observation("q2", "VALID", "LIN_COMBINE_LIKE"),
+    ]);
+    assert.equal(gate.eligible, false);
+    assert.equal(gate.independentOpportunities, 2);
+  });
+
+  it("allows one neutral check only after three opportunities and contradictory success", () => {
+    const gate = assessCoefficientVerificationGate([
+      observation("q1", "INVALID"),
+      observation("q2", "INVALID"),
+      observation("q3", "VALID"),
+    ]);
+    assert.equal(gate.eligible, true);
+    assert.match(gate.reason, /intent is not inferred/i);
+  });
+
+  it("does not treat assisted work as independent evidence", () => {
+    const assisted = { ...observation("q3", "VALID"), assistanceLevel: "RULE_PROMPT" as const };
+    const gate = assessCoefficientVerificationGate([
+      observation("q1", "INVALID"),
+      observation("q2", "INVALID"),
+      assisted,
+    ]);
+    assert.equal(gate.eligible, false);
   });
 });
 
@@ -239,8 +286,20 @@ describe("buildRuleHypothesis — the always-available fallback", () => {
     assert.ok(h.confidence < 0.5);
   });
 
-  it("escalates to a repeated pattern only on the second independent failure", () => {
+  it("keeps two failures across only two opportunities as a possible slip", () => {
     const counts = { ...EMPTY_COUNTS, evidenceCount: 2, independentFailureCount: 2 };
+    const h = buildRuleHypothesis({
+      microSkillId: "LIN_DISTRIBUTE_NEG",
+      microSkillName: "Distribute a negative multiplier and preserve sign products",
+      sessionCounts: counts,
+      lifetimeCounts: counts,
+    });
+    assert.equal(h.hypothesisLabel, "POSSIBLE_SLIP");
+    assert.match(h.reasoning, /not enough|only been 2 independent opportunities/i);
+  });
+
+  it("escalates only after three opportunities with errors on more than half", () => {
+    const counts = { ...EMPTY_COUNTS, evidenceCount: 3, independentSuccessCount: 1, independentFailureCount: 2 };
     const h = buildRuleHypothesis({
       microSkillId: "LIN_DISTRIBUTE_NEG",
       microSkillName: "Distribute a negative multiplier and preserve sign products",
@@ -314,6 +373,18 @@ describe("micro-skill attribution", () => {
       }).primary,
       "LIN_DISTRIBUTE_POS",
     );
+  });
+
+  it("routes a correctly expanded line with a copied-side slip to checking, not distribution", () => {
+    const result = attributeMicroSkill({
+      previousLine: "-2(x - 5) + 3 = 11",
+      submittedLine: "-2x + 10 + 3 = 10",
+      transformation: "OTHER",
+      firstInvalidActionCode: "COPIED_UNCHANGED_SIDE",
+      item: item("NEG_DIST_MAIN"),
+    });
+    assert.equal(result.primary, "LIN_CHECK_SOLUTION");
+    assert.deepEqual(result.supporting, ["LIN_DISTRIBUTE_NEG"]);
   });
 
   it("attributes each isolating step to the operation actually performed", () => {
@@ -546,8 +617,16 @@ describe("stage sequencing", () => {
     ]);
   });
 
+  it("returns to completion after the optional coefficient verification", () => {
+    assert.deepEqual(
+      nextStagesAfter("COEFFICIENT_VERIFICATION", { targetSkillFailed: false, patternConfirmed: false }),
+      ["COMPLETE"],
+    );
+  });
+
   it("places a generated instance at the same stage as the item it stands in for", () => {
     for (const fixed of FIXED_ITEMS) {
+      if (fixed.templateId === null) continue;
       assert.equal(stageForTemplate(fixed.templateId), fixed.itemKey);
     }
   });

@@ -32,7 +32,7 @@ function context(overrides: Partial<SelectorContext> = {}): SelectorContext {
     studentId: "student-1",
     sessionId: "session-1",
     candidates: [
-      { item: findFixedItem("NEG_DIST_CONTRAST")!, legalityReason: "next item in the fixed diagnostic sequence" },
+      { item: findFixedItem("NEG_DIST_CONTRAST")!, legalityReason: "next planned question in the rule sequence" },
       { item: findFixedItem("TRANSFER_NEG_DIST")!, legalityReason: "a planned item that has not been shown yet" },
     ],
     ruleSelectedIndex: 0,
@@ -116,6 +116,81 @@ describe("DiagnosticV2AiSelectorService — bounds are rejected, never clamped",
   });
 });
 
+describe("reasoning evidence validation", () => {
+  it("accepts a correct-step paraphrase when it names the exact skill and both equation states", async () => {
+    const reasoning =
+      "The student correctly performed LIN_REMOVE_COEFFICIENT by isolating x in 3x=15 to x=5, so ENTRY_VARIABLE_BOTH is an appropriate next challenge.";
+    const orchestrator = mockOrchestrator({
+      raw: json({ choice: "EXISTING", index: 0, confidence: 0.8, reasoning }),
+    });
+    const result = await makeSelectorService(orchestrator.service).selectNext(
+      context({
+        skillLines: [],
+        lastStepSummary:
+          "the last line was correct on LIN_REMOVE_COEFFICIENT; exact submitted change: 3x = 15 -> x = 5",
+      }),
+    );
+    assert.equal(result.source, "AI");
+    assert.equal(orchestrator.rejections.length, 0);
+  });
+
+  it("rejects a generic correct claim that omits the exact observed calculation", async () => {
+    const orchestrator = mockOrchestrator({
+      raw: json({
+        choice: "EXISTING",
+        index: 0,
+        confidence: 0.8,
+        reasoning: "The student did well on LIN_REMOVE_COEFFICIENT, so this is a good next question.",
+      }),
+    });
+    const result = await makeSelectorService(orchestrator.service).selectNext(
+      context({
+        skillLines: [],
+        lastStepSummary:
+          "the last line was correct on LIN_REMOVE_COEFFICIENT; exact submitted change: 3x = 15 -> x = 5",
+      }),
+    );
+    assert.equal(result.source, "RULE");
+    assert.match(orchestrator.rejections[0]!, /exact observed step/);
+  });
+
+  it("accepts an error paraphrase tied to the exact skill in the current uncommitted step", async () => {
+    const reasoning =
+      "The student made an error on LIN_DISTRIBUTE_NEG, so NEG_DIST_CONTRAST isolates negative distribution without equation-solving complexity.";
+    const orchestrator = mockOrchestrator({
+      raw: json({ choice: "EXISTING", index: 0, confidence: 0.9, reasoning }),
+    });
+    const result = await makeSelectorService(orchestrator.service).selectNext(
+      context({
+        skillLines: [],
+        lastStepSummary:
+          "the last line was incorrect on LIN_DISTRIBUTE_NEG — the +3 and = 11 parts were omitted",
+      }),
+    );
+    assert.equal(result.source, "AI");
+    assert.equal(orchestrator.rejections.length, 0);
+  });
+
+  it("still rejects a generic error claim with no skill or mathematical evidence", async () => {
+    const orchestrator = mockOrchestrator({
+      raw: json({
+        choice: "EXISTING",
+        index: 0,
+        confidence: 0.9,
+        reasoning: "The student made an error, so this is the best next question.",
+      }),
+    });
+    const result = await makeSelectorService(orchestrator.service).selectNext(
+      context({
+        skillLines: [],
+        lastStepSummary: "the last line was incorrect on LIN_DISTRIBUTE_NEG",
+      }),
+    );
+    assert.equal(result.source, "RULE");
+    assert.match(orchestrator.rejections[0]!, /must cite/);
+  });
+});
+
 describe("DiagnosticV2AiSelectorService — failing closed", () => {
   it("keeps the rule pick when the call times out", async () => {
     const orchestrator = mockOrchestrator({ failWith: new Error("timeout after 2000ms") });
@@ -147,7 +222,7 @@ describe("DiagnosticV2AiSelectorService — failing closed", () => {
       raw: json({ choice: "EXISTING", index: 0, confidence: 0.5, reasoning: REASON }),
     });
     await makeSelectorService(orchestrator.service).selectNext(context());
-    assert.equal(orchestrator.calls[0]!.timeoutMs, 3000);
+    assert.equal(orchestrator.calls[0]!.timeoutMs, 3500);
   });
 });
 

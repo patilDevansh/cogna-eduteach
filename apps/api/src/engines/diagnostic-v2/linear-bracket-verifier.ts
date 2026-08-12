@@ -570,7 +570,20 @@ export function verifyStepValidity(previousLine: string, submittedLine: string):
 
 /** Structural heuristics only — what the student appears to have been doing, which is separate from whether it was correct. */
 export function classifyTransformation(prev: ParsedLine, next: ParsedLine): StepTransformation {
-  if (prev.hadBracket && !next.hadBracket) return "DISTRIBUTE";
+  if (prev.hadBracket && !next.hadBracket) {
+    // The parser normalises the bracketed side to its correctly expanded
+    // expression. If that side is unchanged but the untouched side was copied
+    // differently, distribution succeeded; this is a transcription slip.
+    if (
+      prev.rhs &&
+      next.rhs &&
+      linearExpressionEquals(prev.lhs, next.lhs) &&
+      !linearExpressionEquals(prev.rhs, next.rhs)
+    ) {
+      return "OTHER";
+    }
+    return "DISTRIBUTE";
+  }
 
   if (prev.rhs && next.rhs) {
     const prevTerms = prev.lhsTermCount + prev.rhsTermCount;
@@ -617,6 +630,20 @@ export function findFirstInvalidAction(
   next: ParsedLine,
 ): { firstInvalidActionCode?: string; firstInvalidActionDescription?: string } {
   if (prev.hadBracket && !next.hadBracket) {
+    if (
+      prev.rhs &&
+      next.rhs &&
+      linearExpressionEquals(prev.lhs, next.lhs) &&
+      !linearExpressionEquals(prev.rhs, next.rhs)
+    ) {
+      return {
+        firstInvalidActionCode: "COPIED_UNCHANGED_SIDE",
+        firstInvalidActionDescription: `the bracket was expanded correctly, but the unchanged right side was copied as ${formatLinearExpression(
+          next.rhs,
+          prev.variable ?? "x",
+        )} instead of ${formatLinearExpression(prev.rhs, prev.variable ?? "x")}`,
+      };
+    }
     const bracket = matchSingleBracket(previousLineRaw);
     if (bracket) {
       const { multiplier, inner } = bracket;
@@ -703,6 +730,22 @@ export function findFirstInvalidAction(
     firstInvalidActionCode: "NOT_EQUIVALENT",
     firstInvalidActionDescription: "this line is not equivalent to the line above it",
   };
+}
+
+function linearExpressionEquals(left: LinearForm, right: LinearForm): boolean {
+  return ratEq(left.a, right.a) && ratEq(left.b, right.b);
+}
+
+function formatLinearExpression(expression: LinearForm, variable: string): string {
+  if (ratIsZero(expression.a)) return ratToString(expression.b);
+  const variableTerm = ratEq(expression.a, rat(1))
+    ? variable
+    : ratEq(expression.a, rat(-1))
+      ? `-${variable}`
+      : `${ratToString(expression.a)}${variable}`;
+  if (ratIsZero(expression.b)) return variableTerm;
+  const magnitude = rat(Math.abs(expression.b.n), expression.b.d);
+  return `${variableTerm} ${expression.b.n < 0 ? "-" : "+"} ${ratToString(magnitude)}`;
 }
 
 /** Extracts `A(x ± B)` from the raw text so the first-invalid-action analysis can talk about the actual numbers the student saw. */

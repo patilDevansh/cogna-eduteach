@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildInterpreterPrompts,
   DiagnosticV2AiInterpreterService,
+  reasoningGroundsCurrentStep,
   type InterpreterContext,
 } from "../../src/engines/diagnostic-v2/diagnostic-v2-ai-interpreter.service";
 import { rowAgreement } from "../../src/ai/shadow-gate-evaluator.formulas";
@@ -11,9 +12,9 @@ import { mockOrchestrator } from "./helpers/diagnostic-v2-fakes";
 
 function context(overrides: Partial<InterpreterContext> = {}): InterpreterContext {
   const defaultCounts = {
-    evidenceCount: 2,
+    evidenceCount: 3,
     independentSuccessCount: 0,
-    independentFailureCount: 2,
+    independentFailureCount: 3,
     assistedSuccessCount: 0,
   };
   const counts = overrides.counts ?? defaultCounts;
@@ -28,6 +29,17 @@ function context(overrides: Partial<InterpreterContext> = {}): InterpreterContex
     observedContextStrengths: [],
     observedContextGaps: ["INDEPENDENT"],
     firstInvalidActionDescription: "(-2)(-5) was evaluated as -10, but multiplying those two signs gives 10",
+    questionPrompt: "-2(x - 5) + 3 = 11",
+    previousLine: "-2x + 10 + 3 = 11",
+    submittedLine: "-2x = 9",
+    sessionSkillEvidence: [
+      {
+        microSkillName: "Divide by a coefficient to isolate the variable",
+        independentSuccessCount: 1,
+        independentFailureCount: 0,
+        assistedSuccessCount: 0,
+      },
+    ],
     ...overrides,
     // Re-apply so a counts-only override cannot leave stale sessionCounts.
     counts,
@@ -41,7 +53,7 @@ const json = (v: unknown) => JSON.stringify(v);
 const goodResponse = {
   hypothesisLabel: "REPEATED_PATTERN",
   confidence: 0.85,
-  reasoning: "The same sign slip appeared on two structurally different bracket problems.",
+  reasoning: "-2x + 10 + 3 = 11 -> -2x = 9 is incorrect: (-2)(-5) was treated as -10 instead of 10, so this step contains the current sign-calculation error; the same kind of error has appeared on three independent opportunities.",
   childFacingSummary: "Let's look at what happens to a minus sign just outside a bracket.",
 };
 
@@ -55,12 +67,14 @@ describe("DiagnosticV2AiInterpreterService — always returns a hypothesis", () 
     assert.equal(result.childFacingSummary, goodResponse.childFacingSummary);
   });
 
-  it("falls back to the deterministic hypothesis on timeout — a skill is never left uninterpreted", async () => {
+  it("falls back conservatively on two failures across only two opportunities", async () => {
     const orchestrator = mockOrchestrator({ failWith: new Error("timeout after 3000ms") });
-    const result = await new DiagnosticV2AiInterpreterService(orchestrator.service).interpret(context());
+    const result = await new DiagnosticV2AiInterpreterService(orchestrator.service).interpret(context({
+      counts: { evidenceCount: 2, independentSuccessCount: 0, independentFailureCount: 2, assistedSuccessCount: 0 },
+    }));
 
     assert.equal(result.source, "RULE");
-    assert.equal(result.hypothesisLabel, "REPEATED_PATTERN");
+    assert.equal(result.hypothesisLabel, "POSSIBLE_SLIP");
     assert.ok(result.childFacingSummary.length > 0);
   });
 
@@ -85,6 +99,24 @@ describe("DiagnosticV2AiInterpreterService — always returns a hypothesis", () 
     const orchestrator = mockOrchestrator({ generate: false });
     const result = await new DiagnosticV2AiInterpreterService(orchestrator.service).interpret(oneError);
     assert.equal(result.hypothesisLabel, "POSSIBLE_SLIP");
+  });
+
+  it("caps confidence when fewer than three independent opportunities exist", async () => {
+    const orchestrator = mockOrchestrator({ raw: json({ ...goodResponse, hypothesisLabel: "POSSIBLE_SLIP", confidence: 0.99 }) });
+    const result = await new DiagnosticV2AiInterpreterService(orchestrator.service).interpret(context({
+      counts: { evidenceCount: 2, independentSuccessCount: 0, independentFailureCount: 2, assistedSuccessCount: 0 },
+    }));
+    assert.equal(result.confidence, 0.7);
+  });
+
+  it("rejects a repeated-pattern claim based on only two independent opportunities", async () => {
+    const orchestrator = mockOrchestrator({ raw: json(goodResponse) });
+    const result = await new DiagnosticV2AiInterpreterService(orchestrator.service).interpret(context({
+      counts: { evidenceCount: 2, independentSuccessCount: 0, independentFailureCount: 2, assistedSuccessCount: 0 },
+    }));
+    assert.equal(result.source, "RULE");
+    assert.equal(result.hypothesisLabel, "POSSIBLE_SLIP");
+    assert.match(orchestrator.rejections[0]!, /at least three independent opportunities/);
   });
 });
 
@@ -128,11 +160,17 @@ describe("DiagnosticV2AiInterpreterService — forbidden terms fail the whole ca
 describe("buildInterpreterPrompts", () => {
   it("hands over counts as facts, plus the rule reading to argue against", () => {
     const { system, user } = buildInterpreterPrompts(context(), "REPEATED_PATTERN");
-    assert.match(user, /Got it wrong on their own: 2 time\(s\)/);
+    assert.match(user, /THIS SESSION — got it wrong independently: 3 time\(s\)/);
+    assert.match(user, /PRIOR \+ CURRENT LIFETIME TOTAL — independent failures: 3/);
     assert.match(user, /The rule-based reading of this is: REPEATED_PATTERN/);
+    assert.match(user, /Exact submitted change: -2x \+ 10 \+ 3 = 11 -> -2x = 9/);
+    assert.match(user, /Divide by a coefficient to isolate the variable: 1 independent success/);
     assert.match(system, /treat those as facts/);
     assert.match(system, /Never state that an untested skill is weak/);
     assert.match(system, /Never infer attention, mood, effort, intelligence, or any clinical trait/);
+    assert.match(system, /cite the exact equation change and numerical success\/failure counts/);
+    assert.match(system, /at least three independent opportunities/);
+    assert.match(system, /calculation error while dividing/);
   });
 
   it("mentions the observed conditions when there are any", () => {
@@ -142,6 +180,38 @@ describe("buildInterpreterPrompts", () => {
     );
     assert.match(user, /Held up under: INDEPENDENT/);
     assert.match(user, /Struggled under: NEAR_TRANSFER/);
+  });
+});
+
+describe("interpreter step grounding", () => {
+  it("rejects session-level wording that could be pasted onto a different step", () => {
+    assert.equal(
+      reasoningGroundsCurrentStep(
+        "The student has one success and one error, indicating inconsistency.",
+        context(),
+      ),
+      false,
+    );
+  });
+
+  it("accepts reasoning tied to the exact invalid transition and calculation", () => {
+    assert.equal(reasoningGroundsCurrentStep(goodResponse.reasoning, context()), true);
+  });
+
+  it("accepts a correct step only when both equation states are cited", () => {
+    const correct = context({
+      firstInvalidActionDescription: undefined,
+      previousLine: "2x - 7 = 9",
+      submittedLine: "x = 8",
+    });
+    assert.equal(
+      reasoningGroundsCurrentStep(
+        "2x - 7 = 9 -> x = 8 is correct and fixes the earlier quotient calculation.",
+        correct,
+      ),
+      true,
+    );
+    assert.equal(reasoningGroundsCurrentStep("The student divided correctly.", correct), false);
   });
 });
 

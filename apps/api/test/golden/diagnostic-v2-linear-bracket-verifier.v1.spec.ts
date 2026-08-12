@@ -77,6 +77,15 @@ describe("verifyStepValidity — invalid transformations", () => {
     assert.match(result.firstInvalidActionDescription!, /outside the bracket was dropped/);
   });
 
+  it("classifies a changed untouched side as a transcription slip, not distribution", () => {
+    const result = verifyStepValidity("-2(x - 5) + 3 = 11", "-2x + 10 + 3 = 10");
+    assert.equal(result.validity, "INVALID");
+    assert.equal(result.transformation, "OTHER");
+    assert.equal(result.firstInvalidActionCode, "COPIED_UNCHANGED_SIDE");
+    assert.match(result.firstInvalidActionDescription ?? "", /expanded correctly/);
+    assert.match(result.firstInvalidActionDescription ?? "", /10 instead of 11/);
+  });
+
   it("catches a coefficient dropped without dividing the other side", () => {
     const result = verifyStepValidity("3x = 15", "x = 15");
     assert.equal(result.validity, "INVALID");

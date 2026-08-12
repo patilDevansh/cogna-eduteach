@@ -111,6 +111,8 @@ export type DiagnosticV2ItemStageId =
    * The prerequisite the selector could see but had nothing to serve for.
    */
   | "PREREQ_SIGN_PROBE"
+  /** Neutral end-of-flow calculation verification; never an intent label. */
+  | "COEFFICIENT_VERIFICATION"
   /** Phase B1 — fraction-linear track stages. */
   | "ENTRY_FRAC_SIMPLE"
   | "FRAC_CLEAR_MAIN"
@@ -228,6 +230,18 @@ export interface DiagnosticV2Item {
 
 /** The fixed, pre-validated sequence backbone. The AI selector picks among these first and only generates when none fit. */
 export const FIXED_ITEMS: readonly DiagnosticV2Item[] = [
+  {
+    itemKey: "COEFFICIENT_VERIFICATION",
+    templateId: null,
+    origin: "PRE_WRITTEN",
+    stageId: "COEFFICIENT_VERIFICATION",
+    prompt: "Solve for x:  4x = 28",
+    openingLine: "4x = 28",
+    primaryMicroSkillId: "LIN_REMOVE_COEFFICIENT",
+    supportingMicroSkillIds: [],
+    isTransferCheck: false,
+    isBareExpression: false,
+  },
   {
     itemKey: "ENTRY_TWO_STEP",
     templateId: "TPL_TWO_STEP",

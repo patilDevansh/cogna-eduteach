@@ -12,9 +12,18 @@ type Piece =
   | { kind: "text"; value: string }
   | { kind: "frac"; num: string; den: string };
 
-/** Match parenthesised or simple numerators over a slash denominator. */
+/**
+ * Match the one-level fraction forms used by the diagnostic renderer.
+ *
+ * Keep this expression deliberately non-recursive. `MathText` also receives
+ * whole AI explanations, and the previous nested parenthesis matcher could
+ * backtrack exponentially on a long sentence with an unmatched `(`. Opening
+ * the debug panel then blocked the browser's main thread and could crash the
+ * tab. Diagnostic equations only require `(x + 1)/2`, `x/2`, and numeric
+ * equivalents, so a single parenthesis level is both sufficient and linear.
+ */
 const FRAC_RE =
-  /(\((?:[^()]+|\([^()]*\))*\)|[A-Za-z]\w*|\d+)\s*\/\s*(\((?:[^()]+|\([^()]*\))*\)|[A-Za-z]\w*|\d+)/g;
+  /(\([^()\r\n]*\)|[A-Za-z]\w*|\d+)\s*\/\s*(\([^()\r\n]*\)|[A-Za-z]\w*|\d+)/g;
 
 function tokenize(line: string): Piece[] {
   const pieces: Piece[] = [];
@@ -34,6 +43,11 @@ function tokenize(line: string): Piece[] {
     pieces.push({ kind: "text", value: line });
   }
   return pieces;
+}
+
+/** Prose-safe variant for feedback/reasoning that may contain embedded maths. */
+export function MathText({ text }: { text: string }) {
+  return <span className={styles.mathLine}>{renderPieces(tokenize(text))}</span>;
 }
 
 function stripOuterParens(s: string): string {

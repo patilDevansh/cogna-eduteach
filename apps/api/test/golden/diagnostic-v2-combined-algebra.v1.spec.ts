@@ -1,5 +1,5 @@
 /**
- * COMBINED_ALGEBRA — one session walks all five topic backbones (all-correct).
+ * COMBINED_ALGEBRA — temporarily scoped to the first two topic backbones.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -122,13 +122,13 @@ const SCRIPT: Array<{ itemKey: string; lines: Array<[string, string]> }> = [
 ];
 
 describe("COMBINED_ALGEBRA routing helpers", () => {
-  it("opens on NegDist entry and concatenates all topic stage orders", () => {
+  it("opens on NegDist entry and contains the first two topic stage orders", () => {
     assert.equal(firstStageForTrack("COMBINED_ALGEBRA"), "ENTRY_TWO_STEP");
-    assert.equal(itemStageOrderForTrack("COMBINED_ALGEBRA").length, 21);
+    assert.equal(itemStageOrderForTrack("COMBINED_ALGEBRA").length, 9);
     assert.match(openingReasonForTrack("COMBINED_ALGEBRA"), /combined algebra/i);
   });
 
-  it("hops to the next topic after each transfer (not COMPLETE until quadratics)", () => {
+  it("hops from brackets to fractions, then completes", () => {
     assert.deepEqual(
       nextStagesAfter("TRANSFER_NEG_DIST", {
         targetSkillFailed: false,
@@ -143,23 +143,7 @@ describe("COMBINED_ALGEBRA routing helpers", () => {
         patternConfirmed: false,
         track: "COMBINED_ALGEBRA",
       }),
-      ["ENTRY_EXPAND_BINOMIAL"],
-    );
-    assert.deepEqual(
-      nextStagesAfter("TRANSFER_ID_DIFF", {
-        targetSkillFailed: false,
-        patternConfirmed: false,
-        track: "COMBINED_ALGEBRA",
-      }),
-      ["ENTRY_FACTOR_EXPAND"],
-    );
-    assert.deepEqual(
-      nextStagesAfter("TRANSFER_FAC_NONMONIC", {
-        targetSkillFailed: false,
-        patternConfirmed: false,
-        track: "COMBINED_ALGEBRA",
-      }),
-      ["ENTRY_QUAD_STANDARD"],
+      ["COMPLETE"],
     );
     assert.deepEqual(
       nextStagesAfter("TRANSFER_QUAD_ZP", {
@@ -187,8 +171,8 @@ describe("COMBINED_ALGEBRA routing helpers", () => {
   });
 });
 
-describe("COMBINED_ALGEBRA session — all-correct five-topic walk", () => {
-  it("completes all five backbones and returns a multi-topic summary", async () => {
+describe("COMBINED_ALGEBRA session — all-correct two-topic walk", () => {
+  it("completes brackets and fractions, then returns a summary", async () => {
     const { prisma } = createFakePrisma([STUDENT_ID]);
     const selector = mockOrchestrator({
       generate: true,
@@ -217,7 +201,7 @@ describe("COMBINED_ALGEBRA session — all-correct five-topic walk", () => {
     let lastStatus: string = "ACTIVE";
     const visited: string[] = [itemKey];
 
-    for (const block of SCRIPT) {
+    for (const block of SCRIPT.slice(0, 7)) {
       assert.equal(itemKey, block.itemKey, `expected ${block.itemKey}, on ${itemKey}`);
       for (const [previousLine, submittedLine] of block.lines) {
         const response = await service.submitStep(start.sessionId, {
@@ -240,10 +224,8 @@ describe("COMBINED_ALGEBRA session — all-correct five-topic walk", () => {
 
     assert.equal(lastStatus, "COMPLETED");
     assert.ok(visited.includes("ENTRY_FRAC_SIMPLE"), "must enter fractions topic");
-    assert.ok(visited.includes("ENTRY_EXPAND_BINOMIAL"), "must enter identities topic");
-    assert.ok(visited.includes("ENTRY_FACTOR_EXPAND"), "must enter factorising topic");
-    assert.ok(visited.includes("ENTRY_QUAD_STANDARD"), "must enter quadratics topic");
-    assert.ok(visited.includes("TRANSFER_QUAD_ZP"), "must finish quadratics transfer");
+    assert.ok(visited.includes("TRANSFER_FRAC_CLEAR"), "must finish fractions transfer");
+    assert.ok(!visited.includes("ENTRY_EXPAND_BINOMIAL"), "must not enter identities topic");
     assert.ok(selector.calls.length > 0, "selector should be consulted on GENERATE path");
 
     const summary = await service.getSummary(start.sessionId);

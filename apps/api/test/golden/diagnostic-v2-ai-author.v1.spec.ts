@@ -49,7 +49,7 @@ function selectorContext(overrides: Partial<SelectorContext> = {}): SelectorCont
     candidates: [
       {
         item: findFixedItem("NEG_DIST_MAIN")!,
-        legalityReason: "next item in the fixed diagnostic sequence",
+        legalityReason: "next planned question in the rule sequence",
       },
     ],
     ruleSelectedIndex: 0,

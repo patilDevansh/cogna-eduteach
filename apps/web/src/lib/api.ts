@@ -3,6 +3,7 @@ import type {
   ConfidenceCalibrationSummary,
   DiagnosticV2DebugView,
   DiagnosticV2SummaryResponse,
+  DiagnosticV2Track,
   MasteryTrendPoint,
   PatternHistoryItem,
   PracticeCalendarDay,
@@ -442,15 +443,10 @@ export const api = {
 
   /** MVP 9.0.1 Phase A — micro-skill step diagnostic; standalone from the
    * MVP 1.0-9.0 session/practice routes above. May 404 until the backend lands.
-   * Optional `track`: NEGATIVE_DISTRIBUTION | FRACTION_LINEAR | IDENTITY_DIFF_SQUARES | FACTOR_MONIC_TRINOMIAL | QUAD_ZERO_PRODUCT. */
+   * Optional track, including the combined five-topic diagnostic. */
   startDiagnosticV2Session: (
     studentId: string,
-    track:
-      | "NEGATIVE_DISTRIBUTION"
-      | "FRACTION_LINEAR"
-      | "IDENTITY_DIFF_SQUARES"
-      | "FACTOR_MONIC_TRINOMIAL"
-      | "QUAD_ZERO_PRODUCT" = "FRACTION_LINEAR",
+    track: DiagnosticV2Track = "FRACTION_LINEAR",
   ) =>
     apiFetch<StartDiagnosticV2SessionResponse>("/diagnostic-v2/sessions", {
       method: "POST",

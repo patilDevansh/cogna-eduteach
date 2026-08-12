@@ -18,8 +18,12 @@ process.on("uncaughtException", (err) => {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedWebOrigins = process.env.WEB_URL
+    ? [process.env.WEB_URL]
+    : ["http://localhost:3000", "http://localhost:3002"];
+
   app.enableCors({
-    origin: process.env.WEB_URL ?? "http://localhost:3000",
+    origin: allowedWebOrigins,
     credentials: true,
   });
 

@@ -976,6 +976,9 @@ model AiDecisionAuditLog {
   model         String?
   ruleOutput    Json
   aiOutput      Json?
+  /** Raw structured model response when parsing/validation rejected it.
+   * Internal audit only; never student-facing. */
+  rejectedOutput Json?
   served        Boolean  @default(false)
   passed        Boolean  @default(false)
   failureReason String?
@@ -1131,6 +1134,10 @@ model DiagnosticV2Hypothesis {
   sessionId          String
   session            DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   microSkillId       String
+  /** Exact submission that caused this interpretation. Nullable for rows
+   * written before question-level provenance was introduced. */
+  attemptId           String?
+  stepId              String?
   hypothesisLabel    String
   confidence         Float
   reasoning          String
@@ -1139,4 +1146,5 @@ model DiagnosticV2Hypothesis {
   createdAt          DateTime            @default(now())
 
   @@index([sessionId, microSkillId, createdAt])
+  @@index([attemptId, stepId])
 }

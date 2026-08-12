@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type {
+  DiagnosticV2DebugView,
   DiagnosticV2SummaryOverview,
   MicroSkillStatus,
 } from "@cogna/shared";
 import styles from "@/components/diagnostic-v2.module.css";
+import { MathLine, MathText } from "@/components/math-line";
 
 type Band = {
   key: string;
@@ -155,10 +158,13 @@ function OverviewRing({ bands, total }: { bands: Band[]; total: number }) {
 export function DiagnosticV2SummaryPanel({
   summaryText,
   overview,
+  evidence,
 }: {
   summaryText: string;
   overview?: DiagnosticV2SummaryOverview | null;
+  evidence?: DiagnosticV2DebugView | null;
 }) {
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const skills = overview?.skills ?? [];
   const solid = skills.filter(
     (s) => s.status === "RELIABLE" || s.status === "DEVELOPING",
@@ -206,7 +212,7 @@ export function DiagnosticV2SummaryPanel({
   return (
     <div className={styles.summaryPanel}>
       {summaryText ? (
-        <div className={styles.summaryBody}>{summaryText}</div>
+        <div className={styles.summaryBody}><MathText text={summaryText} /></div>
       ) : (
         <p className="lead">
           Your summary isn&apos;t ready yet — everything you wrote has been
@@ -243,6 +249,7 @@ export function DiagnosticV2SummaryPanel({
               <ul className={styles.skillList}>
                 {solid.map((s) => (
                   <li key={s.microSkillId} className={statusTone(s.status)}>
+                    <button type="button" className={styles.summarySkillButton} onClick={() => setSelectedSkillId(s.microSkillId)}>
                     <div className={styles.skillHead}>
                       <span className={styles.skillName}>{s.childFacingName}</span>
                       <span className={styles.skillBand}>
@@ -255,6 +262,7 @@ export function DiagnosticV2SummaryPanel({
                         style={{ width: `${Math.round(STATUS_FILL[s.status] * 100)}%` }}
                       />
                     </div>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -267,6 +275,7 @@ export function DiagnosticV2SummaryPanel({
               <ul className={styles.skillList}>
                 {gaps.map((s) => (
                   <li key={s.microSkillId} className={statusTone(s.status)}>
+                    <button type="button" className={styles.summarySkillButton} onClick={() => setSelectedSkillId(s.microSkillId)}>
                     <div className={styles.skillHead}>
                       <span className={styles.skillName}>{s.childFacingName}</span>
                       <span className={styles.skillBand}>
@@ -280,6 +289,7 @@ export function DiagnosticV2SummaryPanel({
                       />
                     </div>
                     {s.note && <p className={styles.skillNote}>{s.note}</p>}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -292,6 +302,7 @@ export function DiagnosticV2SummaryPanel({
               <ul className={styles.skillList}>
                 {building.map((s) => (
                   <li key={s.microSkillId} className={statusTone(s.status)}>
+                    <button type="button" className={styles.summarySkillButton} onClick={() => setSelectedSkillId(s.microSkillId)}>
                     <div className={styles.skillHead}>
                       <span className={styles.skillName}>{s.childFacingName}</span>
                       <span className={styles.skillBand}>
@@ -304,6 +315,7 @@ export function DiagnosticV2SummaryPanel({
                         style={{ width: `${Math.round(STATUS_FILL[s.status] * 100)}%` }}
                       />
                     </div>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -318,6 +330,25 @@ export function DiagnosticV2SummaryPanel({
                 : "Keep practising similar problems so today's skills stay solid."}
             </p>
           </section>
+          {selectedSkillId && (() => {
+            const skill = skills.find((candidate) => candidate.microSkillId === selectedSkillId);
+            const state = evidence?.microSkillStates.find((candidate) => candidate.microSkillId === selectedSkillId);
+            const attempts = new Map<string, number>();
+            let questionNumber = 0;
+            for (const step of evidence?.steps ?? []) {
+              if (!attempts.has(step.attemptId)) attempts.set(step.attemptId, ++questionNumber);
+            }
+            const steps = (evidence?.steps ?? []).filter((step) => step.primaryMicroSkillId === selectedSkillId);
+            const latestAi = [...(evidence?.hypotheses ?? [])].reverse().find((hypothesis) => hypothesis.microSkillId === selectedSkillId && hypothesis.source === "AI");
+            return <div className={styles.evidencePopupScrim} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedSkillId(null); }}>
+              <section className={styles.evidencePopup} role="dialog" aria-modal="true" aria-label={`Evidence for ${skill?.childFacingName ?? selectedSkillId}`}>
+                <header><div><span>End-report evidence</span><h3>{skill?.childFacingName ?? selectedSkillId}</h3><code>{selectedSkillId}</code></div><div className={styles.evidencePopupActions}><span className={styles.skillBand}>{skill ? STATUS_LABEL[skill.status] : "Still checking"}</span><button type="button" onClick={() => setSelectedSkillId(null)}>Close ×</button></div></header>
+                {state && <div className={styles.statusEvidenceSummary}><strong>Rule evidence for this status</strong><p>{state.sessionIndependentSuccessCount ?? 0} independent successes, {state.sessionIndependentFailureCount ?? 0} independent failures, and {state.sessionAssistedSuccessCount ?? 0} assisted successes in this test.</p></div>}
+                <div className={styles.statusAiExplanation}><strong>AI explanation</strong>{latestAi ? <><p><MathText text={latestAi.reasoning} /></p><small>{Math.round(latestAi.confidence * 100)}% confidence</small></> : skill?.note ? <p><MathText text={skill.note} /></p> : <p>No accepted AI interpretation was recorded for this skill.</p>}</div>
+                {steps.length > 0 ? <ol className={styles.evidenceOccurrenceList}>{steps.map((step) => <li key={step.id} className={step.validity === "INVALID" ? styles.evidenceOccurrenceFailure : styles.evidenceOccurrenceSuccess}><div><strong>Question {attempts.get(step.attemptId) ?? "?"}, Step {step.stepIndex + 1}</strong><span>{step.validity}</span></div><MathLine text={`${step.previousLine} → ${step.submittedLine}`} />{step.validity === "INVALID" && step.firstInvalidActionDescription && <p><MathText text={step.firstInvalidActionDescription} /></p>}</li>)}</ol> : <p>No submitted step was linked to this skill in this test.</p>}
+              </section>
+            </div>;
+          })()}
         </>
       )}
     </div>

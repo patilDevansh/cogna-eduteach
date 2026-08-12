@@ -583,6 +583,16 @@ export interface DiagnosticV2StepProvenance {
  * Captured when selectNextItem runs and attached to stageHistory for getDebugView.
  */
 export interface DiagnosticV2SelectionProvenance {
+  /** Neutral evidence bar for an optional end-of-flow coefficient check. */
+  verificationGate?: {
+    eligible: boolean;
+    independentOpportunities: number;
+    quotientFailures: number;
+    independentSuccesses: number;
+    distinctQuestions: number;
+    contradictoryStrengthEvidence: number;
+    reason: string;
+  };
   /** ① the rules' own decision, before the AI saw anything. */
   rulePick: {
     itemKey: string;
@@ -615,6 +625,13 @@ export interface DiagnosticV2SelectionProvenance {
     /** Set when the AI asked to generate/author and the candidate was rejected by the verifier gate. */
     discardedReason?: string;
   } | null;
+  /** Why an attempted selector call was not eligible to serve. Debug-only. */
+  aiFallback?: {
+    reason: string;
+    latencyMs: number | null;
+    forbiddenTerm?: string;
+    rejectedReasoning?: string;
+  };
   /** Which one the student actually got. */
   servedItemKey: string;
   servedSource: "RULE" | "AI";
@@ -642,6 +659,9 @@ export interface DiagnosticV2DebugStepView {
 }
 
 export interface DiagnosticV2DebugHypothesisView {
+  /** Exact question/submission that produced this inference. Absent on legacy rows. */
+  attemptId?: string;
+  stepId?: string;
   microSkillId: string;
   hypothesisLabel: string;
   confidence: number;

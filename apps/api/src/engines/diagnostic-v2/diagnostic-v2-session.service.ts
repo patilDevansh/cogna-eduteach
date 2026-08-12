@@ -111,6 +111,20 @@ import {
   childFacingSkillName,
 } from "./diagnostic-v2-summary";
 
+function extractRejectedSelectorDetails(
+  failureReason: string | null | undefined,
+  rejectedOutput: unknown,
+): { forbiddenTerm?: string; rejectedReasoning?: string } {
+  const result: { forbiddenTerm?: string; rejectedReasoning?: string } = {};
+  const term = failureReason?.match(/forbidden term "([^"]+)"/i)?.[1];
+  if (term) result.forbiddenTerm = term;
+  if (rejectedOutput && typeof rejectedOutput === "object" && !Array.isArray(rejectedOutput)) {
+    const reasoning = (rejectedOutput as Record<string, unknown>).reasoning;
+    if (typeof reasoning === "string" && reasoning.trim()) result.rejectedReasoning = reasoning.trim();
+  }
+  return result;
+}
+
 export {
   buildChildFacingSummary,
   buildSummaryOverview,
@@ -128,6 +142,7 @@ export type DiagnosticV2StageId =
   | "RULE_PROMPT"
   | "TRANSFER_NEG_DIST"
   | "PREREQ_SIGN_PROBE"
+  | "COEFFICIENT_VERIFICATION"
   | "ENTRY_FRAC_SIMPLE"
   | "FRAC_CLEAR_MAIN"
   | "FRAC_CLEAR_CONTRAST"
@@ -193,21 +208,15 @@ export const FIRST_ID_STAGE_ID: DiagnosticV2StageId = "ENTRY_EXPAND_BINOMIAL";
 export const FIRST_FAC_STAGE_ID: DiagnosticV2StageId = "ENTRY_FACTOR_EXPAND";
 export const FIRST_QUAD_STAGE_ID: DiagnosticV2StageId = "ENTRY_QUAD_STANDARD";
 
-/** Full combined backbone for prefetch / next-template lookup across topics. */
+/** Temporarily scoped combined backbone: Topics 1–2 only. */
 export const COMBINED_ITEM_STAGE_ORDER: DiagnosticV2StageId[] = [
   ...ITEM_STAGE_ORDER,
   ...FRAC_ITEM_STAGE_ORDER,
-  ...ID_ITEM_STAGE_ORDER,
-  ...FAC_ITEM_STAGE_ORDER,
-  ...QUAD_ITEM_STAGE_ORDER,
 ];
 
 /** After a topic transfer on COMBINED_ALGEBRA, hop to the next topic entry. */
 const COMBINED_NEXT_AFTER_TRANSFER: Partial<Record<DiagnosticV2StageId, DiagnosticV2StageId>> = {
   TRANSFER_NEG_DIST: "ENTRY_FRAC_SIMPLE",
-  TRANSFER_FRAC_CLEAR: "ENTRY_EXPAND_BINOMIAL",
-  TRANSFER_ID_DIFF: "ENTRY_FACTOR_EXPAND",
-  TRANSFER_FAC_NONMONIC: "ENTRY_QUAD_STANDARD",
 };
 
 export function itemStageOrderForTrack(track: DiagnosticV2Track): DiagnosticV2StageId[] {
@@ -376,6 +385,8 @@ export function nextStagesAfter(
     // not this routing decision.
     case "PREREQ_SIGN_PROBE":
       return ["NEG_DIST_CONTRAST"];
+    case "COEFFICIENT_VERIFICATION":
+      return ["COMPLETE"];
     case "ENTRY_FRAC_SIMPLE":
       return ["FRAC_CLEAR_MAIN"];
     case "FRAC_CLEAR_MAIN":
@@ -499,6 +510,7 @@ export function attributeMicroSkill(input: {
   previousLine: string;
   submittedLine: string;
   transformation: StepTransformation;
+  firstInvalidActionCode?: string;
   item: DiagnosticV2Item;
 }): { primary: MicroSkillId; supporting: MicroSkillId[] } {
   const fallback = {
@@ -509,6 +521,27 @@ export function attributeMicroSkill(input: {
   const prev = tryParse(input.previousLine);
   const next = tryParse(input.submittedLine);
   if (!prev || !next) return fallback;
+
+  // A correctly performed operation followed by an altered, untouched value
+  // is not evidence against the operation. Associate it with checking work for
+  // traceability; the submit path below deliberately does not score the slip.
+  if (input.firstInvalidActionCode === "COPIED_UNCHANGED_SIDE") {
+    return { primary: "LIN_CHECK_SOLUTION", supporting: [input.item.primaryMicroSkillId] };
+  }
+
+  // Parentheses used as fraction numerators are not bracket-distribution
+  // evidence. Attribute clearing denominators before the generic bracket test.
+  if (
+    input.transformation === "MULTIPLY_BOTH_SIDES" &&
+    (lineHasFractionSyntax(input.previousLine) ||
+      input.item.primaryMicroSkillId === "LIN_CLEAR_FRACTIONS" ||
+      input.item.primaryMicroSkillId === "LIN_SOLVE_FRACTIONS")
+  ) {
+    return {
+      primary: "LIN_CLEAR_FRACTIONS",
+      supporting: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
+    };
+  }
 
   if (prev.hadBracket && !next.hadBracket) {
     return bracketMultiplierIsNegative(input.previousLine)
@@ -522,21 +555,6 @@ export function attributeMicroSkill(input: {
     if (prevBothSidesHaveVar && nextOneSideHasVar) {
       return { primary: "LIN_COMBINE_LIKE", supporting: [] };
     }
-  }
-
-  // Fraction-track clearing: MULTIPLY_BOTH_SIDES on a line that still (or
-  // just) involved fractions is evidence about LIN_CLEAR_FRACTIONS, not about
-  // removing a coefficient after the equation is already integer.
-  if (
-    input.transformation === "MULTIPLY_BOTH_SIDES" &&
-    (lineHasFractionSyntax(input.previousLine) ||
-      input.item.primaryMicroSkillId === "LIN_CLEAR_FRACTIONS" ||
-      input.item.primaryMicroSkillId === "LIN_SOLVE_FRACTIONS")
-  ) {
-    return {
-      primary: "LIN_CLEAR_FRACTIONS",
-      supporting: ["FND_FRACTION_EQUIV", "FND_FRACTION_OPS"],
-    };
   }
 
   switch (input.transformation) {
@@ -613,6 +631,70 @@ export function isInterestingPattern(input: {
   if (negative) return true;
   if (input.nextStatus === "LIKELY_GAP") return true;
   return input.kind === "TRANSFER_SUCCESS" && input.previousStatus === "LIKELY_GAP";
+}
+
+export interface CoefficientVerificationObservation {
+  questionId: string;
+  primaryMicroSkillId: string | null;
+  attemptedTransformation: string;
+  validity: StepValidity;
+  assistanceLevel: AssistanceLevel;
+}
+
+export interface CoefficientVerificationGate {
+  eligible: boolean;
+  independentOpportunities: number;
+  quotientFailures: number;
+  independentSuccesses: number;
+  distinctQuestions: number;
+  contradictoryStrengthEvidence: number;
+  reason: string;
+}
+
+/**
+ * A neutral response-consistency gate. It never tries to infer intent. The
+ * extra one-step question is eligible only at a caller-chosen natural
+ * checkpoint, after enough ordinary work already exists to justify it.
+ */
+export function assessCoefficientVerificationGate(
+  observations: readonly CoefficientVerificationObservation[],
+): CoefficientVerificationGate {
+  const independent = observations.filter((observation) => observation.assistanceLevel === "NONE");
+  const coefficient = independent.filter(
+    (observation) =>
+      observation.primaryMicroSkillId === "LIN_REMOVE_COEFFICIENT" &&
+      observation.attemptedTransformation === "REMOVE_COEFFICIENT",
+  );
+  const quotientFailures = coefficient.filter((observation) => observation.validity === "INVALID").length;
+  const independentSuccesses = coefficient.filter((observation) => observation.validity === "VALID").length;
+  const distinctQuestions = new Set(coefficient.map((observation) => observation.questionId)).size;
+  const contradictoryStrengthEvidence = independent.filter(
+    (observation) =>
+      observation.validity === "VALID" &&
+      observation.primaryMicroSkillId !== "LIN_REMOVE_COEFFICIENT",
+  ).length;
+  const independentOpportunities = quotientFailures + independentSuccesses;
+  const hasContradiction = independentSuccesses >= 1 || contradictoryStrengthEvidence >= 2;
+  const eligible =
+    independentOpportunities >= 3 &&
+    quotientFailures >= 2 &&
+    quotientFailures / independentOpportunities > 0.5 &&
+    distinctQuestions >= 2 &&
+    hasContradiction;
+
+  const reason = eligible
+    ? `Verification eligible at the end-of-flow checkpoint: ${quotientFailures} incorrect quotient calculations across ${independentOpportunities} independent division opportunities in ${distinctQuestions} questions, with ${independentSuccesses} correct division and ${contradictoryStrengthEvidence} other correct algebra steps. This is an inconsistent response pattern; intent is not inferred.`
+    : `Normal flow preserved: verification requires at least 3 independent division opportunities, at least 2 quotient failures on more than half of them across 2 questions, and contradictory success evidence. Observed ${independentOpportunities} opportunities, ${quotientFailures} failures, ${distinctQuestions} questions, ${independentSuccesses} correct division, and ${contradictoryStrengthEvidence} other correct algebra steps.`;
+
+  return {
+    eligible,
+    independentOpportunities,
+    quotientFailures,
+    independentSuccesses,
+    distinctQuestions,
+    contradictoryStrengthEvidence,
+    reason,
+  };
 }
 
 /**
@@ -894,6 +976,7 @@ export class DiagnosticV2SessionService {
           previousLine: expectedPreviousLine,
           submittedLine,
           transformation: verification!.transformation,
+          firstInvalidActionCode: verification!.firstInvalidActionCode,
           item,
         });
     const contextModifierIds = contextModifiersForStep({
@@ -921,14 +1004,17 @@ export class DiagnosticV2SessionService {
     //    explicitly not a wrong line. A decline produces SKIPPED, which is a
     //    real, citable observation carrying zero weight: it moves no success or
     //    failure counter, so it can never push a skill toward LIKELY_GAP.
-    const evidenceKind: MicroSkillEvidenceKind | null = declined
-      ? "SKIPPED"
-      : evidenceKindForStep({
+    const isTranscriptionSlip = verification?.firstInvalidActionCode === "COPIED_UNCHANGED_SIDE";
+    const evidenceKind: MicroSkillEvidenceKind | null = isTranscriptionSlip
+      ? null
+      : declined
+        ? "SKIPPED"
+        : evidenceKindForStep({
           validity: validity!,
           assistanceLevel,
           isSelfCorrection: retriedAfterInvalid && validity === "VALID",
           isTransferCheck: item.isTransferCheck,
-        });
+          });
 
     const stepEvidence = evidenceKind
       ? await this.buildEvidencePlan({
@@ -943,7 +1029,7 @@ export class DiagnosticV2SessionService {
 
     // 5. Item completion.
     const isTargetSkillFailure =
-      validity === "INVALID" && attribution.primary === item.primaryMicroSkillId;
+      !isTranscriptionSlip && validity === "INVALID" && attribution.primary === item.primaryMicroSkillId;
     const priorInvalidCount = priorSteps.filter((s) => s.validity === "INVALID").length;
     const solved = validity === "VALID" && reachedEndState(item, submittedLine);
 
@@ -1009,12 +1095,28 @@ export class DiagnosticV2SessionService {
           stepEvidence.kind,
         )
       : null;
+    const sessionSkillEvidence = stepEvidence
+      ? await Promise.all((await this.prisma.microSkillStateV2.findMany({
+          where: { studentId: session.studentId, evidenceCount: { gt: 0 } },
+          orderBy: { lastEvidenceAt: "asc" },
+        })).map(async (state) => {
+          const counts = state.microSkillId === stepEvidence.microSkillId
+            ? sessionCountsAfter!
+            : await this.sessionCountsForMicroSkill(sessionId, state.microSkillId);
+          return {
+            microSkillName: childFacingSkillName(state.microSkillId),
+            independentSuccessCount: counts.independentSuccessCount,
+            independentFailureCount: counts.independentFailureCount,
+            assistedSuccessCount: counts.assistedSuccessCount,
+          };
+        }))
+      : [];
+    // Every scored step gets an interpretation. Previously this was limited
+    // to errors/pattern changes, which left correct questions blank in the
+    // question-by-question learning picture and left reliable skills without
+    // an AI explanation in micro-skill management.
     const interpretation =
-      stepEvidence && isInterestingPattern({
-        kind: stepEvidence.kind,
-        previousStatus: stepEvidence.previousStatus,
-        nextStatus: stepEvidence.update.status,
-      })
+      stepEvidence
         ? await this.interpreter.interpret({
             studentId: session.studentId,
             sessionId,
@@ -1026,6 +1128,10 @@ export class DiagnosticV2SessionService {
             observedContextStrengths: stepEvidence.update.observedContextStrengths,
             observedContextGaps: stepEvidence.update.observedContextGaps,
             firstInvalidActionDescription: verification?.firstInvalidActionDescription,
+            questionPrompt: item.prompt,
+            previousLine: expectedPreviousLine,
+            submittedLine,
+            sessionSkillEvidence,
           })
         : null;
 
@@ -1040,6 +1146,43 @@ export class DiagnosticV2SessionService {
     let selectorHanded: StageHistoryEntry["selectorHanded"];
 
     if (itemComplete) {
+      let coefficientVerificationGate: CoefficientVerificationGate | undefined;
+      // The optional check is considered only after the final planned topic,
+      // never mid-question or between ordinary questions.
+      if (track === "COMBINED_ALGEBRA" && completedStage === "TRANSFER_FRAC_CLEAR") {
+        const sessionAttempts = await this.prisma.diagnosticV2Attempt.findMany({
+          where: { sessionId },
+          select: { id: true },
+        });
+        const recordedSteps = await this.prisma.diagnosticV2Step.findMany({
+          where: { attemptId: { in: sessionAttempts.map((candidate) => candidate.id) } },
+          select: {
+            attemptId: true,
+            primaryMicroSkillId: true,
+            attemptedTransformation: true,
+            validity: true,
+            assistanceLevel: true,
+          },
+        });
+        coefficientVerificationGate = assessCoefficientVerificationGate([
+          ...recordedSteps.map((recorded) => ({
+            questionId: recorded.attemptId,
+            primaryMicroSkillId: recorded.primaryMicroSkillId,
+            attemptedTransformation: recorded.attemptedTransformation,
+            validity: recorded.validity,
+            assistanceLevel: recorded.assistanceLevel,
+          })),
+          ...(verification
+            ? [{
+                questionId: attempt.id,
+                primaryMicroSkillId: attribution.primary,
+                attemptedTransformation: verification.transformation,
+                validity: validity!,
+                assistanceLevel,
+              }]
+            : []),
+        ]);
+      }
       // Pattern confirmation is about the item's headline skill (negative
       // distribution on the Phase A track, clear-fractions on B1) — not a
       // hardcoded id, or a later topic's contrast stage can never trigger teaching.
@@ -1053,6 +1196,9 @@ export class DiagnosticV2SessionService {
         patternConfirmed,
         track,
       });
+      if (coefficientVerificationGate?.eligible) {
+        nextStageIds = ["COEFFICIENT_VERIFICATION"];
+      }
       if (nextStageIds.includes("RULE_PROMPT")) {
         assistanceOffered = "RULE_PROMPT";
       }
@@ -1072,8 +1218,11 @@ export class DiagnosticV2SessionService {
             validity,
             verification?.firstInvalidActionDescription,
             attribution.primary,
+            expectedPreviousLine,
+            submittedLine,
           ),
           routeReason,
+          verificationGate: coefficientVerificationGate,
         });
         nextItem = selected.item;
         selectorSource = selected.source;
@@ -1126,7 +1275,7 @@ export class DiagnosticV2SessionService {
           ? {
               reasoning:
                 track === "COMBINED_ALGEBRA"
-                  ? "All five topic backbones in the combined algebra diagnostic are complete."
+                  ? "The first two topic backbones in the combined algebra diagnostic are complete."
                   : "All planned items complete.",
             }
           : selectorReasoning
@@ -1234,6 +1383,8 @@ export class DiagnosticV2SessionService {
           data: {
             sessionId,
             microSkillId: stepEvidence.microSkillId,
+            attemptId: attempt.id,
+            stepId: step?.id ?? null,
             hypothesisLabel: interpretation.hypothesisLabel,
             confidence: interpretation.confidence,
             reasoning: interpretation.reasoning,
@@ -1428,6 +1579,13 @@ export class DiagnosticV2SessionService {
       where: { studentId: session.studentId },
       orderBy: { microSkillId: "asc" },
     });
+    const selectorAudits = this.prisma.aiDecisionAuditLog?.findMany
+      ? await this.prisma.aiDecisionAuditLog.findMany({
+          where: { sessionId, capability: "DIAGNOSTIC_V2_SELECTOR" },
+          orderBy: { createdAt: "asc" },
+          select: { failureReason: true, latencyMs: true, passed: true, served: true, rejectedOutput: true },
+        })
+      : [];
 
     const track = trackFromStageHistory(session.stageHistory);
     const stageHistory = readStageHistory(session.stageHistory);
@@ -1448,7 +1606,22 @@ export class DiagnosticV2SessionService {
       .filter((h): h is StageHistoryEntry & { selection: DiagnosticV2SelectionProvenance } =>
         !!h.selection,
       )
-      .map((h) => h.selection);
+      .map((h, index) => {
+        if (h.selection.aiDecision || h.selection.aiFallback) return h.selection;
+        const audit = selectorAudits[index];
+        return {
+          ...h.selection,
+          aiFallback: {
+            reason: audit?.failureReason
+              ? audit.failureReason
+              : audit?.passed && !audit.served
+                ? "AI response passed validation but serving is disabled (shadow mode)."
+                : "No AI selector call was recorded; generation may have been disabled.",
+            latencyMs: audit?.latencyMs ?? null,
+            ...extractRejectedSelectorDetails(audit?.failureReason, audit?.rejectedOutput),
+          },
+        };
+      });
 
     const sessionCountsBySkill = new Map<string, MicroSkillCounts>();
     for (const st of states) {
@@ -1540,6 +1713,8 @@ export class DiagnosticV2SessionService {
         const sessionCounts = sessionCountsBySkill.get(h.microSkillId) ?? EMPTY_COUNTS;
         const lifetimeState = states.find((st) => st.microSkillId === h.microSkillId);
         return {
+          ...(h.attemptId ? { attemptId: h.attemptId } : {}),
+          ...(h.stepId ? { stepId: h.stepId } : {}),
           microSkillId: h.microSkillId,
           hypothesisLabel: h.hypothesisLabel,
           confidence: h.confidence,
@@ -1819,6 +1994,7 @@ export class DiagnosticV2SessionService {
     track: DiagnosticV2Track;
     lastStepSummary: string;
     routeReason?: string;
+    verificationGate?: CoefficientVerificationGate;
   }): Promise<{
     item: DiagnosticV2Item;
     source: "RULE" | "AI";
@@ -1844,16 +2020,18 @@ export class DiagnosticV2SessionService {
     const rulePick = servedItemKeys.has(requestedRulePick.itemKey)
       ? (unserved[0] ?? requestedRulePick)
       : requestedRulePick;
-    const candidateItems = unserved.some((i) => i.itemKey === rulePick.itemKey)
-      ? unserved
-      : [rulePick, ...unserved];
+    const candidateItems = rulePick.stageId === "COEFFICIENT_VERIFICATION"
+      ? [rulePick]
+      : unserved.some((i) => i.itemKey === rulePick.itemKey)
+        ? unserved
+        : [rulePick, ...unserved];
     const ruleSelectedIndex = candidateItems.findIndex((i) => i.itemKey === rulePick.itemKey);
 
     const candidates: SelectorCandidate[] = candidateItems.map((item) => ({
       item,
       legalityReason:
         item.itemKey === rulePick.itemKey
-          ? "next item in the fixed diagnostic sequence"
+          ? "next planned question in the rule sequence"
           : "a planned item for this session that has not been shown yet",
     }));
 
@@ -1861,12 +2039,71 @@ export class DiagnosticV2SessionService {
       where: { sessionId: input.session.id },
       orderBy: { createdAt: "asc" },
     });
+    const priorWork = await this.prisma.diagnosticV2Step.findMany({
+      where: { attemptId: { in: attempts.map((attempt) => attempt.id) } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        attemptId: true,
+        stepIndex: true,
+        previousLine: true,
+        submittedLine: true,
+        validity: true,
+        primaryMicroSkillId: true,
+      },
+    });
+    const questionByAttempt = new Map(attempts.map((attempt, index) => [attempt.id, index + 1]));
+    const workEvidenceLines = priorWork.map((step) =>
+      `Q${questionByAttempt.get(step.attemptId) ?? "?"} Step ${step.stepIndex + 1}: ${step.previousLine} -> ${step.submittedLine} (${step.validity}${step.primaryMicroSkillId ? `, ${step.primaryMicroSkillId}` : ""})`,
+    );
 
     const skillLines = await this.buildSelectorSkillLines(
       input.session.studentId,
       input.session.id,
     );
 
+    if (rulePick.stageId === "COEFFICIENT_VERIFICATION") {
+      const handedToAi = {
+        lastStepSummary: input.lastStepSummary,
+        skillLines: [
+          ...skillLines.map(formatSkillLine),
+          ...workEvidenceLines.map((line) => `Evidence: ${line}`),
+        ],
+      };
+      return {
+        item: rulePick,
+        source: "RULE",
+        reasoning: input.verificationGate?.reason,
+        selection: {
+          ...(input.verificationGate ? { verificationGate: input.verificationGate } : {}),
+          rulePick: {
+            itemKey: rulePick.itemKey,
+            stageId: rulePick.stageId,
+            origin: rulePick.origin,
+            routeReason: input.verificationGate?.reason ?? input.routeReason ?? "end-of-flow verification gate passed",
+          },
+          candidates: [{
+            index: 0,
+            itemKey: rulePick.itemKey,
+            prompt: rulePick.prompt,
+            origin: rulePick.origin,
+            templateId: rulePick.templateId,
+            primaryMicroSkillId: rulePick.primaryMicroSkillId,
+            legalityReason: "eligible only because the neutral end-of-flow verification evidence bar passed",
+            isRulePick: true,
+          }],
+          aiDecision: null,
+          aiFallback: {
+            reason: "AI intentionally not used: response intent cannot be inferred, so this verification check is deterministic.",
+            latencyMs: null,
+          },
+          servedItemKey: rulePick.itemKey,
+          servedSource: "RULE",
+        },
+        handedToAi,
+      };
+    }
+
+    const selectorStartedAt = new Date();
     const result = await this.selector.selectNext({
       studentId: input.session.studentId,
       sessionId: input.session.id,
@@ -1881,8 +2118,20 @@ export class DiagnosticV2SessionService {
       })),
       serveOrdinal: attempts.length,
       lastStepSummary: input.lastStepSummary,
+      workEvidenceLines,
       recentAuthorLatenciesMs: [...this.recentAuthorLatenciesMs],
     });
+    const selectorAudit = !result.aiDecision && this.prisma.aiDecisionAuditLog?.findFirst
+      ? await this.prisma.aiDecisionAuditLog.findFirst({
+          where: {
+            sessionId: input.session.id,
+            capability: "DIAGNOSTIC_V2_SELECTOR",
+            createdAt: { gte: selectorStartedAt },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { failureReason: true, latencyMs: true, passed: true, served: true, rejectedOutput: true },
+        })
+      : null;
 
     if (result.authorLatencyMs !== undefined) {
       this.recentAuthorLatenciesMs.push(result.authorLatencyMs);
@@ -1897,9 +2146,13 @@ export class DiagnosticV2SessionService {
 
     const handedToAi = {
       lastStepSummary: input.lastStepSummary,
-      skillLines: skillLines.map(formatSkillLine),
+      skillLines: [
+        ...skillLines.map(formatSkillLine),
+        ...workEvidenceLines.map((line) => `Evidence: ${line}`),
+      ],
     };
     const selection: DiagnosticV2SelectionProvenance = {
+      ...(input.verificationGate ? { verificationGate: input.verificationGate } : {}),
       rulePick: {
         itemKey: rulePick.itemKey,
         stageId: rulePick.stageId,
@@ -1923,6 +2176,19 @@ export class DiagnosticV2SessionService {
             ...(result.discardedGeneration ? { discardedReason: result.discardedGeneration } : {}),
           }
         : null,
+      ...(!result.aiDecision
+        ? {
+            aiFallback: {
+              reason: selectorAudit?.failureReason
+                ? selectorAudit.failureReason
+                : selectorAudit?.passed && !selectorAudit.served
+                  ? "AI response passed validation but serving is disabled (shadow mode)."
+                  : "No AI selector call was recorded; generation may be disabled.",
+              latencyMs: selectorAudit?.latencyMs ?? null,
+              ...extractRejectedSelectorDetails(selectorAudit?.failureReason, selectorAudit?.rejectedOutput),
+            },
+          }
+        : {}),
       servedItemKey: result.item.itemKey,
       servedSource: result.source,
     };
@@ -2022,18 +2288,22 @@ export class DiagnosticV2SessionService {
       orderBy: { createdAt: "desc" },
     });
 
-    return states.map((s) => {
+    return Promise.all(states.map(async (s) => {
       const recent = recentInvalidSteps.find((st) => st.primaryMicroSkillId === s.microSkillId);
       const hyp = hypotheses.find((h) => h.microSkillId === s.microSkillId);
+      const touched = touchedThisSession.has(s.microSkillId);
+      const displayedCounts = touched
+        ? await this.sessionCountsForMicroSkill(sessionId, s.microSkillId)
+        : s;
       const line: SelectorSkillLine = {
         microSkillId: s.microSkillId,
         status: s.status,
-        independentSuccessCount: s.independentSuccessCount,
-        independentFailureCount: s.independentFailureCount,
-        assistedSuccessCount: s.assistedSuccessCount,
+        independentSuccessCount: displayedCounts.independentSuccessCount,
+        independentFailureCount: displayedCounts.independentFailureCount,
+        assistedSuccessCount: displayedCounts.assistedSuccessCount,
         observedContextStrengths: s.observedContextStrengths,
         observedContextGaps: s.observedContextGaps,
-        scope: touchedThisSession.has(s.microSkillId) ? "this session" : "earlier",
+        scope: touched ? "this session" : "earlier",
         // The prerequisite graph already lives in the catalogue; it just was
         // never handed to the selector. UNKNOWN is the honest default for a
         // prerequisite the student has no state row for — never tested is not
@@ -2053,7 +2323,7 @@ export class DiagnosticV2SessionService {
         line.hypothesisConfidence = hyp.confidence;
       }
       return line;
-    });
+    }));
   }
 
   /** Which skills this session should schedule a delayed re-check for. */
@@ -2371,13 +2641,18 @@ function summarizeStep(
   validity: StepValidity | null,
   firstInvalidActionDescription: string | undefined,
   microSkillId: string,
+  previousLine?: string,
+  submittedLine?: string,
 ): string {
+  const numericalEvidence = previousLine && submittedLine
+    ? `; exact submitted change: ${previousLine} -> ${submittedLine}`
+    : "";
   if (validity === null) return `the student said they did not know how to start ${microSkillId}`;
-  if (validity === "VALID") return `the last line was correct, working on ${microSkillId}`;
+  if (validity === "VALID") return `the last line was correct on ${microSkillId}${numericalEvidence}`;
   if (validity === "INVALID") {
     return `the last line was incorrect on ${microSkillId}${
       firstInvalidActionDescription ? ` — ${firstInvalidActionDescription}` : ""
-    }`;
+    }${numericalEvidence}`;
   }
   return `the last line could not be read by the checker (${validity.toLowerCase()})`;
 }
@@ -2389,4 +2664,3 @@ function readStageHistory(raw: unknown): StageHistoryEntry[] {
       !!e && typeof e === "object" && typeof (e as StageHistoryEntry).stageId === "string",
   );
 }
-

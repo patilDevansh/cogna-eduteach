@@ -114,6 +114,24 @@ function clearBy(parsed: ParsedLine, k: number): ParsedLine | null {
   };
 }
 
+function formatLinearForm(form: LinearForm, variable: string): string {
+  const terms: string[] = [];
+  if (!ratIsZero(form.a)) {
+    const coefficient = ratToString(form.a);
+    terms.push(coefficient === "1" ? variable : coefficient === "-1" ? `-${variable}` : `${coefficient}${variable}`);
+  }
+  if (!ratIsZero(form.b)) {
+    const constant = ratToString(form.b);
+    terms.push(terms.length > 0 && form.b.n > 0 ? `+ ${constant}` : constant);
+  }
+  return terms.join(" ") || "0";
+}
+
+function formatEquation(parsed: ParsedLine): string {
+  const variable = parsed.variable ?? "x";
+  return `${formatLinearForm(parsed.lhs, variable)} = ${formatLinearForm(parsed.rhs!, variable)}`;
+}
+
 /**
  * Heuristic: previous had fractional coefficients, next does not (or has
  * fewer), and the coefficient magnitude grew — student attempted to clear.
@@ -255,7 +273,7 @@ export function findFirstInvalidFractionAction(
     if (expected && missingConstantRelativeTo(expected, next)) {
       return {
         firstInvalidActionCode: "DROPPED_TERM_WHEN_CLEARING",
-        firstInvalidActionDescription: `when clearing denominators by multiplying by ${lcd}, every term on both sides must be multiplied — a constant term was dropped`,
+        firstInvalidActionDescription: `multiplying every term by ${lcd} should give ${formatEquation(expected)}, but the student wrote ${formatEquation(next)}; the constant part should be ${ratToString(expected.rhs!.b)}, not ${ratToString(next.rhs.b)}`,
       };
     }
 
@@ -289,7 +307,7 @@ export function findFirstInvalidFractionAction(
       if (varLhsOk && varRhsOk && !equationFormsEq(expected, next)) {
         return {
           firstInvalidActionCode: "DROPPED_TERM_WHEN_CLEARING",
-          firstInvalidActionDescription: `when clearing denominators by multiplying by ${lcd}, every term on both sides must be multiplied — a term was lost or under-scaled`,
+          firstInvalidActionDescription: `multiplying every term by ${lcd} should give ${formatEquation(expected)}, but the student wrote ${formatEquation(next)}; on the right, the expected constant is ${ratToString(expected.rhs!.b)} because all constant terms must also be multiplied and combined`,
         };
       }
       if (!varLhsOk || !varRhsOk) {

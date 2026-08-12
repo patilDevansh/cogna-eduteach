@@ -34,7 +34,7 @@ function baseCtx(overrides: Partial<SelectorContext> = {}): SelectorContext {
   return {
     studentId: "student-1",
     sessionId: "sess-buf-1",
-    candidates: [{ item: ruleItem, legalityReason: "next item in the fixed diagnostic sequence" }],
+    candidates: [{ item: ruleItem, legalityReason: "next planned question in the rule sequence" }],
     ruleSelectedIndex: 0,
     ruleStageId: "ENTRY_TWO_STEP",
     skillLines: [],

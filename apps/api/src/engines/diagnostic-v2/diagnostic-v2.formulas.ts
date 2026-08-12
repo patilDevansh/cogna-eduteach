@@ -153,7 +153,7 @@ export function applyEvidenceToCounts(
  */
 export const LIKELY_GAP_MIN_INDEPENDENT_FAILURES = 2;
 /** Floor on independent trials before a gap label is allowed at all. */
-export const LIKELY_GAP_MIN_INDEPENDENT_TRIALS = 2;
+export const LIKELY_GAP_MIN_INDEPENDENT_TRIALS = 3;
 /** Independent failure rate must exceed this (strict) to call LIKELY_GAP. */
 export const LIKELY_GAP_FAILURE_RATE_THRESHOLD = 0.5;
 
@@ -161,8 +161,9 @@ export const LIKELY_GAP_FAILURE_RATE_THRESHOLD = 0.5;
  * Discrete status, not a continuous score — the whole point of this track is
  * to avoid a single "algebra percentage".
  *
- * LIKELY_GAP deliberately needs two independent failures: one wrong line is a
- * hypothesis, not a diagnosis (Master Prompt §3.4). RELIABLE deliberately
+ * LIKELY_GAP deliberately needs two independent failures across at least
+ * three independent opportunities: two wrong calculations alone establish
+ * repetition of the outcome, but not its conceptual cause. RELIABLE deliberately
  * needs two independent successes and zero failures — a single sitting cannot
  * prove durable mastery, so this is the ceiling this phase can award.
  */
@@ -290,6 +291,20 @@ export function buildRuleHypothesis(input: {
         input.firstInvalidActionDescription ? ` (${input.firstInvalidActionDescription})` : ""
       }, which is not yet enough to tell a slip from a real gap.`,
       childFacingSummary: `We'll check ${input.microSkillName.toLowerCase()} once more to be sure.`,
+    };
+  }
+
+  if (sessionFailures >= 2) {
+    const isCoefficientDivision = input.microSkillId === "LIN_REMOVE_COEFFICIENT";
+    return {
+      hypothesisLabel: "POSSIBLE_SLIP",
+      confidence: 0.5,
+      reasoning: isCoefficientDivision
+        ? `${sessionFailures} incorrect quotient calculations were observed while dividing to isolate the variable, but only ${sessionCounts.independentSuccessCount + sessionFailures} independent opportunities have been seen. This is evidence of a calculation pattern to re-check, not enough evidence of a conceptual division gap.`
+        : `${sessionFailures} errors were observed on ${input.microSkillName.toLowerCase()}, but there have only been ${sessionCounts.independentSuccessCount + sessionFailures} independent opportunities. That is not yet enough to separate repeated slips from a conceptual gap.`,
+      childFacingSummary: isCoefficientDivision
+        ? "The division step is the right idea; let's slow down the quotient calculation and check it by multiplying back."
+        : `This came up twice, so we'll check ${input.microSkillName.toLowerCase()} once more before drawing a conclusion.`,
     };
   }
 

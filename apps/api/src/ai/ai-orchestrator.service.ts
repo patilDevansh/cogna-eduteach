@@ -58,6 +58,7 @@ export class AiOrchestratorService {
     const started = Date.now();
 
     let aiOutput: T | null = null;
+    let rawResponse: string | null = null;
     let passed = false;
     let failureReason: string | undefined;
 
@@ -66,6 +67,7 @@ export class AiOrchestratorService {
         this.callOpenAI(model, input.systemPrompt, input.userPrompt),
         input.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       );
+      rawResponse = raw;
       aiOutput = input.parse(raw);
       passed = true;
     } catch (err) {
@@ -86,6 +88,15 @@ export class AiOrchestratorService {
         model,
         ruleOutput: input.ruleOutput as Prisma.InputJsonValue,
         aiOutput: aiOutput ? (aiOutput as object as Prisma.InputJsonValue) : Prisma.JsonNull,
+        rejectedOutput: !passed && rawResponse
+          ? (() => {
+              try {
+                return JSON.parse(rawResponse) as Prisma.InputJsonValue;
+              } catch {
+                return { raw: rawResponse } as Prisma.InputJsonValue;
+              }
+            })()
+          : Prisma.JsonNull,
         served,
         passed,
         failureReason,

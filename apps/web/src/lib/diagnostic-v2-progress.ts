@@ -2,7 +2,7 @@
  * Client-side mirror of the fixed stage backbone in
  * apps/api/.../diagnostic-v2-session.service.ts (ITEM_STAGE_ORDER and
  * friends). Display-only: never used to decide what item comes next, only to
- * show a student "which of the five topics am I on" without needing the
+ * show a student which of the currently enabled topics they are on without needing the
  * debug view (which is stripped for real students).
  */
 
@@ -23,21 +23,6 @@ export const COMBINED_TOPIC_ORDER: TopicDef[] = [
     trackKey: "FRACTION_LINEAR",
     name: "Equations with fractions",
     stages: ["ENTRY_FRAC_SIMPLE", "FRAC_CLEAR_MAIN", "FRAC_CLEAR_CONTRAST", "TRANSFER_FRAC_CLEAR"],
-  },
-  {
-    trackKey: "IDENTITY_DIFF_SQUARES",
-    name: "Difference of squares",
-    stages: ["ENTRY_EXPAND_BINOMIAL", "ID_DIFF_MAIN", "ID_DIFF_CONTRAST", "TRANSFER_ID_DIFF"],
-  },
-  {
-    trackKey: "FACTOR_MONIC_TRINOMIAL",
-    name: "Factorising trinomials",
-    stages: ["ENTRY_FACTOR_EXPAND", "FAC_MONIC_MAIN", "FAC_MONIC_CONTRAST", "TRANSFER_FAC_NONMONIC"],
-  },
-  {
-    trackKey: "QUAD_ZERO_PRODUCT",
-    name: "Quadratics via factorising",
-    stages: ["ENTRY_QUAD_STANDARD", "QUAD_ZP_MAIN", "QUAD_ZP_CONTRAST", "TRANSFER_QUAD_ZP"],
   },
 ];
 
