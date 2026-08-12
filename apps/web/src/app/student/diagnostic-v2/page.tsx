@@ -155,6 +155,12 @@ function isUnresolved(validity: StepValidity): boolean {
   return validity === "AMBIGUOUS" || validity === "PARSE_FAILED";
 }
 
+function normalizeSubmittedMathLine(line: string): string {
+  let normalized = line.trim();
+  while (/[\]},.;:]$/.test(normalized)) normalized = normalized.slice(0, -1).trimEnd();
+  return normalized;
+}
+
 function DiagnosticV2Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -381,6 +387,11 @@ function DiagnosticV2Content() {
   async function submitLine(submittedLine: string, dontKnow = false) {
     if (!attempt || !sessionId || busy) return;
 
+    // Keep the browser's accepted-line state byte-for-byte aligned with the
+    // API. Without this, a harmless trailing `]` can be removed by the server
+    // but retained locally, causing the next request to cite a stale line.
+    const normalizedSubmittedLine = normalizeSubmittedMathLine(submittedLine);
+
     // The opening line, not the prompt: the prompt carries instruction wording
     // ("Solve for x:") that the checker would not be able to read.
     const previousLine =
@@ -396,16 +407,16 @@ function DiagnosticV2Content() {
       const response = await api.submitDiagnosticV2Step(sessionId, {
         attemptId: attempt.attemptId,
         previousLine,
-        submittedLine,
+        submittedLine: normalizedSubmittedLine,
         ...(dontKnow ? { dontKnow: true } : {}),
       });
 
-      const entry: StepLogEntry = { submittedLine, response };
+      const entry: StepLogEntry = { submittedLine: normalizedSubmittedLine, response };
       setStepLog((prev) => [...prev, entry]);
       setLastStep(entry);
 
       if (response.outcome === "SUBMITTED" && response.validity === "VALID") {
-        setAcceptedLines((prev) => [...prev, submittedLine.trim()]);
+        setAcceptedLines((prev) => [...prev, normalizedSubmittedLine]);
         setDraft("");
       }
 
