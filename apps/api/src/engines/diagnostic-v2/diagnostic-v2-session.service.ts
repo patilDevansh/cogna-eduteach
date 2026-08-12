@@ -892,7 +892,7 @@ export class DiagnosticV2SessionService {
     // "I don't know" is an action on the item, not a line of working. It is
     // never parsed, never graded, and never counted as getting the maths wrong.
     const declined = body.dontKnow === true;
-    const submittedLine = body.submittedLine.trim();
+    const submittedLine = normalizeSubmittedMathLine(body.submittedLine);
     if (!declined && !submittedLine) {
       throw new BadRequestException("submittedLine is required unless dontKnow is set.");
     }
@@ -1104,6 +1104,7 @@ export class DiagnosticV2SessionService {
             ? sessionCountsAfter!
             : await this.sessionCountsForMicroSkill(sessionId, state.microSkillId);
           return {
+            microSkillId: state.microSkillId,
             microSkillName: childFacingSkillName(state.microSkillId),
             independentSuccessCount: counts.independentSuccessCount,
             independentFailureCount: counts.independentFailureCount,
@@ -1382,7 +1383,7 @@ export class DiagnosticV2SessionService {
         await tx.diagnosticV2Hypothesis.create({
           data: {
             sessionId,
-            microSkillId: stepEvidence.microSkillId,
+            microSkillId: interpretation.microSkillId,
             attemptId: attempt.id,
             stepId: step?.id ?? null,
             hypothesisLabel: interpretation.hypothesisLabel,
@@ -2631,6 +2632,13 @@ export function reachedEndState(item: DiagnosticV2Item, submittedLine: string): 
   if (item.isBareExpression) return !submittedLine.includes("(");
   const parsed = tryParse(submittedLine);
   return parsed ? isSolvedForm(parsed) : false;
+}
+
+/** Remove only harmless unmatched closing punctuation at the very end. */
+export function normalizeSubmittedMathLine(line: string): string {
+  let normalized = line.trim();
+  while (/[\]},.;:]$/.test(normalized)) normalized = normalized.slice(0, -1).trimEnd();
+  return normalized;
 }
 
 function normalizeWhitespace(line: string): string {

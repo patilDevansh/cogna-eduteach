@@ -30,6 +30,7 @@ import {
   lastAcceptedLine,
   nextStagesAfter,
   reachedEndState,
+  normalizeSubmittedMathLine,
   stageForTemplate,
 } from "../../src/engines/diagnostic-v2/diagnostic-v2-session.service";
 import {
@@ -633,6 +634,12 @@ describe("stage sequencing", () => {
 });
 
 describe("item end state", () => {
+  it("removes harmless trailing punctuation before checking a submitted line", () => {
+    assert.equal(normalizeSubmittedMathLine("x = 8]"), "x = 8");
+    assert.equal(normalizeSubmittedMathLine("x = 8."), "x = 8");
+    assert.equal(normalizeSubmittedMathLine("(x + 2)(x - 2)"), "(x + 2)(x - 2)");
+  });
+
   it("ends an equation item at x = n, with no separate final-answer button", () => {
     assert.equal(reachedEndState(item("ENTRY_TWO_STEP"), "x = 5"), true);
     assert.equal(reachedEndState(item("ENTRY_TWO_STEP"), "3x = 15"), false);
