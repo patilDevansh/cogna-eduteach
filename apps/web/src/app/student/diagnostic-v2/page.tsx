@@ -156,9 +156,7 @@ function isUnresolved(validity: StepValidity): boolean {
 }
 
 function normalizeSubmittedMathLine(line: string): string {
-  let normalized = line.trim();
-  while (/[\]},.;:]$/.test(normalized)) normalized = normalized.slice(0, -1).trimEnd();
-  return normalized;
+  return line.trim().replace(/[^a-zA-Z0-9)]+$/, "");
 }
 
 function DiagnosticV2Content() {

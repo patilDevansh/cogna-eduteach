@@ -2636,9 +2636,11 @@ export function reachedEndState(item: DiagnosticV2Item, submittedLine: string): 
 
 /** Remove only harmless unmatched closing punctuation at the very end. */
 export function normalizeSubmittedMathLine(line: string): string {
-  let normalized = line.trim();
-  while (/[\]},.;:]$/.test(normalized)) normalized = normalized.slice(0, -1).trimEnd();
-  return normalized;
+  // Algebra lines in this diagnostic legitimately end in a number, variable,
+  // or closing parenthesis. Strip any accidental trailing keyboard punctuation
+  // (`]`, quotes, commas, etc.) in one pass instead of maintaining a fragile
+  // character allow-list.
+  return line.trim().replace(/[^a-zA-Z0-9)]+$/, "");
 }
 
 function normalizeWhitespace(line: string): string {

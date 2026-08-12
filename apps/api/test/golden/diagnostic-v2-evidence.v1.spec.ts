@@ -637,6 +637,8 @@ describe("item end state", () => {
   it("removes harmless trailing punctuation before checking a submitted line", () => {
     assert.equal(normalizeSubmittedMathLine("x = 8]"), "x = 8");
     assert.equal(normalizeSubmittedMathLine("x = 8."), "x = 8");
+    assert.equal(normalizeSubmittedMathLine("x = 5'"), "x = 5");
+    assert.equal(normalizeSubmittedMathLine('x = 5"'), "x = 5");
     assert.equal(normalizeSubmittedMathLine("(x + 2)(x - 2)"), "(x + 2)(x - 2)");
   });
 
