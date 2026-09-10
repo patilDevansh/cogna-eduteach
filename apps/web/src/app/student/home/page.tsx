@@ -204,21 +204,38 @@ export default function StudentHomePage() {
         )}
 
         {isDemoStudent && (
-          <div className={styles.demoDiagCard}>
-            <span className={styles.kicker}>Demo only</span>
-            <h3>Do a diagnostic test</h3>
-            <p className={styles.meta}>
-              Separate from practice — try the full five-topic algebra check (or a single track).
-              Opens with the debug panel on.
-            </p>
-            <Link
-              href="/student/diagnostic-v2?track=COMBINED_ALGEBRA&debug=1"
-              className="btn btn-ghost"
-              style={{ alignSelf: "flex-start" }}
-            >
-              Do diagnostic test
-            </Link>
-          </div>
+          <>
+            <div className={styles.demoDiagCard}>
+              <span className={styles.kicker}>Experimental AI Lab</span>
+              <h3>Try Cogna Lotus</h3>
+              <p className={styles.meta}>
+                Watch GPT and Claude independently diagnose each answer, debate the evidence,
+                and choose the next question. Research prototype—not a validated school result.
+              </p>
+              <Link
+                href="/student/lotus?observer=1"
+                className="btn btn-primary"
+                style={{ alignSelf: "flex-start" }}
+              >
+                Open Lotus observer demo
+              </Link>
+            </div>
+            <div className={styles.demoDiagCard}>
+              <span className={styles.kicker}>Demo only</span>
+              <h3>Do a diagnostic test</h3>
+              <p className={styles.meta}>
+                Separate from practice — try the full five-topic algebra check (or a single track).
+                Opens with the debug panel on.
+              </p>
+              <Link
+                href="/student/diagnostic-v2?track=COMBINED_ALGEBRA&debug=1"
+                className="btn btn-ghost"
+                style={{ alignSelf: "flex-start" }}
+              >
+                Do diagnostic test
+              </Link>
+            </div>
+          </>
         )}
 
         <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>

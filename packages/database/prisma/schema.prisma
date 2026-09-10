@@ -225,6 +225,21 @@ enum VerificationSourceV2 {
   AI_FALLBACK
 }
 
+enum PersonalizedVideoAssignmentStatus {
+  PREPARING
+  UNDER_REVIEW
+  READY
+  FALLBACK
+  TEMPORARILY_UNAVAILABLE
+  ABSTAINED
+}
+
+enum PersonalizedVideoEvidenceKind {
+  WATCHED
+  COMPLETED
+  INDEPENDENT_EXIT
+}
+
 enum HypothesisSourceV2 {
   RULE
   AI
@@ -1012,6 +1027,7 @@ model DiagnosticV2Session {
 
   attempts   DiagnosticV2Attempt[]
   hypotheses DiagnosticV2Hypothesis[]
+  evidenceRecords DiagnosticV2EvidenceRecord[]
 
   @@index([studentId, startedAt])
 }
@@ -1147,4 +1163,120 @@ model DiagnosticV2Hypothesis {
 
   @@index([sessionId, microSkillId, createdAt])
   @@index([attemptId, stepId])
+}
+
+/** Verbatim local test evidence. One append-only row per diagnostic event;
+ * this is deliberately not a debug snapshot. `verbatimText` is the text
+ * presented by the debug view for that event, while the outcome labels the
+ * observed result for later analysis. */
+model DiagnosticV2EvidenceRecord {
+  id                String                 @id @default(cuid())
+  sessionId         String
+  session           DiagnosticV2Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attemptId         String?
+  stepId            String?
+  eventType         String
+  outcome           String
+  questionNumber    Int?
+  stepNumber        Int?
+  questionText      String?
+  submittedText     String?
+  verbatimText      String                 @db.Text
+  metadata          Json?
+  createdAt         DateTime               @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([sessionId, eventType, createdAt])
+  @@index([attemptId, stepId])
+}
+
+// ─── Personalized video production path (additive) ─────────────────────────
+// Job + ModalityAsset remain the renderer/asset primitives. These tables are
+// the per-student assignment, Lotus durability, and independent-exit evidence
+// that those primitives cannot represent on their own. Demo student IDs such
+// as demo_aarav are not Student rows, so studentId is stored as a string.
+
+model LotusSessionRecord {
+  id           String    @id @default(cuid())
+  sessionId    String    @unique
+  studentId    String
+  status       String
+  phase        String
+  startedAt    DateTime
+  endedAt      DateTime?
+  payload      Json
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  evidence         LotusEvidenceRecord[]
+  videoAssignments PersonalizedVideoAssignment[]
+
+  @@index([studentId, startedAt])
+}
+
+model LotusEvidenceRecord {
+  id                 String             @id @default(cuid())
+  sessionRecordId    String
+  session            LotusSessionRecord @relation(fields: [sessionRecordId], references: [id], onDelete: Cascade)
+  eventType          String
+  outcome            String
+  questionText       String?
+  submittedText      String?
+  verificationStatus String?
+  verbatimText       String             @db.Text
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+
+  @@index([sessionRecordId, createdAt])
+  @@index([sessionRecordId, eventType])
+}
+
+model PersonalizedVideoAssignment {
+  id                 String                             @id @default(cuid())
+  studentId          String
+  studentKey         String?
+  schoolId           String?
+  lotusSessionId     String?
+  lotusSession       LotusSessionRecord?                @relation(fields: [lotusSessionId], references: [id], onDelete: SetNull)
+  status             PersonalizedVideoAssignmentStatus  @default(PREPARING)
+  diagnosticState    String
+  conceptId          String
+  learningObjective  String
+  evidenceSnapshot   Json
+  script             Json?
+  scriptSource       String?
+  mathValidation     Json?
+  languageValidation Json?
+  assetId            String?
+  renderJobId        String?
+  renderResult       Json?
+  fallbackReason     String?
+  abstainReason      String?
+  createdAt          DateTime                           @default(now())
+  updatedAt          DateTime                           @updatedAt
+
+  events PersonalizedVideoEvent[]
+
+  @@index([studentId, createdAt])
+  @@index([studentKey])
+  @@index([schoolId])
+  @@index([status])
+  @@index([lotusSessionId])
+}
+
+model PersonalizedVideoEvent {
+  id           String                         @id @default(cuid())
+  assignmentId String
+  assignment   PersonalizedVideoAssignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  kind         PersonalizedVideoEvidenceKind
+  dwellMs      Int?
+  exitPrompt   String?
+  exitAnswer   String?
+  exitWorking  String?
+  exitCorrect  Boolean?
+  createdAt    DateTime                       @default(now())
+
+  @@index([assignmentId, createdAt])
+  @@index([studentId, kind])
 }

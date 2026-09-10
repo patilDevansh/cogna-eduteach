@@ -750,6 +750,7 @@ interface AttemptRow {
   templateId: string | null;
   stageId: string;
   status: string;
+  createdAt: Date;
 }
 
 interface StepRow {
@@ -769,6 +770,22 @@ interface StepRow {
   contextModifierIds: string[];
   assistanceLevel: AssistanceLevel;
   aiGraderConfidence: number | null;
+}
+
+interface EvidenceRecordRow {
+  id: string;
+  sessionId: string;
+  attemptId: string | null;
+  stepId: string | null;
+  eventType: string;
+  outcome: string;
+  questionNumber: number | null;
+  stepNumber: number | null;
+  questionText: string | null;
+  submittedText: string | null;
+  verbatimText: string;
+  metadata: unknown;
+  createdAt: Date;
 }
 
 @Injectable()
@@ -827,6 +844,28 @@ export class DiagnosticV2SessionService {
           status: "IN_PROGRESS",
         },
       });
+      await tx.diagnosticV2EvidenceRecord.create({
+        data: {
+          sessionId: createdSession.id,
+          attemptId: createdAttempt.id,
+          eventType: "QUESTION_SERVED",
+          outcome: "SERVED",
+          questionNumber: 1,
+          questionText: item.prompt,
+          verbatimText: evidenceQuestionServedText({
+            questionNumber: 1,
+            item,
+            servedSource: "RULE",
+          }),
+          metadata: {
+            itemKey: item.itemKey,
+            origin: item.origin,
+            templateId: item.templateId,
+            stageId: item.stageId,
+            openingReason,
+          } as unknown as never,
+        },
+      });
       return { session: createdSession, attempt: createdAttempt };
     });
 
@@ -875,6 +914,12 @@ export class DiagnosticV2SessionService {
     }
 
     const item = itemForAttempt(attempt);
+    const attemptOrder = await this.prisma.diagnosticV2Attempt.findMany({
+      where: { sessionId },
+      select: { id: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    const questionNumber = Math.max(1, attemptOrder.findIndex((candidate) => candidate.id === attempt.id) + 1);
     const priorSteps = (await this.prisma.diagnosticV2Step.findMany({
       where: { attemptId: attempt.id },
       orderBy: { stepIndex: "asc" },
@@ -1395,6 +1440,112 @@ export class DiagnosticV2SessionService {
         });
       }
 
+      // Local test evidence: preserve the exact debug-facing text for this
+      // answer and its rule analysis as append-only event rows. These rows do
+      // not participate in grading, routing, or skill updates.
+      if (verification && step) {
+        await tx.diagnosticV2EvidenceRecord.create({
+          data: {
+            sessionId,
+            attemptId: attempt.id,
+            stepId: step.id,
+            eventType: "STUDENT_ANSWER",
+            outcome: validity!,
+            questionNumber,
+            stepNumber: step.stepIndex + 1,
+            questionText: item.prompt,
+            submittedText: submittedLine,
+            verbatimText: evidenceAnswerText({
+              questionNumber,
+              questionText: item.prompt,
+              stepNumber: step.stepIndex + 1,
+              previousLine: expectedPreviousLine,
+              submittedLine,
+              validity: validity!,
+              verificationSource,
+              transformation: verification.transformation,
+              microSkillId: attribution.primary,
+              invalidDescription: verification.firstInvalidActionDescription,
+              graderReasoning,
+            }),
+            metadata: {
+              previousLine: expectedPreviousLine,
+              normalizedPreviousLine: verification.normalizedPreviousLine ?? null,
+              normalizedSubmittedLine: verification.normalizedSubmittedLine ?? null,
+            } as unknown as never,
+          },
+        });
+        await tx.diagnosticV2EvidenceRecord.create({
+          data: {
+            sessionId,
+            attemptId: attempt.id,
+            stepId: step.id,
+            eventType: "RULE_ANALYSIS",
+            outcome: validity!,
+            questionNumber,
+            stepNumber: step.stepIndex + 1,
+            questionText: item.prompt,
+            submittedText: submittedLine,
+            verbatimText: evidenceRuleAnalysisText({
+              questionNumber,
+              stepNumber: step.stepIndex + 1,
+              previousLine: expectedPreviousLine,
+              submittedLine,
+              validity: validity!,
+              normalizedPreviousLine: verification.normalizedPreviousLine,
+              normalizedSubmittedLine: verification.normalizedSubmittedLine,
+              invalidDescription: verification.firstInvalidActionDescription,
+            }),
+          },
+        });
+        await tx.diagnosticV2EvidenceRecord.create({
+          data: {
+            sessionId,
+            attemptId: attempt.id,
+            stepId: step.id,
+            eventType: "AI_INTERPRETATION",
+            outcome: interpretation ? "VALID" : "NOT_RUN",
+            questionNumber,
+            stepNumber: step.stepIndex + 1,
+            questionText: item.prompt,
+            submittedText: submittedLine,
+            verbatimText: interpretation
+              ? `What the AI inferred from this question\n${interpretation.reasoning}\nConfidence: ${Math.round(interpretation.confidence * 100)}%\nSource: ${interpretation.source}`
+              : "What the AI inferred from this question\nNo AI inference was generated for this question.",
+            metadata: interpretation
+              ? { microSkillId: interpretation.microSkillId, source: interpretation.source } as unknown as never
+              : undefined,
+          },
+        });
+      } else if (declined) {
+        await tx.diagnosticV2EvidenceRecord.create({
+          data: {
+            sessionId,
+            attemptId: attempt.id,
+            eventType: "STUDENT_ANSWER",
+            outcome: "DECLINED",
+            questionNumber,
+            stepNumber: priorSteps.length + 1,
+            questionText: item.prompt,
+            submittedText: null,
+            verbatimText: evidenceDeclinedText({
+              questionNumber,
+              questionText: item.prompt,
+              stepNumber: priorSteps.length + 1,
+              previousLine: expectedPreviousLine,
+              assistanceOffered,
+              itemComplete,
+            }),
+            metadata: {
+              previousLine: expectedPreviousLine,
+              assistanceOffered: assistanceOffered ?? null,
+              itemComplete,
+              primaryMicroSkillId: attribution.primary,
+            } as unknown as never,
+          },
+        });
+      }
+
       if (itemComplete) {
         await tx.diagnosticV2Attempt.update({
           where: { id: attempt.id },
@@ -1416,6 +1567,44 @@ export class DiagnosticV2SessionService {
           },
         });
         nextAttemptId = created.id;
+
+        if (selectionProvenance) {
+          await tx.diagnosticV2EvidenceRecord.create({
+            data: {
+              sessionId,
+              attemptId: created.id,
+              eventType: "AI_QUESTION_PICK",
+              outcome: selectionProvenance.aiDecision ? "VALID" : "INVALID",
+              questionNumber: questionNumber + 1,
+              questionText: nextItem.prompt,
+              verbatimText: evidenceSelectionText(selectionProvenance),
+              metadata: {
+                servedItemKey: selectionProvenance.servedItemKey,
+                servedSource: selectionProvenance.servedSource,
+              } as unknown as never,
+            },
+          });
+          await tx.diagnosticV2EvidenceRecord.create({
+            data: {
+              sessionId,
+              attemptId: created.id,
+              eventType: "QUESTION_SERVED",
+              outcome: "SERVED",
+              questionNumber: questionNumber + 1,
+              questionText: nextItem.prompt,
+              verbatimText: evidenceQuestionServedText({
+                questionNumber: questionNumber + 1,
+                item: nextItem,
+                servedSource: selectionProvenance.servedSource,
+              }),
+              metadata: {
+                itemKey: nextItem.itemKey,
+                origin: nextItem.origin,
+                templateId: nextItem.templateId,
+              } as unknown as never,
+            },
+          });
+        }
       }
 
       if (appendedHistory.length > 0 || sessionComplete) {
@@ -1748,6 +1937,19 @@ export class DiagnosticV2SessionService {
       }),
       ...(selections.length > 0 ? { selections } : {}),
     };
+  }
+
+  async getEvidenceRecords(sessionId: string): Promise<EvidenceRecordRow[]> {
+    const session = await this.prisma.diagnosticV2Session.findUnique({
+      where: { id: sessionId },
+      select: { id: true },
+    });
+    if (!session) throw new NotFoundException("Diagnostic session not found.");
+
+    return this.prisma.diagnosticV2EvidenceRecord.findMany({
+      where: { sessionId },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
   }
 
   async getSummary(sessionId: string): Promise<DiagnosticV2SummaryResponse> {
@@ -2665,6 +2867,127 @@ function summarizeStep(
     }${numericalEvidence}`;
   }
   return `the last line could not be read by the checker (${validity.toLowerCase()})`;
+}
+
+function evidenceAnswerText(args: {
+  questionNumber: number;
+  questionText: string;
+  stepNumber: number;
+  previousLine: string;
+  submittedLine: string;
+  validity: StepValidity;
+  verificationSource: VerificationSource;
+  transformation: StepTransformation;
+  microSkillId: string;
+  invalidDescription?: string;
+  graderReasoning?: string;
+}): string {
+  return [
+    `Question ${args.questionNumber}: ${args.questionText}`,
+    `Step ${args.stepNumber}`,
+    `Previous line: ${args.previousLine}`,
+    `Student answer: ${args.submittedLine}`,
+    `Result: ${args.validity}`,
+    `Grading source: ${args.verificationSource === "AI_FALLBACK" ? "AI graded" : "Rules graded"}`,
+    `Transformation: ${args.transformation}`,
+    `Micro-skill: ${args.microSkillId}`,
+    ...(args.invalidDescription ? [`Rule explanation: ${args.invalidDescription}`] : []),
+    ...(args.graderReasoning ? [`AI grading explanation: ${args.graderReasoning}`] : []),
+  ].join("\n");
+}
+
+function evidenceRuleAnalysisText(args: {
+  questionNumber: number;
+  stepNumber: number;
+  previousLine: string;
+  submittedLine: string;
+  validity: StepValidity;
+  normalizedPreviousLine?: string;
+  normalizedSubmittedLine?: string;
+  invalidDescription?: string;
+}): string {
+  return [
+    `What the rules analysed (Question ${args.questionNumber}, Step ${args.stepNumber})`,
+    `Submitted change: ${args.previousLine} -> ${args.submittedLine}`,
+    `Normalized previous line: ${args.normalizedPreviousLine ?? "not recorded"}`,
+    `Normalized submitted line: ${args.normalizedSubmittedLine ?? "not recorded"}`,
+    `Rule result: ${args.validity}`,
+    ...(args.invalidDescription ? [`Numerical/evidence explanation: ${args.invalidDescription}`] : []),
+  ].join("\n");
+}
+
+function evidenceSelectionText(selection: DiagnosticV2SelectionProvenance): string {
+  const lines = [
+    "Question picking",
+    `Rule-based pick: ${selection.rulePick.itemKey}`,
+    `Rule reason: ${selection.rulePick.routeReason}`,
+    "Shortlist sent to AI:",
+    ...selection.candidates.map((candidate) =>
+      `${candidate.index + 1}. ${candidate.itemKey} | ${candidate.prompt} | ${candidate.legalityReason}`,
+    ),
+  ];
+  if (selection.aiDecision) {
+    lines.push(
+      "AI question pick: VALID",
+      `AI choice: ${selection.aiDecision.choice}`,
+      `AI reasoning: ${selection.aiDecision.reasoning}`,
+      `AI confidence: ${selection.aiDecision.confidence ?? "not recorded"}`,
+      `Agreed with rule pick: ${selection.aiDecision.agreedWithRule ? "yes" : "no"}`,
+      ...(selection.aiDecision.discardedReason
+        ? [`Rejected by safety gate: ${selection.aiDecision.discardedReason}`]
+        : []),
+    );
+  } else {
+    lines.push(
+      "AI question pick: INVALID",
+      "AI reasoning not accepted -> going to rule-based fallback",
+      ...(selection.aiFallback?.rejectedReasoning
+        ? [`Rejected AI reasoning: ${selection.aiFallback.rejectedReasoning}`]
+        : []),
+      `Exact fallback reason: ${selection.aiFallback?.reason ?? "not recorded"}`,
+      ...(selection.aiFallback?.forbiddenTerm
+        ? [`Forbidden term: ${selection.aiFallback.forbiddenTerm}`]
+        : []),
+    );
+  }
+  lines.push(`Final question served: ${selection.servedItemKey}`, `Served source: ${selection.servedSource}`);
+  return lines.join("\n");
+}
+
+function evidenceQuestionServedText(args: {
+  questionNumber: number;
+  item: DiagnosticV2Item;
+  servedSource: "RULE" | "AI" | "AI_AUTHORED" | "FALLBACK" | "BUFFER";
+}): string {
+  return [
+    `Question ${args.questionNumber} served: ${args.item.prompt}`,
+    `Opening line: ${args.item.openingLine}`,
+    `Item key: ${args.item.itemKey}`,
+    `Stage: ${args.item.stageId}`,
+    `Source: ${args.servedSource}`,
+    `Origin: ${args.item.origin}`,
+    `Template: ${args.item.templateId ?? "none"}`,
+    `Primary micro-skill: ${args.item.primaryMicroSkillId}`,
+  ].join("\n");
+}
+
+function evidenceDeclinedText(args: {
+  questionNumber: number;
+  questionText: string;
+  stepNumber: number;
+  previousLine: string;
+  assistanceOffered?: AssistanceLevel;
+  itemComplete: boolean;
+}): string {
+  return [
+    `Question ${args.questionNumber}: ${args.questionText}`,
+    `Step ${args.stepNumber}`,
+    `Previous line: ${args.previousLine}`,
+    "Student answer: I don't know",
+    "Result: DECLINED",
+    `Assistance offered: ${args.assistanceOffered ?? "none"}`,
+    `Question complete: ${args.itemComplete ? "yes" : "no"}`,
+  ].join("\n");
 }
 
 function readStageHistory(raw: unknown): StageHistoryEntry[] {

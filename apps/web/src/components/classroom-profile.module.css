@@ -1,0 +1,576 @@
+.page {
+  min-height: 100vh;
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--bg);
+  background-size: 28px 28px;
+  color: var(--ink);
+}
+
+.topbar {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.topbarInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s-3) var(--s-5);
+}
+
+.brandContext,
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.brandContext > span {
+  border-left: 1px solid var(--line-strong);
+  color: var(--ink-faint);
+  padding-left: var(--s-3);
+  font-size: var(--text-xs);
+}
+
+.nav a {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nav a:hover {
+  color: var(--accent-deep);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-5) var(--s-8);
+}
+
+.profileHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-6);
+  overflow: hidden;
+  border: 1px solid rgba(14, 107, 84, 0.24);
+  border-radius: 22px;
+  background: linear-gradient(122deg, #083f35 0%, #0d755b 100%);
+  box-shadow: 0 18px 46px rgba(12, 62, 49, 0.16);
+  color: #fff;
+  padding: var(--s-6);
+}
+
+.teacherIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.eyebrow {
+  color: var(--accent-deep);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.profileHero .eyebrow {
+  color: #bce8da;
+}
+
+.teacherIdentity h1 {
+  margin-top: 3px;
+  color: #fff;
+  font-size: clamp(1.8rem, 4vw, 2.65rem);
+  line-height: 1;
+}
+
+.teacherIdentity p {
+  margin-top: 7px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: var(--text-sm);
+}
+
+.classIdentity {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-4);
+}
+
+.classIdentity > div {
+  display: flex;
+  min-width: 160px;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.09);
+  padding: var(--s-3) var(--s-4);
+}
+
+.classIdentity span {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.classIdentity strong {
+  margin-top: 3px;
+  color: #fff;
+  font-size: var(--text-md);
+}
+
+.classIdentity small {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-xs);
+}
+
+.classCode strong {
+  font-family: var(--font-math);
+  letter-spacing: 0.08em;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-3);
+}
+
+.metricGrid article {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  padding: var(--s-4);
+  box-shadow: 0 8px 24px rgba(21, 43, 34, 0.05);
+}
+
+.metricGrid article > strong {
+  color: var(--ink);
+  font-family: var(--font-math);
+  font-size: 2rem;
+}
+
+.metricGrid article > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metricGrid b {
+  font-size: var(--text-xs);
+}
+
+.metricGrid span {
+  color: var(--ink-faint);
+  font-size: 0.69rem;
+}
+
+.metricPositive {
+  border-color: rgba(14, 107, 84, 0.22) !important;
+  background: #edf8f3 !important;
+}
+
+.metricPositive > strong {
+  color: #08745a !important;
+}
+
+.metricOpen {
+  border-color: rgba(129, 87, 180, 0.25) !important;
+  background: #f4f0fb !important;
+}
+
+.metricOpen > strong {
+  color: #7451a8 !important;
+}
+
+.diagnosticsSection {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 14px 38px rgba(21, 43, 34, 0.07);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-5) var(--s-4);
+}
+
+.sectionHeader h2 {
+  margin-top: 4px;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.sectionHeader p {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.reportLink {
+  flex: 0 0 auto;
+  color: var(--accent-deep);
+  font-size: var(--text-xs);
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.filterBar {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #f7faf8;
+  padding: var(--s-3) var(--s-5);
+}
+
+.filterBar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 0.55rem 0.8rem;
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+
+.filterBar button span {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-math);
+  font-size: 0.7rem;
+}
+
+.filterBar .filterActive {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.filterActive span {
+  background: rgba(255, 255, 255, 0.17) !important;
+  color: #fff !important;
+}
+
+.rosterHeader,
+.studentRow {
+  display: grid;
+  grid-template-columns: 1.05fr 1.55fr 1.2fr 1fr;
+  gap: var(--s-4);
+  align-items: center;
+}
+
+.rosterHeader {
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-faint);
+  padding: 0.72rem var(--s-5);
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.studentRow {
+  min-height: 116px;
+  border-bottom: 1px solid var(--line);
+  padding: var(--s-3) var(--s-5);
+}
+
+.studentRow:hover {
+  background: #fbfdfc;
+}
+
+.studentName {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.studentInitial {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 12px;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: var(--text-sm);
+  font-weight: 900;
+}
+
+.studentName > div,
+.conclusionCell,
+.nextAction,
+.evidenceCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.studentName strong,
+.conclusionCell > strong {
+  color: var(--ink);
+  font-size: var(--text-xs);
+}
+
+.studentName small,
+.conclusionCell small {
+  margin-top: 3px;
+  color: var(--ink-faint);
+  font-size: 0.69rem;
+  line-height: 1.35;
+}
+
+.conclusionCell {
+  gap: 5px;
+}
+
+.statusBadge,
+.evidencePill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.ready {
+  background: #dff4eb;
+  color: #08745a;
+}
+
+.reinforcement {
+  background: #fff0d8;
+  color: #9b5e06;
+}
+
+.probe {
+  background: #eee7f8;
+  color: #6e469f;
+}
+
+.nextAction > span {
+  color: var(--ink-faint);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.nextAction p {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.evidenceCell {
+  gap: 9px;
+}
+
+.evidencePill {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-soft);
+}
+
+.evidence_ready {
+  border-color: #b6dccf;
+  background: #eff9f5;
+  color: #08745a;
+}
+
+.evidence_reinforcement {
+  border-color: #efd49d;
+  background: #fff9ed;
+  color: #8b5609;
+}
+
+.evidence_probe {
+  border-color: #d7c8e8;
+  background: #f7f2fc;
+  color: #6e469f;
+}
+
+.evidenceCell button {
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: var(--accent-deep);
+  cursor: pointer;
+  padding: 0 0 2px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-align: left;
+}
+
+.safeguardNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  background: #f7faf8;
+  padding: var(--s-4) var(--s-5);
+}
+
+.safeguardNote > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-family: serif;
+  font-weight: 900;
+}
+
+.safeguardNote p {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.safeguardNote strong {
+  color: var(--ink);
+}
+
+@media (max-width: 920px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profileHero,
+  .sectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .classIdentity {
+    width: 100%;
+  }
+
+  .classIdentity > div {
+    flex: 1;
+  }
+
+  .rosterHeader {
+    display: none;
+  }
+
+  .studentRow {
+    grid-template-columns: 1fr 1.4fr;
+    gap: var(--s-3) var(--s-5);
+    padding-top: var(--s-4);
+    padding-bottom: var(--s-4);
+  }
+}
+
+@media (max-width: 680px) {
+  .topbarInner,
+  .container {
+    padding-right: var(--s-3);
+    padding-left: var(--s-3);
+  }
+
+  .brandContext > span,
+  .nav a:first-child,
+  .nav a:last-child {
+    display: none;
+  }
+
+  .profileHero,
+  .sectionHeader {
+    padding: var(--s-4);
+  }
+
+  .teacherIdentity {
+    align-items: flex-start;
+  }
+
+  .avatar {
+    width: 54px;
+    height: 54px;
+    flex-basis: 54px;
+    border-radius: 16px;
+  }
+
+  .classIdentity {
+    flex-direction: column;
+  }
+
+  .metricGrid,
+  .studentRow {
+    grid-template-columns: 1fr;
+  }
+
+  .metricGrid article {
+    min-height: 76px;
+  }
+
+  .filterBar,
+  .studentRow,
+  .safeguardNote {
+    padding-right: var(--s-4);
+    padding-left: var(--s-4);
+  }
+
+  .studentRow {
+    gap: var(--s-4);
+  }
+}

@@ -9,8 +9,9 @@ export default function Landing() {
         <TopBar
           right={
             <>
+              <Link href="/teacher/login">Teacher sign in</Link>
               <Link href="/parent/login">For parents</Link>
-              <Link href="/student/login">I have a code</Link>
+              <Link href="/student/classroom">I have a class code</Link>
             </>
           }
         />
@@ -39,11 +40,14 @@ export default function Landing() {
           </p>
 
           <div className={styles.paths}>
+            <Link href="/teacher/login" className="btn btn-primary btn-lg">
+              I’m a teacher — sign in
+            </Link>
             <Link href="/parent/login" className="btn btn-primary btn-lg">
               I’m a parent
             </Link>
-            <Link href="/student/login" className="btn btn-ghost btn-lg">
-              I’m a student — I have a code
+            <Link href="/student/classroom" className="btn btn-ghost btn-lg">
+              I’m a student — I have a class code
             </Link>
           </div>
         </section>

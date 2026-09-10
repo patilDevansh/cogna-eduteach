@@ -1,0 +1,6 @@
+import Link from "next/link";
+import styles from "../teacher.module.css";
+
+export default function TeacherClassesPage() {
+  return <><div className={styles.pageHeader}><div><div className={styles.dateLine}>Your classroom</div><h1>Grade 8 · Section A</h1><p>30 students · Mathematics · Gurukul</p></div><Link className={styles.primary} href="/teacher/sessions">Start session</Link></div><div className={styles.sectionGrid}><section className={styles.emptyCard}><h2>Students join with GURU-8A</h2><p>No student email is required. Ask students to open Cogna, select “I have a code,” and enter this class code with their name or roll number.</p><Link className={styles.secondary} href="/student/login">Preview student join</Link></section><section className={styles.panel}><div className={styles.panelHeader}><div><h3>Learning context</h3><p>Used to interpret today’s evidence</p></div></div><div className={styles.nextSteps}><div className={styles.nextStep}><span>Taught today</span><strong>Simple equations in one variable</strong></div><div className={styles.nextStep}><span>Planned next</span><strong>Equations with brackets</strong></div><div className={styles.nextStep}><span>Class size</span><strong>30 students · 30 devices</strong></div></div></section></div></>;
+}

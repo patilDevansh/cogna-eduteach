@@ -27,6 +27,9 @@ import { SafetyEvalModule } from "./engines/safety-eval/safety-eval.module";
 import { PolicyModule } from "./policy/policy.module";
 // MVP 9.0.1 Phase A — additive micro-skill step diagnostic, no existing route changes
 import { DiagnosticV2Module } from "./engines/diagnostic-v2/diagnostic-v2.module";
+import { LotusModule } from "./lotus/lotus.module";
+import { PersonalizedVideosModule } from "./personalized-videos/personalized-videos.module";
+import { TeachersModule } from "./teachers/teachers.module";
 
 @Module({
   imports: [
@@ -64,6 +67,10 @@ import { DiagnosticV2Module } from "./engines/diagnostic-v2/diagnostic-v2.module
     PolicyModule,
     // MVP 9.0.1
     DiagnosticV2Module,
+    // Experimental dual-model diagnostic lab; isolated from diagnostic-v2.
+    LotusModule,
+    PersonalizedVideosModule,
+    TeachersModule,
   ],
   controllers: [HealthController],
 })

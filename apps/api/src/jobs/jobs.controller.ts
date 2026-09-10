@@ -1,9 +1,14 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Controller, Headers, Post } from "@nestjs/common";
+import { assertWorker, resolveActor } from "../access/cogna-access";
+import { PersonalizedVideosService } from "../personalized-videos/personalized-videos.service";
 import { ScheduledJobsService } from "./scheduled-jobs.service";
 
 @Controller("jobs")
 export class JobsController {
-  constructor(private readonly jobs: ScheduledJobsService) {}
+  constructor(
+    private readonly jobs: ScheduledJobsService,
+    private readonly videos: PersonalizedVideosService,
+  ) {}
 
   /** Manual trigger for weekly parent report job. */
   @Post("weekly-reports/run")
@@ -27,5 +32,14 @@ export class JobsController {
   @Post("item-statistics/refresh")
   refreshItemStats() {
     return this.jobs.refreshItemStatistics();
+  }
+
+  /** Advance queued personalized-video render jobs. Requires the worker token. */
+  @Post("personalized-video-render/run")
+  runPersonalizedVideoRender(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    assertWorker(resolveActor(headers));
+    return this.videos.processPendingRenderJobs();
   }
 }

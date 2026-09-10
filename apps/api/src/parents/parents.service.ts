@@ -9,6 +9,7 @@ import {
   DEMO_STUDENT_TEMPLATE_ID,
   isDemoFreshStudentPerLoginEnabled,
 } from "../engines/diagnostic-v2/demo-student";
+import { issueStudentToken } from "../access/cogna-access";
 
 function normalizeAccessCode(code: string): string {
   return code.trim().toLowerCase();
@@ -20,6 +21,14 @@ function hashAccessCode(code: string): string {
 
 function generateAccessCode(): string {
   return randomBytes(3).toString("hex").toUpperCase();
+}
+
+function tryIssueStudentToken(studentId: string): string | undefined {
+  try {
+    return issueStudentToken(studentId);
+  } catch {
+    return undefined;
+  }
 }
 
 @Injectable()
@@ -279,13 +288,19 @@ export class AuthService {
     const isTemplate = student.id === DEMO_STUDENT_TEMPLATE_ID;
     if (isTemplate && isDemoFreshStudentPerLoginEnabled() && !opts?.reuseTemplate) {
       const clone = await this.mintDemoStudentClone(student);
-      return { studentId: clone.id, name: clone.name, grade: clone.grade };
+      return {
+        studentId: clone.id,
+        name: clone.name,
+        grade: clone.grade,
+        sessionToken: tryIssueStudentToken(clone.id),
+      };
     }
 
     return {
       studentId: student.id,
       name: student.name,
       grade: student.grade,
+      sessionToken: tryIssueStudentToken(student.id),
     };
   }
 
