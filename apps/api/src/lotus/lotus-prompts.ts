@@ -52,7 +52,21 @@ export const ASSESSMENT_JSON_SHAPE = `{
   "conciseRationale": "brief evidence-linked rationale"
 }`;
 
-export function transcriptForPrompt(audits: LotusQuestionAudit[]): string {
+// Older turns beyond this window collapse into one rolled-up line in the
+// hypothesis ledger, instead of replaying every turn's interpretation
+// forever — keeps prompt size (and cost/latency) roughly flat across a
+// 16-question session instead of growing with it.
+const LEDGER_DETAIL_WINDOW = 5;
+
+/**
+ * Facts only — question, raw response, verification result. No prior
+ * interpretation. This is what goes to the independent-assessment step: both
+ * models must form their own read of the current evidence without being
+ * told what anyone previously concluded about earlier evidence, so a wrong
+ * early hypothesis in the ledger can never anchor both "independent" views
+ * onto the same answer before they've each looked at the facts themselves.
+ */
+export function evidenceLogForPrompt(audits: LotusQuestionAudit[]): string {
   if (audits.length === 0) return "No answered questions yet.";
   return audits
     .map((audit, index) =>
@@ -61,11 +75,41 @@ export function transcriptForPrompt(audits: LotusQuestionAudit[]): string {
         question: audit.question,
         response: audit.response,
         verification: audit.verification,
-        priorConclusion: audit.conclusion.conclusion,
-        priorEvidenceState: audit.conclusion.evidenceState,
       }),
     )
     .join("\n");
+}
+
+/**
+ * Interpretation only — the trajectory of prior reconciliations (debate +
+ * closure conclusions), explicitly framed as revisable. This goes only to
+ * the debate and closure stages, which are the reconciliation steps where
+ * synthesizing prior conclusions is the actual job — never to the
+ * independent-assessment step (see evidenceLogForPrompt).
+ */
+export function hypothesisLedgerForPrompt(audits: LotusQuestionAudit[]): string {
+  if (audits.length === 0) return "No prior reconciliations yet — this is the first one.";
+  const older = audits.slice(0, -LEDGER_DETAIL_WINDOW);
+  const recent = audits.slice(-LEDGER_DETAIL_WINDOW);
+  const lines: string[] = [];
+  if (older.length > 0) {
+    const states = Array.from(new Set(older.map((audit) => audit.conclusion.evidenceState)));
+    lines.push(
+      `Items 1-${older.length}: earlier reconciliations reached evidence states [${states.join(", ")}]. Detail dropped for brevity — treat as settled background, not fresh evidence.`,
+    );
+  }
+  recent.forEach((audit, index) => {
+    const uncertainty = audit.conclusion.uncertainty?.length
+      ? `, uncertainty=${JSON.stringify(audit.conclusion.uncertainty)}`
+      : "";
+    lines.push(
+      `Item ${older.length + index + 1}: concluded "${audit.conclusion.conclusion}" (evidenceState=${audit.conclusion.evidenceState}${uncertainty})`,
+    );
+  });
+  lines.push(
+    "This ledger reflects prior reconciliations, not proven fact. Revise or discard any of it if the current evidence contradicts it.",
+  );
+  return lines.join("\n");
 }
 
 export function independentPrompt(args: {
@@ -80,11 +124,11 @@ export function independentPrompt(args: {
 }): string {
   const isOpening = !args.currentQuestion;
   return `${LOTUS_POLICY}
-You are ${args.role}. Make an independent assessment. You have not seen the other model's assessment.
+You are ${args.role}. Make an independent assessment. You have not seen the other model's assessment, and you have not been told any prior conclusion about earlier evidence — form your own judgment from the raw facts below.
 
 Operational state: phase=${args.phase}; answered=${args.answeredCount}; elapsedSeconds=${args.elapsedSeconds}; hard limits are 20 minutes and 16 answered questions.
-Prior transcript:
-${transcriptForPrompt(args.audits)}
+Prior evidence (facts only — no prior interpretation, for coverage and non-repetition purposes):
+${evidenceLogForPrompt(args.audits)}
 
 ${
   isOpening
@@ -108,8 +152,10 @@ export function gptDebatePrompt(args: {
 You are GPT in the debate stage. Compare the two independent assessments. Defend a conclusion only with evidence, accept valid criticism, and make disagreements concrete. Do not force agreement.
 
 Operational state: answered=${args.answeredCount}; elapsedSeconds=${args.elapsedSeconds}.
-Transcript:
-${transcriptForPrompt(args.audits)}
+Prior evidence (facts):
+${evidenceLogForPrompt(args.audits)}
+Prior reconciliations (interpretation trajectory — revisable, not proven fact):
+${hypothesisLedgerForPrompt(args.audits)}
 Current raw evidence: ${JSON.stringify(args.currentEvidence ?? "No response yet")}
 GPT independent assessment:
 ${JSON.stringify(args.gpt)}
@@ -156,8 +202,10 @@ export function challengerClosurePrompt(args: {
 You are GPT challenger in the closure stage, using a separate context from GPT primary. Audit the debate and issue the final operational decision. Preserve unresolved disagreement. If the agents disagree about the cause, prefer a fresh discriminating question rather than a confident label. At 1200 seconds or 16 answered questions, exit with uncertainty unless the evidence already satisfies a stronger exit.
 
 Operational state: answered=${args.answeredCount}; elapsedSeconds=${args.elapsedSeconds}.
-Transcript:
-${transcriptForPrompt(args.audits)}
+Prior evidence (facts):
+${evidenceLogForPrompt(args.audits)}
+Prior reconciliations (interpretation trajectory — revisable, not proven fact):
+${hypothesisLedgerForPrompt(args.audits)}
 Current raw evidence: ${JSON.stringify(args.currentEvidence ?? "No response yet")}
 GPT independent assessment: ${JSON.stringify(args.gpt)}
 GPT challenger independent assessment: ${JSON.stringify(args.challenger)}
