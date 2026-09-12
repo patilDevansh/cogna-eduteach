@@ -9,3 +9,6 @@ dist
 .DS_Store
 coverage
 *.tsbuildinfo
+/generated-media/
+apps/web/public/generated-videos/*.mp4
+apps/web/public/generated-videos/*.mov

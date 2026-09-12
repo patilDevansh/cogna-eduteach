@@ -117,9 +117,9 @@ describe("DiagnosticV2AiSelectorService — bounds are rejected, never clamped",
 });
 
 describe("reasoning evidence validation", () => {
-  it("accepts a correct-step paraphrase when it names the exact skill and both equation states", async () => {
+  it("accepts a correct-step paraphrase from both equation states without prescribing a skill", async () => {
     const reasoning =
-      "The student correctly performed LIN_REMOVE_COEFFICIENT by isolating x in 3x=15 to x=5, so ENTRY_VARIABLE_BOTH is an appropriate next challenge.";
+      "The student correctly changed 3x=15 to x=5, so the variables-on-both-sides item is an appropriate next challenge.";
     const orchestrator = mockOrchestrator({
       raw: json({ choice: "EXISTING", index: 0, confidence: 0.8, reasoning }),
     });

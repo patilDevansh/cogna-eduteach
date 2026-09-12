@@ -34,6 +34,7 @@ function context(overrides: Partial<InterpreterContext> = {}): InterpreterContex
     submittedLine: "-2x = 9",
     sessionSkillEvidence: [
       {
+        microSkillId: "LIN_REMOVE_COEFFICIENT",
         microSkillName: "Divide by a coefficient to isolate the variable",
         independentSuccessCount: 1,
         independentFailureCount: 0,
@@ -51,6 +52,7 @@ function context(overrides: Partial<InterpreterContext> = {}): InterpreterContex
 const json = (v: unknown) => JSON.stringify(v);
 
 const goodResponse = {
+  microSkillId: "LIN_DISTRIBUTE_NEG",
   hypothesisLabel: "REPEATED_PATTERN",
   confidence: 0.85,
   reasoning: "-2x + 10 + 3 = 11 -> -2x = 9 is incorrect: (-2)(-5) was treated as -10 instead of 10, so this step contains the current sign-calculation error; the same kind of error has appeared on three independent opportunities.",
@@ -145,14 +147,13 @@ describe("DiagnosticV2AiInterpreterService — forbidden terms fail the whole ca
     assert.equal(orchestrator.rejections.length, 1);
   });
 
-  it("pins the micro-skill id server-side, so the model cannot reassign its verdict to another skill", async () => {
+  it("accepts the interpreter's independently selected known micro-skill", async () => {
     const orchestrator = mockOrchestrator({
       raw: json({ ...goodResponse, microSkillId: "LIN_SOLVE_TWO_STEP" }),
     });
     const result = await new DiagnosticV2AiInterpreterService(orchestrator.service).interpret(context());
-    // The service ignores any microSkillId in the payload and re-stamps its own,
-    // so a served hypothesis can only ever be about the skill it was asked about.
     assert.equal(result.source, "AI");
+    assert.equal(result.microSkillId, "LIN_SOLVE_TWO_STEP");
     assert.equal(orchestrator.rejections.length, 0);
   });
 });
@@ -160,11 +161,12 @@ describe("DiagnosticV2AiInterpreterService — forbidden terms fail the whole ca
 describe("buildInterpreterPrompts", () => {
   it("hands over counts as facts, plus the rule reading to argue against", () => {
     const { system, user } = buildInterpreterPrompts(context(), "REPEATED_PATTERN");
-    assert.match(user, /THIS SESSION — got it wrong independently: 3 time\(s\)/);
-    assert.match(user, /PRIOR \+ CURRENT LIFETIME TOTAL — independent failures: 3/);
+    assert.match(user, /3 independent failure\(s\).*this session/);
+    assert.match(user, /3 lifetime independent failure\(s\)/);
     assert.match(user, /The rule-based reading of this is: REPEATED_PATTERN/);
     assert.match(user, /Exact submitted change: -2x \+ 10 \+ 3 = 11 -> -2x = 9/);
-    assert.match(user, /Divide by a coefficient to isolate the variable: 1 independent success/);
+    assert.match(user, /LIN_REMOVE_COEFFICIENT \(Divide by a coefficient to isolate the variable\): 1 independent success/);
+    assert.match(user, /Available micro-skills:/);
     assert.match(system, /treat those as facts/);
     assert.match(system, /Never state that an untested skill is weak/);
     assert.match(system, /Never infer attention, mood, effort, intelligence, or any clinical trait/);

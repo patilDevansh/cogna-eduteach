@@ -12,6 +12,12 @@ import type {
   StudentSafetySettings,
   SubmitDiagnosticV2StepRequest,
   SubmitDiagnosticV2StepResponse,
+  LotusSessionView,
+  LotusStatusResponse,
+  LotusStudentResponse,
+  LotusOverrideAction,
+  PersonalizedVideoAssignmentView,
+  PersonalizedVideoTeacherReport,
 } from "@cogna/shared";
 import {
   buildParentAuthHeaders,
@@ -42,6 +48,40 @@ export function isUnavailable(err: unknown): boolean {
     err instanceof ApiError &&
     (err.status === 0 || err.message.includes("API unavailable"))
   );
+}
+
+function cognaAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const studentRaw = localStorage.getItem("cogna_student");
+    if (studentRaw) {
+      const student = JSON.parse(studentRaw) as { studentId?: string; token?: string };
+      if (student.studentId && student.token) {
+        return {
+          "X-Cogna-Role": "student",
+          "X-Cogna-Student-Id": student.studentId,
+          "X-Cogna-Student-Token": student.token,
+        };
+      }
+    }
+  } catch {
+    /* ignore malformed student session */
+  }
+  try {
+    const teacherRaw = sessionStorage.getItem("cogna_teacher_invitation");
+    if (teacherRaw) {
+      const teacher = JSON.parse(teacherRaw) as { token?: string };
+      if (teacher.token) {
+        return {
+          "X-Cogna-Role": "teacher",
+          "X-Cogna-Teacher-Token": teacher.token,
+        };
+      }
+    }
+  } catch {
+    /* ignore malformed teacher session */
+  }
+  return {};
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -77,15 +117,98 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function lotusFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/lotus${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...cognaAuthHeaders(),
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(`Cogna Lotus request failed: ${detail}`, 0, path);
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    const message =
+      typeof err === "object" && err && "message" in err
+        ? String((err as { message?: string }).message ?? res.statusText)
+        : res.statusText;
+    throw new ApiError(message || `Lotus error ${res.status}`, res.status, path);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+function teacherAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const teacherRaw = sessionStorage.getItem("cogna_teacher_invitation");
+    if (!teacherRaw) return {};
+    const teacher = JSON.parse(teacherRaw) as { token?: string };
+    if (!teacher.token) return {};
+    return {
+      "X-Cogna-Role": "teacher",
+      "X-Cogna-Teacher-Token": teacher.token,
+    };
+  } catch {
+    return {};
+  }
+}
+
+async function personalizedVideoFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/personalized-videos${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...cognaAuthHeaders(),
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(`Personalized video request failed: ${detail}`, 0, path);
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    const message =
+      typeof err === "object" && err && "message" in err
+        ? String((err as { message?: string }).message ?? res.statusText)
+        : res.statusText;
+    throw new ApiError(message || `Personalized video error ${res.status}`, res.status, path);
+  }
+
+  return res.json() as Promise<T>;
+}
+
 export interface StudentSession {
   studentId: string;
   name: string;
+  sessionToken?: string;
 }
 
 export interface ParentSession {
   parentId: string;
   email: string;
   name: string;
+}
+
+export interface TeacherInvitationClaim {
+  teacherEmail: string;
+  teacherName: string;
+  schoolId: string;
+  schoolName: string;
+  role: "teacher";
+  invitationVerified: true;
+  token?: string;
 }
 
 export { SESSION_LIMIT_MS };
@@ -167,6 +290,20 @@ export interface HomeSummary {
 export const api = {
   health: () =>
     apiFetch<{ devStudentId: string; devAccessCode: string }>("/health"),
+
+  claimTeacherInvitation: async (email: string, inviteCode: string) => {
+    const path = "/api/teacher-invitations/claim";
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, inviteCode }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({ message: response.statusText }));
+      throw new ApiError(String(body.message ?? "Invitation verification failed"), response.status, path);
+    }
+    return response.json() as Promise<TeacherInvitationClaim>;
+  },
 
   parentSignup: (email: string, name: string) =>
     apiFetch<ParentSession>("/parents/dev/signup", {
@@ -475,6 +612,83 @@ export const api = {
   getDiagnosticV2Summary: (sessionId: string) =>
     apiFetch<DiagnosticV2SummaryResponse>(
       `/diagnostic-v2/sessions/${sessionId}/summary`,
+    ),
+
+  /** Cogna Lotus — experimental dual-model AI Lab, isolated from diagnostic-v2. */
+  getLotusStatus: () => lotusFetch<LotusStatusResponse>("/status"),
+
+  startLotusSession: (studentId: string) =>
+    lotusFetch<LotusSessionView>("/sessions", {
+      method: "POST",
+      body: JSON.stringify({ studentId }),
+    }),
+
+  getLotusSession: (sessionId: string) =>
+    lotusFetch<LotusSessionView>(`/sessions/${sessionId}`),
+
+  submitLotusAnswer: (
+    sessionId: string,
+    studentId: string,
+    response: LotusStudentResponse,
+  ) =>
+    lotusFetch<LotusSessionView>(`/sessions/${sessionId}/answers`, {
+      method: "POST",
+      body: JSON.stringify({ studentId, ...response }),
+    }),
+
+  overrideLotusSession: (
+    sessionId: string,
+    studentId: string,
+    action: LotusOverrideAction,
+  ) =>
+    lotusFetch<LotusSessionView>(`/sessions/${sessionId}/override`, {
+      method: "POST",
+      body: JSON.stringify({ studentId, action }),
+    }),
+
+  getPersonalizedVideoAssignment: (studentId: string, studentKey?: string) => {
+    const query = new URLSearchParams({ studentId });
+    if (studentKey) query.set("studentKey", studentKey);
+    return personalizedVideoFetch<PersonalizedVideoAssignmentView>(
+      `/for-student?${query.toString()}`,
+    );
+  },
+
+  createPersonalizedVideoAssignment: (input: {
+    studentId?: string;
+    studentKey?: string;
+    lotusSessionId: string;
+  }) =>
+    personalizedVideoFetch<PersonalizedVideoAssignmentView>("/assignments", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  getPersonalizedVideoById: (id: string) =>
+    personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}`),
+
+  recordPersonalizedVideoWatched: (id: string, dwellMs = 0) =>
+    personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/watched`, {
+      method: "POST",
+      body: JSON.stringify({ dwellMs }),
+    }),
+
+  recordPersonalizedVideoCompleted: (id: string, dwellMs = 0) =>
+    personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/completed`, {
+      method: "POST",
+      body: JSON.stringify({ dwellMs }),
+    }),
+
+  submitPersonalizedVideoExit: (id: string, answer: string, working: string) =>
+    personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/exit`, {
+      method: "POST",
+      body: JSON.stringify({ answer, working }),
+    }),
+
+  getPersonalizedVideoTeacherReport: (demo = false) =>
+    personalizedVideoFetch<PersonalizedVideoTeacherReport>(
+      `/teacher-report${demo ? "?demo=1" : ""}`,
+      { headers: teacherAuthHeaders() },
     ),
 };
 

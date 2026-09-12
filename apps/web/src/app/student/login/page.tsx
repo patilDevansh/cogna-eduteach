@@ -23,7 +23,11 @@ export default function StudentLoginPage() {
     setError("");
     try {
       const student = await api.studentLogin(accessCode);
-      saveStudent(student);
+      saveStudent({
+        studentId: student.studentId,
+        name: student.name,
+        token: student.sessionToken,
+      });
       router.push("/student/home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid access code");
@@ -37,7 +41,11 @@ export default function StudentLoginPage() {
     try {
       const health = await api.health();
       const student = await api.studentLogin(health.devAccessCode);
-      saveStudent(student);
+      saveStudent({
+        studentId: student.studentId,
+        name: student.name,
+        token: student.sessionToken,
+      });
       router.push("/student/home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Demo login failed");
@@ -110,6 +118,9 @@ export default function StudentLoginPage() {
         <p className={styles.helperLine}>
           Don&apos;t have a code? Ask the grown-up who set up your account.
         </p>
+        <Link href="/prototype/classroom/join" className="btn btn-ghost" style={{ marginTop: "var(--s-2)" }}>
+          Join with my teacher&apos;s class code
+        </Link>
       </div>
     </div>
   );

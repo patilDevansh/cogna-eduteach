@@ -4,6 +4,7 @@ import { RecommendationEngineModule } from "../engines/recommendation-engine/rec
 import { RevisionModule } from "../revision/revision.module";
 import { ContentModule } from "../content/content.module";
 import { CurriculumModule } from "../curriculum/curriculum.module";
+import { PersonalizedVideosModule } from "../personalized-videos/personalized-videos.module";
 import { JobsController } from "./jobs.controller";
 import { ScheduledJobsService } from "./scheduled-jobs.service";
 
@@ -14,6 +15,7 @@ import { ScheduledJobsService } from "./scheduled-jobs.service";
     RevisionModule,
     ContentModule,
     CurriculumModule,
+    PersonalizedVideosModule,
   ],
   controllers: [JobsController],
   providers: [ScheduledJobsService],

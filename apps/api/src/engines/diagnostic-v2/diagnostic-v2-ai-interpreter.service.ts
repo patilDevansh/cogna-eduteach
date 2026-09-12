@@ -17,6 +17,7 @@ import {
 } from "@cogna/shared";
 import { AiOrchestratorService } from "../../ai/ai-orchestrator.service";
 import { buildRuleHypothesis, interpreterAgreesWithRule, type MicroSkillCounts } from "./diagnostic-v2.formulas";
+import { MICRO_SKILL_CATALOGUE, findMicroSkill } from "./micro-skills.catalog";
 
 const CAPABILITY = "DIAGNOSTIC_V2_INTERPRETER";
 const TIMEOUT_MS = 3000;
@@ -42,6 +43,7 @@ export interface InterpreterContext {
   previousLine: string;
   submittedLine: string;
   sessionSkillEvidence: Array<{
+    microSkillId: string;
     microSkillName: string;
     independentSuccessCount: number;
     independentFailureCount: number;
@@ -50,6 +52,7 @@ export interface InterpreterContext {
 }
 
 export interface InterpreterResult {
+  microSkillId: string;
   hypothesisLabel: string;
   confidence: number;
   reasoning: string;
@@ -72,7 +75,7 @@ export class DiagnosticV2AiInterpreterService {
       lifetimeCounts: ctx.lifetimeCounts,
       firstInvalidActionDescription: ctx.firstInvalidActionDescription,
     });
-    const ruleResult: InterpreterResult = { ...rule, source: "RULE" };
+    const ruleResult: InterpreterResult = { ...rule, microSkillId: ctx.microSkillId, source: "RULE" };
 
     const { system, user } = buildInterpreterPrompts(ctx, rule.hypothesisLabel);
 
@@ -112,6 +115,7 @@ export class DiagnosticV2AiInterpreterService {
     const confidenceCeiling = independentTrials < 3 ? 0.7 : 0.9;
 
     return {
+      microSkillId: result.aiOutput.microSkillId,
       hypothesisLabel: result.aiOutput.hypothesisLabel,
       confidence: Math.min(result.aiOutput.confidence, confidenceCeiling),
       reasoning: result.aiOutput.reasoning,
@@ -124,7 +128,10 @@ export class DiagnosticV2AiInterpreterService {
   private parseAndValidate(raw: string, ctx: InterpreterContext): DiagnosticV2HypothesisOutput {
     const parsed: unknown = JSON.parse(raw);
     const body = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
-    const shaped = assertDiagnosticV2HypothesisOutputShape({ ...body, microSkillId: ctx.microSkillId });
+    const shaped = assertDiagnosticV2HypothesisOutputShape(body);
+    if (!findMicroSkill(shaped.microSkillId)) {
+      throw new Error(`interpreter selected unknown micro-skill ${shaped.microSkillId}`);
+    }
 
     const independentTrials =
       ctx.sessionCounts.independentSuccessCount + ctx.sessionCounts.independentFailureCount;
@@ -133,10 +140,10 @@ export class DiagnosticV2AiInterpreterService {
     }
 
     if (containsForbiddenTerm(shaped.reasoning)) {
-      throw new Error(`reasoning for ${ctx.microSkillId} contains a forbidden term`);
+      throw new Error(`reasoning for ${shaped.microSkillId} contains a forbidden term`);
     }
     if (containsForbiddenTerm(shaped.childFacingSummary)) {
-      throw new Error(`childFacingSummary for ${ctx.microSkillId} contains a forbidden term`);
+      throw new Error(`childFacingSummary for ${shaped.microSkillId} contains a forbidden term`);
     }
     if (!reasoningGroundsCurrentStep(shaped.reasoning, ctx)) {
       throw new Error("interpreter reasoning must cite both sides of the current equation change and describe this step's result");
@@ -171,6 +178,7 @@ export function buildInterpreterPrompts(
 ): { system: string; user: string } {
   const system =
     "You explain what a student's algebra work on this question shows, using their wider session record for context. " +
+    "You must independently choose the best matching micro-skill from the supplied catalogue based on the exact mathematical change; no target micro-skill has been selected for you. " +
     "You are given counts that were computed by checking their written work — treat those as facts " +
     "you must not contradict. Your job is only to interpret them: is this most likely a one-off slip, " +
     "a repeating pattern, or is the student handling it well? " +
@@ -193,24 +201,20 @@ export function buildInterpreterPrompts(
     "say that the new line corrects the earlier error. Never reuse a session-level sentence that could describe a different step. " +
     "childFacingSummary is read by a 13-year-old: warm, one or two short sentences, no jargon, no scores, " +
     "no percentages, and never the words used in internal labels. " +
-    'Return JSON only: {"hypothesisLabel":"POSSIBLE_SLIP"|"REPEATED_PATTERN"|"WORKING_WELL",' +
+    'Return JSON only: {"microSkillId":string from the supplied catalogue,"hypothesisLabel":"POSSIBLE_SLIP"|"REPEATED_PATTERN"|"WORKING_WELL",' +
     '"confidence":number 0..1,"reasoning":string one sentence,"childFacingSummary":string}. No other keys.';
 
   const lines = [
     `Question: ${ctx.questionPrompt}`,
     `Exact submitted change: ${ctx.previousLine} -> ${ctx.submittedLine}`,
-    `Skill: ${ctx.microSkillName}`,
-    `THIS SESSION — got it right independently: ${ctx.sessionCounts.independentSuccessCount} time(s)`,
-    `THIS SESSION — got it wrong independently: ${ctx.sessionCounts.independentFailureCount} time(s)`,
-    `THIS SESSION — got it right with help: ${ctx.sessionCounts.assistedSuccessCount} time(s)`,
-    `PRIOR + CURRENT LIFETIME TOTAL — independent successes: ${ctx.lifetimeCounts.independentSuccessCount}`,
-    `PRIOR + CURRENT LIFETIME TOTAL — independent failures: ${ctx.lifetimeCounts.independentFailureCount}`,
+    `Available micro-skills: ${MICRO_SKILL_CATALOGUE.map((skill) => `${skill.id} = ${skill.name}`).join("; ")}`,
+    `Evidence counters associated by the rule engine with this step: ${ctx.sessionCounts.independentSuccessCount} independent success(es), ${ctx.sessionCounts.independentFailureCount} independent failure(s), ${ctx.sessionCounts.assistedSuccessCount} assisted success(es) this session; ${ctx.lifetimeCounts.independentSuccessCount} lifetime independent success(es), ${ctx.lifetimeCounts.independentFailureCount} lifetime independent failure(s). Use these as evidence, not as a prescribed micro-skill label.`,
   ];
   if (ctx.sessionSkillEvidence.length > 0) {
     lines.push("Other numerical evidence from this session:");
     for (const skill of ctx.sessionSkillEvidence) {
       lines.push(
-        `- ${skill.microSkillName}: ${skill.independentSuccessCount} independent success(es), ` +
+        `- ${skill.microSkillId} (${skill.microSkillName}): ${skill.independentSuccessCount} independent success(es), ` +
         `${skill.independentFailureCount} independent failure(s), ${skill.assistedSuccessCount} assisted success(es)`,
       );
     }
