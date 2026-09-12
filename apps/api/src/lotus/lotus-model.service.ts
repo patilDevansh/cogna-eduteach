@@ -41,11 +41,31 @@ export class LotusModelService {
       this.config.get<string>("LOTUS_CHALLENGER_MODEL") ?? "gpt-5.6-sol";
   }
 
-  get status(): { enabled: boolean; ready: boolean; missingConfiguration: string[] } {
+  get status(): {
+    enabled: boolean;
+    ready: boolean;
+    missingConfiguration: string[];
+    progressiveStreamingEnabled: boolean;
+  } {
     const enabled = this.config.get<string>("LOTUS_EXPERIMENTAL_ENABLED") !== "false";
     const missingConfiguration: string[] = [];
     if (!this.openai.isConfigured) missingConfiguration.push("OPENAI_API_KEY");
-    return { enabled, ready: enabled && missingConfiguration.length === 0, missingConfiguration };
+    return {
+      enabled,
+      ready: enabled && missingConfiguration.length === 0,
+      missingConfiguration,
+      progressiveStreamingEnabled: this.progressiveStreamingEnabled,
+    };
+  }
+
+  /**
+   * Kill switch for the stage-by-stage progress a polling client can observe
+   * mid-answer. Purely additive and observational — flipping this off (the
+   * default is on) reverts to the original blocking behaviour with zero code
+   * changes, if a better latency fix supersedes it.
+   */
+  get progressiveStreamingEnabled(): boolean {
+    return this.config.get<string>("LOTUS_PROGRESSIVE_STREAMING_ENABLED") !== "false";
   }
 
   assertReady(): void {

@@ -155,6 +155,24 @@ export interface LotusQuestionAudit {
   createdAt: string;
 }
 
+/**
+ * Behind LOTUS_PROGRESSIVE_STREAMING_ENABLED. Mutated in place on the
+ * in-memory session as each of the four model calls for the *current*
+ * in-flight answer resolves, so a concurrent GET of the session (polled
+ * while the POST /answers request is still running) can show the observer
+ * the debate arriving stage by stage instead of one blocking wait. Cleared
+ * once the answer's audit is finalized — it never reflects a completed turn.
+ */
+export interface LotusLiveProgress {
+  /** Matches the audits.length this progress belongs to, so a poll from a stale answeredCount can be ignored. */
+  forAnsweredCount: number;
+  stage: "ASSESSING" | "DEBATING" | "CLOSING";
+  gpt?: LotusModelAssessment;
+  challenger?: LotusModelAssessment;
+  debate?: LotusGptDebateResponse;
+  updatedAt: string;
+}
+
 export interface LotusSessionView {
   sessionId: string;
   studentId: string;
@@ -172,6 +190,7 @@ export interface LotusSessionView {
     primary: string;
     challenger: string;
   };
+  liveProgress?: LotusLiveProgress | null;
 }
 
 export interface LotusStatusResponse {
@@ -179,4 +198,6 @@ export interface LotusStatusResponse {
   ready: boolean;
   missingConfiguration: string[];
   models: { primary: string; challenger: string };
+  /** When false, liveProgress is never populated — clients should not poll. */
+  progressiveStreamingEnabled: boolean;
 }

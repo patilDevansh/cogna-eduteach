@@ -6,6 +6,7 @@ import {
 import type {
   LotusDebateClosure,
   LotusGptDebateResponse,
+  LotusLiveProgress,
   LotusMathVerification,
   LotusModelAssessment,
   LotusOverrideAction,
@@ -166,6 +167,7 @@ export class LotusService {
         primary: `${this.models.primaryModel} · GPT primary`,
         challenger: `${this.models.challengerModel} · GPT challenger`,
       },
+      liveProgress: null,
     };
     this.sessions.set(session.sessionId, session);
     await this.persist(session);
@@ -190,7 +192,21 @@ export class LotusService {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
     }
 
-    const currentQuestion = session.currentQuestion;
+    try {
+      return await this.answerInner(session, response);
+    } catch (err) {
+      // A failed stage must not leave a stale in-progress indicator behind
+      // for a poller to keep displaying after the request has already died.
+      session.liveProgress = null;
+      throw err;
+    }
+  }
+
+  private async answerInner(
+    session: LotusSessionState,
+    response: LotusStudentResponse,
+  ): Promise<LotusSessionView> {
+    const currentQuestion = session.currentQuestion!;
     const elapsedSeconds = Math.floor(
       (Date.now() - new Date(session.startedAt).getTime()) / 1000,
     );
@@ -205,12 +221,14 @@ export class LotusService {
       answeredCount,
       phase: session.phase,
     };
+    this.setLiveProgress(session, answeredCount, { stage: "ASSESSING" });
     let [gpt, challenger] = await Promise.all([
       this.models.primaryAssessment(independentPrompt({ ...independentArgs, role: "GPT primary" })),
       this.models.challengerAssessment(independentPrompt({ ...independentArgs, role: "GPT challenger" })),
     ]);
     gpt = this.groundMathJudgment(gpt, verification);
     challenger = this.groundMathJudgment(challenger, verification);
+    this.setLiveProgress(session, answeredCount, { stage: "DEBATING", gpt, challenger });
     const debate = await this.models.primaryDebate(
       gptDebatePrompt({
         gpt,
@@ -221,6 +239,7 @@ export class LotusService {
         answeredCount,
       }),
     );
+    this.setLiveProgress(session, answeredCount, { stage: "CLOSING", gpt, challenger, debate });
     let conclusion = await this.models.challengerClosure(
       challengerClosurePrompt({
         gpt,
@@ -278,6 +297,7 @@ export class LotusService {
       createdAt: new Date().toISOString(),
     };
     session.audits.push(audit);
+    session.liveProgress = null;
 
     if (conclusion.exitDiagnostic) {
       session.status = "COMPLETE";
@@ -354,6 +374,24 @@ Create one materially different question that adds new diagnostic evidence. Test
     latestAudit.conclusion.selectionReason = latestAudit.questionSelection.reason;
     await this.persist(session);
     return publicCopy(session);
+  }
+
+  /**
+   * No-op unless LOTUS_PROGRESSIVE_STREAMING_ENABLED — purely observational,
+   * never read by anything that drives a decision, so turning it off reverts
+   * to the original blocking behaviour with no other code changes needed.
+   */
+  private setLiveProgress(
+    session: LotusSessionState,
+    forAnsweredCount: number,
+    partial: Omit<LotusLiveProgress, "forAnsweredCount" | "updatedAt">,
+  ): void {
+    if (!this.models.progressiveStreamingEnabled) return;
+    session.liveProgress = {
+      forAnsweredCount,
+      updatedAt: new Date().toISOString(),
+      ...partial,
+    };
   }
 
   private assertOperationalConclusion(conclusion: LotusDebateClosure): void {
