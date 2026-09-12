@@ -36,6 +36,7 @@ import { ExplanationEngineService } from "../engines/explanation-engine/explanat
 import { LiveTeachingAgentService } from "../engines/live-teaching/live-teaching-agent.service";
 import { BreakAdvisorAgentService } from "../engines/break-advisor/break-advisor-agent.service";
 import { RevisionService } from "../revision/revision.service";
+import { ConceptCacheService } from "../engines/concept-cache/concept-cache.service";
 import {
   isExplanationEffective,
   isIdleSpike,
@@ -57,6 +58,7 @@ export class LearningLoopService {
     private readonly revisionService: RevisionService,
     private readonly liveTeaching: LiveTeachingAgentService,
     private readonly breakAdvisor: BreakAdvisorAgentService,
+    private readonly conceptCache: ConceptCacheService,
   ) {}
 
   async processAnswer(event: AnswerSubmittedEvent): Promise<AnswerSubmittedResponse> {
@@ -1158,51 +1160,54 @@ export class LearningLoopService {
     recentIncorrectStreak: number;
     sessionAttempts: Attempt[];
   }) {
+    // Parallel context gathering — all queries are read-only and independent
     const idleSpikeCount = input.sessionAttempts.filter((a) =>
       isIdleSpike(a.idleTimeMs),
     ).length;
 
-    const mastery = await this.prisma.masteryScore.findUnique({
-      where: {
-        studentId_conceptId: {
-          studentId: input.studentId,
-          conceptId: input.conceptId,
+    const [
+      mastery,
+      concept,
+      transferCheckCount,
+      errorRecoveryFactor,
+      retentionRow,
+      activeHighMisconceptionFactor,
+      profile,
+      latestMisconception,
+    ] = await Promise.all([
+      this.prisma.masteryScore.findUnique({
+        where: {
+          studentId_conceptId: {
+            studentId: input.studentId,
+            conceptId: input.conceptId,
+          },
         },
-      },
-    });
-    const concept = await this.prisma.concept.findUnique({
-      where: { id: input.conceptId },
-    });
-
-    const hasTransferCheckItem =
-      (await this.prisma.question.count({
+      }),
+      this.conceptCache.get(input.conceptId),
+      this.prisma.question.count({
         where: {
           conceptId: input.conceptId,
           questionIntent: "TRANSFER_CHECK",
           reviewStatus: "APPROVED",
         },
-      })) > 0;
-
-    const errorRecoveryFactor = await this.prisma.diagnosticFactor.findFirst({
-      where: {
-        studentId: input.studentId,
-        conceptId: input.conceptId,
-        factorType: "ERROR_RECOVERY",
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const retentionRow = await this.prisma.retentionEstimate.findFirst({
-      where: {
-        studentId: input.studentId,
-        conceptId: input.conceptId,
-        validUntil: { gt: new Date() },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const activeHighMisconception =
-      (await this.prisma.diagnosticFactor.findFirst({
+      }),
+      this.prisma.diagnosticFactor.findFirst({
+        where: {
+          studentId: input.studentId,
+          conceptId: input.conceptId,
+          factorType: "ERROR_RECOVERY",
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.retentionEstimate.findFirst({
+        where: {
+          studentId: input.studentId,
+          conceptId: input.conceptId,
+          validUntil: { gt: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.diagnosticFactor.findFirst({
         where: {
           studentId: input.studentId,
           conceptId: input.conceptId,
@@ -1210,20 +1215,24 @@ export class LearningLoopService {
           confidence: { gt: 0.6 },
         },
         orderBy: { createdAt: "desc" },
-      })) != null;
+      }),
+      this.prisma.learnerProfile.findUnique({
+        where: { studentId: input.studentId },
+      }),
+      this.prisma.diagnosticFactor.findFirst({
+        where: {
+          studentId: input.studentId,
+          conceptId: input.conceptId,
+          factorType: "MISCONCEPTION",
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
-    const profile = await this.prisma.learnerProfile.findUnique({
-      where: { studentId: input.studentId },
-    });
+    const hasTransferCheckItem = transferCheckCount > 0;
+    const activeHighMisconception = activeHighMisconceptionFactor != null;
 
-    const latestMisconception = await this.prisma.diagnosticFactor.findFirst({
-      where: {
-        studentId: input.studentId,
-        conceptId: input.conceptId,
-        factorType: "MISCONCEPTION",
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Alternative explanation dominance check (depends on latestMisconception)
     const altExplanations = latestMisconception?.alternativeExplanations ?? [];
     const alternativeExplanationDominant =
       altExplanations.length > 0 &&

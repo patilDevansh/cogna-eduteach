@@ -7,6 +7,7 @@ import { ExplanationEngineModule } from "../engines/explanation-engine/explanati
 import { LiveTeachingModule } from "../engines/live-teaching/live-teaching.module";
 import { RevisionModule } from "../revision/revision.module";
 import { BreakAdvisorModule } from "../engines/break-advisor/break-advisor.module";
+import { ConceptCacheModule } from "../engines/concept-cache/concept-cache.module";
 import { LearningLoopService } from "./learning-loop.service";
 import { PracticeController } from "./practice.controller";
 
@@ -20,6 +21,7 @@ import { PracticeController } from "./practice.controller";
     LiveTeachingModule,
     RevisionModule,
     BreakAdvisorModule,
+    ConceptCacheModule,
   ],
   controllers: [PracticeController],
   providers: [LearningLoopService],

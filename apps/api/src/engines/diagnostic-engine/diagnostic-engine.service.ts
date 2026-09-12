@@ -175,29 +175,19 @@ export class DiagnosticEngineService {
     }
 
     // MVP 2.0: retention / velocity / error recovery / engagement (post-baseline evidence)
-    const retentionFactor = await this.computeAndStoreRetention(
-      studentId,
-      question.conceptId,
-      attemptId,
-    );
+    // Parallel execution — these computations are independent and can run concurrently
+    const [retentionFactor, velocityFactor, errorRecoveryFactor] = await Promise.all([
+      this.computeAndStoreRetention(studentId, question.conceptId, attemptId),
+      this.computeAndStoreVelocity(studentId, question.conceptId, attemptId),
+      this.computeAndStoreErrorRecovery(studentId, question.conceptId, attemptId),
+    ]);
+
     if (retentionFactor) {
       diagnosticFactors.push(retentionFactor as unknown as DiagnosticInference);
     }
-
-    const velocityFactor = await this.computeAndStoreVelocity(
-      studentId,
-      question.conceptId,
-      attemptId,
-    );
     if (velocityFactor) {
       diagnosticFactors.push(velocityFactor as unknown as DiagnosticInference);
     }
-
-    const errorRecoveryFactor = await this.computeAndStoreErrorRecovery(
-      studentId,
-      question.conceptId,
-      attemptId,
-    );
     if (errorRecoveryFactor) {
       diagnosticFactors.push(errorRecoveryFactor as unknown as DiagnosticInference);
     }
