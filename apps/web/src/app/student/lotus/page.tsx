@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
+  LotusLiveProgress,
   LotusModelAssessment,
   LotusOverrideAction,
   LotusQuestion,
@@ -229,6 +230,53 @@ function AuditCard({
   );
 }
 
+const STAGE_LABEL: Record<LotusLiveProgress["stage"], string> = {
+  ASSESSING: "Primary and Challenger are forming independent assessments…",
+  DEBATING: "GPT is comparing the two independent assessments…",
+  CLOSING: "GPT challenger is auditing the debate and deciding what's next…",
+};
+
+/**
+ * The in-flight turn, shown while the four model calls behind it are still
+ * running. Fields fill in as each stage resolves (see setLiveProgress on the
+ * backend) — this never shows anything final; AuditCard replaces it the
+ * moment the real audit lands.
+ */
+function LiveProgressCard({ progress, index }: { progress: LotusLiveProgress; index: number }) {
+  return (
+    <details className={styles.auditCard} open>
+      <summary className={styles.auditSummary}>
+        <span className={styles.number}>{index}</span>
+        <span>
+          <strong>Question {index}</strong>
+          <br />
+          <span className={styles.muted} style={{ fontSize: "0.82rem" }}>
+            {STAGE_LABEL[progress.stage]}
+          </span>
+        </span>
+        <span className={styles.loading}><span className={styles.pulse} /></span>
+      </summary>
+      <div className={styles.auditBody}>
+        {progress.gpt && progress.challenger && (
+          <div className={styles.modelGrid}>
+            <AssessmentCard name="GPT primary thought" assessment={progress.gpt} className={styles.gpt} />
+            <AssessmentCard name="GPT challenger thought" assessment={progress.challenger} className={styles.challenger} />
+          </div>
+        )}
+        {progress.debate && (
+          <section className={`${styles.section} ${styles.debate}`}>
+            <h4>What they argued</h4>
+            <p><strong>Agreement</strong></p>
+            <List items={progress.debate.agreements} />
+            <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
+            <List items={progress.debate.disagreements} />
+          </section>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function FinalReport({ session }: { session: LotusSessionView }) {
   const report = session.finalReport;
   if (!report) return null;
@@ -287,6 +335,8 @@ export default function LotusPage() {
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [liveProgress, setLiveProgress] = useState<LotusLiveProgress | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     document.title = "Cogna Lotus — Experimental AI Lab";
@@ -316,6 +366,37 @@ export default function LotusPage() {
     () => session ? [session.openingAudit, ...session.audits] : [],
     [session],
   );
+
+  function stopPolling() {
+    if (pollTimerRef.current !== null) {
+      window.clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    setLiveProgress(null);
+  }
+
+  // Behind LOTUS_PROGRESSIVE_STREAMING_ENABLED (see /lotus/status). While the
+  // POST /answers request is in flight, poll the session so the observer sees
+  // the debate arrive stage by stage instead of one blocking wait. Purely
+  // additive — if this ever regresses, flip the flag off server-side and
+  // this poll simply never starts (status.progressiveStreamingEnabled false).
+  function startPolling(sessionId: string, forAnsweredCount: number) {
+    if (!status?.progressiveStreamingEnabled) return;
+    stopPolling();
+    pollTimerRef.current = window.setInterval(() => {
+      api
+        .getLotusSession(sessionId)
+        .then((polled) => {
+          const progress = polled.liveProgress;
+          if (progress && progress.forAnsweredCount === forAnsweredCount) {
+            setLiveProgress(progress);
+          }
+        })
+        .catch(() => undefined);
+    }, 1500);
+  }
+
+  useEffect(() => stopPolling, []);
 
   function resetResponse() {
     setAnswer("");
@@ -361,6 +442,7 @@ export default function LotusPage() {
     }
     setBusy(true);
     setError("");
+    startPolling(session.sessionId, audits.length);
     try {
       const next = await api.submitLotusAnswer(session.sessionId, studentId, {
         answer: didNotKnow ? "I don't know" : answer.trim(),
@@ -373,6 +455,7 @@ export default function LotusPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "The two-model review failed.");
     } finally {
+      stopPolling();
       setBusy(false);
     }
   }
@@ -638,6 +721,7 @@ export default function LotusPage() {
                       latest={index === audits.length - 1}
                     />
                   ))}
+                  {busy && liveProgress && <LiveProgressCard progress={liveProgress} index={audits.length} />}
                 </div>
               </aside>
             )}

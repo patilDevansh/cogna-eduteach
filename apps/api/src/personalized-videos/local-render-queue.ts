@@ -2,8 +2,8 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import * as os from "node:os";
+import * as path from "node:path";
 import { defaultMediaRoot, type MediaStorage } from "./media-storage";
 import type { RendererPollResult, VideoRenderSuccess, VideoSceneManifest } from "./video-renderer.adapter";
 
