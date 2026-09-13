@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { DraftType } from "@cogna/shared";
+import { validateVideoLanguage } from "../personalized-videos/video-language";
 
 export interface ValidationInput {
   draftType: DraftType;
@@ -95,6 +96,14 @@ export class ContentValidationService {
       valid,
       errors: errors.length > 0 ? errors : undefined,
     };
+  }
+
+  /**
+   * Language-only gate for student-facing scripts (video narration, captions,
+   * headlines). Reuses the same clinical/personality deny-list as draft validation.
+   */
+  validateStudentFacingLanguage(texts: string[]): ValidationResult {
+    return validateVideoLanguage(texts);
   }
 
   private validateQuestionSchema(

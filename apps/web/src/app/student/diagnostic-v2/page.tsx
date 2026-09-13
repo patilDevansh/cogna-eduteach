@@ -155,6 +155,10 @@ function isUnresolved(validity: StepValidity): boolean {
   return validity === "AMBIGUOUS" || validity === "PARSE_FAILED";
 }
 
+function normalizeSubmittedMathLine(line: string): string {
+  return line.trim().replace(/[^a-zA-Z0-9)]+$/, "");
+}
+
 function DiagnosticV2Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -381,6 +385,11 @@ function DiagnosticV2Content() {
   async function submitLine(submittedLine: string, dontKnow = false) {
     if (!attempt || !sessionId || busy) return;
 
+    // Keep the browser's accepted-line state byte-for-byte aligned with the
+    // API. Without this, a harmless trailing `]` can be removed by the server
+    // but retained locally, causing the next request to cite a stale line.
+    const normalizedSubmittedLine = normalizeSubmittedMathLine(submittedLine);
+
     // The opening line, not the prompt: the prompt carries instruction wording
     // ("Solve for x:") that the checker would not be able to read.
     const previousLine =
@@ -396,16 +405,16 @@ function DiagnosticV2Content() {
       const response = await api.submitDiagnosticV2Step(sessionId, {
         attemptId: attempt.attemptId,
         previousLine,
-        submittedLine,
+        submittedLine: normalizedSubmittedLine,
         ...(dontKnow ? { dontKnow: true } : {}),
       });
 
-      const entry: StepLogEntry = { submittedLine, response };
+      const entry: StepLogEntry = { submittedLine: normalizedSubmittedLine, response };
       setStepLog((prev) => [...prev, entry]);
       setLastStep(entry);
 
       if (response.outcome === "SUBMITTED" && response.validity === "VALID") {
-        setAcceptedLines((prev) => [...prev, submittedLine.trim()]);
+        setAcceptedLines((prev) => [...prev, normalizedSubmittedLine]);
         setDraft("");
       }
 
@@ -1158,12 +1167,12 @@ function DebugPanel({
                                       <div className={styles.interpreterHandoffFacts}>
                                         <span>Exact change</span><MathLine text={`${step.previousLine} → ${step.submittedLine}`} />
                                         <span>Rule result</span><strong>{transcriptionSlip ? "LIKELY TRANSCRIPTION SLIP" : `${step.validity} · ${step.attemptedTransformation}`}</strong>
-                                        <span>Micro-skill</span>{transcriptionSlip ? <span>No skill penalty — checking/copy accuracy only</span> : step.primaryMicroSkillId ? <MicroSkillName code={step.primaryMicroSkillId} /> : <span>Not attributed</span>}
+                                        <span>Rule-side grouping</span>{transcriptionSlip ? <span>No skill penalty — checking/copy accuracy only</span> : <span>Counts and exact evidence only; the AI chooses the micro-skill.</span>}
                                         <span>This session</span><span>{state?.sessionIndependentSuccessCount ?? 0} independent successes · {state?.sessionIndependentFailureCount ?? 0} independent failures · {state?.sessionAssistedSuccessCount ?? 0} assisted successes</span>
                                       </div>
                                       {step.firstInvalidActionDescription && <p className={styles.evidenceCallout}><MathText text={step.firstInvalidActionDescription} /></p>}
                                       {hypothesis
-                                        ? <div className={styles.interpreterResult}><div><strong>Interpreter result</strong><span className={`${styles.sourcePill} ${hypothesis.source === "AI" ? styles.tagAi : styles.tagRule}`}>{hypothesis.source === "AI" ? "Accepted AI" : "Rule fallback"}</span></div><p><MathText text={hypothesis.reasoning} /></p><small>{Math.round(hypothesis.confidence * 100)}% confidence</small></div>
+                                        ? <div className={styles.interpreterResult}><div><strong>Interpreter result</strong><span className={`${styles.sourcePill} ${hypothesis.source === "AI" ? styles.tagAi : styles.tagRule}`}>{hypothesis.source === "AI" ? "Accepted AI" : "Rule fallback"}</span></div><p><strong>Micro-skill: </strong><MicroSkillName code={hypothesis.microSkillId} /></p><p><MathText text={hypothesis.reasoning} /></p><small>{Math.round(hypothesis.confidence * 100)}% confidence</small></div>
                                         : transcriptionSlip
                                           ? <p className={styles.noAi}>No AI skill inference was requested. The rules found that the algebra operation was correct and isolated the changed, untouched value as a likely copying slip; this step does not change any micro-skill score.</p>
                                           : <p className={styles.noAi}>No interpreter record exists for this historical step. This does not mean the selector received nothing; it means no step-level interpretation was persisted.</p>}

@@ -1,0 +1,27 @@
+{
+  "name": "@cogna/lesson-video",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/render.js",
+  "types": "./src/render.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "tsc --noEmit",
+    "studio": "remotion studio src/index.ts",
+    "render:loop": "tsc && node dist/cli.js --product-loop",
+    "narrate:loop": "node scripts/narrate-product-loop.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.241",
+    "@remotion/renderer": "4.0.241",
+    "@types/node": "^22.15.32",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.241"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "typescript": "^5.8.3"
+  }
+}

@@ -23,6 +23,10 @@ export * from "./contracts/question-recommender";
 export * from "./contracts/practice-recommender";
 // MVP 9.0.1 Phase A — micro-skill step diagnostic (standalone track)
 export * from "./contracts/diagnostic-v2";
+// Experimental AI-only diagnostic lab (isolated from diagnostic-v2)
+export * from "./contracts/lotus";
+// Personalized video production path
+export * from "./contracts/personalized-videos";
 // Voice / safe text
 export * from "./voice/forbidden-terms";
 export * from "./voice/safe-text";

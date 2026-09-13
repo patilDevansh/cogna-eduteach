@@ -51,6 +51,12 @@ export class DiagnosticV2Controller {
     return this.sessions.getDebugView(id);
   }
 
+  /** Local-only evidence feed: append-only copy/paste text rows recorded while testing the diagnostic. */
+  @Get("sessions/:id/evidence")
+  evidence(@Param("id") id: string): Promise<unknown> {
+    return this.sessions.getEvidenceRecords(id);
+  }
+
   @Get("sessions/:id/summary")
   summary(@Param("id") id: string): Promise<DiagnosticV2SummaryResponse> {
     return this.sessions.getSummary(id);
