@@ -1,0 +1,20 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { getDemoResults, type DemoStudentResult } from "@/lib/gurukul-demo";
+import styles from "../teacher.module.css";
+
+export default function TeacherEvidencePage() {
+  const key = useSearchParams().get("student");
+  const [result,setResult] = useState<DemoStudentResult|null>(null);
+  useEffect(()=>{const all=getDemoResults();setResult(all.find(r=>r.studentKey===key)??all[0]??null)},[key]);
+  if(!result) return <section className={styles.emptyCard}><h2>No connected evidence yet</h2><p>Complete one student demo journey first.</p><Link className={styles.primary} href="/student/classroom">Open student journey →</Link></section>;
+  return <><div className={styles.pageHeader}><div><div className={styles.dateLine}>Individual evidence · {result.rollNumber}</div><h1>{result.studentName}</h1><p>Observation, interpretation, uncertainty, teaching and independent verification.</p></div><Link className={styles.secondary} href="/teacher/today">← Back to Today</Link></div>
+  <section className={styles.observationGrid}><div><span>Observed</span><p>{result.conclusion.observation}</p></div><div><span>Interpretation</span><p>{result.conclusion.interpretation}</p></div><div><span>Uncertainty</span><p style={{textTransform:"capitalize"}}>{result.conclusion.uncertainty} — {result.conclusion.status.replaceAll("-"," ")}</p></div></section>
+  <section className={styles.evidenceSection}><header><h2>Initial diagnostic evidence</h2><p>Every answer, step, skip, confidence report and elapsed time is preserved.</p></header>{result.diagnostic.map(r=><article className={styles.attempt} key={r.questionId}><div className={styles.attemptTop}><div><div className={styles.attemptPrompt}>{r.prompt}</div><div className={styles.attemptMeta}><span>{r.correct?"Correct":"Not correct"}</span><span>{r.skipped?"Skipped":"Submitted"}</span><span>Confidence {r.confidence}%</span><span>{r.timeSeconds}s</span><span>No help</span></div></div><span className={`${styles.status} ${r.correct?styles.ready:styles.bridge}`}>{r.correct?"Demonstrated":"Evidence of difficulty"}</span></div><div className={styles.working}>{r.working||"No working submitted"}{r.answer?`\nFinal answer: ${r.answer}`:""}</div></article>)}</section>
+  <section className={styles.evidenceSection}><header><h2>Personalized teaching delivered</h2><p>{result.conclusion.teachingTitle}</p></header><article className={styles.attempt}><div className={styles.attemptPrompt}>{result.conclusion.teachingExplanation}</div><div className={styles.attemptMeta}><span>{result.assistanceUsed} hint{result.assistanceUsed===1?"":"s"} used</span><span>Guided response: {result.guidedResponse||"Not completed"}</span></div></article></section>
+  <section className={styles.evidenceSection}><header><h2>Independent exit evidence</h2><p>Fresh familiar and changed-form questions; no hints available.</p></header>{result.exit.length?result.exit.map(r=><article className={styles.attempt} key={r.questionId}><div className={styles.attemptTop}><div><div className={styles.attemptPrompt}>{r.prompt}</div><div className={styles.attemptMeta}><span>{r.form} form</span><span>{r.correct?"Correct":"Not correct"}</span><span>Confidence {r.confidence}%</span><span>Independent</span></div></div><span className={`${styles.status} ${r.correct?styles.ready:styles.bridge}`}>{r.correct?"Verified":"Not yet verified"}</span></div><div className={styles.working}>{r.working||"No working submitted"}{r.answer?`\nFinal answer: ${r.answer}`:""}</div></article>):<article className={styles.attempt}>Exit check not completed yet.</article>}</section>
+  <section className={styles.emptyCard} style={{marginTop:"1rem"}}><div className={styles.dateLine}>Retention preview · Simulated future stage</div><h2>No retention claim has been made today.</h2><p>Cogna would schedule a fresh, delayed check in 3–7 days and update this profile only after new independent evidence arrives.</p><button className={styles.secondary}>Schedule preview retention check</button></section></>;
+}

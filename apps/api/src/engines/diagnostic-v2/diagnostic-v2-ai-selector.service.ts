@@ -542,9 +542,9 @@ export function reasoningCitesEvidence(reasoning: string, ctx: SelectorContext):
     }
 
     // A correct current step has not committed its skill line yet. Accept a
-    // paraphrase only when it names that exact skill and cites both sides of
-    // the exact submitted transition. This accepts “3x=15 to x=5” for the
-    // stored “3x = 15 -> x = 5”, while “the student did well” still fails.
+    // paraphrase when it cites both sides of the exact submitted transition.
+    // The selector may choose another next skill, so requiring it to repeat
+    // the rule engine's skill id would reject otherwise grounded reasoning.
     const exactChange = ctx.lastStepSummary.match(/exact submitted change:\s*(.*?)\s*->\s*(.+)$/i);
     const summaryIsCorrect = /\bcorrect\b/.test(summaryLower);
     const reasoningNamesSuccess = /\b(?:correct|correctly|valid|succeed|succeeded|success)\b/.test(lower);
@@ -558,8 +558,7 @@ export function reasoningCitesEvidence(reasoning: string, ctx: SelectorContext):
         previous.length >= 3 &&
         submitted.length >= 3 &&
         normalizedReasoning.includes(previous) &&
-        normalizedReasoning.includes(submitted) &&
-        currentSkillIds.some((id) => lower.includes(id.toLowerCase()))
+        normalizedReasoning.includes(submitted)
       ) {
         return true;
       }
