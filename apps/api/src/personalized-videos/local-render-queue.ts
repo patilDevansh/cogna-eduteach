@@ -86,6 +86,9 @@ export class LocalRenderQueue {
         narration: scene.narration,
         durationSeconds: scene.durationSeconds,
         accent: scene.accent,
+        // Already a stable cache path (see tts-cache.ts) — no need to copy
+        // into this ephemeral workDir, the renderer just reads it directly.
+        audioPath: scene.audioPath,
       }));
       const inputPath = path.join(workDir, "input.json");
       await writeFile(

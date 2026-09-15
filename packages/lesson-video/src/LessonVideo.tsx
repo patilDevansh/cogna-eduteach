@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import type { LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
 import { LESSON_VIDEO_FPS } from "./types";
 
@@ -23,6 +23,7 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
         color: accent.ink,
       }}
     >
+      {scene.audioSrc && <Audio src={scene.audioSrc} />}
       <div
         style={{
           position: "absolute",

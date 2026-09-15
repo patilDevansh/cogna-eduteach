@@ -5,6 +5,8 @@ import {
   assertWorker,
   resolveActor,
 } from "../../../../../../api/src/access/cogna-access";
+import { OpenAIService } from "../../../../../../api/src/ai/openai.service";
+import { TtsService } from "../../../../../../api/src/ai/tts.service";
 import { PersonalizedVideosService } from "../../../../../../api/src/personalized-videos/personalized-videos.service";
 import { createPersonalizedVideoMemoryDb } from "../../../../../../api/src/personalized-videos/personalized-videos.memory";
 import { createVideoRendererFromEnv } from "../../../../../../api/src/personalized-videos/video-renderer.factory";
@@ -37,6 +39,10 @@ function loadWorkspaceEnvironment(): void {
     "COGNA_CHROME_PATH",
     "COGNA_VIDEO_RENDER_WORKER",
     "COGNA_VIDEO_RENDER_WORKER_MS",
+    "OPENAI_API_KEY",
+    "COGNA_LESSON_AUDIO_ENABLED",
+    "COGNA_LESSON_AUDIO_MODEL",
+    "COGNA_LESSON_AUDIO_VOICE",
     "ALLOW_DEMO_STUDENT_SESSIONS",
     "ALLOW_PERSONALIZED_VIDEO_DEMO_SEEDS",
     "AWS_REGION",
@@ -75,9 +81,16 @@ function getService(): PersonalizedVideosService {
     const prisma = useMemory
       ? createPersonalizedVideoMemoryDb()
       : new PrismaClient();
+    const config = {
+      get<T>(key: string): T | undefined {
+        return process.env[key] as T | undefined;
+      },
+    };
+    const tts = new TtsService(new OpenAIService(), config as never);
     globalStore.__cognaPersonalizedVideosV7 = new PersonalizedVideosService(
       prisma as never,
       createVideoRendererFromEnv(),
+      tts,
     );
   }
   startRenderWorker(globalStore.__cognaPersonalizedVideosV7);

@@ -7,6 +7,19 @@ export interface LessonVideoScene {
   narration: string;
   durationSeconds: number;
   accent?: LessonAccent | string;
+  /**
+   * Absolute local filesystem path to a pre-generated narration clip for this
+   * scene (caller-resolved — see apps/api's synthesizeNarration). Optional:
+   * omit for a silent scene, e.g. when TTS is disabled or generation failed.
+   * render.ts converts this to a file:// URL (audioSrc) before it reaches the
+   * composition; the package itself never generates audio.
+   */
+  audioPath?: string;
+  /**
+   * render.ts-derived file:// URL for audioPath, set right before rendering.
+   * Not meant to be set by callers directly — set audioPath instead.
+   */
+  audioSrc?: string;
 }
 
 export interface LessonVideoProps {

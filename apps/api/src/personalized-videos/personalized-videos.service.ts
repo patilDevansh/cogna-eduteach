@@ -19,11 +19,15 @@ import {
   type PersonalizedVideoExitItem,
   type PersonalizedVideoJobView,
   type PersonalizedVideoLesson,
+  type PersonalizedVideoLessonScene,
   type PersonalizedVideoScriptSource,
   type PersonalizedVideoTeacherReport,
   type PilotStudentKey,
 } from "@cogna/shared";
 import { randomUUID } from "crypto";
+import { readFile } from "node:fs/promises";
+import type { TtsService } from "../ai/tts.service";
+import { probeAudioDurationSeconds, readTtsCache, writeTtsCache } from "./tts-cache";
 import {
   DEMO_SCHOOL_ID,
   assertCanReadStudent,
@@ -116,6 +120,7 @@ export class PersonalizedVideosService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly renderer: VideoRendererAdapter,
+    private readonly tts?: TtsService,
   ) {}
 
   async getForStudent(
@@ -378,25 +383,48 @@ export class PersonalizedVideosService {
 
     try {
       let providerJobId = payload.providerJobId;
-      if (!providerJobId || job.status !== JobStatus.RUNNING) {
+      if (!providerJobId) {
+        if (job.status === JobStatus.RUNNING) {
+          // Already claimed by an earlier tick that's still inside
+          // synthesis/submit (TTS + render submission can take several
+          // seconds — long enough for processPendingRenderJobs's ~2.5s
+          // interval to fire again before providerJobId is persisted).
+          // That tick owns this job; back off rather than resubmitting.
+          return { status: JobStatus.RUNNING };
+        }
+        // Atomically claim this job before doing any slow work. Only the
+        // caller whose compare-and-swap on status actually lands wins;
+        // everyone else falls into the RUNNING branch above on their next read.
+        const claim = await this.prisma.job.updateMany({
+          where: { id: jobId, status: job.status },
+          data: { status: JobStatus.RUNNING },
+        });
+        if (claim.count === 0) {
+          return { status: JobStatus.RUNNING };
+        }
+        // Narration audio only means anything to the local Remotion renderer —
+        // a local filesystem path is meaningless to a remote render endpoint.
+        const narratedScenes = this.renderer.usesLocalRenderer()
+          ? await this.synthesizeNarration(lesson.scenes)
+          : lesson.scenes;
         const submitted = await this.renderer.submit({
           assignmentId,
           title: lesson.title,
           captions: lesson.scenes.map((scene) => scene.narration),
-          scenes: lesson.scenes.map((scene) => ({
+          scenes: narratedScenes.map((scene) => ({
             eyebrow: scene.eyebrow,
             headline: scene.headline,
             equation: scene.equation,
             narration: scene.narration,
             durationSeconds: scene.durationSeconds,
             accent: scene.accent,
+            audioPath: (scene as { audioPath?: string }).audioPath,
           })),
         });
         providerJobId = submitted.providerJobId;
         await this.prisma.job.update({
           where: { id: jobId },
           data: {
-            status: JobStatus.RUNNING,
             payload: { ...payload, providerJobId } as object,
           },
         });
@@ -573,6 +601,45 @@ export class PersonalizedVideosService {
         exitVerified,
       },
     };
+  }
+
+  /**
+   * Narration text is fixed per approved-templates.ts template (student name
+   * is baked in literally, not a runtime placeholder), so the same clip gets
+   * reused across renders via tts-cache. Never throws and never drops a
+   * scene: a cache/TTS failure just leaves that scene's audioPath unset,
+   * which renders silently — a lesson must never fail to render over a
+   * narration outage.
+   */
+  private async synthesizeNarration(
+    scenes: PersonalizedVideoLessonScene[],
+  ): Promise<Array<PersonalizedVideoLessonScene & { audioPath?: string }>> {
+    if (!this.tts?.enabled) return scenes;
+    const voice = this.tts.voice;
+    const model = this.tts.model;
+    return Promise.all(
+      scenes.map(async (scene) => {
+        try {
+          let audioPath = await readTtsCache(scene.narration, voice, model);
+          let bytes: Buffer | null = null;
+          if (!audioPath) {
+            const synthesized = await this.tts!.synthesize(scene.narration);
+            if (!synthesized) return scene;
+            bytes = synthesized.bytes;
+            audioPath = await writeTtsCache(scene.narration, voice, model, bytes);
+          } else {
+            bytes = await readFile(audioPath);
+          }
+          const probedSeconds = await probeAudioDurationSeconds(bytes);
+          const durationSeconds = probedSeconds
+            ? Math.max(scene.durationSeconds, Math.ceil(probedSeconds) + 0.5)
+            : scene.durationSeconds;
+          return { ...scene, audioPath, durationSeconds };
+        } catch {
+          return scene;
+        }
+      }),
+    );
   }
 
   private async resolveTrustedEvidence(
