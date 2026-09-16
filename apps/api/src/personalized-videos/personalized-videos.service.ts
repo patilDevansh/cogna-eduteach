@@ -617,16 +617,17 @@ export class PersonalizedVideosService {
     if (!this.tts?.enabled) return scenes;
     const voice = this.tts.voice;
     const model = this.tts.model;
+    const instructions = this.tts.instructions;
     return Promise.all(
       scenes.map(async (scene) => {
         try {
-          let audioPath = await readTtsCache(scene.narration, voice, model);
+          let audioPath = await readTtsCache(scene.narration, voice, model, instructions);
           let bytes: Buffer | null = null;
           if (!audioPath) {
             const synthesized = await this.tts!.synthesize(scene.narration);
             if (!synthesized) return scene;
             bytes = synthesized.bytes;
-            audioPath = await writeTtsCache(scene.narration, voice, model, bytes);
+            audioPath = await writeTtsCache(scene.narration, voice, model, bytes, instructions);
           } else {
             bytes = await readFile(audioPath);
           }
