@@ -622,16 +622,35 @@ export class PersonalizedVideosService {
       scenes.map(async (scene) => {
         try {
           let audioPath = await readTtsCache(scene.narration, voice, model, instructions);
-          let bytes: Buffer | null = null;
+          let bytes: Buffer | null = audioPath ? await readFile(audioPath) : null;
+          let probedSeconds = bytes ? await probeAudioDurationSeconds(bytes) : null;
+
+          // Observed directly: a truncated stream (network hiccup mid-transfer)
+          // can produce a still-parseable but far-too-short MP3 without ever
+          // throwing — e.g. 0.36s of audio for a sentence that needs 6-8s to
+          // speak. Once cached, that broken clip is served forever. Reject
+          // anything implausibly short relative to the text and re-synthesize,
+          // rather than trusting "it parsed" as "it's the real narration".
+          const minPlausibleSeconds = Math.max(0.5, scene.narration.length / 25);
+          if (audioPath && probedSeconds !== null && probedSeconds < minPlausibleSeconds) {
+            audioPath = null;
+            bytes = null;
+            probedSeconds = null;
+          }
+
           if (!audioPath) {
             const synthesized = await this.tts!.synthesize(scene.narration);
             if (!synthesized) return scene;
             bytes = synthesized.bytes;
+            probedSeconds = await probeAudioDurationSeconds(bytes);
+            if (probedSeconds !== null && probedSeconds < minPlausibleSeconds) {
+              // Still truncated on a fresh call — don't cache a broken clip,
+              // fall back to silent for this scene rather than looping retries.
+              return scene;
+            }
             audioPath = await writeTtsCache(scene.narration, voice, model, bytes, instructions);
-          } else {
-            bytes = await readFile(audioPath);
           }
-          const probedSeconds = await probeAudioDurationSeconds(bytes);
+
           const durationSeconds = probedSeconds
             ? Math.max(scene.durationSeconds, Math.ceil(probedSeconds) + 0.5)
             : scene.durationSeconds;
