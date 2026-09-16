@@ -1,3 +1,4 @@
+import type { EquationStep } from "@cogna/shared";
 import type { LocalRenderQueue } from "./local-render-queue";
 
 export interface VideoRendererConfig {
@@ -16,7 +17,7 @@ export interface VideoSceneManifest {
   scenes: Array<{
     eyebrow?: string;
     headline: string;
-    equation: string;
+    equation: EquationStep[];
     narration: string;
     durationSeconds: number;
     accent?: string;

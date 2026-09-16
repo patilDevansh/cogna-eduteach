@@ -38,7 +38,10 @@ describe("Local Remotion lesson renderer", () => {
     const vtt = buildLessonVtt([
       {
         headline: "Write two signed products",
-        equation: "−2(y − 5) = (−2)(y) + (−2)(−5)",
+        equation: [
+          { text: "−2(y − 5)" },
+          { text: "(−2)(y) + (−2)(−5)" },
+        ],
         narration: "Before calculating, write every signed multiplication.",
         durationSeconds: 2,
       },
@@ -61,7 +64,7 @@ describe("Local Remotion lesson renderer", () => {
           {
             eyebrow: "Your evidence",
             headline: "You already know the sign rule",
-            equation: "(−2)(−5) = +10",
+            equation: [{ text: "(−2)(−5) = +10" }],
             narration: "Negative two times negative five is positive ten.",
             durationSeconds: 1,
             accent: "green",
@@ -95,7 +98,7 @@ describe("Local Remotion lesson renderer", () => {
       const sceneBase = {
         eyebrow: "Control",
         headline: "Same visual content",
-        equation: "1 + 1 = 2",
+        equation: [{ text: "1 + 1 = 2" }],
         narration: "Same narration text either way.",
         durationSeconds: 1,
         accent: "green" as const,

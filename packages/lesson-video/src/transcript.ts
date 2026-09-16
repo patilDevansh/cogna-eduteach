@@ -21,7 +21,8 @@ export function buildLessonVtt(scenes: LessonVideoScene[]): string {
     const start = cursor;
     const end = cursor + Math.max(scene.durationSeconds, 1);
     cursor = end;
-    const text = [scene.headline, scene.equation, scene.narration].filter(Boolean).join("\n");
+    const equationText = scene.equation.map((step) => step.text).join(" → ");
+    const text = [scene.headline, equationText, scene.narration].filter(Boolean).join("\n");
     lines.push(String(index + 1));
     lines.push(`${toTimestamp(start)} --> ${toTimestamp(end)}`);
     lines.push(text);

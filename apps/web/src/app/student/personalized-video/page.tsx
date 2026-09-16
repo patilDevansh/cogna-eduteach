@@ -335,7 +335,9 @@ function PersonalizedVideoPage() {
                     <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
                       <span>{scene.eyebrow}</span>
                       <h2>{scene.headline}</h2>
-                      <div className={styles.equation}>{scene.equation}</div>
+                      <div className={styles.equation}>
+                        {scene.equation.map((step) => step.text).join(" → ")}
+                      </div>
                       <p>{scene.narration}</p>
                     </div>
                   </div>

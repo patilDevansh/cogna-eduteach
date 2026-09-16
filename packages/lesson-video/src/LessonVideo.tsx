@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
-import type { LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
+import type { EquationStep, LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
 import { LESSON_VIDEO_FPS } from "./types";
 
 const ACCENTS: Record<string, { background: string; ink: string; muted: string }> = {
@@ -9,7 +9,78 @@ const ACCENTS: Record<string, { background: string; ink: string; muted: string }
   violet: { background: "linear-gradient(140deg,#eee8f6,#d8c9e9)", ink: "#073f34", muted: "#4a3a5c" },
 };
 
-function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: number; total: number }) {
+const EQUATION_BOX_STYLE: React.CSSProperties = {
+  background: "rgba(255,255,255,0.82)",
+  border: "1px solid rgba(7,63,52,0.12)",
+  borderRadius: 16,
+  padding: "22px 26px",
+  fontSize: 34,
+  fontWeight: 700,
+  color: "#073f34",
+};
+
+/**
+ * A single step renders as static text for the whole scene — identical to
+ * the old plain-string display. Multiple steps split the scene's own
+ * duration evenly and crossfade from one line to the next, so a
+ * transformation (e.g. distributing a bracket) reads as a worked example
+ * building up rather than a wall of text dropped in all at once. Timing is
+ * driven by the scene's Sequence-local frame (from useCurrentFrame in the
+ * caller), not the composition's absolute frame — an equal split of *this
+ * scene's* duration is what keeps step transitions in step with narration
+ * regardless of where the scene sits in the overall video.
+ */
+function EquationDisplay({
+  steps,
+  durationInFrames,
+  fps,
+}: {
+  steps: EquationStep[];
+  durationInFrames: number;
+  fps: number;
+}) {
+  const frame = useCurrentFrame();
+  if (steps.length <= 1) {
+    return <div style={EQUATION_BOX_STYLE}>{steps[0]?.text ?? ""}</div>;
+  }
+
+  const transitionFrames = Math.min(Math.round(0.35 * fps), Math.floor(durationInFrames / steps.length / 2));
+  const segmentFrames = durationInFrames / steps.length;
+  const index = Math.min(steps.length - 1, Math.floor(frame / segmentFrames));
+  const isLastStep = index === steps.length - 1;
+  const localFrame = frame - index * segmentFrames;
+  const fadeStart = segmentFrames - transitionFrames;
+
+  let currentOpacity = 1;
+  let nextOpacity = 0;
+  if (!isLastStep && localFrame >= fadeStart && transitionFrames > 0) {
+    nextOpacity = Math.min(1, (localFrame - fadeStart) / transitionFrames);
+    currentOpacity = 1 - nextOpacity;
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ ...EQUATION_BOX_STYLE, opacity: currentOpacity }}>{steps[index]!.text}</div>
+      {!isLastStep && nextOpacity > 0 && (
+        <div style={{ ...EQUATION_BOX_STYLE, position: "absolute", inset: 0, opacity: nextOpacity }}>
+          {steps[index + 1]!.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SceneCard({
+  scene,
+  index,
+  total,
+  durationInFrames,
+}: {
+  scene: LessonVideoScene;
+  index: number;
+  total: number;
+  durationInFrames: number;
+}) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const accent = ACCENTS[(scene.accent as LessonAccent) ?? "green"] ?? ACCENTS.green;
@@ -83,19 +154,8 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
         >
           {scene.headline}
         </h1>
-        <div
-          style={{
-            marginTop: 28,
-            background: "rgba(255,255,255,0.82)",
-            border: "1px solid rgba(7,63,52,0.12)",
-            borderRadius: 16,
-            padding: "22px 26px",
-            fontSize: 34,
-            fontWeight: 700,
-            color: "#073f34",
-          }}
-        >
-          {scene.equation}
+        <div style={{ marginTop: 28 }}>
+          <EquationDisplay steps={scene.equation} durationInFrames={durationInFrames} fps={fps} />
         </div>
         <p
           style={{
@@ -152,7 +212,7 @@ export const LessonVideo: React.FC<LessonVideoProps> = ({ scenes }) => {
             durationInFrames={durationInFrames}
             premountFor={AUDIO_PREMOUNT_FRAMES}
           >
-            <SceneCard scene={scene} index={index} total={scenes.length} />
+            <SceneCard scene={scene} index={index} total={scenes.length} durationInFrames={durationInFrames} />
           </Sequence>
         );
       })}

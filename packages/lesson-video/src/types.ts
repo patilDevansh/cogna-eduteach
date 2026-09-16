@@ -1,9 +1,21 @@
 export type LessonAccent = "green" | "amber" | "violet";
 
+/**
+ * One frame of a scene's equation display — see the matching type in
+ * @cogna/shared's personalized-videos contract (duplicated here, not
+ * imported, to keep this package dependency-free of @cogna/shared).
+ * A single-element array renders as static text for the whole scene, same
+ * as the old plain-string display; multiple steps animate in sequence.
+ */
+export interface EquationStep {
+  text: string;
+  highlight?: Array<[number, number]>;
+}
+
 export interface LessonVideoScene {
   eyebrow?: string;
   headline: string;
-  equation: string;
+  equation: EquationStep[];
   narration: string;
   durationSeconds: number;
   accent?: LessonAccent | string;

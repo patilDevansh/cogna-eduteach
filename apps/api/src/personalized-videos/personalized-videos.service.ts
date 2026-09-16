@@ -230,7 +230,11 @@ export class PersonalizedVideosService {
       lesson.title,
       lesson.objective,
       lesson.generationReason,
-      ...lesson.scenes.flatMap((scene) => [scene.headline, scene.narration, scene.equation]),
+      ...lesson.scenes.flatMap((scene) => [
+        scene.headline,
+        scene.narration,
+        ...scene.equation.map((step) => step.text),
+      ]),
     ];
     const language = validateVideoLanguage(languageTexts);
     if (!language.valid) {

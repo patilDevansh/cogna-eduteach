@@ -66,7 +66,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your evidence",
           headline: "You already know the sign rule",
-          equation: "(−2)(−5) = +10",
+          equation: [{ text: "(−2)(−5) = +10" }],
           narration:
             "Aarav, your diagnostic shows that you can multiply two negative numbers correctly. We will use that knowledge inside a bracket.",
           durationSeconds: 8,
@@ -76,7 +76,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Make it visible",
           headline: "Write two signed products",
-          equation: "−2(y − 5) = (−2)(y) + (−2)(−5)",
+          equation: [{ text: "−2(y − 5)" }, { text: "(−2)(y) + (−2)(−5)" }],
           narration:
             "Before calculating, write every signed multiplication. The outside negative two multiplies both terms, including negative five.",
           durationSeconds: 12,
@@ -88,7 +88,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Calculate",
           headline: "Now apply the rule you know",
-          equation: "= −2y + 10",
+          equation: [{ text: "(−2)(y) + (−2)(−5)" }, { text: "−2y + 10" }],
           narration:
             "Negative two times y is negative two y. Negative two times negative five is positive ten.",
           durationSeconds: 10,
@@ -98,7 +98,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your routine",
           headline: "Signs first. Arithmetic second.",
-          equation: "outside × first  +  outside × second",
+          equation: [{ text: "outside × first  +  outside × second" }],
           narration:
             "Use this routine whenever a negative number sits outside a bracket: write the signed products first, then calculate.",
           durationSeconds: 9,
@@ -156,7 +156,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your evidence",
           headline: "The fraction was not the problem",
-          equation: "½(6x − 8) = 3x − 4 ✓",
+          equation: [{ text: "½(6x − 8)" }, { text: "3x − 4 ✓" }],
           narration:
             "Meena, you correctly distributed one half across the first bracket. That useful method is already present.",
           durationSeconds: 9,
@@ -166,7 +166,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "The missed action",
           headline: "Three must reach both terms",
-          equation: "3(x − 2) = 3x − 6",
+          equation: [{ text: "3(x − 2)" }, { text: "3x − 6" }],
           narration:
             "In the second bracket, three multiplies x and negative two. Use one visual arrow for each term.",
           durationSeconds: 11,
@@ -176,7 +176,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Put both results together",
           headline: "Only combine after both brackets open",
-          equation: "(3x − 4) + (3x − 6) = 6x − 10",
+          equation: [{ text: "(3x − 4) + (3x − 6)" }, { text: "6x − 10" }],
           narration:
             "Open both brackets completely. Then combine the like terms: three x plus three x, and negative four plus negative six.",
           durationSeconds: 12,
@@ -186,7 +186,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your checklist",
           headline: "Count terms; count products",
-          equation: "2 terms inside → 2 multiplications",
+          equation: [{ text: "2 terms inside → 2 multiplications" }],
           narration:
             "Before moving on, count the terms inside each bracket. Two terms require two multiplications.",
           durationSeconds: 9,
@@ -238,7 +238,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your evidence",
           headline: "Your algebraic route worked",
-          equation: "3(x − 4) = 21 → 3x = 33",
+          equation: [{ text: "3(x − 4) = 21" }, { text: "3x − 12 = 21" }, { text: "3x = 33" }],
           narration:
             "Rohan, your expansion and balance steps were correct. We do not need to replace your method.",
           durationSeconds: 8,
@@ -251,7 +251,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Ten-second check",
           headline: "Try your answer in the original",
-          equation: "x = 10 → 3(10 − 4) = 18 ≠ 21",
+          equation: [{ text: "x = 10" }, { text: "3(10 − 4) = 18 ≠ 21" }],
           narration:
             "Substitute ten into the original equation. It gives eighteen, not twenty-one, so the final answer needs another look.",
           durationSeconds: 11,
@@ -261,7 +261,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Correct the arithmetic",
           headline: "Thirty-three divided by three",
-          equation: "x = 11 → 3(11 − 4) = 21 ✓",
+          equation: [{ text: "x = 11" }, { text: "3(11 − 4) = 21 ✓" }],
           narration:
             "Thirty-three divided by three is eleven. Substitution now returns twenty-one, so the solution checks.",
           durationSeconds: 11,
@@ -274,7 +274,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your routine",
           headline: "Solve, substitute, confirm",
-          equation: "answer → original equation → ✓",
+          equation: [{ text: "answer → original equation → ✓" }],
           narration:
             "Use this quick check after multi-step equations. It catches slips without making you repeat correct algebra.",
           durationSeconds: 9,
@@ -327,7 +327,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your evidence",
           headline: "You combined the x terms correctly",
-          equation: "4x − 2x = 2x ✓",
+          equation: [{ text: "4x − 2x" }, { text: "2x ✓" }],
           narration:
             "Divya, you correctly combined four x and negative two x. The next step is about maintaining equality.",
           durationSeconds: 8,
@@ -337,7 +337,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Show the operation",
           headline: "Cancel negative six with positive six",
-          equation: "2x − 6 + 6 = 8 + 6",
+          equation: [{ text: "2x − 6 = 8" }, { text: "2x − 6 + 6 = 8 + 6" }],
           narration:
             "To remove negative six on the left, add six. The equals sign requires the same addition on the right.",
           durationSeconds: 12,
@@ -349,7 +349,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Finish",
           headline: "Both sides stayed equal",
-          equation: "2x = 14 → x = 7",
+          equation: [{ text: "2x − 6 + 6 = 8 + 6" }, { text: "2x = 14" }, { text: "x = 7" }],
           narration: "The balanced equation becomes two x equals fourteen, so x equals seven.",
           durationSeconds: 9,
           accent: "green",
@@ -361,7 +361,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your routine",
           headline: "Name it on both sides",
-          equation: "+6 left  |  +6 right",
+          equation: [{ text: "+6 left  |  +6 right" }],
           narration:
             "Until the habit is secure, write the operation on both sides instead of saying that a term simply moves.",
           durationSeconds: 9,
@@ -407,7 +407,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "No label assigned",
           headline: "Cogna needs clearer evidence",
-          equation: "insufficient evidence ≠ weakness",
+          equation: [{ text: "insufficient evidence ≠ weakness" }],
           narration:
             "Kabir, the first check did not give Cogna enough consistent evidence. This does not mean you cannot do the mathematics.",
           durationSeconds: 10,
@@ -416,7 +416,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "One task",
           headline: "Write the first useful step",
-          equation: "2(x + 3) → 2x + 6",
+          equation: [{ text: "2(x + 3)" }, { text: "2x + 6" }],
           narration:
             "For the next question, enter one useful working step before the final answer. This lets Cogna distinguish method from guessing.",
           durationSeconds: 10,
@@ -426,7 +426,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Answer honestly",
           headline: "Not knowing is useful evidence",
-          equation: "know  |  unsure  |  don’t know yet",
+          equation: [{ text: "know  |  unsure  |  don’t know yet" }],
           narration:
             "Choose I do not know only when that describes your current state. You will not lose marks here.",
           durationSeconds: 9,
@@ -435,7 +435,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Fresh check",
           headline: "Two clean questions—then Cogna decides",
-          equation: "new evidence → starting point",
+          equation: [{ text: "new evidence → starting point" }],
           narration:
             "Cogna will use two fresh questions and make a conclusion only if the evidence supports one.",
           durationSeconds: 9,
