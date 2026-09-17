@@ -39,12 +39,33 @@ export function clearStudent() {
   localStorage.removeItem(STUDENT_KEY);
 }
 
+/**
+ * Tokens are `v1.<base64url(json payload)>.<mac>` (see issueStudentToken /
+ * sign() in apps/api/src/access/cogna-access.ts). Decoding the payload here
+ * needs no secret — it's just reading the exp claim already embedded in the
+ * token — so a stale cached token doesn't get reused past its 12h TTL only
+ * to be rejected server-side with a confusing "session does not match this
+ * learner" error (that message covers both a sub mismatch and expiry).
+ */
+function isTokenExpired(token: string): boolean {
+  try {
+    const [, body] = token.split(".");
+    if (!body) return true;
+    const payload = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return !payload.exp || payload.exp < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export async function ensureDemoStudentSession(
   studentId: string,
   name: string,
 ): Promise<StudentSessionRecord> {
   const existing = getStudent();
-  if (existing?.studentId === studentId && existing.token) return existing;
+  if (existing?.studentId === studentId && existing.token && !isTokenExpired(existing.token)) {
+    return existing;
+  }
   const response = await fetch("/api/session/student", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

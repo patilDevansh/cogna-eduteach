@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import type { LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
 import { LESSON_VIDEO_FPS } from "./types";
 
@@ -23,6 +23,7 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
         color: accent.ink,
       }}
     >
+      {scene.audioSrc && <Audio src={scene.audioSrc} />}
       <div
         style={{
           position: "absolute",
@@ -127,6 +128,15 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
   );
 }
 
+// Every scene after the first gets an implicit head start for its <Audio> to
+// decode, simply because Chromium has already been running while earlier
+// scenes' frames rendered. Scene 0 has no "before" — nothing has rendered
+// yet when its audio needs to start at frame 0 — so its narration can get
+// silently dropped from the mux. premountFor asks Remotion to render (but
+// not output) a few frames before each Sequence's visible start, giving its
+// <Audio> time to settle before the frames that actually get captured.
+const AUDIO_PREMOUNT_FRAMES = Math.round(0.4 * LESSON_VIDEO_FPS);
+
 export const LessonVideo: React.FC<LessonVideoProps> = ({ scenes }) => {
   let start = 0;
   return (
@@ -136,7 +146,12 @@ export const LessonVideo: React.FC<LessonVideoProps> = ({ scenes }) => {
         const from = start;
         start += durationInFrames;
         return (
-          <Sequence key={`${scene.headline}-${index}`} from={from} durationInFrames={durationInFrames}>
+          <Sequence
+            key={`${scene.headline}-${index}`}
+            from={from}
+            durationInFrames={durationInFrames}
+            premountFor={AUDIO_PREMOUNT_FRAMES}
+          >
             <SceneCard scene={scene} index={index} total={scenes.length} />
           </Sequence>
         );

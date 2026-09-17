@@ -20,6 +20,14 @@ export interface VideoSceneManifest {
     narration: string;
     durationSeconds: number;
     accent?: string;
+    /**
+     * Absolute local path to a pre-synthesized narration clip, set by
+     * synthesizeNarration() in personalized-videos.service.ts. Only
+     * meaningful to the local renderer (LocalRenderQueue) — a local
+     * filesystem path is meaningless to a remote render endpoint, so
+     * submitRemote() below deliberately does not forward it.
+     */
+    audioPath?: string;
   }>;
 }
 

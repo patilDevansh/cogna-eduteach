@@ -143,6 +143,21 @@ export function createPersonalizedVideoMemoryDb() {
         jobs.set(where.id, updated);
         return updated;
       },
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where?: Record<string, unknown>;
+        data: Partial<Row>;
+      }) => {
+        let count = 0;
+        for (const [id, row] of jobs) {
+          if (!matchesWhere(row, where)) continue;
+          jobs.set(id, { ...row, ...data, updatedAt: new Date() });
+          count += 1;
+        }
+        return { count };
+      },
     },
     modalityAsset: {
       create: async ({ data }: { data: Row }) => {
