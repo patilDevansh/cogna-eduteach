@@ -158,6 +158,9 @@ importers:
       '@remotion/renderer':
         specifier: 4.0.241
         version: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@remotion/transitions':
+        specifier: 4.0.241
+        version: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/node':
         specifier: ^22.15.32
         version: 22.20.1
@@ -1176,6 +1179,9 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
+  '@remotion/paths@4.0.241':
+    resolution: {integrity: sha512-ndi/Tkm4AC9P232RJAwIi6Phs2arGQiAsAvBChSRc9XimmV6Rxlt6nooZe6xYFUG0+4ahDHnFRnCfUGcvoMKwA==}
+
   '@remotion/player@4.0.241':
     resolution: {integrity: sha512-KK2QxlU2RaDV60axU1v0aWlSMb9MuqydSs2Iwg4BzbrP9ZfpBYypvXoleSNOwmv/p2hrotmVym9IEzw9fnGUQQ==}
     peerDependencies:
@@ -1188,6 +1194,12 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
+  '@remotion/shapes@4.0.241':
+    resolution: {integrity: sha512-5jwE8JreE0N8Z9KoRrv2dv8J7hBBMhvkU5jm6977TOzLzwqp2lM5oHzWX05vhpHL2UnabEN5pKBukzDA3krxeg==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   '@remotion/streaming@4.0.241':
     resolution: {integrity: sha512-W9C3WHr+rYd+HgOjQY4ibV9FkrJuqrZGcDvvBcrqYnoUnYyufuv/bdatrJXgIrTZcUQ420Mp4B2UHaQz6tjOSg==}
 
@@ -1196,6 +1208,12 @@ packages:
 
   '@remotion/studio@4.0.241':
     resolution: {integrity: sha512-6sLZzQhfSq0L8I0xZYc+K3N8CmuUeRKxjWoD9E7VPTVSh4cFC6AJjjroo15mM9nCjAm+mYOGvsXNxMllMVKlag==}
+
+  '@remotion/transitions@4.0.241':
+    resolution: {integrity: sha512-FB964pIyNUY9Iur1dJ3spYYmFqlxH0dlSPcOLh29uQg+pd2LLP80ja5FmVcwj1/bYJNDvUSAjAY6+qNr92QYxg==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@scarf/scarf@1.4.0':
     resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
@@ -3850,6 +3868,8 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       remotion: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
+  '@remotion/paths@4.0.241': {}
+
   '@remotion/player@4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       react: 18.3.1
@@ -3879,6 +3899,12 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@remotion/shapes@4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@remotion/paths': 4.0.241
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
   '@remotion/streaming@4.0.241': {}
 
   '@remotion/studio-shared@4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
@@ -3905,6 +3931,14 @@ snapshots:
       - react-dom
       - supports-color
       - utf-8-validate
+
+  '@remotion/transitions@4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@remotion/paths': 4.0.241
+      '@remotion/shapes': 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      remotion: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
 
   '@scarf/scarf@1.4.0': {}
 
@@ -5462,7 +5496,7 @@ snapshots:
 
   tapable@2.3.3: {}
 
-  terser-webpack-plugin@5.6.1(esbuild@0.24.0)(postcss@8.4.31)(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31)):
+  terser-webpack-plugin@5.6.1(esbuild@0.24.0)(postcss@8.4.31)(webpack@5.96.1(postcss@8.4.31)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
@@ -5649,7 +5683,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 3.3.0
       tapable: 2.3.3
-      terser-webpack-plugin: 5.6.1(esbuild@0.24.0)(postcss@8.4.31)(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31))
+      terser-webpack-plugin: 5.6.1(esbuild@0.24.0)(postcss@8.4.31)(webpack@5.96.1(postcss@8.4.31))
       watchpack: 2.5.2
       webpack-sources: 3.5.1
     transitivePeerDependencies:

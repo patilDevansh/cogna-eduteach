@@ -1,7 +1,9 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, useCurrentFrame, useVideoConfig } from "remotion";
+import { TransitionSeries, linearTiming } from "@remotion/transitions";
+import { fade } from "@remotion/transitions/fade";
 import type { EquationStep, LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
-import { LESSON_VIDEO_FPS } from "./types";
+import { sceneTransitionFrames } from "./types";
 
 const ACCENTS: Record<string, { background: string; ink: string; muted: string }> = {
   green: { background: "linear-gradient(140deg,#dff2e9,#b8dece)", ink: "#073f34", muted: "#34574e" },
@@ -81,10 +83,8 @@ function SceneCard({
   total: number;
   durationInFrames: number;
 }) {
-  const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const accent = ACCENTS[(scene.accent as LessonAccent) ?? "green"] ?? ACCENTS.green;
-  const opacity = Math.min(1, frame / Math.max(1, Math.round(0.25 * fps)));
 
   return (
     <AbsoluteFill
@@ -122,7 +122,6 @@ function SceneCard({
           position: "relative",
           zIndex: 1,
           padding: "48px 64px 40px",
-          opacity,
           height: "100%",
           display: "flex",
           flexDirection: "column",
@@ -188,34 +187,36 @@ function SceneCard({
   );
 }
 
-// Every scene after the first gets an implicit head start for its <Audio> to
-// decode, simply because Chromium has already been running while earlier
-// scenes' frames rendered. Scene 0 has no "before" — nothing has rendered
-// yet when its audio needs to start at frame 0 — so its narration can get
-// silently dropped from the mux. premountFor asks Remotion to render (but
-// not output) a few frames before each Sequence's visible start, giving its
-// <Audio> time to settle before the frames that actually get captured.
-const AUDIO_PREMOUNT_FRAMES = Math.round(0.4 * LESSON_VIDEO_FPS);
-
 export const LessonVideo: React.FC<LessonVideoProps> = ({ scenes }) => {
-  let start = 0;
+  const { fps } = useVideoConfig();
+  const transitionFrames = sceneTransitionFrames(fps);
+
   return (
     <AbsoluteFill style={{ background: "#f4f7f3" }}>
-      {scenes.map((scene, index) => {
-        const durationInFrames = Math.max(1, Math.round(Math.max(scene.durationSeconds, 1) * LESSON_VIDEO_FPS));
-        const from = start;
-        start += durationInFrames;
-        return (
-          <Sequence
-            key={`${scene.headline}-${index}`}
-            from={from}
-            durationInFrames={durationInFrames}
-            premountFor={AUDIO_PREMOUNT_FRAMES}
-          >
-            <SceneCard scene={scene} index={index} total={scenes.length} durationInFrames={durationInFrames} />
-          </Sequence>
-        );
-      })}
+      <TransitionSeries>
+        {scenes.map((scene, index) => {
+          const durationInFrames = Math.max(1, Math.round(Math.max(scene.durationSeconds, 1) * fps));
+          const isLastScene = index === scenes.length - 1;
+          return (
+            // TransitionSeries requires its own Sequence/Transition pairs as
+            // direct children (it walks props.children), not raw Sequence —
+            // it's what actually overlaps two adjacent scenes so one can
+            // crossfade into the next rather than hard-cutting. A Fragment
+            // is fine here: the package flattens fragment-wrapped children.
+            <React.Fragment key={`${scene.headline}-${index}`}>
+              <TransitionSeries.Sequence durationInFrames={durationInFrames}>
+                <SceneCard scene={scene} index={index} total={scenes.length} durationInFrames={durationInFrames} />
+              </TransitionSeries.Sequence>
+              {!isLastScene && (
+                <TransitionSeries.Transition
+                  presentation={fade({ shouldFadeOutExitingScene: true })}
+                  timing={linearTiming({ durationInFrames: transitionFrames })}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </TransitionSeries>
     </AbsoluteFill>
   );
 };
