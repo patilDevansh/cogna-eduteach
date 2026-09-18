@@ -39,9 +39,9 @@ export interface LessonVideoProps {
   scenes: LessonVideoScene[];
 }
 
-export const LESSON_VIDEO_FPS = 15;
-export const LESSON_VIDEO_WIDTH = 960;
-export const LESSON_VIDEO_HEIGHT = 540;
+export const LESSON_VIDEO_FPS = 24;
+export const LESSON_VIDEO_WIDTH = 1280;
+export const LESSON_VIDEO_HEIGHT = 720;
 
 /**
  * Crossfade length between scenes (~0.4s). Expressed in seconds, not frames,
