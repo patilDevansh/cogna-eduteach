@@ -1,0 +1,281 @@
+# Cogna Lotus — continuous diagnostic architecture
+
+**Status:** Partially implemented; diagnostic-quality corrections added 18 September 2026. The prompt-only, full-session coverage backbone, browser-side immediate display, server-side answer keys, idempotent submission, and deferred review are implemented for the current Grade 8 signed-number/algebra unit. A browser check showed Question 2 on screen while Question 1 was still saving; this is not a population latency benchmark. The wider syllabus-ingestion, verified item-generation, durable distributed job/outbox, and educator-evaluated adaptive selection described below remain proposed. The factorisation analysis, action, and latency corrections in the section below are **not yet implemented**. [`docs/mvp-10.0/README.md`](../docs/mvp-10.0/README.md) remains the active classroom contract. The earlier four-intent reserve still exists for legacy sessions, but new sessions use the coverage backbone instead.
+
+## Product rule
+
+The child should see the next useful, syllabus-grounded question **on the same click as Submit**, without waiting for an API or model response. The browser must already hold that question's prompt and display metadata; its answer key, worked solution, rubric, and interpretation stay on the server. AI interprets the submitted answer while the child works. The final diagnosis uses the child's **entire actual history**, including answers, working, uncertainty, and later AI review. Showing a question immediately is never itself a mastery or misconception conclusion.
+
+The full-deck design promises a **ready question on the device for every remaining turn** in the bounded diagnostic. Before the test begins, Lotus builds a validated, curriculum-balanced baseline sequence for the whole question budget, plus spare verified probes. This sequence is the safety net, not a fixed teaching script. As Aarav works, the server can stage better personalized versions for unseen future turns; the item actually shown is committed and never swapped. A slow or backlogged AI review never blocks the next question while a validated staged item remains available. The rolling 15-of-25 factorisation preparation rule in section 8 is a different readiness contract: it cannot claim the full-deck zero-wait guarantee unless the remaining turns also have validated AI-generated reserve items.
+
+```text
+Approved syllabus and objective graph ───────┐
+Verified item families and generated items ──┼─→ curriculum baseline + adaptive probes
+Full-history learner state ────────────────────┘                         │
+                                                        server pins next prompt before submit
+                                                                     │
+Student clicks Submit → browser shows pinned prompt immediately ───┘
+                │
+                └→ server records response + shown item → fast verifier → deep review
+                           │                                  │
+                           └→ update learner state ───────────┴→ replace only unseen future prompts
+                                                               → evidence-complete report
+```
+
+## 1. Make the syllabus the source of questions
+
+The teacher or school approves versioned syllabus material. Ingestion extracts learning objectives, prerequisites, permitted methods, difficulty, examples, and assessment limits, with links to the exact source sections. AI generates **item families** against those objectives: a question template or freshly worded variant, canonical answer, acceptable alternative forms, worked solution, scoring rule, and what observation the item can provide. A separate validation step checks alignment, ambiguity, age appropriateness, duplicate exposure, and the answer key. Mathematics with a supported symbolic or numeric form is checked independently of the model that wrote it. An unsupported form is ineligible for student display until an independent checker or qualified reviewer approves it; it is never labelled verified on the strength of the generating model's answer alone.
+
+Items can be generated ahead of a class session, during a student's work, or on demand when there is a genuine coverage gap. Every item records syllabus version, source, generator, verifier, and review status. Changing a source or verifier invalidates affected candidates. A reusable validated bank supplies speed; AI still personalizes which item or variant to use for each child.
+
+## 2. Keep two speeds of learner evidence
+
+Each response first creates an immutable **observation**: item ID, final answer, working, confidence, elapsed time, and submission ID. A bounded, task-specific verifier then emits quick evidence such as “equivalent to the key,” “invalid algebra step at line 2,” or “cannot interpret safely.” It never converts a number alone into a psychological explanation.
+
+A slower analysis reads the full evidence history and updates competing hypotheses: supported, contradicted, or still uncertain. Its input is a compact snapshot with links to the underlying responses; tests must ensure the summary preserves contradictions and earlier evidence. Late analysis is attached to the response it examined, and newer state is recomputed from events in order. Old jobs cannot overwrite later learner state.
+
+For zero-wait display, Question 11 is staged **while Question 10 is still on screen**. It uses the actual evidence from Questions 1–9 and any earlier reviews, but it cannot use the not-yet-submitted Question 10 answer. It must therefore be valuable across plausible Question 10 outcomes. The actual Question 10 response can update Question 12 if its interpretation is ready in time, or a later unseen question if not. A question already shown is never silently replaced. This adaptation delay is the price of a zero-network-wait screen change; claiming that Question 11 fully incorporates Question 10 would be false.
+
+## 3. Pin one prompt on the device, keep the rest adaptable
+
+The server builds a full validated **coverage backbone** before the first question: objectives and prerequisites spread across the available turns, with varied difficulty and representations. It also keeps a small pool of verified adaptive probes. Before the child starts the current question, it authorizes a robust next item and stages its student-facing prompt and signed item reference in the browser. The backbone already provides a safe prompt for every remaining turn. A useful mix is:
+
+| Slot | Purpose | Why it remains useful |
+|---|---|---|
+| Coverage item | An untested syllabus objective or prerequisite | Keeps the test well rounded regardless of the latest answer |
+| Later discriminator | Separates competing explanations of an earlier error | Checks a suspected gap after spacing and in a fresh context |
+| Transfer or confirmation | Tests a skill in a different representation | Distinguishes understanding from a familiar procedure or a one-off slip |
+| Spare | Easier/harder validated item | Protects the remaining plan when an item becomes ineligible |
+
+These are *candidate roles*, not a mandatory 1:1:1 sequence. Most turns should fulfill a planned coverage purpose. A suspected mistake earns a later discriminator only if another observation would materially change the diagnosis or teaching target; one error never takes over the test. The planner may create questions tailored to this child from syllabus sources, retrieve verified variants, or adapt a validated family. It records the expected diagnostic value and the evidence used to prepare each candidate. The staged next item must remain useful even if the current answer surprises us.
+
+At submit, the browser immediately paints the pinned prompt, clears the previous input, and sends the answer and shown-item reference to the server. The server accepts the answer and advances to the already authorized item idempotently; scoring and deeper analysis follow. The next prompt is **visible before acknowledgment**, so a network failure cannot be mistaken for a completed server transition. If acknowledgment fails, the UI preserves the student's work, stops further submissions, and offers retry. It never silently swaps the visible question.
+
+The server uses new evidence to rank *unseen* candidates by: syllabus coverage deficit; expected ability to distinguish live hypotheses; prerequisite fit; appropriate difficulty; novelty; exposure; time remaining; and pending-review uncertainty. A hard gate rejects invalid, repeated, stale, or out-of-scope items before staging them. Better authorized versions can be pushed to the browser while the student works; the browser reports which staged version it actually displayed. The server accepts an authorized older version if an update raced with Submit, but cannot alter a prompt that has already appeared. Answer keys remain server-side.
+
+An unfamiliar answer does not delay the already staged next prompt. Its deeper interpretation may schedule a later probe if there is room in the blueprint. A targeted question waits for adequate evidence and can appear several turns later. If AI review falls behind, Lotus continues with validated coverage questions and records the interpretation as pending. It never blocks a normal Submit simply because a model is still thinking.
+
+### Example
+
+Aarav is working on Question 10 about subtracting a bracket. His prior nine answers suggest a possible sign error, but the plan still needs evidence about linear equations and word problems. Lotus has staged a fresh linear equation as Question 11 because it fulfills the coverage plan whether Question 10 is right, wrong, or unusual. A sign discriminator and a transfer item remain candidates for later turns.
+
+When Aarav clicks Submit, Question 11 appears from the browser's staged prompt without waiting. If Question 10 contains a possible sign error, Question 12 can still be a planned word problem. A fresh sign question might be used at Question 13 or 14, after other topics, if that would distinguish a real gap from a slip. If Question 10 was correct or ambiguous, Lotus may keep the coverage plan and spend that flexible slot elsewhere. Aarav's observed history and the deep reviews completed so far inform each *future* change; reviews still pending are incorporated when they arrive, never by delaying the next screen.
+
+## 4. Never let background work fall indefinitely behind
+
+A fast child can exhaust any finite adaptive queue. To make **screen appearance** instant for every nonfinal turn in a bounded test, prepare a validated coverage deck before the first question, with one server-authorized prompt-only item for every possible remaining turn. It follows the syllabus blueprint and avoids repeats; the server may replace any *unseen* fallback with a stronger personalized item. This guarantee requires loading future prompts into the browser, where a student can inspect them. No answer keys or scoring rules are sent. If keeping future prompts secret is a hard requirement, literal zero-network-wait delivery for every turn is impossible; the product must instead accept a short server trip.
+
+The service tracks **unreviewed evidence depth** to prioritize workers and disclose uncertainty, not to delay the student. Sustained personalization requires review workers to keep up with the rate of answers; when they cannot, more questions come from the coverage deck. The deck preserves curriculum breadth and instant display, while the eventual diagnosis becomes more cautious.
+
+When review falls behind, prioritize the oldest response and suspend speculative generation. Continue with the coverage backbone through the bounded question budget. Do not infer mastery from unfinished analysis. After the final answer, the report waits for required evidence jobs to finish or explicitly records failure and uncertainty. At the known hard question limit, the immediate next screen is report preparation rather than another question. An early-stop decision reached from the latest answer may mean one already staged question is asked before the diagnostic ends.
+
+The deep pipeline need not use four model stages on every answer forever. Keep the present full review as the initial reference. Log each stage separately, then use educator-reviewed evidence to decide where a single assessment suffices, where independent review is required, and where human review is necessary. This change is evaluated separately from the ready-question mechanism; moving the same four calls into the background improves visible latency but does not itself lower cost or throughput demand.
+
+## 5. Production state and failure handling
+
+Store responses, learner-state versions, item validation, fallback-deck slots, authorized prompt versions, chosen-item decisions, and analysis jobs durably. Each submission has an idempotency key. The next item is authorized **before** its predecessor is submitted; the browser receives a signed reference, prompt, and session/turn version. The server transaction accepts the response and advances to the exact authorized item the browser displayed, once; duplicate clicks return the same committed turn. Previously staged versions stay acceptable until that turn is committed, so a push racing with Submit cannot reject a valid displayed item. A transactional outbox starts review and replenishment jobs after commit. Workers can retry, and their results include the source response and state version. A stale job may add evidence to its own turn but cannot overwrite an already shown question or a newer authorization. Teacher overrides invalidate unshown candidates; a changed session prevents an old browser token from advancing.
+
+Multiple API instances must see the same queue and learner state. In-memory caches may improve speed but cannot be the source of truth. Pool exhaustion, failed verification, model outage, syllabus-version change, and a missing worker all have explicit fallback states. If a submit cannot reach the server, the staged question can still render, but it is marked unconfirmed and further progression stops until the response is acknowledged or retried. The server never silently substitutes demo items or mock evidence in a production session.
+
+## 6. Decide when the diagnosis has enough evidence
+
+The test follows a syllabus blueprint: required objectives, prerequisite coverage, varied difficulty and representations, minimum independent observations for consequential claims, and a maximum question/time budget. Allocate most slots to curriculum coverage and a bounded number of flexible slots to discriminating or confirming hypotheses. Each item must explain which objective or uncertainty it addresses. Space a suspected-gap probe away from the original error when possible, use a fresh form, and look for repeated evidence before claiming a stable gap. The session stops at a planned boundary when coverage and evidence thresholds are met, or at the budget limit with unresolved areas reported plainly. A late result may use one staged extra question but may never hold up an ordinary next-question transition.
+
+Only reviewed evidence contributes to the final teacher report. Practice, teaching games, and the later independent exit test remain separate evidence streams under the classroom contract. A shared library of common mistakes can later provide *priors* for candidate generation, with aggregate counts and review; it cannot establish what an individual child thought from a matching answer alone.
+
+## 7. Build and prove it in stages
+
+1. **Measure the baseline:** record browser submit-to-next p50/p95/p99, reserve-ready rate, slow-fallback reasons, AI stage times, cost, and item quality. The live manual run already showed the numeric-only bottleneck, but is too small to establish population metrics.
+2. **Extend deterministic verification:** add independently checked algebraic equivalence, linear equations, and supported working-step transformations. Return “uninterpretable” when parsing or proof is insufficient. Test equivalent forms and adversarial wrong keys.
+3. **Build the syllabus and item pipeline:** approve sources, version objectives, generate and verify item families, and enforce coverage/exposure rules.
+4. **Build immediate display:** preauthorize and stage a prompt-only curriculum backbone for the full bounded session, render the next staged prompt synchronously on Submit, and keep answer keys on the server. Add versioned acknowledgment, idempotent progression, and visible retry handling.
+5. **Build durable rolling readiness:** transactional response acceptance, versioned future slots, outbox workers, review prioritization without a submit gate, and report drain.
+6. **Run shadow comparison:** for real or consented pilot work, calculate which item the new selector would have served; educators judge alignment, diagnostic value, contradictions, and stopping decisions against the current path.
+7. **Release in stages:** track click-to-paint latency separately from acknowledgment, fraction of turns served from personalized items versus fallback deck, review backlogs, unsupported answers, corrections by deeper review, item errors, coverage, diagnostic agreement, and independent exit outcomes. Revert a subject or item family if quality falls.
+
+Proposed acceptance targets, to validate and adjust with pilot data: every nonfinal question starts with a staged next prompt; p95 click-to-paint under 100 ms on supported devices; no AI or network wait on the click-to-paint path; no known unchecked answer key shown; no report finalized with required evidence still pending; and diagnostic quality no worse than the current reviewed path on an educator-scored holdout. Report server acknowledgment time, blocked-submit rate, fallback-deck usage, and whole-session experience alongside click-to-paint so the instant display metric cannot conceal later waits.
+
+## 8. Repair diagnostic interpretation and the action loop before claiming adaptivity
+
+**Evidence and limit, 18 September 2026.** The local database has no Lotus session or evidence records from the preceding 24 hours: the standalone demo disables Lotus persistence. Older stored sessions contain no factorisation analysis, so the frequency of these failures cannot yet be estimated from database history. A live factorisation turn and API logs do show the failure mode: after an incorrect answer changed a `z` to a `y`, the AI recommended evidence that would distinguish a slip from a term-division problem, but the planner rewrote Questions 25 and 24 as generic same-skill checks while the immediate staged question remained. The studio presented a changed plan as an implemented AI action. This is a case study, not a population accuracy estimate. A debate timeout/retry and a single 67.8-second background item write were also logged; review queue delay is not currently recorded separately.
+
+### Interpretation must be evidence-calibrated
+
+- Keep deterministic maths verification authoritative. The learner record distinguishes **observed answer**, **verified correctness**, **working shown**, **explicit support request**, **hypothesized cause**, and **confidence in that cause**. A quick skip is not automatically disengagement; “I don't know” is a support signal, not a mathematical error or a completed GPT review.
+- Maintain competing explanations for an error, including slip, transcription/notation, missing prerequisite, and procedure. Use confidence and response time as context, never as independent proof. A correct final expression without working may support the tested outcome but does not automatically secure every tagged prerequisite. Confirm or clear a suspected gap only with a later item capable of exposing the same error, preferably in a different representation.
+- Give the analyser the current evidence and a compact view of all remaining 25 slots: their objectives, difficulty, dependencies, pending probes, generation/readiness status, and already-visible boundary. Require a structured output with the observation, alternative explanations, uncertainty, a discriminating next observation, and a justified recommendation. The UI must not substitute generic placeholder prose for model analysis.
+
+### A recommendation is not an implemented action
+
+- The planner chooses explicitly among **KEEP**, **TARGETED_PROBE**, **EASIER_PREREQUISITE**, **BROADEN**, **REMOVE_OR_DEFER**, and **STOP**. It weighs expected information gain against coverage, difficulty, redundancy, time remaining, and the cost of displacing another objective. One error must not trigger multiple checks of the same hypothesis. “Keep the staged plan” is a real, explainable decision.
+- Preserve the question already shown or pinned. Place an accepted change in the earliest useful *unseen* slot, ordinarily within the next few questions; never count an unrelated Question 24/25 rewrite as fulfillment of an imminent recommendation. If the precise probe is not ready or valid in time, record a deferred or rejected action and the reason. Background results re-evaluate the latest learner/plan version rather than overwriting newer decisions.
+- Generate questions for the **specific hypothesis to distinguish**, not merely the first fixed shape associated with a skill. Independently validate the answer and that the item can elicit the requested misconception; reject repeats and misleading mistake labels. Preserve the 25-slot coverage architecture and the product's all-AI-question requirement: start when 15 validated questions are ready and prepare the rest during the test. Keep enough validated AI-generated questions staged ahead; a vetted AI-question bank may supply reserve items only if they were generated and used during a real student or demo diagnostic, not authored as hardcoded fixtures. If the buffer runs out, show an honest preparation wait. Never serve a hardcoded student question as a silent fallback or claim zero-wait coverage that has not been prepared.
+- Record a durable decision trail for each answer: proposed action, intended slot, candidate and validation, plan version, committed slot, item actually shown, and outcome **proposed / queued / validated / installed / shown / deferred / rejected**. “Action implemented: YES” means the recommended action was installed as intended; “shown” is recorded separately. The studio explains any difference between the AI recommendation and the actual next question, without claiming an action from a generic planning note.
+
+### Review must keep pace without hiding uncertainty
+
+- Do not run the full four-call primary/challenger/debate/closure sequence for every written answer when deterministic evidence already resolves the question. Use a focused review for ambiguous reasoning and escalate to independent critique for consequential or conflicting interpretations. Measure accuracy against educator-reviewed cases before reducing review depth.
+- Avoid one session-wide serial model queue: bounded concurrent jobs may analyse distinct turns, while evidence is folded in answer order and plan changes use version checks. Set per-job deadlines and a maximum useful age for changing questions; a late result remains evidence for the final report but cannot silently replan a now-irrelevant turn. Prioritize urgent reviews over speculative question generation.
+- Persist pseudonymous demo and production events so a last-24-hour audit is possible. Capture submitted, queued, started, each model stage, completed/failed, plan-committed, and item-shown times, plus retries and reasons. Report review queue age, p50/p95 completion, pending depth when the student reaches later questions, recommendation-to-install rate, and verified question quality. Do not describe an unmeasured latency target as achieved.
+
+**Release gate.** Repair the factorisation golden tests that still reference removed hardcoded fallback fixtures (11 of 19 failed in the focused run). Add replay tests for the observed Q2 variable substitution, an explicit “I don't know,” a correct answer without working, rapid Q2–Q5 submissions while Q2 review is pending, duplicate-probe prevention, a late review, an unavailable prerequisite, and proposed-versus-installed-versus-shown status. Educators review whether each changed question actually distinguishes the stated hypotheses. Roll out in shadow mode first; student-facing adaptation follows only if it improves diagnosis without losing coverage or exceeding the question/time budget.
+
+## 9. Prove the student model and dynamic plan end to end with Playwright
+
+The [factorisation persona QA plan](./LOTUS_FACTORISATION_60_PERSONA_QA_PLAN.md#browser-driven-intellectual-profile-evaluation) defines the executable cases. Its older service-level fake-model tests check control flow; they cannot establish that a live model diagnoses a learner accurately. Add two complementary browser suites against an isolated, persistent test environment, never the in-progress standalone demo:
+
+1. **Deterministic wiring suite:** Playwright uses the real student UI and API while a controlled model adapter supplies validated AI-style questions and scripted review outcomes. Exercise answers, working fields, confidence, “I don't know,” timing, refresh, observer display, network failures, and delayed/out-of-order reviews. Assert exact authorized question IDs, plan versions, proposed/installed/shown actions, and final-report states. This suite runs in CI and must never claim to measure live-model diagnostic accuracy.
+2. **Live-model diagnostic suite:** Playwright again submits only through the student UI, but the real writer and analyser run. Each synthetic learner has a predeclared capability profile: which factorisation methods and difficulty levels they can solve, their specific repeatable misconception, working they would show, and which tasks should elicit “I don't know.” A server-side test runner reads validated item metadata from the isolated audit store to choose that persona's response; answer keys never enter the browser or its public payload. Use fixed persona seeds and several fresh sessions per profile so item variation does not make one lucky sequence look like accuracy. Avoid exact-wording assertions on model prose.
+
+Before any run, maths educators specify the **latent intellectual profile** and acceptable diagnostic decisions independently of the AI output. After the run, two educators independently review the actual questions, answers, and working *without seeing Lotus's analysis* and label what those observations justify: directly observed strengths, supported gap or slip, plausible alternatives, prerequisite, and untested skills. Resolve disagreements into an observable-evidence reference, retaining genuinely ambiguous cases. Compare Lotus's structured per-skill findings, confidence/uncertainty, starting teaching point, and actual question trajectory with that reference. Score **gap discovery** against the predeclared latent profile separately from **honest uncertainty** against the observed-evidence reference: a skill never tested must be reported as untested, not guessed; failing to reach an important gap within the budget is a coverage/planning failure, not proof the model's analysis of an unseen skill was wrong.
+
+Use archetypes spanning secure/advanced, numeric-HCF-only, variable common-factor difficulty, dividing only one term, negative-sign difficulty, identity-pattern difficulty, grouping difficulty, explicit support need, low-confidence-but-correct, and a single slip followed by success. For each archetype, define correct and incorrect item families, working, and an expected report before starting. Cross each with normal and fast pace where it affects backlog. A targeted misconception should earn a mathematically valid, fresh, near-term discriminator or an explicit KEEP/defer explanation; success on a genuinely capable discriminator should clear a suspicion, while repeated failure should support the right prerequisite gap without falsely blaming neighboring skills. Compare the adaptive run with an unchanged 25-slot coverage baseline: more swaps are not inherently better.
+
+At every turn, capture the browser-visible question and timing plus durable submission, verification, review, recommendation, plan-version, item-validation, installation, and shown events. After completion, assert no invalid item or answer key was exposed, no shown question changed, no duplicate targeted probes arose from one mistake, and every “Action implemented” claim matches the recorded plan. Save Playwright trace/video/screenshots and a redacted event timeline on failure. Cover desktop Chromium, mobile viewport, and a smaller Firefox/WebKit compatibility smoke run. Use condition/event waits, not fixed sleeps, for correctness assertions.
+
+**Release criteria:** all deterministic personas and invariant checks pass; every displayed maths answer key passes independent verification; no false “implemented” status or stale-job overwrite occurs; and a blinded teacher review of live-model runs meets predeclared thresholds for primary-gap agreement, harmful false-gap rate, prerequisite choice, and action relevance. Publish the confusion matrix by skill and difficulty, coverage misses, no-action decisions, analysis queue age, and cost/latency alongside the pass rate. Repeat this evaluation after model, prompt, skill-map, or planner changes; a supervised student/teacher pilot is still required for real-world validity.
+
+## 10. Delivery phases, test gates, and AI Studio
+
+Work through these phases in order for factorisation. A phase can be implemented without being declared complete; it becomes complete only after its listed tests pass and the results are reviewed. **Before starting the tests for every phase, notify the product owner in this Codex thread** with the phase name, environment, exact test suite, whether live models or generated questions will be used, expected duration/cost, and any test-data reset. Wait for the product owner's acknowledgment before running that phase's test gate. Afterwards report the results, failures, screenshots/traces, measurements, and whether the next phase is safe to begin. Never run live-model or persistent-database tests against an active student/demo session.
+
+### Phase 0 — Audit foundation and test environment
+
+Build an isolated persistent test environment and a durable, pseudonymous event stream for standalone demos and production sessions. **No Lotus diagnostic may run memory-only.** The current `LOTUS_STANDALONE_DEMO` behavior that bypasses database persistence is retired for diagnostics: demo sessions use a separate development/test database or a clearly labelled tenant/schema, never an in-memory-only substitute. A server restart must not lose an active session, an analysis result, a queued decision, or a question already authorized to the browser.
+
+For every answer, store the immutable submission, student-visible question/version/provenance, working, confidence, explicit support request, verifier result, review queue/start/stage/completion/failure, structured analysis result, recommendation, plan decision, candidate validation, installed slot, and displayed-item acknowledgment. Store both immutable events and a current session snapshot/projection; rebuild the snapshot from events during recovery and reject inconsistencies. Persist session creation, question-generation attempts/rejections, question-bank reuse/provenance, all retries, timing/cost fields, final report versions, and policy/model/prompt/skill-map versions. Keep answer keys and internal model material server-side with role-controlled access; never use persistence as a reason to expose them to the student browser. Apply pseudonymous learner IDs, retention/access controls, and an auditable deletion/export process appropriate to the classroom deployment.
+
+Use transactional response acceptance plus an outbox: accepting an answer, advancing the authorized turn, and enqueuing downstream work succeed together or not at all. Workers write versioned results idempotently; duplicate clicks, retries, stale tabs, and restarted workers cannot duplicate evidence or overwrite a newer plan. The observer reads the persisted session projection, not an in-memory copy, so AI Studio and database evidence remain consistent.
+
+**AI Studio:** add a per-turn status strip: `Code verified`, `AI review queued/running/complete/failed`, queue age, review duration, and source of the conclusion (`deterministic`, `AI-reviewed`, or `support signal`). Pending and failed reviews must never be rendered as completed GPT reasoning.
+
+**Test gate:** database restart/reload during preparation, during an active question, between answer receipt and analysis completion, and after a replan; duplicate submit; stale tab; failed model call; event-order replay; and database outage behavior. Verify the timeline reconstructs the exact browser-visible questions and that no event is lost, duplicated, or silently memory-only. Query the test database after every scenario, including a last-24-hours audit, to prove sessions, analyses, decisions, and shown-item acknowledgments are present. Use controlled models only. Notify before running this gate.
+
+### Phase 1 — Evidence-calibrated student analysis
+
+Separate facts from interpretations. Preserve final answer, working, confidence, time, explicit support request, deterministic maths verdict, candidate explanations, and uncertainty. Change the ledger so one answer creates a hypothesis rather than blanket mastery or a stable gap; only a capable, later discriminator can confirm or clear the relevant hypothesis. Treat “I don't know” as a support signal even when selected quickly, and do not attach fictitious model analysis when no AI review occurred.
+
+**AI Studio:** replace generic primary/challenger prose with an Evidence panel: response and working, mathematical fact, directly supported skill evidence, competing explanations, what remains unknown, and the evidence source for each claim. Display `Not enough evidence yet` rather than an invented diagnosis.
+
+**Test gate:** controlled-model factorisation personas for one-off slips, correct answer without working, repeated divide-one-term error, explicit “I don't know,” low-confidence correct work, and unreadable notation. Maths educators review the expected evidence labels before the gate. Notify before running this gate.
+
+### Phase 2 — Explicit adaptive decision and near-term planning
+
+Give the analyser the remaining 25-slot map, including objectives, dependencies, difficulty, questions already pinned, pending probes, and AI-item readiness. Require a structured decision: `KEEP`, `TARGETED_PROBE`, `EASIER_PREREQUISITE`, `BROADEN`, `REMOVE_OR_DEFER`, or `STOP`; include the observed error, alternatives, expected information gain, target skill, preferred earliest valid slot, and reason. The server—not the UI—validates whether the action fits coverage, is non-duplicative, and can be generated. A late result may add evidence but cannot make an obsolete plan change.
+
+**AI Studio:** add a Decision panel below the final conclusion: `What Lotus observed`, `Why this action`, `Alternatives considered`, `Proposed action`, `Requested placement`, and `What result would change the diagnosis`. Do not claim the immediate next question is the proposed action unless its purpose and item ID match.
+
+**Test gate:** replay the observed Q2 substitution case, a confirmed prerequisite gap, a correct transfer answer, an unavailable prerequisite probe, and rapid Q2–Q5 progress while Q2 review remains pending. Assert no duplicate Q24/Q25 generic checks, no change to a shown/pinned item, and correct KEEP/defer behavior. Notify before running this gate.
+
+### Phase 3 — AI-written question readiness and validation
+
+Replace hardcoded student-question fallbacks with a provenance-controlled AI question supply. Begin after 15 validated AI questions are ready, maintain a validated AI-generated reserve sourced only from earlier real/demo diagnostic generation, and generate the remaining slots while the student works. If no eligible question is ready, show a clear preparation state rather than a disguised fallback. For targeted questions, validate both the answer and the requested misconception/discriminating property, not merely the broad skill tag.
+
+**AI Studio:** show question provenance and readiness for the current and planned action: `Generated for this session`, `AI question bank`, or `Awaiting generation`; never show a hardcoded provenance because those questions are not eligible. Show validation result, intended skill/hypothesis, duplicate check, and why a candidate was rejected or deferred.
+
+**Test gate:** controlled writer failures, duplicate output, incorrect keys, invalid distractors, missing target-mistake coverage, bank provenance, preparation-wait recovery, and no answer-key exposure. Include a browser run proving the first question varies across sessions and no hardcoded prompt is served. Notify before running this gate.
+
+### Phase 4 — Latency and stale-work control
+
+Keep deterministic marking immediate. Route ordinary interpretable answers through a focused review; escalate to independent critique only for ambiguity, disagreement, or a consequential decision. Use bounded concurrent review workers, fold evidence deterministically in answer order, impose useful-age deadlines on replanning, and prioritize urgent reviews over speculative generation. Persist queue time separately from model time and fail visibly rather than silently retrying forever.
+
+**AI Studio:** surface queue position/age, stage timings, review deadline, whether a result was too late to change the plan, and the exact effect: `evidence added only`, `action installed`, `action deferred`, or `no change needed`.
+
+**Test gate:** Playwright rapid-response runs where the student reaches Q5 before Q2 completes; timeout/retry and worker-concurrency tests; load tests with concurrent isolated sessions. Compare p50/p95 queue age, completion time, and recommendation-to-install time against the pre-phase baseline. Notify before running this gate.
+
+### Phase 5 — Action truthfulness and educator-facing report
+
+Make recommendation, installation, and student exposure separate state transitions. Each action becomes `proposed → queued → validated → installed → shown`, or `deferred/rejected` with a reason. The final report distinguishes direct evidence, supported inference, unresolved areas, not-tested objectives, and the recommended teaching point. It never reports an action as implemented merely because some later plan slot changed.
+
+**AI Studio:** replace the red/green action block with a decision timeline that shows the recommended item/purpose, actual selected item, planned slot, installation status, shown status, and mismatch explanation. Add filters for `pending`, `implemented`, `deferred`, `rejected`, and `stale`. The observer can see enough detail to audit a decision; students see none of this internal data.
+
+**Test gate:** browser observer tests for installed-but-not-yet-shown, deferred due to readiness, rejected due to validation, stale decision, and exact proposed-versus-shown mismatch. Teacher report tests must trace every reported strength/gap to underlying evidence. Notify before running this gate.
+
+### Phase 6 — End-to-end intellectual-profile evaluation and shadow release
+
+Run the Playwright suites from section 9: the controlled-model CI suite first, then repeated live-model sessions against E01–E10 capability profiles at normal and rapid pace. Compare both the final report and actual adaptive trajectory against educator-blinded transcript labels and the predeclared latent profiles. Run the same profiles against an unchanged 25-slot coverage baseline; demonstrate that dynamic planning improves evidence quality or teaching-point accuracy, not merely the number of swaps.
+
+**AI Studio:** provide an evaluation view for authorized staff only: per-profile timeline, expected versus observed evidence, decision outcome, coverage status, confusion matrix category, and latency/cost metrics. This is test tooling, never a student-facing profile label.
+
+**Test gate:** complete 60 live-model sessions (ten profiles × two paces × three runs), the full deterministic persona suite, browser accessibility/desktop/mobile coverage, and blinded educator scoring. Require the section 9 release criteria before shadow rollout. Notify before running this gate.
+
+### Phase 7 — Supervised pilot and policy promotion
+
+Enable the selector in shadow mode for consented pilot sessions: retain the current path, calculate the candidate adaptive path, and let educators inspect disagreement before student-facing changes are enabled. Promote only subject/item-policy slices that meet the predeclared safety, diagnostic-quality, and latency thresholds; rollback reverts the policy, not the durable evidence trail.
+
+**AI Studio:** add a clear `Shadow recommendation — not served` label alongside `Served action`, policy version, comparison rationale, and educator feedback control. Provide weekly aggregates for incorrect diagnoses, deferred actions, coverage misses, latency, and teacher disagreement.
+
+**Test gate:** shadow replay of consented/pseudonymous sessions, educator review of disagreements, and policy promotion/rollback drills. Notify before running this gate.
+
+## 11. AI Studio redesign — decision dashboard, not model transcript
+
+### Problem with the current UI
+
+The current observer view repeats the same idea across the primary assessment, challenger assessment, debate, final conclusion, and six-field action block. It makes the reader scroll through implementation-shaped prose to learn the one thing they need: **what did Lotus observe, what will it do, and did that actually happen?** The model names, repeated uncertainty, and raw disagreement text are useful for debugging but should not be the default reading experience. A long AI answer is not evidence of a good diagnosis.
+
+### Information architecture
+
+AI Studio has three levels, with the first level as the default:
+
+1. **Session Overview — default view.** A fixed summary above the timeline shows: current question and test progress; the current strongest learning hypothesis; evidence strength (`early signal`, `checking`, `supported`, `uncertain`); next planned learning move; analysis health (reviews pending, oldest queue age); and a compact plan-impact count (`kept`, `changed`, `waiting`). This answers “what does Lotus currently think?” in one screen.
+2. **Turn Decision Card — one compact card per answered question.** The timeline row defaults to two lines: question number and verdict, then `Observed → Decision → Status`. Example: `Changed z to y while dividing the second term → target a quotient probe → installed for Q4, not yet shown.` A reader expands it only when they need the evidence. The full card is organized in a fixed order: **Student evidence**, **Maths fact**, **Lotus's interpretation**, **Decision**, **Actual outcome**. It must never use GPT/Challenger names in the main path.
+3. **Audit Drawer — advanced/debug view.** “See reasoning details” opens an aside or nested panel with the two independent reviews, points of agreement/disagreement, prompt/model/policy version, stage timings, raw structured response, validation failures, and event log. This is for product/engineering review, not ordinary observer use. It is collapsed by default and visually separated from the decision.
+
+### Session Overview layout
+
+Use a responsive, sticky overview panel above the turn list. On desktop it is a 2×2 grid; on mobile it becomes a vertical summary with the current diagnosis and action first.
+
+| Area | Content | Reader's question answered |
+|---|---|---|
+| Current picture | Strongest supported finding, confidence/evidence state, and what is still unknown | “What does Lotus think about this student?” |
+| Test progress | `Question 6`, coverage completed/remaining, targeted probes pending, and genuine preparation/review status | “Where are we in the diagnostic?” |
+| Current action | `Keep plan`, `Probe`, `Check prerequisite`, `Broaden`, `Defer`, or `Stop`; target skill and intended placement | “What is Lotus doing next?” |
+| Analysis health | completed/pending/failed reviews, oldest queue age, and whether a late review can still affect the plan | “Can I trust that this is current?” |
+
+Do not present a numerical “student intelligence” score. Use evidence states and clearly named mathematical capabilities: `directly observed`, `currently checking`, `supported gap`, `not yet tested`, and `insufficient evidence`.
+
+### Turn Decision Card layout and wording
+
+Every completed turn uses the same compact visual sequence:
+
+```text
+Q2  Factorise 7x²y + 11xz                         Checking
+Student wrote: x(7xy + 11xy)  ·  No working  ·  Somewhat sure
+
+Observed        Second quotient changed z to y
+Interpretation  Could be a transcription slip or term-division difficulty
+Decision        Targeted quotient probe requested for earliest safe slot
+Outcome         Installed at Q4 · awaiting display
+
+[See evidence] [See AI reasoning details]
+```
+
+- **Student evidence** shows only answer, working presence/steps, confidence, response time, and explicit support request.
+- **Maths fact** is a short deterministic statement: correct, incorrect, unfinished, unreadable, or no answer. It links to the verified expression/step only in the advanced view.
+- **Interpretation** states the leading hypothesis and the meaningful alternatives. It says `No AI interpretation required` for deterministic cases and `Review failed/pending` honestly.
+- **Decision** states the exact action, reason, target skill, and requested placement; `KEEP` is displayed as an intentional decision, not an absence of one.
+- **Outcome** uses a state badge: `Proposed`, `Queued`, `Validated`, `Installed`, `Shown`, `Deferred`, `Rejected`, `Stale`, or `No change needed`. `Implemented` means `Installed as recommended`; `Shown` is separate. The card never turns green merely because an unrelated future slot changed.
+
+Use a small number of semantic colours plus text/icon labels: neutral for information, amber for pending/uncertain, blue for actively checking, green for supported/installed, and red only for failed/rejected/unsafe action. Never use colour as the only status signal. Keep sentences under roughly 20 words in the default card; detailed rationale belongs behind disclosure.
+
+### Plan and question transparency
+
+Add an **Unseen Plan** view for observers. It shows the next 5–7 unshown slots—not all answer keys—with each slot's current purpose, planned skill, readiness, provenance, and whether it was changed. Selecting a changed slot answers: `what was replaced`, `why`, `which evidence caused it`, `which candidate passed validation`, and `whether the student has actually reached it`. A separate **Question source** badge appears on the student question header and in AI Studio: `Generated for this session`, `AI question bank`, or `Preparing`. The test must never display `hardcoded fallback` because those items are out of scope for student delivery.
+
+### Interaction and accessibility rules
+
+- Preserve the existing student view; AI Studio is observer-only and must not expose answer keys, hidden future prompts, private model prompts, or internal student identifiers.
+- Opening AI Studio lands on Session Overview, remembers the selected turn, and does not move the student's scroll position or create a mini-player.
+- Use real headings, buttons, focus management for the audit drawer, visible focus states, keyboard expansion, reduced-motion transitions, and `aria-live` only for meaningful pending/completed status changes.
+- Show progressive loading: a stable card shell immediately, a concise `Reviewing this turn` state with queue age, then a single in-place status update. Do not stream partial model prose into the default view.
+- Offer filters: `All`, `Needs attention`, `Pending`, `Plan changed`, `Support requested`, and `Failed`. Search/filtering acts on metadata, not hidden answer keys.
+
+### Implementation and test sequence
+
+Implement the redesign in Phase 0 as the analysis-health strip, Phase 1 as the Evidence panel, Phase 2 as the Decision panel, Phase 3 as question provenance/readiness, Phase 4 as timing/late-result visibility, and Phase 5 as the proposed/installed/shown timeline. Keep the existing raw model cards temporarily behind the Audit Drawer until the new structured decision data is complete; then remove them from the default path.
+
+**UI test gate:** before its phase test, notify the product owner as required by section 10. Add Playwright tests for desktop and mobile: overview visible without scrolling; a compact card exposes decision/outcome in its first viewport; pending, failed, support-signal, keep-plan, installed-not-shown, deferred, and stale states have distinct accurate labels; advanced details are keyboard accessible; no answer key or hidden prompt leaks; and observer UI remains readable with 25 turns. Conduct a short structured usability review with maths educators: give them three answer histories and ask them to identify the evidence, current diagnosis, next action, and whether it happened. A UI passes only if they can answer those questions correctly without opening raw model details.
+
+## Relationship to the existing design
+
+[`LOTUS_ARCHITECTURE.md`](./LOTUS_ARCHITECTURE.md) remains the wider syllabus and evidence vision. [`LOTUS_FAST_PATH.md`](./LOTUS_FAST_PATH.md) describes the first reserve implementation and its history. The shipped first slice removes the symbolic-question wait for nonfinal turns by showing a preauthorized prompt from the current unit's checked deck. It does **not** yet claim the full syllabus pipeline, multi-instance durability, or validated diagnostic quality described here. Implemented behavior must be updated only when code and measurements support it.
