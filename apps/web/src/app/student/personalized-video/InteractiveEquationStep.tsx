@@ -204,6 +204,13 @@ function InteractiveEquationStep({
  * the same lesson (distribute/simplify/arithmetic) play as narrated static
  * cards and auto-advance when their audio finishes.
  */
+// Breathing room between scenes once one finishes (narration ends, the
+// fallback timer fires, or a drag check is confirmed correct) before the
+// next one appears — the previous fixed-timer pacing advanced the instant a
+// scene "completed," which read as abrupt with no room to actually look at
+// the equation.
+const ADVANCE_GAP_MS = 1800;
+
 export function InteractiveLessonPlayer({
   assignment,
   onStart,
@@ -215,9 +222,12 @@ export function InteractiveLessonPlayer({
 }) {
   const scenes = assignment.lesson?.scenes ?? [];
   const [sceneIndex, setSceneIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
   const scene = scenes[sceneIndex];
   const claim = scene ? findChipClaim(scene) : undefined;
   const startedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const gapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -225,51 +235,99 @@ export function InteractiveLessonPlayer({
     onStart();
   }, [onStart]);
 
-  const advance = () => {
-    setSceneIndex((index) => {
-      if (index >= scenes.length - 1) {
-        onFinish();
-        return index;
-      }
-      return index + 1;
-    });
+  const clearGapTimer = () => {
+    if (gapTimer.current) {
+      clearTimeout(gapTimer.current);
+      gapTimer.current = null;
+    }
   };
 
+  // Called when a scene has "naturally" finished — narration ended, the
+  // no-audio fallback timer elapsed, or a drag check was confirmed correct.
+  // Never advances immediately; always leaves a pause first, and never
+  // advances at all while paused (goPrevious/resume re-triggers it).
+  const requestAdvance = () => {
+    clearGapTimer();
+    if (paused) return;
+    gapTimer.current = setTimeout(() => {
+      setSceneIndex((index) => {
+        if (index >= scenes.length - 1) {
+          onFinish();
+          return index;
+        }
+        return index + 1;
+      });
+    }, ADVANCE_GAP_MS);
+  };
+
+  const goPrevious = () => {
+    clearGapTimer();
+    setSceneIndex((index) => Math.max(0, index - 1));
+  };
+
+  const togglePause = () => setPaused((value) => !value);
+
+  useEffect(() => clearGapTimer, []);
+
   useEffect(() => {
-    if (!scene || claim || scene.audioUrl) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (paused) audio.pause();
+    else void audio.play().catch(() => undefined);
+  }, [paused, sceneIndex]);
+
+  useEffect(() => {
+    if (!scene || claim || scene.audioUrl || paused) return;
     // No audio for this scene (TTS unavailable) — fall back to a plain timer
     // so the lesson never stalls waiting on an audio event that won't fire.
-    const id = setTimeout(advance, Math.max(scene.durationSeconds, 1) * 1000);
+    const id = setTimeout(requestAdvance, Math.max(scene.durationSeconds, 1) * 1000);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneIndex, scene, claim]);
+  }, [sceneIndex, scene, claim, paused]);
 
   if (!scene) return null;
 
   return (
-    <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
-      <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
-      <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
-        <span>{scene.eyebrow}</span>
-        <h2>{scene.headline}</h2>
-        {claim ? (
-          <InteractiveEquationStep
-            assignmentId={assignment.id}
-            sceneIndex={sceneIndex}
-            claim={claim}
-            onCorrect={advance}
+    <>
+      <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
+        <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
+        <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
+          <span>{scene.eyebrow}</span>
+          <h2>{scene.headline}</h2>
+          {claim ? (
+            <InteractiveEquationStep
+              assignmentId={assignment.id}
+              sceneIndex={sceneIndex}
+              claim={claim}
+              onCorrect={requestAdvance}
+            />
+          ) : (
+            <div className={styles.equation}>{scene.equation.map((step) => step.text).join(" → ")}</div>
+          )}
+          <p>{scene.narration}</p>
+        </div>
+        {scene.audioUrl && (
+          <audio
+            ref={audioRef}
+            key={scene.audioUrl}
+            src={scene.audioUrl}
+            autoPlay
+            onEnded={claim ? undefined : requestAdvance}
           />
-        ) : (
-          <div className={styles.equation}>{scene.equation.map((step) => step.text).join(" → ")}</div>
         )}
-        <p>{scene.narration}</p>
+        <div className={styles.progress}>
+          <span style={{ width: `${((sceneIndex + 1) / scenes.length) * 100}%` }} />
+        </div>
       </div>
-      {scene.audioUrl && (
-        <audio key={scene.audioUrl} src={scene.audioUrl} autoPlay onEnded={claim ? undefined : advance} />
-      )}
-      <div className={styles.progress}>
-        <span style={{ width: `${((sceneIndex + 1) / scenes.length) * 100}%` }} />
+      <div className={styles.controls}>
+        <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={goPrevious}>
+          ← Previous
+        </button>
+        <button className={styles.playButton} onClick={togglePause}>
+          {paused ? "▶ Resume" : "Pause"}
+        </button>
+        <span />
       </div>
-    </div>
+    </>
   );
 }
