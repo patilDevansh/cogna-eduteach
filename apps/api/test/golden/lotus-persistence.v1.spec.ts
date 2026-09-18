@@ -52,6 +52,8 @@ const session = {
       reason: "opening",
       informationGain: { passed: true, explanation: "first item" },
     },
+    analysisStatus: "COMPLETE",
+    analysisSource: "DETERMINISTIC",
     createdAt: new Date().toISOString(),
   },
   audits: [],
@@ -66,6 +68,13 @@ describe("Lotus durable persistence", () => {
     const loaded = await loadLotusSession(prisma as never, session.sessionId);
     assert.equal(loaded?.sessionId, session.sessionId);
     assert.equal(loaded?.studentId, "demo_aarav");
+    const stateEvent = prisma._store.lotusEvidence.at(-1);
+    assert.equal(stateEvent?.eventType, "SESSION_STATE");
+    assert.equal(stateEvent?.outcome, "ACTIVE");
+    assert.equal(
+      (stateEvent?.metadata as { snapshot?: { sessionId?: string } }).snapshot?.sessionId,
+      session.sessionId,
+    );
 
     await appendLotusEvidence(prisma as never, session, {
       ...session.openingAudit,
@@ -83,6 +92,8 @@ describe("Lotus durable persistence", () => {
         explanation: "Sign of the second product was lost.",
       },
     });
-    assert.equal(true, true);
+    const answerEvent = prisma._store.lotusEvidence.at(-1);
+    assert.equal(answerEvent?.eventType, "ANSWER");
+    assert.equal(answerEvent?.outcome, "VERIFIED_INCORRECT");
   });
 });

@@ -15,6 +15,36 @@ export type LotusQuestionType =
   | "COMPARE"
   | "ERROR_ANALYSIS";
 
+/** Which diagnostic a session runs. BRACKETS is the original Grade 8 signed-bracket unit. */
+export type LotusTopic = "BRACKETS" | "FACTORISATION";
+
+/** What a student making one specific mistake writes — used to recognise that mistake instantly, with no AI call. */
+export interface LotusPredictedMistake {
+  answer: string;
+  mistake: string;
+}
+
+/**
+ * Server-only facts about an item. Lives inside answerKey on purpose: every
+ * active-session response replaces answerKey wholesale, so none of this —
+ * the skill being tested, the predicted wrong answers — can reach the
+ * browser before the student answers.
+ */
+export interface LotusItemDiagnostics {
+  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE";
+  /** The expression the student works on (for FACTORISE and SIMPLIFY items). */
+  expression?: string;
+  skillId: string;
+  /** Other skills this item genuinely uses, from the skill map. */
+  taggedSkills: string[];
+  /** Parallel to workedSolution: the skill each step uses. */
+  stepSkills: string[];
+  predictedMistakes: LotusPredictedMistake[];
+  slot?: number;
+  level?: "easy" | "medium" | "hard";
+  origin: "FALLBACK" | "AI";
+}
+
 export interface LotusQuestion {
   id: string;
   phase: LotusPhase;
@@ -33,6 +63,16 @@ export interface LotusAnswerKey {
   /** Plain arithmetic expression for deterministic evaluation when applicable. */
   expression?: string;
   workedSolution: string[];
+  /**
+   * Intermediate values produced while evaluating `expression`, in
+   * evaluation order, ending with the final result. Derived by re-running
+   * the same deterministic parser used to check the student's answer — never
+   * authored or trusted from the model — so a student's working can be
+   * checked against a real step-by-step reference instantly, with no AI call.
+   * Present only when `expression` is set.
+   */
+  checkpoints?: number[];
+  diagnostics?: LotusItemDiagnostics;
 }
 
 export interface LotusStudentResponse {
@@ -41,12 +81,18 @@ export interface LotusStudentResponse {
   confidence: number;
   responseTimeMs: number;
   didNotKnow: boolean;
+  /** Idempotent submit of the question visible when the student pressed Submit. */
+  submissionId?: string;
+  questionId?: string;
+  /** The prompt-only item that the browser painted immediately on Submit. */
+  nextQuestionId?: string;
 }
 
 export interface LotusMathVerification {
-  status: "VERIFIED_CORRECT" | "VERIFIED_INCORRECT" | "NO_ANSWER" | "NOT_DETERMINISTIC";
+  /** VERIFIED_UNFINISHED: equal to the original but not fully factorised or simplified. */
+  status: "VERIFIED_CORRECT" | "VERIFIED_INCORRECT" | "VERIFIED_UNFINISHED" | "NO_ANSWER" | "NOT_DETERMINISTIC";
   correctAnswer: string;
-  method: "DETERMINISTIC_ARITHMETIC" | "AI_AUTHORED_REFERENCE";
+  method: "DETERMINISTIC_ARITHMETIC" | "DETERMINISTIC_ALGEBRA" | "AI_AUTHORED_REFERENCE";
   explanation: string;
 }
 
@@ -56,6 +102,39 @@ export type LotusMathJudgment =
   | "PARTIAL"
   | "UNRESOLVED"
   | "NOT_APPLICABLE";
+
+/**
+ * Instant, deterministic read of where a student's written working first
+ * stops matching the reference checkpoint chain. No AI, no network — pure
+ * arithmetic comparison, computed the moment an answer is submitted. This is
+ * *where* the student diverged, never *why* — that stays the slow AI
+ * analysis's job. Used only to pick a next question quickly; never written
+ * into the durable evidence record on its own.
+ */
+export type LotusBreakpointStatus =
+  | "NO_WORKING"
+  | "NOT_DETERMINISTIC"
+  | "MATCHED_THROUGH_ALL_STEPS"
+  | "DIVERGED";
+
+export interface LotusBreakpointDiagnosis {
+  status: LotusBreakpointStatus;
+  /** 1-based index into answerKey.checkpoints where the mismatch first appears. */
+  divergedAtStep?: number;
+  expectedValue?: number;
+  studentValue?: number;
+}
+
+/**
+ * The four "next move" intents a selection policy ever needs, regardless of
+ * how many literal wrong answers are possible. Bounds the reserve to one
+ * candidate per intent instead of one per hypothetical response.
+ */
+export type LotusReserveIntent =
+  | "ADVANCE"
+  | "RETRY_REPRESENTATION"
+  | "DESCEND_PREREQUISITE"
+  | "DISCRIMINATE";
 
 export type LotusProposedAction =
   | "ASK"
@@ -107,6 +186,27 @@ export interface LotusFinalReport {
   evidenceSummary: string[];
   recommendedNextStep: string;
   limitations: string[];
+  /** Skills removed from the test because something they depend on was a confirmed gap — never reported as failed. */
+  notTested?: string[];
+  /** Per-skill outcome, for the teacher and observer. */
+  skills?: LotusSkillSummary[];
+}
+
+export type LotusSkillState = "UNTESTED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
+
+export interface LotusSkillSummary {
+  skillId: string;
+  name: string;
+  state: LotusSkillState;
+  evidence: string[];
+}
+
+export interface LotusSkillEvidence {
+  skillId: string;
+  kind: "SECURE" | "MISTAKE" | "UNFINISHED" | "DID_NOT_KNOW";
+  mistake?: string;
+  description?: string;
+  source: "INSTANT" | "ANALYSIS";
 }
 
 export interface LotusDebateClosure {
@@ -123,6 +223,26 @@ export interface LotusDebateClosure {
   nextQuestion?: Omit<LotusQuestion, "id">;
   exitDiagnostic: boolean;
   report?: LotusFinalReport;
+  /** 1-based index into the item's workedSolution where the student's work first goes wrong; null if nothing went wrong. */
+  firstWrongStep?: number | null;
+  /** The mistake in plain words, as the analyser sees it. Not limited to any list of codes. */
+  mistakeDescription?: string;
+}
+
+/**
+ * Whether a candidate's answerKey.expression was cross-checked against an
+ * expression independently re-extracted from the prompt's own text —
+ * a different derivation of the same question, not the same value read
+ * twice. MISMATCHED means the two disagree and the candidate must not be
+ * shown. UNVERIFIABLE means the prompt wasn't in a form this deterministic
+ * extractor could parse (e.g. a word problem) — an honest "couldn't check",
+ * not a pass.
+ */
+export type LotusMathCrossCheckStatus = "MATCHED" | "MISMATCHED" | "UNVERIFIABLE";
+
+export interface LotusMathCrossCheck {
+  status: LotusMathCrossCheckStatus;
+  explanation: string;
 }
 
 export interface LotusQuestionSelection {
@@ -135,23 +255,116 @@ export interface LotusQuestionSelection {
     | "BOTH"
     | "SYNTHESIZED"
     | "REVISED_FOR_INFORMATION_GAIN"
+    | "RESERVE"
+    | "CURRICULUM_DECK"
+    | "ADAPTIVE_STAGED"
+    | "OPENER_BANK"
     | "NONE_EXIT";
   reason: string;
+  /**
+   * Safe, observer-facing explanation of a plan change. Unlike `reason`, this
+   * never contains answer keys or hidden hypotheses and may be shown while the
+   * diagnostic is active.
+   */
+  planningNote?: string;
+  /** Safe provenance shown in the observer's AI Lab; never inferred from the prompt. */
+  provenance?:
+    | "AI_GENERATED_FOR_SESSION"
+    | "AI_REUSED_FROM_BANK"
+    | "HARDCODED_SYSTEM";
   informationGain: {
     passed: boolean;
     explanation: string;
   };
+  mathVerification?: LotusMathCrossCheck;
+}
+
+/**
+ * Which of the four sequential AI stages actually changed the outcome on
+ * this turn, plus how long each took. Logged on every turn — fast-path and
+ * slow-path alike, since the deep analysis always eventually runs — so we
+ * can later answer "did the debate/closure stages ever change the verdict
+ * often enough to justify their latency and cost, or would one assessment
+ * have been enough?" from real data instead of guessing.
+ */
+export interface LotusStageAgreement {
+  assessmentsAgreed: boolean;
+  debateChangedVerdict: boolean;
+  closureChangedVerdict: boolean;
+}
+
+export interface LotusStageTimingMs {
+  assessment: number;
+  debate: number;
+  closure: number;
+  total: number;
+}
+
+/**
+ * PENDING is a real review that has not completed. NOT_REQUIRED means Lotus
+ * intentionally did not ask a model to interpret this turn (for example, an
+ * explicit support request); it is never a disguised completed review.
+ */
+export type LotusAnalysisStatus = "PENDING" | "COMPLETE" | "NOT_REQUIRED";
+
+/** The source of the turn's interpretation, separate from its maths verdict. */
+export type LotusAnalysisSource = "DETERMINISTIC" | "SUPPORT_SIGNAL" | "AI_REVIEW";
+
+/**
+ * A concrete, auditable planning move. This is deliberately separate from a
+ * prose conclusion: the server must validate and install it before the UI
+ * can claim that a question path changed.
+ */
+export type LotusAdaptiveAction =
+  | "KEEP"
+  | "TARGETED_PROBE"
+  | "EASIER_PREREQUISITE"
+  | "BROADEN"
+  | "REMOVE_OR_DEFER"
+  | "STOP";
+
+export interface LotusAdaptiveDecision {
+  action: LotusAdaptiveAction;
+  observedError: string;
+  alternatives: string[];
+  rationale: string;
+  expectedInformationGain: string;
+  targetSkill?: string;
+  /** The requested earliest safe slot, never a claim that it has been shown. */
+  requestedPlacement?: string;
+  source: "RULE_VALIDATED_PLAN" | "AI_RECOMMENDATION";
 }
 
 export interface LotusQuestionAudit {
   question: LotusQuestion;
   response: LotusStudentResponse | null;
   verification: LotusMathVerification | null;
-  gpt: LotusModelAssessment;
-  challenger: LotusModelAssessment;
-  debate: LotusGptDebateResponse;
+  /** Instant deterministic read computed at submit time, independent of any AI call. */
+  breakpoint?: LotusBreakpointDiagnosis | null;
+  /** Present only after an actual AI review has produced this stage. */
+  gpt?: LotusModelAssessment;
+  /** Present only after an actual AI review has produced this stage. */
+  challenger?: LotusModelAssessment;
+  /** Present only after an actual AI review has produced this stage. */
+  debate?: LotusGptDebateResponse;
   conclusion: LotusDebateClosure;
   questionSelection: LotusQuestionSelection;
+  /**
+   * PENDING means the next question shown for this turn came from the fast
+   * path (the reserve) and gpt/challenger/debate/conclusion above are still
+   * placeholders — the real deep analysis is running in the background and
+   * will overwrite this same turn's record in place once it lands. Never a
+   * new turn, never a later turn's evidence.
+   */
+  analysisStatus: LotusAnalysisStatus;
+  /** Lets the observer separate a mathematical fact, a support request, and a completed model interpretation. */
+  analysisSource: LotusAnalysisSource;
+  /** The validated planning decision made from this turn, if one was needed. */
+  adaptiveDecision?: LotusAdaptiveDecision;
+  /** What this turn told us about each skill. Hidden from the student while the diagnostic is active. */
+  skillEvidence?: LotusSkillEvidence[];
+  stageAgreement?: LotusStageAgreement | null;
+  timingMs?: LotusStageTimingMs | null;
   createdAt: string;
 }
 
@@ -170,6 +383,14 @@ export interface LotusLiveProgress {
   gpt?: LotusModelAssessment;
   challenger?: LotusModelAssessment;
   debate?: LotusGptDebateResponse;
+  /**
+   * A short, static, non-scored reflection line shown while the slow
+   * analysis of the student's *previous* answer is still running, so the
+   * wait carries a small prompt instead of a bare spinner. Never AI-authored
+   * (must be instant) and never itself evidence — nothing reads a response
+   * to it back into the learner model in this version.
+   */
+  reflectionPrompt?: string;
   updatedAt: string;
 }
 
@@ -178,11 +399,14 @@ export interface LotusSessionView {
   studentId: string;
   grade: 8;
   board: "CBSE";
+  topic?: LotusTopic;
   status: "ACTIVE" | "COMPLETE";
   experimental: true;
   phase: LotusPhase;
   startedAt: string;
   currentQuestion: LotusQuestion | null;
+  /** Prompt-only authorized future items. Answer keys are always redacted from active-session API responses. */
+  upcomingQuestions?: LotusQuestion[];
   openingAudit: LotusQuestionAudit;
   audits: LotusQuestionAudit[];
   finalReport: LotusFinalReport | null;
@@ -191,6 +415,13 @@ export interface LotusSessionView {
     challenger: string;
   };
   liveProgress?: LotusLiveProgress | null;
+  /** Factorisation preparation is intentionally prompt-free while the student waits. */
+  preparation?: {
+    readyQuestions: number;
+    targetQuestions: number;
+    totalQuestions: number;
+    ready: boolean;
+  };
 }
 
 export interface LotusStatusResponse {

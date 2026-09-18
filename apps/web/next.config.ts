@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: repoRoot,
   transpilePackages: ["@cogna/shared"],
   serverExternalPackages: [
     "@cogna/lesson-video",
@@ -17,6 +22,11 @@ const nextConfig: NextConfig = {
     "esbuild",
     "webpack",
     "@aws-sdk/client-s3",
+    "@nestjs/common",
+    "@nestjs/core",
+    "@nestjs/platform-express",
+    "file-type",
+    "load-esm",
   ],
 };
 

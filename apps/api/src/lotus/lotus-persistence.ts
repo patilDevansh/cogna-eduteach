@@ -4,7 +4,11 @@ import type { LotusQuestionAudit, LotusSessionView } from "@cogna/shared";
 export function lotusPersistenceEnabled(
   prisma: PrismaClient | null | undefined,
 ): prisma is PrismaClient {
-  return Boolean(prisma) && process.env.LOTUS_STANDALONE_DEMO !== "true";
+  // Demo diagnostics are diagnostic sessions, not throwaway browser state.
+  // A Prisma client means a durable database is available and must be used.
+  // `LOTUS_STANDALONE_DEMO` may still control demo-only UI behavior, but it
+  // must never make a Lotus session memory-only.
+  return Boolean(prisma);
 }
 
 export async function persistLotusSession(
@@ -12,25 +16,64 @@ export async function persistLotusSession(
   session: LotusSessionView,
 ): Promise<void> {
   const endedAt = session.status === "COMPLETE" ? new Date() : null;
-  await prisma.lotusSessionRecord.upsert({
-    where: { sessionId: session.sessionId },
-    create: {
-      sessionId: session.sessionId,
-      studentId: session.studentId,
-      status: session.status,
-      phase: session.phase,
-      startedAt: new Date(session.startedAt),
-      endedAt,
-      payload: session as object,
-    },
-    update: {
-      studentId: session.studentId,
-      status: session.status,
-      phase: session.phase,
-      endedAt,
-      payload: session as object,
-    },
-  });
+  type PersistenceDb = Pick<PrismaClient, "lotusSessionRecord" | "lotusEvidenceRecord">;
+  const write = async (db: PersistenceDb): Promise<void> => {
+    const record = await db.lotusSessionRecord.upsert({
+      where: { sessionId: session.sessionId },
+      create: {
+        sessionId: session.sessionId,
+        studentId: session.studentId,
+        status: session.status,
+        phase: session.phase,
+        startedAt: new Date(session.startedAt),
+        endedAt,
+        payload: session as object,
+      },
+      update: {
+        studentId: session.studentId,
+        status: session.status,
+        phase: session.phase,
+        endedAt,
+        payload: session as object,
+      },
+    });
+
+    // A snapshot is intentionally appended on every durable save. The current
+    // row is fast to load; this append-only event makes the decision trail,
+    // active-session recovery, and later audit possible even after a plan has
+    // changed again. It stays server-side because the snapshot includes answer
+    // keys and internal model data.
+    await db.lotusEvidenceRecord.create({
+      data: {
+        sessionRecordId: record.id,
+        eventType: "SESSION_STATE",
+        outcome: session.status,
+        questionText: session.currentQuestion?.prompt,
+        submittedText: null,
+        verificationStatus: null,
+        verbatimText: `Persisted Lotus ${session.topic ?? "BRACKETS"} session state.`,
+        metadata: {
+          topic: session.topic ?? "BRACKETS",
+          auditCount: session.audits.length,
+          currentQuestionId: session.currentQuestion?.id ?? null,
+          analysisStates: session.audits.map((audit) => ({
+            questionId: audit.question.id,
+            status: audit.analysisStatus,
+          })),
+          snapshot: session,
+        } as object,
+      },
+    });
+  };
+
+  // Production Prisma writes the recoverable snapshot and its event in one
+  // transaction. Tiny in-memory test doubles may not provide `$transaction`,
+  // so they exercise the same write shape directly.
+  if (typeof prisma.$transaction === "function") {
+    await prisma.$transaction(async (tx) => write(tx as unknown as PersistenceDb));
+    return;
+  }
+  await write(prisma);
 }
 
 export async function loadLotusSession(
@@ -68,7 +111,7 @@ export async function appendLotusEvidence(
       metadata: {
         questionId: audit.question.id,
         didNotKnow: audit.response?.didNotKnow ?? false,
-        mathJudgment: audit.gpt.mathJudgment,
+        mathJudgment: audit.gpt?.mathJudgment ?? null,
       } as object,
     },
   });

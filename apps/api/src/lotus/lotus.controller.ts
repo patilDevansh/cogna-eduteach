@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post, Query } from "@nestjs/common";
 import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, resolveActor } from "../access/cogna-access";
 import {
@@ -28,7 +28,7 @@ export class LotusController {
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
     assertStudentAccess(actor, body.studentId);
-    return this.lotus.start(body.studentId);
+    return this.lotus.start(body.studentId, body.topic);
   }
 
   @Get("sessions/:id")
@@ -56,7 +56,21 @@ export class LotusController {
       confidence: body.confidence,
       responseTimeMs: body.responseTimeMs,
       didNotKnow: body.didNotKnow,
+      questionId: body.questionId,
+      nextQuestionId: body.nextQuestionId,
+      submissionId: body.submissionId,
     });
+  }
+
+  @Get("sessions/:id/demo-fill")
+  demoFill(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Query("studentId") studentId: string,
+  ): Promise<{ answer: string; working: string; confidence: number }> {
+    const actor = resolveActor(headers);
+    assertStudentAccess(actor, studentId);
+    return this.lotus.demoFill(id, studentId);
   }
 
   @Post("sessions/:id/override")

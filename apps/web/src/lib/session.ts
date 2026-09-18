@@ -61,9 +61,10 @@ function isTokenExpired(token: string): boolean {
 export async function ensureDemoStudentSession(
   studentId: string,
   name: string,
+  options?: { forceRefresh?: boolean },
 ): Promise<StudentSessionRecord> {
   const existing = getStudent();
-  if (existing?.studentId === studentId && existing.token && !isTokenExpired(existing.token)) {
+  if (!options?.forceRefresh && existing?.studentId === studentId && existing.token && !isTokenExpired(existing.token)) {
     return existing;
   }
   const response = await fetch("/api/session/student", {

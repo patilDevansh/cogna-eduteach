@@ -219,6 +219,8 @@ export function createPersonalizedVideoMemoryDb() {
         return row;
       },
     },
-    _store: { assignments, events, jobs, assets, outcomes },
+    // Exposed only to tests so persistence contracts can inspect the complete
+    // durable trail rather than merely proving that calls did not throw.
+    _store: { assignments, events, jobs, assets, outcomes, lotusSessions, lotusEvidence },
   };
 }

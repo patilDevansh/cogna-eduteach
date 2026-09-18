@@ -1,7 +1,7 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { authorizeGeneratedMediaPath } from "../../../../../api/src/access/cogna-access";
 import { defaultMediaRoot } from "../../../../../api/src/personalized-videos/media-storage";
 
 export const runtime = "nodejs";
@@ -30,6 +30,60 @@ function loadWorkspaceEnvironment(): void {
 }
 
 loadWorkspaceEnvironment();
+
+const ALLOWED_LESSON_FILES = new Set(["lesson.mp4", "lesson.vtt"]);
+
+function sessionSecretFromEnv(): string | null {
+  return process.env.COGNA_SESSION_SECRET?.trim() || null;
+}
+
+function verifyMac(token: string, secret: string): string | null {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return null;
+  const expected = createHmac("sha256", secret).update(parts[1]!).digest("base64url");
+  const actual = parts[2]!;
+  const expectedBuf = Buffer.from(expected);
+  const actualBuf = Buffer.from(actual);
+  if (expectedBuf.length !== actualBuf.length) return null;
+  if (!timingSafeEqual(expectedBuf, actualBuf)) return null;
+  try {
+    return Buffer.from(parts[1]!, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
+function authorizeGeneratedMediaPath(
+  segments: string[],
+  mediaToken: string | null,
+): { ok: true } | { ok: false; status: number; message: string } {
+  if (segments[0] === "render-jobs") {
+    return { ok: false, status: 404, message: "Not found" };
+  }
+  if (segments.length !== 3 || segments[0] !== "lessons" || !segments[1] || !ALLOWED_LESSON_FILES.has(segments[2]!)) {
+    return { ok: false, status: 404, message: "Not found" };
+  }
+  const secret = sessionSecretFromEnv();
+  if (!secret || !mediaToken) {
+    return { ok: false, status: 401, message: "A signed student or teacher media token is required." };
+  }
+  const payload = verifyMac(mediaToken, secret);
+  if (!payload) {
+    return { ok: false, status: 401, message: "A signed student or teacher media token is required." };
+  }
+  try {
+    const parsed = JSON.parse(payload) as { role?: string; aid?: string; sub?: string; schoolId?: string; exp?: number };
+    if (parsed.role !== "media" || !parsed.aid || !parsed.sub || !parsed.schoolId || (parsed.exp ?? 0) < Date.now()) {
+      return { ok: false, status: 401, message: "A signed student or teacher media token is required." };
+    }
+    if (parsed.aid !== segments[1]) {
+      return { ok: false, status: 403, message: "This media belongs to a different lesson." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, status: 401, message: "A signed student or teacher media token is required." };
+  }
+}
 
 function contentTypeFor(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();

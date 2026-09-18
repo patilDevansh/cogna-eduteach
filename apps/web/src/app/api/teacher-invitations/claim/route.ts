@@ -1,8 +1,7 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { NextResponse } from "next/server";
-import { issueTeacherToken } from "../../../../../../api/src/access/cogna-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +51,8 @@ const DEMO_INVITATION: TeacherInvitation = {
   schoolName: "Gurukul",
 };
 
+const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
+
 function configuredInvitations(): TeacherInvitation[] {
   const configured = process.env.TEACHER_PILOT_INVITATIONS;
   if (!configured) return [DEMO_INVITATION];
@@ -67,6 +68,27 @@ function codesMatch(expected: string, actual: string): boolean {
   const expectedHash = createHash("sha256").update(expected.toUpperCase()).digest();
   const actualHash = createHash("sha256").update(actual.toUpperCase()).digest();
   return timingSafeEqual(expectedHash, actualHash);
+}
+
+function sessionSecretFromEnv(): string | null {
+  const configured = process.env.COGNA_SESSION_SECRET?.trim();
+  if (configured) return configured;
+  const era = (process.env.COGNA_ENV ?? "").trim().toLowerCase();
+  const productionLike = process.env.NODE_ENV === "production" || era === "production" || era === "staging";
+  if (!productionLike && process.env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
+    return INSECURE_LOCAL_DEV_SESSION_SECRET;
+  }
+  return null;
+}
+
+function issueTeacherToken(teacherEmail: string, schoolId: string, ttlMs = 12 * 60 * 60 * 1000): string {
+  const secret = sessionSecretFromEnv();
+  if (!secret) throw new Error("Teacher session signing is not configured.");
+  const body = Buffer.from(
+    JSON.stringify({ role: "teacher", sub: teacherEmail, schoolId, exp: Date.now() + ttlMs }),
+  ).toString("base64url");
+  const mac = createHmac("sha256", secret).update(body).digest("base64url");
+  return `v1.${body}.${mac}`;
 }
 
 export async function POST(request: Request) {
@@ -93,11 +115,9 @@ export async function POST(request: Request) {
   try {
     token = issueTeacherToken(invitation.email, invitation.schoolId);
   } catch (error) {
-    const candidate = error as { getStatus?: () => number; message?: string };
-    const status = typeof candidate.getStatus === "function" ? candidate.getStatus() : 503;
     return NextResponse.json(
-      { message: candidate.message ?? "Teacher session signing is not configured." },
-      { status },
+      { message: error instanceof Error ? error.message : "Teacher session signing is not configured." },
+      { status: 503 },
     );
   }
 

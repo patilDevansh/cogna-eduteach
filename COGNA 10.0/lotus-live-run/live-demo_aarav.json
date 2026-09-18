@@ -1,0 +1,830 @@
+{
+  "studentId": "demo_aarav",
+  "paceMs": 25000,
+  "startMs": 510,
+  "totalMs": 650045,
+  "answered": 25,
+  "instantSubmits": 25,
+  "submitMs": {
+    "max": 20022,
+    "median": 13
+  },
+  "aiQuestionsShown": 23,
+  "fixedQuestionsShown": 2,
+  "newQuestionIdsOffered": 30,
+  "firstAiQuestionAtMs": 5577,
+  "report": {
+    "outcome": "SOLID_GAP",
+    "startingPoint": "Start with factorising x² + bx + c. Q14: Wrote (x + 4)(x + 5). (SIGN_PAIR_ERROR) · Q15: Wrote (x + 5)(x - 4). (SIGNS_SWAPPED)",
+    "observedStrengths": [
+      "Perfect square with a minus (an earlier mistake looked like a slip)",
+      "Grouping four terms into pairs",
+      "Difference of two squares",
+      "Perfect square with a plus",
+      "Taking out the full common factor",
+      "Taking out a common bracket",
+      "Cancelling factors, never terms",
+      "Dividing every term by the common factor",
+      "Checking a factorisation by expanding",
+      "Factorising fully",
+      "Finding the number common to every term",
+      "Finding the letters common to every term",
+      "Two numbers with a given product and sum (an earlier mistake looked like a slip)",
+      "Expanding two brackets",
+      "Choosing the method (common factor first)",
+      "What \"factorised\" means",
+      "Recognising perfect squares"
+    ],
+    "uncertainAreas": [],
+    "evidenceSummary": [
+      "Factorising x² + bx + c — confirmed gap. Q13: right · Q14: Wrote (x + 4)(x + 5). (SIGN_PAIR_ERROR) · Q15: Wrote (x + 5)(x - 4). (SIGNS_SWAPPED)",
+      "Taking out a negative common factor — confirmed gap. Q5: Wrote -6(-x - 3). (KEPT_ORIGINAL_SIGNS) · Q23: Wrote -9(-y - 3). (KEPT_ORIGINAL_SIGNS)",
+      "Grouping when the second pair starts with a minus — confirmed gap. Q17: Wrote 4b(2a - 3) - 3(2a + 3). (SIGN_NOT_FLIPPED_IN_GROUP) · Q22: Wrote 2y(5x - 3) - (5x + 3). (SIGN_NOT_FLIPPED_IN_GROUP)"
+    ],
+    "recommendedNextStep": "Teach factorising x² + bx + c directly, then re-check it with a fresh question.",
+    "limitations": [
+      "Experimental: questions were written and checked by AI and code, without human review.",
+      "A gap is only confirmed when the same skill goes wrong on two different questions.",
+      "10 answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing."
+    ],
+    "notTested": [],
+    "skills": [
+      {
+        "skillId": "FND_RECOGNISE_SQUARE",
+        "name": "Recognising perfect squares",
+        "state": "SECURE",
+        "evidence": [
+          "Q10: right"
+        ]
+      },
+      {
+        "skillId": "EXP_EXPAND_BINOMIALS",
+        "name": "Expanding two brackets",
+        "state": "SECURE",
+        "evidence": [
+          "Q18: right",
+          "Q25: right"
+        ]
+      },
+      {
+        "skillId": "FAC_MEANING",
+        "name": "What \"factorised\" means",
+        "state": "SECURE",
+        "evidence": [
+          "Q6: right",
+          "Q8: right"
+        ]
+      },
+      {
+        "skillId": "FAC_CHOOSE_METHOD",
+        "name": "Choosing the method (common factor first)",
+        "state": "SECURE",
+        "evidence": [
+          "Q19: right",
+          "Q20: right",
+          "Q21: right"
+        ]
+      },
+      {
+        "skillId": "FAC_GCF_NUMERIC",
+        "name": "Finding the number common to every term",
+        "state": "SECURE",
+        "evidence": [
+          "Q1: right",
+          "Q4: right"
+        ]
+      },
+      {
+        "skillId": "FAC_GCF_VARIABLE",
+        "name": "Finding the letters common to every term",
+        "state": "SECURE",
+        "evidence": [
+          "Q2: right",
+          "Q3: right",
+          "Q4: right"
+        ]
+      },
+      {
+        "skillId": "FAC_DIVIDE_TERMS",
+        "name": "Dividing every term by the common factor",
+        "state": "SECURE",
+        "evidence": [
+          "Q1: right",
+          "Q2: right",
+          "Q3: right",
+          "Q4: right"
+        ]
+      },
+      {
+        "skillId": "FAC_GCF_NEGATIVE",
+        "name": "Taking out a negative common factor",
+        "state": "CONFIRMED",
+        "evidence": [
+          "Q5: Wrote -6(-x - 3). (KEPT_ORIGINAL_SIGNS)",
+          "Q23: Wrote -9(-y - 3). (KEPT_ORIGINAL_SIGNS)"
+        ]
+      },
+      {
+        "skillId": "FAC_COMMON_MONOMIAL",
+        "name": "Taking out the full common factor",
+        "state": "SECURE",
+        "evidence": [
+          "Q4: right",
+          "Q20: right",
+          "Q21: right"
+        ]
+      },
+      {
+        "skillId": "FAC_COMMON_BINOMIAL",
+        "name": "Taking out a common bracket",
+        "state": "SECURE",
+        "evidence": [
+          "Q7: right",
+          "Q8: right"
+        ]
+      },
+      {
+        "skillId": "FAC_GROUP_TERMS",
+        "name": "Grouping four terms into pairs",
+        "state": "SECURE",
+        "evidence": [
+          "Q8: right"
+        ]
+      },
+      {
+        "skillId": "FAC_GROUP_SIGN",
+        "name": "Grouping when the second pair starts with a minus",
+        "state": "CONFIRMED",
+        "evidence": [
+          "Q17: Wrote 4b(2a - 3) - 3(2a + 3). (SIGN_NOT_FLIPPED_IN_GROUP)",
+          "Q22: Wrote 2y(5x - 3) - (5x + 3). (SIGN_NOT_FLIPPED_IN_GROUP)"
+        ]
+      },
+      {
+        "skillId": "FAC_DIFF_SQUARES",
+        "name": "Difference of two squares",
+        "state": "SECURE",
+        "evidence": [
+          "Q9: right",
+          "Q10: right",
+          "Q20: right",
+          "Q24: right"
+        ]
+      },
+      {
+        "skillId": "FAC_PERFECT_SQUARE_PLUS",
+        "name": "Perfect square with a plus",
+        "state": "SECURE",
+        "evidence": [
+          "Q11: right"
+        ]
+      },
+      {
+        "skillId": "FAC_PERFECT_SQUARE_MINUS",
+        "name": "Perfect square with a minus",
+        "state": "SECURE",
+        "evidence": [
+          "Q16: Wrote (3a + 4)^2. (WRONG_MIDDLE_SIGN)",
+          "Q24: right, so the Q16 mistake looks like a slip"
+        ]
+      },
+      {
+        "skillId": "FAC_PAIR_PRODUCT_SUM",
+        "name": "Two numbers with a given product and sum",
+        "state": "SECURE",
+        "evidence": [
+          "Q12: Chose \"3 and 4\". (SIGN_PAIR_ERROR)",
+          "Q13: right, so the Q12 mistake looks like a slip"
+        ]
+      },
+      {
+        "skillId": "FAC_MONIC_TRINOMIAL",
+        "name": "Factorising x² + bx + c",
+        "state": "CONFIRMED",
+        "evidence": [
+          "Q13: right",
+          "Q14: Wrote (x + 4)(x + 5). (SIGN_PAIR_ERROR)",
+          "Q15: Wrote (x + 5)(x - 4). (SIGNS_SWAPPED)"
+        ]
+      },
+      {
+        "skillId": "FAC_FACTOR_FULLY",
+        "name": "Factorising fully",
+        "state": "SECURE",
+        "evidence": [
+          "Q20: right",
+          "Q21: right"
+        ]
+      },
+      {
+        "skillId": "FAC_VERIFY_EXPAND",
+        "name": "Checking a factorisation by expanding",
+        "state": "SECURE",
+        "evidence": [
+          "Q18: right"
+        ]
+      },
+      {
+        "skillId": "FAC_CANCEL_COMMON_FACTOR",
+        "name": "Cancelling factors, never terms",
+        "state": "SECURE",
+        "evidence": [
+          "Q24: right"
+        ]
+      }
+    ]
+  },
+  "audits": [
+    {
+      "n": 1,
+      "prompt": "Factorise completely: 8x + 12",
+      "origin": "FALLBACK",
+      "skill": "FAC_DIVIDE_TERMS",
+      "answer": "4(2x + 3)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_DIVIDE_TERMS",
+        "SECURE:FAC_GCF_NUMERIC"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 2 of the factorisation test.",
+      "stageMs": 27188,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 2,
+      "prompt": "Factorise completely: 6x^2y + 9x",
+      "origin": "AI",
+      "skill": "FAC_GCF_VARIABLE",
+      "answer": "3x(2xy + 3)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_GCF_VARIABLE",
+        "SECURE:FAC_DIVIDE_TERMS"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 3 of the factorisation test.",
+      "stageMs": 26908,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 3,
+      "prompt": "Factorise completely: 8x^2 + 8x",
+      "origin": "AI",
+      "skill": "FAC_DIVIDE_TERMS",
+      "answer": "8x(x + 1)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_DIVIDE_TERMS",
+        "SECURE:FAC_GCF_VARIABLE"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 4 of the factorisation test.",
+      "stageMs": 34311,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 4,
+      "prompt": "Factorise fully: 12x^3 - 8x^4 + 4x^5.",
+      "origin": "AI",
+      "skill": "FAC_COMMON_MONOMIAL",
+      "answer": "4x^3(3 - 2x + x^2)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_COMMON_MONOMIAL",
+        "SECURE:FAC_GCF_VARIABLE",
+        "SECURE:FAC_DIVIDE_TERMS",
+        "SECURE:FAC_GCF_NUMERIC"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 5 of the factorisation test.",
+      "stageMs": 35821,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 5,
+      "prompt": "Factorise -6x - 18 by taking out a negative common factor.",
+      "origin": "AI",
+      "skill": "FAC_GCF_NEGATIVE",
+      "answer": "-6(-x - 3)",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "MISTAKE:FAC_GCF_NEGATIVE(KEPT_ORIGINAL_SIGNS)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 6 of the factorisation test.",
+      "stageMs": 40161,
+      "firstWrongStep": 2,
+      "mistakeDescription": "After taking out -6, the student kept both original negative signs inside; multiplying back reverses them and gives 6x + 18."
+    },
+    {
+      "n": 6,
+      "prompt": "Is 8n(t + 4) + 7(t + 4) fully factorised? Why?",
+      "origin": "AI",
+      "skill": "FAC_MEANING",
+      "answer": "No, because (t + 4) is common; it can be written as (t + 4)(8n + 7).",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_MEANING"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 7 of the factorisation test.",
+      "stageMs": 71340,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 7,
+      "prompt": "Factorise: 5(x + 3) + n(x + 3)",
+      "origin": "AI",
+      "skill": "FAC_COMMON_BINOMIAL",
+      "answer": "(x + 3)(5 + n)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_COMMON_BINOMIAL"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 8 of the factorisation test.",
+      "stageMs": 44562,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 8,
+      "prompt": "Factorise fully: 4xy + 4y + 5x + 5",
+      "origin": "AI",
+      "skill": "FAC_GROUP_TERMS",
+      "answer": "(x + 1)(4y + 5)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_GROUP_TERMS",
+        "SECURE:FAC_COMMON_BINOMIAL",
+        "SECURE:FAC_MEANING"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 9 of the factorisation test.",
+      "stageMs": 37138,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 9,
+      "prompt": "Factorise: x^2 - 16",
+      "origin": "AI",
+      "skill": "FAC_DIFF_SQUARES",
+      "answer": "(x - 4)(x + 4)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_DIFF_SQUARES"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 10 of the factorisation test.",
+      "stageMs": 40996,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 10,
+      "prompt": "Factorise completely: 9p^2 - 4q^2",
+      "origin": "AI",
+      "skill": "FAC_DIFF_SQUARES",
+      "answer": "(3p - 2q)(3p + 2q)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_DIFF_SQUARES",
+        "SECURE:FND_RECOGNISE_SQUARE"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 11 of the factorisation test.",
+      "stageMs": 45975,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 11,
+      "prompt": "Factorise fully: x^2 + 10x + 25",
+      "origin": "AI",
+      "skill": "FAC_PERFECT_SQUARE_PLUS",
+      "answer": "(x + 5)(x + 5)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_PERFECT_SQUARE_PLUS"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 12 of the factorisation test.",
+      "stageMs": 37139,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 12,
+      "prompt": "Which two numbers have a product of 18 and a sum of -9?",
+      "origin": "AI",
+      "skill": "FAC_PAIR_PRODUCT_SUM",
+      "answer": "3 and 4",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "MISTAKE:FAC_PAIR_PRODUCT_SUM(SIGN_PAIR_ERROR)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 13 of the factorisation test.",
+      "stageMs": 67881,
+      "firstWrongStep": 1,
+      "mistakeDescription": "The chosen pair was not checked successfully: 3 × 4 is 12, not 18, and 3 + 4 is 7, not -9."
+    },
+    {
+      "n": 13,
+      "prompt": "Factorise x^2 + 6x + 5 fully.",
+      "origin": "AI",
+      "skill": "FAC_MONIC_TRINOMIAL",
+      "answer": "(x + 1)(x + 5)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "SECURE:FAC_MONIC_TRINOMIAL",
+        "SECURE:FAC_PAIR_PRODUCT_SUM"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 14 of the factorisation test.",
+      "stageMs": 41780,
+      "firstWrongStep": null,
+      "mistakeDescription": ""
+    },
+    {
+      "n": 14,
+      "prompt": "Factorise x^2 - 9x + 20 fully.",
+      "origin": "AI",
+      "skill": "FAC_MONIC_TRINOMIAL",
+      "answer": "(x + 4)(x + 5)",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "MISTAKE:FAC_MONIC_TRINOMIAL(SIGN_PAIR_ERROR)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 15 of the factorisation test.",
+      "stageMs": 37692,
+      "firstWrongStep": "1",
+      "mistakeDescription": "The student used +4 and +5 instead of -4 and -5, so the factors give a middle term of +9x rather than -9x."
+    },
+    {
+      "n": 15,
+      "prompt": "Factorise x^2 - x - 20 completely.",
+      "origin": "AI",
+      "skill": "FAC_MONIC_TRINOMIAL",
+      "answer": "(x + 5)(x - 4)",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "COMPLETE",
+      "evidence": [
+        "MISTAKE:FAC_MONIC_TRINOMIAL(SIGNS_SWAPPED)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 16 of the factorisation test.",
+      "stageMs": 31571,
+      "firstWrongStep": 1,
+      "mistakeDescription": "The chosen numbers 5 and -4 have sum +1, not the required sum -1, so the factor signs are reversed."
+    },
+    {
+      "n": 16,
+      "prompt": "Factorise completely: 9a^2 - 24a + 16",
+      "origin": "AI",
+      "skill": "FAC_PERFECT_SQUARE_MINUS",
+      "answer": "(3a + 4)^2",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "MISTAKE:FAC_PERFECT_SQUARE_MINUS(WRONG_MIDDLE_SIGN)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 17 of the factorisation test."
+    },
+    {
+      "n": 17,
+      "prompt": "Factorise fully: 8ab - 12b - 6a + 9",
+      "origin": "AI",
+      "skill": "FAC_GROUP_SIGN",
+      "answer": "4b(2a - 3) - 3(2a + 3)",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "MISTAKE:FAC_GROUP_SIGN(SIGN_NOT_FLIPPED_IN_GROUP)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 18 of the factorisation test."
+    },
+    {
+      "n": 18,
+      "prompt": "Kabir says x^2 + 3x - 28 = (x - 4)(x + 6). Is he right?",
+      "origin": "AI",
+      "skill": "FAC_VERIFY_EXPAND",
+      "answer": "No, because (x - 4)(x + 6) = x^2 + 2x - 24.",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "SECURE:FAC_VERIFY_EXPAND",
+        "SECURE:EXP_EXPAND_BINOMIALS"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 19 of the factorisation test."
+    },
+    {
+      "n": 19,
+      "prompt": "What should you do first to factorise 12x^2 - 48?",
+      "origin": "AI",
+      "skill": "FAC_CHOOSE_METHOD",
+      "answer": "Take out the greatest common factor 12.",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "SECURE:FAC_CHOOSE_METHOD"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 20 of the factorisation test."
+    },
+    {
+      "n": 20,
+      "prompt": "Factorise fully: 6x^2 - 24",
+      "origin": "AI",
+      "skill": "FAC_FACTOR_FULLY",
+      "answer": "6(x - 2)(x + 2)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "SECURE:FAC_FACTOR_FULLY",
+        "SECURE:FAC_COMMON_MONOMIAL",
+        "SECURE:FAC_DIFF_SQUARES",
+        "SECURE:FAC_CHOOSE_METHOD"
+      ],
+      "selection": "ADAPTIVE_STAGED — Rewritten to test Factorising fully without needing Factorising x² + bx + c."
+    },
+    {
+      "n": 21,
+      "prompt": "Factorise fully: 3x^2 - 27",
+      "origin": "AI",
+      "skill": "FAC_FACTOR_FULLY",
+      "answer": "3(x - 3)(x + 3)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "SECURE:FAC_FACTOR_FULLY",
+        "SECURE:FAC_COMMON_MONOMIAL",
+        "SECURE:FAC_MONIC_TRINOMIAL",
+        "SECURE:FAC_CHOOSE_METHOD"
+      ],
+      "selection": "ADAPTIVE_STAGED — Checks the suspected gap in Grouping when the second pair starts with a minus a second time."
+    },
+    {
+      "n": 22,
+      "prompt": "Factorise completely: 10xy - 6y - 5x + 3.",
+      "origin": "AI",
+      "skill": "FAC_GROUP_SIGN",
+      "answer": "2y(5x - 3) - (5x + 3)",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "MISTAKE:FAC_GROUP_SIGN(SIGN_NOT_FLIPPED_IN_GROUP)"
+      ],
+      "selection": "ADAPTIVE_STAGED — Checks the suspected gap in Taking out a negative common factor a second time."
+    },
+    {
+      "n": 23,
+      "prompt": "Factorise -9y - 27 by taking out a negative common factor.",
+      "origin": "AI",
+      "skill": "FAC_GCF_NEGATIVE",
+      "answer": "-9(-y - 3)",
+      "verification": "VERIFIED_INCORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "MISTAKE:FAC_GCF_NEGATIVE(KEPT_ORIGINAL_SIGNS)"
+      ],
+      "selection": "CURRICULUM_DECK — Planned question 24 of the factorisation test."
+    },
+    {
+      "n": 24,
+      "prompt": "Simplify fully: (x^2 - 25) / (x^2 - 10x + 25)",
+      "origin": "AI",
+      "skill": "FAC_CANCEL_COMMON_FACTOR",
+      "answer": "(x + 5)/(x - 5)",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "SECURE:FAC_CANCEL_COMMON_FACTOR",
+        "SECURE:FAC_DIFF_SQUARES",
+        "SECURE:FAC_PERFECT_SQUARE_MINUS"
+      ],
+      "selection": "ADAPTIVE_STAGED — Going down: is Expanding two brackets solid underneath Factorising x² + bx + c?"
+    },
+    {
+      "n": 25,
+      "prompt": "Which is equal to (a + 4)(a + 2)?",
+      "origin": "FALLBACK",
+      "skill": "EXP_EXPAND_BINOMIALS",
+      "answer": "a² + 6a + 8",
+      "verification": "VERIFIED_CORRECT",
+      "analysis": "PENDING",
+      "evidence": [
+        "SECURE:EXP_EXPAND_BINOMIALS"
+      ],
+      "selection": "NONE_EXIT — The planned test is complete."
+    }
+  ],
+  "turns": [
+    {
+      "n": 1,
+      "prompt": "Factorise completely: 8x + 12",
+      "answer": "4(2x + 3)",
+      "submitMs": 35,
+      "instant": true,
+      "remaining": 23
+    },
+    {
+      "n": 2,
+      "prompt": "Factorise completely: 6x^2y + 9x",
+      "answer": "3x(2xy + 3)",
+      "submitMs": 16,
+      "instant": true,
+      "remaining": 22
+    },
+    {
+      "n": 3,
+      "prompt": "Factorise completely: 8x^2 + 8x",
+      "answer": "8x(x + 1)",
+      "submitMs": 17,
+      "instant": true,
+      "remaining": 21
+    },
+    {
+      "n": 4,
+      "prompt": "Factorise fully: 12x^3 - 8x^4 + 4x^5.",
+      "answer": "4x^3(3 - 2x + x^2)",
+      "submitMs": 13,
+      "instant": true,
+      "remaining": 20
+    },
+    {
+      "n": 5,
+      "prompt": "Factorise -6x - 18 by taking out a negative common factor.",
+      "answer": "-6(-x - 3)",
+      "submitMs": 10,
+      "instant": true,
+      "remaining": 19
+    },
+    {
+      "n": 6,
+      "prompt": "Is 8n(t + 4) + 7(t + 4) fully factorised? Why?",
+      "answer": "No, because (t + 4) is common; it can be written as (t + 4)(8n + 7).",
+      "submitMs": 14,
+      "instant": true,
+      "remaining": 18
+    },
+    {
+      "n": 7,
+      "prompt": "Factorise: 5(x + 3) + n(x + 3)",
+      "answer": "(x + 3)(5 + n)",
+      "submitMs": 21,
+      "instant": true,
+      "remaining": 17
+    },
+    {
+      "n": 8,
+      "prompt": "Factorise fully: 4xy + 4y + 5x + 5",
+      "answer": "(x + 1)(4y + 5)",
+      "submitMs": 14,
+      "instant": true,
+      "remaining": 16
+    },
+    {
+      "n": 9,
+      "prompt": "Factorise: x^2 - 16",
+      "answer": "(x - 4)(x + 4)",
+      "submitMs": 15,
+      "instant": true,
+      "remaining": 15
+    },
+    {
+      "n": 10,
+      "prompt": "Factorise completely: 9p^2 - 4q^2",
+      "answer": "(3p - 2q)(3p + 2q)",
+      "submitMs": 13,
+      "instant": true,
+      "remaining": 14
+    },
+    {
+      "n": 11,
+      "prompt": "Factorise fully: x^2 + 10x + 25",
+      "answer": "(x + 5)(x + 5)",
+      "submitMs": 11,
+      "instant": true,
+      "remaining": 13
+    },
+    {
+      "n": 12,
+      "prompt": "Which two numbers have a product of 18 and a sum of -9?",
+      "answer": "3 and 4",
+      "submitMs": 13,
+      "instant": true,
+      "remaining": 12
+    },
+    {
+      "n": 13,
+      "prompt": "Factorise x^2 + 6x + 5 fully.",
+      "answer": "(x + 1)(x + 5)",
+      "submitMs": 16,
+      "instant": true,
+      "remaining": 11
+    },
+    {
+      "n": 14,
+      "prompt": "Factorise x^2 - 9x + 20 fully.",
+      "answer": "(x + 4)(x + 5)",
+      "submitMs": 7,
+      "instant": true,
+      "remaining": 10
+    },
+    {
+      "n": 15,
+      "prompt": "Factorise x^2 - x - 20 completely.",
+      "answer": "(x + 5)(x - 4)",
+      "submitMs": 9,
+      "instant": true,
+      "remaining": 8
+    },
+    {
+      "n": 16,
+      "prompt": "Factorise completely: 9a^2 - 24a + 16",
+      "answer": "(3a + 4)^2",
+      "submitMs": 9,
+      "instant": true,
+      "remaining": 8
+    },
+    {
+      "n": 17,
+      "prompt": "Factorise fully: 8ab - 12b - 6a + 9",
+      "answer": "4b(2a - 3) - 3(2a + 3)",
+      "submitMs": 20,
+      "instant": true,
+      "remaining": 7
+    },
+    {
+      "n": 18,
+      "prompt": "Kabir says x^2 + 3x - 28 = (x - 4)(x + 6). Is he right?",
+      "answer": "No, because (x - 4)(x + 6) = x^2 + 2x - 24.",
+      "submitMs": 8,
+      "instant": true,
+      "remaining": 6
+    },
+    {
+      "n": 19,
+      "prompt": "What should you do first to factorise 12x^2 - 48?",
+      "answer": "Take out the greatest common factor 12.",
+      "submitMs": 11,
+      "instant": true,
+      "remaining": 5
+    },
+    {
+      "n": 20,
+      "prompt": "Factorise fully: 6x^2 - 24",
+      "answer": "6(x - 2)(x + 2)",
+      "submitMs": 18,
+      "instant": true,
+      "remaining": 4
+    },
+    {
+      "n": 21,
+      "prompt": "Factorise fully: 3x^2 - 27",
+      "answer": "3(x - 3)(x + 3)",
+      "submitMs": 10,
+      "instant": true,
+      "remaining": 3
+    },
+    {
+      "n": 22,
+      "prompt": "Factorise completely: 10xy - 6y - 5x + 3.",
+      "answer": "2y(5x - 3) - (5x + 3)",
+      "submitMs": 8,
+      "instant": true,
+      "remaining": 2
+    },
+    {
+      "n": 23,
+      "prompt": "Factorise -9y - 27 by taking out a negative common factor.",
+      "answer": "-9(-y - 3)",
+      "submitMs": 10,
+      "instant": true,
+      "remaining": 1
+    },
+    {
+      "n": 24,
+      "prompt": "Simplify fully: (x^2 - 25) / (x^2 - 10x + 25)",
+      "answer": "(x + 5)/(x - 5)",
+      "submitMs": 11,
+      "instant": true,
+      "remaining": 0
+    },
+    {
+      "n": 25,
+      "prompt": "Which is equal to (a + 4)(a + 2)?",
+      "answer": "a² + 6a + 8",
+      "submitMs": 20022,
+      "instant": true,
+      "remaining": 0
+    }
+  ]
+}
