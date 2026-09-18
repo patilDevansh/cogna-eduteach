@@ -18,7 +18,7 @@ import { createPersonalizedVideoMemoryDb } from "../../src/personalized-videos/p
 import { PersonalizedVideosService } from "../../src/personalized-videos/personalized-videos.service";
 import { snapshotFromLotusSession } from "../../src/personalized-videos/lotus-evidence";
 import { evaluateRemediationEligibility } from "../../src/personalized-videos/video-evidence";
-import { collectSceneClaims, validateMathClaims } from "../../src/personalized-videos/video-math";
+import { collectSceneClaims, isTransformationLesson, validateMathClaims } from "../../src/personalized-videos/video-math";
 import { validateVideoLanguage } from "../../src/personalized-videos/video-language";
 import {
   VideoRendererAdapter,
@@ -875,6 +875,95 @@ describe("Personalized video narration synthesis", () => {
 
       assert.equal(manifests.length, 1);
       assert.ok(manifests[0]!.scenes.every((scene) => !scene.audioPath));
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe("Personalized video interactive equations", () => {
+  async function isolateMediaRoot(): Promise<() => void> {
+    const previous = process.env.COGNA_MEDIA_LOCAL_DIR;
+    const dir = await mkdtemp(path.join(os.tmpdir(), "interactive-eq-test-"));
+    process.env.COGNA_MEDIA_LOCAL_DIR = dir;
+    return () => {
+      if (previous === undefined) delete process.env.COGNA_MEDIA_LOCAL_DIR;
+      else process.env.COGNA_MEDIA_LOCAL_DIR = previous;
+    };
+  }
+
+  it("flags only rohan and divya as transformation lessons among the pilot templates", () => {
+    for (const [key, template] of Object.entries(APPROVED_VIDEO_TEMPLATES)) {
+      const expected = key === "rohan" || key === "divya";
+      assert.equal(
+        isTransformationLesson(template.lesson.scenes),
+        expected,
+        `${key} should${expected ? "" : " not"} be a transformation lesson`,
+      );
+    }
+  });
+
+  it("skips Remotion and delivers INTERACTIVE_EQUATION with per-scene audio for a transformation lesson", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" });
+
+      assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked");
+      assert.equal(view.status, "READY");
+      assert.equal(view.delivery, "INTERACTIVE_EQUATION");
+      assert.ok(view.lesson);
+      const narratedScenes = view.lesson!.scenes.filter((scene) => scene.narration);
+      assert.ok(
+        narratedScenes.some((scene) => scene.audioUrl),
+        "at least one scene should carry a signed narration audio URL",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the baked-video path when COGNA_INTERACTIVE_EQUATIONS_ENABLED=false", async () => {
+    const restore = await isolateMediaRoot();
+    const previousFlag = process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED;
+    process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED = "false";
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" });
+
+      assert.equal(manifests.length, 1, "the revert flag should route back through the baked-video renderer");
+      assert.equal(view.delivery, "VIDEO");
+    } finally {
+      if (previousFlag === undefined) delete process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED;
+      else process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED = previousFlag;
+      restore();
+    }
+  });
+
+  it("verifyStep accepts a correct both-sides operation and rejects an incorrect one, writing no evidence event", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos, db } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+      const actor = studentActor("demo_divya");
+
+      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" }, actor);
+      assert.equal(view.delivery, "INTERACTIVE_EQUATION");
+      // Divya's scene index 1 is "Cancel negative six with positive six" (from "2x-6=8", chip "+ 6").
+      const correct = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8+6" }, actor);
+      assert.equal(correct.valid, true);
+      const incorrect = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8-6" }, actor);
+      assert.equal(incorrect.valid, false);
+
+      const events = await db.personalizedVideoEvent.findMany({ where: { assignmentId: view.id } });
+      assert.equal(events.length, 0, "practice attempts must never write a diagnostic evidence event");
     } finally {
       restore();
     }

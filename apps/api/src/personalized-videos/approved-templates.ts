@@ -245,7 +245,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
           accent: "green",
           claims: [
             { kind: "EQUATION_TRANSFORMATION", from: "3(x-4)=21", to: "3x-12=21" },
-            { kind: "EQUATION_TRANSFORMATION", from: "3x-12=21", to: "3x=33" },
+            { kind: "EQUATION_TRANSFORMATION", from: "3x-12=21", to: "3x=33", chipLabel: "+ 12" },
           ],
         },
         {
@@ -343,7 +343,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
           durationSeconds: 12,
           accent: "amber",
           claims: [
-            { kind: "EQUATION_TRANSFORMATION", from: "2x-6=8", to: "2x-6+6=8+6" },
+            { kind: "EQUATION_TRANSFORMATION", from: "2x-6=8", to: "2x-6+6=8+6", chipLabel: "+ 6" },
           ],
         },
         {
@@ -355,7 +355,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
           accent: "green",
           claims: [
             { kind: "EQUATION_TRANSFORMATION", from: "2x-6+6=8+6", to: "2x=14" },
-            { kind: "EQUATION_TRANSFORMATION", from: "2x=14", to: "x=7" },
+            { kind: "EQUATION_TRANSFORMATION", from: "2x=14", to: "x=7", chipLabel: "÷ 2" },
           ],
         },
         {

@@ -1,0 +1,275 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type {
+  PersonalizedVideoAssignmentView,
+  PersonalizedVideoLessonScene,
+  VideoMathClaim,
+} from "@cogna/shared";
+import { api } from "@/lib/api";
+import styles from "./personalized-video.module.css";
+
+type TransformationClaim = Extract<VideoMathClaim, { kind: "EQUATION_TRANSFORMATION" }> & {
+  chipLabel: string;
+};
+
+function findChipClaim(scene: PersonalizedVideoLessonScene): TransformationClaim | undefined {
+  return scene.claims?.find(
+    (claim): claim is TransformationClaim =>
+      claim.kind === "EQUATION_TRANSFORMATION" && Boolean(claim.chipLabel),
+  );
+}
+
+/**
+ * "+ 6" / "÷ 2" style chip labels map to the parser-friendly operator the
+ * backend's verifyStepValidity (linear-bracket-verifier) already accepts —
+ * confirmed empirically (e.g. "2x=14" + "÷ 2" chip assembles to "2x/2=14/2",
+ * which verifies as a valid DIVIDE_BOTH_SIDES step).
+ */
+function chipOperator(chipLabel: string): { op: "+" | "-" | "*" | "/"; value: string } | null {
+  const match = chipLabel.trim().match(/^([+\-×x÷/])\s*(.+)$/);
+  if (!match) return null;
+  const symbolMap: Record<string, "+" | "-" | "*" | "/"> = {
+    "+": "+",
+    "-": "-",
+    "×": "*",
+    x: "*",
+    "÷": "/",
+    "/": "/",
+  };
+  const op = symbolMap[match[1]!];
+  if (!op) return null;
+  return { op, value: match[2]!.trim() };
+}
+
+function applyChip(side: string, chip: { op: string; value: string }): string {
+  return `${side}${chip.op}${chip.value}`;
+}
+
+type Zone = "left" | "right";
+
+function InteractiveEquationStep({
+  assignmentId,
+  sceneIndex,
+  claim,
+  onCorrect,
+}: {
+  assignmentId: string;
+  sceneIndex: number;
+  claim: TransformationClaim;
+  onCorrect: () => void;
+}) {
+  const [leftFilled, setLeftFilled] = useState(false);
+  const [rightFilled, setRightFilled] = useState(false);
+  const [hoverZone, setHoverZone] = useState<Zone | null>(null);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
+  const leftZoneRef = useRef<HTMLDivElement | null>(null);
+  const rightZoneRef = useRef<HTMLDivElement | null>(null);
+
+  const [leftSide, rightSide] = claim.from.split("=");
+  const chip = chipOperator(claim.chipLabel);
+  const bothFilled = leftFilled && rightFilled;
+
+  useEffect(() => {
+    // A fresh scene resets any in-progress drag/feedback state.
+    setLeftFilled(false);
+    setRightFilled(false);
+    setFeedback(null);
+  }, [sceneIndex]);
+
+  if (!chip) return null;
+  const safeChip = chip;
+
+  function zoneAt(x: number, y: number): Zone | null {
+    const left = leftZoneRef.current?.getBoundingClientRect();
+    const right = rightZoneRef.current?.getBoundingClientRect();
+    if (left && x >= left.left && x <= left.right && y >= left.top && y <= left.bottom) return "left";
+    if (right && x >= right.left && x <= right.right && y >= right.top && y <= right.bottom) return "right";
+    return null;
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (bothFilled || checking) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragPos({ x: event.clientX, y: event.clientY });
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragPos) return;
+    setDragPos({ x: event.clientX, y: event.clientY });
+    setHoverZone(zoneAt(event.clientX, event.clientY));
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragPos) return;
+    const zone = zoneAt(event.clientX, event.clientY);
+    if (zone === "left") setLeftFilled(true);
+    if (zone === "right") setRightFilled(true);
+    setDragPos(null);
+    setHoverZone(null);
+  }
+
+  async function check() {
+    setChecking(true);
+    const assembled = `${applyChip(leftSide!.trim(), safeChip)}=${applyChip(rightSide!.trim(), safeChip)}`;
+    try {
+      const result = await api.verifyPersonalizedVideoStep(assignmentId, sceneIndex, assembled);
+      if (result.valid) {
+        setFeedback("correct");
+        setTimeout(onCorrect, 700);
+      } else {
+        setFeedback("incorrect");
+        setTimeout(() => {
+          setLeftFilled(false);
+          setRightFilled(false);
+          setFeedback(null);
+        }, 1400);
+      }
+    } catch {
+      setFeedback("incorrect");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  return (
+    <div className={styles.dragBoard}>
+      <div className={styles.dragEquation}>
+        <div
+          ref={leftZoneRef}
+          className={`${styles.dragZone} ${leftFilled ? styles.dragZoneFilled : ""} ${
+            hoverZone === "left" ? styles.dragZoneHover : ""
+          }`}
+        >
+          {leftFilled ? claim.chipLabel : leftSide}
+        </div>
+        <span className={styles.dragEquals}>=</span>
+        <div
+          ref={rightZoneRef}
+          className={`${styles.dragZone} ${rightFilled ? styles.dragZoneFilled : ""} ${
+            hoverZone === "right" ? styles.dragZoneHover : ""
+          }`}
+        >
+          {rightFilled ? claim.chipLabel : rightSide}
+        </div>
+      </div>
+      {!bothFilled && (
+        <div className={styles.dragTray}>
+          <span>Drag onto both sides</span>
+          <div
+            className={styles.dragChip}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
+            {claim.chipLabel}
+          </div>
+        </div>
+      )}
+      {dragPos && (
+        <div
+          className={`${styles.dragChip} ${styles.dragChipGhost}`}
+          style={{ left: dragPos.x, top: dragPos.y }}
+        >
+          {claim.chipLabel}
+        </div>
+      )}
+      {bothFilled && !feedback && (
+        <button className={styles.playButton} disabled={checking} onClick={() => void check()}>
+          {checking ? "Checking…" : "Check"}
+        </button>
+      )}
+      {feedback && (
+        <div
+          className={`${styles.dragFeedback} ${
+            feedback === "correct" ? styles.dragFeedbackCorrect : styles.dragFeedbackIncorrect
+          }`}
+        >
+          {feedback === "correct"
+            ? "That keeps the equation balanced."
+            : "Not balanced yet — try again."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Drives the whole INTERACTIVE_EQUATION delivery: real per-scene narration
+ * audio (no baked video, no speechSynthesis), with scenes that carry a
+ * chip-eligible EQUATION_TRANSFORMATION claim rendered as the drag widget
+ * above, gating advancement on a verified-correct check. Other scenes in
+ * the same lesson (distribute/simplify/arithmetic) play as narrated static
+ * cards and auto-advance when their audio finishes.
+ */
+export function InteractiveLessonPlayer({
+  assignment,
+  onStart,
+  onFinish,
+}: {
+  assignment: PersonalizedVideoAssignmentView;
+  onStart: () => void;
+  onFinish: () => void;
+}) {
+  const scenes = assignment.lesson?.scenes ?? [];
+  const [sceneIndex, setSceneIndex] = useState(0);
+  const scene = scenes[sceneIndex];
+  const claim = scene ? findChipClaim(scene) : undefined;
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    onStart();
+  }, [onStart]);
+
+  const advance = () => {
+    setSceneIndex((index) => {
+      if (index >= scenes.length - 1) {
+        onFinish();
+        return index;
+      }
+      return index + 1;
+    });
+  };
+
+  useEffect(() => {
+    if (!scene || claim || scene.audioUrl) return;
+    // No audio for this scene (TTS unavailable) — fall back to a plain timer
+    // so the lesson never stalls waiting on an audio event that won't fire.
+    const id = setTimeout(advance, Math.max(scene.durationSeconds, 1) * 1000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneIndex, scene, claim]);
+
+  if (!scene) return null;
+
+  return (
+    <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
+      <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
+      <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
+        <span>{scene.eyebrow}</span>
+        <h2>{scene.headline}</h2>
+        {claim ? (
+          <InteractiveEquationStep
+            assignmentId={assignment.id}
+            sceneIndex={sceneIndex}
+            claim={claim}
+            onCorrect={advance}
+          />
+        ) : (
+          <div className={styles.equation}>{scene.equation.map((step) => step.text).join(" → ")}</div>
+        )}
+        <p>{scene.narration}</p>
+      </div>
+      {scene.audioUrl && (
+        <audio key={scene.audioUrl} src={scene.audioUrl} autoPlay onEnded={claim ? undefined : advance} />
+      )}
+      <div className={styles.progress}>
+        <span style={{ width: `${((sceneIndex + 1) / scenes.length) * 100}%` }} />
+      </div>
+    </div>
+  );
+}

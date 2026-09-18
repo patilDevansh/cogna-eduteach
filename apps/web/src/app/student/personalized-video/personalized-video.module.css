@@ -64,6 +64,20 @@
 .resultEvidence>*:nth-last-child(-n+2) { border-bottom:0; }
 .resultEvidence span { background:#f7f9f7; color:var(--ink-faint); font-size:.65rem; font-weight:850; }
 .resultEvidence strong { font-size:.8rem; }
+.dragBoard { margin:1.45rem 0; animation:sceneIn .42s ease both; }
+.dragEquation { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
+.dragSide { background:rgba(255,255,255,.78); border:1px solid rgba(7,63,52,.12); border-radius:14px; padding:1.1rem 1.25rem; font:700 clamp(1.15rem,2.6vw,1.7rem) var(--font-math); color:#073f34; }
+.dragEquals { font:800 1.4rem var(--font-math); color:#073f34; }
+.dragZone { min-width:76px; min-height:52px; display:grid; place-items:center; border:2px dashed var(--line-strong); border-radius:10px; padding:.4rem .7rem; font:700 1.1rem var(--font-math); color:var(--ink-faint); background:#fbfcfb; transition:border-color .15s ease, background .15s ease; }
+.dragZoneFilled { border-style:solid; border-color:var(--accent); color:#073f34; background:white; }
+.dragZoneHover { border-color:var(--accent); background:#eef8f2; }
+.dragTray { display:flex; align-items:center; gap:.7rem; }
+.dragTray>span { font-size:.72rem; color:var(--ink-faint); font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
+.dragChip { min-height:46px; padding:.55rem 1.1rem; border-radius:10px; border:1px solid var(--accent); background:var(--accent); color:white; font:800 1.05rem var(--font-math); cursor:grab; touch-action:none; user-select:none; }
+.dragChipGhost { position:fixed; z-index:50; pointer-events:none; transform:translate(-50%,-50%); opacity:.92; }
+.dragFeedback { margin-top:.9rem; font-size:.82rem; font-weight:700; }
+.dragFeedbackCorrect { color:#116344; }
+.dragFeedbackIncorrect { color:#7b4b00; }
 @keyframes sceneIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 @media(max-width:850px){.shell{grid-template-columns:1fr}.context{padding:1.4rem}.context h1{font-size:2rem}.pipeline{grid-template-columns:1fr 1fr}.videoStage{min-height:360px}.experience{padding:1rem}}
 @media(max-width:560px){.controls{grid-template-columns:1fr 1fr}.playButton{grid-row:1;grid-column:1/-1}.exitActions,.resultActions{flex-direction:column}.resultEvidence{grid-template-columns:1fr}.resultEvidence span{border-bottom:0}.header>div{display:none}}

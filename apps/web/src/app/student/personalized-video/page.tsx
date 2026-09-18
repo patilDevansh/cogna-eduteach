@@ -8,6 +8,7 @@ import { Wordmark } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession } from "@/lib/session";
+import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
 import styles from "./personalized-video.module.css";
 
 type Stage = "lesson" | "exit" | "result";
@@ -116,6 +117,7 @@ function PersonalizedVideoPage() {
   };
 
   const togglePlay = () => {
+    if (assignment?.delivery === "INTERACTIVE_EQUATION") return;
     void markWatched();
     if (assignment?.delivery === "VIDEO") {
       const node = videoRef.current;
@@ -151,7 +153,7 @@ function PersonalizedVideoPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (stage !== "lesson") return;
+      if (stage !== "lesson" || assignment?.delivery === "INTERACTIVE_EQUATION") return;
       if (event.key === " " || event.key === "k") {
         event.preventDefault();
         togglePlay();
@@ -295,12 +297,24 @@ function PersonalizedVideoPage() {
             <>
               <div className={styles.videoTop}>
                 <span>
-                  {assignment.delivery === "VIDEO" ? "REVIEWED VIDEO" : "APPROVED HTML LESSON"}
+                  {assignment.delivery === "VIDEO"
+                    ? "REVIEWED VIDEO"
+                    : assignment.delivery === "INTERACTIVE_EQUATION"
+                      ? "INTERACTIVE LESSON"
+                      : "APPROVED HTML LESSON"}
                   {assignment.lesson?.duration ? ` · ${assignment.lesson.duration}` : ""}
                 </span>
-                <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
+                {assignment.delivery !== "INTERACTIVE_EQUATION" && (
+                  <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
+                )}
               </div>
-              {assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
+              {assignment.delivery === "INTERACTIVE_EQUATION" ? (
+                <InteractiveLessonPlayer
+                  assignment={assignment}
+                  onStart={() => void markWatched()}
+                  onFinish={() => void finishLesson()}
+                />
+              ) : assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
                 <>
                   <video
                     ref={videoRef}

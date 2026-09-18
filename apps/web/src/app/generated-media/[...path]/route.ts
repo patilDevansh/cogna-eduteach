@@ -35,6 +35,7 @@ function contentTypeFor(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".vtt") return "text/vtt; charset=utf-8";
+  if (ext === ".mp3") return "audio/mpeg";
   return "application/octet-stream";
 }
 

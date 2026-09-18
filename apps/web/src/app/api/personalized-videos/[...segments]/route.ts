@@ -186,6 +186,18 @@ export async function POST(
         ),
       );
     }
+    if (segments.length === 3 && segments[0] === "assignments" && segments[2] === "verify-step") {
+      return Response.json(
+        await videos.verifyStep(
+          segments[1]!,
+          {
+            sceneIndex: Number(body.sceneIndex ?? -1),
+            assembledLine: String(body.assembledLine ?? ""),
+          },
+          actor,
+        ),
+      );
+    }
     if (segments.length === 1 && segments[0] === "render-callback") {
       assertWorker(actor);
       return Response.json(
