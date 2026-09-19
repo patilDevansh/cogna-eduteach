@@ -49,7 +49,7 @@ import { snapshotFromLotusSession } from "./lotus-evidence";
 import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
 import { evaluateRemediationEligibility } from "./video-evidence";
 import { validateVideoLanguage } from "./video-language";
-import { collectSceneClaims, isTransformationLesson, validateMathClaims } from "./video-math";
+import { collectSceneClaims, validateMathClaims } from "./video-math";
 import {
   RendererUnavailableError,
   VideoRendererAdapter,
@@ -60,12 +60,14 @@ const JOB_TYPE = "PERSONALIZED_VIDEO_RENDER";
 const WORKER_ID = `personalized-video-${process.pid}`;
 
 /**
- * Cheap revert switch for the interactive-equation delivery: flip this off
- * and transformation lessons fall straight back to the baked-video path with
- * no code changes, since isTransformationLesson()'s effect is gated on it.
+ * Cheap revert switch for the slides delivery: flip this off and every
+ * lesson falls straight back to the baked-video path with no code changes.
+ * Every approved template uses slides by default now, not just the ones
+ * with a drag-eligible EQUATION_TRANSFORMATION claim — Rohan/Divya's drag
+ * widget is one scene type slides can render, not the reason to use it.
  */
-export function interactiveEquationsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.COGNA_INTERACTIVE_EQUATIONS_ENABLED?.trim() !== "false";
+export function slidesDeliveryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.COGNA_SLIDES_DELIVERY_ENABLED?.trim() !== "false";
 }
 
 interface InteractiveRenderResult {
@@ -389,7 +391,7 @@ export class PersonalizedVideosService {
       return { status: JobStatus.FAILED_PERMANENT };
     }
 
-    if (interactiveEquationsEnabled() && isTransformationLesson(lesson.scenes)) {
+    if (slidesDeliveryEnabled()) {
       return this.processInteractiveRenderJob(jobId, job, assignmentId, assignment, lesson, payload);
     }
 
@@ -494,11 +496,13 @@ export class PersonalizedVideosService {
   }
 
   /**
-   * Transformation lessons skip Remotion entirely — there is no video to
-   * mux, so this only needs the narration audio (synthesizeNarration is
+   * The slides delivery skips Remotion entirely — there is no video to mux,
+   * so this only needs the narration audio (synthesizeNarration is
    * renderer-agnostic already) copied to public storage per scene, then the
-   * assignment marked ready directly. No ModalityAsset is created: the
-   * INTERACTIVE_EQUATION delivery has no video asset to represent.
+   * assignment marked ready directly. No ModalityAsset is created: SLIDES
+   * has no video asset to represent. Applies to every lesson, not just ones
+   * with a drag-eligible EQUATION_TRANSFORMATION claim — the frontend
+   * already renders a scene without one as a plain narrated card.
    */
   private async processInteractiveRenderJob(
     jobId: string,
@@ -1145,7 +1149,7 @@ export class PersonalizedVideosService {
     if (status === "TEMPORARILY_UNAVAILABLE") return "UNAVAILABLE";
     if (reviewStatus === "PENDING_REVIEW") return "UNDER_REVIEW";
     if (status === "UNDER_REVIEW") return "UNDER_REVIEW";
-    if (interactive && status === "READY") return "INTERACTIVE_EQUATION";
+    if (interactive && status === "READY") return "SLIDES";
     if (status === "READY" && reviewStatus === "APPROVED" && this.isPlayableVideo(storageRef)) {
       return "VIDEO";
     }

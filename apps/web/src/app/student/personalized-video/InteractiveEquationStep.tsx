@@ -200,12 +200,13 @@ function InteractiveEquationStep({
 }
 
 /**
- * Drives the whole INTERACTIVE_EQUATION delivery: real per-scene narration
- * audio (no baked video, no speechSynthesis), with scenes that carry a
- * chip-eligible EQUATION_TRANSFORMATION claim rendered as the drag widget
- * above, gating advancement on a verified-correct check. Other scenes in
- * the same lesson (distribute/simplify/arithmetic) play as narrated static
- * cards and auto-advance when their audio finishes.
+ * Drives the whole SLIDES delivery — real per-scene narration audio (no
+ * baked video, no speechSynthesis) for every lesson, not just ones with a
+ * drag step. Scenes that carry a chip-eligible EQUATION_TRANSFORMATION
+ * claim render as the drag widget above, gating advancement on a
+ * verified-correct check. Every other scene (distribute/simplify/
+ * arithmetic/none) plays as a narrated static card and auto-advances when
+ * its audio finishes.
  */
 // Breathing room between scenes once one finishes (narration ends, the
 // fallback timer fires, or a drag check is confirmed correct) before the

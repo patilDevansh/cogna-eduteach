@@ -118,7 +118,7 @@ function PersonalizedVideoPage() {
   };
 
   const togglePlay = () => {
-    if (assignment?.delivery === "INTERACTIVE_EQUATION") return;
+    if (assignment?.delivery === "SLIDES") return;
     void markWatched();
     if (assignment?.delivery === "VIDEO") {
       const node = videoRef.current;
@@ -154,7 +154,7 @@ function PersonalizedVideoPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (stage !== "lesson" || assignment?.delivery === "INTERACTIVE_EQUATION") return;
+      if (stage !== "lesson" || assignment?.delivery === "SLIDES") return;
       if (event.key === " " || event.key === "k") {
         event.preventDefault();
         togglePlay();
@@ -174,7 +174,12 @@ function PersonalizedVideoPage() {
       ["Objective selected", assignment?.status === "ABSTAINED" ? "abstained" : assignment ? "complete" : "pending"],
       ["Script generated", assignment?.lesson ? "complete" : "pending"],
       ["Math verified", math],
-      ["Lesson ready", delivery === "VIDEO" || delivery === "HTML_FALLBACK" ? "complete" : delivery ?? "pending"],
+      [
+        "Lesson ready",
+        delivery === "VIDEO" || delivery === "HTML_FALLBACK" || delivery === "SLIDES"
+          ? "complete"
+          : (delivery ?? "pending"),
+      ],
     ] as const;
   }, [assignment]);
 
@@ -300,16 +305,16 @@ function PersonalizedVideoPage() {
                 <span>
                   {assignment.delivery === "VIDEO"
                     ? "REVIEWED VIDEO"
-                    : assignment.delivery === "INTERACTIVE_EQUATION"
-                      ? "INTERACTIVE LESSON"
+                    : assignment.delivery === "SLIDES"
+                      ? "NARRATED SLIDES"
                       : "APPROVED HTML LESSON"}
                   {assignment.lesson?.duration ? ` · ${assignment.lesson.duration}` : ""}
                 </span>
-                {assignment.delivery !== "INTERACTIVE_EQUATION" && (
+                {assignment.delivery !== "SLIDES" && (
                   <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
                 )}
               </div>
-              {assignment.delivery === "INTERACTIVE_EQUATION" ? (
+              {assignment.delivery === "SLIDES" ? (
                 <InteractiveLessonPlayer
                   assignment={assignment}
                   onStart={() => void markWatched()}

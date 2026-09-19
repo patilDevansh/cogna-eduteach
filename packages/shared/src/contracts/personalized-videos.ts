@@ -22,7 +22,7 @@ export const PERSONALIZED_VIDEO_DELIVERIES = [
   "PREPARING",
   "UNDER_REVIEW",
   "VIDEO",
-  "INTERACTIVE_EQUATION",
+  "SLIDES",
   "HTML_FALLBACK",
   "UNAVAILABLE",
   "ABSTAINED",
@@ -87,8 +87,8 @@ export interface PersonalizedVideoLessonScene {
   claims?: VideoMathClaim[];
   /**
    * Signed URL to this scene's narration clip, populated server-side for the
-   * INTERACTIVE_EQUATION delivery (which has no baked video to carry audio).
-   * Not part of the authored template.
+   * SLIDES delivery (which has no baked video to carry audio). Not part of
+   * the authored template.
    */
   audioUrl?: string;
 }

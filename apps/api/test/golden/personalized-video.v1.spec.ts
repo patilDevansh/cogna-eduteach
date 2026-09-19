@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
@@ -468,6 +468,20 @@ describe("Personalized video access and trusted evidence", () => {
 });
 
 describe("Personalized video assignment pipeline", () => {
+  // These tests exercise the remote-renderer job/poll/callback machinery
+  // directly (mockRenderer() always configures a remote endpoint) — slides
+  // delivery defaults to on for every lesson now and would otherwise
+  // intercept processRenderJob before any of that code ever runs.
+  let previousSlidesFlag: string | undefined;
+  beforeEach(() => {
+    previousSlidesFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
+  });
+  afterEach(() => {
+    if (previousSlidesFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousSlidesFlag;
+  });
+
   it("does not create a remediation assignment from insufficient evidence", async () => {
     const { videos } = serviceWith();
     const assignment = await videos.createAssignment(
@@ -807,13 +821,22 @@ describe("Personalized video narration synthesis", () => {
   // tts-cache.ts reads defaultMediaRoot() from COGNA_MEDIA_LOCAL_DIR — point
   // it at a fresh temp dir per test so cache hits/misses are never polluted
   // by a real generated-media/tts-cache/ directory or a previous test run.
+  // These tests specifically exercise synthesizeNarration()'s wiring into
+  // VideoSceneManifest.scenes[].audioPath (the baked-video renderer path),
+  // so they force the slides delivery off — every lesson defaults to slides
+  // now, which never calls the renderer at all (see the "interactive
+  // equations" describe block below for that path's own coverage).
   async function isolateMediaRoot(): Promise<() => void> {
     const previous = process.env.COGNA_MEDIA_LOCAL_DIR;
+    const previousSlidesFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
     const dir = await mkdtemp(path.join(os.tmpdir(), "tts-cache-test-"));
     process.env.COGNA_MEDIA_LOCAL_DIR = dir;
+    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
     return () => {
       if (previous === undefined) delete process.env.COGNA_MEDIA_LOCAL_DIR;
       else process.env.COGNA_MEDIA_LOCAL_DIR = previous;
+      if (previousSlidesFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+      else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousSlidesFlag;
     };
   }
 
@@ -903,7 +926,7 @@ describe("Personalized video interactive equations", () => {
     }
   });
 
-  it("skips Remotion and delivers INTERACTIVE_EQUATION with per-scene audio for a transformation lesson", async () => {
+  it("skips Remotion and delivers SLIDES with per-scene audio for a transformation lesson", async () => {
     const restore = await isolateMediaRoot();
     try {
       const { renderer, manifests } = localMockRenderer();
@@ -914,7 +937,7 @@ describe("Personalized video interactive equations", () => {
 
       assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked");
       assert.equal(view.status, "READY");
-      assert.equal(view.delivery, "INTERACTIVE_EQUATION");
+      assert.equal(view.delivery, "SLIDES");
       assert.ok(view.lesson);
       const narratedScenes = view.lesson!.scenes.filter((scene) => scene.narration);
       assert.ok(
@@ -926,10 +949,29 @@ describe("Personalized video interactive equations", () => {
     }
   });
 
-  it("falls back to the baked-video path when COGNA_INTERACTIVE_EQUATIONS_ENABLED=false", async () => {
+  it("skips Remotion and delivers SLIDES even for a lesson with no EQUATION_TRANSFORMATION claim", async () => {
     const restore = await isolateMediaRoot();
-    const previousFlag = process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED;
-    process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED = "false";
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      const view = await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+
+      assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked, even without a drag-eligible claim");
+      assert.equal(view.status, "READY");
+      assert.equal(view.delivery, "SLIDES");
+      assert.ok(view.lesson);
+      assert.ok(view.lesson!.scenes.some((scene) => scene.audioUrl));
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the baked-video path when COGNA_SLIDES_DELIVERY_ENABLED=false", async () => {
+    const restore = await isolateMediaRoot();
+    const previousFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
     try {
       const { renderer, manifests } = localMockRenderer();
       const { tts } = fakeTts({ enabled: true });
@@ -940,8 +982,8 @@ describe("Personalized video interactive equations", () => {
       assert.equal(manifests.length, 1, "the revert flag should route back through the baked-video renderer");
       assert.equal(view.delivery, "VIDEO");
     } finally {
-      if (previousFlag === undefined) delete process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED;
-      else process.env.COGNA_INTERACTIVE_EQUATIONS_ENABLED = previousFlag;
+      if (previousFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+      else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousFlag;
       restore();
     }
   });
@@ -955,7 +997,7 @@ describe("Personalized video interactive equations", () => {
       const actor = studentActor("demo_divya");
 
       const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" }, actor);
-      assert.equal(view.delivery, "INTERACTIVE_EQUATION");
+      assert.equal(view.delivery, "SLIDES");
       // Divya's scene index 1 is "Cancel negative six with positive six" (from "2x-6=8", chip "+ 6").
       const correct = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8+6" }, actor);
       assert.equal(correct.valid, true);
