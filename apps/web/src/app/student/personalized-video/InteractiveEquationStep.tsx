@@ -225,17 +225,17 @@ export function InteractiveLessonPlayer({
   const scenes = assignment.lesson?.scenes ?? [];
   const [sceneIndex, setSceneIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Browsers block audio autoplay until the page has a user gesture — the
+  // very first scene's <audio autoPlay> was silently rejected on load
+  // (confirmed: it only started playing after clicking Pause/Resume, which
+  // supplied that first gesture). Gating the whole player behind an
+  // explicit "Start" click supplies that gesture up front, so every scene's
+  // audio — including the first — plays without needing a manual unlock.
+  const [started, setStarted] = useState(false);
   const scene = scenes[sceneIndex];
   const claim = scene ? findChipClaim(scene) : undefined;
-  const startedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const gapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    onStart();
-  }, [onStart]);
 
   const clearGapTimer = () => {
     if (gapTimer.current) {
@@ -272,22 +272,44 @@ export function InteractiveLessonPlayer({
   useEffect(() => clearGapTimer, []);
 
   useEffect(() => {
+    if (!started) return;
     const audio = audioRef.current;
     if (!audio) return;
     if (paused) audio.pause();
     else void audio.play().catch(() => undefined);
-  }, [paused, sceneIndex]);
+  }, [started, paused, sceneIndex]);
 
   useEffect(() => {
-    if (!scene || claim || scene.audioUrl || paused) return;
+    if (!started || !scene || claim || scene.audioUrl || paused) return;
     // No audio for this scene (TTS unavailable) — fall back to a plain timer
     // so the lesson never stalls waiting on an audio event that won't fire.
     const id = setTimeout(requestAdvance, Math.max(scene.durationSeconds, 1) * 1000);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneIndex, scene, claim, paused]);
+  }, [started, sceneIndex, scene, claim, paused]);
 
   if (!scene) return null;
+
+  if (!started) {
+    return (
+      <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
+        <div className={styles.sceneCopy}>
+          <span>{scene.eyebrow}</span>
+          <h2>{scene.headline}</h2>
+          <p>Your browser needs a tap before it can play audio — press play to begin.</p>
+        </div>
+        <button
+          className={styles.playButton}
+          onClick={() => {
+            setStarted(true);
+            onStart();
+          }}
+        >
+          ▶ Start lesson
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
