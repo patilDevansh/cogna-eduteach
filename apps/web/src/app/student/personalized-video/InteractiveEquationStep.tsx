@@ -7,6 +7,7 @@ import type {
   VideoMathClaim,
 } from "@cogna/shared";
 import { api } from "@/lib/api";
+import { renderEquationSteps } from "./equation-highlight";
 import styles from "./personalized-video.module.css";
 
 type TransformationClaim = Extract<VideoMathClaim, { kind: "EQUATION_TRANSFORMATION" }> & {
@@ -326,7 +327,7 @@ export function InteractiveLessonPlayer({
               onCorrect={requestAdvance}
             />
           ) : (
-            <div className={styles.equation}>{scene.equation.map((step) => step.text).join(" → ")}</div>
+            <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
           )}
           <p>{scene.narration}</p>
         </div>

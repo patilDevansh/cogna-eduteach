@@ -1,9 +1,51 @@
 import React from "react";
-import { AbsoluteFill, Audio, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import type { EquationStep, LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
 import { sceneTransitionFrames } from "./types";
+
+const HIGHLIGHT_STYLE: React.CSSProperties = {
+  display: "inline-block",
+  background: "rgba(31,138,110,0.16)",
+  borderRadius: 6,
+  padding: "0 4px",
+  margin: "0 -2px",
+};
+
+/**
+ * Renders text with its authored highlight ranges wrapped in a chip that
+ * pops in over popProgress (0→1, driven by frames-since-this-step-started —
+ * see callers) rather than appearing instantly with the rest of the step.
+ */
+function renderHighlightedText(
+  text: string,
+  ranges: Array<[number, number]> | undefined,
+  popProgress: number,
+): React.ReactNode {
+  if (!ranges?.length) return text;
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  sorted.forEach(([start, end], index) => {
+    if (start > cursor) nodes.push(text.slice(cursor, start));
+    nodes.push(
+      <span
+        key={index}
+        style={{
+          ...HIGHLIGHT_STYLE,
+          opacity: popProgress,
+          transform: `scale(${0.85 + 0.15 * popProgress})`,
+        }}
+      >
+        {text.slice(start, end)}
+      </span>,
+    );
+    cursor = end;
+  });
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
 
 const ACCENTS: Record<string, { background: string; ink: string; muted: string }> = {
   green: { background: "linear-gradient(140deg,#dff2e9,#b8dece)", ink: "#073f34", muted: "#34574e" },
@@ -42,8 +84,18 @@ function EquationDisplay({
   fps: number;
 }) {
   const frame = useCurrentFrame();
+  const popFrames = Math.round(0.35 * fps);
+
   if (steps.length <= 1) {
-    return <div style={EQUATION_BOX_STYLE}>{steps[0]?.text ?? ""}</div>;
+    const popProgress = interpolate(frame, [0, popFrames], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    return (
+      <div style={EQUATION_BOX_STYLE}>
+        {renderHighlightedText(steps[0]?.text ?? "", steps[0]?.highlight, popProgress)}
+      </div>
+    );
   }
 
   const transitionFrames = Math.min(Math.round(0.35 * fps), Math.floor(durationInFrames / steps.length / 2));
@@ -60,9 +112,16 @@ function EquationDisplay({
     currentOpacity = 1 - nextOpacity;
   }
 
+  const popProgress = interpolate(localFrame, [0, popFrames], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
   return (
     <div style={{ position: "relative" }}>
-      <div style={{ ...EQUATION_BOX_STYLE, opacity: currentOpacity }}>{steps[index]!.text}</div>
+      <div style={{ ...EQUATION_BOX_STYLE, opacity: currentOpacity }}>
+        {renderHighlightedText(steps[index]!.text, steps[index]!.highlight, popProgress)}
+      </div>
       {!isLastStep && nextOpacity > 0 && (
         <div style={{ ...EQUATION_BOX_STYLE, position: "absolute", inset: 0, opacity: nextOpacity }}>
           {steps[index + 1]!.text}

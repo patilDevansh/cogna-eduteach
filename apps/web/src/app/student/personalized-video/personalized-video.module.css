@@ -32,6 +32,8 @@
 .sceneCopy>span { color:var(--accent-deep); font-size:.75rem; font-weight:850; text-transform:uppercase; letter-spacing:.09em; }
 .sceneCopy h2 { font-size:clamp(1.8rem,4vw,3.4rem); max-width:700px; line-height:1.03; margin-top:.55rem; }
 .equation { margin:1.45rem 0; background:rgba(255,255,255,.78); border:1px solid rgba(7,63,52,.12); border-radius:14px; padding:1.1rem 1.25rem; font:700 clamp(1.25rem,3vw,2rem) var(--font-math); color:#073f34; }
+.equationHighlight { display:inline-block; background:rgba(31,138,110,.16); border-radius:6px; padding:0 .2rem; margin:0 -.1rem; animation:equationPop .4s ease both; }
+@keyframes equationPop { from{opacity:0;transform:scale(.8)} to{opacity:1;transform:scale(1)} }
 .sceneCopy p { max-width:680px; color:#34574e; line-height:1.55; font-size:.9rem; }
 .progress { height:6px; background:#dbe3de; border-radius:99px; overflow:hidden; margin-top:1rem; }
 .progress span { height:100%; display:block; border-radius:inherit; background:var(--accent); transition:width .35s ease; }

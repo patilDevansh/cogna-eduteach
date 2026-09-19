@@ -8,6 +8,7 @@ import { Wordmark } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession } from "@/lib/session";
+import { renderEquationSteps } from "./equation-highlight";
 import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
 import styles from "./personalized-video.module.css";
 
@@ -349,9 +350,7 @@ function PersonalizedVideoPage() {
                     <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
                       <span>{scene.eyebrow}</span>
                       <h2>{scene.headline}</h2>
-                      <div className={styles.equation}>
-                        {scene.equation.map((step) => step.text).join(" → ")}
-                      </div>
+                      <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
                       <p>{scene.narration}</p>
                     </div>
                   </div>

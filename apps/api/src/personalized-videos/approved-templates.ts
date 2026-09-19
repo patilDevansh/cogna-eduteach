@@ -76,7 +76,10 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Make it visible",
           headline: "Write two signed products",
-          equation: [{ text: "−2(y − 5)" }, { text: "(−2)(y) + (−2)(−5)" }],
+          equation: [
+            { text: "−2(y − 5)" },
+            { text: "(−2)(y) + (−2)(−5)", highlight: [[10, 18]] },
+          ],
           narration:
             "Before calculating, write every signed multiplication. The outside negative two multiplies both terms, including negative five.",
           durationSeconds: 12,
@@ -88,7 +91,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Calculate",
           headline: "Now apply the rule you know",
-          equation: [{ text: "(−2)(y) + (−2)(−5)" }, { text: "−2y + 10" }],
+          equation: [{ text: "(−2)(y) + (−2)(−5)" }, { text: "−2y + 10", highlight: [[4, 8]] }],
           narration:
             "Negative two times y is negative two y. Negative two times negative five is positive ten.",
           durationSeconds: 10,
@@ -166,7 +169,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "The missed action",
           headline: "Three must reach both terms",
-          equation: [{ text: "3(x − 2)" }, { text: "3x − 6" }],
+          equation: [{ text: "3(x − 2)" }, { text: "3x − 6", highlight: [[3, 6]] }],
           narration:
             "In the second bracket, three multiplies x and negative two. Use one visual arrow for each term.",
           durationSeconds: 11,
@@ -176,7 +179,10 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Put both results together",
           headline: "Only combine after both brackets open",
-          equation: [{ text: "(3x − 4) + (3x − 6)" }, { text: "6x − 10" }],
+          equation: [
+            { text: "(3x − 4) + (3x − 6)" },
+            { text: "6x − 10", highlight: [[0, 2], [3, 7]] },
+          ],
           narration:
             "Open both brackets completely. Then combine the like terms: three x plus three x, and negative four plus negative six.",
           durationSeconds: 12,
@@ -261,7 +267,10 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Correct the arithmetic",
           headline: "Thirty-three divided by three",
-          equation: [{ text: "x = 11" }, { text: "3(11 − 4) = 21 ✓" }],
+          equation: [
+            { text: "x = 11", highlight: [[4, 6]] },
+            { text: "3(11 − 4) = 21 ✓", highlight: [[12, 16]] },
+          ],
           narration:
             "Thirty-three divided by three is eleven. Substitution now returns twenty-one, so the solution checks.",
           durationSeconds: 11,
@@ -327,7 +336,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "Your evidence",
           headline: "You combined the x terms correctly",
-          equation: [{ text: "4x − 2x" }, { text: "2x ✓" }],
+          equation: [{ text: "4x − 2x" }, { text: "2x ✓", highlight: [[0, 2]] }],
           narration:
             "Divya, you correctly combined four x and negative two x. The next step is about maintaining equality.",
           durationSeconds: 8,
@@ -416,7 +425,7 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
         {
           eyebrow: "One task",
           headline: "Write the first useful step",
-          equation: [{ text: "2(x + 3)" }, { text: "2x + 6" }],
+          equation: [{ text: "2(x + 3)" }, { text: "2x + 6", highlight: [[3, 6]] }],
           narration:
             "For the next question, enter one useful working step before the final answer. This lets Cogna distinguish method from guessing.",
           durationSeconds: 10,
