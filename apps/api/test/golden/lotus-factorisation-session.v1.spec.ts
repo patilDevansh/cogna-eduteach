@@ -266,6 +266,23 @@ describe("factorisation session — start", () => {
     assert.notEqual(view.topic, "FACTORISATION");
     assert.equal(internal(service, view.sessionId).factorisation, undefined);
   });
+
+  it("the first question varies across sessions, and every question is AI-generated — never a hardcoded fallback (Phase 3)", async () => {
+    const a = setup();
+    const b = setup();
+    const viewA = await startReady(a.service, "demo_aarav");
+    const viewB = await startReady(b.service, "demo_meena");
+    assert.notEqual(viewA.currentQuestion!.prompt, viewB.currentQuestion!.prompt, "two sessions must not share the same opening question");
+    for (const view of [viewA, viewB]) {
+      const session = internal(view === viewA ? a.service : b.service, view.sessionId);
+      const allQuestions = [session.openingAudit?.question, session.currentQuestion, ...Object.values(session.factorisation.versions).flat()]
+        .filter((q: unknown): q is { answerKey: { diagnostics?: { origin?: string } } } => !!q);
+      assert.ok(allQuestions.length > 0);
+      for (const question of allQuestions) {
+        assert.equal(question.answerKey.diagnostics?.origin, "AI", "every factorisation item must be AI-generated; a hardcoded provenance is never eligible for display");
+      }
+    }
+  });
 });
 
 describe("factorisation session — the AI writes each student's own questions", () => {
@@ -402,6 +419,106 @@ describe("factorisation session — safety of the running test", () => {
     const session = internal(service, view.sessionId);
     assert.ok(session.audits.some((audit: { analysisStatus: string }) => audit.analysisStatus === "COMPLETE"), "the delayed review completed");
     assert.ok(session.factorisation.writes.some((write: { purpose: string; outcome: string }) => write.purpose === "CHECK" && write.outcome === "USED"), "the review caused a fresh future check");
+  });
+
+  it("an AI-found mistake installs its check in the earliest unseen slot, never a distant Q24/Q25 rewrite (the observed Q2 case)", async () => {
+    // Replays the failure mode from COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md
+    // §8: a mistake code alone couldn't explain was correctly picked up by
+    // the AI review, but the plan change previously landed at a distant,
+    // unrelated Q24/Q25 slot instead of near the current turn.
+    const { models, service } = setup();
+    let release!: () => void;
+    models.closureGate = new Promise((resolve) => { release = resolve; });
+    models.firstWrongStep = 2;
+    let view = await startReady(service, "demo_aarav");
+    view = await submit(service, view, "3(2x + 4)"); // unpredicted — only the AI review can explain it
+    release();
+    await flush();
+    view = await service.get(view.sessionId);
+    const session = internal(service, view.sessionId);
+    const check = session.factorisation.state.turns.find((t: { purpose?: string }) => t.purpose === "CHECK");
+    assert.ok(check, "expected the AI's finding to install a targeted check");
+    assert.ok(check.turn <= session.audits.length + 6,
+      `check installed at turn ${check.turn}, expected it within a few turns of the current one (Q${session.audits.length + 1}), not far in the plan`);
+    assert.ok(![24, 25].includes(check.turn), "must never land at the distant Q24/Q25 slots merely because they were still unseen");
+  });
+
+  it("shows the adaptation tag only on the installed changed item, never on an unchanged coverage question", async () => {
+    const { models, service } = setup();
+    let release!: () => void;
+    models.closureGate = new Promise((resolve) => { release = resolve; });
+    models.firstWrongStep = 2;
+    let view = await startReady(service, "demo_aarav");
+    view = await submit(service, view, "3(2x + 4)"); // unpredicted — only the AI review can explain it
+    release();
+    await flush();
+    view = await service.get(view.sessionId);
+    let session = internal(service, view.sessionId);
+    const check = session.factorisation.state.turns.find((t: { purpose?: string }) => t.purpose === "CHECK");
+    assert.ok(check, "expected the AI's finding to install a targeted check");
+
+    let taggedAudit: { questionSelection: { adaptationTag?: { kind: string; skill?: string } } } | undefined;
+    for (let i = 0; i < 10 && session.factorisation.state.planTurn < check.turn; i += 1) {
+      const before = session.factorisation.state.planTurn;
+      view = await submit(service, view, predictedWrong(service, view));
+      session = internal(service, view.sessionId);
+      if (before < check.turn && session.factorisation.state.planTurn === check.turn) {
+        taggedAudit = view.audits.at(-1);
+      }
+    }
+    assert.ok(taggedAudit, "never reached the installed check turn within the loop budget");
+    assert.equal(taggedAudit!.questionSelection.adaptationTag?.kind, "TARGETED_CHECK");
+    assert.match(String((taggedAudit!.questionSelection.adaptationTag as { skill: string }).skill), /\S/, "the tag must name the skill it targets");
+
+    // Every other, unchanged turn in this same response must carry no tag at all.
+    const untaggedCount = view.audits.filter((audit) => audit !== taggedAudit && audit.questionSelection.adaptationTag).length;
+    assert.equal(untaggedCount, 0, "an adaptation tag must never appear on an unchanged, originally-planned coverage item");
+  });
+
+  it("rapid progress through several turns while an earlier review is still pending doesn't corrupt the plan or duplicate a probe", async () => {
+    const { models, service } = setup();
+    let release!: () => void;
+    models.closureGate = new Promise((resolve) => { release = resolve; });
+    models.firstWrongStep = 2;
+    let view = await startReady(service, "demo_aarav");
+    // Q1's review is held open while the student races ahead to Q5.
+    view = await submit(service, view, "3(2x + 4)");
+    for (let i = 0; i < 4; i += 1) {
+      const predicted = predictedWrong(service, view);
+      view = await submit(service, view, predicted);
+    }
+    assert.equal(view.audits.length, 5);
+    assert.ok(view.status === "ACTIVE" || view.status === "COMPLETE");
+    release();
+    await flush();
+    view = await service.get(view.sessionId);
+    const session = internal(service, view.sessionId);
+    assert.ok(session.audits[0].analysisStatus === "COMPLETE", "Q1's late review still completes");
+    const checks = session.factorisation.state.turns.filter((t: { purpose?: string }) => t.purpose === "CHECK") as
+      Array<{ forSkill?: string }>;
+    const skillsChecked = checks.map((t) => t.forSkill);
+    assert.equal(skillsChecked.length, new Set(skillsChecked).size, "the same skill must never claim two targeted-check slots");
+    for (let i = 1; i < 5; i += 1) {
+      assert.equal(session.audits[i].analysisStatus, "COMPLETE", `Q${i + 1}'s own instant/AI evidence is unaffected by Q1's delayed result`);
+    }
+  });
+
+  it("when a secure skill has no different representation to check, the decision is an explicit KEEP, never an invented probe", async () => {
+    const { service } = setup();
+    let view = await startReady(service, "demo_divya"); // gets everything right
+    // FAC_PERFECT_SQUARE_PLUS (slot 11) is the only catalogue slot for that skill — no widen target exists.
+    while (view.status === "ACTIVE" && internal(service, view.sessionId).audits.length < 11) {
+      const canonical = internal(service, view.sessionId).currentQuestion.answerKey.canonicalAnswer;
+      view = await submit(service, view, canonical);
+      await flush();
+      view = await service.get(view.sessionId);
+    }
+    const session = internal(service, view.sessionId);
+    const audit = session.audits.find((a: { question: { answerKey: { diagnostics?: { skillId: string } } } }) =>
+      a.question.answerKey.diagnostics?.skillId === "FAC_PERFECT_SQUARE_PLUS");
+    if (audit?.adaptiveDecision) {
+      assert.equal(audit.adaptiveDecision.action, "KEEP", "no widen target is available, so the decision must be an explicit KEEP");
+    }
   });
 
   it("an observer can end the test early; the report says what wasn't reached", async () => {

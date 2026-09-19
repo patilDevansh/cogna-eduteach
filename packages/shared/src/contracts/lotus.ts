@@ -272,6 +272,14 @@ export interface LotusQuestionSelection {
     | "AI_GENERATED_FOR_SESSION"
     | "AI_REUSED_FROM_BANK"
     | "HARDCODED_SYSTEM";
+  /**
+   * Present only when THIS specific item was installed by an adaptive
+   * decision — never merely because an AI recommended a change elsewhere,
+   * and never for an unchanged, originally-planned coverage item. Mirrors
+   * the plain-language labels in COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md
+   * §10 Phase 3 for the tags the current decision set actually produces.
+   */
+  adaptationTag?: LotusAdaptationTag;
   informationGain: {
     passed: boolean;
     explanation: string;
@@ -309,6 +317,21 @@ export type LotusAnalysisStatus = "PENDING" | "COMPLETE" | "NOT_REQUIRED";
 
 /** The source of the turn's interpretation, separate from its maths verdict. */
 export type LotusAnalysisSource = "DETERMINISTIC" | "SUPPORT_SIGNAL" | "AI_REVIEW";
+
+/**
+ * The plain-language adaptation tag shown beside a question's provenance
+ * badge when — and only when — this specific item was installed by an
+ * adaptive decision (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md §10 Phase 3,
+ * §11 "Plan and question transparency"). `CHALLENGE_EXTENSION` from the doc
+ * has no corresponding decision in this codebase yet and is deliberately
+ * not offered here — the tag vocabulary only covers actions that can
+ * actually be installed today.
+ */
+export type LotusAdaptationTag =
+  | { kind: "TARGETED_CHECK"; skill: string }
+  | { kind: "EASIER_PREREQUISITE"; skill: string }
+  | { kind: "BROADENED_EVIDENCE"; skill: string }
+  | { kind: "COVERAGE_REPLACEMENT"; reason: string };
 
 /**
  * A concrete, auditable planning move. This is deliberately separate from a

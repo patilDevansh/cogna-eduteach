@@ -179,6 +179,21 @@ function ProposalCard({
   );
 }
 
+/**
+ * §11 "Plan and question transparency": shown only for an installed changed
+ * item (selection.adaptationTag is only ever set on that item, never on an
+ * unchanged coverage question or merely because a recommendation exists),
+ * so it never implies a modification that didn't happen.
+ */
+function adaptationTagLabel(tag: NonNullable<LotusQuestionSelection["adaptationTag"]>): string {
+  switch (tag.kind) {
+    case "TARGETED_CHECK": return `Targeted check — ${tag.skill}`;
+    case "EASIER_PREREQUISITE": return `Easier prerequisite — ${tag.skill}`;
+    case "BROADENED_EVIDENCE": return `Broadened evidence — ${tag.skill}`;
+    case "COVERAGE_REPLACEMENT": return `Coverage replacement — ${tag.reason}`;
+  }
+}
+
 function QuestionDecision({ selection }: { selection: LotusQuestionSelection }) {
   const sourceLabel = selection.provenance === "AI_GENERATED_FOR_SESSION"
     ? "AI-generated from a planned skill slot"
@@ -215,7 +230,14 @@ function QuestionDecision({ selection }: { selection: LotusQuestionSelection }) 
           </span>
         )}
       </div>
-      {provenanceLabel && <div className={styles.questionProvenance} role="status">{provenanceLabel}</div>}
+      {provenanceLabel && (
+        <div className={styles.questionProvenance} role="status">
+          {provenanceLabel}
+          {selection.adaptationTag && (
+            <span className={styles.adaptationTag}> · {adaptationTagLabel(selection.adaptationTag)}</span>
+          )}
+        </div>
+      )}
       <div className={styles.proposalGrid}>
         <ProposalCard label="Primary proposed" question={selection.primaryProposal} />
         <ProposalCard label="Challenger proposed" question={selection.challengerProposal} />
@@ -256,13 +278,67 @@ function DiagnosticDecision({ audit }: { audit: LotusQuestionAudit }) {
   );
 }
 
-function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
-  if (!audit.response) return null;
-  const source = audit.analysisSource === "SUPPORT_SIGNAL"
+/** Shared with the per-turn status strip so the two views of "where did this come from" never disagree. */
+function evidenceSourceLabel(audit: LotusQuestionAudit): string {
+  return audit.analysisSource === "SUPPORT_SIGNAL"
     ? "Student support signal"
     : audit.analysisSource === "AI_REVIEW"
       ? "AI-reviewed interpretation"
       : "Deterministic maths check";
+}
+
+/**
+ * The Phase 0 "per-turn status strip"
+ * (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md §10): what's verified, whether
+ * the AI review is queued/running/complete/failed, how long it's taken, and
+ * where the interpretation actually came from — all in the turn's summary
+ * row, so pending or failed review is never mistaken for a finished one.
+ * Only uses data the audit already carries (createdAt, analysisStatus,
+ * timingMs, liveProgress) — no fabricated timestamps.
+ */
+function TurnStatusStrip({
+  audit,
+  liveProgress,
+  isLatest,
+}: {
+  audit: LotusQuestionAudit;
+  liveProgress?: LotusSessionView["liveProgress"];
+  isLatest: boolean;
+}) {
+  if (!audit.response) return null;
+  const failed = audit.analysisStatus === "PENDING" &&
+    /background analysis failed/i.test(audit.conclusion?.conclusion ?? "");
+  const reviewLabel = audit.analysisStatus === "NOT_REQUIRED"
+    ? "AI review not required"
+    : audit.analysisStatus === "COMPLETE"
+      ? `AI review complete${audit.timingMs ? ` in ${(audit.timingMs.total / 1000).toFixed(1)}s` : ""}`
+      : failed
+        ? "AI review failed"
+        : isLatest && liveProgress
+          ? `AI review running (${liveProgress.stage.toLowerCase()})`
+          : (() => {
+            const queuedSeconds = Math.max(0, Math.round((Date.now() - new Date(audit.createdAt).getTime()) / 1000));
+            return `AI review queued (${queuedSeconds}s)`;
+          })();
+  const reviewClass = audit.analysisStatus === "COMPLETE"
+    ? styles.statusComplete
+    : failed
+      ? styles.statusFailed
+      : audit.analysisStatus === "NOT_REQUIRED"
+        ? styles.statusNeutral
+        : styles.statusPending;
+  return (
+    <div className={styles.turnStatusStrip} role="status">
+      <span className={styles.statusChip}>Code verified</span>
+      <span className={`${styles.statusChip} ${reviewClass}`}>{reviewLabel}</span>
+      <span className={styles.statusChip}>{evidenceSourceLabel(audit)}</span>
+    </div>
+  );
+}
+
+function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
+  if (!audit.response) return null;
+  const source = evidenceSourceLabel(audit);
   const mathsFact = audit.verification?.explanation ?? "No deterministic maths fact was available.";
   const directEvidence = audit.skillEvidence?.length
     ? audit.skillEvidence.map((item) => item.description ?? item.mistake ?? item.skillId)
@@ -391,11 +467,13 @@ function AuditCard({
   index,
   latest,
   opening,
+  liveProgress,
 }: {
   audit: LotusQuestionAudit;
   index: number;
   latest: boolean;
   opening?: boolean;
+  liveProgress?: LotusSessionView["liveProgress"];
 }) {
   return (
     <details className={styles.auditCard} open={latest}>
@@ -409,6 +487,7 @@ function AuditCard({
           </span>
         </span>
         <span className={styles.verdictBadge}>{audit.conclusion.verdict.replaceAll("_", " ")}</span>
+        <TurnStatusStrip audit={audit} liveProgress={liveProgress} isLatest={latest} />
       </summary>
 
       <div className={styles.auditBody}>
@@ -1305,6 +1384,7 @@ function LotusPage() {
                       opening={index === 0}
                       index={index}
                       latest={index === audits.length - 1}
+                      liveProgress={session.liveProgress}
                     />
                   ))}
                   {busy && liveProgress && <LiveProgressCard progress={liveProgress} index={audits.length} />}

@@ -1,12 +1,13 @@
-import { Body, Controller, Get, Headers, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Post, Query } from "@nestjs/common";
 import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
-import { assertStudentAccess, resolveActor } from "../access/cogna-access";
+import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
 import {
   OverrideLotusSessionDto,
   StartLotusSessionDto,
   SubmitLotusAnswerDto,
 } from "./lotus.dto";
 import { LotusService } from "./lotus.service";
+import type { LotusReconcileResult } from "./lotus-reconcile";
 
 /**
  * Experimental AI Lab only. This deliberately does not share routes, storage,
@@ -35,11 +36,24 @@ export class LotusController {
   async get(
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("id") id: string,
+    @Query("source") source?: string,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
-    const session = await this.lotus.get(id);
+    // Observer/AI-Lab reads ask for the durable projection directly,
+    // bypassing whichever API instance's in-process cache happens to answer
+    // — the student's own polling still hits the fast in-memory path.
+    const session = source === "db" ? await this.lotus.getForObserver(id) : await this.lotus.get(id);
     assertStudentAccess(actor, session.studentId);
     return session;
+  }
+
+  @Get("sessions/:id/reconcile")
+  async reconcile(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+  ): Promise<LotusReconcileResult> {
+    assertTeacher(resolveActor(headers));
+    return this.lotus.reconcileSession(id);
   }
 
   @Post("sessions/:id/answers")
@@ -82,5 +96,32 @@ export class LotusController {
     const actor = resolveActor(headers);
     assertStudentAccess(actor, body.studentId);
     return this.lotus.override(id, body.studentId, body.action);
+  }
+
+  /** Drains durable outbox jobs a crashed or racing instance never got to run. Worker-only, matching the other job types under apps/api/src/jobs/. */
+  @Post("jobs/run-outbox")
+  runOutbox(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ): Promise<{ claimed: number; completed: number; failed: number }> {
+    assertWorker(resolveActor(headers));
+    return this.lotus.processPendingOutboxJobs();
+  }
+
+  @Delete("students/:studentId")
+  async deleteStudentData(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("studentId") studentId: string,
+  ): Promise<{ deletedSessions: number }> {
+    assertTeacher(resolveActor(headers));
+    return this.lotus.deleteStudentData(studentId);
+  }
+
+  @Get("students/:studentId/export")
+  async exportStudentData(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("studentId") studentId: string,
+  ) {
+    assertTeacher(resolveActor(headers));
+    return this.lotus.exportStudentData(studentId);
   }
 }

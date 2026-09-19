@@ -109,6 +109,7 @@ function freshState(planTurn: number): FactorisationState {
     turns: FACTORISATION_SLOTS.map((spec) => ({ turn: spec.slot, slot: spec.slot, status: "PLANNED" as const, version: 0 })),
     answeredTurns: [],
     handledConfirmed: [],
+    handledBroadened: [],
     fastSkips: 0,
   };
 }
@@ -307,6 +308,45 @@ describe("planAdjustments — changing only questions the student hasn't reached
     ]);
     const descents = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
     assert.deepEqual(descents, []);
+  });
+});
+
+describe("planAdjustments — BROADEN: a correct transfer answer in a different representation", () => {
+  it("a skill secured from a single correct answer gets a later check in a different catalogue shape", () => {
+    const { state, itemAt, askedItems } = planFixture(9); // slot 9: FAC_DIFF_SQUARES, "x^2 - 9"
+    const ledger = foldLedger([audit([secure("FAC_DIFF_SQUARES")])]);
+    const actions = planAdjustments({ state, ledger, itemAt, askedItems });
+    const widen = actions.find((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN");
+    assert.ok(widen, "expected a BROADEN/WIDEN action");
+    assert.equal(widen!.kind === "REPURPOSE" && widen!.forSkill, "FAC_DIFF_SQUARES");
+    assert.equal(widen!.kind === "REPURPOSE" && widen!.spec?.slot, 10); // the other FAC_DIFF_SQUARES shape, "49a^2 - 25b^2"
+    assert.deepEqual(state.handledBroadened, ["FAC_DIFF_SQUARES"]);
+  });
+
+  it("a skill secured on its only catalogue shape has no transfer target, so the plan is left unchanged (KEEP)", () => {
+    const { state, itemAt, askedItems } = planFixture(11); // slot 11: FAC_PERFECT_SQUARE_PLUS, the only slot for that skill
+    const ledger = foldLedger([audit([secure("FAC_PERFECT_SQUARE_PLUS")])]);
+    const actions = planAdjustments({ state, ledger, itemAt, askedItems });
+    assert.deepEqual(actions.filter((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN"), []);
+    // The skill is still marked handled — an unavailable target is a considered decision, not a retry-forever.
+    assert.deepEqual(state.handledBroadened, ["FAC_PERFECT_SQUARE_PLUS"]);
+  });
+
+  it("a skill secured after clearing an earlier slip is not offered a transfer check", () => {
+    const { state, itemAt, askedItems } = planFixture(10);
+    const ledger = foldLedger([audit([mistake("FAC_DIFF_SQUARES")]), audit([secure("FAC_DIFF_SQUARES")])]);
+    const actions = planAdjustments({ state, ledger, itemAt, askedItems });
+    assert.deepEqual(actions.filter((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN"), []);
+  });
+
+  it("never proposes a second widen for a skill already offered one — no duplicate transfer checks", () => {
+    const { state, itemAt, askedItems } = planFixture(9);
+    const ledger = foldLedger([audit([secure("FAC_DIFF_SQUARES")])]);
+    const first = planAdjustments({ state, ledger, itemAt, askedItems });
+    assert.equal(first.filter((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN").length, 1);
+    // Same ledger, same (already-mutated) state — as a later background re-plan would call it again.
+    const second = planAdjustments({ state, ledger, itemAt, askedItems });
+    assert.deepEqual(second.filter((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN"), []);
   });
 });
 

@@ -44,7 +44,10 @@ import {
   loadLotusSession,
   lotusPersistenceEnabled,
   persistLotusSession,
+  type LotusOutboxJobSpec,
 } from "./lotus-persistence";
+import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
+import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
 import {
   FACTORISATION_SLOTS,
@@ -153,6 +156,11 @@ const COMPLETE_EVICTION_IDLE_MS = 15 * 60 * 1000;
 /** Well past the diagnostic's own 20-minute hard cap — an active session idle this long is presumed abandoned, not mid-turn. */
 const ACTIVE_EVICTION_IDLE_MS = 45 * 60 * 1000;
 
+/** Outbox job types: durable records of background work an answer triggers, so a crash between accept and kick-off doesn't silently drop it. */
+const OUTBOX_JOB_DEFERRED_ANALYSIS = "lotus.deferredAnalysis";
+const OUTBOX_JOB_REPLENISH_RESERVE = "lotus.replenishReserve";
+const OUTBOX_JOB_MAX_ATTEMPTS = 3;
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -183,7 +191,9 @@ function planDecisionNote(actions: PlanAction[]): string {
       ? `an easier prerequisite (${skillName(action.forSkill)})`
       : action.purpose === "CHECK"
         ? `a later check of ${skillName(action.forSkill)}`
-        : "a curriculum-safe alternative";
+        : action.purpose === "WIDEN"
+          ? `a different representation of ${skillName(action.forSkill)}`
+          : "a curriculum-safe alternative";
     return `Question ${action.turn} was replanned for ${purpose}`;
   });
   return `Plan update: ${changes.join("; ")}. The immediately staged question was protected.`;
@@ -201,6 +211,7 @@ function adaptiveDecisionFor(
       ?? "No specific error was established from this response.";
   const action = actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "DESCENT")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "CHECK")
+    ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "WIDEN")
     ?? actions[0];
   if (!action) {
     return {
@@ -219,6 +230,18 @@ function adaptiveDecisionFor(
       alternatives: ["The dependent objective may be tested after its prerequisite is established."],
       rationale: action.reason,
       expectedInformationGain: "Avoid treating a dependent-item failure as evidence before its prerequisite is secure.",
+      requestedPlacement: `Question ${action.turn}`,
+      source: "RULE_VALIDATED_PLAN",
+    };
+  }
+  if (action.purpose === "WIDEN") {
+    return {
+      action: "BROADEN",
+      observedError,
+      alternatives: ["A different representation of the same skill can still fail even though this one succeeded."],
+      rationale: action.reason,
+      expectedInformationGain: `A different representation of ${skillName(action.forSkill)} can confirm transfer rather than one memorized shape.`,
+      targetSkill: action.forSkill,
       requestedPlacement: `Question ${action.turn}`,
       source: "RULE_VALIDATED_PLAN",
     };
@@ -262,6 +285,36 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
     rule: "The server alone validates and installs a change. The pinned next item cannot change. Recommend an earliest safe later slot or KEEP.",
     remainingSlots: slots,
   });
+}
+
+/** A durable outbox record for a turn's deferred analysis, keyed so re-persisting the same turn never double-enqueues it. */
+function deferredAnalysisJobSpec(sessionId: string, turnIndex: number): LotusOutboxJobSpec {
+  return {
+    jobType: OUTBOX_JOB_DEFERRED_ANALYSIS,
+    idempotencyKey: `${sessionId}:${turnIndex}`,
+    payload: { sessionId, turnIndex },
+  };
+}
+
+/** A durable outbox record for a session's reserve replenishment after a given answer count. */
+function replenishReserveJobSpec(sessionId: string, answeredCount: number): LotusOutboxJobSpec {
+  return {
+    jobType: OUTBOX_JOB_REPLENISH_RESERVE,
+    idempotencyKey: `${sessionId}:${answeredCount}`,
+    payload: { sessionId },
+  };
+}
+
+/** Only for a turn that was actually installed by an adaptive decision — never a claim about an unchanged coverage item. */
+function adaptationTagFor(turn: { status: string; purpose?: string; forSkill?: string; reason?: string }): LotusQuestionSelection["adaptationTag"] {
+  if (turn.status !== "REPURPOSED") return undefined;
+  switch (turn.purpose) {
+    case "CHECK": return turn.forSkill ? { kind: "TARGETED_CHECK", skill: skillName(turn.forSkill) } : undefined;
+    case "DESCENT": return turn.forSkill ? { kind: "EASIER_PREREQUISITE", skill: skillName(turn.forSkill) } : undefined;
+    case "WIDEN": return turn.forSkill ? { kind: "BROADENED_EVIDENCE", skill: skillName(turn.forSkill) } : undefined;
+    case "AVOID": return { kind: "COVERAGE_REPLACEMENT", reason: turn.reason ?? "Rewritten to avoid an unconfirmed prerequisite." };
+    default: return undefined;
+  }
 }
 
 function questionProvenance(question: LotusQuestion | Omit<LotusQuestion, "id">): LotusQuestionSelection["provenance"] {
@@ -853,7 +906,10 @@ export class LotusService implements OnModuleDestroy {
     session.currentQuestion = chosen;
     session.phase = chosen.phase;
     session.liveProgress = null;
-    await this.persist(session, undefined, true);
+    await this.persist(
+      session, audit, true,
+      needsReview ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : [],
+    );
     if (needsReview) {
       this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, verification, elapsedSeconds, answeredCount);
     }
@@ -925,7 +981,7 @@ export class LotusService implements OnModuleDestroy {
     session.phase = nextQuestion.phase;
     session.liveProgress = null;
 
-    await this.persist(session);
+    await this.persist(session, audit, true, [deferredAnalysisJobSpec(session.sessionId, turnIndex)]);
 
     void this.runDeferredAnalysisWithRetry(
       session.sessionId,
@@ -1025,7 +1081,10 @@ export class LotusService implements OnModuleDestroy {
       session.currentQuestion = nextQuestion;
       session.phase = nextQuestion.phase;
     }
-    await this.persist(session, audit);
+    await this.persist(
+      session, audit, true,
+      conclusion.exitDiagnostic ? [] : [replenishReserveJobSpec(session.sessionId, answeredCount)],
+    );
     if (!conclusion.exitDiagnostic) {
       void this.replenishReserve(session.sessionId).catch(() => undefined);
     }
@@ -1142,8 +1201,12 @@ export class LotusService implements OnModuleDestroy {
       this.forceSlowPath.add(sessionId);
     }
 
-    await this.persist(liveSession, slot);
-    if (!liveSession.coveragePlan && !liveSession.factorisation) void this.replenishReserve(sessionId).catch(() => undefined);
+    const needsReplenish = !liveSession.coveragePlan && !liveSession.factorisation;
+    await this.persist(
+      liveSession, slot, true,
+      needsReplenish ? [replenishReserveJobSpec(sessionId, answeredCount)] : [],
+    );
+    if (needsReplenish) void this.replenishReserve(sessionId).catch(() => undefined);
   }
 
   /** A suspected gap may earn a later flexible slot; the next question and coverage spine stay intact. */
@@ -1518,6 +1581,7 @@ Create one materially different question that adds new diagnostic evidence. Test
           turns: FACTORISATION_SLOTS.map((spec) => ({ turn: spec.slot, slot: spec.slot, status: "PLANNED" as const, version: 0 })),
           answeredTurns: [],
           handledConfirmed: [],
+          handledBroadened: [],
           fastSkips: 0,
         },
         versions,
@@ -1754,7 +1818,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         version: turn.version,
         request: {
           spec: action.spec,
-          purpose: action.purpose === "DESCENT" ? "BASE" : action.purpose,
+          purpose: action.purpose === "DESCENT" || action.purpose === "WIDEN" ? "BASE" : action.purpose,
           targetMistake: action.targetMistake,
           avoidSkill: action.avoidSkill,
         },
@@ -1812,6 +1876,7 @@ Create one materially different question that adds new diagnostic evidence. Test
             selectedFrom: nextPlan?.status === "REPURPOSED" ? "ADAPTIVE_STAGED" : "CURRICULUM_DECK",
             reason: nextPlan?.status === "REPURPOSED" && nextPlan.reason ? nextPlan.reason : `Planned question ${nextTurn} of the factorisation test.`,
             provenance: questionProvenance(next),
+            adaptationTag: nextPlan ? adaptationTagFor(nextPlan) : undefined,
             informationGain: this.informationGain(withoutId(next), asked),
           }
         : { selectedFrom: "NONE_EXIT", reason: "The planned test is complete.", informationGain: { passed: true, explanation: "No next question — the test ended." } },
@@ -1844,7 +1909,10 @@ Create one materially different question that adds new diagnostic evidence. Test
       const tail = this.analysisTails.get(session.sessionId);
       if (tail) await settleWithin(tail, FINAL_REPORT_WAIT_MS);
       this.completeFactorisation(session);
-      await this.persist(session, undefined, true);
+      await this.persist(
+        session, audit, true,
+        analyse && audit.analysisStatus === "PENDING" ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : [],
+      );
       return publicCopy(session);
     }
 
@@ -1855,7 +1923,10 @@ Create one materially different question that adds new diagnostic evidence. Test
     const adjustments = this.adaptFactorisationPlan(session, false);
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
-    await this.persist(session, undefined, true);
+    await this.persist(
+      session, audit, true,
+      analyse ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : [],
+    );
     if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
     return publicCopy(session);
   }
@@ -2245,6 +2316,7 @@ Create one materially different question that tests a competing explanation or a
     session: LotusSessionState,
     finalizedAudit?: LotusQuestionAudit,
     strict = true,
+    outboxJobs: LotusOutboxJobSpec[] = [],
   ): Promise<void> {
     const prisma = this.prisma;
     if (!lotusPersistenceEnabled(prisma)) return;
@@ -2257,8 +2329,13 @@ Create one materially different question that tests a competing explanation or a
         // Serialize full-payload writes per session. Snapshot only when our
         // turn arrives, so a late AI write cannot roll back a newer answer.
         const snapshot = structuredClone(session);
-        await persistLotusSession(prisma, snapshot);
-        if (finalizedAudit && finalizedAudit.analysisStatus === "COMPLETE") {
+        await persistLotusSession(prisma, snapshot, outboxJobs);
+        // Recorded whenever a specific turn's audit is finalized-for-this-call,
+        // whether it is only PENDING/NOT_REQUIRED (the answer just arrived) or
+        // COMPLETE (its review just finished) — appendLotusEvidence upserts on
+        // (question, submission), so the COMPLETE write updates the same row
+        // the PENDING write created rather than duplicating it.
+        if (finalizedAudit) {
           await appendLotusEvidence(prisma, snapshot, finalizedAudit);
         }
         succeeded = true;
@@ -2278,5 +2355,142 @@ Create one materially different question that tests a competing explanation or a
         if (succeeded) this.dirty.delete(sessionId);
       }
     }
+  }
+
+  /**
+   * Drains durable outbox jobs that the in-process kick-off never got the
+   * chance to run (a crash between persist and the fire-and-forget call) or
+   * that failed without exhausting their own in-process retries. Safe to
+   * call repeatedly and from multiple instances: each job is claimed with an
+   * atomic compare-and-swap, and if the work already completed in-process
+   * (the common case), this just marks the job done without repeating it.
+   * Exposed via a worker-authenticated endpoint, not an in-process timer —
+   * the same shape as the other job types under apps/api/src/jobs/.
+   */
+  async processPendingOutboxJobs(limit = 20): Promise<{ claimed: number; completed: number; failed: number }> {
+    const prisma = this.prisma;
+    if (!lotusPersistenceEnabled(prisma)) return { claimed: 0, completed: 0, failed: 0 };
+    const pending = await prisma.job.findMany({
+      where: {
+        jobType: { in: [OUTBOX_JOB_DEFERRED_ANALYSIS, OUTBOX_JOB_REPLENISH_RESERVE] },
+        status: { in: ["PENDING", "FAILED_RETRYABLE"] },
+        OR: [{ runAfter: null }, { runAfter: { lte: new Date() } }],
+      },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    });
+    let completed = 0;
+    let failed = 0;
+    for (const job of pending) {
+      const claim = await prisma.job.updateMany({
+        where: { id: job.id, status: job.status },
+        data: { status: "RUNNING", lockedAt: new Date(), lockedBy: `lotus-outbox-${process.pid}`, attemptCount: { increment: 1 } },
+      });
+      if (claim.count === 0) continue; // another worker won the race
+      try {
+        await this.runOutboxJob(job.jobType, job.payload as Record<string, unknown>);
+        await prisma.job.update({ where: { id: job.id }, data: { status: "COMPLETED", completedAt: new Date() } });
+        completed += 1;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const permanent = job.attemptCount >= OUTBOX_JOB_MAX_ATTEMPTS;
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE",
+            lastError: message,
+            runAfter: permanent ? undefined : new Date(Date.now() + DEFERRED_ANALYSIS_RETRY_DELAY_MS * job.attemptCount),
+          },
+        });
+        failed += 1;
+        this.logger.warn(`Lotus outbox job ${job.id} (${job.jobType}) failed: ${message}`);
+      }
+    }
+    return { claimed: pending.length, completed, failed };
+  }
+
+  private async runOutboxJob(jobType: string, payload: Record<string, unknown>): Promise<void> {
+    const sessionId = payload.sessionId as string;
+    if (jobType === OUTBOX_JOB_REPLENISH_RESERVE) {
+      await this.replenishReserve(sessionId);
+      return;
+    }
+    if (jobType === OUTBOX_JOB_DEFERRED_ANALYSIS) {
+      const turnIndex = payload.turnIndex as number;
+      const session = await this.requireSession(sessionId);
+      const audit = session.audits[turnIndex];
+      // Already handled — most jobs land here after the in-process call that
+      // raced it already finished. Nothing to redo.
+      if (!audit || audit.analysisStatus !== "PENDING" || !audit.response || !audit.verification) return;
+      const elapsedSeconds = Math.max(0, Math.floor(
+        (new Date(audit.createdAt).getTime() - new Date(session.startedAt).getTime()) / 1000,
+      ));
+      await this.runDeferredAnalysisWithRetry(
+        sessionId, turnIndex, audit.question, audit.response, audit.verification, elapsedSeconds, turnIndex + 1,
+      );
+      return;
+    }
+    throw new Error(`Unknown Lotus outbox job type: ${jobType}`);
+  }
+
+  /** Always reads the durable projection, bypassing the in-process cache — for an observer/AI-Lab view that must not show one instance's stale-vs-fresh in-memory copy as if it were the database record. */
+  async getForObserver(sessionId: string): Promise<LotusSessionView> {
+    const prisma = this.prisma;
+    if (!lotusPersistenceEnabled(prisma)) return this.get(sessionId);
+    const loaded = await loadLotusSession(prisma, sessionId);
+    if (!loaded) throw new NotFoundException("Lotus session not found in the database.");
+    return publicCopy(loaded as LotusSessionState);
+  }
+
+  /** Rebuilds the session's state from its durable event log and cross-checks it against the stored snapshot. An audit read; never repairs anything. */
+  async reconcileSession(sessionId: string): Promise<LotusReconcileResult> {
+    const prisma = this.prisma;
+    if (!lotusPersistenceEnabled(prisma)) {
+      return { ok: false, discrepancies: ["Persistence is not configured; nothing to reconcile."], snapshot: null };
+    }
+    return reconcileLotusSession(prisma, sessionId);
+  }
+
+  /** Permanently deletes every durable Lotus record for a student. Cascades to evidence via the schema's onDelete: Cascade. */
+  async deleteStudentData(studentId: string): Promise<{ deletedSessions: number }> {
+    const prisma = this.prisma;
+    if (!lotusPersistenceEnabled(prisma)) return { deletedSessions: 0 };
+    const result = await prisma.lotusSessionRecord.deleteMany({ where: { studentId } });
+    for (const [id, session] of this.sessions) {
+      if (session.studentId === studentId) {
+        this.sessions.delete(id);
+        this.reserves.delete(id);
+        this.forceSlowPath.delete(id);
+        this.lastTouchedAt.delete(id);
+        this.writeQueues.delete(id);
+      }
+    }
+    return { deletedSessions: result.count };
+  }
+
+  /** Every durable Lotus record for a student, as structured JSON — the auditable export half of the deletion/export pair. */
+  async exportStudentData(studentId: string): Promise<{
+    studentId: string;
+    pseudonymId: string;
+    sessions: Array<{ session: LotusSessionView; events: Array<{ eventType: string; outcome: string; createdAt: Date }> }>;
+  }> {
+    const prisma = this.prisma;
+    if (!lotusPersistenceEnabled(prisma)) return { studentId, pseudonymId: pseudonymousLearnerId(studentId), sessions: [] };
+    const records = await prisma.lotusSessionRecord.findMany({
+      where: { studentId },
+      include: { evidence: { orderBy: { createdAt: "asc" } } },
+    });
+    return {
+      studentId,
+      pseudonymId: pseudonymousLearnerId(studentId),
+      sessions: records.map((record) => ({
+        session: record.payload as unknown as LotusSessionView,
+        events: record.evidence.map((event) => ({
+          eventType: event.eventType,
+          outcome: event.outcome,
+          createdAt: event.createdAt,
+        })),
+      })),
+    };
   }
 }

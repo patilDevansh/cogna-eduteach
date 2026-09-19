@@ -52,7 +52,7 @@ export interface FactorisationTurn {
   /** The base slot this turn came from. */
   slot: number;
   status: "PLANNED" | "SKIPPED" | "REPURPOSED";
-  purpose?: "CHECK" | "AVOID" | "DESCENT";
+  purpose?: "CHECK" | "AVOID" | "DESCENT" | "WIDEN";
   forSkill?: string;
   reason?: string;
   /** Bumped on every change, so a background result for an older version is thrown away. */
@@ -66,6 +66,8 @@ export interface FactorisationState {
   /** Plan turn of each answered audit, in answer order. */
   answeredTurns: number[];
   handledConfirmed: string[];
+  /** Skills already offered a BROADEN check (found a target or not) — never revisited, so one secure skill never claims two slots. */
+  handledBroadened: string[];
   fastSkips: number;
 }
 
@@ -240,7 +242,7 @@ export type PlanAction =
   | {
       kind: "REPURPOSE";
       turn: number;
-      purpose: "CHECK" | "AVOID" | "DESCENT";
+      purpose: "CHECK" | "AVOID" | "DESCENT" | "WIDEN";
       forSkill: string;
       reason: string;
       /** When set, the AI writes a fresh question from this spec in the background. */
@@ -284,6 +286,23 @@ function fingerprint(item: Omit<LotusQuestion, "id">): string {
 }
 
 /**
+ * A different catalogue shape for a skill already secured on one
+ * representation — e.g. the numeric "x^2 - 9" difference-of-squares slot
+ * versus the coefficient "49a^2 - 25b^2" one. Reuses the existing
+ * multi-shape slots in the catalogue; never authors new content. A
+ * single-shape skill has no target, and the caller must fall back to KEEP.
+ * `askedSlots` is the origin slot of every question actually shown so far
+ * (the served item's content, not the turn number it was shown on — a
+ * REPURPOSEd turn shows a different slot's content than its own base slot).
+ */
+function widenTargets(skillId: string, askedSlots: Set<number>, max: number): Array<{ skill: string; spec: SlotSpec }> {
+  return FACTORISATION_SLOTS
+    .filter((spec) => spec.skillId === skillId && !askedSlots.has(spec.slot))
+    .slice(0, max)
+    .map((spec) => ({ skill: skillId, spec }));
+}
+
+/**
  * Which skills to check underneath a confirmed gap, nearest first. A skill
  * already secure is solid ground, so nothing below it is visited. A skill
  * with no question available here (or one that's already shaky) is passed
@@ -313,7 +332,18 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   const actions: PlanAction[] = [];
   const frozenNext = input.freezeNext === false ? state.planTurn : nextOpenTurn(state, state.planTurn);
   const asked = new Set(input.askedItems.map(fingerprint));
+  const askedSlots = new Set(
+    input.askedItems
+      .map((item) => item.answerKey.diagnostics?.slot)
+      .filter((slot): slot is number => slot !== undefined),
+  );
   const claimed = new Set<number>();
+  // Skills already given a CHECK action within THIS call. state.turns only
+  // reflects turns installed by a *previous* call (applyPlanAction runs
+  // after planAdjustments returns), so without this, forceCheckSkills and
+  // the suspicion loop below could each independently check the same skill
+  // in the same replan and install two probes for one mistake.
+  const checkedThisCall = new Set<string>();
   const mutable = () => state.turns.filter((t) =>
     t.turn > (frozenNext ?? state.planTurn) && t.status !== "SKIPPED" && !claimed.has(t.turn));
 
@@ -327,13 +357,19 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   }
 
   const pickVictim = (): number | null => {
-    const candidates = mutable().filter((t) => !protectedTurns.has(t.turn) && t.purpose !== "CHECK" && t.purpose !== "DESCENT");
+    const candidates = mutable().filter((t) =>
+      !protectedTurns.has(t.turn) && t.purpose !== "CHECK" && t.purpose !== "DESCENT" && t.purpose !== "WIDEN");
     const allSecure = candidates.filter((t) => {
       const d = itemAt(t.turn)?.answerKey.diagnostics;
       return !!d && skillsUsedBy(d).every((s) => ledger.get(s)?.state === "SECURE");
     });
     const pool = allSecure.length ? allSecure : candidates;
-    return pool.length ? pool[pool.length - 1]!.turn : null;
+    // The earliest eligible slot, not the latest: an accepted change belongs
+    // in the earliest useful unseen slot (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md
+    // §8/§10 Phase 2) — picking the furthest slot here previously produced
+    // the observed bug where a near-term recommendation installed at
+    // Q24/Q25 instead, far past where the evidence was actually needed.
+    return pool.length ? pool[0]!.turn : null;
   };
 
   // A closure-stage AI recommendation is an explicit request for fresh
@@ -343,10 +379,20 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     const spec = FACTORISATION_SLOTS.find((s) => s.skillId === skillId);
     const evidence = ledger.get(skillId);
     if (!spec || !evidence || claimed.has(spec.slot)) continue;
+    // A duplicate request for the same skill (e.g. a code-instant suspicion
+    // and a later AI review both asking for the same check) must never
+    // install a second probe — one mistake earns at most one fresh check.
+    // Only an already-installed dedicated CHECK counts here; a turn that
+    // merely happens to use the skill among its other tagged skills is not
+    // a substitute for the AI's specifically requested probe.
+    const alreadyChecked = checkedThisCall.has(skillId) || state.turns.some((t) =>
+      t.turn >= state.planTurn && t.status !== "SKIPPED" && t.purpose === "CHECK" && t.forSkill === skillId);
+    if (alreadyChecked) continue;
     const turn = pickVictim();
     if (turn === null) continue;
     claimed.add(turn);
     protectedTurns.add(turn);
+    checkedThisCall.add(skillId);
     actions.push({
       kind: "REPURPOSE",
       turn,
@@ -361,7 +407,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   // 1. Every suspicion needs a later question that can confirm or clear it.
   for (const e of ledger.values()) {
     if (e.state !== "SUSPECTED") continue;
-    const hasCheck = state.turns.some((t) => t.turn >= state.planTurn && t.status !== "SKIPPED" &&
+    const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) => t.turn >= state.planTurn && t.status !== "SKIPPED" &&
       ((t.purpose === "CHECK" && t.forSkill === e.skillId) || usesSkill(itemAt(t.turn), e.skillId)));
     if (hasCheck) continue;
     if (e.needsSupport) {
@@ -386,6 +432,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     if (turn === null) continue;
     claimed.add(turn);
     protectedTurns.add(turn);
+    checkedThisCall.add(e.skillId);
     actions.push({
       kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: e.skillId, spec,
       targetMistake: e.mistakes.at(-1),
@@ -430,6 +477,26 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       });
     }
     state.handledConfirmed.push(e.skillId);
+  }
+
+  // 3. A skill secured from a single correct answer: a fresh, different
+  // representation can confirm transfer rather than one memorized shape.
+  // Never revisits a skill (found a target or not) once considered, so one
+  // secure skill can claim at most one later slot.
+  for (const e of ledger.values()) {
+    if (e.state !== "SECURE" || e.clearedAfterSlip || e.notes.length !== 1) continue;
+    if (state.handledBroadened.includes(e.skillId)) continue;
+    state.handledBroadened.push(e.skillId);
+    const target = widenTargets(e.skillId, askedSlots, 1)[0];
+    if (!target) continue;
+    const turn = pickVictim();
+    if (turn === null) continue;
+    claimed.add(turn);
+    protectedTurns.add(turn);
+    actions.push({
+      kind: "REPURPOSE", turn, purpose: "WIDEN", forSkill: target.skill, spec: target.spec,
+      reason: `${skillName(e.skillId)} was right once; a different representation of the same skill can confirm transfer rather than one memorized shape.`,
+    });
   }
   return actions;
 }

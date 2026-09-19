@@ -1365,6 +1365,10 @@ model LotusSessionRecord {
   id        String    @id @default(cuid())
   sessionId String    @unique
   studentId String
+  /** Deterministic HMAC of studentId. Lets an observer/export identify a learner across sessions without the raw ID. */
+  pseudonymId String?
+  /** When this session's durable data is eligible for deletion under the classroom retention policy. */
+  retentionUntil DateTime?
   status    String
   phase     String
   startedAt DateTime
@@ -1377,6 +1381,8 @@ model LotusSessionRecord {
   videoAssignments PersonalizedVideoAssignment[]
 
   @@index([studentId, startedAt])
+  @@index([pseudonymId])
+  @@index([retentionUntil])
 }
 
 model LotusEvidenceRecord {
@@ -1390,10 +1396,31 @@ model LotusEvidenceRecord {
   verificationStatus String?
   verbatimText       String             @db.Text
   metadata           Json?
+  /** The question this event concerns. Present on ANSWER events, null on whole-session SESSION_STATE snapshots. */
+  questionId         String?
+  /** Client-supplied submission id. Paired with questionId, this is the DB-level duplicate-submit guard. */
+  submissionId       String?
+  /** When downstream review work for this turn was enqueued (outbox). */
+  queuedAt           DateTime?
+  /** When a worker actually started deep analysis for this turn. */
+  analysisStartedAt  DateTime?
+  /** When deep analysis for this turn finished (success or terminal failure). */
+  analysisCompletedAt DateTime?
+  /** The plan slot this turn's question was installed into, if it came from an adaptive decision. */
+  installedSlot      Int?
+  /** When the browser acknowledged actually displaying this question. */
+  shownAckAt         DateTime?
+  /** Model spend for this turn's review, in integer cents. Null until a cost source exists upstream. */
+  costCents          Int?
+  promptVersion      String?
+  modelVersion       String?
+  policyVersion      String?
+  skillMapVersion    String?
   createdAt          DateTime           @default(now())
 
   @@index([sessionRecordId, createdAt])
   @@index([sessionRecordId, eventType])
+  @@unique([sessionRecordId, questionId, submissionId])
 }
 
 model PersonalizedVideoAssignment {

@@ -613,6 +613,32 @@
 .verifiedNeutral { background: #ecefed; color: var(--ink-soft); }
 .verificationNote { margin-top: var(--s-2); font-size: var(--text-xs); }
 
+/* Phase 0 per-turn status strip: visible in the collapsed summary row, never only inside the expanded card. */
+.turnStatusStrip {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: #ecefed;
+  color: var(--ink-soft);
+}
+
+.statusComplete { background: #dff3e9; color: #176648; }
+.statusFailed { background: #fae5df; color: #8b3428; }
+.statusPending { background: #fdf1d8; color: #8a5a12; }
+.statusNeutral { background: #ecefed; color: var(--ink-soft); }
+
 .decisionBox {
   padding: var(--s-4);
   border: 1px solid #c9d9d2;
@@ -671,6 +697,8 @@
   font-size: var(--text-sm);
   font-weight: 600;
 }
+
+.adaptationTag { color: #176648; font-weight: 700; }
 
 .modelGrid {
   display: grid;
