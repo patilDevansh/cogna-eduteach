@@ -296,7 +296,7 @@ export function InteractiveLessonPlayer({
         <div className={styles.sceneCopy}>
           <span>{scene.eyebrow}</span>
           <h2>{scene.headline}</h2>
-          <p>Your browser needs a tap before it can play audio — press play to begin.</p>
+          <p>Press start to begin</p>
         </div>
         <button
           className={styles.playButton}
