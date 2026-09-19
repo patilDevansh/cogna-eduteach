@@ -66,9 +66,9 @@
 .resultEvidence strong { font-size:.8rem; }
 .dragBoard { margin:1.45rem 0; animation:sceneIn .42s ease both; }
 .dragEquation { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
-.dragSide { background:rgba(255,255,255,.78); border:1px solid rgba(7,63,52,.12); border-radius:14px; padding:1.1rem 1.25rem; font:700 clamp(1.15rem,2.6vw,1.7rem) var(--font-math); color:#073f34; }
+.dragSide { display:grid; place-items:center; min-height:1.7rem; background:rgba(255,255,255,.78); border:1px solid rgba(7,63,52,.12); border-radius:14px; padding:1.1rem 1.25rem; font:700 clamp(1.15rem,2.6vw,1.7rem) var(--font-math); color:#073f34; }
 .dragEquals { font:800 1.4rem var(--font-math); color:#073f34; }
-.dragZone { min-width:76px; min-height:52px; display:grid; place-items:center; border:2px dashed var(--line-strong); border-radius:10px; padding:.4rem .7rem; font:700 1.1rem var(--font-math); color:var(--ink-faint); background:#fbfcfb; transition:border-color .15s ease, background .15s ease; }
+.dragZone { min-width:76px; display:grid; place-items:center; min-height:1.7rem; border:2px dashed var(--line-strong); border-radius:14px; padding:1.1rem 1.25rem; font:700 clamp(1.15rem,2.6vw,1.7rem) var(--font-math); color:var(--ink-faint); background:#fbfcfb; transition:border-color .15s ease, background .15s ease; }
 .dragZoneFilled { border-style:solid; border-color:var(--accent); color:#073f34; background:white; }
 .dragZoneHover { border-color:var(--accent); background:#eef8f2; }
 .dragTray { display:flex; align-items:center; gap:.7rem; }
