@@ -137,22 +137,24 @@ function InteractiveEquationStep({
   return (
     <div className={styles.dragBoard}>
       <div className={styles.dragEquation}>
+        <div className={styles.dragSide}>{leftSide}</div>
         <div
           ref={leftZoneRef}
           className={`${styles.dragZone} ${leftFilled ? styles.dragZoneFilled : ""} ${
             hoverZone === "left" ? styles.dragZoneHover : ""
           }`}
         >
-          {leftFilled ? claim.chipLabel : leftSide}
+          {leftFilled ? claim.chipLabel : ""}
         </div>
         <span className={styles.dragEquals}>=</span>
+        <div className={styles.dragSide}>{rightSide}</div>
         <div
           ref={rightZoneRef}
           className={`${styles.dragZone} ${rightFilled ? styles.dragZoneFilled : ""} ${
             hoverZone === "right" ? styles.dragZoneHover : ""
           }`}
         >
-          {rightFilled ? claim.chipLabel : rightSide}
+          {rightFilled ? claim.chipLabel : ""}
         </div>
       </div>
       {!bothFilled && (
