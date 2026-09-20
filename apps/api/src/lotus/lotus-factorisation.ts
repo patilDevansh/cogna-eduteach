@@ -216,7 +216,13 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
       if (negative) {
         const label = negative.mistake ?? (negative.kind === "DID_NOT_KNOW" ? "DID_NOT_KNOW" : "MISTAKE");
         e.notes.push(`Q${q}: ${negative.description ?? label}${negative.mistake ? ` (${negative.mistake})` : ""}`);
-        if (negative.kind === "DID_NOT_KNOW") e.needsSupport = true;
+        if (negative.kind === "DID_NOT_KNOW") {
+          // Support is an instructional signal, not mathematical failure.
+          // Preserve an existing suspicion, but never create or confirm a
+          // gap from repeated "I don't know" responses alone.
+          e.needsSupport = true;
+          continue;
+        }
         if (negative.mistake) e.mistakes.push(negative.mistake);
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
@@ -386,7 +392,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // merely happens to use the skill among its other tagged skills is not
     // a substitute for the AI's specifically requested probe.
     const alreadyChecked = checkedThisCall.has(skillId) || state.turns.some((t) =>
-      t.turn >= state.planTurn && t.status !== "SKIPPED" && t.purpose === "CHECK" && t.forSkill === skillId);
+      t.status !== "SKIPPED" && t.purpose === "CHECK" && t.forSkill === skillId);
     if (alreadyChecked) continue;
     const turn = pickVictim();
     if (turn === null) continue;

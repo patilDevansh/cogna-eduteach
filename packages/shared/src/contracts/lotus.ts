@@ -480,7 +480,7 @@ export interface LotusUnseenPlanEntry {
   skill: string;
   purpose: "COVERAGE" | "TARGETED_CHECK" | "EASIER_PREREQUISITE" | "BROADENED_EVIDENCE" | "COVERAGE_REPLACEMENT";
   readiness: "READY" | "AWAITING_GENERATION";
-  provenance?: "AI_GENERATED_FOR_SESSION";
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK";
 }
 
 export interface LotusStatusResponse {
