@@ -235,7 +235,11 @@ export class LotusQuestionFactory {
         try {
           const solved = await this.models.solveBlind(blindPrompt(item));
           const choice = str(solved.choice);
-          if (!choice || normalizeMathText(choice) !== normalizeMathText(item.answerKey.canonicalAnswer)) {
+          // Case-insensitive to match sameChoice() in lotus-factorisation.ts, the
+          // real grading path a student's answer goes through — otherwise this
+          // self-check is stricter than production grading and can burn a factory
+          // attempt on a casing difference no student would ever be marked wrong for.
+          if (!choice || normalizeMathText(choice).toLowerCase() !== normalizeMathText(item.answerKey.canonicalAnswer).toLowerCase()) {
             reasons.push(`blind solver chose "${choice}", the key says "${item.answerKey.canonicalAnswer}"`);
           }
         } catch (e) {
