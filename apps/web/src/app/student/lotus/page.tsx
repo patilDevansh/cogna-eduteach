@@ -308,17 +308,29 @@ function TurnStatusStrip({
 }) {
   if (!audit.response) return null;
   const failed = audit.analysisStatus === "FAILED";
+  const queuedMs = audit.analysisQueuedAt && audit.analysisStartedAt
+    ? Math.max(0, new Date(audit.analysisStartedAt).getTime() - new Date(audit.analysisQueuedAt).getTime())
+    : null;
+  const timingSuffix = audit.timingMs
+    ? ` in ${(audit.timingMs.total / 1000).toFixed(1)}s${queuedMs !== null ? ` after ${(queuedMs / 1000).toFixed(1)}s queued` : ""}`
+    : "";
   const reviewLabel = audit.analysisStatus === "NOT_REQUIRED"
     ? "AI review not required"
     : audit.analysisStatus === "COMPLETE"
-      ? `AI review complete${audit.timingMs ? ` in ${(audit.timingMs.total / 1000).toFixed(1)}s` : ""}`
+      ? `AI review complete${timingSuffix}${audit.analysisLate ? " — evidence only; too late to replan" : ""}`
       : failed
         ? "AI review failed"
-        : isLatest && liveProgress
-          ? `AI review running (${liveProgress.stage.toLowerCase()})`
-          : (() => {
+      : isLatest && liveProgress
+        ? `AI review running (${liveProgress.stage.toLowerCase()})`
+        : (() => {
             const queuedSeconds = Math.max(0, Math.round((Date.now() - new Date(audit.createdAt).getTime()) / 1000));
-            return `AI review queued (${queuedSeconds}s)`;
+            const position = audit.analysisQueuePosition && audit.analysisQueuePosition > 0
+              ? `, position ${audit.analysisQueuePosition}`
+              : "";
+            const deadline = audit.analysisDeadlineAt
+              ? Math.max(0, Math.round((new Date(audit.analysisDeadlineAt).getTime() - Date.now()) / 1000))
+              : null;
+            return `AI review queued (${queuedSeconds}s${position}${deadline !== null ? `, ${deadline}s until evidence-only` : ""})`;
           })();
   const reviewClass = audit.analysisStatus === "COMPLETE"
     ? styles.statusComplete
@@ -408,6 +420,7 @@ function DecisionPanel({ audit }: { audit: LotusQuestionAudit }) {
         <div><strong>Requested placement</strong><span>{decision.requestedPlacement ?? "No replacement slot requested."}</span></div>
         <div><strong>Action implementation</strong><span>{`${decision.implementation.replaceAll("_", " ")}: ${decision.implementationDetail}`}</span></div>
         <div><strong>What result would change the diagnosis</strong><span>{decision.expectedInformationGain}</span></div>
+        {audit.analysisLate && <div><strong>Late-result safeguard</strong><span>This review was retained as evidence only. Lotus did not rewrite a later question from an obsolete response.</span></div>}
       </div>
     </section>
   );

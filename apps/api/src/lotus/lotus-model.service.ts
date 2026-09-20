@@ -193,7 +193,7 @@ export class LotusModelService {
         reasoning: { effort: tuning.reasoningEffort },
         text: { format: { type: "json_object" }, verbosity: "low" },
         prompt_cache_key: tuning.promptCacheKey,
-      });
+      }, { timeout: tuning.timeoutMs });
       const content = response.output_text;
       if (!content) throw new Error(`${agentLabel} returned an empty response.`);
       return extractJson(content);

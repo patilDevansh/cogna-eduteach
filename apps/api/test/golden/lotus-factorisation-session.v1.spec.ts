@@ -517,6 +517,51 @@ describe("factorisation session — safety of the running test", () => {
     }
   });
 
+  it("does not serialise Q2 behind a slow Q1 review", async () => {
+    const { models, service } = setup();
+    let release!: () => void;
+    models.closureGate = new Promise((resolve) => { release = resolve; });
+    let view = await startReady(service, "demo_meera");
+    view = await submit(service, view, "3(2x + 4)");
+    view = await submit(service, view, predictedWrong(service, view));
+    await flush();
+    assert.equal(
+      models.closures,
+      2,
+      "both Q1 and Q2 must reach the model closure while Q1 is blocked; a per-session serial queue would leave this at one",
+    );
+    release();
+    await flush();
+    const session = internal(service, view.sessionId);
+    assert.equal(session.audits[0].analysisStatus, "COMPLETE");
+    assert.equal(session.audits[1].analysisStatus, "COMPLETE");
+    assert.ok(session.audits[0].analysisQueuedAt && session.audits[0].analysisStartedAt, "queue timing is durable observer evidence");
+  });
+
+  it("keeps a late review as report evidence without letting it rewrite an obsolete plan", async () => {
+    const { models, service } = setup();
+    let release!: () => void;
+    models.closureGate = new Promise((resolve) => { release = resolve; });
+    models.firstWrongStep = 2;
+    let view = await startReady(service, "demo_nikhil");
+    view = await submit(service, view, "3(2x + 4)");
+    const session = internal(service, view.sessionId);
+    session.audits[0].analysisDeadlineAt = new Date(0).toISOString();
+    const before = session.factorisation.state.turns.map((turn: { turn: number; status: string; purpose?: string }) => ({ ...turn }));
+    release();
+    await flush();
+    const audit = session.audits[0];
+    assert.equal(audit.analysisStatus, "COMPLETE");
+    assert.equal(audit.analysisLate, true);
+    assert.equal(audit.adaptiveDecision?.action, "KEEP");
+    assert.match(audit.adaptiveDecision?.implementationDetail ?? "", /evidence was added only/i);
+    assert.deepEqual(
+      session.factorisation.state.turns.map((turn: { turn: number; status: string; purpose?: string }) => ({ ...turn })),
+      before,
+      "a stale analysis must not revise an unseen-plan slot",
+    );
+  });
+
   it("when a secure skill has no different representation to check, the decision is an explicit KEEP, never an invented probe", async () => {
     const { service } = setup();
     let view = await startReady(service, "demo_divya"); // gets everything right

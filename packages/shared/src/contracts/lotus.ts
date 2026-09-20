@@ -390,6 +390,15 @@ export interface LotusQuestionAudit {
   analysisStatus: LotusAnalysisStatus;
   /** Lets the observer separate a mathematical fact, a support request, and a completed model interpretation. */
   analysisSource: LotusAnalysisSource;
+  /** Durable review timing, used to distinguish queued work from model time. */
+  analysisQueuedAt?: string;
+  /** Snapshot of the in-process queue when the review was accepted; zero means running. */
+  analysisQueuePosition?: number;
+  analysisStartedAt?: string;
+  analysisCompletedAt?: string;
+  analysisDeadlineAt?: string;
+  /** A late review remains evidence for the report but was not allowed to replan unseen questions. */
+  analysisLate?: boolean;
   /** Present only for a terminal review failure; it is never fabricated model reasoning. */
   analysisFailureReason?: string;
   /** The validated planning decision made from this turn, if one was needed. */

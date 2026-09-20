@@ -9,6 +9,7 @@ test("Lotus balanced latency policy keeps the final critic stronger than paralle
   assert.equal(policy.tuning("debate", "primary").reasoningEffort, "low");
   assert.equal(policy.tuning("closure", "challenger").reasoningEffort, "medium");
   assert.equal(policy.tuning("closure", "challenger").maxOutputTokens, 1200);
+  assert.equal(policy.tuning("closure", "challenger").timeoutMs, 25_000);
 });
 
 test("Lotus quality mode restores the conservative budgets for evaluation", () => {
@@ -16,6 +17,7 @@ test("Lotus quality mode restores the conservative budgets for evaluation", () =
   assert.equal(policy.tuning("assessment", "primary").reasoningEffort, "medium");
   assert.equal(policy.tuning("closure", "challenger").reasoningEffort, "high");
   assert.equal(policy.tuning("closure", "challenger").maxOutputTokens, 3200);
+  assert.equal(policy.tuning("closure", "challenger").timeoutMs, 45_000);
 });
 
 test("Lotus policy accepts a bounded output override and stable cache keys", () => {
@@ -23,4 +25,11 @@ test("Lotus policy accepts a bounded output override and stable cache keys", () 
   const tuning = policy.tuning("assessment", "gpt-5.6-terra");
   assert.equal(tuning.maxOutputTokens, 900);
   assert.equal(tuning.promptCacheKey, "cogna-lotus-v1:gpt-5.6-terra:assessment");
+});
+
+test("Lotus policy accepts only a safe per-model timeout and protects question writing", () => {
+  const policy = new LotusLatencyPolicy({ LOTUS_MODEL_TIMEOUT_MS: "12000" });
+  assert.equal(policy.tuning("assessment", "primary").timeoutMs, 12_000);
+  assert.equal(policy.tuning("generation", "primary").timeoutMs, 45_000);
+  assert.equal(new LotusLatencyPolicy({ LOTUS_MODEL_TIMEOUT_MS: "1000" }).modelTimeoutMs, 25_000);
 });

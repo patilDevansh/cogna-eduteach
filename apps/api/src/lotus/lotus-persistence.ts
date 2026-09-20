@@ -142,13 +142,33 @@ async function upsertLotusAnswerEvidence(
       questionId,
       didNotKnow: audit.response?.didNotKnow ?? false,
       mathJudgment: audit.gpt?.mathJudgment ?? null,
+      review: {
+        queuePosition: audit.analysisQueuePosition ?? null,
+        queuedAt: audit.analysisQueuedAt ?? null,
+        startedAt: audit.analysisStartedAt ?? null,
+        completedAt: audit.analysisCompletedAt ?? null,
+        deadlineAt: audit.analysisDeadlineAt ?? null,
+        late: audit.analysisLate ?? false,
+        failureReason: audit.analysisFailureReason ?? null,
+      },
     } as object,
     questionId,
     submissionId,
-    analysisStartedAt: audit.analysisStatus === "COMPLETE" && audit.timingMs
-      ? new Date(Date.now() - audit.timingMs.total)
-      : undefined,
-    analysisCompletedAt: audit.analysisStatus === "COMPLETE" || audit.analysisStatus === "FAILED" ? new Date() : null,
+    // An accepted submission is a durable acknowledgement that this current
+    // question reached the learner. The planned action's target turn is
+    // stored separately so "installed" and "shown" never collapse into one
+    // misleading status.
+    installedSlot: audit.adaptiveDecision?.targetTurn,
+    shownAckAt: audit.response?.questionId ? new Date() : undefined,
+    queuedAt: audit.analysisQueuedAt ? new Date(audit.analysisQueuedAt) : undefined,
+    analysisStartedAt: audit.analysisStartedAt
+      ? new Date(audit.analysisStartedAt)
+      : audit.analysisStatus === "COMPLETE" && audit.timingMs
+        ? new Date(Date.now() - audit.timingMs.total)
+        : undefined,
+    analysisCompletedAt: audit.analysisCompletedAt
+      ? new Date(audit.analysisCompletedAt)
+      : audit.analysisStatus === "COMPLETE" || audit.analysisStatus === "FAILED" ? new Date() : null,
   };
   if (submissionId) {
     await db.lotusEvidenceRecord.upsert({

@@ -14,11 +14,20 @@ export type LotusCallTuning = {
   reasoningEffort: LotusReasoningEffort;
   maxOutputTokens: number;
   promptCacheKey: string;
+  /** Hard client deadline: retries must receive a real timeout, not an indefinitely hung request. */
+  timeoutMs: number;
 };
 
 function boundedInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 512 && parsed <= 3200 ? parsed : fallback;
+}
+
+function boundedTimeout(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  // Below ten seconds can fail healthy network requests; above a minute makes
+  // a background review stale before the worker gets a chance to recover.
+  return Number.isInteger(parsed) && parsed >= 10_000 && parsed <= 60_000 ? parsed : fallback;
 }
 
 function latencyMode(value: string | undefined): LotusLatencyMode {
@@ -28,12 +37,17 @@ function latencyMode(value: string | undefined): LotusLatencyMode {
 export class LotusLatencyPolicy {
   readonly mode: LotusLatencyMode;
   readonly maxOutputTokens: number;
+  readonly modelTimeoutMs: number;
 
   constructor(env: Record<string, string | undefined> = process.env) {
     this.mode = latencyMode(env.LOTUS_LATENCY_MODE?.trim().toLowerCase());
     this.maxOutputTokens = boundedInteger(
       env.LOTUS_MAX_OUTPUT_TOKENS,
       this.mode === "quality" ? 3200 : 1200,
+    );
+    this.modelTimeoutMs = boundedTimeout(
+      env.LOTUS_MODEL_TIMEOUT_MS,
+      this.mode === "quality" ? 45_000 : 25_000,
     );
   }
 
@@ -48,6 +62,10 @@ export class LotusLatencyPolicy {
       // the Responses API reuse that common prefix across learners without
       // putting a learner identifier into the cache key.
       promptCacheKey: `cogna-lotus-v1:${model}:${kind}`,
+      // Question writing needs room for a full validated item; analysis stages
+      // are deliberately shorter so one stuck call cannot hold the review
+      // queue past the useful-age window.
+      timeoutMs: kind === "generation" ? Math.max(this.modelTimeoutMs, 45_000) : this.modelTimeoutMs,
     };
   }
 

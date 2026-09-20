@@ -122,6 +122,22 @@ interface ReserveCandidate {
   question: Omit<LotusQuestion, "id">;
 }
 
+interface DeferredAnalysisJob {
+  turnIndex: number;
+  question: LotusQuestion;
+  response: LotusStudentResponse;
+  verification: LotusMathVerification;
+  elapsedSeconds: number;
+  answeredCount: number;
+}
+
+interface DeferredAnalysisQueue {
+  pending: DeferredAnalysisJob[];
+  running: number;
+  activeTurns: Set<number>;
+  idleWaiters: Set<() => void>;
+}
+
 const MAX_QUESTIONS = 16;
 const MAX_DURATION_MS = 20 * 60 * 1000;
 /**
@@ -142,6 +158,10 @@ const FLEXIBLE_TURNS = [6, 10, 14];
 /** A turn's deferred analysis gets this many total attempts before its evidence is marked permanently failed rather than retried forever. */
 const DEFERRED_ANALYSIS_MAX_ATTEMPTS = 3;
 const DEFERRED_ANALYSIS_RETRY_DELAY_MS = 2000;
+/** Independent reviews within one session may overlap; state is still folded server-side. */
+const DEFERRED_ANALYSIS_CONCURRENCY = 2;
+/** A late analysis is still report evidence, but cannot reshuffle an obsolete plan. */
+const DEFERRED_ANALYSIS_USEFUL_AGE_MS = 90_000;
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 /** Question writes running at once per student. The first-minute skeleton needs ~24 writes; 4 at a time finishes it in about a minute. */
 const FACTORY_CONCURRENCY = 4;
@@ -555,7 +575,8 @@ export class LotusService implements OnModuleDestroy {
   /** Sessions whose in-memory state is not confirmed durable yet — set before every persist attempt, cleared only on success. The sweep must never evict one of these: doing so on a failed write would silently roll a session back to its last successfully saved turn. */
   private readonly dirty = new Set<string>();
   private readonly inFlightAnswers = new Map<string, Promise<LotusSessionView>>();
-  private readonly analysisTails = new Map<string, Promise<void>>();
+  /** Bounded review queues: avoid serialising Q2 behind a slow Q1 analysis. */
+  private readonly analysisQueues = new Map<string, DeferredAnalysisQueue>();
   private readonly persistenceTails = new Map<string, Promise<void>>();
   /** Factorisation question writes waiting or running, per session. In memory only — a restart rebuilds from the plan. */
   private readonly writeQueues = new Map<string, { pending: WriteJob[]; running: number; activeTurns: Set<number> }>();
@@ -832,7 +853,7 @@ export class LotusService implements OnModuleDestroy {
     if (session.coveragePlan && atHardLimit) {
       // The final report needs the earlier answers' actual deep evidence, not
       // the placeholder audits that made their next questions appear quickly.
-      await this.analysisTails.get(session.sessionId)?.catch(() => undefined);
+      await this.waitForSessionAnalyses(session.sessionId);
     }
     const forcedSlow = this.forceSlowPath.has(session.sessionId);
 
@@ -912,6 +933,10 @@ export class LotusService implements OnModuleDestroy {
       },
       analysisStatus: needsReview ? "PENDING" : "NOT_REQUIRED",
       analysisSource: response.didNotKnow ? "SUPPORT_SIGNAL" : "DETERMINISTIC",
+      ...(needsReview ? {
+        analysisQueuedAt: new Date().toISOString(),
+        analysisDeadlineAt: new Date(Date.now() + DEFERRED_ANALYSIS_USEFUL_AGE_MS).toISOString(),
+      } : {}),
       stageAgreement: null,
       timingMs: null,
       createdAt: new Date().toISOString(),
@@ -940,16 +965,57 @@ export class LotusService implements OnModuleDestroy {
     elapsedSeconds: number,
     answeredCount: number,
   ): void {
-    const previous = this.analysisTails.get(session.sessionId) ?? Promise.resolve();
-    const task = previous.catch(() => undefined).then(() =>
-      this.runDeferredAnalysisWithRetry(
-        session.sessionId, turnIndex, question, response, verification, elapsedSeconds, answeredCount,
-      ),
-    );
-    this.analysisTails.set(session.sessionId, task);
-    void task.finally(() => {
-      if (this.analysisTails.get(session.sessionId) === task) this.analysisTails.delete(session.sessionId);
-    }).catch(() => undefined);
+    let queue = this.analysisQueues.get(session.sessionId);
+    if (!queue) {
+      queue = { pending: [], running: 0, activeTurns: new Set(), idleWaiters: new Set() };
+      this.analysisQueues.set(session.sessionId, queue);
+    }
+    // Retries use the same job; a reconnect or outbox drain must not create
+    // a second in-process review for the same accepted turn.
+    if (queue.activeTurns.has(turnIndex) || queue.pending.some((job) => job.turnIndex === turnIndex)) return;
+    const audit = session.audits[turnIndex];
+    if (audit) {
+      audit.analysisQueuePosition = queue.pending.length + 1;
+      // Queue position is operational evidence too. Persist it without
+      // making the student wait; the normal per-session persistence tail
+      // preserves write order with the accepted response.
+      void this.persist(session, audit, false).catch(() => undefined);
+    }
+    queue.pending.push({ turnIndex, question, response, verification, elapsedSeconds, answeredCount });
+    // Earlier unanswered turns are more useful to resolve first. This is an
+    // ordering preference, not a serial barrier: two can run at once.
+    queue.pending.sort((left, right) => left.turnIndex - right.turnIndex);
+    this.pumpDeferredAnalyses(session.sessionId);
+  }
+
+  private pumpDeferredAnalyses(sessionId: string): void {
+    const queue = this.analysisQueues.get(sessionId);
+    if (!queue) return;
+    while (queue.running < DEFERRED_ANALYSIS_CONCURRENCY && queue.pending.length) {
+      const job = queue.pending.shift()!;
+      queue.running += 1;
+      queue.activeTurns.add(job.turnIndex);
+      void this.runDeferredAnalysisWithRetry(
+        sessionId, job.turnIndex, job.question, job.response, job.verification, job.elapsedSeconds, job.answeredCount,
+      ).catch((err) => {
+        this.logger.error(`Deferred Lotus analysis escaped its retry policy for ${sessionId} turn ${job.turnIndex}: ${err instanceof Error ? err.message : String(err)}`);
+      }).finally(() => {
+        queue.running -= 1;
+        queue.activeTurns.delete(job.turnIndex);
+        this.pumpDeferredAnalyses(sessionId);
+        if (queue.running === 0 && queue.pending.length === 0) {
+          for (const resolve of queue.idleWaiters) resolve();
+          queue.idleWaiters.clear();
+          this.analysisQueues.delete(sessionId);
+        }
+      });
+    }
+  }
+
+  private waitForSessionAnalyses(sessionId: string): Promise<void> {
+    const queue = this.analysisQueues.get(sessionId);
+    if (!queue || (queue.running === 0 && queue.pending.length === 0)) return Promise.resolve();
+    return new Promise((resolve) => queue.idleWaiters.add(resolve));
   }
 
   /** Fast path: the deep read of *this* answer is still pending — only the next question is decided now, nothing is concluded. */
@@ -985,6 +1051,8 @@ export class LotusService implements OnModuleDestroy {
       questionSelection,
       analysisStatus: "PENDING",
       analysisSource: "DETERMINISTIC",
+      analysisQueuedAt: new Date().toISOString(),
+      analysisDeadlineAt: new Date(Date.now() + DEFERRED_ANALYSIS_USEFUL_AGE_MS).toISOString(),
       stageAgreement: null,
       timingMs: null,
       createdAt: new Date().toISOString(),
@@ -998,14 +1066,8 @@ export class LotusService implements OnModuleDestroy {
 
     await this.persist(session, audit, true, [deferredAnalysisJobSpec(session.sessionId, turnIndex)]);
 
-    void this.runDeferredAnalysisWithRetry(
-      session.sessionId,
-      turnIndex,
-      currentQuestion,
-      response,
-      verification,
-      elapsedSeconds,
-      answeredCount,
+    this.scheduleDeferredAnalysis(
+      session, turnIndex, currentQuestion, response, verification, elapsedSeconds, answeredCount,
     );
 
     return publicCopy(session);
@@ -1166,6 +1228,16 @@ export class LotusService implements OnModuleDestroy {
   ): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) return;
+    const queuedSlot = session.audits[turnIndex];
+    if (!queuedSlot || queuedSlot.analysisStatus !== "PENDING") return;
+    if (!queuedSlot.analysisStartedAt) {
+      queuedSlot.analysisStartedAt = new Date().toISOString();
+      queuedSlot.analysisQueuePosition = 0;
+      // The observer timeline must be able to distinguish worker queue age
+      // from actual model time. This small write is deliberately before the
+      // model call, so a restart cannot erase the fact that work started.
+      await this.persist(session, queuedSlot, true);
+    }
     const priorAudits = session.audits.slice(0, turnIndex);
 
     const analysis = await this.runFullAnalysis(
@@ -1193,13 +1265,15 @@ export class LotusService implements OnModuleDestroy {
     slot.timingMs = analysis.timingMs;
     slot.analysisStatus = "COMPLETE";
     slot.analysisSource = "AI_REVIEW";
+    slot.analysisCompletedAt = new Date().toISOString();
+    slot.analysisLate = Boolean(slot.analysisDeadlineAt && new Date(slot.analysisDeadlineAt).getTime() < Date.now());
 
     if (liveSession.factorisation) {
       // The AI only points at a step; the question's own step tags say which skill that is.
       slot.skillEvidence = evidenceFromAnalysis(
         slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription,
       );
-      if (liveSession.status === "ACTIVE") {
+      if (liveSession.status === "ACTIVE" && !slot.analysisLate) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
             .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW")
@@ -1208,10 +1282,27 @@ export class LotusService implements OnModuleDestroy {
         const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills);
         slot.questionSelection.planningNote = planDecisionNote(adjustments);
         slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
+      } else if (liveSession.status === "ACTIVE") {
+        slot.adaptiveDecision = {
+          action: "KEEP",
+          observedError: slot.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
+            ?? slot.verification?.explanation
+            ?? "The review completed after the plan-change deadline.",
+          alternatives: ["A plan change could be useful, but the student has already progressed beyond the safe replacement window."],
+          rationale: "The review is retained as evidence, but the server will not rewrite a stale future plan from an old response.",
+          expectedInformationGain: "Use this evidence in the final report and later planning without claiming it changed an obsolete question.",
+          implementation: "APPLIED",
+          implementationDetail: "Evidence was added only; no question was changed because this review arrived after its useful-age deadline.",
+          source: "RULE_VALIDATED_PLAN",
+        };
       }
       else liveSession.finalReport = this.factorisationReport(liveSession);
     } else if (liveSession.coveragePlan) {
-      this.stageLaterProbe(liveSession, analysis.conclusion.nextQuestion);
+      if (!slot.analysisLate) {
+        this.stageLaterProbe(liveSession, analysis.conclusion.nextQuestion);
+      } else {
+        slot.questionSelection.planningNote = "The review completed after its safe planning window; Lotus retained it as report evidence and did not change an unseen question.";
+      }
     } else if (analysis.conclusion.exitDiagnostic || analysis.conclusion.action !== "ASK") {
       this.forceSlowPath.add(sessionId);
     }
@@ -1251,9 +1342,8 @@ export class LotusService implements OnModuleDestroy {
   /**
    * A deferred analysis that fails outright (not just late) would otherwise
    * leave a turn's evidence permanently and silently PENDING — nothing ever
-   * retries it. This makes that failure visible in the record (still
-   * PENDING, not falsely COMPLETE) and logged, rather than indistinguishable
-   * from "still in progress". No retry is attempted; this is a known gap.
+   * retries it. This makes the terminal failure visible rather than leaving
+   * PENDING work indistinguishable from "still in progress".
    */
   private async markDeferredAnalysisFailed(sessionId: string, turnIndex: number): Promise<void> {
     const session = this.sessions.get(sessionId);
@@ -1267,6 +1357,8 @@ export class LotusService implements OnModuleDestroy {
     delete slot.debate;
     slot.analysisStatus = "FAILED";
     slot.analysisFailureReason = note;
+    slot.analysisCompletedAt = new Date().toISOString();
+    slot.analysisLate = Boolean(slot.analysisDeadlineAt && new Date(slot.analysisDeadlineAt).getTime() < Date.now());
     if (session!.factorisation && session!.status === "COMPLETE") {
       session!.finalReport = this.factorisationReport(session!);
     }
@@ -1913,6 +2005,10 @@ Create one materially different question that adds new diagnostic evidence. Test
         : { selectedFrom: "NONE_EXIT", reason: "The planned test is complete.", informationGain: { passed: true, explanation: "No next question — the test ended." } },
       analysisStatus: analyse ? "PENDING" : "NOT_REQUIRED",
       analysisSource: response.didNotKnow ? "SUPPORT_SIGNAL" : "DETERMINISTIC",
+      ...(analyse ? {
+        analysisQueuedAt: new Date().toISOString(),
+        analysisDeadlineAt: new Date(Date.now() + DEFERRED_ANALYSIS_USEFUL_AGE_MS).toISOString(),
+      } : {}),
       skillEvidence: instant.evidence,
       stageAgreement: null,
       timingMs: null,
@@ -1939,8 +2035,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       session.currentQuestion = null;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
       // The report is better with the last reviews in it, but the student shouldn't wait long for them.
-      const tail = this.analysisTails.get(session.sessionId);
-      if (tail) await settleWithin(tail, FINAL_REPORT_WAIT_MS);
+      await settleWithin(this.waitForSessionAnalyses(session.sessionId), FINAL_REPORT_WAIT_MS);
       this.completeFactorisation(session);
       await this.persist(
         session, audit, true,
@@ -2407,34 +2502,57 @@ Create one materially different question that tests a competing explanation or a
       orderBy: { createdAt: "asc" },
       take: limit,
     });
-    let completed = 0;
-    let failed = 0;
+    const claimedJobs: typeof pending = [];
     for (const job of pending) {
       const claim = await prisma.job.updateMany({
         where: { id: job.id, status: job.status },
         data: { status: "RUNNING", lockedAt: new Date(), lockedBy: `lotus-outbox-${process.pid}`, attemptCount: { increment: 1 } },
       });
-      if (claim.count === 0) continue; // another worker won the race
-      try {
-        await this.runOutboxJob(job.jobType, job.payload as Record<string, unknown>);
-        await prisma.job.update({ where: { id: job.id }, data: { status: "COMPLETED", completedAt: new Date() } });
-        completed += 1;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        const permanent = job.attemptCount >= OUTBOX_JOB_MAX_ATTEMPTS;
-        await prisma.job.update({
-          where: { id: job.id },
-          data: {
-            status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE",
-            lastError: message,
-            runAfter: permanent ? undefined : new Date(Date.now() + DEFERRED_ANALYSIS_RETRY_DELAY_MS * job.attemptCount),
-          },
-        });
-        failed += 1;
-        this.logger.warn(`Lotus outbox job ${job.id} (${job.jobType}) failed: ${message}`);
-      }
+      if (claim.count > 0) claimedJobs.push(job); // another worker may have won the race
     }
-    return { claimed: pending.length, completed, failed };
+
+    // The durable recovery path must have the same latency characteristics as
+    // the in-process path.  A crash should not turn a student who is already
+    // on Q5 into one waiting for Q2, Q3, and Q4 to be reviewed serially.
+    // Claiming remains one-by-one and atomic; only independently claimed work
+    // is bounded in parallel here.
+    let completed = 0;
+    let failed = 0;
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (cursor < claimedJobs.length) {
+        const job = claimedJobs[cursor++];
+        try {
+          await this.runOutboxJob(job.jobType, job.payload as Record<string, unknown>);
+          await prisma.job.update({ where: { id: job.id }, data: { status: "COMPLETED", completedAt: new Date() } });
+          completed += 1;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          // `job` is the row read before the successful claim; the claim has
+          // just incremented it, so calculate the retry limit from the new
+          // durable attempt count rather than allowing one hidden extra try.
+          const attemptCount = job.attemptCount + 1;
+          const permanent = attemptCount >= OUTBOX_JOB_MAX_ATTEMPTS;
+          await prisma.job.update({
+            where: { id: job.id },
+            data: {
+              status: permanent ? "FAILED_PERMANENT" : "FAILED_RETRYABLE",
+              lastError: message,
+              runAfter: permanent ? undefined : new Date(Date.now() + DEFERRED_ANALYSIS_RETRY_DELAY_MS * attemptCount),
+            },
+          });
+          failed += 1;
+          this.logger.warn(`Lotus outbox job ${job.id} (${job.jobType}) failed: ${message}`);
+        }
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(DEFERRED_ANALYSIS_CONCURRENCY, claimedJobs.length) },
+        () => worker(),
+      ),
+    );
+    return { claimed: claimedJobs.length, completed, failed };
   }
 
   private async runOutboxJob(jobType: string, payload: Record<string, unknown>): Promise<void> {
