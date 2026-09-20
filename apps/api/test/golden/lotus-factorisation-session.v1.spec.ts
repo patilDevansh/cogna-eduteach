@@ -369,6 +369,13 @@ describe("factorisation session — safety of the running test", () => {
     assert.equal(session.audits[0].gpt, undefined);
     assert.equal(session.audits[0].challenger, undefined);
     assert.equal(session.audits[0].debate, undefined);
+    assert.ok(session.audits[0].adaptiveDecision, "the support signal still receives a transparent, validated plan decision");
+    assert.equal(session.audits[0].adaptiveDecision.source, "RULE_VALIDATED_PLAN");
+    assert.match(session.audits[0].adaptiveDecision.observedError, /do not know/i);
+    assert.ok(
+      ["EASIER_PREREQUISITE", "TARGETED_PROBE", "KEEP"].includes(session.audits[0].adaptiveDecision.action),
+      "the action must be an explicit safe-plan outcome, never an invisible placeholder",
+    );
     assert.equal(models.closures, 0);
   });
 
@@ -441,6 +448,13 @@ describe("factorisation session — safety of the running test", () => {
     assert.ok(check.turn <= session.audits.length + 6,
       `check installed at turn ${check.turn}, expected it within a few turns of the current one (Q${session.audits.length + 1}), not far in the plan`);
     assert.ok(![24, 25].includes(check.turn), "must never land at the distant Q24/Q25 slots merely because they were still unseen");
+    const decision = session.audits[0].adaptiveDecision;
+    assert.ok(decision, "the later AI review must leave an explicit, observer-visible decision record");
+    assert.equal(decision!.action, "TARGETED_PROBE");
+    assert.equal(decision!.targetTurn, check.turn, "the visible requested placement must be the actual validated plan slot");
+    assert.match(decision!.requestedPlacement ?? "", new RegExp(`Question ${check.turn}`));
+    assert.equal(decision!.implementation, "APPLIED", "the decision must distinguish a ready installed question from an unimplemented recommendation");
+    assert.match(decision!.implementationDetail, /generated and installed/i);
   });
 
   it("shows the adaptation tag only on the installed changed item, never on an unchanged coverage question", async () => {
@@ -516,9 +530,8 @@ describe("factorisation session — safety of the running test", () => {
     const session = internal(service, view.sessionId);
     const audit = session.audits.find((a: { question: { answerKey: { diagnostics?: { skillId: string } } } }) =>
       a.question.answerKey.diagnostics?.skillId === "FAC_PERFECT_SQUARE_PLUS");
-    if (audit?.adaptiveDecision) {
-      assert.equal(audit.adaptiveDecision.action, "KEEP", "no widen target is available, so the decision must be an explicit KEEP");
-    }
+    assert.ok(audit?.adaptiveDecision, "a completed response must always expose the validated plan decision");
+    assert.equal(audit!.adaptiveDecision!.action, "KEEP", "no widen target is available, so the decision must be an explicit KEEP");
   });
 
   it("an observer can end the test early; the report says what wasn't reached", async () => {
@@ -546,6 +559,19 @@ describe("question factory — AI writes, code checks", () => {
     assert.equal(result.item, null);
     assert.equal(result.attempts, 2);
     assert.match(result.rejections.join(" "), /attempt 1/);
+  });
+
+  it("a targeted CHECK that doesn't actually cover the requested mistake is rejected — a valid item isn't enough if it can't re-elicit the suspicion", async () => {
+    // DIFF_SQUARES_WRITE's predicted wrong answers cover WROTE_PERFECT_SQUARE
+    // and DROPPED_SQUARE, never NOT_DIFF_OF_SQUARES — a perfectly valid item
+    // that still can't distinguish this specific suspected mistake.
+    const factory = new LotusQuestionFactory({ writeQuestion: async () => DIFF_SQUARES_WRITE, solveBlind: async () => ({}) });
+    const missCoverage = await factory.write({ spec: spec9, purpose: "CHECK", targetMistake: "NOT_DIFF_OF_SQUARES", avoid: [] });
+    assert.equal(missCoverage.item, null);
+    assert.match(missCoverage.rejections.join(" "), /does not cover the requested mistake NOT_DIFF_OF_SQUARES/);
+
+    const withCoverage = await factory.write({ spec: spec9, purpose: "CHECK", targetMistake: "WROTE_PERFECT_SQUARE", avoid: [] });
+    assert.ok(withCoverage.item, "the same item is accepted once the requested mistake is actually one of its predicted wrong answers");
   });
 
   it("rejects a worded question the blind solver answers differently", async () => {

@@ -87,21 +87,25 @@ const session = {
 } satisfies LotusSessionView;
 
 after(async () => {
+  await prisma.job.deleteMany({ where: { idempotencyKey: { startsWith: `${sessionId}:` } } });
   await prisma.lotusSessionRecord.deleteMany({ where: { sessionId } });
   await prisma.$disconnect();
 });
 
 describe("Lotus Phase 0 local database recovery", () => {
   it("persists a recoverable snapshot and append-only state and answer events", async () => {
-    await persistLotusSession(prisma, session);
+    const acceptedAnswer = {
+      ...session.openingAudit,
+      response: { answer: "-2y-10", working: "I lost the sign.", confidence: 60, responseTimeMs: 2_000, didNotKnow: false, submissionId: "sub-atomic" },
+      verification: { status: "VERIFIED_INCORRECT" as const, correctAnswer: "-2y+10", method: "DETERMINISTIC_ARITHMETIC" as const, explanation: "Sign lost." },
+    };
+    await persistLotusSession(prisma, session, [{
+      jobType: "LOTUS_DEFERRED_ANALYSIS",
+      idempotencyKey: `${sessionId}:0`,
+      payload: { sessionId, turnIndex: 0 },
+    }], acceptedAnswer);
     const loaded = await loadLotusSession(prisma, sessionId);
     assert.equal(loaded?.sessionId, sessionId);
-
-    await appendLotusEvidence(prisma, session, {
-      ...session.openingAudit,
-      response: { answer: "-2y-10", working: "I lost the sign.", confidence: 60, responseTimeMs: 2_000, didNotKnow: false, submissionId: "sub-1" },
-      verification: { status: "VERIFIED_INCORRECT", correctAnswer: "-2y+10", method: "DETERMINISTIC_ARITHMETIC", explanation: "Sign lost." },
-    });
 
     const record = await prisma.lotusSessionRecord.findUniqueOrThrow({ where: { sessionId } });
     const events = await prisma.lotusEvidenceRecord.findMany({
@@ -112,6 +116,18 @@ describe("Lotus Phase 0 local database recovery", () => {
     assert.equal((events[0]?.metadata as { snapshot?: { sessionId?: string } }).snapshot?.sessionId, sessionId);
     assert.equal(events[1]?.outcome, "VERIFIED_INCORRECT");
     assert.equal(record.pseudonymId?.length, 22, "every persisted session gets a deterministic pseudonymous id");
+    const jobs = await prisma.job.findMany({ where: { idempotencyKey: `${sessionId}:0` } });
+    assert.equal(jobs.length, 1, "the background analysis was queued in the same durable write as the answer");
+
+    await persistLotusSession(prisma, session, [{
+      jobType: "LOTUS_DEFERRED_ANALYSIS",
+      idempotencyKey: `${sessionId}:0`,
+      payload: { sessionId, turnIndex: 0 },
+    }], acceptedAnswer);
+    const answerRows = await prisma.lotusEvidenceRecord.findMany({
+      where: { sessionRecordId: record.id, eventType: "ANSWER", submissionId: "sub-atomic" },
+    });
+    assert.equal(answerRows.length, 1, "retrying a durable answer cannot create a second answer event");
   });
 
   it("a duplicate (question, submission) write updates the same durable ANSWER row instead of creating a second one — the DB-level duplicate-submit guard", async () => {

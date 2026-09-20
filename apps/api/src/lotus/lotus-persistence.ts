@@ -30,6 +30,7 @@ export async function persistLotusSession(
   prisma: PrismaClient,
   session: LotusSessionView,
   jobs: LotusOutboxJobSpec[] = [],
+  finalizedAudit?: LotusQuestionAudit,
 ): Promise<void> {
   const endedAt = session.status === "COMPLETE" ? new Date() : null;
   type PersistenceDb = Pick<PrismaClient, "lotusSessionRecord" | "lotusEvidenceRecord" | "job">;
@@ -84,6 +85,14 @@ export async function persistLotusSession(
       },
     });
 
+    // The accepted answer (or its completed review) belongs to the same
+    // durable unit as the snapshot that records it. Keeping this inside the
+    // transaction prevents a crash from producing a session that has moved
+    // on without a corresponding audit event.
+    if (finalizedAudit) {
+      await upsertLotusAnswerEvidence(db, record.id, finalizedAudit);
+    }
+
     for (const job of jobs) {
       // upsert, not create: a retried persist (or a stale-tab replay) must
       // never re-enqueue work that is already durably queued, running, or
@@ -106,6 +115,50 @@ export async function persistLotusSession(
     return;
   }
   await write(prisma);
+}
+
+type LotusPersistenceDb = Pick<PrismaClient, "lotusEvidenceRecord">;
+
+async function upsertLotusAnswerEvidence(
+  db: LotusPersistenceDb,
+  sessionRecordId: string,
+  audit: LotusQuestionAudit,
+): Promise<void> {
+  const questionId = audit.question.id;
+  const submissionId = audit.response?.submissionId ?? null;
+  const data = {
+    sessionRecordId,
+    eventType: "ANSWER",
+    outcome: audit.verification?.status ?? "UNRECORDED",
+    questionText: audit.question.prompt,
+    submittedText: audit.response?.answer ?? "",
+    verificationStatus: audit.verification?.status,
+    verbatimText: [
+      audit.question.prompt,
+      audit.response?.working ?? "",
+      audit.response?.answer ?? "",
+    ].join("\n"),
+    metadata: {
+      questionId,
+      didNotKnow: audit.response?.didNotKnow ?? false,
+      mathJudgment: audit.gpt?.mathJudgment ?? null,
+    } as object,
+    questionId,
+    submissionId,
+    analysisStartedAt: audit.analysisStatus === "COMPLETE" && audit.timingMs
+      ? new Date(Date.now() - audit.timingMs.total)
+      : undefined,
+    analysisCompletedAt: audit.analysisStatus === "COMPLETE" || audit.analysisStatus === "FAILED" ? new Date() : null,
+  };
+  if (submissionId) {
+    await db.lotusEvidenceRecord.upsert({
+      where: { sessionRecordId_questionId_submissionId: { sessionRecordId, questionId, submissionId } },
+      create: data,
+      update: data,
+    });
+    return;
+  }
+  await db.lotusEvidenceRecord.create({ data });
 }
 
 export async function loadLotusSession(
@@ -137,42 +190,5 @@ export async function appendLotusEvidence(
     select: { id: true },
   });
   if (!record) return;
-  const questionId = audit.question.id;
-  const submissionId = audit.response?.submissionId ?? null;
-  const data = {
-    sessionRecordId: record.id,
-    eventType: "ANSWER",
-    outcome: audit.verification?.status ?? "UNRECORDED",
-    questionText: audit.question.prompt,
-    submittedText: audit.response?.answer ?? "",
-    verificationStatus: audit.verification?.status,
-    verbatimText: [
-      audit.question.prompt,
-      audit.response?.working ?? "",
-      audit.response?.answer ?? "",
-    ].join("\n"),
-    metadata: {
-      questionId,
-      didNotKnow: audit.response?.didNotKnow ?? false,
-      mathJudgment: audit.gpt?.mathJudgment ?? null,
-    } as object,
-    questionId,
-    submissionId,
-    // Derived from the stage timing this same audit already carries, rather
-    // than a second clock reading — the two must never disagree.
-    analysisStartedAt: audit.analysisStatus === "COMPLETE" && audit.timingMs
-      ? new Date(Date.now() - audit.timingMs.total)
-      : undefined,
-    analysisCompletedAt: audit.analysisStatus === "COMPLETE" ? new Date() : null,
-  };
-  if (submissionId) {
-    await prisma.lotusEvidenceRecord.upsert({
-      where: { sessionRecordId_questionId_submissionId: { sessionRecordId: record.id, questionId, submissionId } },
-      create: data,
-      update: data,
-    });
-    return;
-  }
-  // No submissionId to deduplicate on: fall back to a plain append, same as before.
-  await prisma.lotusEvidenceRecord.create({ data });
+  await upsertLotusAnswerEvidence(prisma, record.id, audit);
 }

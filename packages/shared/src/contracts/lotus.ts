@@ -309,11 +309,13 @@ export interface LotusStageTimingMs {
 }
 
 /**
- * PENDING is a real review that has not completed. NOT_REQUIRED means Lotus
- * intentionally did not ask a model to interpret this turn (for example, an
- * explicit support request); it is never a disguised completed review.
+ * PENDING is a real review that has not completed. FAILED means the review
+ * exhausted its retry policy and carries no model interpretation.
+ * NOT_REQUIRED means Lotus intentionally did not ask a model to interpret
+ * this turn (for example, an explicit support request); it is never a
+ * disguised completed review.
  */
-export type LotusAnalysisStatus = "PENDING" | "COMPLETE" | "NOT_REQUIRED";
+export type LotusAnalysisStatus = "PENDING" | "COMPLETE" | "FAILED" | "NOT_REQUIRED";
 
 /** The source of the turn's interpretation, separate from its maths verdict. */
 export type LotusAnalysisSource = "DETERMINISTIC" | "SUPPORT_SIGNAL" | "AI_REVIEW";
@@ -355,6 +357,12 @@ export interface LotusAdaptiveDecision {
   targetSkill?: string;
   /** The requested earliest safe slot, never a claim that it has been shown. */
   requestedPlacement?: string;
+  /** Internal-safe turn reference used to reconcile planned action to generated item. */
+  targetTurn?: number;
+  /** Whether the validated plan change is already usable, waiting for a checked AI item, or could not be installed. */
+  implementation: "APPLIED" | "QUEUED_FOR_GENERATION" | "NOT_APPLIED";
+  /** Plain-language explanation of the implementation state, without answer keys. */
+  implementationDetail: string;
   source: "RULE_VALIDATED_PLAN" | "AI_RECOMMENDATION";
 }
 
@@ -382,6 +390,8 @@ export interface LotusQuestionAudit {
   analysisStatus: LotusAnalysisStatus;
   /** Lets the observer separate a mathematical fact, a support request, and a completed model interpretation. */
   analysisSource: LotusAnalysisSource;
+  /** Present only for a terminal review failure; it is never fabricated model reasoning. */
+  analysisFailureReason?: string;
   /** The validated planning decision made from this turn, if one was needed. */
   adaptiveDecision?: LotusAdaptiveDecision;
   /** What this turn told us about each skill. Hidden from the student while the diagnostic is active. */
@@ -445,6 +455,21 @@ export interface LotusSessionView {
     totalQuestions: number;
     ready: boolean;
   };
+}
+
+/**
+ * One unseen, unshown future slot's plain-language plan (COGNA 10.0/
+ * LOTUS_CONTINUOUS_DIAGNOSTIC.md §11 "Unseen Plan"). Observer/staff only —
+ * never answer keys, never the actual question text. `readiness` is honest:
+ * a slot the student hasn't reached yet may still be in preparation, and
+ * this says so rather than implying every future slot is already set.
+ */
+export interface LotusUnseenPlanEntry {
+  turnsAhead: number;
+  skill: string;
+  purpose: "COVERAGE" | "TARGETED_CHECK" | "EASIER_PREREQUISITE" | "BROADENED_EVIDENCE" | "COVERAGE_REPLACEMENT";
+  readiness: "READY" | "AWAITING_GENERATION";
+  provenance?: "AI_GENERATED_FOR_SESSION";
 }
 
 export interface LotusStatusResponse {

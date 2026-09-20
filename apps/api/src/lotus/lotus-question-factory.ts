@@ -204,6 +204,13 @@ export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   if (req.avoidSkill && d.stepSkills.some((s) => dependsOnTransitively(s, req.avoidSkill!))) {
     reasons.push(`still needs ${req.avoidSkill}`);
   }
+  // A CHECK exists to re-elicit one specific suspected misconception — an
+  // item that happens to be valid but doesn't actually cover that mistake
+  // can't distinguish a repeatable gap from a slip, which is the entire
+  // point of asking it.
+  if (req.purpose === "CHECK" && req.targetMistake && !d.predictedMistakes.some((p) => p.mistake === req.targetMistake)) {
+    reasons.push(`does not cover the requested mistake ${req.targetMistake}`);
+  }
   return reasons;
 }
 

@@ -122,6 +122,37 @@ export function createPersonalizedVideoMemoryDb() {
       }: {
         where?: Record<string, unknown>;
       } = {}) => [...jobs.values()].filter((row) => matchesWhere(row, where)),
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { jobType_idempotencyKey: { jobType: string; idempotencyKey: string } };
+        create: Row;
+        update: Partial<Row>;
+      }) => {
+        const key = where.jobType_idempotencyKey;
+        const existing = [...jobs.values()].find(
+          (row) => row.jobType === key.jobType && row.idempotencyKey === key.idempotencyKey,
+        );
+        if (existing) {
+          const updated = { ...existing, ...update, updatedAt: new Date() };
+          jobs.set(existing.id as string, updated);
+          return updated;
+        }
+        const row = {
+          ...create,
+          id: randomUUID(),
+          status: create.status ?? JobStatus.PENDING,
+          attemptCount: 0,
+          lastError: null,
+          runAfter: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        jobs.set(row.id as string, row);
+        return row;
+      },
       update: async ({
         where,
         data,
@@ -215,6 +246,29 @@ export function createPersonalizedVideoMemoryDb() {
     lotusEvidenceRecord: {
       create: async ({ data }: { data: Row }) => {
         const row = { ...data, id: randomUUID(), createdAt: new Date() };
+        lotusEvidence.push(row);
+        return row;
+      },
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { sessionRecordId_questionId_submissionId: { sessionRecordId: string; questionId: string; submissionId: string } };
+        create: Row;
+        update: Row;
+      }) => {
+        const key = where.sessionRecordId_questionId_submissionId;
+        const existing = lotusEvidence.find(
+          (row) => row.sessionRecordId === key.sessionRecordId
+            && row.questionId === key.questionId
+            && row.submissionId === key.submissionId,
+        );
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+        const row = { ...create, id: randomUUID(), createdAt: new Date() };
         lotusEvidence.push(row);
         return row;
       },

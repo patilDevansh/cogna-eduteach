@@ -17,6 +17,7 @@ import type {
   LotusStudentResponse,
   LotusOverrideAction,
   LotusTopic,
+  LotusUnseenPlanEntry,
   PersonalizedVideoAssignmentView,
   PersonalizedVideoTeacherReport,
 } from "@cogna/shared";
@@ -726,6 +727,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ studentId, action }),
     }),
+
+  getLotusUnseenPlan: (sessionId: string) =>
+    lotusFetch<LotusUnseenPlanEntry[]>(`/sessions/${sessionId}/unseen-plan`),
 
   getPersonalizedVideoAssignment: (studentId: string, studentKey?: string) => {
     const query = new URLSearchParams({ studentId });

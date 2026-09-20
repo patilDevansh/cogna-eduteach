@@ -63,9 +63,12 @@ export async function reconcileLotusSession(
     answerEvents.map((event) => event.questionId).filter((id): id is string => Boolean(id)),
   );
   for (const audit of snapshot.audits) {
-    if (audit.analysisStatus === "COMPLETE" && !answeredQuestionIds.has(audit.question.id)) {
+    // An answer is durable evidence as soon as it is accepted. It must not
+    // disappear just because its model review is still PENDING or was
+    // correctly marked NOT_REQUIRED (for example "I don't know yet").
+    if (audit.response && !answeredQuestionIds.has(audit.question.id)) {
       discrepancies.push(
-        `Question ${audit.question.id} shows COMPLETE analysis in the snapshot but has no durable ANSWER event.`,
+        `Question ${audit.question.id} has an accepted response in the snapshot but no durable ANSWER event.`,
       );
     }
   }

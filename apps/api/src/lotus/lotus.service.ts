@@ -25,6 +25,7 @@ import type {
   LotusStageTimingMs,
   LotusStatusResponse,
   LotusStudentResponse,
+  LotusUnseenPlanEntry,
   LotusTopic,
 } from "@cogna/shared";
 import { randomUUID } from "crypto";
@@ -40,7 +41,6 @@ import { LotusModelService } from "./lotus-model.service";
 import { pickOpener } from "./lotus-openers";
 import { buildLotusCoveragePlan } from "./lotus-coverage-plan";
 import {
-  appendLotusEvidence,
   loadLotusSession,
   lotusPersistenceEnabled,
   persistLotusSession,
@@ -220,6 +220,8 @@ function adaptiveDecisionFor(
       alternatives: ["A one-off slip, incomplete working, or an untested neighbouring skill can still explain this response."],
       rationale: "The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.",
       expectedInformationGain: "Keep collecting independent evidence before changing the plan.",
+      implementation: "APPLIED",
+      implementationDetail: "The validated action is to preserve the existing unseen plan; no question was swapped.",
       source: "RULE_VALIDATED_PLAN",
     };
   }
@@ -231,6 +233,9 @@ function adaptiveDecisionFor(
       rationale: action.reason,
       expectedInformationGain: "Avoid treating a dependent-item failure as evidence before its prerequisite is secure.",
       requestedPlacement: `Question ${action.turn}`,
+      targetTurn: action.turn,
+      implementation: "APPLIED",
+      implementationDetail: `Question ${action.turn} was removed or deferred by the validated plan.`,
       source: "RULE_VALIDATED_PLAN",
     };
   }
@@ -243,6 +248,11 @@ function adaptiveDecisionFor(
       expectedInformationGain: `A different representation of ${skillName(action.forSkill)} can confirm transfer rather than one memorized shape.`,
       targetSkill: action.forSkill,
       requestedPlacement: `Question ${action.turn}`,
+      targetTurn: action.turn,
+      implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
+      implementationDetail: action.spec
+        ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
+        : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
       source: "RULE_VALIDATED_PLAN",
     };
   }
@@ -259,6 +269,11 @@ function adaptiveDecisionFor(
       : `A fresh ${skillName(action.forSkill)} item can distinguish a repeatable difficulty from a slip.`,
     targetSkill: action.forSkill,
     requestedPlacement: `Question ${action.turn}`,
+    targetTurn: action.turn,
+    implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
+    implementationDetail: action.spec
+      ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
+      : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
     source: "RULE_VALIDATED_PLAN",
   };
 }
@@ -1245,10 +1260,16 @@ export class LotusService implements OnModuleDestroy {
     const slot = session?.audits[turnIndex];
     if (!slot || slot.analysisStatus !== "PENDING") return;
     const note = "Background analysis failed and was not retried — this turn's deep evidence is missing.";
-    slot.gpt = this.placeholderAssessment(note, "UNRESOLVED");
-    slot.challenger = this.placeholderAssessment(note, "UNRESOLVED");
-    slot.debate = this.placeholderDebate(note);
-    slot.conclusion = this.placeholderClosure(note, slot.conclusion.phase, "ASK", slot.conclusion.nextQuestion, false);
+    // A failed job is evidence about system health, not evidence about the
+    // child. Do not manufacture GPT/challenger/debate cards to fill the gap.
+    delete slot.gpt;
+    delete slot.challenger;
+    delete slot.debate;
+    slot.analysisStatus = "FAILED";
+    slot.analysisFailureReason = note;
+    if (session!.factorisation && session!.status === "COMPLETE") {
+      session!.finalReport = this.factorisationReport(session!);
+    }
     await this.persist(session!, slot, true);
   }
 
@@ -1767,6 +1788,16 @@ Create one materially different question that adds new diagnostic evidence. Test
         turn.reason = job.readyReason ?? turn.reason;
       }
     }
+    // Link the generated, validated item back to every decision that reserved
+    // this exact slot. The observer can now distinguish "plan changed" from
+    // "the checked replacement is ready to be served" without guessing.
+    for (const audit of session.audits) {
+      const decision = audit.adaptiveDecision;
+      if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
+        decision.implementation = "APPLIED";
+        decision.implementationDetail = `A checked AI-written question was generated and installed at question ${job.turn}; it remains unseen until its turn.`;
+      }
+    }
     record("USED");
     await this.persist(session, undefined, true);
   }
@@ -1901,6 +1932,8 @@ Create one materially different question that adds new diagnostic evidence. Test
         alternatives: ["A further question could add evidence, but there is no authorized remaining slot."],
         rationale: "The 25-slot plan has no further safe question to install.",
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
+        implementation: "APPLIED",
+        implementationDetail: "The validated action was to stop; no unapproved extra question was introduced.",
         source: "RULE_VALIDATED_PLAN",
       };
       session.currentQuestion = null;
@@ -1936,7 +1969,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const report = buildFactorisationReport({
       ledger: foldLedger(session.audits),
       state: f.state,
-      pendingAnalyses: session.audits.filter((audit) => audit.analysisStatus === "PENDING").length,
+      pendingAnalyses: session.audits.filter((audit) => audit.analysisStatus === "PENDING" || audit.analysisStatus === "FAILED").length,
     });
     if (f.endedEarlyNote) report.limitations.unshift(f.endedEarlyNote);
     return report;
@@ -2329,15 +2362,10 @@ Create one materially different question that tests a competing explanation or a
         // Serialize full-payload writes per session. Snapshot only when our
         // turn arrives, so a late AI write cannot roll back a newer answer.
         const snapshot = structuredClone(session);
-        await persistLotusSession(prisma, snapshot, outboxJobs);
-        // Recorded whenever a specific turn's audit is finalized-for-this-call,
-        // whether it is only PENDING/NOT_REQUIRED (the answer just arrived) or
-        // COMPLETE (its review just finished) — appendLotusEvidence upserts on
-        // (question, submission), so the COMPLETE write updates the same row
-        // the PENDING write created rather than duplicating it.
-        if (finalizedAudit) {
-          await appendLotusEvidence(prisma, snapshot, finalizedAudit);
-        }
+        // A snapshot, its answer event, and the durable background-work jobs
+        // are one transaction. A crash cannot leave a later session state
+        // without the evidence that justified it.
+        await persistLotusSession(prisma, snapshot, outboxJobs, finalizedAudit);
         succeeded = true;
       } catch (err) {
         this.logger.error(
@@ -2449,6 +2477,43 @@ Create one materially different question that tests a competing explanation or a
       return { ok: false, discrepancies: ["Persistence is not configured; nothing to reconcile."], snapshot: null };
     }
     return reconcileLotusSession(prisma, sessionId);
+  }
+
+  /**
+   * The next unshown slots' plain-language plan and readiness
+   * (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md §11 "Unseen Plan"). Staff
+   * only, via the controller's access check — no answer keys, no question
+   * text, ever. Factorisation only; the older coverage-plan topic has no
+   * per-slot purpose/readiness concept to report.
+   */
+  async unseenPlan(sessionId: string, count = 7): Promise<LotusUnseenPlanEntry[]> {
+    const session = await this.requireSession(sessionId);
+    const f = session.factorisation;
+    if (!f) return [];
+    return f.state.turns
+      .filter((turn) => turn.turn > f.state.planTurn && turn.status !== "SKIPPED")
+      .slice(0, count)
+      .map((turn) => {
+        const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
+        const skillId = turn.forSkill ?? spec?.skillId ?? "";
+        const ready = preferredItem(f, turn.turn)?.answerKey.diagnostics?.origin === "AI";
+        const purpose: LotusUnseenPlanEntry["purpose"] = turn.purpose === "CHECK"
+          ? "TARGETED_CHECK"
+          : turn.purpose === "DESCENT"
+            ? "EASIER_PREREQUISITE"
+            : turn.purpose === "WIDEN"
+              ? "BROADENED_EVIDENCE"
+              : turn.purpose === "AVOID"
+                ? "COVERAGE_REPLACEMENT"
+                : "COVERAGE";
+        return {
+          turnsAhead: turn.turn - f.state.planTurn,
+          skill: skillName(skillId),
+          purpose,
+          readiness: ready ? "READY" : "AWAITING_GENERATION",
+          provenance: ready ? "AI_GENERATED_FOR_SESSION" : undefined,
+        };
+      });
   }
 
   /** Permanently deletes every durable Lotus record for a student. Cascades to evidence via the schema's onDelete: Cascade. */

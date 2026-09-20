@@ -15,6 +15,7 @@ import type {
   LotusStudentResponse,
   LotusSkillState,
   LotusTopic,
+  LotusUnseenPlanEntry,
 } from "@cogna/shared";
 import { api } from "@/lib/api";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
@@ -306,8 +307,7 @@ function TurnStatusStrip({
   isLatest: boolean;
 }) {
   if (!audit.response) return null;
-  const failed = audit.analysisStatus === "PENDING" &&
-    /background analysis failed/i.test(audit.conclusion?.conclusion ?? "");
+  const failed = audit.analysisStatus === "FAILED";
   const reviewLabel = audit.analysisStatus === "NOT_REQUIRED"
     ? "AI review not required"
     : audit.analysisStatus === "COMPLETE"
@@ -350,6 +350,8 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
     : [];
   const unknown = audit.analysisStatus === "PENDING"
     ? "The AI review is still running. Lotus has not made an interpretation or final decision."
+    : audit.analysisStatus === "FAILED"
+      ? audit.analysisFailureReason ?? "The AI review failed before it could make an interpretation."
     : audit.analysisSource === "SUPPORT_SIGNAL"
       ? "Why the student needs support is not known from this response. One support request does not prove a stable gap."
       : alternatives.length
@@ -404,6 +406,7 @@ function DecisionPanel({ audit }: { audit: LotusQuestionAudit }) {
         <div><strong>Alternatives considered</strong><span>{decision.alternatives.join(" ")}</span></div>
         <div><strong>Proposed action</strong><span>{`Lotus proposes to ${action}${decision.targetSkill ? ` for ${decision.targetSkill.replaceAll("_", " ").toLowerCase()}` : ""}.`}</span></div>
         <div><strong>Requested placement</strong><span>{decision.requestedPlacement ?? "No replacement slot requested."}</span></div>
+        <div><strong>Action implementation</strong><span>{`${decision.implementation.replaceAll("_", " ")}: ${decision.implementationDetail}`}</span></div>
         <div><strong>What result would change the diagnosis</strong><span>{decision.expectedInformationGain}</span></div>
       </div>
     </section>
@@ -411,6 +414,15 @@ function DecisionPanel({ audit }: { audit: LotusQuestionAudit }) {
 }
 
 function actionImplementation(audit: LotusQuestionAudit): { implemented: boolean; explanation: string } {
+  if (audit.adaptiveDecision) {
+    const decision = audit.adaptiveDecision;
+    return {
+      // QUEUED_FOR_GENERATION means the governed plan action is real and
+      // durable, although its checked item is not ready to serve yet.
+      implemented: decision.implementation !== "NOT_APPLIED",
+      explanation: decision.implementationDetail,
+    };
+  }
   const selection = audit.questionSelection;
   const action = audit.conclusion.action;
   if (action === "ASK") {
@@ -576,6 +588,8 @@ function AuditCard({
               <span className={styles.analysisSpinner} aria-hidden="true" />
               <span><strong>AI review still running</strong><br /><small>The instant code check is provisional. Lotus has not made its final error finding or next-question decision yet.</small></span>
             </div>
+          ) : audit.analysisStatus === "FAILED" ? (
+            <p>{audit.analysisFailureReason ?? "The AI review failed before a model interpretation was available. Lotus retains the deterministic maths fact and does not claim a deeper diagnosis."}</p>
           ) : audit.analysisStatus === "NOT_REQUIRED" ? (
             <p>{audit.analysisSource === "SUPPORT_SIGNAL"
               ? "The student asked for support. Lotus recorded that signal without inventing an AI explanation of their reasoning."
@@ -680,6 +694,61 @@ function LiveProgressCard({ progress, index }: { progress: LotusLiveProgress; in
             <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
             <List items={progress.debate.disagreements} />
           </section>
+        )}
+      </div>
+    </details>
+  );
+}
+
+const UNSEEN_PURPOSE_LABEL: Record<LotusUnseenPlanEntry["purpose"], string> = {
+  COVERAGE: "Coverage",
+  TARGETED_CHECK: "Targeted check",
+  EASIER_PREREQUISITE: "Easier prerequisite",
+  BROADENED_EVIDENCE: "Broadened evidence",
+  COVERAGE_REPLACEMENT: "Coverage replacement",
+};
+
+/**
+ * §11 "Unseen Plan": the next 5–7 unshown slots, their purpose and
+ * readiness — never the question text or answer key. Observer-only, fetched
+ * on demand rather than polled, and refetched whenever a new answer lands
+ * (the plan can only change in response to an answer).
+ */
+function UnseenPlanPanel({ sessionId, answeredCount }: { sessionId: string; answeredCount: number }) {
+  const [entries, setEntries] = useState<LotusUnseenPlanEntry[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getLotusUnseenPlan(sessionId)
+      .then((result) => { if (!cancelled) { setEntries(result); setLoadError(null); } })
+      .catch((err) => { if (!cancelled) setLoadError(err instanceof Error ? err.message : "Could not load the unseen plan."); });
+    return () => { cancelled = true; };
+  }, [sessionId, answeredCount]);
+
+  return (
+    <details className={styles.auditCard}>
+      <summary className={styles.auditSummary}>
+        <span className={styles.number}>»</span>
+        <span><strong>Unseen plan</strong><br /><span className={styles.muted} style={{ fontSize: "0.82rem" }}>Next {entries?.length ?? "…"} unshown slots — no answer keys</span></span>
+      </summary>
+      <div className={styles.auditBody}>
+        {loadError && <p className={styles.error}>{loadError}</p>}
+        {!loadError && !entries && <p className={styles.muted}>Loading…</p>}
+        {!loadError && entries?.length === 0 && <p className={styles.muted}>No unshown slots remain.</p>}
+        {entries && entries.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.5rem" }}>
+            {entries.map((entry) => (
+              <li key={entry.turnsAhead} className={styles.turnStatusStrip}>
+                <span className={styles.statusChip}>+{entry.turnsAhead}</span>
+                <span className={styles.statusChip}>{entry.skill}</span>
+                <span className={styles.statusChip}>{UNSEEN_PURPOSE_LABEL[entry.purpose]}</span>
+                <span className={`${styles.statusChip} ${entry.readiness === "READY" ? styles.statusComplete : styles.statusPending}`}>
+                  {entry.readiness === "READY" ? "Ready" : "Awaiting generation"}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </details>
@@ -1376,6 +1445,9 @@ function LotusPage() {
                     <span className={styles.observerBadge}>Do not show student</span>
                   </div>
                 </div>
+                {session.topic === "FACTORISATION" && session.status === "ACTIVE" && (
+                  <UnseenPlanPanel sessionId={session.sessionId} answeredCount={audits.length} />
+                )}
                 <div className={styles.timeline}>
                   {audits.map((audit, index) => (
                     <AuditCard

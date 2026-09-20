@@ -1,0 +1,162 @@
+/**
+ * A deterministic, free, no-network stand-in for LotusModelService — the
+ * "controlled model adapter" the Deterministic Wiring Suite calls for
+ * (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md §9.1): validated AI-style
+ * questions and scripted review outcomes, so Playwright can drive the real
+ * student UI and the real API against real control-flow logic without live
+ * model cost or non-determinism. Only ever wired in when
+ * LOTUS_E2E_FAKE_MODEL=true (see lotus.module.ts) — normal boots are
+ * completely unaffected. Must never be mistaken for a measurement of
+ * live-model diagnostic accuracy; it only proves the wiring.
+ */
+import type {
+  LotusDebateClosure,
+  LotusGptDebateResponse,
+  LotusModelAssessment,
+  LotusQuestion,
+  LotusReserveIntent,
+} from "@cogna/shared";
+
+const ASSESSMENT: LotusModelAssessment = {
+  mathJudgment: "UNRESOLVED",
+  observations: ["fake e2e model"],
+  hypotheses: [],
+  phaseRecommendation: "EXPLORE",
+  proposedAction: "ASK",
+  conciseRationale: "fake e2e model",
+};
+
+const DEBATE: LotusGptDebateResponse = {
+  agreements: [],
+  disagreements: [],
+  disagreementExample: "None.",
+  acceptedImprovements: [],
+  revisedConclusion: "fake e2e model",
+  revisedAction: "ASK",
+  revisedPhase: "EXPLORE",
+};
+
+function closure(): LotusDebateClosure {
+  return {
+    verdict: "ACCEPTED",
+    acceptedFromGpt: [],
+    acceptedFromChallenger: [],
+    rejectedClaims: [],
+    conclusion: "fake e2e model",
+    evidenceState: "PARTIAL",
+    uncertainty: [],
+    phase: "EXPLORE",
+    action: "ASK",
+    selectionReason: "fake e2e model",
+    exitDiagnostic: false,
+  };
+}
+
+/**
+ * One controlled, code-verifiable item per catalogue shape. Every answer
+ * here still travels through the real writer parser and the real
+ * deterministic algebra checker (lotus-math.ts / lotus-question-factory.ts)
+ * before it can be installed — this only replaces the network call, not the
+ * validation. Ported from the same proven fixtures used by
+ * lotus-factorisation-session.v1.spec.ts (100+ passing golden tests).
+ */
+function controlledWrite(prompt: string): Record<string, unknown> {
+  const opener = prompt.match(/expression MUST be exactly: (.+?)\. Write/)?.[1]?.trim();
+  if (opener) {
+    const match = opener.match(/^(\d+)x \+ (\d+)$/);
+    if (!match) throw new Error(`fake e2e model: unexpected opener ${opener}`);
+    const a = Number(match[1]);
+    const b = Number(match[2]);
+    const gcd = (left: number, right: number): number => (right === 0 ? left : gcd(right, left % right));
+    const factor = gcd(a, b);
+    return {
+      prompt: `Factorise completely: ${opener}`,
+      expression: opener,
+      answer: `${factor}(${a / factor}x + ${b / factor})`,
+      wrongAnswers: [
+        { answer: "1", mistake: "DIVIDED_FIRST_TERM_ONLY" },
+        { answer: "2", mistake: "COMMON_NOT_HIGHEST" },
+      ],
+      steps: [{ line: `Take out ${factor}.`, skill: "FAC_DIVIDE_TERMS" }],
+    };
+  }
+  const shape = prompt.match(/Follow this shape, but write a NEW question with DIFFERENT numbers: ([^\n]+)/)?.[1]?.trim();
+  const token = prompt.match(/Session variation token: ([^\n]+)/)?.[1] ?? "test";
+  const variant = [...token].reduce((sum, character) => (sum * 31 + character.charCodeAt(0)) >>> 0, 7) % 10_000 + 1;
+  const factor = (expression: string, answer: string, skill: string, wrong?: Array<{ answer: string; mistake: string }>) => ({
+    prompt: `Factorise completely: (${expression}) + ${variant} - ${variant}`,
+    expression: `(${expression}) + ${variant} - ${variant}`,
+    answer,
+    wrongAnswers: wrong ?? (skill === "FAC_GROUP_TERMS"
+      ? [{ answer: "1", mistake: "PAIRS_SHARE_NOTHING" }, { answer: "2", mistake: "SUM_ACCEPTED_AS_FACTORISED" }]
+      : skill === "FAC_COMMON_BINOMIAL"
+        ? [{ answer: "1", mistake: "BRACKET_NOT_SEEN_AS_FACTOR" }, { answer: "2", mistake: "LEFTOVERS_MULTIPLIED" }]
+        : [{ answer: "1", mistake: "WRONG_FACTOR_PAIR_SUM" }, { answer: "2", mistake: "WRONG_FACTOR_PAIR_PRODUCT" }]),
+    steps: [{ line: "Use the required factorisation method.", skill }],
+  });
+  const choice = (question: string, correct: string, options: string[], skill: string) => ({
+    prompt: `${question} (Version ${variant}.)`,
+    options,
+    correctOption: correct,
+    wrongOptionMistakes: options.filter((option) => option !== correct).slice(0, 2).map((option, index) => ({ option, mistake: index ? "WRONG_FACTOR_PAIR_SUM" : "SIGN_PAIR_ERROR" })),
+    steps: [{ line: "Check the condition carefully.", skill }],
+  });
+  switch (shape) {
+    case "x^2 + 5x": return factor("2x^2 + 10x", "2x(x + 5)", "FAC_GCF_VARIABLE");
+    case "6x + 9": return factor("6x + 15", "3(2x + 5)", "FAC_DIVIDE_TERMS", [{ answer: "3(2x + 15)", mistake: "DIVIDED_FIRST_TERM_ONLY" }, { answer: "1", mistake: "COMMON_NOT_HIGHEST" }]);
+    case "3x^2 + 3x": return factor("4x^2 + 4x", "4x(x + 1)", "FAC_DIVIDE_TERMS");
+    case "10x^2 - 18x^3 + 14x^4": return factor("12x^2 - 18x^3 + 12x^4", "6x^2(2 - 3x + 2x^2)", "FAC_COMMON_MONOMIAL");
+    case "-4x - 8": return factor("-6x - 12", "-6(x + 2)", "FAC_GCF_NEGATIVE");
+    case "Is 2y(x + 1) + 3(x + 1) fully factorised? Why?": return choice("Is 4y(x + 2) + 5(x + 2) fully factorised?", "No; it is (x + 2)(4y + 5).", ["No; it is (x + 2)(4y + 5).", "Yes; it is a sum of products.", "No; x + 2 is not a factor.", "Yes; 4y and 5 cannot combine."], "FAC_MEANING");
+    case "3(x - 2) + y(x - 2)": return factor("4(x - 3) + y(x - 3)", "(x - 3)(y + 4)", "FAC_COMMON_BINOMIAL");
+    case "2xy + 2y + 3x + 3": return factor("3xy + 3y + 2x + 2", "(x + 1)(3y + 2)", "FAC_GROUP_TERMS");
+    case "x^2 - 9": return factor("x^2 - 16", "(x - 4)(x + 4)", "FAC_DIFF_SQUARES");
+    case "49a^2 - 25b^2": return factor("64a^2 - 9b^2", "(8a - 3b)(8a + 3b)", "FAC_DIFF_SQUARES");
+    case "x^2 + 6x + 9": return factor("x^2 + 8x + 16", "(x + 4)^2", "FAC_PERFECT_SQUARE_PLUS");
+    case "Which two numbers have a product of 12 and a sum of -7?": return choice("Which two numbers have a product of 20 and a sum of -9?", "-4 and -5", ["-4 and -5", "4 and 5", "-2 and -10", "-1 and -20"], "FAC_PAIR_PRODUCT_SUM");
+    case "x^2 + 5x + 6": return factor("x^2 + 7x + 12", "(x + 3)(x + 4)", "FAC_MONIC_TRINOMIAL");
+    case "x^2 - 7x + 12": return factor("x^2 - 9x + 20", "(x - 4)(x - 5)", "FAC_MONIC_TRINOMIAL");
+    case "x^2 - x - 12": return factor("x^2 - 2x - 15", "(x - 5)(x + 3)", "FAC_MONIC_TRINOMIAL");
+    case "4y^2 - 12y + 9": return factor("4y^2 - 20y + 25", "(2y - 5)^2", "FAC_PERFECT_SQUARE_MINUS");
+    case "6xy - 4y - 9x + 6": return factor("4xy - 6y - 2x + 3", "(2y - 1)(2x - 3)", "FAC_GROUP_SIGN");
+    case "Riya says x^2 - 5x + 6 = (x - 2)(x + 3). Is she right?": return choice("Riya says x^2 - 7x + 12 = (x - 3)(x - 4). Is she right?", "Yes; expanding gives x^2 - 7x + 12.", ["Yes; expanding gives x^2 - 7x + 12.", "No; it gives x^2 + 7x + 12.", "No; it gives x^2 - x - 12.", "Yes; the constants multiply to 7."], "FAC_VERIFY_EXPAND");
+    case "What should you do first to factorise 3x^2 - 12?": return choice("What should you do first to factorise 5x^2 - 20?", "Take out the common factor 5.", ["Take out the common factor 5.", "Use difference of squares immediately.", "Divide every term by x.", "Add 20 to both sides."], "FAC_CHOOSE_METHOD");
+    case "3x^2 - 12": return factor("5x^2 - 20", "5(x - 2)(x + 2)", "FAC_FACTOR_FULLY", [{ answer: "5(x^2 - 4)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
+    case "2x^2 + 10x + 12": return factor("3x^2 + 15x + 18", "3(x + 2)(x + 3)", "FAC_FACTOR_FULLY", [{ answer: "3(x^2 + 5x + 6)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
+    case "x^4 - 16": return factor("x^4 - 81", "(x - 3)(x + 3)(x^2 + 9)", "FAC_FACTOR_FULLY", [{ answer: "(x^2 - 9)(x^2 + 9)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "FACTORED_SUM_OF_SQUARES" }]);
+    case "Amit writes (7x + 5)/5 = 7x. Is he right?": return choice("Amit writes (6x + 4)/2 = 6x. Is he right?", "No; the whole numerator cannot be cancelled by 2.", ["No; the whole numerator cannot be cancelled by 2.", "Yes; cancel the 2 from both terms.", "Yes; 4 divided by 2 is zero.", "No; 6x cannot be divided by 2."], "FAC_MEANING");
+    case "(x^2 - 9) / (x^2 - 6x + 9)": return factor("(x^2 - 16) / (x^2 - 8x + 16)", "(x + 4)/(x - 4)", "FAC_CANCEL_COMMON_FACTOR");
+    case "2x + 3y + 6 + xy": return factor("3x + 2y + 6 + xy", "(x + 2)(y + 3)", "FAC_GROUP_TERMS");
+    default: throw new Error(`fake e2e model: no controlled writer fixture for shape ${JSON.stringify(shape)}`);
+  }
+}
+
+export class FakeLotusModelService {
+  readonly primaryModel = "fake-e2e-primary";
+  readonly challengerModel = "fake-e2e-challenger";
+
+  get status() {
+    return { enabled: true, ready: true, missingConfiguration: [] as string[], progressiveStreamingEnabled: false };
+  }
+  get progressiveStreamingEnabled() {
+    return false;
+  }
+  assertReady(): void {}
+  async primaryAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }
+  async challengerAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }
+  async primaryDebate(): Promise<LotusGptDebateResponse> { return DEBATE; }
+  async challengerClosure(): Promise<LotusDebateClosure> { return closure(); }
+  async reviseQuestion(): Promise<Omit<LotusQuestion, "id">> {
+    throw new Error("fake e2e model: reviseQuestion is not used by the factorisation E2E suite");
+  }
+  async generateReserveCandidates(): Promise<Array<{ intent: LotusReserveIntent; question: Omit<LotusQuestion, "id"> }>> {
+    return [];
+  }
+  async writeQuestion(prompt: string): Promise<Record<string, unknown>> {
+    return controlledWrite(prompt);
+  }
+  async solveBlind(prompt: string): Promise<Record<string, unknown>> {
+    const choice = prompt.match(/Options:\n- ([^\n]+)/)?.[1] ?? "";
+    return { choice };
+  }
+}

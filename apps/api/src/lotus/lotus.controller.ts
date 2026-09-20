@@ -56,6 +56,24 @@ export class LotusController {
     return this.lotus.reconcileSession(id);
   }
 
+  /**
+   * §11 "Unseen Plan": the next unshown slots' plain-language plan and
+   * readiness. Never answer keys or question text — the same trust tier as
+   * the rest of the observer/AI-Lab data on GET .../sessions/:id, so it uses
+   * the same access rule (the session's own student, a teacher, or a
+   * worker), not the stricter teacher-only gate on delete/export/reconcile.
+   */
+  @Get("sessions/:id/unseen-plan")
+  async unseenPlan(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+  ) {
+    const actor = resolveActor(headers);
+    const session = await this.lotus.get(id);
+    assertStudentAccess(actor, session.studentId);
+    return this.lotus.unseenPlan(id);
+  }
+
   @Post("sessions/:id/answers")
   answer(
     @Headers() headers: Record<string, string | string[] | undefined>,
