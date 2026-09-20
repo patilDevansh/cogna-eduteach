@@ -308,7 +308,81 @@ async function main() {
         fail("no-answer-key-leak", String(e).slice(0, 300));
       }
 
-      // E — Phase 4's rapid-response gate.  When the controlled model is
+      // E — an adaptationTag (which skill Lotus currently suspects, and why
+      // it repurposed a future turn) must never reach the browser while the
+      // session is ACTIVE — it belongs to the completed diagnostic record,
+      // never to a student who could still use it to game their next answer.
+      // Session A's scenario-C "I don't know" answer already queued an
+      // EASIER_PREREQUISITE/DESCENT turn nearby, but adaptationTag is only
+      // set on the AUDIT for that turn once the student actually reaches and
+      // answers it (lotus.service.ts adaptationTagFor) — not merely once the
+      // decision exists. So this advances several more turns first, to make
+      // it likely that repurposed turn was actually served and answered,
+      // then scans every captured response for the key appearing anywhere
+      // with a real value (not assuming a single known nesting path, so it
+      // still catches a leak if the field moves). Ground truth that the scan
+      // wasn't vacuous — i.e. a real repurposed turn really was reached —
+      // comes from questionSelection.selectedFrom, a sibling field on the
+      // SAME object that is NOT redacted: "ADAPTIVE_STAGED" only appears
+      // when the server-side turn.status was REPURPOSED, the exact condition
+      // adaptationTagFor requires to produce a non-undefined tag. Relying on
+      // an unredacted field to prove non-vacuousness, rather than assuming
+      // "no leak found" means "the check worked", is the point.
+      function findTruthyKey(value, key, path = "$") {
+        if (value === null || typeof value !== "object") return null;
+        if (Array.isArray(value)) {
+          for (let i = 0; i < value.length; i += 1) {
+            const hit = findTruthyKey(value[i], key, `${path}[${i}]`);
+            if (hit) return hit;
+          }
+          return null;
+        }
+        for (const [k, v] of Object.entries(value)) {
+          if (k === key && v !== null && v !== undefined) return `${path}.${k} = ${JSON.stringify(v)}`;
+          const hit = findTruthyKey(v, key, `${path}.${k}`);
+          if (hit) return hit;
+        }
+        return null;
+      }
+      try {
+        for (let turn = 4; turn <= 12; turn += 1) {
+          await submitAnswerAndWaitForTurn(pageA, "1", turn);
+        }
+      } catch (e) {
+        // The session may legitimately reach STOP/COMPLETE before turn 12 on
+        // some plan shapes; that's fine, the scan below still runs on
+        // whatever was captured. Only log it for visibility.
+        log("adaptation-tag-advance", `stopped advancing early: ${String(e).slice(0, 150)}`);
+      }
+      try {
+        let leakedAt = null;
+        let sawRepurposedTurn = false;
+        let checked = 0;
+        for (const res of lotusResponses) {
+          try {
+            const json = await res.json();
+            if (!json || typeof json !== "object" || !("audits" in json)) continue;
+            checked += 1;
+            if (findTruthyKey(json, "selectedFrom") && JSON.stringify(json).includes('"ADAPTIVE_STAGED"')) sawRepurposedTurn = true;
+            const hit = findTruthyKey(json, "adaptationTag");
+            if (hit) { leakedAt = `${res.request().method()} ${res.url()} :: ${hit}`; break; }
+          } catch { /* not JSON or already consumed; skip */ }
+        }
+        if (leakedAt) log("no-adaptation-tag-leak-debug", leakedAt);
+        if (leakedAt) {
+          fail("no-adaptation-tag-leak", "an /api/lotus/ response body exposed adaptationTag to the student view");
+        } else if (checked === 0) {
+          fail("no-adaptation-tag-leak", "no /api/lotus/ responses with audits were captured — the check did not actually run");
+        } else if (!sawRepurposedTurn) {
+          fail("no-adaptation-tag-leak", "never observed an ADAPTIVE_STAGED turn after advancing — the check was vacuous, not a real pass");
+        } else {
+          pass("no-adaptation-tag-leak", `checked ${checked} response(s), confirmed a real ADAPTIVE_STAGED turn was reached, no adaptationTag present`);
+        }
+      } catch (e) {
+        fail("no-adaptation-tag-leak", String(e).slice(0, 300));
+      }
+
+      // F — Phase 4's rapid-response gate.  When the controlled model is
       // configured to hold every closure open, the student must still reach
       // Q5 on previously authorized questions before Q1/Q2's reviews finish.
       // This is deliberately opt-in so the Phase 3 wiring command remains
