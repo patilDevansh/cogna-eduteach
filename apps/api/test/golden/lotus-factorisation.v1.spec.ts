@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import type { LotusQuestion, LotusQuestionAudit, LotusSkillEvidence, LotusStudentResponse } from "@cogna/shared";
 import {
   FACTORISATION_SLOTS,
+  assertFixedItemIsValid,
 } from "../../src/lotus/lotus-factorisation-catalogue";
 import {
   type FactorisationState,
@@ -329,6 +330,74 @@ describe("planAdjustments — changing only questions the student hasn't reached
     ]);
     const descents = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
     assert.deepEqual(descents, []);
+  });
+
+  it("two confirmed skills sharing an untested prerequisite install only one descent turn for it, not two", () => {
+    // FAC_GCF_NEGATIVE and FAC_COMMON_MONOMIAL both dependsOn FAC_DIVIDE_TERMS
+    // directly (lotus-factorisation-catalogue.ts), and neither depends on the
+    // other — so both become independent CONFIRMED ledger entries from the
+    // same fold, each separately eligible to descend into the same
+    // prerequisite. Before the fix, the per-call CHECK dedup guard didn't
+    // extend to DESCENT, so both entries' iterations would each claim their
+    // own turn for FAC_DIVIDE_TERMS in the same replan.
+    const { state, itemAt, askedItems } = planFixture(3);
+    const ledger = foldLedger([
+      audit([mistake("FAC_GCF_NEGATIVE", "KEPT_ORIGINAL_SIGNS")]),
+      audit([mistake("FAC_GCF_NEGATIVE", "KEPT_ORIGINAL_SIGNS")]),
+      audit([mistake("FAC_COMMON_MONOMIAL", "PARTIAL_GCF")]),
+      audit([mistake("FAC_COMMON_MONOMIAL", "PARTIAL_GCF")]),
+    ]);
+    assert.equal(ledger.get("FAC_GCF_NEGATIVE")!.state, "CONFIRMED");
+    assert.equal(ledger.get("FAC_COMMON_MONOMIAL")!.state, "CONFIRMED");
+    const descents = planAdjustments({ state, ledger, itemAt, askedItems })
+      .filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT" && a.forSkill === "FAC_DIVIDE_TERMS");
+    assert.equal(descents.length, 1, `expected exactly one DESCENT turn for the shared prerequisite, got ${descents.length}`);
+  });
+});
+
+describe("assertFixedItemIsValid — a SIMPLIFY item's own canonical answer must actually be reduced", () => {
+  // Regression coverage for the bug where this function validated a SIMPLIFY
+  // item by calling classifySimplification(answer, expression, answer) — the
+  // candidate compared against itself, so the UNFINISHED branch could never
+  // fire (degree(s) <= degree(s) is always true). It now uses
+  // classifyReducedForm, which compares against the original expression with
+  // strict inequality instead.
+  const expression = "(x^2 - 9) / (x^2 - 6x + 9)";
+  const baseDiagnostics = {
+    itemKind: "SIMPLIFY" as const,
+    expression,
+    skillId: "FAC_CANCEL_COMMON_FACTOR",
+    taggedSkills: [] as string[],
+    stepSkills: ["FAC_CANCEL_COMMON_FACTOR"],
+    slot: 22,
+    level: "hard" as const,
+    origin: "AI" as const,
+    predictedMistakes: [
+      { answer: "1/x", mistake: "CANCELLED_TERMS_NOT_FACTORS" },
+      { answer: "2/x", mistake: "DIVIDED_ONE_TERM_ONLY" },
+    ],
+  };
+  const itemWith = (canonicalAnswer: string) => ({
+    prompt: `Simplify: ${expression}`,
+    answerKey: { canonicalAnswer, workedSolution: ["step"], diagnostics: baseDiagnostics },
+  });
+
+  it("rejects a claimed-reduced answer that is really just the unreduced original", () => {
+    assert.throws(
+      () => assertFixedItemIsValid(itemWith(expression), "test item"),
+      /answer is UNFINISHED/,
+    );
+  });
+
+  it("rejects a factored-but-uncancelled answer, even though it's algebraically equal", () => {
+    assert.throws(
+      () => assertFixedItemIsValid(itemWith("(x-3)(x+3)/((x-3)(x-3))"), "test item"),
+      /answer is UNFINISHED/,
+    );
+  });
+
+  it("accepts a genuinely reduced answer", () => {
+    assert.doesNotThrow(() => assertFixedItemIsValid(itemWith("(x + 3)/(x - 3)"), "test item"));
   });
 });
 
