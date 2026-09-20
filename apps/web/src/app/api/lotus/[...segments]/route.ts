@@ -69,3 +69,11 @@ export async function POST(
 ): Promise<Response> {
   return proxy(request, context);
 }
+
+/** Keep the browser proxy aligned with the API's student-data deletion route. */
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ segments: string[] }> },
+): Promise<Response> {
+  return proxy(request, context);
+}

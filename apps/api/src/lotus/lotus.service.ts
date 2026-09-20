@@ -138,6 +138,11 @@ interface DeferredAnalysisQueue {
   idleWaiters: Set<() => void>;
 }
 
+interface LotusServiceOptions {
+  /** Test seam for comparing the bounded worker pool against a serialized baseline. */
+  deferredAnalysisConcurrency?: number;
+}
+
 const MAX_QUESTIONS = 16;
 const MAX_DURATION_MS = 20 * 60 * 1000;
 /**
@@ -468,6 +473,11 @@ function redactClosure(conclusion: LotusDebateClosure): LotusDebateClosure {
 function redactSelection(selection: LotusQuestionSelection): LotusQuestionSelection {
   return {
     ...selection,
+    // A live adaptation tag identifies the hypothesis behind a future probe.
+    // It belongs to the completed diagnostic record, never to a student while
+    // that probe could still influence their next answer.
+    adaptationTag: undefined,
+    planningNote: undefined,
     primaryProposal: selection.primaryProposal ? redactQuestion(selection.primaryProposal) : undefined,
     challengerProposal: selection.challengerProposal ? redactQuestion(selection.challengerProposal) : undefined,
     selectedQuestion: selection.selectedQuestion ? redactQuestion(selection.selectedQuestion) : undefined,
@@ -577,6 +587,7 @@ export class LotusService implements OnModuleDestroy {
   private readonly inFlightAnswers = new Map<string, Promise<LotusSessionView>>();
   /** Bounded review queues: avoid serialising Q2 behind a slow Q1 analysis. */
   private readonly analysisQueues = new Map<string, DeferredAnalysisQueue>();
+  private readonly deferredAnalysisConcurrency: number;
   private readonly persistenceTails = new Map<string, Promise<void>>();
   /** Factorisation question writes waiting or running, per session. In memory only — a restart rebuilds from the plan. */
   private readonly writeQueues = new Map<string, { pending: WriteJob[]; running: number; activeTurns: Set<number> }>();
@@ -590,7 +601,13 @@ export class LotusService implements OnModuleDestroy {
   constructor(
     private readonly models: LotusModelService,
     private readonly prisma?: PrismaClient | null,
+    options: LotusServiceOptions = {},
   ) {
+    this.deferredAnalysisConcurrency = Number.isInteger(options.deferredAnalysisConcurrency)
+      && options.deferredAnalysisConcurrency! >= 1
+      && options.deferredAnalysisConcurrency! <= 4
+      ? options.deferredAnalysisConcurrency!
+      : DEFERRED_ANALYSIS_CONCURRENCY;
     this.factory = new LotusQuestionFactory({
       writeQuestion: (prompt) => this.models.writeQuestion(prompt),
       solveBlind: (prompt) => this.models.solveBlind(prompt),
@@ -991,7 +1008,7 @@ export class LotusService implements OnModuleDestroy {
   private pumpDeferredAnalyses(sessionId: string): void {
     const queue = this.analysisQueues.get(sessionId);
     if (!queue) return;
-    while (queue.running < DEFERRED_ANALYSIS_CONCURRENCY && queue.pending.length) {
+    while (queue.running < this.deferredAnalysisConcurrency && queue.pending.length) {
       const job = queue.pending.shift()!;
       queue.running += 1;
       queue.activeTurns.add(job.turnIndex);
@@ -1282,6 +1299,7 @@ export class LotusService implements OnModuleDestroy {
         const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills);
         slot.questionSelection.planningNote = planDecisionNote(adjustments);
         slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
+        slot.adaptiveDecision.recommendedAt = slot.analysisCompletedAt;
       } else if (liveSession.status === "ACTIVE") {
         slot.adaptiveDecision = {
           action: "KEEP",
@@ -1293,6 +1311,7 @@ export class LotusService implements OnModuleDestroy {
           expectedInformationGain: "Use this evidence in the final report and later planning without claiming it changed an obsolete question.",
           implementation: "APPLIED",
           implementationDetail: "Evidence was added only; no question was changed because this review arrived after its useful-age deadline.",
+          recommendedAt: slot.analysisCompletedAt,
           source: "RULE_VALIDATED_PLAN",
         };
       }
@@ -1888,18 +1907,34 @@ Create one materially different question that adds new diagnostic evidence. Test
       f.writes.push({ turn: job.turn, purpose: job.request.purpose, ms: result.ms, attempts: result.attempts, outcome, rejections: result.rejections, at: new Date().toISOString() });
       this.logger.log(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
     };
+    const markNotApplied = (detail: string) => {
+      for (const audit of session.audits) {
+        const decision = audit.adaptiveDecision;
+        if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
+          decision.implementation = "NOT_APPLIED";
+          decision.implementationDetail = detail;
+        }
+      }
+    };
     const retryOrRecord = async (outcome: FactorisationWriteLog["outcome"]): Promise<void> => {
       const retryCount = job.retryCount ?? 0;
       record(outcome);
-      await this.persist(session, undefined, true);
       if (retryCount >= FACTORY_MAX_RETRIES) {
+        markNotApplied(`Question ${job.turn} was kept out of the diagnostic because a checked AI replacement could not be prepared in time.`);
+        await this.persist(session, undefined, true);
         this.logger.error(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds; preparation remains blocked instead of serving an unchecked item.`);
         return;
       }
+      await this.persist(session, undefined, true);
       this.logger.warn(`Retrying factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} (${retryCount + 1}/${FACTORY_MAX_RETRIES}) after ${outcome}.`);
       this.enqueueWrite(sessionId, { ...job, retryCount: retryCount + 1, urgent: true });
     };
-    if (session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) return record("STALE");
+    if (session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) {
+      record("STALE");
+      markNotApplied(`Question ${job.turn} was not installed because the student had already moved beyond the safe placement window.`);
+      await this.persist(session, undefined, true);
+      return;
+    }
     if (!result.item) return retryOrRecord("REJECTED");
     const print = questionPrint(result.item);
     if (this.testPrints(session, job.turn).some((existing) => normalizeMathText(existing).toLowerCase() === print)) return retryOrRecord("DUPLICATE");
@@ -1928,12 +1963,19 @@ Create one materially different question that adds new diagnostic evidence. Test
       session.openingAudit.questionSelection.provenance = questionProvenance(question);
     }
     const turn = f.state.turns.find((candidate) => candidate.turn === job.turn)!;
-    if (turn.status === "SKIPPED" && turn.purpose === "AVOID") {
-      // Held back until this rewrite existed. It may join the test only behind the question the browser already holds.
+    let installedForPlan = true;
+    if (turn.status === "SKIPPED" && turn.purpose) {
+      // Every AI rewrite is held until its candidate has passed validation. It
+      // may enter the plan only behind the question the browser already holds;
+      // otherwise the safe outcome is an honest "not implemented", never a
+      // missing-question error at answer time.
       const frozen = nextOpenTurn(f.state, f.state.planTurn);
       if (frozen === null || job.turn > frozen) {
         turn.status = "REPURPOSED";
         turn.reason = job.readyReason ?? turn.reason;
+      } else {
+        installedForPlan = false;
+        markNotApplied(`Question ${job.turn} was generated and checked, but reached the safe placement window too late, so Lotus did not change the student's plan.`);
       }
     }
     // Link the generated, validated item back to every decision that reserved
@@ -1941,8 +1983,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     // "the checked replacement is ready to be served" without guessing.
     for (const audit of session.audits) {
       const decision = audit.adaptiveDecision;
-      if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
+      if (installedForPlan && decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
         decision.implementation = "APPLIED";
+        decision.installedAt = new Date().toISOString();
         decision.implementationDetail = source === "BANK"
           ? `A checked AI question was reused from the question bank and installed at question ${job.turn}; it remains unseen until its turn.`
           : `A checked AI-written question was generated and installed at question ${job.turn}; it remains unseen until its turn.`;
@@ -1989,11 +2032,17 @@ Create one materially different question that adds new diagnostic evidence. Test
       // for this replan, leave the turn out instead of introducing a
       // hardcoded question.
       turn.status = "SKIPPED";
+      delete turn.purpose;
+      delete turn.forSkill;
       turn.reason = action.skipUntilReady
         ? `Not tested: an AI version that avoids ${skillName(action.avoidSkill ?? "").toLowerCase()} was not ready.`
         : "Not tested: an AI-written version for this prerequisite was not available.";
     }
     if (action.spec) {
+      // A plan action is a recommendation, not permission to serve a blank
+      // slot. Keep it excluded until a generated item has independently
+      // passed validation and can safely be installed.
+      turn.status = "SKIPPED";
       this.enqueueWrite(session.sessionId, {
         turn: action.turn,
         version: turn.version,
@@ -2026,9 +2075,18 @@ Create one materially different question that adds new diagnostic evidence. Test
     let next: LotusQuestion | undefined;
     if (nextTurn !== null) {
       const versions = f.versions[String(nextTurn)] ?? [];
-      next = response.nextQuestionId
-        ? versions.find((item) => item.id === response.nextQuestionId)
-        : preferredItem(f, nextTurn);
+      next = response.nextQuestionId ? versions.find((item) => item.id === response.nextQuestionId) : undefined;
+      if (!next && response.nextQuestionId) {
+        // A response can legitimately carry an ID the browser was offered
+        // before a background rewrite was put on hold. If that exact former
+        // item belongs to a now-skipped turn, advance to the next checked
+        // item instead of rejecting the student's answer. Any unknown ID is
+        // still refused below.
+        const staleOfferedItem = state.turns.some((turn) => turn.status === "SKIPPED" &&
+          (f.versions[String(turn.turn)] ?? []).some((item) => item.id === response.nextQuestionId));
+        if (staleOfferedItem) next = preferredItem(f, nextTurn);
+      }
+      if (!next && !response.nextQuestionId) next = preferredItem(f, nextTurn);
       if (!next) throw new BadRequestException("The next question was not authorized for this turn.");
     }
 
@@ -2088,6 +2146,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
         implementation: "APPLIED",
         implementationDetail: "The validated action was to stop; no unapproved extra question was introduced.",
+        recommendedAt: new Date().toISOString(),
         source: "RULE_VALIDATED_PLAN",
       };
       session.currentQuestion = null;
@@ -2106,9 +2165,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     session.currentQuestion = next;
     session.phase = next.phase;
     // This reply carries the new plan, so even the question after next may change.
-    const adjustments = this.adaptFactorisationPlan(session, false);
+    // The browser may already have received the immediately next item as a
+    // staged continuation. Reserve only a later slot for any asynchronous
+    // rewrite, so the writer has a real safe-placement window rather than
+    // racing the student for the next turn.
+    const adjustments = this.adaptFactorisationPlan(session, true);
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
+    audit.adaptiveDecision.recommendedAt = new Date().toISOString();
     await this.persist(
       session, audit, true,
       analyse ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : [],
@@ -2606,7 +2670,7 @@ Create one materially different question that tests a competing explanation or a
     };
     await Promise.all(
       Array.from(
-        { length: Math.min(DEFERRED_ANALYSIS_CONCURRENCY, claimedJobs.length) },
+        { length: Math.min(this.deferredAnalysisConcurrency, claimedJobs.length) },
         () => worker(),
       ),
     );

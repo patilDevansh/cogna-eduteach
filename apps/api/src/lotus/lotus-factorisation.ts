@@ -357,8 +357,12 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   const protectedTurns = new Set<number>();
   for (const e of ledger.values()) {
     if (e.state !== "SUSPECTED") continue;
-    const check = state.turns.find((t) => t.turn >= state.planTurn && t.status !== "SKIPPED" &&
-      ((t.purpose === "CHECK" && t.forSkill === e.skillId) || usesSkill(itemAt(t.turn), e.skillId)));
+    const check = state.turns.find((t) => t.turn >= state.planTurn &&
+      // A checked replacement is deliberately SKIPPED until its background
+      // writer succeeds. It still reserves this diagnostic check; otherwise
+      // a second review can queue a duplicate probe while the first writes.
+      ((t.purpose === "CHECK" && t.forSkill === e.skillId) ||
+        (t.status !== "SKIPPED" && usesSkill(itemAt(t.turn), e.skillId))));
     if (check) protectedTurns.add(check.turn);
   }
 
@@ -392,7 +396,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // merely happens to use the skill among its other tagged skills is not
     // a substitute for the AI's specifically requested probe.
     const alreadyChecked = checkedThisCall.has(skillId) || state.turns.some((t) =>
-      t.status !== "SKIPPED" && t.purpose === "CHECK" && t.forSkill === skillId);
+      t.purpose === "CHECK" && t.forSkill === skillId);
     if (alreadyChecked) continue;
     const turn = pickVictim();
     if (turn === null) continue;
@@ -412,13 +416,15 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 
   // 1. Every suspicion needs a later question that can confirm or clear it.
   for (const e of ledger.values()) {
-    if (e.state !== "SUSPECTED") continue;
-    const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) => t.turn >= state.planTurn && t.status !== "SKIPPED" &&
-      ((t.purpose === "CHECK" && t.forSkill === e.skillId) || usesSkill(itemAt(t.turn), e.skillId)));
-    if (hasCheck) continue;
+    // A support signal is not evidence of a mathematical gap, but it does
+    // justify one lower-prerequisite question. Handle it before the
+    // suspicion-only confirmation path, or a pure "I don't know" remains
+    // UNTESTED and can never receive the promised support action.
     if (e.needsSupport) {
       const support = descentTargets(e.skillId, ledger, asked, 1)[0];
-      if (support) {
+      const supportAlreadyReserved = support && state.turns.some((t) =>
+        t.purpose === "DESCENT" && t.forSkill === support.skill);
+      if (support && !supportAlreadyReserved) {
         const turn = pickVictim();
         if (turn !== null) {
           claimed.add(turn);
@@ -428,10 +434,17 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
             spec: support.spec,
             reason: `The student said they do not know this yet; checking the easier prerequisite ${skillName(support.skill)} next.`,
           });
-          continue;
         }
       }
+      if (support) continue;
+      // "I don't know" alone never earns a same-skill confirmation probe.
+      if (e.state !== "SUSPECTED") continue;
     }
+    if (e.state !== "SUSPECTED") continue;
+    const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) => t.turn >= state.planTurn &&
+      ((t.purpose === "CHECK" && t.forSkill === e.skillId) ||
+        (t.status !== "SKIPPED" && usesSkill(itemAt(t.turn), e.skillId))));
+    if (hasCheck) continue;
     const spec = FACTORISATION_SLOTS.find((s) => s.skillId === e.skillId);
     if (!spec) continue;
     const turn = pickVictim();

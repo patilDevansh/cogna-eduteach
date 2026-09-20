@@ -145,8 +145,9 @@ class FakeModels {
   closureFailures = 0;
   writes = 0;
   closureGate: Promise<void> | null = null;
+  closureDelayMs = 0;
   firstWrongStep: number | null = null;
-  writer: (prompt: string) => Record<string, unknown> = controlledWrite;
+  writer: (prompt: string) => Record<string, unknown> | Promise<Record<string, unknown>> = controlledWrite;
   blindChoice: (prompt: string) => string = (prompt) => prompt.match(/Options:\n- ([^\n]+)/)?.[1] ?? "";
 
   get status() {
@@ -162,6 +163,7 @@ class FakeModels {
   async challengerClosure(): Promise<LotusDebateClosure> {
     this.closures += 1;
     if (this.closureGate) await this.closureGate;
+    if (this.closureDelayMs) await new Promise((resolve) => setTimeout(resolve, this.closureDelayMs));
     if (this.closureFailures > 0) {
       this.closureFailures -= 1;
       throw new Error("controlled transient closure failure");
@@ -180,9 +182,9 @@ class FakeModels {
 const services: LotusService[] = [];
 after(() => services.forEach((service) => service.onModuleDestroy()));
 
-function setup() {
+function setup(deferredAnalysisConcurrency?: number) {
   const models = new FakeModels();
-  const service = new LotusService(models as unknown as LotusModelService, null);
+  const service = new LotusService(models as unknown as LotusModelService, null, { deferredAnalysisConcurrency });
   services.push(service);
   return { models, service };
 }
@@ -462,7 +464,7 @@ describe("factorisation session — safety of the running test", () => {
     assert.match(decision!.implementationDetail, /generated and installed/i);
   });
 
-  it("shows the adaptation tag only on the installed changed item, never on an unchanged coverage question", async () => {
+  it("keeps an installed adaptation tag in the internal audit only while the diagnostic is active", async () => {
     const { models, service } = setup();
     let release!: () => void;
     models.closureGate = new Promise((resolve) => { release = resolve; });
@@ -482,16 +484,50 @@ describe("factorisation session — safety of the running test", () => {
       view = await submit(service, view, predictedWrong(service, view));
       session = internal(service, view.sessionId);
       if (before < check.turn && session.factorisation.state.planTurn === check.turn) {
-        taggedAudit = view.audits.at(-1);
+        taggedAudit = session.audits.at(-1);
       }
     }
     assert.ok(taggedAudit, "never reached the installed check turn within the loop budget");
     assert.equal(taggedAudit!.questionSelection.adaptationTag?.kind, "TARGETED_CHECK");
     assert.match(String((taggedAudit!.questionSelection.adaptationTag as { skill: string }).skill), /\S/, "the tag must name the skill it targets");
 
-    // Every other, unchanged turn in this same response must carry no tag at all.
-    const untaggedCount = view.audits.filter((audit) => audit !== taggedAudit && audit.questionSelection.adaptationTag).length;
-    assert.equal(untaggedCount, 0, "an adaptation tag must never appear on an unchanged, originally-planned coverage item");
+    // The public view is the same JSON a student can inspect in devtools.
+    // It must not disclose the hypothesis behind an unseen target question.
+    assert.ok(view.audits.every((audit) => audit.questionSelection.adaptationTag === undefined));
+    assert.ok(view.audits.every((audit) => audit.questionSelection.planningNote === undefined));
+  });
+
+  it("never exposes an AI rewrite slot until its checked question is ready", async () => {
+    const { models, service } = setup();
+    let view = await startReady(service, "demo_writer_race");
+    const session = internal(service, view.sessionId);
+    const originalQ3 = view.upcomingQuestions![1]!.id;
+    let keepWritePending!: () => void;
+    const pendingWrite = new Promise<void>((resolve) => { keepWritePending = resolve; });
+    models.writer = async (prompt) => {
+      if (prompt.includes("This question re-checks a suspected mistake")) await pendingWrite;
+      return controlledWrite(prompt);
+    };
+    // A controlled direct plan action isolates the student-facing race: Q2 is
+    // reserved now, but its background writer will never complete before Q1
+    // is submitted. The service must advance to the next ready item, not
+    // attempt to serve a blank Q2 slot.
+    const checkSpec = FACTORISATION_SLOTS.find((slot) => slot.skillId === "FAC_DIVIDE_TERMS")!;
+    (service as unknown as { applyPlanAction: (s: unknown, action: unknown) => void }).applyPlanAction(session, {
+      kind: "REPURPOSE",
+      turn: 2,
+      purpose: "CHECK",
+      forSkill: "FAC_DIVIDE_TERMS",
+      targetMistake: "DIVIDED_FIRST_TERM_ONLY",
+      spec: checkSpec,
+      reason: "Controlled delayed-writer race.",
+    });
+    view = await submit(service, view, predictedWrong(service, view));
+    assert.equal(view.currentQuestion?.id, originalQ3, "the service skips the held rewrite and serves the next validated question");
+    const held = session.factorisation.state.turns.find((turn: { turn: number }) => turn.turn === 2);
+    assert.equal(held.status, "SKIPPED");
+    assert.equal(held.purpose, "CHECK");
+    keepWritePending();
   });
 
   it("rapid progress through several turns while an earlier review is still pending doesn't corrupt the plan or duplicate a probe", async () => {
@@ -541,6 +577,23 @@ describe("factorisation session — safety of the running test", () => {
     assert.equal(session.audits[0].analysisStatus, "COMPLETE");
     assert.equal(session.audits[1].analysisStatus, "COMPLETE");
     assert.ok(session.audits[0].analysisQueuedAt && session.audits[0].analysisStartedAt, "queue timing is durable observer evidence");
+  });
+
+  it("uses the bounded two-worker review pool rather than a serialized baseline", async () => {
+    const run = async (concurrency: number) => {
+      const { models, service } = setup(concurrency);
+      models.closureDelayMs = 45;
+      let view = await startReady(service, `demo_latency_${concurrency}`);
+      view = await submit(service, view, "3(2x + 4)");
+      view = await submit(service, view, predictedWrong(service, view));
+      await (service as unknown as { waitForSessionAnalyses: (sessionId: string) => Promise<void> })
+        .waitForSessionAnalyses(view.sessionId);
+      return internal(service, view.sessionId).audits as Array<{ analysisStartedAt?: string; analysisCompletedAt?: string }>;
+    };
+    const serial = await run(1);
+    const bounded = await run(2);
+    assert.ok(serial[0]!.analysisCompletedAt! <= serial[1]!.analysisStartedAt!, "one worker must serialize the controlled baseline");
+    assert.ok(bounded[1]!.analysisStartedAt! < bounded[0]!.analysisCompletedAt!, "two workers must start Q2 before Q1's delayed closure ends");
   });
 
   it("retries a transient deferred-review failure and completes the same turn without duplicating it", async () => {
@@ -627,7 +680,7 @@ describe("factorisation session — safety of the running test", () => {
     await assert.rejects(service.override(view.sessionId, view.studentId, "REPLACE_QUESTION"), /planned skill map/);
     view = await service.override(view.sessionId, view.studentId, "END_NOW");
     assert.equal(view.status, "COMPLETE");
-    assert.match(view.finalReport!.limitations[0]!, /ended the test after 1 of 25/);
+    assert.match(view.finalReport!.limitations[0]!, /ended the test after 1 of \d+ planned questions/);
     assert.notEqual(view.finalReport!.outcome, "SOLID_GAP", "one mistake is never a confirmed gap");
   });
 });

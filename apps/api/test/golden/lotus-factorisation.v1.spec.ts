@@ -102,6 +102,7 @@ function audit(skillEvidence: LotusSkillEvidence[]): LotusQuestionAudit {
 
 const mistake = (skillId: string, code = "SOME_MISTAKE"): LotusSkillEvidence => ({ skillId, kind: "MISTAKE", mistake: code, source: "INSTANT" });
 const secure = (skillId: string): LotusSkillEvidence => ({ skillId, kind: "SECURE", source: "INSTANT" });
+const support = (skillId: string): LotusSkillEvidence => ({ skillId, kind: "DID_NOT_KNOW", source: "INSTANT" });
 
 function freshState(planTurn: number): FactorisationState {
   return {
@@ -240,6 +241,26 @@ describe("planAdjustments — changing only questions the student hasn't reached
     const { state, itemAt, askedItems } = planFixture(2);
     const ledger = foldLedger([audit([mistake("FAC_DIFF_SQUARES", "DROPPED_SQUARE")])]);
     assert.deepEqual(planAdjustments({ state, ledger, itemAt, askedItems }), []);
+  });
+
+  it("a pure support signal schedules one easier prerequisite without calling it a gap", () => {
+    const { state, itemAt, askedItems } = planFixture(1);
+    const ledger = foldLedger([audit([support("FAC_DIVIDE_TERMS")])]);
+    assert.equal(ledger.get("FAC_DIVIDE_TERMS")!.state, "UNTESTED");
+    const actions = planAdjustments({ state, ledger, itemAt, askedItems });
+    const descent = actions.find((action) => action.kind === "REPURPOSE" && action.purpose === "DESCENT");
+    assert.ok(descent, "an explicit support request should lead to one lower prerequisite check");
+    assert.ok(descent.turn > 2, "the immediately staged question remains protected");
+    if (descent.kind === "REPURPOSE") {
+      state.turns.find((turn) => turn.turn === descent.turn)!.purpose = "DESCENT";
+      state.turns.find((turn) => turn.turn === descent.turn)!.forSkill = descent.forSkill;
+    }
+    assert.equal(
+      planAdjustments({ state, ledger, itemAt, askedItems })
+        .filter((action) => action.kind === "REPURPOSE" && action.purpose === "DESCENT").length,
+      0,
+      "the reserved support probe must prevent duplicate descent questions",
+    );
   });
 
   it("a confirmed gap removes dependent questions, goes down to the skills underneath, and never touches the next question", () => {

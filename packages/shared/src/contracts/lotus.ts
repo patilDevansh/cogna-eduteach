@@ -365,6 +365,10 @@ export interface LotusAdaptiveDecision {
   implementation: "APPLIED" | "QUEUED_FOR_GENERATION" | "NOT_APPLIED";
   /** Plain-language explanation of the implementation state, without answer keys. */
   implementationDetail: string;
+  /** When Lotus made this validated plan recommendation. */
+  recommendedAt?: string;
+  /** When a checked replacement became installed and eligible to be served. */
+  installedAt?: string;
   source: "RULE_VALIDATED_PLAN" | "AI_RECOMMENDATION";
 }
 
