@@ -37,7 +37,7 @@ These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONT
 - [ ] Phase 0 — mandatory durable database persistence for demo and production diagnostics, isolated persistent audit environment, per-turn event timeline, recovery/outbox tests, and AI Studio review-status strip.
 - [ ] Phase 1 — evidence-calibrated learner model and AI Studio Evidence panel.
 - [ ] Phase 2 — structured adaptive decisions, near-term validated placement, and AI Studio Decision panel.
-- [ ] Phase 3 — all-AI question readiness/provenance/validation and AI Studio question-supply panel.
+- [x] Phase 3 — all-AI question readiness/provenance/validation and AI Studio question-supply panel (51 deterministic API checks and 10/10 PostgreSQL-backed Playwright checks passed, 20 Sep 2026).
 - [ ] Phase 4 — selective concurrent review with deadlines and AI Studio latency/effect detail.
 - [ ] Phase 5 — truthful proposed/installed/shown action timeline and evidence-traceable teacher report.
 - [ ] Phase 6 — controlled and live-model Playwright intellectual-profile evaluation with educator scoring.

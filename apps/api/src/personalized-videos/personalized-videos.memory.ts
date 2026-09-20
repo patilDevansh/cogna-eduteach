@@ -291,7 +291,7 @@ export function createPersonalizedVideoMemoryDb() {
           lotusQuestionBank.set(key, updated);
           return updated;
         }
-        const row = { ...create, id: randomUUID(), createdAt: new Date(), updatedAt: new Date() };
+        const row = { ...create, id: randomUUID(), reuseCount: create.reuseCount ?? 0, createdAt: new Date(), updatedAt: new Date() };
         lotusQuestionBank.set(key, row);
         return row;
       },
