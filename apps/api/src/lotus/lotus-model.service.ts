@@ -9,6 +9,7 @@ import type {
 } from "@cogna/shared";
 import { OpenAIService } from "../ai/openai.service";
 import { LotusLatencyPolicy, type LotusCallKind } from "./lotus-latency-policy";
+import { LotusCostTracker, type LotusCostSnapshot } from "./lotus-cost-tracker";
 
 function extractJson(text: string): unknown {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -34,6 +35,7 @@ export class LotusModelService {
   readonly primaryModel: string;
   readonly challengerModel: string;
   private readonly latency: LotusLatencyPolicy;
+  private readonly costTracker = new LotusCostTracker();
 
   constructor(
     private readonly openai: OpenAIService,
@@ -74,6 +76,11 @@ export class LotusModelService {
    */
   get progressiveStreamingEnabled(): boolean {
     return this.config.get<string>("LOTUS_PROGRESSIVE_STREAMING_ENABLED") !== "false";
+  }
+
+  /** Snapshot of live-model call counts, token usage, and cost (where a price is configured) since this process started. */
+  get costTelemetry(): LotusCostSnapshot {
+    return this.costTracker.snapshot();
   }
 
   assertReady(): void {
@@ -195,6 +202,13 @@ export class LotusModelService {
         text: { format: { type: "json_object" }, verbosity: "low" },
         prompt_cache_key: tuning.promptCacheKey,
       }, { timeout: tuning.timeoutMs });
+      if (response.usage) {
+        this.costTracker.record(model, kind, {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+          totalTokens: response.usage.total_tokens,
+        });
+      }
       const content = response.output_text;
       if (!content) throw new Error(`${agentLabel} returned an empty response.`);
       return extractJson(content);

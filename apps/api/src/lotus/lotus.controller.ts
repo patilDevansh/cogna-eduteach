@@ -142,4 +142,13 @@ export class LotusController {
     assertTeacher(resolveActor(headers));
     return this.lotus.exportStudentData(studentId);
   }
+
+  /** Live-model call/token/cost telemetry since this process started. Teacher/admin only — never a student-facing route. */
+  @Get("cost-telemetry")
+  getCostTelemetry(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    assertTeacher(resolveActor(headers));
+    return this.lotus.getCostTelemetry();
+  }
 }

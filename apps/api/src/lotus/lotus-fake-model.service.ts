@@ -16,6 +16,7 @@ import type {
   LotusQuestion,
   LotusReserveIntent,
 } from "@cogna/shared";
+import { LotusCostTracker } from "./lotus-cost-tracker";
 
 const ASSESSMENT: LotusModelAssessment = {
   mathJudgment: "UNRESOLVED",
@@ -151,6 +152,10 @@ export class FakeLotusModelService {
   }
   get progressiveStreamingEnabled() {
     return false;
+  }
+  /** No real calls happen in fake-model mode, so telemetry is always empty — matches LotusModelService's shape so a teacher hitting the endpoint during a fake-model E2E run gets a real zero-value snapshot, not undefined. */
+  get costTelemetry() {
+    return new LotusCostTracker().snapshot();
   }
   assertReady(): void {}
   async primaryAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }

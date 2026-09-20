@@ -2800,4 +2800,9 @@ Create one materially different question that tests a competing explanation or a
       })),
     };
   }
+
+  /** Live-model call counts, token usage, and cost (where a price is configured) since this process started. Teacher/admin telemetry only — never exposed on a student-facing route. */
+  getCostTelemetry() {
+    return this.models.costTelemetry;
+  }
 }
