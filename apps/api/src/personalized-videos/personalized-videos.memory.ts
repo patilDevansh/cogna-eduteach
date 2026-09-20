@@ -22,6 +22,7 @@ export function createPersonalizedVideoMemoryDb() {
   const outcomes: Row[] = [];
   const lotusSessions = new Map<string, Row>();
   const lotusEvidence: Row[] = [];
+  const lotusQuestionBank = new Map<string, Row>();
 
   return {
     personalizedVideoAssignment: {
@@ -273,8 +274,46 @@ export function createPersonalizedVideoMemoryDb() {
         return row;
       },
     },
+    lotusQuestionBankItem: {
+      upsert: async ({
+        where,
+        create,
+        update,
+      }: {
+        where: { sourceSessionId_sourceQuestionId: { sourceSessionId: string; sourceQuestionId: string } };
+        create: Row;
+        update: Row;
+      }) => {
+        const key = `${where.sourceSessionId_sourceQuestionId.sourceSessionId}:${where.sourceSessionId_sourceQuestionId.sourceQuestionId}`;
+        const existing = lotusQuestionBank.get(key);
+        if (existing) {
+          const updated = { ...existing, ...update, updatedAt: new Date() };
+          lotusQuestionBank.set(key, updated);
+          return updated;
+        }
+        const row = { ...create, id: randomUUID(), createdAt: new Date(), updatedAt: new Date() };
+        lotusQuestionBank.set(key, row);
+        return row;
+      },
+      findMany: async () => [...lotusQuestionBank.values()],
+      update: async ({ where, data }: { where: { id: string }; data: Row & { reuseCount?: { increment: number } } }) => {
+        const entry = [...lotusQuestionBank.entries()].find(([, row]) => row.id === where.id);
+        if (!entry) throw new Error("Question-bank item not found");
+        const [key, existing] = entry;
+        const updated = {
+          ...existing,
+          ...data,
+          reuseCount: data.reuseCount && typeof data.reuseCount === "object"
+            ? (existing.reuseCount as number) + data.reuseCount.increment
+            : data.reuseCount ?? existing.reuseCount,
+          updatedAt: new Date(),
+        };
+        lotusQuestionBank.set(key, updated);
+        return updated;
+      },
+    },
     // Exposed only to tests so persistence contracts can inspect the complete
     // durable trail rather than merely proving that calls did not throw.
-    _store: { assignments, events, jobs, assets, outcomes, lotusSessions, lotusEvidence },
+    _store: { assignments, events, jobs, assets, outcomes, lotusSessions, lotusEvidence, lotusQuestionBank },
   };
 }
