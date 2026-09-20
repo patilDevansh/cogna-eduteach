@@ -387,6 +387,19 @@ async function main() {
       // Q5 on previously authorized questions before Q1/Q2's reviews finish.
       // This is deliberately opt-in so the Phase 3 wiring command remains
       // fast; invoke with LOTUS_E2E_FAKE_CLOSURE_DELAY_MS=2500.
+      //
+      // The actual proof of "not blocked" is the pending-reviews COUNT below
+      // (still queued/running once Q5 renders) — a state check, true or false
+      // regardless of wall-clock speed. An earlier version of this gate also
+      // asserted reachQ5Ms < closureDelayMs, comparing wall-clock time to
+      // reach Q5 against the injected delay; that was flaky by design, not
+      // just on this run: four rapid Next.js-dev-mode round trips share one
+      // Node event loop with this run's other scenarios' background writes
+      // and reviews, so "time to reach Q5" is sensitive to host/process load
+      // for reasons that have nothing to do with whether reviews block —
+      // reproduced failing at 2862-4052ms against a 2500ms threshold on both
+      // the original script and this one, unrelated to any code change here.
+      // The timing is still logged for visibility, just never gates pass/fail.
       const closureDelayMs = Number(process.env.LOTUS_E2E_FAKE_CLOSURE_DELAY_MS || "0");
       if (Number.isFinite(closureDelayMs) && closureDelayMs > 0) {
         const pageC = await browser.newPage();
@@ -398,20 +411,14 @@ async function main() {
             await submitAnswerAndWaitForTurn(pageC, "1", turn);
           }
           const reachQ5Ms = Date.now() - startedAt;
-          // The fake model waits through the closure stage.  A serial review
-          // path would not permit Q2, let alone Q5, before this delay ends.
-          if (reachQ5Ms >= closureDelayMs) {
-            fail("rapid-q5-before-review", `Q5 arrived in ${reachQ5Ms}ms, after the injected ${closureDelayMs}ms review delay`);
-          } else {
-            pass("rapid-q5-before-review", `Q5 arrived in ${reachQ5Ms}ms while each review closure was held for ${closureDelayMs}ms`);
-          }
+          log("rapid-q5-timing", `Q5 arrived in ${reachQ5Ms}ms (informational — each review closure was held for ${closureDelayMs}ms; see comment above on why this isn't a pass/fail gate)`);
           await pageC.getByRole("button", { name: /Show AI Lab/ }).click();
           const pendingReviews = pageC.getByText(/AI review (queued|running)/);
           const pendingCount = await pendingReviews.count();
           if (pendingCount < 2) {
-            fail("rapid-pending-reviews", `expected Q1 and Q2 reviews still pending at Q5; found ${pendingCount}`);
+            fail("rapid-pending-reviews", `expected Q1 and Q2 reviews still pending at Q5 (reached in ${reachQ5Ms}ms); found ${pendingCount} — a serial review path would show 0`);
           } else {
-            pass("rapid-pending-reviews", `${pendingCount} review(s) remain queued/running at Q5; the student was not blocked`);
+            pass("rapid-pending-reviews", `${pendingCount} review(s) remain queued/running at Q5 (reached in ${reachQ5Ms}ms); the student was not blocked`);
           }
         } catch (e) {
           fail("rapid-response-flow", String(e).slice(0, 300));
@@ -419,7 +426,7 @@ async function main() {
           await pageC.close();
         }
       } else {
-        skip("rapid-q5-before-review", "set LOTUS_E2E_FAKE_CLOSURE_DELAY_MS (for example 2500) to run the Phase 4 delayed-review gate");
+        skip("rapid-pending-reviews", "set LOTUS_E2E_FAKE_CLOSURE_DELAY_MS (for example 2500) to run the Phase 4 delayed-review gate");
       }
 
       await pageA.close();
