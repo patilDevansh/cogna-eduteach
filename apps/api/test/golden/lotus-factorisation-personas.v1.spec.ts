@@ -124,9 +124,11 @@ function assertNoHardcodedFallback(service: LotusService, view: LotusSessionView
 }
 
 /**
- * A skill earns at most one dedicated CHECK-purpose turn. This catches the
- * regression where an answered CHECK disappeared from the planner's
- * `alreadyChecked` scan and repeated evidence kept installing more probes.
+ * A skill earns at most two dedicated CHECK-purpose turns: one fresh check
+ * after the first suspicion, plus one independent confirmation if that check
+ * also fails. This catches the regression where an answered CHECK disappeared
+ * from the planner's `alreadyChecked` scan and repeated evidence kept
+ * installing an unbounded stream of probes.
  */
 function assertNoRunawayDuplicateProbes(service: LotusService, view: LotusSessionView, persona: PersonaProfile): void {
   const session = internal(service, view.sessionId);
@@ -134,7 +136,7 @@ function assertNoRunawayDuplicateProbes(service: LotusService, view: LotusSessio
   const counts = new Map<string, number>();
   for (const t of checks) counts.set(t.forSkill!, (counts.get(t.forSkill!) ?? 0) + 1);
   for (const [skillId, count] of counts) {
-    assert.ok(count <= 1, `${persona.id}: ${skillId} accumulated ${count} CHECK-purpose turns — one suspected skill may earn only one dedicated check`);
+    assert.ok(count <= 2, `${persona.id}: ${skillId} accumulated ${count} CHECK-purpose turns — a suspected skill may earn at most two dedicated checks before confirmation`);
   }
 }
 

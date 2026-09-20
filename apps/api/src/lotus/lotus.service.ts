@@ -1857,14 +1857,14 @@ Create one materially different question that adds new diagnostic evidence. Test
       take: 12,
     });
     for (const row of rows) {
-      const candidate = structuredClone(row.question) as Omit<LotusQuestion, "id">;
+      const candidate = structuredClone(row.question) as unknown as Omit<LotusQuestion, "id">;
       const diagnostics = candidate.answerKey?.diagnostics;
       if (diagnostics?.origin !== "AI") continue;
       const print = questionPrint(candidate);
       if (existingPrints.has(print)) continue;
       // A historic item is treated exactly like a new writer response: it
       // must still satisfy the current slot/mistake constraints before use.
-      if (checkWrittenItem(job.request, candidate).length) continue;
+      if (checkWrittenItem({ ...job.request, avoid: this.testPrints(session, job.turn) }, candidate).length) continue;
       diagnostics.provenance = "AI_REUSED_FROM_BANK";
       await this.prisma.lotusQuestionBankItem.update({
         where: { id: row.id },
@@ -2683,12 +2683,13 @@ Create one materially different question that tests a competing explanation or a
               : turn.purpose === "AVOID"
                 ? "COVERAGE_REPLACEMENT"
                 : "COVERAGE";
+        const provenance = item && ready ? questionProvenance(item) : undefined;
         return {
           turnsAhead: turn.turn - f.state.planTurn,
           skill: skillName(skillId),
           purpose,
           readiness: ready ? "READY" : "AWAITING_GENERATION",
-          provenance: item && ready ? questionProvenance(item) : undefined,
+          provenance: provenance === "AI_GENERATED_FOR_SESSION" || provenance === "AI_REUSED_FROM_BANK" ? provenance : undefined,
         };
       });
   }
