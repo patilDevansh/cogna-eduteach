@@ -142,6 +142,7 @@ class FakeModels {
   readonly primaryModel = "fake-primary";
   readonly challengerModel = "fake-challenger";
   closures = 0;
+  closureFailures = 0;
   writes = 0;
   closureGate: Promise<void> | null = null;
   firstWrongStep: number | null = null;
@@ -161,6 +162,10 @@ class FakeModels {
   async challengerClosure(): Promise<LotusDebateClosure> {
     this.closures += 1;
     if (this.closureGate) await this.closureGate;
+    if (this.closureFailures > 0) {
+      this.closureFailures -= 1;
+      throw new Error("controlled transient closure failure");
+    }
     return { ...CLOSURE, firstWrongStep: this.firstWrongStep };
   }
   async writeQuestion(prompt: string) {
@@ -536,6 +541,42 @@ describe("factorisation session — safety of the running test", () => {
     assert.equal(session.audits[0].analysisStatus, "COMPLETE");
     assert.equal(session.audits[1].analysisStatus, "COMPLETE");
     assert.ok(session.audits[0].analysisQueuedAt && session.audits[0].analysisStartedAt, "queue timing is durable observer evidence");
+  });
+
+  it("retries a transient deferred-review failure and completes the same turn without duplicating it", async () => {
+    const { models, service } = setup();
+    models.closureFailures = 1;
+    let view = await startReady(service, "demo_retry_review");
+    view = await submit(service, view, predictedWrong(service, view));
+    await (service as unknown as { waitForSessionAnalyses: (sessionId: string) => Promise<void> })
+      .waitForSessionAnalyses(view.sessionId);
+    const audit = internal(service, view.sessionId).audits[0];
+    assert.equal(models.closures, 2, "the failed review must be retried exactly once before it succeeds");
+    assert.equal(audit.analysisStatus, "COMPLETE");
+    assert.equal(internal(service, view.sessionId).audits.length, 1, "a retry must update the original audit, never append a second answer");
+  });
+
+  it("runs review work for isolated student sessions concurrently", async () => {
+    const { models, service } = setup();
+    let release!: () => void;
+    models.closureGate = new Promise((resolve) => { release = resolve; });
+    const [first, second] = await Promise.all([
+      startReady(service, "demo_parallel_a"),
+      startReady(service, "demo_parallel_b"),
+    ]);
+    await Promise.all([
+      submit(service, first, predictedWrong(service, first)),
+      submit(service, second, predictedWrong(service, second)),
+    ]);
+    await flush();
+    assert.equal(models.closures, 2, "independent sessions must both enter review while the closures are held");
+    release();
+    await Promise.all([first, second].map(({ sessionId }) =>
+      (service as unknown as { waitForSessionAnalyses: (id: string) => Promise<void> }).waitForSessionAnalyses(sessionId),
+    ));
+    for (const { sessionId } of [first, second]) {
+      assert.equal(internal(service, sessionId).audits[0].analysisStatus, "COMPLETE");
+    }
   });
 
   it("keeps a late review as report evidence without letting it rewrite an obsolete plan", async () => {

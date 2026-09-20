@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LotusLatencyPolicy } from "../../src/lotus/lotus-latency-policy";
+import { LotusModelService } from "../../src/lotus/lotus-model.service";
 
 test("Lotus balanced latency policy keeps the final critic stronger than parallel reads", () => {
   const policy = new LotusLatencyPolicy({});
@@ -32,4 +33,15 @@ test("Lotus policy accepts only a safe per-model timeout and protects question w
   assert.equal(policy.tuning("assessment", "primary").timeoutMs, 12_000);
   assert.equal(policy.tuning("generation", "primary").timeoutMs, 45_000);
   assert.equal(new LotusLatencyPolicy({ LOTUS_MODEL_TIMEOUT_MS: "1000" }).modelTimeoutMs, 25_000);
+});
+
+test("LotusModelService forwards the configured model timeout into its latency policy", () => {
+  const config = {
+    get: (key: string) => key === "LOTUS_MODEL_TIMEOUT_MS" ? "12000" : undefined,
+  };
+  const openai = { isConfigured: true };
+  const service = new LotusModelService(openai as never, config as never);
+  const latency = (service as unknown as { latency: LotusLatencyPolicy }).latency;
+  assert.equal(latency.tuning("assessment", "test-model").timeoutMs, 12_000);
+  assert.equal(latency.tuning("generation", "test-model").timeoutMs, 45_000);
 });

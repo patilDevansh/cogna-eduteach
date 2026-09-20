@@ -45,6 +45,7 @@ export class LotusModelService {
     this.latency = new LotusLatencyPolicy({
       LOTUS_LATENCY_MODE: this.config.get<string>("LOTUS_LATENCY_MODE"),
       LOTUS_MAX_OUTPUT_TOKENS: this.config.get<string>("LOTUS_MAX_OUTPUT_TOKENS"),
+      LOTUS_MODEL_TIMEOUT_MS: this.config.get<string>("LOTUS_MODEL_TIMEOUT_MS"),
     });
   }
 

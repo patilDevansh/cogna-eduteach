@@ -120,6 +120,13 @@ async function submitDontKnow(page) {
   await page.getByRole("button", { name: /Submit answer/ }).click();
 }
 
+async function submitAnswerAndWaitForTurn(page, answer, turn) {
+  await page.getByPlaceholder(/Type your answer/).fill(answer);
+  await page.getByRole("button", { name: /Submit answer/ }).click();
+  await page.getByText(new RegExp(`^Question ${turn} of 25$`)).first()
+    .waitFor({ state: "visible", timeout: 20_000 });
+}
+
 async function currentPromptText(page) {
   // Every factorisation item's prompt (real or fake writer) starts with this
   // fixed phrase (see makerPrompt/controlledWrite) — a stable, content-based
@@ -288,6 +295,46 @@ async function main() {
         else pass("no-answer-key-leak", `checked ${checked} /api/lotus/ response(s), no answer-key fields present`);
       } catch (e) {
         fail("no-answer-key-leak", String(e).slice(0, 300));
+      }
+
+      // E — Phase 4's rapid-response gate.  When the controlled model is
+      // configured to hold every closure open, the student must still reach
+      // Q5 on previously authorized questions before Q1/Q2's reviews finish.
+      // This is deliberately opt-in so the Phase 3 wiring command remains
+      // fast; invoke with LOTUS_E2E_FAKE_CLOSURE_DELAY_MS=2500.
+      const closureDelayMs = Number(process.env.LOTUS_E2E_FAKE_CLOSURE_DELAY_MS || "0");
+      if (Number.isFinite(closureDelayMs) && closureDelayMs > 0) {
+        const pageC = await browser.newPage();
+        try {
+          await loginAsDemoStudent(pageC, `demo_e2ec${runId}`, "E2E Rapid");
+          await startFactorisation(pageC);
+          const startedAt = Date.now();
+          for (let turn = 2; turn <= 5; turn += 1) {
+            await submitAnswerAndWaitForTurn(pageC, "1", turn);
+          }
+          const reachQ5Ms = Date.now() - startedAt;
+          // The fake model waits through the closure stage.  A serial review
+          // path would not permit Q2, let alone Q5, before this delay ends.
+          if (reachQ5Ms >= closureDelayMs) {
+            fail("rapid-q5-before-review", `Q5 arrived in ${reachQ5Ms}ms, after the injected ${closureDelayMs}ms review delay`);
+          } else {
+            pass("rapid-q5-before-review", `Q5 arrived in ${reachQ5Ms}ms while each review closure was held for ${closureDelayMs}ms`);
+          }
+          await pageC.getByRole("button", { name: /Show AI Lab/ }).click();
+          const pendingReviews = pageC.getByText(/AI review (queued|running)/);
+          const pendingCount = await pendingReviews.count();
+          if (pendingCount < 2) {
+            fail("rapid-pending-reviews", `expected Q1 and Q2 reviews still pending at Q5; found ${pendingCount}`);
+          } else {
+            pass("rapid-pending-reviews", `${pendingCount} review(s) remain queued/running at Q5; the student was not blocked`);
+          }
+        } catch (e) {
+          fail("rapid-response-flow", String(e).slice(0, 300));
+        } finally {
+          await pageC.close();
+        }
+      } else {
+        skip("rapid-q5-before-review", "set LOTUS_E2E_FAKE_CLOSURE_DELAY_MS (for example 2500) to run the Phase 4 delayed-review gate");
       }
 
       await pageA.close();

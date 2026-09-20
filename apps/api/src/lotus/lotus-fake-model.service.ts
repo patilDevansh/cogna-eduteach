@@ -53,6 +53,17 @@ function closure(): LotusDebateClosure {
 }
 
 /**
+ * Test-only latency injection for the Phase 4 browser gate.  It delays the
+ * final review stage while leaving question writing fast, so the test can
+ * prove that a student can move through already-authorized questions without
+ * waiting for an earlier review.  Production boots never use this adapter.
+ */
+function closureDelayMs(): number {
+  const value = Number(process.env.LOTUS_E2E_FAKE_CLOSURE_DELAY_MS);
+  return Number.isInteger(value) && value >= 0 && value <= 30_000 ? value : 0;
+}
+
+/**
  * One controlled, code-verifiable item per catalogue shape. Every answer
  * here still travels through the real writer parser and the real
  * deterministic algebra checker (lotus-math.ts / lotus-question-factory.ts)
@@ -145,7 +156,11 @@ export class FakeLotusModelService {
   async primaryAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }
   async challengerAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }
   async primaryDebate(): Promise<LotusGptDebateResponse> { return DEBATE; }
-  async challengerClosure(): Promise<LotusDebateClosure> { return closure(); }
+  async challengerClosure(): Promise<LotusDebateClosure> {
+    const waitMs = closureDelayMs();
+    if (waitMs) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+    return closure();
+  }
   async reviseQuestion(): Promise<Omit<LotusQuestion, "id">> {
     throw new Error("fake e2e model: reviseQuestion is not used by the factorisation E2E suite");
   }
