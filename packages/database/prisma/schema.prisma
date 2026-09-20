@@ -1423,6 +1423,32 @@ model LotusEvidenceRecord {
   @@unique([sessionRecordId, questionId, submissionId])
 }
 
+/// An AI-authored, code-validated Lotus item that a learner actually
+/// answered. This is a content record, not a student-history record: it has
+/// no response, working, learner identifier, or answer-analysis outcome.
+/// An item can only enter here from a durable accepted ANSWER event.
+model LotusQuestionBankItem {
+  id                String   @id @default(cuid())
+  topic             String
+  question          Json
+  questionPrint     String
+  skillId           String
+  itemKind          String
+  level             String?
+  sourceSessionId   String
+  sourceQuestionId  String
+  firstAnsweredAt   DateTime
+  reuseCount        Int      @default(0)
+  lastReusedAt      DateTime?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([sourceSessionId, sourceQuestionId])
+  @@index([topic, skillId, isActive])
+  @@index([topic, questionPrint])
+}
+
 model PersonalizedVideoAssignment {
   id                 String                            @id @default(cuid())
   studentId          String

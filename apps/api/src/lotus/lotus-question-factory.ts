@@ -158,7 +158,7 @@ function toItem(req: WriteRequest, raw: Record<string, unknown>): Item | string 
       answerKey: {
         kind: "MULTIPLE_CHOICE", canonicalAnswer: correct, workedSolution: stepLines,
         diagnostics: {
-          itemKind: "CHOICE", skillId: spec.skillId, taggedSkills: spec.tagged, stepSkills, slot: spec.slot, level: spec.level, origin: "AI",
+          itemKind: "CHOICE", skillId: spec.skillId, taggedSkills: spec.tagged, stepSkills, slot: spec.slot, level: spec.level, origin: "AI", provenance: "AI_GENERATED_FOR_SESSION",
           predictedMistakes: wrong.flatMap((w) => {
             const option = str((w as Record<string, unknown>)?.option); const mistake = str((w as Record<string, unknown>)?.mistake);
             return option && mistake ? [{ answer: prettyPowers(option), mistake }] : [];
@@ -176,7 +176,7 @@ function toItem(req: WriteRequest, raw: Record<string, unknown>): Item | string 
     answerKey: {
       kind: "OPEN_RESPONSE", canonicalAnswer: answer, workedSolution: stepLines,
       diagnostics: {
-        itemKind: spec.kind, expression, skillId: spec.skillId, taggedSkills: spec.tagged, stepSkills, slot: spec.slot, level: spec.level, origin: "AI",
+        itemKind: spec.kind, expression, skillId: spec.skillId, taggedSkills: spec.tagged, stepSkills, slot: spec.slot, level: spec.level, origin: "AI", provenance: "AI_GENERATED_FOR_SESSION",
         predictedMistakes: wrong.flatMap((w) => {
           const a = str((w as Record<string, unknown>)?.answer); const mistake = str((w as Record<string, unknown>)?.mistake);
           return a && mistake ? [{ answer: a, mistake }] : [];

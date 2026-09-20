@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@cogna/database";
 import type { LotusQuestionAudit, LotusSessionView } from "@cogna/shared";
+import { normalizeMathText } from "./lotus-algebra";
 import { pseudonymousLearnerId, retentionDeadline } from "./lotus-privacy";
 
 export function lotusPersistenceEnabled(
@@ -33,7 +34,7 @@ export async function persistLotusSession(
   finalizedAudit?: LotusQuestionAudit,
 ): Promise<void> {
   const endedAt = session.status === "COMPLETE" ? new Date() : null;
-  type PersistenceDb = Pick<PrismaClient, "lotusSessionRecord" | "lotusEvidenceRecord" | "job">;
+  type PersistenceDb = Pick<PrismaClient, "lotusSessionRecord" | "lotusEvidenceRecord" | "job"> & Partial<Pick<PrismaClient, "lotusQuestionBankItem">>;
   const write = async (db: PersistenceDb): Promise<void> => {
     const record = await db.lotusSessionRecord.upsert({
       where: { sessionId: session.sessionId },
@@ -91,6 +92,7 @@ export async function persistLotusSession(
     // on without a corresponding audit event.
     if (finalizedAudit) {
       await upsertLotusAnswerEvidence(db, record.id, finalizedAudit);
+      await addAnsweredAiQuestionToBank(db, session, finalizedAudit);
     }
 
     for (const job of jobs) {
@@ -118,6 +120,49 @@ export async function persistLotusSession(
 }
 
 type LotusPersistenceDb = Pick<PrismaClient, "lotusEvidenceRecord">;
+
+/**
+ * Bank admission is intentionally downstream of an accepted answer: a
+ * generated item which was merely staged or abandoned never becomes shared
+ * content. Only the item (not learner data or the answer) is retained.
+ */
+async function addAnsweredAiQuestionToBank(
+  db: Partial<Pick<PrismaClient, "lotusQuestionBankItem">>,
+  session: LotusSessionView,
+  audit: LotusQuestionAudit,
+): Promise<void> {
+  if (session.topic !== "FACTORISATION" || !audit.response || audit.question.answerKey.diagnostics?.origin !== "AI") return;
+  // A bank item remains the original generation; re-answering a reused item
+  // must update its usage, not recursively create a new item.
+  if (audit.question.answerKey.diagnostics.provenance === "AI_REUSED_FROM_BANK") return;
+  const bank = db.lotusQuestionBankItem;
+  // Lightweight test doubles intentionally do not implement the new content
+  // repository. Production Prisma always does once this migration is applied.
+  if (!bank) return;
+  const { id: _id, ...question } = audit.question;
+  const diagnostics = question.answerKey.diagnostics;
+  if (!diagnostics) return;
+  await bank.upsert({
+    where: {
+      sourceSessionId_sourceQuestionId: {
+        sourceSessionId: session.sessionId,
+        sourceQuestionId: audit.question.id,
+      },
+    },
+    create: {
+      topic: session.topic,
+      question: question as unknown as object,
+      questionPrint: normalizeMathText(diagnostics.expression ?? question.prompt).toLowerCase(),
+      skillId: diagnostics.skillId,
+      itemKind: diagnostics.itemKind,
+      level: diagnostics.level,
+      sourceSessionId: session.sessionId,
+      sourceQuestionId: audit.question.id,
+      firstAnsweredAt: new Date(),
+    },
+    update: {},
+  });
+}
 
 async function upsertLotusAnswerEvidence(
   db: LotusPersistenceDb,

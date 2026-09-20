@@ -43,6 +43,8 @@ export interface LotusItemDiagnostics {
   slot?: number;
   level?: "easy" | "medium" | "hard";
   origin: "FALLBACK" | "AI";
+  /** AI-only source shown to observers; omitted on older session records. */
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK";
 }
 
 export interface LotusQuestion {
