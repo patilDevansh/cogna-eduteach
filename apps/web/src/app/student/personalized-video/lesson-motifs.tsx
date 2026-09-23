@@ -2,68 +2,68 @@ import type { PilotStudentKey } from "@cogna/shared";
 import styles from "./personalized-video.module.css";
 
 /**
- * One faint, static line-art illustration per lesson, chosen to match the
- * concept metaphor already implicit in that template's narration — not
- * generic decoration. Deliberately minimal (a handful of primitive shapes,
- * no fill, no motion) so it reads as ambient background texture behind the
- * slide, never competing with the equation or narration for attention.
+ * One tall, static line-art illustration per lesson, sized to run behind
+ * the slide card and poke out above and below it — the card's own opaque
+ * background naturally covers the middle (no clipping/z-index tricks
+ * needed, see .slideWrap/.motif), so each design puts its distinctive
+ * parts at the very top and very bottom on purpose. Matches the concept
+ * metaphor already implicit in that template's narration.
  */
 
 const STROKE = {
   fill: "none",
-  stroke: "currentColor",
   strokeWidth: 5,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 };
 
-/** Divya — "keep the equation balanced": a level balance scale. */
+/** Divya — "keep the equation balanced": beam and pans above, stand and base below. */
 function BalanceScaleMotif() {
   return (
-    <svg viewBox="0 0 240 240" width="100%" height="100%" aria-hidden="true">
-      <circle cx="120" cy="40" r="6" fill="currentColor" stroke="none" />
-      <g {...STROKE}>
-        <line x1="120" y1="46" x2="120" y2="200" />
-        <line x1="88" y1="200" x2="152" y2="200" />
-        <line x1="40" y1="46" x2="200" y2="46" />
-        <line x1="40" y1="46" x2="40" y2="92" />
-        <line x1="200" y1="46" x2="200" y2="92" />
-        <path d="M 13 92 A 27 27 0 0 0 67 92" />
-        <path d="M 173 92 A 27 27 0 0 0 227 92" />
+    <svg viewBox="0 0 220 680" width="100%" height="100%" aria-hidden="true">
+      <g {...STROKE} stroke="#6f95b3">
+        <circle cx="110" cy="36" r="6" fill="#6f95b3" stroke="none" />
+        <line x1="30" y1="60" x2="190" y2="60" />
+        <line x1="30" y1="60" x2="30" y2="104" />
+        <line x1="190" y1="60" x2="190" y2="104" />
+        <path d="M 5 104 A 25 25 0 0 0 55 104" />
+        <path d="M 165 104 A 25 25 0 0 0 215 104" />
+        <line x1="110" y1="42" x2="110" y2="644" />
+        <line x1="78" y1="644" x2="142" y2="644" />
       </g>
     </svg>
   );
 }
 
-/** Aarav & Meena — distributive property: one factor reaching two terms. */
+/** Aarav & Meena — distributive property: one factor above, two terms below. */
 function DistributionMotif() {
   return (
-    <svg viewBox="0 0 240 240" width="100%" height="100%" aria-hidden="true">
-      <g {...STROKE}>
-        <circle cx="52" cy="120" r="28" />
-        <path d="M 80 106 Q 132 62 186 72" />
-        <path d="M 184 63 L 197 71 L 183 80" />
-        <path d="M 80 134 Q 132 178 186 168" />
-        <path d="M 184 177 L 197 169 L 183 160" />
-        <rect x="188" y="50" width="42" height="32" rx="9" />
-        <rect x="188" y="158" width="42" height="32" rx="9" />
+    <svg viewBox="0 0 220 680" width="100%" height="100%" aria-hidden="true">
+      <g {...STROKE} stroke="#d99a7c">
+        <circle cx="110" cy="56" r="30" />
+        <path d="M 88 82 Q 40 300 62 590" />
+        <path d="M 54 578 L 62 592 L 74 580" />
+        <path d="M 132 82 Q 180 300 158 590" />
+        <path d="M 150 580 L 158 592 L 166 578" />
+        <rect x="20" y="596" width="46" height="34" rx="9" />
+        <rect x="154" y="596" width="46" height="34" rx="9" />
       </g>
     </svg>
   );
 }
 
-/** Rohan — "solve, substitute, confirm": worked steps plus a checked answer. */
+/** Rohan — "solve, substitute, confirm": worked steps above, a checked answer below. */
 function ChecklistMotif() {
   return (
-    <svg viewBox="0 0 240 240" width="100%" height="100%" aria-hidden="true">
-      <g {...STROKE}>
-        <rect x="46" y="28" width="124" height="164" rx="14" />
-        <line x1="72" y1="68" x2="144" y2="68" />
-        <line x1="72" y1="98" x2="144" y2="98" />
-        <line x1="72" y1="128" x2="118" y2="128" />
-        <circle cx="168" cy="166" r="36" />
-        <line x1="193" y1="191" x2="219" y2="217" />
-        <path d="M 152 166 L 164 178 L 186 150" />
+    <svg viewBox="0 0 220 680" width="100%" height="100%" aria-hidden="true">
+      <g {...STROKE} stroke="#a58bc4">
+        <rect x="58" y="20" width="104" height="640" rx="16" />
+        <line x1="80" y1="58" x2="140" y2="58" />
+        <line x1="80" y1="86" x2="140" y2="86" />
+        <line x1="80" y1="114" x2="120" y2="114" />
+        <circle cx="130" cy="600" r="34" />
+        <line x1="153" y1="623" x2="177" y2="647" />
+        <path d="M 115 600 L 126 611 L 146 585" />
       </g>
     </svg>
   );

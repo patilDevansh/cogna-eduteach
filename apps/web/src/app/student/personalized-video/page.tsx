@@ -246,7 +246,6 @@ function PersonalizedVideoPage() {
               ? "No remediation assigned. Evidence remains insufficient."
               : `✓ ${assignment?.lesson?.verification ?? seed.video.verification}`}
           </div>
-          <LessonMotif studentKey={assignment?.studentKey ?? key} />
         </aside>
 
         <section className={styles.experience}>
@@ -352,13 +351,16 @@ function PersonalizedVideoPage() {
                 </>
               ) : scene ? (
                 <>
-                  <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
-                    <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
-                    <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
-                      <span>{scene.eyebrow}</span>
-                      <h2>{scene.headline}</h2>
-                      <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
-                      <p>{scene.narration}</p>
+                  <div className={styles.slideWrap}>
+                    <LessonMotif studentKey={assignment.studentKey ?? key} />
+                    <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
+                      <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
+                      <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
+                        <span>{scene.eyebrow}</span>
+                        <h2>{scene.headline}</h2>
+                        <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
+                        <p>{scene.narration}</p>
+                      </div>
                     </div>
                   </div>
                   <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
