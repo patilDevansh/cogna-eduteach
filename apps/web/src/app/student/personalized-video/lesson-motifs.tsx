@@ -12,24 +12,32 @@ import styles from "./personalized-video.module.css";
 
 const STROKE = {
   fill: "none",
-  strokeWidth: 5,
+  strokeWidth: 9,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 };
 
+// All three viewBoxes are 240x600, split at y=300 — the card sits centered
+// over that midline, so each design puts a full, substantial composition in
+// the top 300 and another in the bottom 300, not just a thin connector with
+// small end-caps. That's what actually reads as "half above, half below"
+// instead of a sliver peeking out.
+
 /** Divya — "keep the equation balanced": beam and pans above, stand and base below. */
 function BalanceScaleMotif() {
   return (
-    <svg viewBox="0 0 220 680" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
-      <g {...STROKE} stroke="#6f95b3">
-        <circle cx="110" cy="36" r="6" fill="#6f95b3" stroke="none" />
-        <line x1="30" y1="60" x2="190" y2="60" />
-        <line x1="30" y1="60" x2="30" y2="104" />
-        <line x1="190" y1="60" x2="190" y2="104" />
-        <path d="M 5 104 A 25 25 0 0 0 55 104" />
-        <path d="M 165 104 A 25 25 0 0 0 215 104" />
-        <line x1="110" y1="42" x2="110" y2="644" />
-        <line x1="78" y1="644" x2="142" y2="644" />
+    <svg viewBox="0 0 240 600" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
+      <g {...STROKE} stroke="#5f8fb0">
+        <circle cx="120" cy="34" r="8" fill="#5f8fb0" stroke="none" />
+        <line x1="24" y1="64" x2="216" y2="64" />
+        <line x1="24" y1="64" x2="24" y2="122" />
+        <line x1="216" y1="64" x2="216" y2="122" />
+        <path d="M -6 122 A 30 30 0 0 0 54 122" />
+        <path d="M 186 122 A 30 30 0 0 0 246 122" />
+        <line x1="120" y1="42" x2="120" y2="566" />
+        <line x1="66" y1="566" x2="174" y2="566" />
+        <line x1="90" y1="566" x2="90" y2="590" />
+        <line x1="150" y1="566" x2="150" y2="590" />
       </g>
     </svg>
   );
@@ -38,15 +46,15 @@ function BalanceScaleMotif() {
 /** Aarav & Meena — distributive property: one factor above, two terms below. */
 function DistributionMotif() {
   return (
-    <svg viewBox="0 0 220 680" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
-      <g {...STROKE} stroke="#d99a7c">
-        <circle cx="110" cy="56" r="30" />
-        <path d="M 88 82 Q 40 300 62 590" />
-        <path d="M 54 578 L 62 592 L 74 580" />
-        <path d="M 132 82 Q 180 300 158 590" />
-        <path d="M 150 580 L 158 592 L 166 578" />
-        <rect x="20" y="596" width="46" height="34" rx="9" />
-        <rect x="154" y="596" width="46" height="34" rx="9" />
+    <svg viewBox="0 0 240 600" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
+      <g {...STROKE} stroke="#d68d5f">
+        <circle cx="120" cy="70" r="46" />
+        <path d="M 88 108 Q 30 280 60 520" />
+        <path d="M 48 504 L 60 526 L 78 508" />
+        <path d="M 152 108 Q 210 280 180 520" />
+        <path d="M 162 508 L 180 526 L 192 504" />
+        <rect x="4" y="530" width="66" height="52" rx="12" />
+        <rect x="170" y="530" width="66" height="52" rx="12" />
       </g>
     </svg>
   );
@@ -55,15 +63,15 @@ function DistributionMotif() {
 /** Rohan — "solve, substitute, confirm": worked steps above, a checked answer below. */
 function ChecklistMotif() {
   return (
-    <svg viewBox="0 0 220 680" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
-      <g {...STROKE} stroke="#a58bc4">
-        <rect x="58" y="20" width="104" height="640" rx="16" />
-        <line x1="80" y1="58" x2="140" y2="58" />
-        <line x1="80" y1="86" x2="140" y2="86" />
-        <line x1="80" y1="114" x2="120" y2="114" />
-        <circle cx="130" cy="600" r="34" />
-        <line x1="153" y1="623" x2="177" y2="647" />
-        <path d="M 115 600 L 126 611 L 146 585" />
+    <svg viewBox="0 0 240 600" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
+      <g {...STROKE} stroke="#9370b8">
+        <rect x="50" y="10" width="140" height="580" rx="20" />
+        <line x1="78" y1="66" x2="162" y2="66" />
+        <line x1="78" y1="104" x2="162" y2="104" />
+        <line x1="78" y1="142" x2="130" y2="142" />
+        <circle cx="140" cy="500" r="52" />
+        <line x1="176" y1="536" x2="214" y2="574" />
+        <path d="M 116 500 L 132 518 L 164 476" />
       </g>
     </svg>
   );
