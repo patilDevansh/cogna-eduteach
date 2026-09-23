@@ -17,7 +17,8 @@
 .pipeline>div { display:flex; align-items:center; gap:.55rem; color:#d6e8e0; font-size:.78rem; }
 .pipeline b { display:grid; place-items:center; width:1.35rem; height:1.35rem; border-radius:50%; background:#67b79b; color:#073f34; font-size:.68rem; }
 .verified { margin-top:1.5rem; color:#9bdac3; font-size:.72rem; }
-.experience { padding:clamp(1.25rem,4vw,3.5rem); display:grid; align-content:center; max-width:1000px; width:100%; margin:0 auto; }
+.experience { position:relative; padding:clamp(1.25rem,4vw,3.5rem); display:grid; align-content:center; max-width:1000px; width:100%; margin:0 auto; overflow:hidden; }
+.motif { position:absolute; right:-48px; bottom:-48px; width:min(340px,42vw); height:min(340px,42vw); color:var(--accent-deep); opacity:.07; pointer-events:none; }
 .videoTop { display:flex; justify-content:space-between; align-items:center; margin-bottom:.7rem; color:var(--ink-faint); font-size:.68rem; font-weight:800; letter-spacing:.07em; }
 .videoTop button,.skipLink { border:0; background:none; color:var(--accent-deep); font-weight:800; cursor:pointer; }
 .videoStage { min-height:430px; position:relative; overflow:hidden; border-radius:22px; padding:clamp(1.5rem,5vw,4rem); display:grid; place-items:center; box-shadow:0 24px 60px rgba(12,55,45,.16); }

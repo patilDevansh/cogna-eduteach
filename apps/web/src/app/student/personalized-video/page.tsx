@@ -10,6 +10,7 @@ import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession } from "@/lib/session";
 import { renderEquationSteps } from "./equation-highlight";
 import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
+import { LessonMotif } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 
 type Stage = "lesson" | "exit" | "result";
@@ -248,6 +249,7 @@ function PersonalizedVideoPage() {
         </aside>
 
         <section className={styles.experience}>
+          <LessonMotif studentKey={assignment?.studentKey ?? key} />
           {error && (
             <div className={styles.statusPanel}>
               <div className={styles.eyebrow}>Temporarily unavailable</div>
