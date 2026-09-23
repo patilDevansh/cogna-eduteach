@@ -246,11 +246,10 @@ function PersonalizedVideoPage() {
               ? "No remediation assigned. Evidence remains insufficient."
               : `✓ ${assignment?.lesson?.verification ?? seed.video.verification}`}
           </div>
+          <LessonMotif studentKey={assignment?.studentKey ?? key} />
         </aside>
 
         <section className={styles.experience}>
-          <div className={styles.experienceInner}>
-          <LessonMotif studentKey={assignment?.studentKey ?? key} />
           {error && (
             <div className={styles.statusPanel}>
               <div className={styles.eyebrow}>Temporarily unavailable</div>
@@ -450,7 +449,6 @@ function PersonalizedVideoPage() {
               </div>
             </div>
           )}
-          </div>
         </section>
       </div>
     </main>
