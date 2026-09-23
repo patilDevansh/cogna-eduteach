@@ -20,7 +20,7 @@ const STROKE = {
 /** Divya — "keep the equation balanced": beam and pans above, stand and base below. */
 function BalanceScaleMotif() {
   return (
-    <svg viewBox="0 0 220 680" width="100%" height="100%" aria-hidden="true">
+    <svg viewBox="0 0 220 680" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
       <g {...STROKE} stroke="#6f95b3">
         <circle cx="110" cy="36" r="6" fill="#6f95b3" stroke="none" />
         <line x1="30" y1="60" x2="190" y2="60" />
@@ -38,7 +38,7 @@ function BalanceScaleMotif() {
 /** Aarav & Meena — distributive property: one factor above, two terms below. */
 function DistributionMotif() {
   return (
-    <svg viewBox="0 0 220 680" width="100%" height="100%" aria-hidden="true">
+    <svg viewBox="0 0 220 680" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
       <g {...STROKE} stroke="#d99a7c">
         <circle cx="110" cy="56" r="30" />
         <path d="M 88 82 Q 40 300 62 590" />
@@ -55,7 +55,7 @@ function DistributionMotif() {
 /** Rohan — "solve, substitute, confirm": worked steps above, a checked answer below. */
 function ChecklistMotif() {
   return (
-    <svg viewBox="0 0 220 680" width="100%" height="100%" aria-hidden="true">
+    <svg viewBox="0 0 220 680" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true">
       <g {...STROKE} stroke="#a58bc4">
         <rect x="58" y="20" width="104" height="640" rx="16" />
         <line x1="80" y1="58" x2="140" y2="58" />
