@@ -249,6 +249,7 @@ function PersonalizedVideoPage() {
         </aside>
 
         <section className={styles.experience}>
+          <div className={styles.experienceInner}>
           <LessonMotif studentKey={assignment?.studentKey ?? key} />
           {error && (
             <div className={styles.statusPanel}>
@@ -449,6 +450,7 @@ function PersonalizedVideoPage() {
               </div>
             </div>
           )}
+          </div>
         </section>
       </div>
     </main>
