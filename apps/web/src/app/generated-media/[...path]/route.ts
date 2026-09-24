@@ -32,6 +32,11 @@ function loadWorkspaceEnvironment(): void {
 loadWorkspaceEnvironment();
 
 const ALLOWED_LESSON_FILES = new Set(["lesson.mp4", "lesson.vtt"]);
+const SCENE_AUDIO_FILE = /^scene-\d+\.mp3$/;
+
+function isAllowedLessonFile(name: string): boolean {
+  return ALLOWED_LESSON_FILES.has(name) || SCENE_AUDIO_FILE.test(name);
+}
 
 function sessionSecretFromEnv(): string | null {
   return process.env.COGNA_SESSION_SECRET?.trim() || null;
@@ -60,7 +65,7 @@ function authorizeGeneratedMediaPath(
   if (segments[0] === "render-jobs") {
     return { ok: false, status: 404, message: "Not found" };
   }
-  if (segments.length !== 3 || segments[0] !== "lessons" || !segments[1] || !ALLOWED_LESSON_FILES.has(segments[2]!)) {
+  if (segments.length !== 3 || segments[0] !== "lessons" || !segments[1] || !isAllowedLessonFile(segments[2]!)) {
     return { ok: false, status: 404, message: "Not found" };
   }
   const secret = sessionSecretFromEnv();
@@ -89,6 +94,7 @@ function contentTypeFor(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".vtt") return "text/vtt; charset=utf-8";
+  if (ext === ".mp3") return "audio/mpeg";
   return "application/octet-stream";
 }
 

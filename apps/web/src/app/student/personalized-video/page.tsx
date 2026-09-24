@@ -8,6 +8,9 @@ import { Wordmark } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
+import { renderEquationSteps } from "./equation-highlight";
+import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
+import { LessonMotifBottom, LessonMotifTop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 
 type Stage = "lesson" | "challenge" | "exit" | "result";
@@ -147,6 +150,7 @@ function PersonalizedVideoPage() {
   };
 
   const togglePlay = () => {
+    if (assignment?.delivery === "SLIDES") return;
     void markWatched();
     if (assignment?.delivery === "VIDEO") {
       const node = videoRef.current;
@@ -182,7 +186,7 @@ function PersonalizedVideoPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (stage !== "lesson") return;
+      if (stage !== "lesson" || assignment?.delivery === "SLIDES") return;
       if (event.key === " " || event.key === "k") {
         event.preventDefault();
         togglePlay();
@@ -202,7 +206,12 @@ function PersonalizedVideoPage() {
       ["Objective selected", assignment?.status === "ABSTAINED" ? "abstained" : assignment ? "complete" : "pending"],
       ["Script generated", assignment?.lesson ? "complete" : "pending"],
       ["Math verified", math],
-      ["Lesson ready", delivery === "VIDEO" || delivery === "HTML_FALLBACK" ? "complete" : delivery ?? "pending"],
+      [
+        "Lesson ready",
+        delivery === "VIDEO" || delivery === "HTML_FALLBACK" || delivery === "SLIDES"
+          ? "complete"
+          : (delivery ?? "pending"),
+      ],
     ] as const;
   }, [assignment]);
 
@@ -337,12 +346,24 @@ function PersonalizedVideoPage() {
             <>
               <div className={styles.videoTop}>
                 <span>
-                  {assignment.delivery === "VIDEO" ? "REVIEWED VIDEO" : "APPROVED HTML LESSON"}
+                  {assignment.delivery === "VIDEO"
+                    ? "REVIEWED VIDEO"
+                    : assignment.delivery === "SLIDES"
+                      ? "NARRATED SLIDES"
+                      : "APPROVED HTML LESSON"}
                   {assignment.lesson?.duration ? ` · ${assignment.lesson.duration}` : ""}
                 </span>
-                <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
+                {assignment.delivery !== "SLIDES" && (
+                  <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
+                )}
               </div>
-              {assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
+              {assignment.delivery === "SLIDES" ? (
+                <InteractiveLessonPlayer
+                  assignment={assignment}
+                  onStart={() => void markWatched()}
+                  onFinish={() => void finishLesson()}
+                />
+              ) : assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
                 <>
                   <video
                     ref={videoRef}
@@ -372,15 +393,17 @@ function PersonalizedVideoPage() {
                 </>
               ) : scene ? (
                 <>
+                  <LessonMotifTop studentKey={assignment.studentKey ?? key} />
                   <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
                     <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
                     <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
                       <span>{scene.eyebrow}</span>
                       <h2>{scene.headline}</h2>
-                      <div className={styles.equation}>{scene.equation}</div>
+                      <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
                       <p>{scene.narration}</p>
                     </div>
                   </div>
+                  <LessonMotifBottom studentKey={assignment.studentKey ?? key} />
                   <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
                   <div className={styles.controls}>
                     <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={() => goToScene(sceneIndex - 1, false)}>← Previous</button>

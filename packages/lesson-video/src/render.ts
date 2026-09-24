@@ -36,7 +36,7 @@ async function audioPathToDataUri(audioPath: string): Promise<string> {
   return `data:${mime};base64,${bytes.toString("base64")}`;
 }
 
-export type { LessonVideoProps, LessonVideoScene } from "./types";
+export type { EquationStep, LessonVideoProps, LessonVideoScene } from "./types";
 export { buildLessonVtt } from "./transcript";
 export { LESSON_VIDEO_FPS, lessonDurationInFrames } from "./types";
 
