@@ -8,7 +8,7 @@ import type {
 } from "@cogna/shared";
 import { api } from "@/lib/api";
 import { renderEquationSteps } from "./equation-highlight";
-import { LessonMotif } from "./lesson-motifs";
+import { LessonMotifBottom, LessonMotifTop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 
 type TransformationClaim = Extract<VideoMathClaim, { kind: "EQUATION_TRANSFORMATION" }> & {
@@ -295,8 +295,8 @@ export function InteractiveLessonPlayer({
 
   if (!started) {
     return (
-      <div className={styles.slideWrap}>
-        <LessonMotif studentKey={assignment.studentKey} />
+      <>
+        <LessonMotifTop studentKey={assignment.studentKey} />
         <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
           <div className={styles.sceneCopy}>
             <span>{scene.eyebrow}</span>
@@ -313,14 +313,14 @@ export function InteractiveLessonPlayer({
             ▶ Start lesson
           </button>
         </div>
-      </div>
+        <LessonMotifBottom studentKey={assignment.studentKey} />
+      </>
     );
   }
 
   return (
     <>
-      <div className={styles.slideWrap}>
-      <LessonMotif studentKey={assignment.studentKey} />
+      <LessonMotifTop studentKey={assignment.studentKey} />
       <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
         <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
         <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
@@ -351,7 +351,7 @@ export function InteractiveLessonPlayer({
           <span style={{ width: `${((sceneIndex + 1) / scenes.length) * 100}%` }} />
         </div>
       </div>
-      </div>
+      <LessonMotifBottom studentKey={assignment.studentKey} />
       <div className={styles.controls}>
         <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={goPrevious}>
           ← Previous

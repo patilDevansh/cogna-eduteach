@@ -18,8 +18,9 @@
 .pipeline b { display:grid; place-items:center; width:1.35rem; height:1.35rem; border-radius:50%; background:#67b79b; color:#073f34; font-size:.68rem; }
 .verified { margin-top:1.5rem; color:#9bdac3; font-size:.72rem; }
 .experience { padding:clamp(1.25rem,4vw,3.5rem); display:grid; align-content:center; max-width:1000px; width:100%; margin:0 auto; }
-.slideWrap { position:relative; }
-.motif { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:190px; height:640px; opacity:.55; pointer-events:none; }
+.motifTop,.motifBottom { display:flex; justify-content:center; height:100px; opacity:.55; pointer-events:none; }
+.motifTop { margin-bottom:2rem; }
+.motifBottom { margin-top:2rem; }
 .videoTop { position:relative; display:flex; justify-content:space-between; align-items:center; margin-bottom:.7rem; color:var(--ink-faint); font-size:.68rem; font-weight:800; letter-spacing:.07em; }
 .videoTop button,.skipLink { border:0; background:none; color:var(--accent-deep); font-weight:800; cursor:pointer; }
 .videoStage { min-height:430px; position:relative; overflow:hidden; border-radius:22px; padding:clamp(1.5rem,5vw,4rem); display:grid; place-items:center; box-shadow:0 24px 60px rgba(12,55,45,.16); }

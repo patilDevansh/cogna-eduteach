@@ -10,7 +10,7 @@ import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession } from "@/lib/session";
 import { renderEquationSteps } from "./equation-highlight";
 import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
-import { LessonMotif } from "./lesson-motifs";
+import { LessonMotifBottom, LessonMotifTop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 
 type Stage = "lesson" | "exit" | "result";
@@ -351,18 +351,17 @@ function PersonalizedVideoPage() {
                 </>
               ) : scene ? (
                 <>
-                  <div className={styles.slideWrap}>
-                    <LessonMotif studentKey={assignment.studentKey ?? key} />
-                    <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
-                      <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
-                      <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
-                        <span>{scene.eyebrow}</span>
-                        <h2>{scene.headline}</h2>
-                        <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
-                        <p>{scene.narration}</p>
-                      </div>
+                  <LessonMotifTop studentKey={assignment.studentKey ?? key} />
+                  <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
+                    <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
+                    <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
+                      <span>{scene.eyebrow}</span>
+                      <h2>{scene.headline}</h2>
+                      <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
+                      <p>{scene.narration}</p>
                     </div>
                   </div>
+                  <LessonMotifBottom studentKey={assignment.studentKey ?? key} />
                   <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
                   <div className={styles.controls}>
                     <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={() => goToScene(sceneIndex - 1, false)}>← Previous</button>
