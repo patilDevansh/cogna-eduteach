@@ -1,9 +1,21 @@
 export type LessonAccent = "green" | "amber" | "violet";
 
+/**
+ * One frame of a scene's equation display — see the matching type in
+ * @cogna/shared's personalized-videos contract (duplicated here, not
+ * imported, to keep this package dependency-free of @cogna/shared).
+ * A single-element array renders as static text for the whole scene, same
+ * as the old plain-string display; multiple steps animate in sequence.
+ */
+export interface EquationStep {
+  text: string;
+  highlight?: Array<[number, number]>;
+}
+
 export interface LessonVideoScene {
   eyebrow?: string;
   headline: string;
-  equation: string;
+  equation: EquationStep[];
   narration: string;
   durationSeconds: number;
   accent?: LessonAccent | string;
@@ -27,16 +39,36 @@ export interface LessonVideoProps {
   scenes: LessonVideoScene[];
 }
 
-export const LESSON_VIDEO_FPS = 15;
-export const LESSON_VIDEO_WIDTH = 960;
-export const LESSON_VIDEO_HEIGHT = 540;
+export const LESSON_VIDEO_FPS = 24;
+export const LESSON_VIDEO_WIDTH = 1280;
+export const LESSON_VIDEO_HEIGHT = 720;
+
+/**
+ * Crossfade length between scenes (~0.4s). Expressed in seconds, not frames,
+ * so it stays correct at whatever fps a caller actually renders at — use
+ * sceneTransitionFrames(fps) to get the frame count for a given rate.
+ * TransitionSeries overlaps each pair of adjacent scenes by this many
+ * frames, so the composition's total length is shorter than the plain sum
+ * of scene durations — lessonDurationInFrames subtracts it, or the
+ * calculated duration (what Remotion actually renders, and what durationMs
+ * reports to callers) would run long relative to what the transitions
+ * actually produce. LessonVideo.tsx calls the same helper so the two can
+ * never drift apart.
+ */
+export const SCENE_TRANSITION_SECONDS = 0.4;
+
+export function sceneTransitionFrames(fps: number): number {
+  return Math.round(SCENE_TRANSITION_SECONDS * fps);
+}
 
 export function lessonDurationInFrames(
   scenes: LessonVideoScene[],
   fps = LESSON_VIDEO_FPS,
 ): number {
   const seconds = scenes.reduce((sum, scene) => sum + Math.max(scene.durationSeconds, 1), 0);
-  return Math.max(1, Math.round(seconds * fps));
+  const totalFrames = Math.round(seconds * fps);
+  const overlapFrames = scenes.length > 1 ? (scenes.length - 1) * sceneTransitionFrames(fps) : 0;
+  return Math.max(1, totalFrames - overlapFrames);
 }
 
 export const PRODUCT_LOOP_FPS = 24;

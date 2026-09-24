@@ -7,6 +7,7 @@ import {
   CreatePersonalizedVideoAssignmentDto,
   PersonalizedVideoExitDto,
   PersonalizedVideoRenderCallbackDto,
+  PersonalizedVideoVerifyStepDto,
   PersonalizedVideoWatchDto,
 } from "./personalized-videos.dto";
 import { PersonalizedVideosService } from "./personalized-videos.service";
@@ -76,6 +77,15 @@ export class PersonalizedVideosController {
     @Body() body: PersonalizedVideoExitDto,
   ) {
     return this.videos.recordExit(id, body, resolveActor(headers));
+  }
+
+  @Post("assignments/:id/verify-step")
+  verifyStep(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: PersonalizedVideoVerifyStepDto,
+  ) {
+    return this.videos.verifyStep(id, body, resolveActor(headers));
   }
 
   @Post("render-callback")

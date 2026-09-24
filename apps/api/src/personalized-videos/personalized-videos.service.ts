@@ -46,6 +46,7 @@ import {
   templateForKey,
 } from "./approved-templates";
 import { snapshotFromLotusSession } from "./lotus-evidence";
+import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
 import { evaluateRemediationEligibility } from "./video-evidence";
 import { validateVideoLanguage } from "./video-language";
 import { collectSceneClaims, validateMathClaims } from "./video-math";
@@ -53,9 +54,26 @@ import {
   RendererUnavailableError,
   VideoRendererAdapter,
 } from "./video-renderer.adapter";
+import { verifyStepValidity } from "../engines/diagnostic-v2/linear-bracket-verifier";
 
 const JOB_TYPE = "PERSONALIZED_VIDEO_RENDER";
 const WORKER_ID = `personalized-video-${process.pid}`;
+
+/**
+ * Cheap revert switch for the slides delivery: flip this off and every
+ * lesson falls straight back to the baked-video path with no code changes.
+ * Every approved template uses slides by default now, not just the ones
+ * with a drag-eligible EQUATION_TRANSFORMATION claim — Rohan/Divya's drag
+ * widget is one scene type slides can render, not the reason to use it.
+ */
+export function slidesDeliveryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.COGNA_SLIDES_DELIVERY_ENABLED?.trim() !== "false";
+}
+
+interface InteractiveRenderResult {
+  interactive: true;
+  scenesAudio: Array<{ index: number; key: string }>;
+}
 
 type JobPayload = {
   assignmentId?: string;
@@ -117,11 +135,18 @@ function targetStudentId(actor: AccessActor, requested?: string): string {
 }
 
 export class PersonalizedVideosService {
+  private mediaStorage: MediaStorage | null = null;
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly renderer: VideoRendererAdapter,
     private readonly tts?: TtsService,
   ) {}
+
+  private getMediaStorage(): MediaStorage {
+    if (!this.mediaStorage) this.mediaStorage = createMediaStorageFromEnv();
+    return this.mediaStorage;
+  }
 
   async getForStudent(
     actor: AccessActor,
@@ -230,7 +255,11 @@ export class PersonalizedVideosService {
       lesson.title,
       lesson.objective,
       lesson.generationReason,
-      ...lesson.scenes.flatMap((scene) => [scene.headline, scene.narration, scene.equation]),
+      ...lesson.scenes.flatMap((scene) => [
+        scene.headline,
+        scene.narration,
+        ...scene.equation.map((step) => step.text),
+      ]),
     ];
     const language = validateVideoLanguage(languageTexts);
     if (!language.valid) {
@@ -362,6 +391,10 @@ export class PersonalizedVideosService {
       return { status: JobStatus.FAILED_PERMANENT };
     }
 
+    if (slidesDeliveryEnabled()) {
+      return this.processInteractiveRenderJob(jobId, job, assignmentId, assignment, lesson, payload);
+    }
+
     if (!this.renderer.isConfigured()) {
       await this.applyUnavailable(
         assignmentId,
@@ -460,6 +493,112 @@ export class PersonalizedVideosService {
       await this.applyUnavailable(assignmentId, jobId, message, !retryable);
       return { status: retryable ? JobStatus.FAILED_RETRYABLE : JobStatus.FAILED_PERMANENT };
     }
+  }
+
+  /**
+   * The slides delivery skips Remotion entirely — there is no video to mux,
+   * so this only needs the narration audio (synthesizeNarration is
+   * renderer-agnostic already) copied to public storage per scene, then the
+   * assignment marked ready directly. No ModalityAsset is created: SLIDES
+   * has no video asset to represent. Applies to every lesson, not just ones
+   * with a drag-eligible EQUATION_TRANSFORMATION claim — the frontend
+   * already renders a scene without one as a plain narrated card.
+   */
+  private async processInteractiveRenderJob(
+    jobId: string,
+    job: { status: JobStatus },
+    assignmentId: string,
+    assignment: { scriptSource: string | null },
+    lesson: PersonalizedVideoLesson,
+    payload: JobPayload,
+  ): Promise<{ status: string }> {
+    if (job.status === JobStatus.RUNNING) {
+      // Same "an earlier tick already owns this" backoff as processRenderJob.
+      return { status: JobStatus.RUNNING };
+    }
+    const claim = await this.prisma.job.updateMany({
+      where: { id: jobId, status: job.status },
+      data: {
+        status: JobStatus.RUNNING,
+        lockedAt: new Date(),
+        lockedBy: WORKER_ID,
+        attemptCount: { increment: 1 },
+      },
+    });
+    if (claim.count === 0) {
+      return { status: JobStatus.RUNNING };
+    }
+    try {
+      const narratedScenes = await this.synthesizeNarration(lesson.scenes);
+      const storage = this.getMediaStorage();
+      const scenesAudio: InteractiveRenderResult["scenesAudio"] = [];
+      for (let index = 0; index < narratedScenes.length; index += 1) {
+        const audioPath = (narratedScenes[index] as { audioPath?: string }).audioPath;
+        if (!audioPath) continue;
+        const bytes = await readFile(audioPath);
+        const stored = await storage.put({
+          key: `lessons/${assignmentId}/scene-${index}.mp3`,
+          body: bytes,
+          contentType: "audio/mpeg",
+        });
+        scenesAudio.push({ index, key: stored.key });
+      }
+      const pending =
+        Boolean(payload.forcePendingReview) ||
+        (payload.scriptSource ?? assignment.scriptSource) === "CONSTRAINED_AI";
+      const renderResult: InteractiveRenderResult = { interactive: true, scenesAudio };
+      await this.prisma.personalizedVideoAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          renderResult: renderResult as object,
+          status: pending
+            ? PersonalizedVideoAssignmentStatus.UNDER_REVIEW
+            : PersonalizedVideoAssignmentStatus.READY,
+        },
+      });
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          lastError: null,
+          lockedAt: null,
+          lockedBy: null,
+        },
+      });
+      return { status: JobStatus.COMPLETED };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.applyUnavailable(assignmentId, jobId, message, false);
+      return { status: JobStatus.FAILED_RETRYABLE };
+    }
+  }
+
+  /**
+   * Stateless correctness check for the interactive drag widget. No
+   * PersonalizedVideoEvent is written here on purpose: this is private,
+   * ungraded practice inside the lesson itself ("guided success is not
+   * independent success"), not diagnostic evidence — the exit item remains
+   * the only independent evidence point for this assignment.
+   */
+  async verifyStep(
+    assignmentId: string,
+    input: { sceneIndex: number; assembledLine: string },
+    actor: AccessActor,
+  ): Promise<{ valid: boolean }> {
+    const assignment = await this.requireAssignment(assignmentId);
+    assertStudentOwner(actor, assignment.studentId);
+    const script = assignment.script as StoredScript | null;
+    const scene = script?.lesson?.scenes?.[input.sceneIndex];
+    const claim = scene?.claims?.find(
+      (c): c is Extract<typeof c, { kind: "EQUATION_TRANSFORMATION" }> =>
+        c.kind === "EQUATION_TRANSFORMATION" && Boolean(c.chipLabel),
+    );
+    if (!claim) {
+      throw new BadRequestException("This scene has no interactive equation step.");
+    }
+    const result = verifyStepValidity(claim.from, input.assembledLine);
+    return { valid: result.validity === "VALID" };
   }
 
   async recordWatched(
@@ -898,6 +1037,7 @@ export class PersonalizedVideosService {
     script: unknown;
     assetId: string | null;
     renderJobId: string | null;
+    renderResult?: unknown;
     fallbackReason: string | null;
     abstainReason: string | null;
   }): Promise<PersonalizedVideoAssignmentView> {
@@ -915,12 +1055,35 @@ export class PersonalizedVideosService {
     const job = row.renderJobId
       ? await this.prisma.job.findUnique({ where: { id: row.renderJobId } })
       : null;
-    const delivery = this.deliveryOf(row.status, asset?.reviewStatus, asset?.storageRef, script.lesson);
+    const interactiveResult = row.renderResult as InteractiveRenderResult | null | undefined;
+    const interactive = Boolean(interactiveResult?.interactive);
+    const delivery = this.deliveryOf(
+      row.status,
+      asset?.reviewStatus,
+      asset?.storageRef,
+      script.lesson,
+      interactive,
+    );
     const mediaClaims = {
       assignmentId: row.id,
       studentId: row.studentId,
       schoolId: row.schoolId ?? schoolIdForStudent(row.studentId),
     };
+    const lessonView =
+      interactive && script.lesson
+        ? {
+            ...script.lesson,
+            scenes: script.lesson.scenes.map((scene, index) => {
+              const entry = interactiveResult?.scenesAudio.find((a) => a.index === index);
+              if (!entry) return scene;
+              const audioUrl = attachMediaAccess(
+                `${defaultPublicBaseUrl()}/${entry.key}`,
+                mediaClaims,
+              );
+              return { ...scene, audioUrl };
+            }),
+          }
+        : (script.lesson ?? null);
     return {
       id: row.id,
       studentId: row.studentId,
@@ -937,7 +1100,7 @@ export class PersonalizedVideosService {
       uncertainty: script.uncertainty ?? "Moderate",
       statusLabel: script.statusLabel ?? row.status,
       evidenceSnapshot: row.evidenceSnapshot as PersonalizedVideoEvidenceSnapshot,
-      lesson: script.lesson ?? null,
+      lesson: lessonView,
       exit: script.exit ?? null,
       asset:
         asset && asset.reviewStatus === "APPROVED" && this.isPlayableVideo(asset.storageRef)
@@ -979,12 +1142,14 @@ export class PersonalizedVideosService {
     reviewStatus?: string | null,
     storageRef?: string | null,
     lesson?: PersonalizedVideoLesson,
+    interactive?: boolean,
   ): PersonalizedVideoDelivery {
     if (status === "ABSTAINED") return "ABSTAINED";
     if (status === "PREPARING") return "PREPARING";
     if (status === "TEMPORARILY_UNAVAILABLE") return "UNAVAILABLE";
     if (reviewStatus === "PENDING_REVIEW") return "UNDER_REVIEW";
     if (status === "UNDER_REVIEW") return "UNDER_REVIEW";
+    if (interactive && status === "READY") return "SLIDES";
     if (status === "READY" && reviewStatus === "APPROVED" && this.isPlayableVideo(storageRef)) {
       return "VIDEO";
     }

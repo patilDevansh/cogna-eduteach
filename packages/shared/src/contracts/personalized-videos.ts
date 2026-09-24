@@ -22,6 +22,7 @@ export const PERSONALIZED_VIDEO_DELIVERIES = [
   "PREPARING",
   "UNDER_REVIEW",
   "VIDEO",
+  "SLIDES",
   "HTML_FALLBACK",
   "UNAVAILABLE",
   "ABSTAINED",
@@ -44,16 +45,52 @@ export type VideoSceneAccent = "green" | "amber" | "violet";
 export type VideoMathClaim =
   | { kind: "ARITHMETIC"; expression: string; expected: number }
   | { kind: "ALGEBRA_EQUIVALENCE"; left: string; right: string }
-  | { kind: "EQUATION_TRANSFORMATION"; from: string; to: string };
+  | {
+      kind: "EQUATION_TRANSFORMATION";
+      from: string;
+      to: string;
+      /**
+       * Label for a draggable "apply to both sides" operation chip (e.g. "+ 6"),
+       * hand-authored only for transformation steps that are genuinely a single
+       * operation applied identically to both sides. Absent for other
+       * transformation kinds (e.g. distributing a bracket, or a plain
+       * simplification) — those render as static narrated scenes instead of the
+       * drag widget, since a two-drop-zone interaction doesn't fit them.
+       */
+      chipLabel?: string;
+    };
+
+/**
+ * One frame of a scene's equation display. A single-element array behaves
+ * exactly like the old plain-string display (shown for the whole scene, no
+ * animation) — most non-transformation scenes (labels, routines, checkmarked
+ * confirmations) stay one step. A scene walking through an actual
+ * transformation (e.g. distributing a bracket) lists each intermediate line
+ * as its own step, revealed in sequence during the scene's screen time.
+ * Verification is unaffected — claims (ARITHMETIC/ALGEBRA_EQUIVALENCE/
+ * EQUATION_TRANSFORMATION on the scene) are the source of truth for
+ * correctness and never read this field; equation/steps is purely display.
+ */
+export interface EquationStep {
+  text: string;
+  /** Character ranges within `text` to visually emphasize as newly-changed. Unused in v1. */
+  highlight?: Array<[number, number]>;
+}
 
 export interface PersonalizedVideoLessonScene {
   eyebrow: string;
   headline: string;
-  equation: string;
+  equation: EquationStep[];
   narration: string;
   durationSeconds: number;
   accent: VideoSceneAccent;
   claims?: VideoMathClaim[];
+  /**
+   * Signed URL to this scene's narration clip, populated server-side for the
+   * SLIDES delivery (which has no baked video to carry audio). Not part of
+   * the authored template.
+   */
+  audioUrl?: string;
 }
 
 export interface PersonalizedVideoLesson {

@@ -770,6 +770,12 @@ export const api = {
       body: JSON.stringify({ answer, working }),
     }),
 
+  verifyPersonalizedVideoStep: (id: string, sceneIndex: number, assembledLine: string) =>
+    personalizedVideoFetch<{ valid: boolean }>(`/assignments/${id}/verify-step`, {
+      method: "POST",
+      body: JSON.stringify({ sceneIndex, assembledLine }),
+    }),
+
   getPersonalizedVideoTeacherReport: (demo = false) =>
     personalizedVideoFetch<PersonalizedVideoTeacherReport>(
       `/teacher-report${demo ? "?demo=1" : ""}`,

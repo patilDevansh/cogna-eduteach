@@ -83,3 +83,8 @@ export function collectSceneClaims(
 ): VideoMathClaim[] {
   return scenes.flatMap((scene) => scene.claims ?? []);
 }
+
+/** True when any scene teaches an equation transformation, not just arithmetic/equivalence. */
+export function isTransformationLesson(scenes: Array<{ claims?: VideoMathClaim[] }>): boolean {
+  return collectSceneClaims(scenes).some((claim) => claim.kind === "EQUATION_TRANSFORMATION");
+}

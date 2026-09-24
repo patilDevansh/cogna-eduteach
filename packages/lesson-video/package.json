@@ -15,6 +15,7 @@
   "dependencies": {
     "@remotion/bundler": "4.0.241",
     "@remotion/renderer": "4.0.241",
+    "@remotion/transitions": "4.0.241",
     "@types/node": "^22.15.32",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
