@@ -105,6 +105,7 @@ export interface FakeDb {
   attempts: Row[];
   steps: Row[];
   evidence: Row[];
+  evidenceRecords: Row[];
   states: Row[];
   hypotheses: Row[];
   revisionItems: Row[];
@@ -125,6 +126,7 @@ export function createFakePrisma(studentIds: string[] = ["student-1"]): FakePris
     attempts: [],
     steps: [],
     evidence: [],
+    evidenceRecords: [],
     states: [],
     hypotheses: [],
     revisionItems: [],
@@ -174,6 +176,9 @@ export function createFakePrisma(studentIds: string[] = ["student-1"]): FakePris
   };
 
   const delegate = (rows: Row[], idPrefix: string, defaults: (data: Row) => Row) => ({
+    async count({ where }: { where?: Row } = {}) {
+      return rows.filter((r) => matches(r, where)).length;
+    },
     async create({ data }: { data: Row }) {
       const row = { id: nextId(idPrefix), ...defaults(data), ...data };
       rows.push(row);
@@ -228,6 +233,7 @@ export function createFakePrisma(studentIds: string[] = ["student-1"]): FakePris
       completedAt: null,
     })),
     diagnosticV2Step: delegate(db.steps, "step", () => ({ createdAt: new Date() })),
+    diagnosticV2EvidenceRecord: delegate(db.evidenceRecords, "evr", () => ({ createdAt: new Date() })),
     microSkillEvidenceEventV2: delegate(db.evidence, "ev", () => ({ createdAt: new Date() })),
     microSkillStateV2: delegate(db.states, "state", () => ({ stateVersion: 1 })),
     diagnosticV2Hypothesis: delegate(db.hypotheses, "hyp", () => ({ createdAt: new Date() })),

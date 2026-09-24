@@ -173,6 +173,11 @@ export function attachMediaAccess(url: string | null | undefined, claims: MediaA
 }
 
 const ALLOWED_LESSON_FILES = new Set(["lesson.mp4", "lesson.vtt"]);
+const SCENE_AUDIO_FILE = /^scene-\d+\.mp3$/;
+
+function isAllowedLessonFile(name: string): boolean {
+  return ALLOWED_LESSON_FILES.has(name) || SCENE_AUDIO_FILE.test(name);
+}
 
 export function authorizeGeneratedMediaPath(
   segments: string[],
@@ -182,7 +187,7 @@ export function authorizeGeneratedMediaPath(
   if (segments[0] === "render-jobs") {
     return { ok: false, status: 404, message: "Not found" };
   }
-  if (segments.length !== 3 || segments[0] !== "lessons" || !segments[1] || !ALLOWED_LESSON_FILES.has(segments[2]!)) {
+  if (segments.length !== 3 || segments[0] !== "lessons" || !segments[1] || !isAllowedLessonFile(segments[2]!)) {
     return { ok: false, status: 404, message: "Not found" };
   }
   const claims = mediaToken ? verifyMediaToken(mediaToken, env) : null;

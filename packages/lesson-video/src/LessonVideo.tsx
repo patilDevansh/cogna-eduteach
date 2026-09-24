@@ -1,7 +1,51 @@
 import React from "react";
-import { AbsoluteFill, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
-import type { LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
-import { LESSON_VIDEO_FPS } from "./types";
+import { AbsoluteFill, Audio, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { TransitionSeries, linearTiming } from "@remotion/transitions";
+import { fade } from "@remotion/transitions/fade";
+import type { EquationStep, LessonAccent, LessonVideoProps, LessonVideoScene } from "./types";
+import { sceneTransitionFrames } from "./types";
+
+const HIGHLIGHT_STYLE: React.CSSProperties = {
+  display: "inline-block",
+  background: "rgba(31,138,110,0.16)",
+  borderRadius: 6,
+  padding: "0 4px",
+  margin: "0 -2px",
+};
+
+/**
+ * Renders text with its authored highlight ranges wrapped in a chip that
+ * pops in over popProgress (0→1, driven by frames-since-this-step-started —
+ * see callers) rather than appearing instantly with the rest of the step.
+ */
+function renderHighlightedText(
+  text: string,
+  ranges: Array<[number, number]> | undefined,
+  popProgress: number,
+): React.ReactNode {
+  if (!ranges?.length) return text;
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  sorted.forEach(([start, end], index) => {
+    if (start > cursor) nodes.push(text.slice(cursor, start));
+    nodes.push(
+      <span
+        key={index}
+        style={{
+          ...HIGHLIGHT_STYLE,
+          opacity: popProgress,
+          transform: `scale(${0.85 + 0.15 * popProgress})`,
+        }}
+      >
+        {text.slice(start, end)}
+      </span>,
+    );
+    cursor = end;
+  });
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
 
 const ACCENTS: Record<string, { background: string; ink: string; muted: string }> = {
   green: { background: "linear-gradient(140deg,#dff2e9,#b8dece)", ink: "#073f34", muted: "#34574e" },
@@ -9,11 +53,97 @@ const ACCENTS: Record<string, { background: string; ink: string; muted: string }
   violet: { background: "linear-gradient(140deg,#eee8f6,#d8c9e9)", ink: "#073f34", muted: "#4a3a5c" },
 };
 
-function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: number; total: number }) {
+const EQUATION_BOX_STYLE: React.CSSProperties = {
+  background: "rgba(255,255,255,0.82)",
+  border: "1px solid rgba(7,63,52,0.12)",
+  borderRadius: 16,
+  padding: "22px 26px",
+  fontSize: 34,
+  fontWeight: 700,
+  color: "#073f34",
+};
+
+/**
+ * A single step renders as static text for the whole scene — identical to
+ * the old plain-string display. Multiple steps split the scene's own
+ * duration evenly and crossfade from one line to the next, so a
+ * transformation (e.g. distributing a bracket) reads as a worked example
+ * building up rather than a wall of text dropped in all at once. Timing is
+ * driven by the scene's Sequence-local frame (from useCurrentFrame in the
+ * caller), not the composition's absolute frame — an equal split of *this
+ * scene's* duration is what keeps step transitions in step with narration
+ * regardless of where the scene sits in the overall video.
+ */
+function EquationDisplay({
+  steps,
+  durationInFrames,
+  fps,
+}: {
+  steps: EquationStep[];
+  durationInFrames: number;
+  fps: number;
+}) {
   const frame = useCurrentFrame();
+  const popFrames = Math.round(0.35 * fps);
+
+  if (steps.length <= 1) {
+    const popProgress = interpolate(frame, [0, popFrames], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    return (
+      <div style={EQUATION_BOX_STYLE}>
+        {renderHighlightedText(steps[0]?.text ?? "", steps[0]?.highlight, popProgress)}
+      </div>
+    );
+  }
+
+  const transitionFrames = Math.min(Math.round(0.35 * fps), Math.floor(durationInFrames / steps.length / 2));
+  const segmentFrames = durationInFrames / steps.length;
+  const index = Math.min(steps.length - 1, Math.floor(frame / segmentFrames));
+  const isLastStep = index === steps.length - 1;
+  const localFrame = frame - index * segmentFrames;
+  const fadeStart = segmentFrames - transitionFrames;
+
+  let currentOpacity = 1;
+  let nextOpacity = 0;
+  if (!isLastStep && localFrame >= fadeStart && transitionFrames > 0) {
+    nextOpacity = Math.min(1, (localFrame - fadeStart) / transitionFrames);
+    currentOpacity = 1 - nextOpacity;
+  }
+
+  const popProgress = interpolate(localFrame, [0, popFrames], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ ...EQUATION_BOX_STYLE, opacity: currentOpacity }}>
+        {renderHighlightedText(steps[index]!.text, steps[index]!.highlight, popProgress)}
+      </div>
+      {!isLastStep && nextOpacity > 0 && (
+        <div style={{ ...EQUATION_BOX_STYLE, position: "absolute", inset: 0, opacity: nextOpacity }}>
+          {steps[index + 1]!.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SceneCard({
+  scene,
+  index,
+  total,
+  durationInFrames,
+}: {
+  scene: LessonVideoScene;
+  index: number;
+  total: number;
+  durationInFrames: number;
+}) {
   const { fps } = useVideoConfig();
   const accent = ACCENTS[(scene.accent as LessonAccent) ?? "green"] ?? ACCENTS.green;
-  const opacity = Math.min(1, frame / Math.max(1, Math.round(0.25 * fps)));
 
   return (
     <AbsoluteFill
@@ -23,6 +153,7 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
         color: accent.ink,
       }}
     >
+      {scene.audioSrc && <Audio src={scene.audioSrc} />}
       <div
         style={{
           position: "absolute",
@@ -50,7 +181,6 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
           position: "relative",
           zIndex: 1,
           padding: "48px 64px 40px",
-          opacity,
           height: "100%",
           display: "flex",
           flexDirection: "column",
@@ -82,19 +212,8 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
         >
           {scene.headline}
         </h1>
-        <div
-          style={{
-            marginTop: 28,
-            background: "rgba(255,255,255,0.82)",
-            border: "1px solid rgba(7,63,52,0.12)",
-            borderRadius: 16,
-            padding: "22px 26px",
-            fontSize: 34,
-            fontWeight: 700,
-            color: "#073f34",
-          }}
-        >
-          {scene.equation}
+        <div style={{ marginTop: 28 }}>
+          <EquationDisplay steps={scene.equation} durationInFrames={durationInFrames} fps={fps} />
         </div>
         <p
           style={{
@@ -128,19 +247,35 @@ function SceneCard({ scene, index, total }: { scene: LessonVideoScene; index: nu
 }
 
 export const LessonVideo: React.FC<LessonVideoProps> = ({ scenes }) => {
-  let start = 0;
+  const { fps } = useVideoConfig();
+  const transitionFrames = sceneTransitionFrames(fps);
+
   return (
     <AbsoluteFill style={{ background: "#f4f7f3" }}>
-      {scenes.map((scene, index) => {
-        const durationInFrames = Math.max(1, Math.round(Math.max(scene.durationSeconds, 1) * LESSON_VIDEO_FPS));
-        const from = start;
-        start += durationInFrames;
-        return (
-          <Sequence key={`${scene.headline}-${index}`} from={from} durationInFrames={durationInFrames}>
-            <SceneCard scene={scene} index={index} total={scenes.length} />
-          </Sequence>
-        );
-      })}
+      <TransitionSeries>
+        {scenes.map((scene, index) => {
+          const durationInFrames = Math.max(1, Math.round(Math.max(scene.durationSeconds, 1) * fps));
+          const isLastScene = index === scenes.length - 1;
+          return (
+            // TransitionSeries requires its own Sequence/Transition pairs as
+            // direct children (it walks props.children), not raw Sequence —
+            // it's what actually overlaps two adjacent scenes so one can
+            // crossfade into the next rather than hard-cutting. A Fragment
+            // is fine here: the package flattens fragment-wrapped children.
+            <React.Fragment key={`${scene.headline}-${index}`}>
+              <TransitionSeries.Sequence durationInFrames={durationInFrames}>
+                <SceneCard scene={scene} index={index} total={scenes.length} durationInFrames={durationInFrames} />
+              </TransitionSeries.Sequence>
+              {!isLastScene && (
+                <TransitionSeries.Transition
+                  presentation={fade({ shouldFadeOutExitingScene: true })}
+                  timing={linearTiming({ durationInFrames: transitionFrames })}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </TransitionSeries>
     </AbsoluteFill>
   );
 };

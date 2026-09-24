@@ -7,16 +7,27 @@ import type { PersonalizedVideoAssignmentView, PilotStudentKey } from "@cogna/sh
 import { Wordmark } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
-import { ensureDemoStudentSession } from "@/lib/session";
+import { ensureDemoStudentSession, getStudent } from "@/lib/session";
+import { renderEquationSteps } from "./equation-highlight";
+import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
+import { LessonMotifBottom, LessonMotifTop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 
-type Stage = "lesson" | "exit" | "result";
+type Stage = "lesson" | "challenge" | "exit" | "result";
 const POLL_MS = 2500;
+const GAME_CHALLENGES = [
+  { prompt: "When signs are involved, what is the safest first move?", options: ["Write every signed product", "Guess the final sign", "Drop the brackets"], correct: 0 },
+  { prompt: "Which evidence counts as independent?", options: ["A fresh answer with no hints", "Watching the explanation", "Copying a worked step"], correct: 0 },
+  { prompt: "How should you check a transformation?", options: ["One algebra change at a time", "Change several lines together", "Only check the final answer"], correct: 0 },
+] as const;
 
 function PersonalizedVideoPage() {
   const search = useSearchParams();
   const key = (search.get("student") as PilotStudentKey | null) ?? "aarav";
-  const studentId = search.get("studentId") ?? `demo_${key}`;
+  const classroomAssignmentId = search.get("assignment");
+  const isProductionClassroom = Boolean(classroomAssignmentId);
+  const signedStudentId = isProductionClassroom ? getStudent()?.studentId : undefined;
+  const studentId = search.get("studentId") ?? signedStudentId ?? (isProductionClassroom ? "" : `demo_${key}`);
   const [assignment, setAssignment] = useState<PersonalizedVideoAssignmentView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -26,17 +37,22 @@ function PersonalizedVideoPage() {
   const [answer, setAnswer] = useState("");
   const [working, setWorking] = useState("");
   const [correct, setCorrect] = useState<boolean | null>(null);
+  const [challengeIndex, setChallengeIndex] = useState(0);
+  const [challengeScore, setChallengeScore] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const watchedRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const load = useCallback(async () => {
+    if (isProductionClassroom && !signedStudentId) {
+      throw new Error("Sign in as a student before opening this classroom lesson.");
+    }
     const story = PILOT_STUDENT_STORIES[key];
-    await ensureDemoStudentSession(studentId, story?.name ?? key);
+    if (!isProductionClassroom) await ensureDemoStudentSession(studentId, story?.name ?? key);
     const next = await api.getPersonalizedVideoAssignment(studentId, key);
     setAssignment(next);
     return next;
-  }, [key, studentId]);
+  }, [isProductionClassroom, key, signedStudentId, studentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +71,10 @@ function PersonalizedVideoPage() {
       cancelled = true;
     };
   }, [load]);
+
+  useEffect(() => {
+    if (classroomAssignmentId) void api.startClassroomAssignment(classroomAssignmentId).catch(() => undefined);
+  }, [classroomAssignmentId]);
 
   useEffect(() => {
     if (!assignment || assignment.status !== "PREPARING") return;
@@ -99,8 +119,22 @@ function PersonalizedVideoPage() {
         /* keep the independent exit available */
       }
     }
-    setStage("exit");
+    setStage(isProductionClassroom ? "challenge" : "exit");
   };
+
+  async function answerChallenge(option: number) {
+    const earned = option === GAME_CHALLENGES[challengeIndex]!.correct ? 100 : 25;
+    const nextScore = challengeScore + earned;
+    setChallengeScore(nextScore);
+    if (challengeIndex < GAME_CHALLENGES.length - 1) { setChallengeIndex(index => index + 1); return; }
+    if (assignment && classroomAssignmentId) {
+      await api.completeClassroomAssignment(classroomAssignmentId, {
+        videoAssignmentId: assignment.id,
+        result: { lessonStatus: assignment.status, delivery: assignment.delivery, watched: true, gameScore: nextScore, gameMaxScore: GAME_CHALLENGES.length * 100 },
+      });
+      window.location.href = "/student/classroom/live";
+    }
+  }
 
   const goToScene = (index: number, shouldPlay = playing) => {
     if (timer.current) clearTimeout(timer.current);
@@ -116,6 +150,7 @@ function PersonalizedVideoPage() {
   };
 
   const togglePlay = () => {
+    if (assignment?.delivery === "SLIDES") return;
     void markWatched();
     if (assignment?.delivery === "VIDEO") {
       const node = videoRef.current;
@@ -151,7 +186,7 @@ function PersonalizedVideoPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (stage !== "lesson") return;
+      if (stage !== "lesson" || assignment?.delivery === "SLIDES") return;
       if (event.key === " " || event.key === "k") {
         event.preventDefault();
         togglePlay();
@@ -171,7 +206,12 @@ function PersonalizedVideoPage() {
       ["Objective selected", assignment?.status === "ABSTAINED" ? "abstained" : assignment ? "complete" : "pending"],
       ["Script generated", assignment?.lesson ? "complete" : "pending"],
       ["Math verified", math],
-      ["Lesson ready", delivery === "VIDEO" || delivery === "HTML_FALLBACK" ? "complete" : delivery ?? "pending"],
+      [
+        "Lesson ready",
+        delivery === "VIDEO" || delivery === "HTML_FALLBACK" || delivery === "SLIDES"
+          ? "complete"
+          : (delivery ?? "pending"),
+      ],
     ] as const;
   }, [assignment]);
 
@@ -182,6 +222,17 @@ function PersonalizedVideoPage() {
       setAssignment(result);
       setCorrect(result.exitAttempt?.correct ?? false);
       setStage("result");
+      if (classroomAssignmentId) {
+        await api.completeClassroomAssignment(classroomAssignmentId, {
+          videoAssignmentId: result.id,
+          result: {
+            lessonStatus: result.status,
+            delivery: result.delivery,
+            watched: true,
+            independentExitCorrect: result.exitAttempt?.correct ?? false,
+          },
+        });
+      }
     } catch (err: unknown) {
       if (assignment.status === "ABSTAINED") {
         const expected = assignment.exit?.expected ?? "";
@@ -295,12 +346,24 @@ function PersonalizedVideoPage() {
             <>
               <div className={styles.videoTop}>
                 <span>
-                  {assignment.delivery === "VIDEO" ? "REVIEWED VIDEO" : "APPROVED HTML LESSON"}
+                  {assignment.delivery === "VIDEO"
+                    ? "REVIEWED VIDEO"
+                    : assignment.delivery === "SLIDES"
+                      ? "NARRATED SLIDES"
+                      : "APPROVED HTML LESSON"}
                   {assignment.lesson?.duration ? ` · ${assignment.lesson.duration}` : ""}
                 </span>
-                <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
+                {assignment.delivery !== "SLIDES" && (
+                  <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
+                )}
               </div>
-              {assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
+              {assignment.delivery === "SLIDES" ? (
+                <InteractiveLessonPlayer
+                  assignment={assignment}
+                  onStart={() => void markWatched()}
+                  onFinish={() => void finishLesson()}
+                />
+              ) : assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
                 <>
                   <video
                     ref={videoRef}
@@ -330,15 +393,17 @@ function PersonalizedVideoPage() {
                 </>
               ) : scene ? (
                 <>
+                  <LessonMotifTop studentKey={assignment.studentKey ?? key} />
                   <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
                     <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
                     <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
                       <span>{scene.eyebrow}</span>
                       <h2>{scene.headline}</h2>
-                      <div className={styles.equation}>{scene.equation}</div>
+                      <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
                       <p>{scene.narration}</p>
                     </div>
                   </div>
+                  <LessonMotifBottom studentKey={assignment.studentKey ?? key} />
                   <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
                   <div className={styles.controls}>
                     <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={() => goToScene(sceneIndex - 1, false)}>← Previous</button>
@@ -358,6 +423,16 @@ function PersonalizedVideoPage() {
             </>
           )}
 
+          {assignment && stage === "challenge" && (() => { const challenge = GAME_CHALLENGES[challengeIndex]!; return (
+            <div className={styles.exitCard}>
+              <div className={styles.eyebrow}>Learning challenge · {challengeIndex + 1} of {GAME_CHALLENGES.length}</div>
+              <h2>{challenge.prompt}</h2>
+              <p>Earn 100 points for the strongest learning move. This practice score is stored separately from independent evidence.</p>
+              <div className={styles.exitActions}>{challenge.options.map((option,index)=><button className={styles.submit} key={option} onClick={()=>void answerChallenge(index)}>{option}</button>)}</div>
+              <p><strong>{challengeScore} points earned</strong></p>
+            </div>
+          ); })()}
+
           {assignment && stage === "exit" && (
             <div className={styles.exitCard}>
               <div className={styles.eyebrow}>
@@ -376,15 +451,17 @@ function PersonalizedVideoPage() {
                 <textarea value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Enter at least one useful step" />
               </label>
               <div className={styles.exitActions}>
-                <button
-                  className={styles.demoFill}
-                  onClick={() => {
-                    setAnswer(assignment.exit?.expected ?? seed.exit.expected);
-                    setWorking("I used the routine from the lesson and checked each transformation.");
-                  }}
-                >
-                  Fill demo response
-                </button>
+                {!isProductionClassroom && (
+                  <button
+                    className={styles.demoFill}
+                    onClick={() => {
+                      setAnswer(assignment.exit?.expected ?? seed.exit.expected);
+                      setWorking("I used the routine from the lesson and checked each transformation.");
+                    }}
+                  >
+                    Fill demo response
+                  </button>
+                )}
                 <button className={styles.submit} disabled={!answer.trim() || !working.trim()} onClick={() => void submitExit()}>
                   Submit independently →
                 </button>
@@ -423,7 +500,9 @@ function PersonalizedVideoPage() {
                 >
                   Replay lesson
                 </button>
-                <Link className={styles.submit} href="/teacher/pilot-story">Open teacher report →</Link>
+                <Link className={styles.submit} href={isProductionClassroom ? "/student/classroom/live" : "/teacher/pilot-story"}>
+                  {isProductionClassroom ? "Return to classroom →" : "Open teacher report →"}
+                </Link>
               </div>
             </div>
           )}

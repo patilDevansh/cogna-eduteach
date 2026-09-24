@@ -2,6 +2,7 @@
 
 > **Future architecture only. Do not use as the MVP implementation specification.**  
 > Canonical MVP 1.0: [`/docs/mvp-1.0/`](../docs/mvp-1.0/README.md)
+> Current Lotus implementation and proposed syllabus-grounded diagnostic design: [`COGNA 10.0/LOTUS_ARCHITECTURE.md`](../COGNA%2010.0/LOTUS_ARCHITECTURE.md). This mature-engine essay is not the Lotus build plan.
 
 ## Overview
 

@@ -15,7 +15,28 @@ function packageRoot(): string {
   return path.resolve(__dirname, "..");
 }
 
-export type { LessonVideoProps, LessonVideoScene } from "./types";
+const AUDIO_MIME_BY_EXT: Record<string, string> = {
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".ogg": "audio/ogg",
+};
+
+/**
+ * @remotion/renderer's asset pipeline only fetches http(s) URLs — a file://
+ * src throws ("Can only download URLs starting with http:// or https://")
+ * during renderMedia's asset pass, confirmed empirically. A base64 data URI
+ * sidesteps that entirely since Chromium decodes it inline, with no fetch.
+ */
+async function audioPathToDataUri(audioPath: string): Promise<string> {
+  const ext = path.extname(audioPath).toLowerCase();
+  const mime = AUDIO_MIME_BY_EXT[ext] ?? "audio/mpeg";
+  const bytes = await readFile(audioPath);
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+export type { EquationStep, LessonVideoProps, LessonVideoScene } from "./types";
 export { buildLessonVtt } from "./transcript";
 export { LESSON_VIDEO_FPS, lessonDurationInFrames } from "./types";
 
@@ -72,7 +93,16 @@ export async function renderApprovedLesson(
   await mkdir(outputDir, { recursive: true });
   const mp4Path = path.join(outputDir, "lesson.mp4");
   const vttPath = path.join(outputDir, "lesson.vtt");
-  const props: LessonVideoProps = { title: input.title, scenes: input.scenes };
+  // audioPath is a plain filesystem path set by the caller. @remotion/renderer's
+  // asset pipeline only fetches http(s) URLs (file:// throws during render), so
+  // inline the audio as a base64 data URI instead of asking every caller to
+  // stand up a local file server.
+  const scenesWithAudioSrc = await Promise.all(
+    input.scenes.map(async (scene) =>
+      scene.audioPath ? { ...scene, audioSrc: await audioPathToDataUri(scene.audioPath) } : scene,
+    ),
+  );
+  const props: LessonVideoProps = { title: input.title, scenes: scenesWithAudioSrc };
   const inputProps = { ...props } as Record<string, unknown>;
 
   await writeFile(vttPath, buildLessonVtt(input.scenes), "utf8");

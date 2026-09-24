@@ -1,5 +1,8 @@
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import type { LotusSessionView, PersonalizedVideoLesson } from "@cogna/shared";
 import {
   INSECURE_LOCAL_DEV_SESSION_SECRET,
@@ -15,14 +18,16 @@ import { createPersonalizedVideoMemoryDb } from "../../src/personalized-videos/p
 import { PersonalizedVideosService } from "../../src/personalized-videos/personalized-videos.service";
 import { snapshotFromLotusSession } from "../../src/personalized-videos/lotus-evidence";
 import { evaluateRemediationEligibility } from "../../src/personalized-videos/video-evidence";
-import { collectSceneClaims, validateMathClaims } from "../../src/personalized-videos/video-math";
+import { collectSceneClaims, isTransformationLesson, validateMathClaims } from "../../src/personalized-videos/video-math";
 import { validateVideoLanguage } from "../../src/personalized-videos/video-language";
 import {
   VideoRendererAdapter,
   type VideoRendererConfig,
+  type VideoSceneManifest,
 } from "../../src/personalized-videos/video-renderer.adapter";
 import { APPROVED_VIDEO_TEMPLATES } from "../../src/personalized-videos/approved-templates";
 import { BadRequestException, ForbiddenException, UnauthorizedException } from "@nestjs/common";
+import type { TtsService } from "../../src/ai/tts.service";
 
 process.env.COGNA_SESSION_SECRET = process.env.COGNA_SESSION_SECRET || "test-session-secret";
 
@@ -37,10 +42,11 @@ function teacherActor(): AccessActor {
 function serviceWith(
   renderer: VideoRendererAdapter = new VideoRendererAdapter({}),
   db = createPersonalizedVideoMemoryDb(),
+  tts?: TtsService,
 ) {
   return {
     db,
-    videos: new PersonalizedVideosService(db as never, renderer),
+    videos: new PersonalizedVideosService(db as never, renderer, tts),
   };
 }
 
@@ -76,6 +82,43 @@ function mockRenderer(options: { delayed?: boolean } = {}): VideoRendererAdapter
     } as Response;
   }) as typeof fetch;
   return new VideoRendererAdapter(config, fetchImpl);
+}
+
+/** A local-renderer VideoRendererAdapter backed by a fake queue that just records the submitted manifest. */
+function localMockRenderer(): { renderer: VideoRendererAdapter; manifests: VideoSceneManifest[] } {
+  const manifests: VideoSceneManifest[] = [];
+  const queue = {
+    submit: async (manifest: VideoSceneManifest) => {
+      manifests.push(manifest);
+      return { providerJobId: `local-${manifests.length}` };
+    },
+    poll: async () => ({
+      status: "COMPLETED" as const,
+      result: {
+        storageRef: "http://localhost:3000/generated-media/lessons/x/lesson.mp4",
+        transcriptRef: "http://localhost:3000/generated-media/lessons/x/lesson.vtt",
+        durationMs: 40_000,
+        integrity: { sceneCount: 1 },
+      },
+    }),
+  };
+  const renderer = new VideoRendererAdapter({ localRenderer: true }, fetch, queue);
+  return { renderer, manifests };
+}
+
+/** A fake TtsService — records how many times synthesize() is actually called, to prove the disk cache works. */
+function fakeTts(options: { enabled: boolean }): { tts: TtsService; calls: string[] } {
+  const calls: string[] = [];
+  const tts = {
+    enabled: options.enabled,
+    voice: "alloy",
+    model: "gpt-4o-mini-tts",
+    synthesize: async (text: string) => {
+      calls.push(text);
+      return { bytes: Buffer.from(`fake-audio-for:${text}`), format: "mp3" as const };
+    },
+  } as unknown as TtsService;
+  return { tts, calls };
 }
 
 async function drainRender(
@@ -425,6 +468,20 @@ describe("Personalized video access and trusted evidence", () => {
 });
 
 describe("Personalized video assignment pipeline", () => {
+  // These tests exercise the remote-renderer job/poll/callback machinery
+  // directly (mockRenderer() always configures a remote endpoint) — slides
+  // delivery defaults to on for every lesson now and would otherwise
+  // intercept processRenderJob before any of that code ever runs.
+  let previousSlidesFlag: string | undefined;
+  beforeEach(() => {
+    previousSlidesFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
+  });
+  afterEach(() => {
+    if (previousSlidesFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousSlidesFlag;
+  });
+
   it("does not create a remediation assignment from insufficient evidence", async () => {
     const { videos } = serviceWith();
     const assignment = await videos.createAssignment(
@@ -757,5 +814,200 @@ describe("Personalized video assignment pipeline", () => {
       attachMediaAccess("https://cdn.example.com/lessons/aarav.mp4", claims),
       "https://cdn.example.com/lessons/aarav.mp4",
     );
+  });
+});
+
+describe("Personalized video narration synthesis", () => {
+  // tts-cache.ts reads defaultMediaRoot() from COGNA_MEDIA_LOCAL_DIR — point
+  // it at a fresh temp dir per test so cache hits/misses are never polluted
+  // by a real generated-media/tts-cache/ directory or a previous test run.
+  // These tests specifically exercise synthesizeNarration()'s wiring into
+  // VideoSceneManifest.scenes[].audioPath (the baked-video renderer path),
+  // so they force the slides delivery off — every lesson defaults to slides
+  // now, which never calls the renderer at all (see the "interactive
+  // equations" describe block below for that path's own coverage).
+  async function isolateMediaRoot(): Promise<() => void> {
+    const previous = process.env.COGNA_MEDIA_LOCAL_DIR;
+    const previousSlidesFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    const dir = await mkdtemp(path.join(os.tmpdir(), "tts-cache-test-"));
+    process.env.COGNA_MEDIA_LOCAL_DIR = dir;
+    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
+    return () => {
+      if (previous === undefined) delete process.env.COGNA_MEDIA_LOCAL_DIR;
+      else process.env.COGNA_MEDIA_LOCAL_DIR = previous;
+      if (previousSlidesFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+      else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousSlidesFlag;
+    };
+  }
+
+  it("synthesizes narration once and reuses the disk cache on a second render", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts, calls } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+      await createThenRead(videos, { studentId: "demo_aarav_2", studentKey: "aarav" });
+
+      assert.equal(manifests.length, 2);
+      const firstAudioPaths = manifests[0]!.scenes.map((scene) => scene.audioPath);
+      const secondAudioPaths = manifests[1]!.scenes.map((scene) => scene.audioPath);
+      assert.ok(firstAudioPaths.every(Boolean), "every scene should get a synthesized clip");
+      assert.deepEqual(
+        secondAudioPaths,
+        firstAudioPaths,
+        "the second render of the same template should reuse the exact cached file paths",
+      );
+      // Same narration text per scene across both assignments — the cache
+      // should mean synthesize() only ran once per unique scene, not twice.
+      const uniqueNarrations = new Set(calls);
+      assert.equal(calls.length, uniqueNarrations.size, "synthesize() should not be called twice for the same narration");
+    } finally {
+      restore();
+    }
+  });
+
+  it("renders silently, never calling synthesize(), when TTS is disabled", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts, calls } = fakeTts({ enabled: false });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+
+      assert.equal(calls.length, 0);
+      assert.equal(manifests.length, 1);
+      assert.ok(
+        manifests[0]!.scenes.every((scene) => !scene.audioPath),
+        "no scene should get an audioPath when TTS is disabled",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("renders silently when no TtsService is provided at all", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { videos } = serviceWith(renderer);
+
+      await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+
+      assert.equal(manifests.length, 1);
+      assert.ok(manifests[0]!.scenes.every((scene) => !scene.audioPath));
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe("Personalized video interactive equations", () => {
+  async function isolateMediaRoot(): Promise<() => void> {
+    const previous = process.env.COGNA_MEDIA_LOCAL_DIR;
+    const dir = await mkdtemp(path.join(os.tmpdir(), "interactive-eq-test-"));
+    process.env.COGNA_MEDIA_LOCAL_DIR = dir;
+    return () => {
+      if (previous === undefined) delete process.env.COGNA_MEDIA_LOCAL_DIR;
+      else process.env.COGNA_MEDIA_LOCAL_DIR = previous;
+    };
+  }
+
+  it("flags only rohan and divya as transformation lessons among the pilot templates", () => {
+    for (const [key, template] of Object.entries(APPROVED_VIDEO_TEMPLATES)) {
+      const expected = key === "rohan" || key === "divya";
+      assert.equal(
+        isTransformationLesson(template.lesson.scenes),
+        expected,
+        `${key} should${expected ? "" : " not"} be a transformation lesson`,
+      );
+    }
+  });
+
+  it("skips Remotion and delivers SLIDES with per-scene audio for a transformation lesson", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" });
+
+      assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked");
+      assert.equal(view.status, "READY");
+      assert.equal(view.delivery, "SLIDES");
+      assert.ok(view.lesson);
+      const narratedScenes = view.lesson!.scenes.filter((scene) => scene.narration);
+      assert.ok(
+        narratedScenes.some((scene) => scene.audioUrl),
+        "at least one scene should carry a signed narration audio URL",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("skips Remotion and delivers SLIDES even for a lesson with no EQUATION_TRANSFORMATION claim", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      const view = await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+
+      assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked, even without a drag-eligible claim");
+      assert.equal(view.status, "READY");
+      assert.equal(view.delivery, "SLIDES");
+      assert.ok(view.lesson);
+      assert.ok(view.lesson!.scenes.some((scene) => scene.audioUrl));
+    } finally {
+      restore();
+    }
+  });
+
+  it("falls back to the baked-video path when COGNA_SLIDES_DELIVERY_ENABLED=false", async () => {
+    const restore = await isolateMediaRoot();
+    const previousFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
+    try {
+      const { renderer, manifests } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+
+      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" });
+
+      assert.equal(manifests.length, 1, "the revert flag should route back through the baked-video renderer");
+      assert.equal(view.delivery, "VIDEO");
+    } finally {
+      if (previousFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
+      else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousFlag;
+      restore();
+    }
+  });
+
+  it("verifyStep accepts a correct both-sides operation and rejects an incorrect one, writing no evidence event", async () => {
+    const restore = await isolateMediaRoot();
+    try {
+      const { renderer } = localMockRenderer();
+      const { tts } = fakeTts({ enabled: true });
+      const { videos, db } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
+      const actor = studentActor("demo_divya");
+
+      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" }, actor);
+      assert.equal(view.delivery, "SLIDES");
+      // Divya's scene index 1 is "Cancel negative six with positive six" (from "2x-6=8", chip "+ 6").
+      const correct = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8+6" }, actor);
+      assert.equal(correct.valid, true);
+      const incorrect = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8-6" }, actor);
+      assert.equal(incorrect.valid, false);
+
+      const events = await db.personalizedVideoEvent.findMany({ where: { assignmentId: view.id } });
+      assert.equal(events.length, 0, "practice attempts must never write a diagnostic evidence event");
+    } finally {
+      restore();
+    }
   });
 });

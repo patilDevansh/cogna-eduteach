@@ -1,3 +1,4 @@
+import type { EquationStep } from "@cogna/shared";
 import type { LocalRenderQueue } from "./local-render-queue";
 
 export interface VideoRendererConfig {
@@ -16,10 +17,18 @@ export interface VideoSceneManifest {
   scenes: Array<{
     eyebrow?: string;
     headline: string;
-    equation: string;
+    equation: EquationStep[];
     narration: string;
     durationSeconds: number;
     accent?: string;
+    /**
+     * Absolute local path to a pre-synthesized narration clip, set by
+     * synthesizeNarration() in personalized-videos.service.ts. Only
+     * meaningful to the local renderer (LocalRenderQueue) — a local
+     * filesystem path is meaningless to a remote render endpoint, so
+     * submitRemote() below deliberately does not forward it.
+     */
+    audioPath?: string;
   }>;
 }
 

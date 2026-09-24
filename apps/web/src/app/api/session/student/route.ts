@@ -1,12 +1,11 @@
+import { createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-  canMintDemoStudent,
-  issueStudentToken,
-} from "../../../../../../api/src/access/cogna-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
 
 function loadWorkspaceEnvironment(): void {
   const candidates = [
@@ -32,6 +31,38 @@ function loadWorkspaceEnvironment(): void {
 
 loadWorkspaceEnvironment();
 
+function isProductionLike(): boolean {
+  const era = (process.env.COGNA_ENV ?? "").trim().toLowerCase();
+  return process.env.NODE_ENV === "production" || era === "production" || era === "staging";
+}
+
+function demoSessionsAllowed(): boolean {
+  if (process.env.ALLOW_DEMO_STUDENT_SESSIONS === "false") return false;
+  if (process.env.NODE_ENV === "production") return process.env.ALLOW_DEMO_STUDENT_SESSIONS === "true";
+  return true;
+}
+
+function canMintDemoStudent(studentId: string): boolean {
+  return demoSessionsAllowed() && /^demo_[a-z][a-z0-9_]*$/.test(studentId);
+}
+
+function sessionSecretFromEnv(): string | null {
+  const configured = process.env.COGNA_SESSION_SECRET?.trim();
+  if (configured) return configured;
+  if (!isProductionLike() && process.env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
+    return INSECURE_LOCAL_DEV_SESSION_SECRET;
+  }
+  return null;
+}
+
+function issueStudentToken(studentId: string, ttlMs = 12 * 60 * 60 * 1000): string {
+  const secret = sessionSecretFromEnv();
+  if (!secret) throw new Error("Student session signing is not configured.");
+  const body = Buffer.from(JSON.stringify({ role: "student", sub: studentId, exp: Date.now() + ttlMs })).toString("base64url");
+  const mac = createHmac("sha256", secret).update(body).digest("base64url");
+  return `v1.${body}.${mac}`;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => null)) as {
     studentId?: unknown;
@@ -56,11 +87,9 @@ export async function POST(request: Request): Promise<Response> {
       token,
     });
   } catch (error) {
-    const candidate = error as { getStatus?: () => number; message?: string };
-    const status = typeof candidate.getStatus === "function" ? candidate.getStatus() : 503;
     return Response.json(
-      { message: candidate.message ?? "Student session signing is not configured." },
-      { status },
+      { message: error instanceof Error ? error.message : "Student session signing is not configured." },
+      { status: 503 },
     );
   }
 }

@@ -118,8 +118,11 @@ export default function StudentLoginPage() {
         <p className={styles.helperLine}>
           Don&apos;t have a code? Ask the grown-up who set up your account.
         </p>
-        <Link href="/prototype/classroom/join" className="btn btn-ghost" style={{ marginTop: "var(--s-2)" }}>
+        <Link href="/student/classroom/live" className="btn btn-ghost" style={{ marginTop: "var(--s-2)" }}>
           Join with my teacher&apos;s class code
+        </Link>
+        <Link href="/prototype/classroom/join" className="btn btn-quiet" style={{ marginTop: "var(--s-2)" }}>
+          Open mock classroom demo
         </Link>
       </div>
     </div>

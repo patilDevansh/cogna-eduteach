@@ -5,17 +5,22 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Max,
   Min,
   ValidateIf,
 } from "class-validator";
-import type { LotusOverrideAction } from "@cogna/shared";
+import type { LotusOverrideAction, LotusTopic } from "@cogna/shared";
 
 export class StartLotusSessionDto {
   @IsString()
   @IsNotEmpty()
   studentId!: string;
+
+  @IsOptional()
+  @IsIn(["BRACKETS", "FACTORISATION"])
+  topic?: LotusTopic;
 }
 
 export class SubmitLotusAnswerDto {
@@ -44,6 +49,18 @@ export class SubmitLotusAnswerDto {
 
   @IsBoolean()
   didNotKnow!: boolean;
+
+  @IsOptional()
+  @IsString()
+  questionId?: string;
+
+  @IsOptional()
+  @IsString()
+  nextQuestionId?: string;
+
+  @IsOptional()
+  @IsString()
+  submissionId?: string;
 }
 
 export class OverrideLotusSessionDto {
