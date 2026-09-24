@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/ui";
+import { getTeacherInvitation, type TeacherInvitationRecord } from "@/lib/session";
 import styles from "./teacher.module.css";
 
 const links = [
@@ -16,6 +18,8 @@ const links = [
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [teacher,setTeacher]=useState<TeacherInvitationRecord|null>(null);
+  useEffect(()=>setTeacher(getTeacherInvitation()),[]);
   const isAuth = pathname === "/teacher/signup" || pathname === "/teacher/login" || pathname === "/teacher/setup";
   if (isAuth) return children;
 
@@ -26,10 +30,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <Wordmark href="/teacher/today" size="1.35rem" />
           <div className={styles.teacherIdentity}>
             <div className={styles.teacherIdentityText}>
-              <strong>Ananya Rao — Demo</strong>
-              <span>Gurukul · Grade 8 Mathematics</span>
+              <strong>{teacher?.teacherName ?? "Teacher workspace"}</strong>
+              <span>{teacher?.schoolName ?? "Cogna production classroom"}</span>
             </div>
-            <div className={styles.avatar}>AR</div>
+            <div className={styles.avatar}>{teacher?.teacherName?.split(/\s+/).map(part=>part[0]).slice(0,2).join("") ?? "T"}</div>
           </div>
         </div>
       </header>
@@ -45,7 +49,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           </nav>
           <div className={styles.sideClass}>
             <span>Viewing class</span>
-            <strong>Grade 8 · Section A</strong>
+            <strong>Production data</strong>
           </div>
         </aside>
         <main className={styles.main}>{children}</main>

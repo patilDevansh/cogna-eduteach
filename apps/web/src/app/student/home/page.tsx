@@ -97,28 +97,43 @@ export default function StudentHomePage() {
       <div className={`${styles.phone} phase-in`}>
         {error && <p className="error">{error}</p>}
 
+        <div className={styles.heroCard}>
+          <span className={styles.kicker}>Live classroom</span>
+          <h2>Join your teacher&apos;s class</h2>
+          <p className={styles.meta}>
+            Enter the class code from your teacher and receive diagnostics, teaching activities,
+            and independent exit checks automatically.
+          </p>
+          <Link
+            href="/student/classroom/live"
+            className="btn btn-primary"
+            style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}
+          >
+            Open production classroom →
+          </Link>
+        </div>
+
         {!hasHistory ? (
           <div className={styles.heroCard}>
-            <span className={styles.kicker}>Let&apos;s get started</span>
-            <h2>A quick baseline first</h2>
+            <span className={styles.kicker}>Today&apos;s Mission · Cogna Lotus</span>
+            <h2>Find your factorisation gaps</h2>
             <p className={styles.meta}>
-              About 12 short questions to find the right starting point — not a test, just a way to
-              begin in the right place.
+              Take an adaptive factorisation diagnostic that checks your working and finds the skills to practise next.
             </p>
-            <Link href="/student/baseline" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
-              Start baseline
+            <Link href="/student/lotus?topic=factorisation" className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
+              Start factorisation diagnostic →
             </Link>
           </div>
         ) : (
           <>
             <div className={styles.heroCard}>
               <span className={styles.kicker}>Up next</span>
-              <h2>{summary?.nextAction ? conceptLabelStudent(summary.nextAction.conceptId) : "Practice"}</h2>
+              <h2>{summary?.nextAction ? conceptLabelStudent(summary.nextAction.conceptId) : "Equations with brackets"}</h2>
               <span className={styles.meta}>
                 About 10 minutes · {summary?.nextAction?.reason === "revision" ? "a quick refresh" : "picks up where you left off"}
               </span>
-              <Link href="/student/practice?mode=ADAPTIVE_PRACTICE" className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
-                Continue practicing
+              <Link href="/student/mission" className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
+                Start 10-Minute Mission →
               </Link>
             </div>
 
@@ -205,21 +220,6 @@ export default function StudentHomePage() {
 
         {isDemoStudent && (
           <>
-            <div className={styles.demoDiagCard}>
-              <span className={styles.kicker}>Experimental AI Lab</span>
-              <h3>Try Cogna Lotus</h3>
-              <p className={styles.meta}>
-                Watch GPT and Claude independently diagnose each answer, debate the evidence,
-                and choose the next question. Research prototype—not a validated school result.
-              </p>
-              <Link
-                href="/student/lotus?observer=1"
-                className="btn btn-primary"
-                style={{ alignSelf: "flex-start" }}
-              >
-                Open Lotus observer demo
-              </Link>
-            </div>
             <div className={styles.demoDiagCard}>
               <span className={styles.kicker}>Demo only</span>
               <h3>Do a diagnostic test</h3>

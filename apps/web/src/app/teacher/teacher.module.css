@@ -27,7 +27,7 @@
 .storyCopy h1 { font-size: clamp(2.5rem, 5vw, 4.8rem); letter-spacing: -0.045em; }
 .storyCopy > p { margin-top: 1.4rem; font-size: 1.16rem; color: #d7e8e0; max-width: 32rem; }
 .storySteps { display: grid; gap: 1.1rem; margin-top: 2.5rem; }
-.storyStep { display: grid; grid-template-columns: 2rem 1fr; gap: .8rem; align-items: start; color: #d7e8e0; }
+.storyStep { display: grid; grid-template-columns: 2rem 1fr; gap: .8rem; align-items: flex-start; color: #d7e8e0; }
 .storyStep b { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.12); color: white; }
 .storyStep strong { display: block; color: white; }
 .trustNote { font-size: .82rem; color: #a9c8bb; max-width: 32rem; }
@@ -63,7 +63,7 @@
 .sideClass span { font-size: .7rem; color: var(--ink-faint); display: block; }
 .sideClass strong { font-size: .84rem; }
 .main { padding: 2rem clamp(1.25rem, 3vw, 3rem) 4rem; max-width: 1320px; width: 100%; }
-.pageHeader { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.pageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .pageHeader h1 { font-size: clamp(2rem, 4vw, 3rem); }
 .pageHeader p { color: var(--ink-soft); margin-top: .3rem; }
 .headerActions { display: flex; gap: .65rem; flex-wrap: wrap; }
@@ -90,7 +90,7 @@
 .meter span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
 .sectionGrid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(310px, .65fr); gap: 1rem; margin-top: 1rem; }
 .panel { background: white; border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem; }
-.panelHeader { display: flex; align-items: start; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+.panelHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
 .panelHeader h3 { font-size: 1.12rem; }
 .panelHeader p { color: var(--ink-faint); font-size: .76rem; margin-top: .2rem; }
 .skillRows { display: grid; }
@@ -102,7 +102,7 @@
 .nextSteps { display: grid; gap: .65rem; }
 .nextStep { padding: .85rem; border-radius: 10px; background: var(--bg); }
 .nextStep span { color: var(--accent-deep); font-size: .68rem; font-weight: 800; text-transform: uppercase; }
-.nextStep strong { display: block; margin-top: .15rem; font-size: .86rem; }
+.nextStep strong { display: block; margin-top: .15rem; font-size: .86rem; color: var(--ink); }
 .nextStep p { color: var(--ink-soft); font-size: .75rem; margin-top: .2rem; }
 .textLink { border: 0; background: none; color: var(--accent-deep); font-weight: 750; padding: 0; text-decoration: none; font-size: .8rem; }
 
@@ -138,7 +138,7 @@
 .evidenceSection header p { color: var(--ink-soft); font-size: .8rem; }
 .attempt { padding: 1rem 1.2rem; border-bottom: 1px solid var(--line); }
 .attempt:last-child { border-bottom: 0; }
-.attemptTop { display:flex; justify-content:space-between; gap:1rem; align-items:start; }
+.attemptTop { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }
 .attemptPrompt { font-family: var(--font-math); font-weight: 700; }
 .attemptMeta { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.45rem; }
 .attemptMeta span { font-size:.67rem; background:var(--bg); padding:.22rem .45rem; border-radius:99px; color:var(--ink-soft); }
@@ -164,12 +164,12 @@
 .pipelineStep strong,.pipelineStep span { display:block; }
 .pipelineStep strong { font-size:.78rem; }
 .pipelineStep span { margin-top:.16rem; color:var(--ink-soft); font-size:.68rem; line-height:1.35; }
-.reportSectionHead { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin:2rem 0 1rem; }
+.reportSectionHead { display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; margin:2rem 0 1rem; }
 .reportSectionHead h2 { margin-top:.25rem; font-size:1.55rem; }
 .reportLiveCount { color:var(--ink-soft); font-size:.78rem; }
 .videoStudentGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
 .videoStudentCard { background:white; border:1px solid var(--line); border-radius:15px; padding:1.15rem; display:flex; flex-direction:column; gap:.8rem; }
-.videoStudentTop { display:flex; justify-content:space-between; gap:1rem; align-items:start; }
+.videoStudentTop { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }
 .videoStudentTop h3 { font-size:1.12rem; }
 .videoStudentTop div>span { color:var(--ink-faint); font-size:.68rem; }
 .claimBlock { padding:.8rem; border-left:3px solid var(--accent); background:#f4f9f6; }
@@ -210,7 +210,7 @@
   .formGrid { grid-template-columns: 1fr; }
   .full, .submitButton { grid-column: auto; }
   .teacherIdentityText { display: none; }
-  .pageHeader { align-items: start; flex-direction: column; }
+  .pageHeader { align-items: flex-start; flex-direction: column; }
   .metricGrid { grid-template-columns: 1fr; }
   .decisionTop, .decisionAction { flex-direction: column; }
   .decisionLink { width: 100%; text-align: center; }

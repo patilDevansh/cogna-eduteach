@@ -9,11 +9,13 @@
 | **MVP 3.0** | [`/docs/mvp-3.0/`](./docs/mvp-3.0/) | [`/COGNA 3.0/`](./COGNA%203.0/) | **Complete** — engineering done; maintenance only |
 | **MVP 4.0** | [`/docs/mvp-4.0/`](./docs/mvp-4.0/) | [`/COGNA 4.0/`](./COGNA%204.0/) | **Complete** — engineering done; maintenance only |
 | **MVP 5.0** | [`/docs/mvp-5.0/`](./docs/mvp-5.0/) | [`/COGNA 5.0/`](./COGNA%205.0/) | **Complete** — engineering done; maintenance only |
+| **MVP 10.0** | [`/docs/mvp-10.0/`](./docs/mvp-10.0/) | [`/COGNA 10.0/`](./COGNA%2010.0/) | **Active** — production classroom orchestration |
 
 - **Do not implement from:** [`/COGNA/`](./COGNA/README.md) mature engine essays (future architecture only). Manager visibility docs under the same folder (`HOW_THE_PRODUCT_WORKS.md`, `LIVE_AGENTIC_PLAN.md`, etc.) are the plain-English companion for live-agentic delivery — they do not replace `/docs/mvp-*` contracts.
 - **Do not implement from** `/docs/mvp-5.0/` until that era's README status is Canonical / Frozen **and** this table marks it **Active**.
 - **Repo / GitHub ops:** [`COGNA 2.0/REPO_AND_GITHUB.md`](./COGNA%202.0/REPO_AND_GITHUB.md) (3.0/4.0/5.0 folders point here).
 - **Live agentic (current workstream):** [`COGNA/LIVE_AGENTIC_PLAN.md`](./COGNA/LIVE_AGENTIC_PLAN.md) · [`testUI-claude/`](./testUI-claude/) design reference · Flags `LIVE_AGENTIC_GENERATE` / `LIVE_AGENTIC_SERVE_GENERATED`.
+- **Production classroom (active workstream):** [`docs/mvp-10.0/README.md`](./docs/mvp-10.0/README.md). This is the canonical contract for teacher-owned classrooms, real enrollment, assignment orchestration, class reports, personalized teaching, and independent exit evidence.
 
 ## MVP 5.0 — Complete (engineering)
 

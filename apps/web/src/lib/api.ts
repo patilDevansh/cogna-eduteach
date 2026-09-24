@@ -16,6 +16,8 @@ import type {
   LotusStatusResponse,
   LotusStudentResponse,
   LotusOverrideAction,
+  LotusTopic,
+  LotusUnseenPlanEntry,
   PersonalizedVideoAssignmentView,
   PersonalizedVideoTeacherReport,
 } from "@cogna/shared";
@@ -189,6 +191,28 @@ async function personalizedVideoFetch<T>(path: string, options?: RequestInit): P
   return res.json() as Promise<T>;
 }
 
+async function classroomFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...cognaAuthHeaders(),
+        ...options?.headers,
+      },
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(`Classroom request failed: ${detail}`, 0, path);
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ message: res.statusText }));
+    throw new ApiError(String(body?.message ?? res.statusText), res.status, path);
+  }
+  return res.json() as Promise<T>;
+}
+
 export interface StudentSession {
   studentId: string;
   name: string;
@@ -287,6 +311,35 @@ export interface HomeSummary {
   recap: { conceptId: string | null; minutes: number; endedAt: string } | null;
 }
 
+export type ClassroomAssignmentKind = "DIAGNOSTIC" | "TEACHING" | "INDEPENDENT_EXIT";
+export type ClassroomAssignmentStatus = "WAITING" | "READY" | "IN_PROGRESS" | "COMPLETE" | "SKIPPED" | "FAILED";
+
+export interface ProductionClassroom {
+  id: string;
+  name: string;
+  grade: number;
+  subjectId: string;
+  joinCode: string;
+  isDemo: boolean;
+  _count?: { enrollments: number };
+  runs?: Array<{ id: string; title: string; phase: string; status: string }>;
+}
+
+export interface ClassroomStudentAssignment {
+  id: string;
+  kind: ClassroomAssignmentKind;
+  status: ClassroomAssignmentStatus;
+  payload: Record<string, unknown>;
+  run: { id: string; title: string; topicId: string; classroom: { name: string; grade: number; subjectId: string } };
+}
+
+export interface ClassroomRunReport {
+  run: { id: string; title: string; phase: string; status: string; classroom: ProductionClassroom };
+  progress: Array<{ kind: ClassroomAssignmentKind; total: number; ready: number; inProgress: number; complete: number }>;
+  summary: { enrolled: number; diagnosticOutcomes: Record<string, number>; observedStrengths: Record<string, number>; uncertaintyAreas: Record<string, number>; lessonDeliveries: Record<string, number>; independentExit: { completed: number; verified: number; needsReview: number } };
+  students: Array<{ assignmentId: string; studentId: string; studentName: string; kind: ClassroomAssignmentKind; status: ClassroomAssignmentStatus; result?: Record<string, unknown> | null }>;
+}
+
 export const api = {
   health: () =>
     apiFetch<{ devStudentId: string; devAccessCode: string }>("/health"),
@@ -304,6 +357,29 @@ export const api = {
     }
     return response.json() as Promise<TeacherInvitationClaim>;
   },
+
+  listClassrooms: () => classroomFetch<ProductionClassroom[]>("/classrooms", { headers: teacherAuthHeaders() }),
+
+  createClassroom: (input: { name: string; grade: number; subjectId: string; joinCode?: string; isDemo?: boolean }) =>
+    classroomFetch<ProductionClassroom>("/classrooms", { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
+
+  joinClassroom: (input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) =>
+    classroomFetch<{ id: string; classroom: ProductionClassroom }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+
+  createClassroomRun: (classroomId: string, input: { title: string; topicId: string; config?: Record<string, unknown> }) =>
+    classroomFetch<{ id: string; title: string; phase: string; status: string }>(`/classrooms/${classroomId}/runs`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
+
+  launchClassroomPhase: (runId: string, phase: ClassroomAssignmentKind) =>
+    classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/launch`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ phase }) }),
+
+  getClassroomRunReport: (runId: string) => classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/report`, { headers: teacherAuthHeaders() }),
+
+  getStudentClassroomAssignments: () => classroomFetch<ClassroomStudentAssignment[]>("/classrooms/student/assignments"),
+
+  startClassroomAssignment: (assignmentId: string) => classroomFetch<ClassroomStudentAssignment>(`/classrooms/assignments/${assignmentId}/start`, { method: "POST" }),
+
+  completeClassroomAssignment: (assignmentId: string, input: { diagnosticSessionId?: string; videoAssignmentId?: string; result: Record<string, unknown> }) =>
+    classroomFetch<ClassroomStudentAssignment>(`/classrooms/assignments/${assignmentId}/complete`, { method: "POST", body: JSON.stringify(input) }),
 
   parentSignup: (email: string, name: string) =>
     apiFetch<ParentSession>("/parents/dev/signup", {
@@ -617,14 +693,20 @@ export const api = {
   /** Cogna Lotus — experimental dual-model AI Lab, isolated from diagnostic-v2. */
   getLotusStatus: () => lotusFetch<LotusStatusResponse>("/status"),
 
-  startLotusSession: (studentId: string) =>
+  startLotusSession: (studentId: string, topic?: LotusTopic) =>
     lotusFetch<LotusSessionView>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ studentId }),
+      body: JSON.stringify({ studentId, topic }),
     }),
 
   getLotusSession: (sessionId: string) =>
     lotusFetch<LotusSessionView>(`/sessions/${sessionId}`),
+
+  /** Server computes the demo answer now that the answer key isn't shipped to the client while a diagnostic is active. Demo student ids only. */
+  demoFillLotusResponse: (sessionId: string, studentId: string) =>
+    lotusFetch<{ answer: string; working: string; confidence: number }>(
+      `/sessions/${sessionId}/demo-fill?studentId=${encodeURIComponent(studentId)}`,
+    ),
 
   submitLotusAnswer: (
     sessionId: string,
@@ -645,6 +727,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ studentId, action }),
     }),
+
+  getLotusUnseenPlan: (sessionId: string) =>
+    lotusFetch<LotusUnseenPlanEntry[]>(`/sessions/${sessionId}/unseen-plan`),
 
   getPersonalizedVideoAssignment: (studentId: string, studentKey?: string) => {
     const query = new URLSearchParams({ studentId });

@@ -1,20 +1,28 @@
 "use client";
-
-import { useState } from "react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { api, ApiError, type ClassroomAssignmentKind, type ClassroomRunReport, type ProductionClassroom } from "@/lib/api";
 import styles from "../teacher.module.css";
 
-const sessions = [
-  ["01", "Initial diagnostic", "Essential anchor questions first, followed by the most valuable uncertainty check.", "20 min"],
-  ["02", "Personalized learning", "A verified explanation, worked example, guided practice and independent attempt selected from the learner evidence.", "20 min"],
-  ["03", "Independent exit check", "Fresh familiar and changed-form questions with no hints or calculators.", "8–12 min"],
+const phases: Array<[ClassroomAssignmentKind,string,string]> = [
+  ["DIAGNOSTIC","Send Cogna Lotus diagnostic","Students receive the real adaptive, evidence-audited diagnostic."],
+  ["TEACHING","Send personalized teaching","Verified videos and interactive challenges are selected from each learner’s evidence."],
+  ["INDEPENDENT_EXIT","Send independent exit check","Every learner receives fresh, unassisted evidence questions."],
 ];
 
 export default function TeacherSessionsPage() {
-  const [launched,setLaunched]=useState(false);
-  function launch(){localStorage.setItem("cogna_gurukul_session_status",JSON.stringify({status:"live",startedAt:new Date().toISOString(),classCode:"GURU-8A"}));setLaunched(true)}
-  return <><div className={styles.pageHeader}><div><div className={styles.dateLine}>Supervised classroom session</div><h1>Signed bracket expansion</h1><p>Recently taught: expanding algebraic brackets · Next: equations involving brackets</p></div>{!launched?<button className={styles.primary} onClick={launch}>Launch for Grade 8 · Section A</button>:<Link className={styles.primary} href="/student/classroom">Open student join →</Link>}</div>
-  {launched&&<section className={styles.liveEvidence}><div className={styles.liveEvidenceHead}><div><div className={styles.dateLine}>● Session live</div><h2>Students can now join with GURU-8A</h2><p>30 devices expected · teacher supervision · calculators off · rough paper allowed</p></div><Link className={styles.secondary} href="/teacher/today">Monitor evidence →</Link></div></section>}
-  <section className={styles.sessionCards}>{sessions.map(([icon,title,copy,time])=><article className={styles.sessionCard} key={title}><div className={styles.sessionIcon}>{icon}</div><h3>{title}</h3><p>{copy}</p><span className={`${styles.status} ${styles.ready}`}>{time}</span></article>)}</section>
-  <section className={styles.emptyCard} style={{marginTop:"1rem"}}><h2>What Cogna will preserve</h2><p>Final answers, line-by-line working, skips, incomplete attempts, time, selected confidence reports, assistance and why-probes. Independent exit evidence remains separate from assisted learning evidence.</p></section></>;
+  const [classes,setClasses]=useState<ProductionClassroom[]>([]); const [classroomId,setClassroomId]=useState(""); const [runId,setRunId]=useState(""); const [title,setTitle]=useState("Algebra diagnostic and teaching cycle"); const [topicId,setTopicId]=useState("signed-bracket-expansion"); const [report,setReport]=useState<ClassroomRunReport|null>(null); const [busy,setBusy]=useState(""); const [error,setError]=useState("");
+  const activeClass=useMemo(()=>classes.find(item=>item.id===classroomId),[classes,classroomId]);
+  useEffect(()=>{api.listClassrooms().then(items=>{setClasses(items);const requested=new URLSearchParams(window.location.search).get("classroom");const selected=requested&&items.some(x=>x.id===requested)?requested:items[0]?.id??"";setClassroomId(selected);const latest=items.find(x=>x.id===selected)?.runs?.[0];if(latest)setRunId(latest.id);}).catch(e=>setError(e instanceof Error?e.message:"Could not load classes."));},[]);
+  useEffect(()=>{if(!runId)return; const refresh=()=>api.getClassroomRunReport(runId).then(setReport).catch(()=>undefined); void refresh(); const timer=window.setInterval(refresh,4000); return()=>window.clearInterval(timer);},[runId]);
+  async function createRun(){if(!classroomId)return;setBusy("create");setError("");try{const run=await api.createClassroomRun(classroomId,{title,topicId,config:{diagnostic:"LOTUS",teaching:["VERIFIED_VIDEO","GAME_CHALLENGE"],exit:"PERSONALIZED_INDEPENDENT"}});setRunId(run.id);setReport(await api.getClassroomRunReport(run.id));}catch(cause){setError(cause instanceof ApiError?cause.message:"Could not create session.");}finally{setBusy("");}}
+  async function launch(phase:ClassroomAssignmentKind){if(!runId)return;setBusy(phase);setError("");try{setReport(await api.launchClassroomPhase(runId,phase));}catch(cause){setError(cause instanceof ApiError?cause.message:"Could not launch this stage.");}finally{setBusy("");}}
+  return <><div className={styles.pageHeader}><div><div className={styles.dateLine}>Production classroom orchestration</div><h1>Run the complete learning cycle</h1><p>One teacher-controlled flow from diagnosis to independent exit evidence.</p></div><Link className={styles.secondary} href="/teacher/classes">Manage classes</Link></div>
+    {error&&<section className={styles.emptyCard}><strong>Action could not be completed</strong><p>{error}</p></section>}
+    {!runId?<section className={styles.panel}><div className={styles.formGrid}><label className={`${styles.formLabel} ${styles.full}`}>Class<select className={styles.formInput} value={classroomId} onChange={e=>setClassroomId(e.target.value)}>{classes.map(item=><option value={item.id} key={item.id}>{item.name} · {item._count?.enrollments??0} students</option>)}</select></label><label className={`${styles.formLabel} ${styles.full}`}>Session title<input className={styles.formInput} value={title} onChange={e=>setTitle(e.target.value)}/></label><label className={`${styles.formLabel} ${styles.full}`}>Topic<input className={styles.formInput} value={topicId} onChange={e=>setTopicId(e.target.value)}/></label><button className={styles.submitButton} onClick={createRun} disabled={!classroomId||Boolean(busy)}>{busy?"Creating…":"Create live session →"}</button></div>{!classes.length&&<p>Create a production class and enroll at least one student first.</p>}</section>:<>
+      <section className={styles.liveEvidence}><div className={styles.liveEvidenceHead}><div><div className={styles.dateLine}>● {report?.run.status??"DRAFT"}</div><h2>{report?.run.title??title}</h2><p>{activeClass?.name} · Current stage: {report?.run.phase.replaceAll("_"," ")??"ENROLLMENT"}</p></div><Link className={styles.secondary} href="/student/classroom/live">Open student screen →</Link></div></section>
+      <section className={styles.sessionCards}>{phases.map(([phase,label,copy],index)=>{const progress=report?.progress.find(x=>x.kind===phase);return <article className={styles.sessionCard} key={phase}><div className={styles.sessionIcon}>0{index+1}</div><h3>{label}</h3><p>{copy}</p><p>{progress?`${progress.complete}/${progress.total} complete · ${progress.inProgress} working`:"Not sent"}</p><button className={styles.primary} onClick={()=>launch(phase)} disabled={Boolean(busy)}>{busy===phase?"Sending…":progress?"Send to newly enrolled students":"Send now"}</button></article>})}</section>
+      <section className={styles.panel} style={{marginTop:"1rem"}}><div className={styles.panelHeader}><div><h3>Live student progress</h3><p>Updates automatically from persisted evidence.</p></div></div><div className={styles.nextSteps}>{report?.students.map(row=><div className={styles.nextStep} key={row.assignmentId}><span>{row.kind.replaceAll("_"," ")}</span><strong>{row.studentName}</strong><p>{row.status.replaceAll("_"," ")}</p></div>)}{!report?.students.length&&<p>Launch the diagnostic when students are enrolled.</p>}</div></section>
+    </>}
+  </>;
 }
