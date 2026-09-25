@@ -38,9 +38,11 @@ export class TtsService {
 
   get voice(): string {
     // "alloy" (the SDK's own default) reads flat/neutral for a tutoring
-    // context — "nova" is a warmer, more conversational voice, closer to
-    // what a Grade 8 CBSE student would find engaging rather than robotic.
-    return this.config.get<string>("COGNA_LESSON_AUDIO_VOICE") ?? "nova";
+    // context. "nova" was warmer but still had a clipped, announcer-like
+    // cadence — "coral" (gpt-4o-mini-tts's newer voice) has noticeably more
+    // natural breath and pitch variation, closer to a real person explaining
+    // something than a text-to-speech engine reading it.
+    return this.config.get<string>("COGNA_LESSON_AUDIO_VOICE") ?? "coral";
   }
 
   /**
@@ -53,7 +55,11 @@ export class TtsService {
     if (this.model !== "gpt-4o-mini-tts") return undefined;
     return (
       this.config.get<string>("COGNA_LESSON_AUDIO_INSTRUCTIONS") ??
-      "Warm, encouraging tutor speaking to a Grade 8 student. Calm, conversational pace, not rushed. Natural sentence-level inflection, like explaining something to one student in person, not reading a script aloud."
+      "Warm, encouraging tutor speaking to one Grade 8 student in person, not narrating a script. " +
+        "Speak like natural spontaneous speech: vary your pitch and pace sentence to sentence, let your " +
+        "voice rise slightly on the key idea in each sentence, and take a real breath and a brief pause " +
+        "at commas and full stops rather than reading smoothly through them. Slightly informal and " +
+        "unhurried, the way a patient tutor actually talks, not a polished announcer or an audiobook."
     );
   }
 
