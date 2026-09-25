@@ -214,6 +214,15 @@ describe("foldLedger — one mistake is a suspicion, two is a gap", () => {
     assert.equal(entry.clearedAfterSlip, 1);
   });
 
+  it("a mistake that recurs after being cleared as a slip confirms, instead of restarting the cycle", () => {
+    const ledger = foldLedger([
+      audit([mistake("FAC_DIFF_SQUARES")]), audit([secure("FAC_DIFF_SQUARES")]), audit([mistake("FAC_DIFF_SQUARES")]),
+    ]);
+    const entry = ledger.get("FAC_DIFF_SQUARES")!;
+    assert.equal(entry.state, "CONFIRMED");
+    assert.equal(entry.confirmedAt, 3);
+  });
+
   it("a confirmed gap stays confirmed after a later success", () => {
     const ledger = foldLedger([
       audit([mistake("FAC_DIFF_SQUARES")]), audit([mistake("FAC_DIFF_SQUARES")]), audit([secure("FAC_DIFF_SQUARES")]),

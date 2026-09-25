@@ -223,8 +223,16 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
           e.needsSupport = true;
           continue;
         }
+        // Captured before this mistake is pushed: does this skill already
+        // carry a mistake from an earlier, since-cleared suspicion? If so,
+        // this is a second independent negative on the skill, not a fresh
+        // first-time slip — it should confirm outright rather than restart
+        // the SUSPECTED/SECURE cycle and let a repeatable misconception hide
+        // behind alternating right/wrong turns indefinitely.
+        const hadPriorMistake = e.mistakes.length > 0;
         if (negative.mistake) e.mistakes.push(negative.mistake);
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) { e.state = "CONFIRMED"; e.confirmedAt = q; }
+        else if (e.state === "SECURE" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
       } else {
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {

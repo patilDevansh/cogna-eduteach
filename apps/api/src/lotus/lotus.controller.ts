@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import { timingSafeEqual } from "node:crypto";
 import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
 import {
@@ -8,6 +9,33 @@ import {
 } from "./lotus.dto";
 import { LotusService } from "./lotus.service";
 import type { LotusReconcileResult } from "./lotus-reconcile";
+
+/** A private seam for the local autonomous-evaluation runner. It is never
+ * enabled in production, and a browser/student token cannot satisfy this
+ * independent process token. Returning 404 instead of 401 prevents route
+ * discovery from becoming an invitation to probe it. */
+function assertAutonomousEvaluationAccess(headers: Record<string, string | string[] | undefined>): void {
+  const configured = process.env.LOTUS_AUTONOMOUS_EVAL_TOKEN;
+  const supplied = headers["x-lotus-autonomous-eval-token"];
+  const token = Array.isArray(supplied) ? supplied[0] : supplied;
+  if (process.env.NODE_ENV === "production" || !configured || !token) throw new NotFoundException();
+  const left = Buffer.from(configured);
+  const right = Buffer.from(token);
+  if (left.length !== right.length || !timingSafeEqual(left, right)) throw new NotFoundException();
+}
+
+/**
+ * Local manual-testing convenience only: skips the teacher requirement on
+ * the AI Studio observer route so one browser session can watch its own
+ * live diagnostic hypotheses without a separate teacher login. Same
+ * production hard-disable as assertAutonomousEvaluationAccess, and off by
+ * default even outside production — must be explicitly opted into. Never
+ * lower the bar on delete/export/reconcile this way; those stay
+ * teacher-only regardless of this flag.
+ */
+function observerTeacherGateBypassed(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.LOTUS_DEV_OBSERVER_BYPASS === "true";
+}
 
 /**
  * Experimental AI Lab only. This deliberately does not share routes, storage,
@@ -36,15 +64,43 @@ export class LotusController {
   async get(
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("id") id: string,
-    @Query("source") source?: string,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
-    // Observer/AI-Lab reads ask for the durable projection directly,
-    // bypassing whichever API instance's in-process cache happens to answer
-    // — the student's own polling still hits the fast in-memory path.
-    const session = source === "db" ? await this.lotus.getForObserver(id) : await this.lotus.get(id);
+    const session = await this.lotus.get(id);
     assertStudentAccess(actor, session.studentId);
     return session;
+  }
+
+  /**
+   * The AI Studio is a teacher-only observer surface. It reads the durable
+   * projection so a teacher never mistakes a stale API instance for the
+   * evidence record, while student requests remain redacted above.
+   */
+  @Get("sessions/:id/observer")
+  async observer(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+  ): Promise<LotusSessionView> {
+    const actor = resolveActor(headers);
+    if (!observerTeacherGateBypassed()) assertTeacher(actor);
+    const session = await this.lotus.getForObserver(id);
+    assertStudentAccess(actor, session.studentId);
+    return session;
+  }
+
+  /**
+   * Test runner only — never proxy this route through the web app. The
+   * response intentionally includes the answer key so a synthetic learner
+   * can respond to a live-generated item; `assertAutonomousEvaluationAccess`
+   * makes it absent in production and inaccessible to a student browser.
+   */
+  @Get("sessions/:id/autonomous-evaluation-question")
+  evaluationQuestion(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+  ) {
+    assertAutonomousEvaluationAccess(headers);
+    return this.lotus.getEvaluationQuestion(id);
   }
 
   @Get("sessions/:id/reconcile")
@@ -70,6 +126,7 @@ export class LotusController {
   ) {
     const actor = resolveActor(headers);
     const session = await this.lotus.get(id);
+    assertTeacher(actor);
     assertStudentAccess(actor, session.studentId);
     return this.lotus.unseenPlan(id);
   }
@@ -112,6 +169,7 @@ export class LotusController {
     @Body() body: OverrideLotusSessionDto,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
+    assertTeacher(actor);
     assertStudentAccess(actor, body.studentId);
     return this.lotus.override(id, body.studentId, body.action);
   }

@@ -170,8 +170,28 @@ const DEFERRED_ANALYSIS_USEFUL_AGE_MS = 90_000;
 const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 /** Question writes running at once per student. The first-minute skeleton needs ~24 writes; 4 at a time finishes it in about a minute. */
 const FACTORY_CONCURRENCY = 4;
-/** A single rejected item must not block the whole 25-question preparation. */
-const FACTORY_MAX_RETRIES = 3;
+/**
+ * A single rejected item must not block the whole 25-question preparation.
+ * Lowered from 3: now that a fresh write is only rejected for a real
+ * intra-session duplicate or a genuine validation failure (see the
+ * cross-session duplicate check removed above), a second try rarely changes
+ * the outcome — the WRITE_BACKOFF_MS cooldown below is the real safety net
+ * for a turn that keeps failing.
+ */
+const FACTORY_MAX_RETRIES = 1;
+/**
+ * A turn that exhausts FACTORY_MAX_RETRIES is re-armed by the next poll's
+ * ensureFactorisationWrites sweep (every client GET while preparing), which
+ * has no memory of the prior failure — without a cooldown this becomes an
+ * unbounded live-model retry loop for any catalogue shape with no remaining
+ * distinct expression. WRITE_BACKOFF_MS is the wait before a turn is
+ * eligible to be requeued again; it doubles per exhausted episode.
+ * WRITE_LIFETIME_ATTEMPT_CAP stops the doubling permanently once a turn has
+ * burned this many total attempts across all episodes, so a genuinely
+ * exhausted skill/slot combination fails loudly instead of spending forever.
+ */
+const WRITE_BACKOFF_MS = 20_000;
+const WRITE_LIFETIME_ATTEMPT_CAP = 12;
 /** Factorisation never serves a fixed question. The student starts once the first 15 slots have accepted AI items; later slots continue in the background. */
 const FACTORISATION_PREPARATION_TARGET = 15;
 /** On the last answer, how long to wait for outstanding AI reviews before writing the report anyway. Later reviews still update it. */
@@ -190,6 +210,19 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * The normal 90-second planning window is fixed product policy. The narrow
+ * override exists solely for the deterministic fake-model browser matrix,
+ * where a short controlled closure delay must be able to prove that late
+ * analysis remains evidence-only. A normal or live-model boot cannot opt in.
+ */
+function deferredAnalysisUsefulAgeMs(): number {
+  if (process.env.LOTUS_E2E_FAKE_MODEL !== "true") return DEFERRED_ANALYSIS_USEFUL_AGE_MS;
+  const configured = Number(process.env.LOTUS_E2E_ANALYSIS_USEFUL_AGE_MS);
+  return Number.isInteger(configured) && configured >= 100 && configured <= 30_000
+    ? configured
+    : DEFERRED_ANALYSIS_USEFUL_AGE_MS;
+}
 /** Waits for the promise or the timeout, whichever comes first, without leaving a timer behind. */
 async function settleWithin(promise: Promise<unknown>, ms: number): Promise<void> {
   let timer: NodeJS.Timeout | undefined;
@@ -224,8 +257,26 @@ function planDecisionNote(actions: PlanAction[]): string {
   return `Plan update: ${changes.join("; ")}. The immediately staged question was protected.`;
 }
 
+/**
+ * A response may produce a primary probe and also remove a dependent item
+ * from the unseen plan. The probe remains the main decision, but the removal
+ * must remain visible and filterable in AI Studio rather than disappearing
+ * behind a single action label.
+ */
+function deferredPlanEffects(actions: PlanAction[], primary: PlanAction | undefined) {
+  return actions
+    .filter((action) => action !== primary && action.kind === "SKIP")
+    .map((action) => ({
+      action: "REMOVE_OR_DEFER" as const,
+      targetTurn: action.turn,
+      requestedPlacement: `Question ${action.turn}`,
+      outcome: "DEFERRED" as const,
+      detail: `Question ${action.turn} was removed from this diagnostic because ${action.reason.replace(/^Not tested:\s*/i, "").replace(/\.$/, "")}.`,
+    }));
+}
+
 /** Converts validated server plan actions into observer-safe decision data. */
-function adaptiveDecisionFor(
+export function adaptiveDecisionFor(
   audit: LotusQuestionAudit,
   actions: PlanAction[],
 ): LotusAdaptiveDecision {
@@ -238,6 +289,7 @@ function adaptiveDecisionFor(
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "CHECK")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "WIDEN")
     ?? actions[0];
+  const planEffects = deferredPlanEffects(actions, action);
   if (!action) {
     return {
       action: "KEEP",
@@ -246,7 +298,9 @@ function adaptiveDecisionFor(
       rationale: "The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.",
       expectedInformationGain: "Keep collecting independent evidence before changing the plan.",
       implementation: "APPLIED",
+      outcome: "NO_CHANGE",
       implementationDetail: "The validated action is to preserve the existing unseen plan; no question was swapped.",
+      ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
     };
   }
@@ -260,7 +314,9 @@ function adaptiveDecisionFor(
       requestedPlacement: `Question ${action.turn}`,
       targetTurn: action.turn,
       implementation: "APPLIED",
+      outcome: "DEFERRED",
       implementationDetail: `Question ${action.turn} was removed or deferred by the validated plan.`,
+      ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
     };
   }
@@ -275,9 +331,11 @@ function adaptiveDecisionFor(
       requestedPlacement: `Question ${action.turn}`,
       targetTurn: action.turn,
       implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
+      outcome: action.spec ? "QUEUED" : "REJECTED",
       implementationDetail: action.spec
         ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
         : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
+      ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
     };
   }
@@ -296,9 +354,11 @@ function adaptiveDecisionFor(
     requestedPlacement: `Question ${action.turn}`,
     targetTurn: action.turn,
     implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
+    outcome: action.spec ? "QUEUED" : "REJECTED",
     implementationDetail: action.spec
       ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
       : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
+    ...(planEffects.length ? { planEffects } : {}),
     source: "RULE_VALIDATED_PLAN",
   };
 }
@@ -494,7 +554,36 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
     debate: audit.debate ? redactDebate(audit.debate) : undefined,
     conclusion: redactClosure(audit.conclusion),
     questionSelection: redactSelection(audit.questionSelection),
+    // This names the live diagnostic hypothesis and the action it is trying
+    // to take. It is meaningful to an authorised observer, but a student can
+    // otherwise use it to reverse-engineer the next probe from devtools.
+    adaptiveDecision: undefined,
   };
+}
+
+/**
+ * An authorised AI-Studio observer needs the decision record, but never an
+ * unshown question or its key. Keep this a distinct copy path from
+ * `publicCopy`: a student-facing request must not become an observer request
+ * merely because the browser toggled a panel.
+ */
+function observerCopy(session: LotusSessionState): LotusSessionView {
+  const clone = structuredClone(session);
+  delete clone.factorisation;
+  delete clone.coveragePlan;
+  delete clone.authorizedVariants;
+  delete clone.preferredFuture;
+  clone.upcomingQuestions = [];
+  if (clone.status === "ACTIVE" && clone.currentQuestion) {
+    clone.currentQuestion = redactQuestion(clone.currentQuestion);
+  }
+  if (clone.audits.length === 0) {
+    clone.openingAudit = {
+      ...clone.openingAudit,
+      question: redactQuestion(clone.openingAudit.question),
+    };
+  }
+  return clone;
 }
 
 /**
@@ -590,7 +679,13 @@ export class LotusService implements OnModuleDestroy {
   private readonly deferredAnalysisConcurrency: number;
   private readonly persistenceTails = new Map<string, Promise<void>>();
   /** Factorisation question writes waiting or running, per session. In memory only — a restart rebuilds from the plan. */
-  private readonly writeQueues = new Map<string, { pending: WriteJob[]; running: number; activeTurns: Set<number> }>();
+  private readonly writeQueues = new Map<string, {
+    pending: WriteJob[];
+    running: number;
+    activeTurns: Set<number>;
+    /** Turns that just exhausted FACTORY_MAX_RETRIES: not eligible for requeue until `until`. */
+    blockedTurns: Map<number, { until: number; totalAttempts: number; episodeCount: number }>;
+  }>();
   /** Expressions already used by accepted Factorisation AI items in this API process. New sessions cannot replay them. */
   private readonly factorisationGeneratedPrints = new Set<string>();
   /** Opening expressions are tracked separately for the stronger Q1 variation rule. */
@@ -738,6 +833,19 @@ export class LotusService implements OnModuleDestroy {
     return publicCopy(session);
   }
 
+  /**
+   * Development-only autonomous-evaluation seam. Its controller gate is
+   * deliberately stricter than student access and is disabled in production.
+   * The returned private item lets the local persona runner construct an
+   * answer and working from the same server-only diagnostics the real
+   * marking pipeline uses; it must never be called by a browser session.
+   */
+  async getEvaluationQuestion(sessionId: string): Promise<LotusQuestion | null> {
+    const session = await this.requireSession(sessionId);
+    this.ensureFactorisationWrites(session);
+    return session.currentQuestion ? structuredClone(session.currentQuestion) : null;
+  }
+
   async answer(
     sessionId: string,
     studentId: string,
@@ -803,7 +911,13 @@ export class LotusService implements OnModuleDestroy {
     sessionId: string,
     studentId: string,
   ): Promise<{ answer: string; working: string; confidence: number }> {
-    if (!isDemoStudentId(studentId)) {
+    // Disposable browser-test identities can use the same server-side fill
+    // path only under the deterministic fake-model harness. In every normal
+    // environment this remains restricted to the five named demo accounts;
+    // production students can never ask the server to fill an answer.
+    const e2eDemoFill = process.env.LOTUS_E2E_FAKE_MODEL === "true"
+      && /^demo_e2e[a-z0-9_]+$/.test(studentId);
+    if (!isDemoStudentId(studentId) && !e2eDemoFill) {
       throw new ForbiddenException("Demo response filling is only available for demo student accounts.");
     }
     const session = await this.requireSession(sessionId);
@@ -952,7 +1066,7 @@ export class LotusService implements OnModuleDestroy {
       analysisSource: response.didNotKnow ? "SUPPORT_SIGNAL" : "DETERMINISTIC",
       ...(needsReview ? {
         analysisQueuedAt: new Date().toISOString(),
-        analysisDeadlineAt: new Date(Date.now() + DEFERRED_ANALYSIS_USEFUL_AGE_MS).toISOString(),
+        analysisDeadlineAt: new Date(Date.now() + deferredAnalysisUsefulAgeMs()).toISOString(),
       } : {}),
       stageAgreement: null,
       timingMs: null,
@@ -1069,7 +1183,7 @@ export class LotusService implements OnModuleDestroy {
       analysisStatus: "PENDING",
       analysisSource: "DETERMINISTIC",
       analysisQueuedAt: new Date().toISOString(),
-      analysisDeadlineAt: new Date(Date.now() + DEFERRED_ANALYSIS_USEFUL_AGE_MS).toISOString(),
+      analysisDeadlineAt: new Date(Date.now() + deferredAnalysisUsefulAgeMs()).toISOString(),
       stageAgreement: null,
       timingMs: null,
       createdAt: new Date().toISOString(),
@@ -1310,6 +1424,7 @@ export class LotusService implements OnModuleDestroy {
           rationale: "The review is retained as evidence, but the server will not rewrite a stale future plan from an old response.",
           expectedInformationGain: "Use this evidence in the final report and later planning without claiming it changed an obsolete question.",
           implementation: "APPLIED",
+          outcome: "STALE",
           implementationDetail: "Evidence was added only; no question was changed because this review arrived after its useful-age deadline.",
           recommendedAt: slot.analysisCompletedAt,
           source: "RULE_VALIDATED_PLAN",
@@ -1767,6 +1882,8 @@ Create one materially different question that adds new diagnostic evidence. Test
       const isOpeningTurn = turn.turn === 1 && f.state.planTurn === 1 && f.state.answeredTurns.length === 0;
       if (turn.status === "SKIPPED" || (!isOpeningTurn && turn.turn <= f.state.planTurn)) continue;
       if (preferredItem(f, turn.turn)?.answerKey.diagnostics?.origin === "AI" || queued.has(turn.turn)) continue;
+      const blocked = queue?.blockedTurns.get(turn.turn);
+      if (blocked && Date.now() < blocked.until) continue;
       const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
       const requiredExpression = turn.turn === 1
         ? factorisationOpeningExpression(session.sessionId, this.factorisationOpeningPrints)
@@ -1788,7 +1905,7 @@ Create one materially different question that adds new diagnostic evidence. Test
   private enqueueWrite(sessionId: string, job: WriteJob): void {
     let queue = this.writeQueues.get(sessionId);
     if (!queue) {
-      queue = { pending: [], running: 0, activeTurns: new Set() };
+      queue = { pending: [], running: 0, activeTurns: new Set(), blockedTurns: new Map() };
       this.writeQueues.set(sessionId, queue);
     }
     // A newer job for the same turn replaces one that hasn't started.
@@ -1841,7 +1958,12 @@ Create one materially different question that adds new diagnostic evidence. Test
     // misses the bank and is freshly authored. Other slots may reuse only an
     // item that was generated by AI, independently checked, and actually
     // answered in a prior diagnostic.
-    if (!job.retryCount) {
+    // The autonomous browser evaluator uses a controlled writer and needs a
+    // closed world: a historic bank item can be valid production content but
+    // lacks the specific scripted misconception its synthetic learner must
+    // demonstrate. This test-only switch leaves normal AI-bank reuse wholly
+    // unchanged while making fake-model persona runs reproducible.
+    if (!job.retryCount && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
       const reused = await this.takeFactorisationBankItem(session, job);
       if (reused) {
         await this.applyGenerated(sessionId, job, { item: reused, attempts: 0, ms: 0, rejections: [] }, "BANK");
@@ -1861,6 +1983,16 @@ Create one materially different question that adds new diagnostic evidence. Test
     session: LotusSessionState,
     job: WriteJob,
   ): Promise<Omit<LotusQuestion, "id"> | null> {
+    // Toggle for manual testing and for a school/cohort that wants every
+    // slot freshly authored: LOTUS_DISABLE_BANK_REUSE=true skips the bank
+    // lookup entirely, so every question (not just Q1) is a new AI write
+    // for this session. Off by default — reuse is the normal, intended
+    // behavior (see COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md, "AI question
+    // bank reuse"). This only affects reading from the bank; items answered
+    // in this session are still recorded into it as usual (a separate
+    // switch, LOTUS_E2E_DISABLE_QUESTION_BANK, controls that write side, for
+    // keeping synthetic eval runs out of the shared corpus).
+    if (process.env.LOTUS_DISABLE_BANK_REUSE === "true") return null;
     if (!lotusPersistenceEnabled(this.prisma)) return null;
     const f = session.factorisation;
     if (!f || job.request.requiredExpression) return null;
@@ -1907,11 +2039,12 @@ Create one materially different question that adds new diagnostic evidence. Test
       f.writes.push({ turn: job.turn, purpose: job.request.purpose, ms: result.ms, attempts: result.attempts, outcome, rejections: result.rejections, at: new Date().toISOString() });
       this.logger.log(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
     };
-    const markNotApplied = (detail: string) => {
+    const markNotApplied = (detail: string, outcome: "DEFERRED" | "REJECTED" | "STALE") => {
       for (const audit of session.audits) {
         const decision = audit.adaptiveDecision;
         if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
           decision.implementation = "NOT_APPLIED";
+          decision.outcome = outcome;
           decision.implementationDetail = detail;
         }
       }
@@ -1920,9 +2053,36 @@ Create one materially different question that adds new diagnostic evidence. Test
       const retryCount = job.retryCount ?? 0;
       record(outcome);
       if (retryCount >= FACTORY_MAX_RETRIES) {
-        markNotApplied(`Question ${job.turn} was kept out of the diagnostic because a checked AI replacement could not be prepared in time.`);
+        markNotApplied(
+          `Question ${job.turn} was kept out of the diagnostic because a checked AI replacement could not be prepared in time.`,
+          outcome === "REJECTED" ? "REJECTED" : "DEFERRED",
+        );
         await this.persist(session, undefined, true);
-        this.logger.error(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds; preparation remains blocked instead of serving an unchecked item.`);
+        // Record the failed episode so ensureFactorisationWrites (run on every
+        // client poll) does not immediately re-arm this turn and spin forever
+        // on a catalogue shape with no remaining distinct expression.
+        let queue = this.writeQueues.get(sessionId);
+        if (!queue) {
+          queue = { pending: [], running: 0, activeTurns: new Set(), blockedTurns: new Map() };
+          this.writeQueues.set(sessionId, queue);
+        }
+        const prior = queue.blockedTurns.get(job.turn);
+        const totalAttempts = (prior?.totalAttempts ?? 0) + retryCount + 1;
+        const episodeCount = (prior?.episodeCount ?? 0) + 1;
+        const exhaustedLifetime = totalAttempts >= WRITE_LIFETIME_ATTEMPT_CAP;
+        const backoffMs = Math.min(WRITE_BACKOFF_MS * 2 ** (episodeCount - 1), 5 * 60_000);
+        queue.blockedTurns.set(job.turn, {
+          until: exhaustedLifetime ? Number.POSITIVE_INFINITY : Date.now() + backoffMs,
+          totalAttempts,
+          episodeCount,
+        });
+        this.logger.error(
+          `Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds ` +
+          `(${totalAttempts}/${WRITE_LIFETIME_ATTEMPT_CAP} lifetime attempts); ` +
+          (exhaustedLifetime
+            ? "permanently blocked — this catalogue shape has no remaining distinct expression; needs a content or uniqueness-rule fix, not another retry."
+            : "backing off before the next automatic retry instead of serving an unchecked item."),
+        );
         return;
       }
       await this.persist(session, undefined, true);
@@ -1931,26 +2091,51 @@ Create one materially different question that adds new diagnostic evidence. Test
     };
     if (session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) {
       record("STALE");
-      markNotApplied(`Question ${job.turn} was not installed because the student had already moved beyond the safe placement window.`);
+      markNotApplied(`Question ${job.turn} was not installed because the student had already moved beyond the safe placement window.`, "STALE");
       await this.persist(session, undefined, true);
       return;
     }
     if (!result.item) return retryOrRecord("REJECTED");
     const print = questionPrint(result.item);
+    // Only a duplicate within THIS student's own test matters for that
+    // test's validity. A freshly-written (GENERATION) item matching some
+    // other session's prior AI output is expected — it's still personalized
+    // for this student's variation seed — and rejecting it was the main
+    // driver of the live-model retry stalls: as this process serves more
+    // sessions, the cross-session "never write this again, for anyone" pool
+    // only grows, so narrow skill/difficulty combinations ran out of room
+    // over the process's lifetime, not because of anything specific to the
+    // session being prepared.
     if (this.testPrints(session, job.turn).some((existing) => normalizeMathText(existing).toLowerCase() === print)) return retryOrRecord("DUPLICATE");
-    if (source === "GENERATION" && this.factorisationGeneratedPrints.has(print)) return retryOrRecord("DUPLICATE");
-    if (job.turn === 1 && this.factorisationOpeningPrints.has(print)) return retryOrRecord("DUPLICATE");
     let question: LotusQuestion;
     try {
       question = withQuestionId(result.item);
     } catch {
       return retryOrRecord("REJECTED");
     }
+    // Only a turn the plan adaptively repurposed (a targeted check, an
+    // easier prerequisite, broadened evidence, or a coverage replacement)
+    // gets a confidence read: those are the turns where the answer's
+    // confidence actually changes the diagnosis. A plain coverage turn
+    // leaves this unset so the student isn't asked every time.
+    const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
+    question.requiresConfidenceProbe = !!planTurn?.purpose;
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
+    this.writeQueues.get(sessionId)?.blockedTurns.delete(job.turn);
     this.factorisationGeneratedPrints.add(print);
     if (job.turn === 1) this.factorisationOpeningPrints.add(print);
+    // An item reaches this point only after the factory has validated its
+    // answer, requested mistake coverage, and duplicate safety. Preserve that
+    // distinct transition: a valid candidate can still be too late to be
+    // installed, and an installed candidate can still be awaiting display.
+    for (const audit of session.audits) {
+      const decision = audit.adaptiveDecision;
+      if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION" && !decision.validatedAt) {
+        decision.validatedAt = new Date().toISOString();
+      }
+    }
     if (job.turn === 1 && session.audits.length === 0) {
       session.currentQuestion = question;
       session.phase = question.phase;
@@ -1975,7 +2160,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         turn.reason = job.readyReason ?? turn.reason;
       } else {
         installedForPlan = false;
-        markNotApplied(`Question ${job.turn} was generated and checked, but reached the safe placement window too late, so Lotus did not change the student's plan.`);
+        markNotApplied(`Question ${job.turn} was generated and checked, but reached the safe placement window too late, so Lotus did not change the student's plan.`, "STALE");
       }
     }
     // Link the generated, validated item back to every decision that reserved
@@ -1985,6 +2170,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       const decision = audit.adaptiveDecision;
       if (installedForPlan && decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
         decision.implementation = "APPLIED";
+        decision.outcome = "INSTALLED";
         decision.installedAt = new Date().toISOString();
         decision.implementationDetail = source === "BANK"
           ? `A checked AI question was reused from the question bank and installed at question ${job.turn}; it remains unseen until its turn.`
@@ -2067,6 +2253,7 @@ Create one materially different question that adds new diagnostic evidence. Test
   ): Promise<LotusSessionView> {
     const f = session.factorisation!;
     const state = f.state;
+    this.acknowledgeAdaptiveItemShown(session, state.planTurn, currentQuestion);
     const instant = instantVerdict(currentQuestion, response);
     if (instant.fastSkip) state.fastSkips += 1;
 
@@ -2123,7 +2310,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       analysisSource: response.didNotKnow ? "SUPPORT_SIGNAL" : "DETERMINISTIC",
       ...(analyse ? {
         analysisQueuedAt: new Date().toISOString(),
-        analysisDeadlineAt: new Date(Date.now() + DEFERRED_ANALYSIS_USEFUL_AGE_MS).toISOString(),
+        analysisDeadlineAt: new Date(Date.now() + deferredAnalysisUsefulAgeMs()).toISOString(),
       } : {}),
       skillEvidence: instant.evidence,
       stageAgreement: null,
@@ -2145,6 +2332,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         rationale: "The 25-slot plan has no further safe question to install.",
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
         implementation: "APPLIED",
+        outcome: "NO_CHANGE",
         implementationDetail: "The validated action was to stop; no unapproved extra question was introduced.",
         recommendedAt: new Date().toISOString(),
         source: "RULE_VALIDATED_PLAN",
@@ -2179,6 +2367,35 @@ Create one materially different question that adds new diagnostic evidence. Test
     );
     if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
     return publicCopy(session);
+  }
+
+  /**
+   * The response for a question is the durable acknowledgement that the
+   * browser really displayed it. Link that acknowledgement back to the
+   * earlier decision which installed this specific plan slot, rather than
+   * inferring "shown" merely because a later slot changed.
+   */
+  private acknowledgeAdaptiveItemShown(
+    session: LotusSessionState,
+    planTurn: number,
+    question: LotusQuestion,
+  ): void {
+    for (const audit of session.audits) {
+      const decision = audit.adaptiveDecision;
+      if (
+        !decision ||
+        decision.targetTurn !== planTurn ||
+        decision.implementation !== "APPLIED" ||
+        decision.shownAt ||
+        decision.action === "KEEP" ||
+        decision.action === "STOP" ||
+        decision.action === "REMOVE_OR_DEFER"
+      ) continue;
+      decision.shownAt = new Date().toISOString();
+      decision.outcome = "SHOWN";
+      decision.actualPlacement = `Question ${planTurn}`;
+      decision.implementationDetail = `${decision.implementationDetail} The student has now been shown this item at question ${planTurn}.`;
+    }
   }
 
   private factorisationReport(session: LotusSessionState) {
@@ -2704,10 +2921,14 @@ Create one materially different question that tests a competing explanation or a
   /** Always reads the durable projection, bypassing the in-process cache — for an observer/AI-Lab view that must not show one instance's stale-vs-fresh in-memory copy as if it were the database record. */
   async getForObserver(sessionId: string): Promise<LotusSessionView> {
     const prisma = this.prisma;
-    if (!lotusPersistenceEnabled(prisma)) return this.get(sessionId);
+    if (!lotusPersistenceEnabled(prisma)) {
+      const session = await this.requireSession(sessionId);
+      this.ensureFactorisationWrites(session);
+      return observerCopy(session);
+    }
     const loaded = await loadLotusSession(prisma, sessionId);
     if (!loaded) throw new NotFoundException("Lotus session not found in the database.");
-    return publicCopy(loaded as LotusSessionState);
+    return observerCopy(loaded as LotusSessionState);
   }
 
   /** Rebuilds the session's state from its durable event log and cross-checks it against the stored snapshot. An audit read; never repairs anything. */

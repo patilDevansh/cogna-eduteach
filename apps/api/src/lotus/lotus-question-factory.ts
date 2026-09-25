@@ -57,6 +57,11 @@ function makerPrompt(req: WriteRequest): string {
     "",
     `Skill tested: ${spec.skillId} — ${skillName(spec.skillId)}`,
     `Difficulty: ${spec.level}`,
+    // Keep the requested planning role explicit even when a CHECK has no
+    // single named predicted mistake. That makes the constraint legible to
+    // the writer and lets the deterministic browser adapter exercise every
+    // checked rewrite, not only ones with a mistake-code label.
+    `Generation purpose: ${req.purpose}`,
     `Follow this shape, but write a NEW question with DIFFERENT numbers: ${spec.shape}`,
   ];
   if (spec.note) lines.push(`Requirement: ${spec.note}.`);

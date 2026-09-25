@@ -346,6 +346,10 @@ async function main() {
       if (outcome.failures.length) {
         console.log("\nFailures:");
         for (const f of outcome.failures) console.log(`  - ${f.label}: ${f.error}`);
+        // A baseline that never reached a servable question has no valid
+        // latency or diagnostic-quality evidence. Make that impossible to
+        // mistake for a green run in a terminal, CI, or an orchestration job.
+        process.exitCode = 1;
       }
       console.log("\nNote: no dollar-cost figure — the product has no cost-telemetry field yet; only call counts and durations are measured here.");
       console.log("===================================================\n");

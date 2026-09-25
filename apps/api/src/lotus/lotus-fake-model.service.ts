@@ -65,6 +65,23 @@ function closureDelayMs(): number {
 }
 
 /**
+ * Browser-only controls for the action-lifecycle matrix. They are recognised
+ * only by this adapter, which is wired exclusively when
+ * LOTUS_E2E_FAKE_MODEL=true. That lets the test prove a failed targeted
+ * write is reported honestly instead of looking like a successful plan
+ * change, without adding a production switch.
+ */
+function configuredFirstWrongStep(): number | null {
+  const value = Number(process.env.LOTUS_E2E_FAKE_FIRST_WRONG_STEP);
+  return Number.isInteger(value) && value >= 1 && value <= 20 ? value : null;
+}
+
+function shouldRejectWrite(prompt: string): boolean {
+  return process.env.LOTUS_E2E_FAKE_WRITE_MODE === "reject-check"
+    && prompt.includes("Generation purpose: CHECK");
+}
+
+/**
  * One controlled, code-verifiable item per catalogue shape. Every answer
  * here still travels through the real writer parser and the real
  * deterministic algebra checker (lotus-math.ts / lotus-question-factory.ts)
@@ -114,16 +131,28 @@ function controlledWrite(prompt: string): Record<string, unknown> {
     steps: [{ line: "Check the condition carefully.", skill }],
   });
   switch (shape) {
-    case "x^2 + 5x": return factor("2x^2 + 10x", "2x(x + 5)", "FAC_GCF_VARIABLE");
+    case "x^2 + 5x": return factor("2x^2 + 10x", "2x(x + 5)", "FAC_GCF_VARIABLE", [
+      { answer: "2x^2(x + 5)", mistake: "TOOK_HIGHEST_POWER" },
+      { answer: "2x(x^2 + 5)", mistake: "INCLUDED_NON_COMMON_VARIABLE" },
+    ]);
     case "6x + 9": return factor("6x + 15", "3(2x + 5)", "FAC_DIVIDE_TERMS", [{ answer: "3(2x + 15)", mistake: "DIVIDED_FIRST_TERM_ONLY" }, { answer: "1", mistake: "COMMON_NOT_HIGHEST" }]);
     case "3x^2 + 3x": return factor("4x^2 + 4x", "4x(x + 1)", "FAC_DIVIDE_TERMS");
     case "10x^2 - 18x^3 + 14x^4": return factor("12x^2 - 18x^3 + 12x^4", "6x^2(2 - 3x + 2x^2)", "FAC_COMMON_MONOMIAL");
-    case "-4x - 8": return factor("-6x - 12", "-6(x + 2)", "FAC_GCF_NEGATIVE");
+    case "-4x - 8": return factor("-6x - 12", "-6(x + 2)", "FAC_GCF_NEGATIVE", [
+      { answer: "-6(-x - 2)", mistake: "KEPT_ORIGINAL_SIGNS" },
+      { answer: "-6(x - 2)", mistake: "FLIPPED_ONE_SIGN" },
+    ]);
     case "Is 2y(x + 1) + 3(x + 1) fully factorised? Why?": return choice("Is 4y(x + 2) + 5(x + 2) fully factorised?", "No; it is (x + 2)(4y + 5).", ["No; it is (x + 2)(4y + 5).", "Yes; it is a sum of products.", "No; x + 2 is not a factor.", "Yes; 4y and 5 cannot combine."], "FAC_MEANING");
     case "3(x - 2) + y(x - 2)": return factor("4(x - 3) + y(x - 3)", "(x - 3)(y + 4)", "FAC_COMMON_BINOMIAL");
     case "2xy + 2y + 3x + 3": return factor("3xy + 3y + 2x + 2", "(x + 1)(3y + 2)", "FAC_GROUP_TERMS");
-    case "x^2 - 9": return factor("x^2 - 16", "(x - 4)(x + 4)", "FAC_DIFF_SQUARES");
-    case "49a^2 - 25b^2": return factor("64a^2 - 9b^2", "(8a - 3b)(8a + 3b)", "FAC_DIFF_SQUARES");
+    case "x^2 - 9": return factor("x^2 - 16", "(x - 4)(x + 4)", "FAC_DIFF_SQUARES", [
+      { answer: "(x - 4)^2", mistake: "WROTE_PERFECT_SQUARE" },
+      { answer: "(x - 4)(x - 4)", mistake: "DROPPED_SQUARE" },
+    ]);
+    case "49a^2 - 25b^2": return factor("64a^2 - 9b^2", "(8a - 3b)(8a + 3b)", "FAC_DIFF_SQUARES", [
+      { answer: "(8a - 3b)^2", mistake: "WROTE_PERFECT_SQUARE" },
+      { answer: "(64a - 9b)(64a + 9b)", mistake: "COEFFICIENT_NOT_ROOTED" },
+    ]);
     case "x^2 + 6x + 9": return factor("x^2 + 8x + 16", "(x + 4)^2", "FAC_PERFECT_SQUARE_PLUS");
     case "Which two numbers have a product of 12 and a sum of -7?": return choice("Which two numbers have a product of 20 and a sum of -9?", "-4 and -5", ["-4 and -5", "4 and 5", "-2 and -10", "-1 and -20"], "FAC_PAIR_PRODUCT_SUM");
     case "x^2 + 5x + 6": return factor("x^2 + 7x + 12", "(x + 3)(x + 4)", "FAC_MONIC_TRINOMIAL");
@@ -164,7 +193,7 @@ export class FakeLotusModelService {
   async challengerClosure(): Promise<LotusDebateClosure> {
     const waitMs = closureDelayMs();
     if (waitMs) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
-    return closure();
+    return { ...closure(), firstWrongStep: configuredFirstWrongStep() };
   }
   async reviseQuestion(): Promise<Omit<LotusQuestion, "id">> {
     throw new Error("fake e2e model: reviseQuestion is not used by the factorisation E2E suite");
@@ -173,6 +202,9 @@ export class FakeLotusModelService {
     return [];
   }
   async writeQuestion(prompt: string): Promise<Record<string, unknown>> {
+    if (shouldRejectWrite(prompt)) {
+      throw new Error("controlled targeted-write rejection");
+    }
     return controlledWrite(prompt);
   }
   async solveBlind(prompt: string): Promise<Record<string, unknown>> {
