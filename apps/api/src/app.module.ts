@@ -30,6 +30,7 @@ import { DiagnosticV2Module } from "./engines/diagnostic-v2/diagnostic-v2.module
 import { LotusModule } from "./lotus/lotus.module";
 import { PersonalizedVideosModule } from "./personalized-videos/personalized-videos.module";
 import { TeachersModule } from "./teachers/teachers.module";
+import { ClassroomsModule } from "./classrooms/classrooms.module";
 
 @Module({
   imports: [
@@ -40,6 +41,10 @@ import { TeachersModule } from "./teachers/teachers.module";
         join(__dirname, "..", "..", "..", ".env"),
         join(process.cwd(), ".env"),
         join(process.cwd(), "..", "..", ".env"),
+        // The local Prisma configuration is the source of the development
+        // database URL. Lotus standalone mode must use that durable database
+        // too; it is not permitted to fall back to browser/process memory.
+        join(__dirname, "..", "..", "..", "packages", "database", ".env"),
       ],
     }),
     ObservabilityModule,
@@ -71,6 +76,7 @@ import { TeachersModule } from "./teachers/teachers.module";
     LotusModule,
     PersonalizedVideosModule,
     TeachersModule,
+    ClassroomsModule,
   ],
   controllers: [HealthController],
 })

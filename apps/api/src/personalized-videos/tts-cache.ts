@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import * as path from "node:path";
-import { parseBuffer } from "music-metadata";
 import { defaultMediaRoot } from "./media-storage";
 
 /**
@@ -52,9 +51,17 @@ export async function writeTtsCache(
   return cachePath;
 }
 
-/** Returns null if the file can't be parsed as audio — caller keeps the hand-authored duration. */
+/**
+ * Returns null if the file can't be parsed as audio — caller keeps the
+ * hand-authored duration. `music-metadata` is ESM-only; this package
+ * compiles to CommonJS, and a static `import` of a pure-ESM package fails
+ * at module load time (crashing the whole process before any route can
+ * serve), not just when this function runs. A dynamic import defers
+ * loading to call time, which Node's CJS runtime supports for ESM targets.
+ */
 export async function probeAudioDurationSeconds(bytes: Buffer): Promise<number | null> {
   try {
+    const { parseBuffer } = await import("music-metadata");
     const metadata = await parseBuffer(bytes, "audio/mpeg");
     return metadata.format.duration ?? null;
   } catch {

@@ -12,7 +12,41 @@ datasource db {
 enum UserRole {
   PARENT
   STUDENT
+  TEACHER
   ADMIN
+}
+
+enum ClassroomRunPhase {
+  ENROLLMENT
+  DIAGNOSTIC
+  CLASS_REPORT
+  TEACHING
+  INDEPENDENT_EXIT
+  FINAL_REPORT
+  COMPLETE
+}
+
+enum ClassroomRunStatus {
+  DRAFT
+  LIVE
+  PAUSED
+  COMPLETE
+  CANCELLED
+}
+
+enum ClassroomAssignmentKind {
+  DIAGNOSTIC
+  TEACHING
+  INDEPENDENT_EXIT
+}
+
+enum ClassroomAssignmentStatus {
+  WAITING
+  READY
+  IN_PROGRESS
+  COMPLETE
+  SKIPPED
+  FAILED
 }
 
 enum ConceptKind {
@@ -268,8 +302,24 @@ model User {
 
   parent  Parent?
   student Student?
+  teacher Teacher?
 
   @@index([role])
+}
+
+model Teacher {
+  id          String   @id @default(cuid())
+  identityKey String   @unique
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classrooms Classroom[]
+
+  @@index([schoolId])
 }
 
 model Parent {
@@ -295,23 +345,26 @@ model Student {
   accessCodeHash  String
   deletedAt       DateTime?
 
-  /** Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags. */
+  /**
+   * Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags.
+   */
   aiAssistedPracticePaused Boolean @default(false)
 
-  learnerProfile      LearnerProfile?
-  sessions            LearningSession[]
-  attempts            Attempt[]
-  masteryScores       MasteryScore[]
-  masteryHistory      MasteryHistory[]
-  diagnosticFactors   DiagnosticFactor[]
-  remediationStates   MisconceptionRemediationState[]
-  remediationHistory  MisconceptionRemediationStateHistory[]
-  learningDecisions   LearningDecision[]
-  revisionItems       RevisionQueueItem[]
-  reports             Report[]
-  parentLinks         ParentStudentLink[]
-  retentionEstimates  RetentionEstimate[]
-  explanationOutcomes ExplanationOutcome[]
+  learnerProfile       LearnerProfile?
+  sessions             LearningSession[]
+  attempts             Attempt[]
+  masteryScores        MasteryScore[]
+  masteryHistory       MasteryHistory[]
+  diagnosticFactors    DiagnosticFactor[]
+  remediationStates    MisconceptionRemediationState[]
+  remediationHistory   MisconceptionRemediationStateHistory[]
+  learningDecisions    LearningDecision[]
+  revisionItems        RevisionQueueItem[]
+  reports              Report[]
+  parentLinks          ParentStudentLink[]
+  retentionEstimates   RetentionEstimate[]
+  explanationOutcomes  ExplanationOutcome[]
+  classroomEnrollments ClassroomEnrollment[]
 
   // Diagnostic v2 (micro-skill step diagnostic, MVP 9.0.1 Phase A)
   diagnosticV2Sessions       DiagnosticV2Session[]
@@ -322,6 +375,90 @@ model Student {
   updatedAt DateTime @updatedAt
 
   @@index([primaryParentId])
+}
+
+// ─── Production classroom orchestration ───────────────────────────────────
+
+model Classroom {
+  id         String    @id @default(cuid())
+  teacherId  String
+  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  schoolId   String
+  name       String
+  grade      Int
+  subjectId  String
+  joinCode   String    @unique
+  isDemo     Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  enrollments ClassroomEnrollment[]
+  runs        ClassroomRun[]
+
+  @@index([teacherId, archivedAt])
+  @@index([schoolId])
+}
+
+model ClassroomEnrollment {
+  id              String    @id @default(cuid())
+  classroomId     String
+  classroom       Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  rollNumber      String?
+  admissionNumber String?
+  joinedAt        DateTime  @default(now())
+  leftAt          DateTime?
+
+  assignments ClassroomAssignment[]
+
+  @@unique([classroomId, studentId])
+  @@index([classroomId, leftAt])
+  @@index([studentId])
+}
+
+model ClassroomRun {
+  id          String             @id @default(cuid())
+  classroomId String
+  classroom   Classroom          @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  title       String
+  topicId     String
+  phase       ClassroomRunPhase  @default(ENROLLMENT)
+  status      ClassroomRunStatus @default(DRAFT)
+  config      Json               @default("{}")
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  assignments ClassroomAssignment[]
+
+  @@index([classroomId, createdAt])
+  @@index([status, phase])
+}
+
+model ClassroomAssignment {
+  id                  String                    @id @default(cuid())
+  runId               String
+  run                 ClassroomRun              @relation(fields: [runId], references: [id], onDelete: Cascade)
+  enrollmentId        String
+  enrollment          ClassroomEnrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  kind                ClassroomAssignmentKind
+  status              ClassroomAssignmentStatus @default(WAITING)
+  diagnosticSessionId String?
+  videoAssignmentId   String?
+  payload             Json                      @default("{}")
+  result              Json?
+  availableAt         DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@unique([runId, enrollmentId, kind])
+  @@index([enrollmentId, status])
+  @@index([runId, kind, status])
 }
 
 model ParentStudentLink {
@@ -476,7 +613,9 @@ model Attempt {
   hintCount                 Int
   highestHintLevel          Int
   selfRatedConfidence       Int?
-  /** Passive behavioral proxy (response time vs the student's own pace, hints, answer changes) — computed for every attempt, used only when selfRatedConfidence is null. */
+  /**
+   * Passive behavioral proxy (response time vs the student's own pace, hints, answer changes) — computed for every attempt, used only when selfRatedConfidence is null.
+   */
   inferredConfidence        Float?
   answerChangedBeforeSubmit Boolean
   processingStatus          ProcessingStatus @default(GRADED)
@@ -552,9 +691,11 @@ model MisconceptionRemediationState {
   @@id([studentId, misconceptionId, conceptId])
 }
 
-/** Insert-only transition log for MisconceptionRemediationState — the current-state
+/**
+ * Insert-only transition log for MisconceptionRemediationState — the current-state
  * table above is overwritten in place, so this is the only source for a
- * multi-week "checking vs resolved" pattern-history timeline. */
+ * multi-week "checking vs resolved" pattern-history timeline.
+ */
 model MisconceptionRemediationStateHistory {
   id              String            @id @default(cuid())
   studentId       String
@@ -978,27 +1119,31 @@ model SafetyEval {
   @@index([policyVersion])
 }
 
-/** Shared audit trail for every AI Orchestrator call, across all agents
+/**
+ * Shared audit trail for every AI Orchestrator call, across all agents
  * (student analysis, and future break/question/practice recommenders).
  * `served` is only ever true when the capability's own SERVE flag is on —
  * see AiOrchestratorService. This is the dataset that later replaces the
- * hardcoded SafetyEval/PolicyEngine stubs with real evaluation. */
+ * hardcoded SafetyEval/PolicyEngine stubs with real evaluation.
+ */
 model AiDecisionAuditLog {
-  id            String   @id @default(cuid())
-  capability    String // e.g. "STUDENT_ANALYSIS"
-  studentId     String
-  sessionId     String?
-  model         String?
-  ruleOutput    Json
-  aiOutput      Json?
-  /** Raw structured model response when parsing/validation rejected it.
-   * Internal audit only; never student-facing. */
+  id             String   @id @default(cuid())
+  capability     String // e.g. "STUDENT_ANALYSIS"
+  studentId      String
+  sessionId      String?
+  model          String?
+  ruleOutput     Json
+  aiOutput       Json?
+  /**
+   * Raw structured model response when parsing/validation rejected it.
+   * Internal audit only; never student-facing.
+   */
   rejectedOutput Json?
-  served        Boolean  @default(false)
-  passed        Boolean  @default(false)
-  failureReason String?
-  latencyMs     Int
-  createdAt     DateTime @default(now())
+  served         Boolean  @default(false)
+  passed         Boolean  @default(false)
+  failureReason  String?
+  latencyMs      Int
+  createdAt      DateTime @default(now())
 
   @@index([capability, studentId, createdAt])
 }
@@ -1009,11 +1154,13 @@ model AiDecisionAuditLog {
 // docs/diagnostic-microskill-slice/micro-skill-catalogue.md for the
 // seven-layer model and 73-skill catalogue this slice draws 9 skills from.
 
-/** One diagnostic run for one student: a small hard-coded sequence of items
+/**
+ * One diagnostic run for one student: a small hard-coded sequence of items
  * (entry -> negative-distribution target -> contrast probe if needed ->
  * transfer check), not the general breadth/depth selector from Work Order 03 —
  * that's a later phase. stageHistory logs each transition, including whether
- * it was rule- or AI-selected and the AI's stated reasoning when present. */
+ * it was rule- or AI-selected and the AI's stated reasoning when present.
+ */
 model DiagnosticV2Session {
   id             String                    @id @default(cuid())
   studentId      String
@@ -1025,18 +1172,20 @@ model DiagnosticV2Session {
   startedAt      DateTime                  @default(now())
   endedAt        DateTime?
 
-  attempts   DiagnosticV2Attempt[]
-  hypotheses DiagnosticV2Hypothesis[]
+  attempts        DiagnosticV2Attempt[]
+  hypotheses      DiagnosticV2Hypothesis[]
   evidenceRecords DiagnosticV2EvidenceRecord[]
 
   @@index([studentId, startedAt])
 }
 
-/** One question within a session. Phase A's content is a small hand-authored
+/**
+ * One question within a session. Phase A's content is a small hand-authored
  * + template-rendered set, not a fully versioned Question-bank row like the
- * existing product has — acceptable gap for this phase, revisited in Phase B. */
+ * existing product has — acceptable gap for this phase, revisited in Phase B.
+ */
 model DiagnosticV2Attempt {
-  id             String    @id @default(cuid())
+  id             String              @id @default(cuid())
   sessionId      String
   session        DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   itemKey        String
@@ -1046,13 +1195,17 @@ model DiagnosticV2Attempt {
    * later reader never has to infer origin from an item-key prefix (Phase A
    * silently mistook generated transfer items for ordinary ones that way).
    */
-  origin         String    @default("PRE_WRITTEN")
-  /** null only for AI_AUTHORED items, which belong to no template. */
+  origin         String              @default("PRE_WRITTEN")
+  /**
+   * null only for AI_AUTHORED items, which belong to no template.
+   */
   templateId     String?
-  /** Where this item sits in the diagnostic sequence — stated, never inferred. */
-  stageId        String    @default("ENTRY_TWO_STEP")
-  status         String    @default("IN_PROGRESS")
-  createdAt      DateTime  @default(now())
+  /**
+   * Where this item sits in the diagnostic sequence — stated, never inferred.
+   */
+  stageId        String              @default("ENTRY_TWO_STEP")
+  status         String              @default("IN_PROGRESS")
+  createdAt      DateTime            @default(now())
   completedAt    DateTime?
 
   steps DiagnosticV2Step[]
@@ -1060,68 +1213,74 @@ model DiagnosticV2Attempt {
   @@index([sessionId, createdAt])
 }
 
-/** Layer 6 (step-level evidence), plus the layer 2/3/5 tags (topic,
+/**
+ * Layer 6 (step-level evidence), plus the layer 2/3/5 tags (topic,
  * competency family, context modifiers) attached to this one submitted line.
  * Only completed, submitted lines are stored — never unfinished keystrokes.
  * verificationSource distinguishes a normal deterministic-verifier result
- * from the rare AI-fallback-graded case (PARSE_FAILED/AMBIGUOUS only). */
+ * from the rare AI-fallback-graded case (PARSE_FAILED/AMBIGUOUS only).
+ */
 model DiagnosticV2Step {
-  id                             String                @id @default(cuid())
-  attemptId                      String
-  attempt                        DiagnosticV2Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  stepIndex                      Int
-  previousLine                   String
-  submittedLine                  String
-  normalizedPreviousLine         String?
-  normalizedSubmittedLine        String?
-  attemptedTransformation        StepTransformationV2
-  validity                       StepValidityV2
-  verificationSource             VerificationSourceV2 @default(DETERMINISTIC)
-  aiGraderConfidence              Float?
-  firstInvalidActionCode         String?
-  firstInvalidActionDescription  String?
-  primaryMicroSkillId            String?
-  supportingMicroSkillIds        String[]
-  topicId                        String?
-  competencyFamilyId             String?
-  contextModifierIds             String[]
-  assistanceLevel                AssistanceLevelV2    @default(NONE)
+  id                            String               @id @default(cuid())
+  attemptId                     String
+  attempt                       DiagnosticV2Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  stepIndex                     Int
+  previousLine                  String
+  submittedLine                 String
+  normalizedPreviousLine        String?
+  normalizedSubmittedLine       String?
+  attemptedTransformation       StepTransformationV2
+  validity                      StepValidityV2
+  verificationSource            VerificationSourceV2 @default(DETERMINISTIC)
+  aiGraderConfidence            Float?
+  firstInvalidActionCode        String?
+  firstInvalidActionDescription String?
+  primaryMicroSkillId           String?
+  supportingMicroSkillIds       String[]
+  topicId                       String?
+  competencyFamilyId            String?
+  contextModifierIds            String[]
+  assistanceLevel               AssistanceLevelV2    @default(NONE)
   /// Self-FK to the step this one corrects, when the student revised a prior invalid line after a review opportunity.
-  selfCorrectionOfStepId         String?
-  verifierVersion                String
-  createdAt                      DateTime              @default(now())
+  selfCorrectionOfStepId        String?
+  verifierVersion               String
+  createdAt                     DateTime             @default(now())
 
   @@index([attemptId, stepIndex])
 }
 
-/** Layer 4/7 evidence event — insert-only, never edited. One row per
+/**
+ * Layer 4/7 evidence event — insert-only, never edited. One row per
  * observation that updates (or explicitly does not update) a micro-skill's
  * state. Every event cites its source step so a claim can always be traced
- * back to the exact line that produced it. */
+ * back to the exact line that produced it.
+ */
 model MicroSkillEvidenceEventV2 {
-  id                     String                    @id @default(cuid())
-  studentId              String
-  student                Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  sessionId              String
-  attemptId              String
-  stepId                 String?
-  microSkillId           String
-  topicId                String?
-  competencyFamilyId     String?
-  contextModifierIds     String[]
-  evidenceKind           MicroSkillEvidenceKindV2
-  weight                 Float
-  assistanceLevel        AssistanceLevelV2        @default(NONE)
-  evidencePolicyVersion  String
-  createdAt              DateTime                  @default(now())
+  id                    String                   @id @default(cuid())
+  studentId             String
+  student               Student                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  sessionId             String
+  attemptId             String
+  stepId                String?
+  microSkillId          String
+  topicId               String?
+  competencyFamilyId    String?
+  contextModifierIds    String[]
+  evidenceKind          MicroSkillEvidenceKindV2
+  weight                Float
+  assistanceLevel       AssistanceLevelV2        @default(NONE)
+  evidencePolicyVersion String
+  createdAt             DateTime                 @default(now())
 
   @@index([studentId, microSkillId, createdAt])
 }
 
-/** Persistent Layer-4 ground truth per student per skill — deterministic,
+/**
+ * Persistent Layer-4 ground truth per student per skill — deterministic,
  * derivable by replaying MicroSkillEvidenceEventV2. Never written to
  * directly by an AI response; the AI interpreter (diagnostic-v2-ai-interpreter)
- * reads this but only ever writes a DiagnosticV2Hypothesis on top of it. */
+ * reads this but only ever writes a DiagnosticV2Hypothesis on top of it.
+ */
 model MicroSkillStateV2 {
   studentId                String
   student                  Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -1140,20 +1299,24 @@ model MicroSkillStateV2 {
   @@id([studentId, microSkillId])
 }
 
-/** The interpretation layer on top of MicroSkillStateV2's deterministic
+/**
+ * The interpretation layer on top of MicroSkillStateV2's deterministic
  * counters — "why" a pattern is happening, in language a human can read.
  * source distinguishes an AI-authored hypothesis from the deterministic
  * template-string fallback used when AI is disabled, fails, or times out;
- * a hypothesis always exists either way. */
+ * a hypothesis always exists either way.
+ */
 model DiagnosticV2Hypothesis {
   id                 String              @id @default(cuid())
   sessionId          String
   session            DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   microSkillId       String
-  /** Exact submission that caused this interpretation. Nullable for rows
-   * written before question-level provenance was introduced. */
-  attemptId           String?
-  stepId              String?
+  /**
+   * Exact submission that caused this interpretation. Nullable for rows
+   * written before question-level provenance was introduced.
+   */
+  attemptId          String?
+  stepId             String?
   hypothesisLabel    String
   confidence         Float
   reasoning          String
@@ -1165,25 +1328,27 @@ model DiagnosticV2Hypothesis {
   @@index([attemptId, stepId])
 }
 
-/** Verbatim local test evidence. One append-only row per diagnostic event;
+/**
+ * Verbatim local test evidence. One append-only row per diagnostic event;
  * this is deliberately not a debug snapshot. `verbatimText` is the text
  * presented by the debug view for that event, while the outcome labels the
- * observed result for later analysis. */
+ * observed result for later analysis.
+ */
 model DiagnosticV2EvidenceRecord {
-  id                String                 @id @default(cuid())
-  sessionId         String
-  session           DiagnosticV2Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  attemptId         String?
-  stepId            String?
-  eventType         String
-  outcome           String
-  questionNumber    Int?
-  stepNumber        Int?
-  questionText      String?
-  submittedText     String?
-  verbatimText      String                 @db.Text
-  metadata          Json?
-  createdAt         DateTime               @default(now())
+  id             String              @id @default(cuid())
+  sessionId      String
+  session        DiagnosticV2Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attemptId      String?
+  stepId         String?
+  eventType      String
+  outcome        String
+  questionNumber Int?
+  stepNumber     Int?
+  questionText   String?
+  submittedText  String?
+  verbatimText   String              @db.Text
+  metadata       Json?
+  createdAt      DateTime            @default(now())
 
   @@index([sessionId, createdAt])
   @@index([sessionId, eventType, createdAt])
@@ -1197,21 +1362,27 @@ model DiagnosticV2EvidenceRecord {
 // as demo_aarav are not Student rows, so studentId is stored as a string.
 
 model LotusSessionRecord {
-  id           String    @id @default(cuid())
-  sessionId    String    @unique
-  studentId    String
-  status       String
-  phase        String
-  startedAt    DateTime
-  endedAt      DateTime?
-  payload      Json
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  sessionId String    @unique
+  studentId String
+  /** Deterministic HMAC of studentId. Lets an observer/export identify a learner across sessions without the raw ID. */
+  pseudonymId String?
+  /** When this session's durable data is eligible for deletion under the classroom retention policy. */
+  retentionUntil DateTime?
+  status    String
+  phase     String
+  startedAt DateTime
+  endedAt   DateTime?
+  payload   Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   evidence         LotusEvidenceRecord[]
   videoAssignments PersonalizedVideoAssignment[]
 
   @@index([studentId, startedAt])
+  @@index([pseudonymId])
+  @@index([retentionUntil])
 }
 
 model LotusEvidenceRecord {
@@ -1225,20 +1396,67 @@ model LotusEvidenceRecord {
   verificationStatus String?
   verbatimText       String             @db.Text
   metadata           Json?
+  /** The question this event concerns. Present on ANSWER events, null on whole-session SESSION_STATE snapshots. */
+  questionId         String?
+  /** Client-supplied submission id. Paired with questionId, this is the DB-level duplicate-submit guard. */
+  submissionId       String?
+  /** When downstream review work for this turn was enqueued (outbox). */
+  queuedAt           DateTime?
+  /** When a worker actually started deep analysis for this turn. */
+  analysisStartedAt  DateTime?
+  /** When deep analysis for this turn finished (success or terminal failure). */
+  analysisCompletedAt DateTime?
+  /** The plan slot this turn's question was installed into, if it came from an adaptive decision. */
+  installedSlot      Int?
+  /** When the browser acknowledged actually displaying this question. */
+  shownAckAt         DateTime?
+  /** Model spend for this turn's review, in integer cents. Null until a cost source exists upstream. */
+  costCents          Int?
+  promptVersion      String?
+  modelVersion       String?
+  policyVersion      String?
+  skillMapVersion    String?
   createdAt          DateTime           @default(now())
 
   @@index([sessionRecordId, createdAt])
   @@index([sessionRecordId, eventType])
+  @@unique([sessionRecordId, questionId, submissionId])
+}
+
+/// An AI-authored, code-validated Lotus item that a learner actually
+/// answered. This is a content record, not a student-history record: it has
+/// no response, working, learner identifier, or answer-analysis outcome.
+/// An item can only enter here from a durable accepted ANSWER event.
+model LotusQuestionBankItem {
+  id                String   @id @default(cuid())
+  topic             String
+  question          Json
+  questionPrint     String
+  skillId           String
+  itemKind          String
+  level             String?
+  sourceSessionId   String
+  sourceQuestionId  String
+  firstAnsweredAt   DateTime
+  reuseCount        Int      @default(0)
+  lastReusedAt      DateTime?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([sourceSessionId, sourceQuestionId])
+  @@index([topic, skillId, isActive])
+  @@index([topic, questionPrint])
 }
 
 model PersonalizedVideoAssignment {
-  id                 String                             @id @default(cuid())
+  id                 String                            @id @default(cuid())
   studentId          String
   studentKey         String?
   schoolId           String?
   lotusSessionId     String?
-  lotusSession       LotusSessionRecord?                @relation(fields: [lotusSessionId], references: [id], onDelete: SetNull)
-  status             PersonalizedVideoAssignmentStatus  @default(PREPARING)
+  lotusSession       LotusSessionRecord?               @relation(fields: [lotusSessionId], references: [id], onDelete: SetNull)
+  status             PersonalizedVideoAssignmentStatus @default(PREPARING)
   diagnosticState    String
   conceptId          String
   learningObjective  String
@@ -1252,8 +1470,8 @@ model PersonalizedVideoAssignment {
   renderResult       Json?
   fallbackReason     String?
   abstainReason      String?
-  createdAt          DateTime                           @default(now())
-  updatedAt          DateTime                           @updatedAt
+  createdAt          DateTime                          @default(now())
+  updatedAt          DateTime                          @updatedAt
 
   events PersonalizedVideoEvent[]
 
@@ -1265,9 +1483,9 @@ model PersonalizedVideoAssignment {
 }
 
 model PersonalizedVideoEvent {
-  id           String                         @id @default(cuid())
+  id           String                        @id @default(cuid())
   assignmentId String
-  assignment   PersonalizedVideoAssignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignment   PersonalizedVideoAssignment   @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   studentId    String
   kind         PersonalizedVideoEvidenceKind
   dwellMs      Int?
@@ -1275,7 +1493,7 @@ model PersonalizedVideoEvent {
   exitAnswer   String?
   exitWorking  String?
   exitCorrect  Boolean?
-  createdAt    DateTime                       @default(now())
+  createdAt    DateTime                      @default(now())
 
   @@index([assignmentId, createdAt])
   @@index([studentId, kind])

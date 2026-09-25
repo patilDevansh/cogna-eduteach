@@ -1,0 +1,291 @@
+.microscopeCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px -2px rgba(22, 36, 29, 0.06);
+  margin-top: 1.5rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.badgeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.microscopeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid #fde68a;
+}
+
+.quietTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4b6354;
+  background: #f4f7f3;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.heading {
+  font-family: var(--font-display, "Bricolage Grotesque", sans-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #16241d;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.subheading {
+  font-size: 0.9375rem;
+  color: #4b6354;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.contrastGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+@media (max-width: 680px) {
+  .contrastGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.errorSide, .correctSide {
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.errorSide {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+}
+
+.correctSide {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.sideLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.6rem;
+}
+
+.errorSide .sideLabel {
+  color: #b45309;
+}
+
+.correctSide .sideLabel {
+  color: #047857;
+}
+
+.equationBox {
+  font-family: var(--font-mono, "IBM Plex Mono", monospace);
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.prevLine {
+  color: #64748b;
+}
+
+.arrow {
+  color: #94a3b8;
+}
+
+.invalidLine {
+  color: #b45309;
+  background: #fde68a;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.validLine {
+  color: #065f46;
+  background: #a7f3d0;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.errorNote, .correctNote {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.probeSection {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.probeHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.probeNumber {
+  background: #1b4332;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.probeQuestionText {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #16241d;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.optionBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.optionBtn:hover {
+  border-color: #1b4332;
+  background: #f8fafc;
+}
+
+.optionRadio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid #94a3b8;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.optCorrect {
+  border-color: #059669 !important;
+  background: #ecfdf5 !important;
+  color: #065f46 !important;
+}
+
+.optCorrect .optionRadio {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.optIncorrect {
+  border-color: #dc2626 !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+}
+
+.optIncorrect .optionRadio {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.feedbackBanner {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  animation: fadeIn 0.2s ease;
+}
+
+.fbSuccess {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.fbRetry {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.actionFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f4f7f3;
+  border: 1px solid #d1fae5;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.footerNote {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #16241d;
+}
+
+.tryTransferBtn {
+  background: #1b4332;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.tryTransferBtn:hover {
+  background: #2d6a4f;
+}

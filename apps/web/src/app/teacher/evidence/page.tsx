@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getDemoResults, type DemoStudentResult } from "@/lib/gurukul-demo";
 import styles from "../teacher.module.css";
 
-export default function TeacherEvidencePage() {
+function TeacherEvidenceContent() {
   const key = useSearchParams().get("student");
   const [result,setResult] = useState<DemoStudentResult|null>(null);
   useEffect(()=>{const all=getDemoResults();setResult(all.find(r=>r.studentKey===key)??all[0]??null)},[key]);
@@ -17,4 +17,8 @@ export default function TeacherEvidencePage() {
   <section className={styles.evidenceSection}><header><h2>Personalized teaching delivered</h2><p>{result.conclusion.teachingTitle}</p></header><article className={styles.attempt}><div className={styles.attemptPrompt}>{result.conclusion.teachingExplanation}</div><div className={styles.attemptMeta}><span>{result.assistanceUsed} hint{result.assistanceUsed===1?"":"s"} used</span><span>Guided response: {result.guidedResponse||"Not completed"}</span></div></article></section>
   <section className={styles.evidenceSection}><header><h2>Independent exit evidence</h2><p>Fresh familiar and changed-form questions; no hints available.</p></header>{result.exit.length?result.exit.map(r=><article className={styles.attempt} key={r.questionId}><div className={styles.attemptTop}><div><div className={styles.attemptPrompt}>{r.prompt}</div><div className={styles.attemptMeta}><span>{r.form} form</span><span>{r.correct?"Correct":"Not correct"}</span><span>Confidence {r.confidence}%</span><span>Independent</span></div></div><span className={`${styles.status} ${r.correct?styles.ready:styles.bridge}`}>{r.correct?"Verified":"Not yet verified"}</span></div><div className={styles.working}>{r.working||"No working submitted"}{r.answer?`\nFinal answer: ${r.answer}`:""}</div></article>):<article className={styles.attempt}>Exit check not completed yet.</article>}</section>
   <section className={styles.emptyCard} style={{marginTop:"1rem"}}><div className={styles.dateLine}>Retention preview · Simulated future stage</div><h2>No retention claim has been made today.</h2><p>Cogna would schedule a fresh, delayed check in 3–7 days and update this profile only after new independent evidence arrives.</p><button className={styles.secondary}>Schedule preview retention check</button></section></>;
+}
+
+export default function TeacherEvidencePage() {
+  return <Suspense fallback={<p>Loading evidence…</p>}><TeacherEvidenceContent /></Suspense>;
 }

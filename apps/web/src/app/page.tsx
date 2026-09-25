@@ -9,91 +9,89 @@ export default function Landing() {
         <TopBar
           right={
             <>
-              <Link href="/teacher/login">Teacher sign in</Link>
-              <Link href="/parent/login">For parents</Link>
-              <Link href="/student/classroom">I have a class code</Link>
+              <Link href="/student/mission">10-Min Student Mission</Link>
+              <Link href="/parent/students/demo-student">30s Parent Card</Link>
+              <Link href="/teacher/reports">Teacher Brief</Link>
             </>
           }
         />
       </div>
 
-      {/* Hero — one composition: the brand, the promise, the worked line. */}
+      {/* Hero — one composition: the brand, the exact promise, the worked line. */}
       <main>
         <section className={`shell ${styles.hero}`}>
-          <p className="eyebrow">Grade 8 · CBSE Mathematics</p>
+          <p className="eyebrow">Grade 8 CBSE Mathematics · Rescoped Proof Wedge</p>
           <h1 className={styles.heroTitle}>
-            Practice that pays
+            Find the exact step
             <br />
-            attention<span style={{ color: "var(--accent)" }}>.</span>
+            where algebra breaks<span style={{ color: "var(--accent)" }}>.</span>
           </h1>
 
           <div className={`${styles.workedEquation} worked-line`} aria-hidden="true">
-            <span className="math">2x + 5 = 17</span>
-            <span className={styles.workedStep}>→ 2x = 12</span>
-            <span className={styles.workedStep}>→ x = 6</span>
+            <span className="math">3(x + 4) = 21</span>
+            <span className={styles.workedStep}>→ 3x + 12 = 21</span>
+            <span className={styles.workedStep}>→ 3x = 9 → x = 3</span>
           </div>
 
           <p className={styles.heroLede}>
-            Cogna gives your child short, calm maths sessions that adjust to how they
-            actually think — noticing where a step goes wrong, teaching that step, and
-            telling you plainly what it saw.
+            COGNA finds the exact step where algebra breaks, fixes that one gap, and checks
+            later that your child can solve it alone.
           </p>
 
           <div className={styles.paths}>
-            <Link href="/teacher/login" className="btn btn-primary btn-lg">
-              I’m a teacher — sign in
+            <Link href="/student/mission" className="btn btn-primary btn-lg">
+              Start 10-Minute Student Mission →
             </Link>
-            <Link href="/parent/login" className="btn btn-primary btn-lg">
-              I’m a parent
+            <Link href="/parent/students/demo-student" className="btn btn-secondary btn-lg">
+              View 30-Second Parent Card
             </Link>
-            <Link href="/student/classroom" className="btn btn-ghost btn-lg">
-              I’m a student — I have a class code
+            <Link href="/teacher/reports" className="btn btn-ghost btn-lg">
+              Teacher Classroom Brief
             </Link>
           </div>
         </section>
 
-        {/* How it works — quiet, three steps in prose, no card grid */}
+        {/* The Core Learning Loop */}
         <section className={styles.band}>
           <div className="shell-letter">
-            <h2 className={styles.bandTitle}>Fifteen minutes, start to finish</h2>
+            <h2 className={styles.bandTitle}>The 10-Minute Proof Loop</h2>
             <div className={styles.steps}>
               <div>
-                <p className="eyebrow">Practice</p>
+                <p className="eyebrow">1. Inspect</p>
                 <p>
-                  One problem at a time, on a clean page. Hints come one small step at a
-                  time — never the whole answer at once.
+                  Line-by-line deterministic verification finds the exact operation that changed
+                  the answer — never an IQ or personality label.
                 </p>
               </div>
               <div>
-                <p className="eyebrow">Notice</p>
+                <p className="eyebrow">2. Contrast</p>
                 <p>
-                  Every answer teaches Cogna something about how your child works — which
-                  steps are solid, and which patterns need another check.
+                  The Mistake Microscope shows side-by-side what happened vs the correct balance,
+                  with one active check question.
                 </p>
               </div>
               <div>
-                <p className="eyebrow">Report</p>
+                <p className="eyebrow">3. Independent Proof</p>
                 <p>
-                  You get a short, honest note after each session: what happened, what it
-                  might mean, and one small thing to try next.
+                  A structurally different transfer problem confirms whether the fix worked unaided,
+                  followed by a calm Day 4 retention check.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Trust — a single quiet statement */}
+        {/* Trust — scientific restraint */}
         <section className={`shell-letter ${styles.trust}`}>
           <p className={styles.trustLine}>
-            Every question and explanation in Cogna is written and reviewed by teachers.
-            When we spot a pattern, we say so carefully — “a pattern we’re checking”, not
-            a verdict. Sessions are paced, with real breaks, and they end on time.
+            No generic chatbots. No 2,000-question drill banks. No test anxiety. Just deterministic
+            mathematical verification, active dignity-first rescue, and independent before-and-after proof.
           </p>
         </section>
       </main>
 
       <footer className="footer shell center">
-        Cogna · Linear Equations pilot · made for quiet, focused learning
+        Cogna · Grade 8 Linear Equations · Focused Learning Proof
       </footer>
     </div>
   );
