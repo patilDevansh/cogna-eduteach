@@ -1,6 +1,15 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
 import type { PilotStudentKey } from "@cogna/shared";
+import {
+  INSECURE_LOCAL_DEV_SESSION_SECRET,
+  isProductionLike,
+  sessionSecretFromEnv,
+  signPayload as sign,
+  verifyMac,
+} from "@cogna/shared/dist/session";
+
+// Re-exported so existing importers keep working; the implementation lives in @cogna/shared.
+export { INSECURE_LOCAL_DEV_SESSION_SECRET, isProductionLike, sessionSecretFromEnv };
 
 export const DEMO_STUDENT_KEYS: PilotStudentKey[] = [
   "aarav",
@@ -12,33 +21,10 @@ export const DEMO_STUDENT_KEYS: PilotStudentKey[] = [
 
 export const DEMO_SCHOOL_ID = "gurukul-pilot";
 
-/**
- * Labelled insecure local-only fallback. Never used in staging/production.
- * Requires COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET=true.
- */
-export const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
-
 export type AccessActor =
   | { role: "student"; studentId: string }
   | { role: "teacher"; teacherEmail: string; schoolId: string }
   | { role: "worker" };
-
-export function isProductionLike(env: NodeJS.ProcessEnv = process.env): boolean {
-  const era = (env.COGNA_ENV ?? "").trim().toLowerCase();
-  return env.NODE_ENV === "production" || era === "production" || era === "staging";
-}
-
-export function sessionSecretFromEnv(
-  env: NodeJS.ProcessEnv = process.env,
-): string | null {
-  const configured = env.COGNA_SESSION_SECRET?.trim();
-  if (configured) return configured;
-  if (isProductionLike(env)) return null;
-  if (env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
-    return INSECURE_LOCAL_DEV_SESSION_SECRET;
-  }
-  return null;
-}
 
 export function demoSessionsAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.ALLOW_DEMO_STUDENT_SESSIONS === "false") return false;
@@ -67,28 +53,6 @@ export function canMintDemoStudent(studentId: string, env: NodeJS.ProcessEnv = p
 
 export function demoStudentId(key: string): string {
   return `demo_${key}`;
-}
-
-function sign(payload: string, secret: string): string {
-  const body = Buffer.from(payload).toString("base64url");
-  const mac = createHmac("sha256", secret).update(body).digest("base64url");
-  return `v1.${body}.${mac}`;
-}
-
-function verifyMac(token: string, secret: string): string | null {
-  const parts = token.split(".");
-  if (parts.length !== 3 || parts[0] !== "v1") return null;
-  const expected = createHmac("sha256", secret).update(parts[1]!).digest("base64url");
-  const actual = parts[2]!;
-  const expectedBuf = Buffer.from(expected);
-  const actualBuf = Buffer.from(actual);
-  if (expectedBuf.length !== actualBuf.length) return null;
-  if (!timingSafeEqual(expectedBuf, actualBuf)) return null;
-  try {
-    return Buffer.from(parts[1]!, "base64url").toString("utf8");
-  } catch {
-    return null;
-  }
 }
 
 export function issueStudentToken(

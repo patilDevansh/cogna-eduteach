@@ -1,7 +1,9 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { sessionSecretFromEnv, signPayload } from "@cogna/shared/dist/session";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { NextResponse } from "next/server";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,8 +53,6 @@ const DEMO_INVITATION: TeacherInvitation = {
   schoolName: "Gurukul",
 };
 
-const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
-
 function configuredInvitations(): TeacherInvitation[] {
   const configured = process.env.TEACHER_PILOT_INVITATIONS;
   if (!configured) return [DEMO_INVITATION];
@@ -70,28 +70,15 @@ function codesMatch(expected: string, actual: string): boolean {
   return timingSafeEqual(expectedHash, actualHash);
 }
 
-function sessionSecretFromEnv(): string | null {
-  const configured = process.env.COGNA_SESSION_SECRET?.trim();
-  if (configured) return configured;
-  const era = (process.env.COGNA_ENV ?? "").trim().toLowerCase();
-  const productionLike = process.env.NODE_ENV === "production" || era === "production" || era === "staging";
-  if (!productionLike && process.env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
-    return INSECURE_LOCAL_DEV_SESSION_SECRET;
-  }
-  return null;
-}
-
 function issueTeacherToken(teacherEmail: string, schoolId: string, ttlMs = 12 * 60 * 60 * 1000): string {
   const secret = sessionSecretFromEnv();
   if (!secret) throw new Error("Teacher session signing is not configured.");
-  const body = Buffer.from(
-    JSON.stringify({ role: "teacher", sub: teacherEmail, schoolId, exp: Date.now() + ttlMs }),
-  ).toString("base64url");
-  const mac = createHmac("sha256", secret).update(body).digest("base64url");
-  return `v1.${body}.${mac}`;
+  return signPayload(JSON.stringify({ role: "teacher", sub: teacherEmail, schoolId, exp: Date.now() + ttlMs }), secret);
 }
 
 export async function POST(request: Request) {
+  const limited = rateLimited(request, "auth");
+  if (limited) return limited;
   const body = (await request.json().catch(() => null)) as { email?: unknown; inviteCode?: unknown } | null;
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const inviteCode = typeof body?.inviteCode === "string" ? body.inviteCode.trim() : "";

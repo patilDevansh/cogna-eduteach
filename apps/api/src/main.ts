@@ -1,7 +1,9 @@
-import { NestFactory } from "@nestjs/core";
+import { HttpAdapterHost, NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
+import { rateLimitMiddleware } from "./rate-limit.middleware";
+import { SentryExceptionFilter, initSentry } from "./observability/sentry";
 
 const bootLogger = new Logger("Bootstrap");
 
@@ -16,7 +18,14 @@ process.on("uncaughtException", (err) => {
 });
 
 async function bootstrap() {
+  const sentryActive = initSentry();
   const app = await NestFactory.create(AppModule);
+  if (sentryActive) app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
+  else bootLogger.warn("SENTRY_DSN is not set: production errors will not notify anyone.");
+
+  // Behind a load balancer req.ip is the balancer unless the proxy hop is trusted (set COGNA_TRUST_PROXY=true).
+  if (process.env.COGNA_TRUST_PROXY === "true") app.getHttpAdapter().getInstance().set("trust proxy", 1);
+  app.use(rateLimitMiddleware);
 
   const allowedWebOrigins = process.env.WEB_URL
     ? [process.env.WEB_URL]

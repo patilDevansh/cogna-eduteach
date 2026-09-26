@@ -379,8 +379,14 @@ export interface ClassroomRunReport {
 }
 
 export const api = {
-  health: () =>
-    apiFetch<{ devStudentId: string; devAccessCode: string }>("/health"),
+  /** Dev-only demo login credentials. The API omits them in production/staging, so fail with a clear message. */
+  health: async () => {
+    const health = await apiFetch<{ devStudentId?: string; devAccessCode?: string }>("/health");
+    if (!health.devAccessCode || !health.devStudentId) {
+      throw new Error("Demo login is not available in this environment.");
+    }
+    return { devStudentId: health.devStudentId, devAccessCode: health.devAccessCode };
+  },
 
   claimTeacherInvitation: async (email: string, inviteCode: string) => {
     const path = "/api/teacher-invitations/claim";
