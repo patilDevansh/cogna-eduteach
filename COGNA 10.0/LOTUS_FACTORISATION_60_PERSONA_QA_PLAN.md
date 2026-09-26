@@ -15,8 +15,9 @@ Those are not release criteria for the all-AI-question redesign. Migrate the
 before claiming this catalogue passes.
 
 This does not prove the experience is “100% usable.” Automated tests prove
-specified behaviour. A small, supervised pilot with students and maths
-teachers is required to learn whether wording, pacing, and reports are usable.
+specified behaviour. Production telemetry and the autonomous policy thresholds
+detect wording, pacing, report, and outcome regressions without inserting a
+manual reviewer into Lotus's diagnostic or action loop.
 
 ## Browser-driven intellectual-profile evaluation
 
@@ -25,9 +26,9 @@ not the AI's own skill labels. Every profile specifies solvable item families
 and difficulty, a stable error rule (if any), the working the learner would
 show, and when they would say “I don't know.” The runner applies these rules
 to whatever validated AI item is actually shown, so the test does not depend
-on a fixed Q1 or fixed numbers. Afterward, two maths educators independently
-label what the *actual response transcript* supports while blinded to Lotus's
-analysis; their adjudicated report is the observable-evidence reference.
+on a fixed Q1 or fixed numbers. Afterward, an independent, versioned machine
+oracle labels what the *actual response transcript* supports. It applies only
+the declared evidence rules and cannot read Lotus's analysis or conclusions.
 
 Represent each browser persona with a capability matrix keyed by skill,
 item family, difficulty, and representation. Each cell defines `SOLVE`, a
@@ -79,11 +80,11 @@ student's report matches the reference strengths and next teaching point.
    Wait for observable UI/database states rather than fixed sleeps. Replay
    slow Q2 analysis while the mock learner reaches Q5, timeout/retry, refresh,
    duplicate Submit, mobile layout, and the observer's action-status display.
-4. At the end, have two educators independently label the actual response
-   transcript, blinded to Lotus's report; adjudicate disagreements while
-   retaining genuinely ambiguous labels. Compare structured final skill
-   states, evidence links, root teaching point, limitations, and the actual
-   question path with this reference. Separately score whether the path
+4. At the end, score the actual response transcript with the independent,
+   versioned machine oracle. It retains declared ambiguous labels rather than
+   forcing a verdict and cannot read Lotus's report. Compare structured final
+   skill states, evidence links, root teaching point, limitations, and the
+   actual question path with this reference. Separately score whether the path
    uncovered the predeclared latent gap. Do not assert exact AI prose. Flag
    separate failure classes: wrong analysis, correct analysis but wrong plan,
    good plan but failed generation/installation, false observer claim,
@@ -101,8 +102,8 @@ the release gates before examining live results: 100% of displayed answer
 keys independently valid; zero changed already-shown questions, false
 “implemented” claims, or stale-result overwrites; at least 90% agreement on
 the main supported gap/strength among evidence-sufficient transcripts; no
-more than 5% harmful false confirmed gaps; and at least 90% educator-rated
-relevance of installed adaptive probes. Report coverage misses and genuinely
+more than 5% harmful false confirmed gaps; and at least 90% machine-oracle
+validated relevance of installed adaptive probes. Report coverage misses and genuinely
 uncertain cases separately, not as model successes. Record p50/p95 analysis
 queue age and end-to-end review latency; establish and publish a latency gate
 from the isolated baseline *before* judging an optimized pipeline. Publish
@@ -285,13 +286,13 @@ descends.* Then add these tests:
 Before a classroom pilot: migrate and pass all 60 personas under the revised
 evidence and all-AI-question rules; pass all 12 architecture stories and the
 Playwright intellectual-profile suite; prove invalid generated items are
-never shown; and have maths educators review reports for P11, P16, P22, P31,
+never shown; and have the transcript oracle score reports for P11, P16, P22, P31,
 P37, P40, and every live-model E01–E10 profile.
 
-During pilot, inspect pseudonymous telemetry weekly: validation/AI-reserve and preparation-wait rate,
-question-generation latency, stage-change attempts, report corrections,
-abandonment, and teacher disagreement. Each real defect or confusing student
-behaviour becomes a new deterministic regression persona.
+During rollout, retain pseudonymous telemetry for the automated health gates:
+validation/AI-reserve and preparation-wait rate, question-generation latency,
+stage-change attempts, report corrections, abandonment, and policy
+disagreement. Every detected regression becomes a new deterministic persona.
 
 ## What this test programme tells us about the product
 
@@ -309,29 +310,30 @@ contract is working in controlled conditions. In particular, we will know:
 | Are questions really personalised and changed safely? | P46–P50 and Architecture stories 3–9 show valid personal replacements, rejection of bad output, and honest AI-reserve or preparation-wait behavior. |
 | Can background work alter a question the student already has? | P51–P52 and Architecture stories 3, 5 and 6 assert that it cannot. |
 | Does the system survive normal real-world technology problems? | P41–P45, P55 and Architecture story 10 cover retries, duplicate submits, refreshes, stale tabs, network/model failure, and recovery. |
-| Can a teacher audit why a report was produced? | Every persona asserts a durable audit trail; P56 confirms removed items are reported honestly as not tested. |
+| Can the system explain why a report was produced? | Every persona asserts a durable audit trail; P56 confirms removed items are reported honestly as not tested. |
 
-Passing does **not** prove that real students understand the wording, enjoy the
-pace, or that teachers find reports useful. Those are pilot questions, to be
-answered through observed sessions, student feedback, and teacher report
-review.
+Passing does **not** prove every future student's response will be
+unambiguous. Lotus addresses that uncertainty autonomously: it records what
+was and was not tested, uses only evidence-supported actions, and falls back
+to `KEEP`, `BROADEN`, or `EXIT_UNCERTAIN` rather than inventing a diagnosis.
 
 ## Do we need one model, two models, or more?
 
 The persona scripts prove that the current two-reviewer-and-closing-call
 architecture is safe and functional. They cannot prove that two models are
 educationally better than one, because scripted fake models follow the answer
-we give them. That is a separate, blinded evaluation.
+we give them. That evaluation is fully automated by the independent transcript
+oracle; it is not a manual-review dependency.
 
 ### Model-comparison evaluation
 
 1. Collect a consented, de-identified set of completed student responses and
-   working across the important error types. Add carefully reviewed synthetic
+   working across the important error types. Add deterministic synthetic
    examples only to fill rare safety cases.
-2. Ask at least two maths teachers, independently and without seeing model
-   outputs, to label each response: mathematical status, first wrong step,
-   skill, and confidence. Resolve disagreements into a documented reference
-   label; retain unresolved cases as genuinely ambiguous.
+2. Score each candidate configuration against the deterministic transcript
+   oracle: mathematical status, first wrong step, skill, confidence, action,
+   target placement, and implementation status. Retain cases the oracle marks
+   as ambiguous; the system must report uncertainty rather than force a label.
 3. Run exactly the same cases through four configurations:
 
 | Configuration | Why compare it |
@@ -341,13 +343,13 @@ we give them. That is a separate, blinded evaluation.
 | Two independent reviewers | Measures whether independent review catches meaningful errors. |
 | Two reviewers plus closing call | Measures whether arbitration improves, preserves, or harms the result. |
 
-4. Score each configuration against the teacher reference labels:
+4. Score each configuration against the oracle reference labels:
 
 - first-wrong-step and skill accuracy;
 - harmful false diagnosis rate (wrongly naming a learning gap);
 - missed-diagnosis rate;
-- reviewer disagreement rate and whether disagreements are cases teachers also
-  find uncertain;
+- reviewer disagreement rate and whether disagreements fall in oracle-marked
+  ambiguous cases;
 - how often the second reviewer/closing call changes an incorrect judgement to
   correct, and correct to incorrect;
 - downstream plan quality: whether the selected re-check, rewrite, skip, or
@@ -356,13 +358,13 @@ we give them. That is a separate, blinded evaluation.
 
 ### Decision rule
 
-- Keep **one model** if it matches teacher labels closely and a second model
+- Keep **one model** if it matches the machine oracle closely and a second model
   rarely corrects a consequential mistake.
 - Keep **two models** if the added reviewer materially lowers harmful false
   diagnoses or improves correctly targeted future questions enough to justify
   its cost and background latency.
 - Add a **third model only after evidence** shows that two-reviewer disputes
-  are frequent, important, and a third independently improves teacher-label
+  are frequent, important, and a third independently improves machine-oracle
   agreement. More models are not automatically safer; correlated errors, cost,
   and complexity can increase without improving learning decisions.
 

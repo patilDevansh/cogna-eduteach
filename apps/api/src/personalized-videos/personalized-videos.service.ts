@@ -44,6 +44,7 @@ import {
   PILOT_TEMPLATE_KEYS,
   selectTemplateFromEvidence,
   templateForKey,
+  themedLesson,
 } from "./approved-templates";
 import { snapshotFromLotusSession } from "./lotus-evidence";
 import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
@@ -211,7 +212,7 @@ export class PersonalizedVideosService {
       options.allowTestHooks && input.scriptOverride
         ? (input.scriptSource ?? "CONSTRAINED_AI")
         : "APPROVED_TEMPLATE";
-    const lesson = (options.allowTestHooks ? input.scriptOverride : undefined) ?? template?.lesson ?? null;
+    const lesson = (options.allowTestHooks ? input.scriptOverride : undefined) ?? (template ? themedLesson(template) : null);
     const exit = (options.allowTestHooks ? input.exitOverride : undefined) ?? template?.exit ?? null;
     const stored: StoredScript = {
       name: input.name ?? template?.name ?? "Student",
@@ -749,6 +750,14 @@ export class PersonalizedVideosService {
    * scene: a cache/TTS failure just leaves that scene's audioPath unset,
    * which renders silently — a lesson must never fail to render over a
    * narration outage.
+   *
+   * Scenes are synthesized one at a time, not via Promise.all — observed
+   * directly: firing all of a lesson's scenes at OpenAI's TTS endpoint
+   * concurrently intermittently silently drops some of them (no thrown
+   * error reaches here; synthesize() itself returns null after its own
+   * retry). This runs in the background render job, never on a path a
+   * student is waiting on, so trading a few extra seconds of total time for
+   * every scene actually getting narrated is the right tradeoff.
    */
   private async synthesizeNarration(
     scenes: PersonalizedVideoLessonScene[],
@@ -757,48 +766,57 @@ export class PersonalizedVideosService {
     const voice = this.tts.voice;
     const model = this.tts.model;
     const instructions = this.tts.instructions;
-    return Promise.all(
-      scenes.map(async (scene) => {
-        try {
-          let audioPath = await readTtsCache(scene.narration, voice, model, instructions);
-          let bytes: Buffer | null = audioPath ? await readFile(audioPath) : null;
-          let probedSeconds = bytes ? await probeAudioDurationSeconds(bytes) : null;
+    const narrated: Array<PersonalizedVideoLessonScene & { audioPath?: string }> = [];
+    for (const scene of scenes) {
+      narrated.push(await this.synthesizeOneScene(scene, voice, model, instructions));
+    }
+    return narrated;
+  }
 
-          // Observed directly: a truncated stream (network hiccup mid-transfer)
-          // can produce a still-parseable but far-too-short MP3 without ever
-          // throwing — e.g. 0.36s of audio for a sentence that needs 6-8s to
-          // speak. Once cached, that broken clip is served forever. Reject
-          // anything implausibly short relative to the text and re-synthesize,
-          // rather than trusting "it parsed" as "it's the real narration".
-          const minPlausibleSeconds = Math.max(0.5, scene.narration.length / 25);
-          if (audioPath && probedSeconds !== null && probedSeconds < minPlausibleSeconds) {
-            audioPath = null;
-            bytes = null;
-            probedSeconds = null;
-          }
+  private async synthesizeOneScene(
+    scene: PersonalizedVideoLessonScene,
+    voice: string,
+    model: string,
+    instructions: string | undefined,
+  ): Promise<PersonalizedVideoLessonScene & { audioPath?: string }> {
+    try {
+      let audioPath = await readTtsCache(scene.narration, voice, model, instructions);
+      let bytes: Buffer | null = audioPath ? await readFile(audioPath) : null;
+      let probedSeconds = bytes ? await probeAudioDurationSeconds(bytes) : null;
 
-          if (!audioPath) {
-            const synthesized = await this.tts!.synthesize(scene.narration);
-            if (!synthesized) return scene;
-            bytes = synthesized.bytes;
-            probedSeconds = await probeAudioDurationSeconds(bytes);
-            if (probedSeconds !== null && probedSeconds < minPlausibleSeconds) {
-              // Still truncated on a fresh call — don't cache a broken clip,
-              // fall back to silent for this scene rather than looping retries.
-              return scene;
-            }
-            audioPath = await writeTtsCache(scene.narration, voice, model, bytes, instructions);
-          }
+      // Observed directly: a truncated stream (network hiccup mid-transfer)
+      // can produce a still-parseable but far-too-short MP3 without ever
+      // throwing — e.g. 0.36s of audio for a sentence that needs 6-8s to
+      // speak. Once cached, that broken clip is served forever. Reject
+      // anything implausibly short relative to the text and re-synthesize,
+      // rather than trusting "it parsed" as "it's the real narration".
+      const minPlausibleSeconds = Math.max(0.5, scene.narration.length / 25);
+      if (audioPath && probedSeconds !== null && probedSeconds < minPlausibleSeconds) {
+        audioPath = null;
+        bytes = null;
+        probedSeconds = null;
+      }
 
-          const durationSeconds = probedSeconds
-            ? Math.max(scene.durationSeconds, Math.ceil(probedSeconds) + 0.5)
-            : scene.durationSeconds;
-          return { ...scene, audioPath, durationSeconds };
-        } catch {
+      if (!audioPath) {
+        const synthesized = await this.tts!.synthesize(scene.narration);
+        if (!synthesized) return scene;
+        bytes = synthesized.bytes;
+        probedSeconds = await probeAudioDurationSeconds(bytes);
+        if (probedSeconds !== null && probedSeconds < minPlausibleSeconds) {
+          // Still truncated on a fresh call — don't cache a broken clip,
+          // fall back to silent for this scene rather than looping retries.
           return scene;
         }
-      }),
-    );
+        audioPath = await writeTtsCache(scene.narration, voice, model, bytes, instructions);
+      }
+
+      const durationSeconds = probedSeconds
+        ? Math.max(scene.durationSeconds, Math.ceil(probedSeconds) + 0.5)
+        : scene.durationSeconds;
+      return { ...scene, audioPath, durationSeconds };
+    } catch {
+      return scene;
+    }
   }
 
   private async resolveTrustedEvidence(

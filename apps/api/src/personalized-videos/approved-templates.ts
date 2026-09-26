@@ -2,8 +2,15 @@ import type {
   PersonalizedVideoEvidenceSnapshot,
   PersonalizedVideoExitItem,
   PersonalizedVideoLesson,
+  PersonalizedVideoLessonScene,
   PilotStudentKey,
+  VideoThemeKey,
 } from "@cogna/shared";
+
+/** Text-only overlay; Pick<> makes overriding equation/claims a type error. */
+export type SceneFraming = Partial<
+  Pick<PersonalizedVideoLessonScene, "eyebrow" | "headline" | "narration">
+>;
 
 export interface ApprovedVideoTemplate {
   studentKey: PilotStudentKey;
@@ -19,6 +26,21 @@ export interface ApprovedVideoTemplate {
   evidence: PersonalizedVideoEvidenceSnapshot;
   lesson: PersonalizedVideoLesson;
   exit: PersonalizedVideoExitItem;
+  /** Theme applied by default (unless COGNA_THEMES_ENABLED=false) and its per-scene text. */
+  defaultTheme?: VideoThemeKey;
+  themeFraming?: Partial<Record<VideoThemeKey, Array<SceneFraming | null>>>;
+}
+
+/** The template's lesson dressed in its default theme; plain lesson if none or disabled. */
+export function themedLesson(template: ApprovedVideoTemplate): PersonalizedVideoLesson {
+  const theme = template.defaultTheme;
+  const framing = theme ? template.themeFraming?.[theme] : undefined;
+  if (!theme || !framing || process.env.COGNA_THEMES_ENABLED === "false") return template.lesson;
+  return {
+    ...template.lesson,
+    theme,
+    scenes: template.lesson.scenes.map((scene, i) => ({ ...scene, ...framing[i] })),
+  };
 }
 
 export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemplate> = {
@@ -382,6 +404,35 @@ export const APPROVED_VIDEO_TEMPLATES: Record<PilotStudentKey, ApprovedVideoTemp
       prompt: "Solve: 5x + 3 = 2x + 15",
       expected: "4",
       evidencePurpose: "Fresh independent balance operation with variables on both sides.",
+    },
+    defaultTheme: "magic",
+    themeFraming: {
+      magic: [
+        {
+          eyebrow: "What Pip the owl noticed",
+          headline: "Your x-magic already works",
+          narration:
+            "Divya, Pip the owl watched you correctly combine four x and negative two x. Now let's keep the enchanted scale level.",
+        },
+        {
+          eyebrow: "Cast the charm twice",
+          headline: "Cancel negative six with positive six",
+          narration:
+            "To remove negative six on the left, add six. The enchanted scale only stays level if the same charm lands on the right too.",
+        },
+        {
+          eyebrow: "The scale is level",
+          headline: "Both pans stayed level",
+          narration:
+            "The level scale gives two x equals fourteen. Halve both pans, and x equals seven.",
+        },
+        {
+          eyebrow: "Your spell-book rule",
+          headline: "Name it on both sides",
+          narration:
+            "Until the habit is secure, write the charm on both sides instead of saying that a term simply moves.",
+        },
+      ],
     },
   },
   kabir: {
