@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { sessionSecretFromEnv, verifyMac } from "@cogna/shared/dist/session";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -36,26 +36,6 @@ const SCENE_AUDIO_FILE = /^scene-\d+\.mp3$/;
 
 function isAllowedLessonFile(name: string): boolean {
   return ALLOWED_LESSON_FILES.has(name) || SCENE_AUDIO_FILE.test(name);
-}
-
-function sessionSecretFromEnv(): string | null {
-  return process.env.COGNA_SESSION_SECRET?.trim() || null;
-}
-
-function verifyMac(token: string, secret: string): string | null {
-  const parts = token.split(".");
-  if (parts.length !== 3 || parts[0] !== "v1") return null;
-  const expected = createHmac("sha256", secret).update(parts[1]!).digest("base64url");
-  const actual = parts[2]!;
-  const expectedBuf = Buffer.from(expected);
-  const actualBuf = Buffer.from(actual);
-  if (expectedBuf.length !== actualBuf.length) return null;
-  if (!timingSafeEqual(expectedBuf, actualBuf)) return null;
-  try {
-    return Buffer.from(parts[1]!, "base64url").toString("utf8");
-  } catch {
-    return null;
-  }
 }
 
 function authorizeGeneratedMediaPath(

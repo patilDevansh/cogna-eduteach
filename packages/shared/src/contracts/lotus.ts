@@ -57,6 +57,17 @@ export interface LotusQuestion {
   asksForWorking: boolean;
   purpose: string;
   answerKey: LotusAnswerKey;
+  /**
+   * True only for a turn Lotus adaptively repurposed for a specific reason
+   * (a targeted check, an easier prerequisite, broadened evidence, or a
+   * coverage replacement) — the turns where a confidence read actually
+   * changes the diagnosis (slip vs. stable gap). Routine coverage turns
+   * leave this unset so the student isn't asked every single time, which
+   * had been producing an unclicked, meaningless default rather than a real
+   * signal. Safe to expose as a bare boolean: unlike `purpose`, it reveals
+   * nothing about which skill or hypothesis is being tested.
+   */
+  requiresConfidenceProbe?: boolean;
 }
 
 export interface LotusAnswerKey {
@@ -350,6 +361,21 @@ export type LotusAdaptiveAction =
   | "REMOVE_OR_DEFER"
   | "STOP";
 
+/**
+ * A secondary, independently auditable plan change caused by the same
+ * response as the primary adaptive decision. For example, Lotus can install
+ * a prerequisite probe while deferring a later item that depends on the
+ * unresolved skill. Keeping this separately prevents the primary action from
+ * hiding a real removal or deferral.
+ */
+export interface LotusPlanEffect {
+  action: LotusAdaptiveAction;
+  targetTurn?: number;
+  requestedPlacement?: string;
+  outcome: "NO_CHANGE" | "QUEUED" | "INSTALLED" | "SHOWN" | "DEFERRED" | "REJECTED" | "STALE";
+  detail: string;
+}
+
 export interface LotusAdaptiveDecision {
   action: LotusAdaptiveAction;
   observedError: string;
@@ -363,12 +389,26 @@ export interface LotusAdaptiveDecision {
   targetTurn?: number;
   /** Whether the validated plan change is already usable, waiting for a checked AI item, or could not be installed. */
   implementation: "APPLIED" | "QUEUED_FOR_GENERATION" | "NOT_APPLIED";
+  /**
+   * Machine-readable lifecycle outcome. Unlike `implementation`, this says
+   * why a decision did not reach the learner: deferred for readiness,
+   * rejected by validation, or stale after its safe placement window.
+   */
+  outcome?: "NO_CHANGE" | "QUEUED" | "INSTALLED" | "SHOWN" | "DEFERRED" | "REJECTED" | "STALE";
   /** Plain-language explanation of the implementation state, without answer keys. */
   implementationDetail: string;
   /** When Lotus made this validated plan recommendation. */
   recommendedAt?: string;
   /** When a checked replacement became installed and eligible to be served. */
   installedAt?: string;
+  /** When the AI item passed the current maths, misconception, and duplicate checks. */
+  validatedAt?: string;
+  /** When the learner's later submission confirms the installed item was actually shown. */
+  shownAt?: string;
+  /** Plain-language placement of the item that was actually shown. */
+  actualPlacement?: string;
+  /** Other validated changes this same response made to the unseen plan. */
+  planEffects?: LotusPlanEffect[];
   source: "RULE_VALIDATED_PLAN" | "AI_RECOMMENDATION";
 }
 

@@ -119,6 +119,32 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+const LOTUS_DEV_MODEL_MODE_KEY = "cogna_lotus_model_mode";
+
+/** Dev-only: which model backend this tab's Lotus calls should hit. Never meaningful in production — the proxy route ignores the header there regardless. */
+export function getLotusDevModelMode(): "fake" | "real" {
+  if (typeof window === "undefined") return "real";
+  try {
+    return sessionStorage.getItem(LOTUS_DEV_MODEL_MODE_KEY) === "fake" ? "fake" : "real";
+  } catch {
+    return "real";
+  }
+}
+
+export function setLotusDevModelMode(mode: "fake" | "real") {
+  if (typeof window === "undefined") return;
+  try {
+    if (mode === "fake") sessionStorage.setItem(LOTUS_DEV_MODEL_MODE_KEY, "fake");
+    else sessionStorage.removeItem(LOTUS_DEV_MODEL_MODE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function lotusDevModelModeHeaders(): Record<string, string> {
+  return getLotusDevModelMode() === "fake" ? { "x-cogna-lotus-model-mode": "fake" } : {};
+}
+
 async function lotusFetch<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -127,6 +153,7 @@ async function lotusFetch<T>(path: string, options?: RequestInit): Promise<T> {
       headers: {
         "Content-Type": "application/json",
         ...cognaAuthHeaders(),
+        ...lotusDevModelModeHeaders(),
         ...options?.headers,
       },
     });
@@ -161,6 +188,17 @@ function teacherAuthHeaders(): Record<string, string> {
   } catch {
     return {};
   }
+}
+
+/** AI Studio reads are deliberately teacher-only; never fall back to student credentials. */
+async function lotusObserverFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  return lotusFetch<T>(path, {
+    ...options,
+    headers: {
+      ...teacherAuthHeaders(),
+      ...options?.headers,
+    },
+  });
 }
 
 async function personalizedVideoFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -341,8 +379,14 @@ export interface ClassroomRunReport {
 }
 
 export const api = {
-  health: () =>
-    apiFetch<{ devStudentId: string; devAccessCode: string }>("/health"),
+  /** Dev-only demo login credentials. The API omits them in production/staging, so fail with a clear message. */
+  health: async () => {
+    const health = await apiFetch<{ devStudentId?: string; devAccessCode?: string }>("/health");
+    if (!health.devAccessCode || !health.devStudentId) {
+      throw new Error("Demo login is not available in this environment.");
+    }
+    return { devStudentId: health.devStudentId, devAccessCode: health.devAccessCode };
+  },
 
   claimTeacherInvitation: async (email: string, inviteCode: string) => {
     const path = "/api/teacher-invitations/claim";
@@ -702,6 +746,9 @@ export const api = {
   getLotusSession: (sessionId: string) =>
     lotusFetch<LotusSessionView>(`/sessions/${sessionId}`),
 
+  getLotusObserverSession: (sessionId: string) =>
+    lotusObserverFetch<LotusSessionView>(`/sessions/${sessionId}/observer`),
+
   /** Server computes the demo answer now that the answer key isn't shipped to the client while a diagnostic is active. Demo student ids only. */
   demoFillLotusResponse: (sessionId: string, studentId: string) =>
     lotusFetch<{ answer: string; working: string; confidence: number }>(
@@ -723,13 +770,13 @@ export const api = {
     studentId: string,
     action: LotusOverrideAction,
   ) =>
-    lotusFetch<LotusSessionView>(`/sessions/${sessionId}/override`, {
+    lotusObserverFetch<LotusSessionView>(`/sessions/${sessionId}/override`, {
       method: "POST",
       body: JSON.stringify({ studentId, action }),
     }),
 
   getLotusUnseenPlan: (sessionId: string) =>
-    lotusFetch<LotusUnseenPlanEntry[]>(`/sessions/${sessionId}/unseen-plan`),
+    lotusObserverFetch<LotusUnseenPlanEntry[]>(`/sessions/${sessionId}/unseen-plan`),
 
   getPersonalizedVideoAssignment: (studentId: string, studentKey?: string) => {
     const query = new URLSearchParams({ studentId });

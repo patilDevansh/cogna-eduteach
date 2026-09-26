@@ -93,7 +93,12 @@ export interface PersonalizedVideoLessonScene {
   audioUrl?: string;
 }
 
+/** Story "world" a lesson is dressed in. Presentation only — never changes the math. */
+export type VideoThemeKey = "magic";
+
 export interface PersonalizedVideoLesson {
+  /** Set when the lesson was themed; drives the palette/motifs on the student page. */
+  theme?: VideoThemeKey;
   title: string;
   duration: string;
   objective: string;

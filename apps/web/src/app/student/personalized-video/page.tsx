@@ -10,7 +10,7 @@ import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
 import { renderEquationSteps } from "./equation-highlight";
 import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
-import { LessonMotifBottom, LessonMotifTop } from "./lesson-motifs";
+import { LessonMotifBottom, LessonMotifTop, PipMascot, SceneBackdrop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 
 type Stage = "lesson" | "challenge" | "exit" | "result";
@@ -121,6 +121,14 @@ function PersonalizedVideoPage() {
     }
     setStage(isProductionClassroom ? "challenge" : "exit");
   };
+
+  // Slides and scene cards put the skip link right under the slide; the baked-video layout keeps it at the very bottom.
+  const skipButton = (
+    <button className={styles.skipLink} onClick={() => void finishLesson()}>
+      Skip playback and open the independent check
+    </button>
+  );
+  const usesVideoPlayer = assignment?.delivery === "VIDEO" && Boolean(assignment.asset?.storageRef);
 
   async function answerChallenge(option: number) {
     const earned = option === GAME_CHALLENGES[challengeIndex]!.correct ? 100 : 25;
@@ -343,7 +351,7 @@ function PersonalizedVideoPage() {
           )}
 
           {!error && assignment && !waiting && assignment.delivery !== "ABSTAINED" && stage === "lesson" && (
-            <>
+            <div data-theme={lesson?.theme}>
               <div className={styles.videoTop}>
                 <span>
                   {assignment.delivery === "VIDEO"
@@ -351,7 +359,6 @@ function PersonalizedVideoPage() {
                     : assignment.delivery === "SLIDES"
                       ? "NARRATED SLIDES"
                       : "APPROVED HTML LESSON"}
-                  {assignment.lesson?.duration ? ` · ${assignment.lesson.duration}` : ""}
                 </span>
                 {assignment.delivery !== "SLIDES" && (
                   <button onClick={() => setVoice((value) => !value)}>{voice ? "Voice on" : "Voice off"}</button>
@@ -362,6 +369,7 @@ function PersonalizedVideoPage() {
                   assignment={assignment}
                   onStart={() => void markWatched()}
                   onFinish={() => void finishLesson()}
+                  belowSlide={skipButton}
                 />
               ) : assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
                 <>
@@ -393,8 +401,10 @@ function PersonalizedVideoPage() {
                 </>
               ) : scene ? (
                 <>
-                  <LessonMotifTop studentKey={assignment.studentKey ?? key} />
+                  <LessonMotifTop studentKey={assignment.studentKey ?? key} theme={lesson?.theme} />
                   <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
+                    <SceneBackdrop theme={lesson?.theme} sceneIndex={sceneIndex} />
+                    <PipMascot theme={lesson?.theme} sceneIndex={sceneIndex} />
                     <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
                     <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
                       <span>{scene.eyebrow}</span>
@@ -403,7 +413,8 @@ function PersonalizedVideoPage() {
                       <p>{scene.narration}</p>
                     </div>
                   </div>
-                  <LessonMotifBottom studentKey={assignment.studentKey ?? key} />
+                  {skipButton}
+                  <LessonMotifBottom studentKey={assignment.studentKey ?? key} theme={lesson?.theme} />
                   <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
                   <div className={styles.controls}>
                     <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={() => goToScene(sceneIndex - 1, false)}>← Previous</button>
@@ -417,10 +428,8 @@ function PersonalizedVideoPage() {
                 </>
               ) : null}
               <p className={styles.srOnly}>Keyboard: space to play or pause, left and right arrows to move between scenes.</p>
-              <button className={styles.skipLink} onClick={() => void finishLesson()}>
-                Skip playback and open the independent check
-              </button>
-            </>
+              {usesVideoPlayer && skipButton}
+            </div>
           )}
 
           {assignment && stage === "challenge" && (() => { const challenge = GAME_CHALLENGES[challengeIndex]!; return (

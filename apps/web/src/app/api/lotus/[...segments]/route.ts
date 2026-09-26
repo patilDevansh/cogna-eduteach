@@ -8,11 +8,21 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
+/**
+ * Dev-only escape hatch: a second, already-running API instance started with
+ * LOTUS_E2E_FAKE_MODEL=true, so a developer can point their browser tab at
+ * free, instant fake-model responses (via the start-page toggle) instead of
+ * an engineer manually killing and restarting the real API process to
+ * iterate on UI. Never consulted in production, regardless of whether it's
+ * set in that environment.
+ */
+const FAKE_API_URL = process.env.LOTUS_FAKE_API_URL?.replace(/\/$/, "");
 
 function lotusUrl(request: Request, segments: string[]): string {
   const source = new URL(request.url);
   const path = segments.map(encodeURIComponent).join("/");
-  return `${API_URL}/lotus/${path}${source.search}`;
+  const wantsFake = process.env.NODE_ENV !== "production" && !!FAKE_API_URL && request.headers.get("x-cogna-lotus-model-mode") === "fake";
+  return `${wantsFake ? FAKE_API_URL : API_URL}/lotus/${path}${source.search}`;
 }
 
 function forwardedHeaders(request: Request): Headers {

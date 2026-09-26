@@ -6,7 +6,7 @@
  * permanently deleted. Uses the same local-only database safety gate as
  * lotus-persistence.database.v1.spec.ts.
  */
-import { after, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -132,6 +132,24 @@ async function flush(): Promise<void> {
   for (let i = 0; i < 50; i += 1) await new Promise((resolve) => setImmediate(resolve));
 }
 
+/**
+ * Polls a condition instead of assuming a fixed tick count is always enough
+ * — the in-process review chain does real Prisma/Postgres I/O (Phase 0
+ * durability persists every stage), not just in-memory promise resolution,
+ * and this is a shared local dev database with other real processes
+ * (a live `nest start --watch`) potentially adding load. A fixed-iteration
+ * flush() is exactly the "fixed sleep" the diagnostic doc's own Playwright
+ * guidance (section 9) warns against for correctness assertions; this is
+ * the same principle applied to the service-level test.
+ */
+async function waitFor(condition: () => boolean, timeoutMs = 10_000): Promise<void> {
+  const start = Date.now();
+  while (!condition()) {
+    if (Date.now() - start > timeoutMs) throw new Error(`condition not met within ${timeoutMs}ms`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 const services: LotusService[] = [];
 after(() => services.forEach((service) => service.onModuleDestroy()));
 
@@ -150,6 +168,22 @@ function freshStudentId(): string {
 }
 
 describe("Lotus Phase 0 outbox — durable, drainable, and safe to redrain", () => {
+  // This test asserts an exact claimed/completed count from a single drain
+  // call, which only means anything against a clean queue. This is a shared
+  // local dev database (see configuredLocalDatabaseUrl's localhost-only
+  // gate), not an isolated per-run one, and processPendingOutboxJobs claims
+  // ANY pending lotus.* job up to its limit=20 default — so a prior test
+  // run's job, a crashed process's job, or a manual script run (e.g.
+  // scripts/lotus-live-model-baseline.mjs) that left PENDING/FAILED_RETRYABLE
+  // rows behind inflates this test's count without any real regression.
+  // Clear only the two Lotus outbox job types before this specific suite —
+  // never touch other jobType rows sharing this generic Job table.
+  before(async () => {
+    await prisma.job.deleteMany({
+      where: { jobType: { in: ["lotus.deferredAnalysis", "lotus.replenishReserve"] }, status: { in: ["PENDING", "FAILED_RETRYABLE"] } },
+    });
+  });
+
   it("answering enqueues a durable job, and draining after the in-process work already finished is a safe no-op", async () => {
     const { models, service } = setup();
     const studentId = freshStudentId();
@@ -166,22 +200,41 @@ describe("Lotus Phase 0 outbox — durable, drainable, and safe to redrain", () 
     assert.ok(job, "the answer must durably enqueue its deferred-analysis outbox job");
     assert.equal(job!.status, "PENDING", "the job stays PENDING until a drain claims it — the in-process kick-off doesn't touch job rows");
 
-    await flush(); // let the in-process kick-off (started by answer(), not by the outbox) finish the real work
+    // The in-process kick-off (started by answer(), not by the outbox) does
+    // real Prisma writes at each review stage, so wait on its actual
+    // completion signal rather than assuming a fixed number of ticks
+    // covers it — see waitFor's own comment for why.
+    await waitFor(() => models.closureCallCount > 0);
     const callsBeforeDrain = models.closureCallCount;
-    assert.ok(callsBeforeDrain > 0, "the in-process background review must have actually run");
 
+    // This is a shared local dev database (configuredLocalDatabaseUrl's
+    // localhost-only gate, not an isolated per-run one), and a real,
+    // currently-running dev server process can be pointed at the same
+    // database concurrently — its own outbox activity can land PENDING
+    // lotus.* jobs here at any moment, independent of this test. Asserting
+    // an exact claimed/completed/failed count assumes exclusive ownership
+    // of the shared Job table, which this environment doesn't actually have.
+    // What this test can honestly guarantee is that draining claimed AT
+    // LEAST its own job; the specific outcome of THIS job is verified
+    // precisely below via finishedJob.status, which is what actually matters.
     const drained = await service.processPendingOutboxJobs();
-    assert.equal(drained.claimed, 1);
-    assert.equal(drained.completed, 1);
-    assert.equal(drained.failed, 0);
+    assert.ok(drained.claimed >= 1, `expected at least this test's own job to be claimed, got ${drained.claimed}`);
     assert.equal(models.closureCallCount, callsBeforeDrain, "draining a job whose work already completed must not redo the AI review");
 
     const finishedJob = await prisma.job.findUniqueOrThrow({ where: { id: job!.id } });
     assert.equal(finishedJob.status, "COMPLETED");
 
-    // Draining again must also be a safe no-op — nothing left to claim.
-    const second = await service.processPendingOutboxJobs();
-    assert.equal(second.claimed, 0);
+    // Draining again must be a safe no-op for THIS job specifically — a
+    // COMPLETED job is structurally excluded from processPendingOutboxJobs's
+    // own PENDING/FAILED_RETRYABLE claim query, so it can't be reclaimed.
+    // second.claimed itself isn't asserted here: on this shared database a
+    // concurrently-running dev server can enqueue a new, unrelated job
+    // between the two drains, which would be real work correctly claimed,
+    // not a double-processing bug in this job.
+    await service.processPendingOutboxJobs();
+    const stillFinished = await prisma.job.findUniqueOrThrow({ where: { id: job!.id } });
+    assert.equal(stillFinished.status, "COMPLETED");
+    assert.equal(stillFinished.attemptCount, finishedJob.attemptCount, "a second drain must not reclaim or re-run an already-completed job");
     void record;
   });
 });

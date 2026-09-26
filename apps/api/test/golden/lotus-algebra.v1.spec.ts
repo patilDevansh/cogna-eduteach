@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   algebraicallyEqual,
   classifyFactorisation,
+  classifyReducedForm,
   classifySimplification,
   isFullyFactorisedForm,
   sameFactorisation,
@@ -78,6 +79,32 @@ describe("Lotus exact algebra — simplifying a division", () => {
     assert.equal(classifySimplification("(x + 3)/(x - 3)", expr, "(x + 3)/(x - 3)"), "CORRECT");
     assert.equal(classifySimplification("(x^2 - 9)/(x^2 - 6x + 9)", expr, "(x + 3)/(x - 3)"), "UNFINISHED");
     assert.equal(classifySimplification("x/(x - 6)", expr, "(x + 3)/(x - 3)"), "INCORRECT");
+  });
+});
+
+describe("Lotus exact algebra — validating a claimed-reduced answer with no separate key", () => {
+  // Authoring time has no independently verified "key" to compare a candidate
+  // SIMPLIFY canonical answer against — the candidate IS the key being
+  // validated. classifyReducedForm exists for exactly this case: it compares
+  // the candidate against the ORIGINAL unreduced expression instead, and
+  // requires STRICTLY lower total numerator+denominator degree. Regression
+  // coverage for the bug where assertFixedItemIsValid used to call
+  // classifySimplification(answer, expression, answer) — comparing the
+  // candidate against itself, which made the UNFINISHED branch unreachable
+  // by construction (degree(s) <= degree(s) is always true) and let an
+  // unreduced canonical answer validate as CORRECT.
+  const expr = "(x^2 - 9)/(x^2 - 6x + 9)";
+  it("a genuinely reduced answer is CORRECT", () => {
+    assert.equal(classifyReducedForm("(x + 3)/(x - 3)", expr), "CORRECT");
+  });
+  it("the literal unreduced original restated as its own answer is UNFINISHED, not CORRECT", () => {
+    assert.equal(classifyReducedForm(expr, expr), "UNFINISHED");
+  });
+  it("a factored-but-uncancelled form is UNFINISHED even though it's algebraically equal", () => {
+    assert.equal(classifyReducedForm("(x-3)(x+3)/((x-3)(x-3))", expr), "UNFINISHED");
+  });
+  it("a wrong answer is INCORRECT", () => {
+    assert.equal(classifyReducedForm("x/(x - 6)", expr), "INCORRECT");
   });
 });
 

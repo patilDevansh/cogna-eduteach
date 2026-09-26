@@ -1,43 +1,12 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { sessionSecretFromEnv, verifyMac } from "@cogna/shared/dist/session";
 
 const DEMO_SCHOOL_ID = "gurukul-pilot";
 const DEMO_STUDENT_KEYS = ["aarav", "meena", "rohan", "divya", "kabir"];
-const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
 
 export type WebApiActor =
   | { role: "student"; studentId: string }
   | { role: "teacher"; teacherEmail: string; schoolId: string }
   | { role: "worker" };
-
-function isProductionLike(): boolean {
-  const era = (process.env.COGNA_ENV ?? "").trim().toLowerCase();
-  return process.env.NODE_ENV === "production" || era === "production" || era === "staging";
-}
-
-function sessionSecretFromEnv(): string | null {
-  const configured = process.env.COGNA_SESSION_SECRET?.trim();
-  if (configured) return configured;
-  if (!isProductionLike() && process.env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
-    return INSECURE_LOCAL_DEV_SESSION_SECRET;
-  }
-  return null;
-}
-
-function verifyMac(token: string, secret: string): string | null {
-  const parts = token.split(".");
-  if (parts.length !== 3 || parts[0] !== "v1") return null;
-  const expected = createHmac("sha256", secret).update(parts[1]!).digest("base64url");
-  const actual = parts[2]!;
-  const expectedBuf = Buffer.from(expected);
-  const actualBuf = Buffer.from(actual);
-  if (expectedBuf.length !== actualBuf.length) return null;
-  if (!timingSafeEqual(expectedBuf, actualBuf)) return null;
-  try {
-    return Buffer.from(parts[1]!, "base64url").toString("utf8");
-  } catch {
-    return null;
-  }
-}
 
 function readHeader(headers: Headers, name: string): string {
   return headers.get(name) ?? "";

@@ -1,11 +1,10 @@
-import { createHmac } from "node:crypto";
+import { sessionSecretFromEnv, signPayload } from "@cogna/shared/dist/session";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { rateLimited } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
 
 function loadWorkspaceEnvironment(): void {
   const candidates = [
@@ -31,11 +30,6 @@ function loadWorkspaceEnvironment(): void {
 
 loadWorkspaceEnvironment();
 
-function isProductionLike(): boolean {
-  const era = (process.env.COGNA_ENV ?? "").trim().toLowerCase();
-  return process.env.NODE_ENV === "production" || era === "production" || era === "staging";
-}
-
 function demoSessionsAllowed(): boolean {
   if (process.env.ALLOW_DEMO_STUDENT_SESSIONS === "false") return false;
   if (process.env.NODE_ENV === "production") return process.env.ALLOW_DEMO_STUDENT_SESSIONS === "true";
@@ -43,27 +37,25 @@ function demoSessionsAllowed(): boolean {
 }
 
 function canMintDemoStudent(studentId: string): boolean {
-  return demoSessionsAllowed() && /^demo_[a-z][a-z0-9_]*$/.test(studentId);
-}
-
-function sessionSecretFromEnv(): string | null {
-  const configured = process.env.COGNA_SESSION_SECRET?.trim();
-  if (configured) return configured;
-  if (!isProductionLike() && process.env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
-    return INSECURE_LOCAL_DEV_SESSION_SECRET;
-  }
-  return null;
+  // Real demo/practice-code accounts (parents.service.ts) are minted as
+  // `demo_` + randomBytes(12).toString("hex") — 24 lowercase hex chars, most
+  // of which start with a digit. Requiring a letter right after `demo_`
+  // rejected the majority of genuine demo students the moment any feature
+  // (Lotus, personalized-video, classroom) called ensureDemoStudentSession
+  // to refresh their token, even though the rest of the pattern already
+  // allows digits freely — this only ever excluded them from position 0.
+  return demoSessionsAllowed() && /^demo_[a-z0-9][a-z0-9_]*$/.test(studentId);
 }
 
 function issueStudentToken(studentId: string, ttlMs = 12 * 60 * 60 * 1000): string {
   const secret = sessionSecretFromEnv();
   if (!secret) throw new Error("Student session signing is not configured.");
-  const body = Buffer.from(JSON.stringify({ role: "student", sub: studentId, exp: Date.now() + ttlMs })).toString("base64url");
-  const mac = createHmac("sha256", secret).update(body).digest("base64url");
-  return `v1.${body}.${mac}`;
+  return signPayload(JSON.stringify({ role: "student", sub: studentId, exp: Date.now() + ttlMs }), secret);
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limited = rateLimited(request, "auth");
+  if (limited) return limited;
   const body = (await request.json().catch(() => null)) as {
     studentId?: unknown;
     name?: unknown;

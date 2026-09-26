@@ -1,0 +1,61 @@
+# Production-shaped stack: Postgres + API + web. Secrets come from ./.env.production (never committed).
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Media: set COGNA_MEDIA_STORAGE_BUCKET + COGNA_MEDIA_CDN_URL (+ AWS credentials) so more than one API replica works.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cogna}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-cogna}
+    volumes:
+      - cogna_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cogna} -d ${POSTGRES_DB:-cogna}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: { context: ., target: api }
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cogna}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cogna}?schema=public
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports: ["3001:3001"]
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cogna}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cogna}?schema=public
+    depends_on: [api]
+    ports: ["3000:3000"]
+
+  # Nightly logical backup — see docs/BACKUP_RESTORE.md. Writes to ./backups on the host.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-cogna}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-cogna}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup-postgres.sh:/backup.sh:ro
+    entrypoint: ["sh", "-c", "while true; do sh /backup.sh; sleep 86400; done"]
+
+volumes:
+  cogna_pg_data:

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } fr
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
+  LotusAdaptiveDecision,
   LotusLiveProgress,
   LotusModelAssessment,
   LotusOverrideAction,
@@ -13,11 +14,12 @@ import type {
   LotusSessionView,
   LotusStatusResponse,
   LotusStudentResponse,
+  LotusSkillEvidence,
   LotusSkillState,
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { api } from "@/lib/api";
+import { api, getLotusDevModelMode, setLotusDevModelMode } from "@/lib/api";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
 import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classroom";
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
@@ -28,6 +30,94 @@ const CONFIDENCE_CHOICES = [
   { value: 60, label: "Somewhat sure" },
   { value: 90, label: "Very sure" },
 ] as const;
+
+type ActionStatusFilter = "ALL" | "PENDING" | "IMPLEMENTED" | "DEFERRED" | "REJECTED" | "STALE";
+
+const ACTION_STATUS_FILTERS: Array<{ value: ActionStatusFilter; label: string }> = [
+  { value: "ALL", label: "All" },
+  { value: "PENDING", label: "Pending" },
+  { value: "IMPLEMENTED", label: "Implemented" },
+  { value: "DEFERRED", label: "Deferred" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "STALE", label: "Stale" },
+];
+
+function decisionOutcome(decision: LotusAdaptiveDecision): NonNullable<LotusAdaptiveDecision["outcome"]> {
+  return decision.outcome
+    ?? (decision.shownAt ? "SHOWN"
+      : decision.installedAt ? "INSTALLED"
+        : decision.implementation === "QUEUED_FOR_GENERATION" ? "QUEUED"
+          : decision.implementation === "NOT_APPLIED" ? "REJECTED"
+            : "NO_CHANGE");
+}
+
+function matchesActionStatus(audit: LotusQuestionAudit, filter: ActionStatusFilter): boolean {
+  if (filter === "ALL") return true;
+  const decision = audit.adaptiveDecision;
+  if (!decision) return false;
+  const outcomes = [decisionOutcome(decision), ...(decision.planEffects ?? []).map((effect) => effect.outcome)];
+  switch (filter) {
+    case "PENDING": return outcomes.includes("QUEUED");
+    case "IMPLEMENTED": return outcomes.includes("INSTALLED") || outcomes.includes("SHOWN");
+    case "DEFERRED": return outcomes.includes("DEFERRED");
+    case "REJECTED": return outcomes.includes("REJECTED");
+    case "STALE": return outcomes.includes("STALE");
+    default: return true;
+  }
+}
+
+function actionLabel(action: LotusAdaptiveDecision["action"]): string {
+  return action.replaceAll("_", " ").toLowerCase();
+}
+
+function SessionOverview({ audits }: { audits: LotusQuestionAudit[] }) {
+  const answered = audits.filter((audit) => audit.response).length;
+  const reviewsPending = audits.filter((audit) => audit.analysisStatus === "PENDING").length;
+  const reviewsFailed = audits.filter((audit) => audit.analysisStatus === "FAILED").length;
+  const decisions = audits.flatMap((audit) => audit.adaptiveDecision ? [audit.adaptiveDecision] : []);
+  const latestDecision = decisions.at(-1);
+  const outcomes = decisions.flatMap((decision) => [decisionOutcome(decision), ...(decision.planEffects ?? []).map((effect) => effect.outcome)]);
+  const changed = outcomes.filter((outcome) => outcome === "INSTALLED" || outcome === "SHOWN").length;
+  const waiting = outcomes.filter((outcome) => outcome === "QUEUED" || outcome === "DEFERRED").length;
+  const attention = outcomes.filter((outcome) => outcome === "REJECTED" || outcome === "STALE").length;
+  const reviewHealth = reviewsFailed > 0
+    ? `${reviewsFailed} review${reviewsFailed === 1 ? "" : "s"} failed`
+    : reviewsPending > 0
+      ? `${reviewsPending} review${reviewsPending === 1 ? "" : "s"} pending`
+      : "Reviews up to date";
+
+  return (
+    <section className={styles.sessionOverview} aria-label="Session overview">
+      <div className={styles.sessionOverviewHeading}>
+        <div>
+          <span className={styles.eyebrow}>AI Studio overview</span>
+          <h3>What Lotus currently knows</h3>
+        </div>
+        <span>{answered} answered</span>
+      </div>
+      <div className={styles.sessionOverviewGrid}>
+        <div>
+          <strong>Latest supported signal</strong>
+          <span>{latestDecision?.observedError ?? "Collecting baseline evidence; no planning decision is needed yet."}</span>
+        </div>
+        <div>
+          <strong>Next planned move</strong>
+          <span>{latestDecision
+            ? `Lotus will ${actionLabel(latestDecision.action)}${latestDecision.requestedPlacement ? ` · ${latestDecision.requestedPlacement}` : ""}.`
+            : "Keep the validated coverage plan while evidence develops."}</span>
+        </div>
+        <div>
+          <strong>Analysis health</strong>
+          <span>{reviewHealth}</span>
+        </div>
+        <div>
+          <strong>Plan impact</strong>
+          <span>{changed} changed · {waiting} waiting · {attention} needs attention</span>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const SUPERSCRIPT_DIGITS: Record<string, string> = {
   "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
@@ -254,14 +344,25 @@ function QuestionDecision({ selection }: { selection: LotusQuestionSelection }) 
   );
 }
 
-function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
+function matchingProvenanceForQuestion(question: LotusQuestion, session: LotusSessionView) {
   const selections = [session.openingAudit?.questionSelection, ...session.audits.map((audit) => audit.questionSelection)].filter(Boolean) as LotusQuestionSelection[];
   const matching = [...selections].reverse().find((selection) => selection.selectedQuestion?.prompt === question.prompt);
-  if (matching?.provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
-  if (matching?.provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
-  if (matching?.provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
+  return matching?.provenance;
+}
+
+function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
+  const provenance = matchingProvenanceForQuestion(question, session);
+  if (provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
+  if (provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
+  if (provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
   if (question.answerKey.diagnostics?.origin === "AI") return "New question made for this session";
   return "This is a hardcoded question already present in our system";
+}
+
+/** Reused-from-bank is the one provenance worth a glance: it's the only case where this exact item may have already been seen by another student. */
+function isReusedFromBank(question: LotusQuestion, session: LotusSessionView): boolean {
+  const provenance = matchingProvenanceForQuestion(question, session);
+  return provenance ? provenance === "AI_REUSED_FROM_BANK" : question.answerKey.diagnostics?.provenance === "AI_REUSED_FROM_BANK";
 }
 
 function DiagnosticDecision({ audit }: { audit: LotusQuestionAudit }) {
@@ -418,73 +519,73 @@ function DecisionPanel({ audit }: { audit: LotusQuestionAudit }) {
         <div><strong>Alternatives considered</strong><span>{decision.alternatives.join(" ")}</span></div>
         <div><strong>Proposed action</strong><span>{`Lotus proposes to ${action}${decision.targetSkill ? ` for ${decision.targetSkill.replaceAll("_", " ").toLowerCase()}` : ""}.`}</span></div>
         <div><strong>Requested placement</strong><span>{decision.requestedPlacement ?? "No replacement slot requested."}</span></div>
-        <div><strong>Action implementation</strong><span>{`${decision.implementation.replaceAll("_", " ")}: ${decision.implementationDetail}`}</span></div>
         <div><strong>What result would change the diagnosis</strong><span>{decision.expectedInformationGain}</span></div>
         {audit.analysisLate && <div><strong>Late-result safeguard</strong><span>This review was retained as evidence only. Lotus did not rewrite a later question from an obsolete response.</span></div>}
       </div>
+      <ActionTimeline decision={decision} />
+      {decision.planEffects?.length ? (
+        <section className={styles.additionalPlanEffects} aria-label="Additional plan effects">
+          <strong>Additional plan effects</strong>
+          <ul>
+            {decision.planEffects.map((effect) => (
+              <li key={`${effect.action}-${effect.targetTurn ?? "none"}`}>
+                <span>{effect.outcome.replaceAll("_", " ")}</span>
+                <div>
+                  <strong>{effect.requestedPlacement ?? actionLabel(effect.action)}</strong>
+                  <small>{effect.detail}</small>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </section>
   );
 }
 
-function actionImplementation(audit: LotusQuestionAudit): { implemented: boolean; explanation: string } {
-  if (audit.adaptiveDecision) {
-    const decision = audit.adaptiveDecision;
-    return {
-      // QUEUED_FOR_GENERATION means the governed plan action is real and
-      // durable, although its checked item is not ready to serve yet.
-      implemented: decision.implementation !== "NOT_APPLIED",
-      explanation: decision.implementationDetail,
-    };
-  }
-  const selection = audit.questionSelection;
-  const action = audit.conclusion.action;
-  if (action === "ASK") {
-    if (selection.selectedFrom === "NONE_EXIT" || !selection.selectedQuestion) {
-      return { implemented: false, explanation: "The AI asked for another question, but no next question was installed." };
-    }
-    if (selection.planningNote?.toLowerCase().includes("no question was swapped")) {
-      return { implemented: false, explanation: "The AI requested a changed diagnostic action, but the already-staged curriculum question was kept." };
-    }
-    return { implemented: true, explanation: "A new next-question action was applied to the unseen plan." };
-  }
-  const ended = selection.selectedFrom === "NONE_EXIT" || !selection.selectedQuestion;
-  return ended
-    ? { implemented: true, explanation: "The AI’s exit decision was applied; no further question was selected." }
-    : { implemented: false, explanation: "The AI requested an exit, but Lotus selected another question instead." };
-}
-
-function actionDetails(audit: LotusQuestionAudit, implementation: { implemented: boolean; explanation: string }) {
-  const conclusion = audit.conclusion;
-  const selection = audit.questionSelection;
-  const evidence = audit.response
-    ? `Answer: ${audit.response.answer || "No answer"}. ${audit.response.working ? `Working: ${audit.response.working}.` : "No working was provided."}`
-    : "No student response was recorded.";
-  const detectedError = conclusion.mistakeDescription?.trim() ||
-    (audit.verification?.status === "VERIFIED_CORRECT"
-      ? "No concrete error was detected in this response; Lotus is checking whether the correct method is reliable."
-      : conclusion.evidenceState === "INSUFFICIENT"
-        ? "No specific error was established from this response."
-        : conclusion.conclusion);
-  const uncertainty = conclusion.uncertainty?.filter(Boolean).slice(0, 2) ?? [];
-  const why = uncertainty.length > 0
-    ? `${conclusion.conclusion} ${uncertainty.join(" ")}`
-    : conclusion.conclusion;
-  const action = conclusion.action === "ASK"
-    ? selection.selectedQuestion
-      ? `Ask a fresh question to check the same skill: “${selection.selectedQuestion.prompt}”`
-      : selection.planningNote || selection.reason || "Ask another diagnostic question."
-    : conclusion.exitDiagnostic
-      ? "End the diagnostic because the available evidence supports stopping."
-      : `Continue the diagnostic with the selected action: ${conclusion.action.replaceAll("_", " ")}.`;
-  const placement = selection.planningNote ||
-    (selection.selectedQuestion
-      ? `Selected from ${selection.selectedFrom.toLowerCase().replaceAll("_", " ")}.`
-      : "No question was selected.");
-  const followUp = uncertainty.length > 0
-    ? uncertainty.join(" ")
-    : "A repeat of the same skill on a fresh item will show whether this is a stable gap or a one-off slip.";
-
-  return { evidence, detectedError, why, action, placement, followUp, implementation };
+function ActionTimeline({ decision }: { decision: LotusAdaptiveDecision }) {
+  const changesQuestion = decision.action !== "KEEP" && decision.action !== "STOP" && decision.action !== "REMOVE_OR_DEFER";
+  const outcome = decisionOutcome(decision);
+  const terminal = outcome === "DEFERRED" || outcome === "REJECTED" || outcome === "STALE";
+  const outcomeLabel: Record<typeof outcome, string> = {
+    NO_CHANGE: "No change needed",
+    QUEUED: "Preparing",
+    INSTALLED: "Awaiting student",
+    SHOWN: "Shown",
+    DEFERRED: "Deferred",
+    REJECTED: "Rejected",
+    STALE: "Stale",
+  };
+  const steps = [
+    { label: "Proposed", state: "done", detail: decision.recommendedAt ? "Evidence was converted into a server-validated planning recommendation." : "This decision was recorded from the available evidence." },
+    !changesQuestion
+      ? { label: "Plan outcome", state: terminal ? "blocked" : "done", detail: decision.implementationDetail }
+      : decision.implementation === "QUEUED_FOR_GENERATION"
+        ? { label: "Queued", state: "active", detail: "A replacement is waiting for independent question checks before it can enter the plan." }
+        : { label: "Validated", state: decision.validatedAt ? "done" : terminal ? "blocked" : "pending", detail: decision.validatedAt ? "The candidate passed answer, misconception, and duplicate checks." : terminal ? decision.implementationDetail : "Validation status is being recorded." },
+    changesQuestion
+      ? { label: "Installed", state: decision.installedAt ? "done" : terminal ? "blocked" : "pending", detail: decision.installedAt ? `${decision.requestedPlacement ?? "The requested slot"} was changed in the unseen plan.` : terminal ? "No item was installed." : "A validated item has not yet been installed." }
+      : null,
+    changesQuestion
+      ? { label: "Shown", state: decision.shownAt ? "done" : terminal ? "blocked" : "pending", detail: decision.shownAt ? `${decision.actualPlacement ?? "The installed slot"} was confirmed when the student submitted it.` : "Awaiting confirmation that the student has reached this item." }
+      : null,
+  ].filter(Boolean) as Array<{ label: string; state: "done" | "active" | "blocked" | "pending"; detail: string }>;
+  return (
+    <section className={styles.actionTimeline} aria-label="Action lifecycle">
+      <div className={styles.actionTimelineHeading}>
+        <strong>Action lifecycle</strong>
+        <span>{outcomeLabel[outcome]}</span>
+      </div>
+      <ol>
+        {steps.map((step) => (
+          <li key={step.label} className={styles[`actionTimeline${step.state[0].toUpperCase()}${step.state.slice(1)}`]}>
+            <span aria-hidden="true" />
+            <div><strong>{step.label}</strong><small>{step.detail}</small></div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 }
 
 function AuditCard({
@@ -552,7 +653,9 @@ function AuditCard({
 
         <EvidencePanel audit={audit} />
 
-        <QuestionDecision selection={audit.questionSelection} />
+        {(audit.questionSelection.primaryProposal || audit.questionSelection.challengerProposal) && (
+          <QuestionDecision selection={audit.questionSelection} />
+        )}
         <DiagnosticDecision audit={audit} />
 
         {audit.analysisStatus === "PENDING" && (
@@ -562,29 +665,34 @@ function AuditCard({
           </div>
         )}
 
-        {(opening || audit.analysisSource === "AI_REVIEW") && audit.analysisStatus === "COMPLETE" && <>
-          {audit.gpt && audit.challenger && <div className={styles.modelGrid}>
-            <AssessmentCard name="GPT primary thought" assessment={audit.gpt} className={styles.gpt} />
-            <AssessmentCard name="GPT challenger thought" assessment={audit.challenger} className={styles.challenger} />
-          </div>}
+        {(opening || audit.analysisSource === "AI_REVIEW") && audit.analysisStatus === "COMPLETE" && (audit.gpt || audit.debate) && (
+          <details className={styles.reasoningDrawer}>
+            <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
+            <div className={styles.reasoningBody}>
+              {audit.gpt && audit.challenger && <div className={styles.modelGrid}>
+                <AssessmentCard name="GPT primary thought" assessment={audit.gpt} className={styles.gpt} />
+                <AssessmentCard name="GPT challenger thought" assessment={audit.challenger} className={styles.challenger} />
+              </div>}
 
-          {audit.debate && <section className={`${styles.section} ${styles.debate}`}>
-          <h4>What they argued</h4>
-          <p><strong>Agreement</strong></p>
-          <List items={audit.debate.agreements} />
-          <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
-          <List items={audit.debate.disagreements} />
-          <p style={{ marginTop: "0.65rem" }}>
-            <strong>Concrete example:</strong> {audit.debate.disagreementExample}
-          </p>
-          {audit.debate.acceptedImprovements?.length > 0 && (
-            <>
-              <p style={{ marginTop: "0.65rem" }}><strong>GPT accepted</strong></p>
-              <List items={audit.debate.acceptedImprovements} />
-            </>
-          )}
-          </section>}
-        </>}
+              {audit.debate && <section className={`${styles.section} ${styles.debate}`}>
+              <h4>What they argued</h4>
+              <p><strong>Agreement</strong></p>
+              <List items={audit.debate.agreements} />
+              <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
+              <List items={audit.debate.disagreements} />
+              <p style={{ marginTop: "0.65rem" }}>
+                <strong>Concrete example:</strong> {audit.debate.disagreementExample}
+              </p>
+              {audit.debate.acceptedImprovements?.length > 0 && (
+                <>
+                  <p style={{ marginTop: "0.65rem" }}><strong>GPT accepted</strong></p>
+                  <List items={audit.debate.acceptedImprovements} />
+                </>
+              )}
+              </section>}
+            </div>
+          </details>
+        )}
 
         <section className={`${styles.section} ${styles.conclusion}`}>
           <div className={styles.auditMeta}>
@@ -618,42 +726,6 @@ function AuditCard({
               )}
             </>
           )}
-          {audit.analysisStatus === "COMPLETE" && audit.analysisSource === "AI_REVIEW" && audit.response && (() => {
-            const implementation = actionImplementation(audit);
-            const details = actionDetails(audit, implementation);
-            return (
-              <div className={`${styles.actionImplementation} ${implementation.implemented ? styles.actionImplemented : styles.actionNotImplemented}`}>
-                <div className={styles.actionDetail}>
-                  <strong>Evidence used</strong>
-                  <span>{details.evidence}</span>
-                </div>
-                <div className={styles.actionDetail}>
-                  <strong>What error was detected?</strong>
-                  <span>{details.detectedError}</span>
-                </div>
-                <div className={styles.actionDetail}>
-                  <strong>Why is Lotus taking this action?</strong>
-                  <span>{details.why}</span>
-                </div>
-                <div className={styles.actionDetail}>
-                  <strong>What action is Lotus taking?</strong>
-                  <span>{details.action}</span>
-                </div>
-                <div className={styles.actionDetail}>
-                  <strong>Where is this action being placed?</strong>
-                  <span>{details.placement}</span>
-                </div>
-                <div className={styles.actionDetail}>
-                  <strong>What would confirm the diagnosis?</strong>
-                  <span>{details.followUp}</span>
-                </div>
-                <div className={styles.actionResult}>
-                  <strong>Action implemented: {implementation.implemented ? "YES" : "NO"}</strong>
-                  <span>{implementation.explanation}</span>
-                </div>
-              </div>
-            );
-          })()}
         </section>
         <DecisionPanel audit={audit} />
       </div>
@@ -693,20 +765,27 @@ function LiveProgressCard({ progress, index }: { progress: LotusLiveProgress; in
             {progress.reflectionPrompt}
           </p>
         )}
-        {progress.gpt && progress.challenger && (
-          <div className={styles.modelGrid}>
-            <AssessmentCard name="GPT primary thought" assessment={progress.gpt} className={styles.gpt} />
-            <AssessmentCard name="GPT challenger thought" assessment={progress.challenger} className={styles.challenger} />
-          </div>
-        )}
-        {progress.debate && (
-          <section className={`${styles.section} ${styles.debate}`}>
-            <h4>What they argued</h4>
-            <p><strong>Agreement</strong></p>
-            <List items={progress.debate.agreements} />
-            <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
-            <List items={progress.debate.disagreements} />
-          </section>
+        {(progress.gpt || progress.debate) && (
+          <details className={styles.reasoningDrawer}>
+            <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
+            <div className={styles.reasoningBody}>
+              {progress.gpt && progress.challenger && (
+                <div className={styles.modelGrid}>
+                  <AssessmentCard name="GPT primary thought" assessment={progress.gpt} className={styles.gpt} />
+                  <AssessmentCard name="GPT challenger thought" assessment={progress.challenger} className={styles.challenger} />
+                </div>
+              )}
+              {progress.debate && (
+                <section className={`${styles.section} ${styles.debate}`}>
+                  <h4>What they argued</h4>
+                  <p><strong>Agreement</strong></p>
+                  <List items={progress.debate.agreements} />
+                  <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
+                  <List items={progress.debate.disagreements} />
+                </section>
+              )}
+            </div>
+          </details>
         )}
       </div>
     </details>
@@ -776,12 +855,86 @@ const SKILL_STATE_LABEL: Record<LotusSkillState, string> = {
   NOT_TESTED_DEPENDENCY: "not tested — depends on a gap",
 };
 
-function FinalReport({
+const SKILL_EVIDENCE_LABEL: Record<LotusSkillEvidence["kind"], string> = {
+  SECURE: "demonstrated securely",
+  MISTAKE: "mistake observed",
+  UNFINISHED: "method was unfinished",
+  DID_NOT_KNOW: "asked for support",
+};
+
+/**
+ * The final report is intentionally short for the student. This companion is
+ * teacher-only: it lets a teacher audit each report state back to the exact
+ * question-level evidence, while making it equally obvious when Lotus has no
+ * direct evidence and has retained uncertainty instead of guessing.
+ */
+function ReportEvidenceTrace({
   session,
-  classroomAssignmentId,
+  audits,
 }: {
   session: LotusSessionView;
-  classroomAssignmentId?: string | null;
+  audits: LotusQuestionAudit[];
+}) {
+  const report = session.finalReport;
+  if (!report?.skills?.length) return null;
+
+  const traceableSkills = report.skills.map((skill) => {
+    const evidence = audits.flatMap((audit, index) => (audit.skillEvidence ?? [])
+      .filter((item) => item.skillId === skill.skillId)
+      .map((item) => ({ item, questionNumber: index })));
+    return { skill, evidence };
+  });
+
+  return (
+    <section className={styles.reportEvidenceTrace} aria-label="Final report evidence">
+      <div className={styles.reportEvidenceTraceHeading}>
+        <div>
+          <span className={styles.eyebrow}>AI Studio report audit</span>
+          <h3>Why Lotus reached each report conclusion</h3>
+        </div>
+        <span>Teacher only</span>
+      </div>
+      <p className={styles.reportEvidenceTraceIntro}>
+        Each conclusion below is linked to the student response that contributed to it. No listed response means Lotus retained an untested or uncertain state rather than inferring a gap.
+      </p>
+      <ul className={styles.reportEvidenceTraceList}>
+        {traceableSkills.map(({ skill, evidence }) => (
+          <li key={skill.skillId}>
+            <div className={styles.reportEvidenceTraceSkill}>
+              <strong>{skill.name}</strong>
+              <span>{SKILL_STATE_LABEL[skill.state]}</span>
+            </div>
+            {skill.evidence.length > 0 && (
+              <p><strong>Report rationale:</strong> {skill.evidence.join(" · ")}</p>
+            )}
+            {evidence.length > 0 ? (
+              <ul className={styles.reportEvidenceTraceItems}>
+                {evidence.map(({ item, questionNumber }, itemIndex) => (
+                  <li key={`${item.skillId}-${questionNumber}-${itemIndex}`}>
+                    <strong>Question {questionNumber}</strong>
+                    <span>{SKILL_EVIDENCE_LABEL[item.kind]}{item.source === "ANALYSIS" ? " · AI-reviewed" : " · code-verified"}</span>
+                    <small>{item.description ?? item.mistake ?? "This response contributed direct evidence for this skill."}</small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={styles.reportEvidenceTraceEmpty}>
+                No direct student response was used for this skill. Lotus records it as {SKILL_STATE_LABEL[skill.state]}, not as a confirmed gap.
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function FinalReport({
+  session,
+  teachingHref,
+}: {
+  session: LotusSessionView;
+  teachingHref: string | null;
 }) {
   const report = session.finalReport;
   if (!report) return null;
@@ -828,13 +981,15 @@ function FinalReport({
           <List items={report.skills.map((skill) => `${skill.name}: ${SKILL_STATE_LABEL[skill.state]}`)} />
         </div>
       ) : null}
-      <Link
-        className="btn btn-primary"
-        style={{ marginTop: "1rem" }}
-        href={classroomAssignmentId ? "/student/classroom/live" : "/student/lotus/learn"}
-      >
-        {classroomAssignmentId ? "Return to the classroom queue →" : "Start the learning path Lotus selected →"}
-      </Link>
+      {teachingHref ? (
+        <Link className="btn btn-primary" style={{ marginTop: "1rem" }} href={teachingHref}>
+          Start your lesson →
+        </Link>
+      ) : (
+        <button className="btn btn-primary" style={{ marginTop: "1rem" }} type="button" disabled>
+          Preparing your lesson…
+        </button>
+      )}
     </section>
   );
 }
@@ -855,10 +1010,33 @@ function LotusPage() {
   const [observer, setObserver] = useState(false);
   const [status, setStatus] = useState<LotusStatusResponse | null>(null);
   const [session, setSession] = useState<LotusSessionView | null>(null);
+  const [observerSession, setObserverSession] = useState<LotusSessionView | null>(null);
+  const [observerError, setObserverError] = useState("");
+  const [actionStatusFilter, setActionStatusFilter] = useState<ActionStatusFilter>("ALL");
   const [answer, setAnswer] = useState("");
   const [workingLines, setWorkingLines] = useState(["", "", ""]);
-  const [confidence, setConfidence] = useState(60);
+  const [confidence, setConfidence] = useState<number | null>(null);
+  // A missing confidence pick nudges the section itself (highlight + shake)
+  // rather than printing an error line — incrementing remounts the wrapper
+  // below (via `key`) so the CSS animation replays on every blocked attempt,
+  // not just the first.
+  const [confidenceNudge, setConfidenceNudge] = useState(0);
+  const confidenceRef = useRef<HTMLDivElement | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
+  // Dev-only: lets a developer point this browser tab at the free, instant
+  // fake-model API instead of the live one while iterating on UI, without an
+  // engineer manually restarting the API process. Never rendered in
+  // production (see the isDevBuild check below); persisted for this tab only
+  // so it survives the Start click and every later Lotus API call.
+  const [devFakeModel, setDevFakeModel] = useState(false);
+  useEffect(() => {
+    setDevFakeModel(getLotusDevModelMode() === "fake");
+  }, []);
+  function toggleDevFakeModel() {
+    const next = !devFakeModel;
+    setDevFakeModel(next);
+    setLotusDevModelMode(next ? "fake" : "real");
+  }
   const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -869,6 +1047,7 @@ function LotusPage() {
   const [pendingSubmission, setPendingSubmission] = useState<LotusStudentResponse | null>(null);
   const [error, setError] = useState("");
   const [liveProgress, setLiveProgress] = useState<LotusLiveProgress | null>(null);
+  const [teachingHref, setTeachingHref] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
   const activeMathFieldRef = useRef<HTMLInputElement | null>(null);
@@ -927,6 +1106,64 @@ function LotusPage() {
     () => session ? [session.openingAudit, ...session.audits] : [],
     [session],
   );
+  const observerAudits = useMemo(
+    () => observerSession ? [observerSession.openingAudit, ...observerSession.audits] : [],
+    [observerSession],
+  );
+  const filteredObserverAudits = useMemo(
+    () => observerAudits.flatMap((audit, index) => matchesActionStatus(audit, actionStatusFilter) ? [{ audit, index }] : []),
+    [actionStatusFilter, observerAudits],
+  );
+
+  // The student session stays deliberately redacted even when this route is
+  // used in an internal demo. AI Studio is fetched separately with a verified
+  // teacher credential; a query parameter or UI toggle can never upgrade the
+  // student's own network payload.
+  useEffect(() => {
+    if (!observer || !session) {
+      setObserverSession(null);
+      setObserverError("");
+      return;
+    }
+    let cancelled = false;
+    api.getLotusObserverSession(session.sessionId)
+      .then((next) => {
+        if (cancelled) return;
+        setObserverSession(next);
+        setObserverError("");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setObserverSession(null);
+        setObserverError(err instanceof Error ? err.message : "A verified teacher session is required to open AI Studio.");
+    });
+    return () => { cancelled = true; };
+  }, [observer, session?.sessionId, session?.audits.length, session?.status]);
+
+  // A review can finish after the student has already reached the next
+  // question. The student-facing session remains deliberately redacted, but
+  // an authorised AI Studio must not keep showing the pre-review decision
+  // until the child submits again. Poll only while its own durable observer
+  // record has pending analysis, and stop as soon as it settles.
+  const observerHasPendingAnalysis = observerAudits.some((audit) => audit.analysisStatus === "PENDING");
+  useEffect(() => {
+    if (!observer || !session || !observerHasPendingAnalysis) return;
+    let cancelled = false;
+    const refresh = () => {
+      void api.getLotusObserverSession(session.sessionId)
+        .then((fresh) => {
+          if (!cancelled) setObserverSession(fresh);
+        })
+        .catch((err) => {
+          if (!cancelled) setObserverError(err instanceof Error ? err.message : "Could not refresh the authorised observer view.");
+        });
+    };
+    const timer = window.setInterval(refresh, 1_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [observer, observerHasPendingAnalysis, session?.sessionId]);
 
   function stopPolling() {
     if (pollTimerRef.current !== null) {
@@ -1012,7 +1249,8 @@ function LotusPage() {
   function resetResponse() {
     setAnswer("");
     setWorkingLines(["", "", ""]);
-    setConfidence(60);
+    setConfidence(null);
+    setConfidenceNudge(0);
     setDidNotKnow(false);
     setQuestionStartedAt(Date.now());
   }
@@ -1029,17 +1267,24 @@ function LotusPage() {
           studentId,
           lotusSessionId: next.sessionId,
         })
-        .then((video) => classroomAssignmentId ? api.completeClassroomAssignment(classroomAssignmentId, {
-          diagnosticSessionId: next.sessionId,
-          videoAssignmentId: video.id,
-          result: {
-            outcome: next.finalReport?.outcome,
-            startingPoint: next.finalReport?.startingPoint,
-            observedStrengths: next.finalReport?.observedStrengths,
-            uncertainties: next.finalReport?.uncertainAreas,
-            audits: next.audits.length,
-          },
-        }) : undefined)
+        .then(async (video) => {
+          if (classroomAssignmentId) {
+            await api.completeClassroomAssignment(classroomAssignmentId, {
+              diagnosticSessionId: next.sessionId,
+              videoAssignmentId: video.id,
+              result: {
+                outcome: next.finalReport?.outcome,
+                startingPoint: next.finalReport?.startingPoint,
+                observedStrengths: next.finalReport?.observedStrengths,
+                uncertainties: next.finalReport?.uncertainAreas,
+                audits: next.audits.length,
+              },
+            });
+          }
+          const href = `/student/personalized-video?studentId=${encodeURIComponent(studentId)}&video=${encodeURIComponent(video.id)}`;
+          setTeachingHref(href);
+          router.push(href);
+        })
         .catch(() => undefined);
     }
   }
@@ -1075,6 +1320,18 @@ function LotusPage() {
       setError("Enter an answer or choose “I don’t know”.");
       return;
     }
+    // Confidence has no honest default: forcing a real tap (rather than a
+    // pre-selected button) is what makes the signal usable for distinguishing
+    // a slip from a stable gap. Only asked on turns Lotus flagged as
+    // evidence-critical (requiresConfidenceProbe) — asking on every single
+    // question was producing an unclicked, meaningless default instead of a
+    // real signal. Skipped when "I don't know" already gives an explicit
+    // low-confidence signal on its own.
+    if (!session || (!pendingSubmission && !didNotKnow && question?.requiresConfidenceProbe && confidence === null)) {
+      setConfidenceNudge((n) => n + 1);
+      confidenceRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     // The brackets test ends at 20 minutes, so its staged question would be refused after that. The factorisation test has no time limit.
     const staged = session.topic === "FACTORISATION" || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
       ? session.upcomingQuestions?.[0]
@@ -1082,7 +1339,7 @@ function LotusPage() {
     const submission: LotusStudentResponse = pendingSubmission ?? {
       answer: didNotKnow ? "I don't know" : answer.trim(),
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
-      confidence,
+      confidence: confidence ?? 60,
       responseTimeMs: Date.now() - questionStartedAt,
       didNotKnow,
       submissionId: crypto.randomUUID(),
@@ -1123,8 +1380,12 @@ function LotusPage() {
     setBusy(true);
     setError("");
     try {
-      const next = await api.overrideLotusSession(session.sessionId, studentId, action);
-      rememberSession(next);
+      const observerNext = await api.overrideLotusSession(session.sessionId, studentId, action);
+      setObserverSession(observerNext);
+      // Keep the student pane bound to its redacted read, never to the
+      // teacher-only response returned by the observer action.
+      const studentNext = await api.getLotusSession(session.sessionId);
+      rememberSession(studentNext);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The observer override failed.");
     } finally {
@@ -1186,6 +1447,7 @@ function LotusPage() {
             )}
             <span className={styles.lotusName}>Lotus</span>
             <span className={styles.experimental}>Experimental AI Lab</span>
+            {devFakeModel && <span className={styles.devModelBadge}>Dev · fake model</span>}
           </div>
           <div className={styles.statusRow}>
             {observer && <span className={styles.observerBadge}>Observer view</span>}
@@ -1229,6 +1491,12 @@ function LotusPage() {
                   Lotus is not ready. Missing: {status.missingConfiguration.join(", ")}.
                 </div>
               )}
+              {process.env.NODE_ENV !== "production" && (
+                <label className={styles.devModelToggle}>
+                  <input type="checkbox" checked={devFakeModel} onChange={toggleDevFakeModel} />
+                  Dev: use free fake model instead of live (no cost, instant, for UI-only changes)
+                </label>
+              )}
               <div className={styles.actions} style={{ marginTop: "1.5rem" }}>
                 <button className="btn btn-primary" type="button" onClick={start} disabled={busy || !studentId || !status?.ready}>
                   {busy ? "Preparing your questions…" : `Start for ${studentName || "student"}`}
@@ -1241,7 +1509,7 @@ function LotusPage() {
           <div className={observer ? styles.layout : styles.layoutStudent}>
             <div className={styles.studentPane}>
             {session.status === "COMPLETE" ? (
-              <FinalReport session={session} classroomAssignmentId={classroomAssignmentId} />
+              <FinalReport session={session} teachingHref={teachingHref} />
             ) : preparing ? (
               <section className={styles.introCard} aria-live="polite">
                 <div className={styles.preparationSpinner} aria-hidden="true"><span /></div>
@@ -1274,7 +1542,12 @@ function LotusPage() {
                     <div className={styles.phaseRow}>
                       <span className={styles.phaseBadge}>{question.phase}</span>
                       <span className={styles.muted}>{question.subtopic}</span>
-                      <span className={styles.questionProvenance} role="status">{provenanceLabelForQuestion(question, session)}</span>
+                      <span
+                        className={`${styles.questionProvenance} ${isReusedFromBank(question, session) ? styles.questionProvenanceReused : ""}`}
+                        role="status"
+                      >
+                        {provenanceLabelForQuestion(question, session)}
+                      </span>
                     </div>
                     <strong className={styles.questionNumber}>Question {shownQuestionNumber} of {totalQuestions}</strong>
                   </div>
@@ -1332,6 +1605,20 @@ function LotusPage() {
                       </div>
                     )}
 
+                    {question.type !== "MULTIPLE_CHOICE" && (
+                      <div className={styles.mathToolbar} aria-label="Math toolbox">
+                        <span className={styles.mathToolbarLabel}>Math tools</span>
+                        {[
+                          ["+", "+"], ["−", "-"], ["×", "×"], ["÷", "÷"],
+                          ["(", "("], [")", ")"], ["^", "^"], ["x²", "²"], ["x³", "³"],
+                        ].map(([label, token]) => (
+                          <button key={label} type="button" onClick={() => insertMathToken(token)} disabled={inputLocked}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     {question.asksForWorking && (
                       <div className="field">
                         <label>Show your working, one step at a time</label>
@@ -1375,37 +1662,29 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.type !== "MULTIPLE_CHOICE" && (
-                      <div className={styles.mathToolbar} aria-label="Math toolbox">
-                        <span className={styles.mathToolbarLabel}>Math tools</span>
-                        {[
-                          ["+", "+"], ["−", "-"], ["×", "×"], ["÷", "÷"],
-                          ["(", "("], [")", ")"], ["^", "^"], ["x²", "²"], ["x³", "³"],
-                        ].map(([label, token]) => (
-                          <button key={label} type="button" onClick={() => insertMathToken(token)} disabled={inputLocked}>
-                            {label}
-                          </button>
-                        ))}
+                    {question.requiresConfidenceProbe && (
+                      <div
+                        key={confidenceNudge}
+                        ref={confidenceRef}
+                        className={`${styles.confidence} ${confidenceNudge > 0 ? styles.confidenceNudge : ""}`}
+                      >
+                        <span>How sure are you?</span>
+                        <div className={styles.confidenceChoices}>
+                          {CONFIDENCE_CHOICES.map((choice) => (
+                            <button
+                              key={choice.value}
+                              type="button"
+                              className={confidence === choice.value ? styles.confidenceSelected : ""}
+                              aria-pressed={confidence === choice.value}
+                              onClick={() => setConfidence(choice.value)}
+                              disabled={inputLocked}
+                            >
+                              {choice.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
-
-                    <div className={styles.confidence}>
-                      <span>How sure are you?</span>
-                      <div className={styles.confidenceChoices}>
-                        {CONFIDENCE_CHOICES.map((choice) => (
-                          <button
-                            key={choice.value}
-                            type="button"
-                            className={confidence === choice.value ? styles.confidenceSelected : ""}
-                            aria-pressed={confidence === choice.value}
-                            onClick={() => setConfidence(choice.value)}
-                            disabled={inputLocked}
-                          >
-                            {choice.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
 
                     <label className={styles.dontKnow}>
                       <input
@@ -1443,37 +1722,77 @@ function LotusPage() {
 
             {observer && (
               <aside className={styles.observerPane}>
-                <div className={styles.observerHeader}>
-                  <div className={styles.observerActions}>
-                    {session.status === "ACTIVE" && (
-                      <>
-                        <button type="button" onClick={() => override("REPLACE_QUESTION")} disabled={inputLocked}>
-                          Replace question
-                        </button>
-                        <button type="button" onClick={() => override("END_NOW")} disabled={inputLocked}>
-                          End &amp; report
-                        </button>
-                      </>
+                {observerError ? (
+                  <section className={styles.decisionPanel} aria-label="AI Studio access">
+                    <span className={styles.eyebrow}>AI Studio</span>
+                    <h4>Teacher access required</h4>
+                    <p>AI Studio contains live diagnostic hypotheses and is available only through a verified teacher session.</p>
+                  </section>
+                ) : !observerSession ? (
+                  <section className={styles.decisionPanel} aria-label="AI Studio loading">
+                    <span className={styles.eyebrow}>AI Studio</span>
+                    <h4>Loading authorised observer view</h4>
+                    <p>Fetching the durable diagnostic record without changing the student view.</p>
+                  </section>
+                ) : (
+                  <>
+                    <div className={styles.observerHeader}>
+                      <div className={styles.observerActions}>
+                        {observerSession.status === "ACTIVE" && (
+                          <>
+                            <button type="button" onClick={() => override("REPLACE_QUESTION")} disabled={inputLocked}>
+                              Replace question
+                            </button>
+                            <button type="button" onClick={() => override("END_NOW")} disabled={inputLocked}>
+                              End &amp; report
+                            </button>
+                          </>
+                        )}
+                        <span className={styles.observerBadge}>Do not show student</span>
+                      </div>
+                    </div>
+                    <SessionOverview audits={observerAudits} />
+                    <ReportEvidenceTrace session={observerSession} audits={observerAudits} />
+                    {observerSession.topic === "FACTORISATION" && observerSession.status === "ACTIVE" && (
+                      <UnseenPlanPanel sessionId={observerSession.sessionId} answeredCount={observerAudits.length} />
                     )}
-                    <span className={styles.observerBadge}>Do not show student</span>
-                  </div>
-                </div>
-                {session.topic === "FACTORISATION" && session.status === "ACTIVE" && (
-                  <UnseenPlanPanel sessionId={session.sessionId} answeredCount={audits.length} />
+                    <div className={styles.actionStatusFilters} role="group" aria-label="Decision status">
+                      <span>Decision status</span>
+                      <div>
+                        {ACTION_STATUS_FILTERS.map((filter) => (
+                          <button
+                            key={filter.value}
+                            type="button"
+                            aria-pressed={actionStatusFilter === filter.value}
+                            onClick={() => setActionStatusFilter(filter.value)}
+                          >
+                            {filter.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className={styles.timeline}>
+                      {filteredObserverAudits.map(({ audit, index }) => (
+                        <AuditCard
+                          key={`${audit.question.id}-${index}`}
+                          audit={audit}
+                          opening={index === 0}
+                          index={index}
+                          latest={index === observerAudits.length - 1}
+                          liveProgress={observerSession.liveProgress}
+                        />
+                      ))}
+                      {filteredObserverAudits.length === 0 && (
+                        <p className={styles.actionFilterEmpty} role="status">
+                          No {ACTION_STATUS_FILTERS.find((filter) => filter.value === actionStatusFilter)?.label.toLowerCase()} decision actions are recorded yet.
+                        </p>
+                      )}
+                      {busy && liveProgress && (actionStatusFilter === "ALL" || actionStatusFilter === "PENDING") && (
+                        <LiveProgressCard progress={liveProgress} index={observerAudits.length} />
+                      )}
+                    </div>
+                  </>
                 )}
-                <div className={styles.timeline}>
-                  {audits.map((audit, index) => (
-                    <AuditCard
-                      key={`${audit.question.id}-${index}`}
-                      audit={audit}
-                      opening={index === 0}
-                      index={index}
-                      latest={index === audits.length - 1}
-                      liveProgress={session.liveProgress}
-                    />
-                  ))}
-                  {busy && liveProgress && <LiveProgressCard progress={liveProgress} index={audits.length} />}
-                </div>
               </aside>
             )}
           </div>

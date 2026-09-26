@@ -9,8 +9,8 @@
  * OpenAI calls. These tests prove that the *wiring* around a declared
  * capability profile behaves correctly (evidence rules, adaptive decisions,
  * no duplicate probes, honest report boundaries) — they are NOT a measurement
- * of live-model diagnostic accuracy. See the companion doc for the blinded
- * educator-review workflow that live-model evaluation actually requires.
+ * of live-model diagnostic accuracy. The separate live-model evaluator uses
+ * the same capability profiles with a versioned autonomous transcript oracle.
  *
  * New file only. Does not modify lotus.service.ts, lotus-persistence.ts,
  * lotus-reconcile.ts, apps/web/.../lotus/page.tsx, packages/shared's lotus
@@ -70,10 +70,10 @@ async function playPersona(
   service: LotusService,
   persona: PersonaProfile,
   studentId: string,
-): Promise<{ view: LotusSessionView; answered: number; transcript: Array<{ turn: number; skillId?: string; answer: string; didNotKnow: boolean }> }> {
+): Promise<{ view: LotusSessionView; answered: number; transcript: Array<{ turn: number; skillId?: string; answer: string; working: string; didNotKnow: boolean; isDeliberateMistake: boolean }> }> {
   let view = await startReady(service, studentId);
   let answered = 0;
-  const transcript: Array<{ turn: number; skillId?: string; answer: string; didNotKnow: boolean }> = [];
+  const transcript: Array<{ turn: number; skillId?: string; answer: string; working: string; didNotKnow: boolean; isDeliberateMistake: boolean }> = [];
   while (view.status === "ACTIVE" && answered < 26) {
     await flush();
     view = await service.get(view.sessionId);
@@ -83,11 +83,18 @@ async function playPersona(
     answered += 1;
     const plan = chooseResponse(persona, currentQuestion, answered);
     const confidence = persona.confidenceBand[0] + Math.floor((persona.confidenceBand[1] - persona.confidenceBand[0]) / 2);
-    transcript.push({ turn: answered, skillId: currentQuestion?.answerKey?.diagnostics?.skillId, answer: plan.answer, didNotKnow: plan.didNotKnow });
+    transcript.push({
+      turn: answered,
+      skillId: currentQuestion?.answerKey?.diagnostics?.skillId,
+      answer: plan.answer,
+      working: plan.working,
+      didNotKnow: plan.didNotKnow,
+      isDeliberateMistake: plan.isDeliberateMistake,
+    });
     const before = view.currentQuestion?.id;
     view = await service.answer(view.sessionId, studentId, {
       answer: plan.answer,
-      working: plan.didNotKnow ? "" : `Working: ${plan.answer}`,
+      working: plan.working,
       confidence,
       responseTimeMs: persona.paceMsBand[0],
       didNotKnow: plan.didNotKnow,
@@ -103,6 +110,24 @@ async function playPersona(
   await flush();
   view = await service.get(view.sessionId);
   return { view, answered, transcript };
+}
+
+/** Deliberate misconceptions must carry a substantive method claim. This
+ * keeps the persona catalogue useful for the live-model oracle: a correct
+ * final answer, an explicit support signal, and a specific wrong method are
+ * intentionally different evidence types. */
+function assertTranscriptWorkingIsMeaningful(
+  transcript: Array<{ working: string; didNotKnow: boolean; isDeliberateMistake: boolean }>,
+): void {
+  for (const entry of transcript) {
+    if (entry.didNotKnow) {
+      assert.match(entry.working, /not sure|don't know/i, "a support signal should explain that the learner cannot begin");
+    }
+    if (entry.isDeliberateMistake) {
+      assert.ok(entry.working.trim().length > 35, "a deliberate misconception must include meaningful working, not an echoed answer");
+      assert.notEqual(entry.working.trim(), "Working:", "a deliberate misconception must never use a placeholder working string");
+    }
+  }
 }
 
 /** No factorisation item — installed, staged, or in the private session state — may ever be HARDCODED_SYSTEM provenance or non-AI origin. */
@@ -170,7 +195,7 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
     it(`${persona.id} (${persona.displayName}): honest evidence, no duplicate probes, no hardcoded fallback, explicit decisions`, async () => {
       const { service } = setup();
       const studentId = `demo_persona_${persona.id.toLowerCase()}`;
-      const { view, answered } = await playPersona(service, persona, studentId);
+      const { view, answered, transcript } = await playPersona(service, persona, studentId);
 
       assert.equal(view.status, "COMPLETE", `${persona.id} must reach COMPLETE within the 25-question budget`);
       assert.ok(view.finalReport, `${persona.id} must produce a final report`);
@@ -179,6 +204,7 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
       assertNoRunawayDuplicateProbes(service, view, persona);
       assertEveryTurnHasAnExplicitDecision(view);
       assertReportDoesNotOverclaim(view);
+      assertTranscriptWorkingIsMeaningful(transcript);
 
       console.log(
         `    ${persona.id}: answered=${answered} outcome=${view.finalReport!.outcome} ` +
@@ -236,12 +262,16 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
     const first = internal(service, view.sessionId).currentQuestion;
     const plan = chooseResponse(persona, first, 1);
     view = await service.answer(view.sessionId, "demo_persona_p04_check", {
-      answer: plan.answer, working: `Working: ${plan.answer}`, confidence: 70, responseTimeMs: 30_000, didNotKnow: false,
+      answer: plan.answer, working: plan.working, confidence: 70, responseTimeMs: 30_000, didNotKnow: false,
       submissionId: "p04-check-1", questionId: first.id, nextQuestionId: view.upcomingQuestions?.[0]?.id,
     });
     await flush();
-    view = await service.get(view.sessionId);
-    const audit = view.audits[0]!;
+    // An adaptive decision is deliberately absent from a student's active
+    // session payload. Inspect the separately authorised observer projection
+    // here, otherwise this regression test would require reopening the
+    // privacy leak it is meant to protect against.
+    const observer = await service.getForObserver(view.sessionId);
+    const audit = observer.audits[0]!;
     assert.ok(audit.adaptiveDecision, "P04 turn 1 must carry an explicit decision");
     const action = audit.adaptiveDecision!.action;
     assert.ok(["KEEP", "TARGETED_PROBE"].includes(action), `expected KEEP or TARGETED_PROBE, got ${action}`);

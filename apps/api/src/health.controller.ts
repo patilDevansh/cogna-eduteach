@@ -1,4 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
+import { isProductionLike } from "./access/cogna-access";
 
 @Controller("health")
 export class HealthController {
@@ -9,8 +10,10 @@ export class HealthController {
       service: "cogna-api",
       spec: "/docs/mvp-1.0",
       tracking: "/COGNA 1.0",
-      devStudentId: "dev_student_001",
-      devAccessCode: "demo1234",
+      // Dev-only convenience: never expose a working demo login on a deployed environment.
+      ...(isProductionLike()
+        ? {}
+        : { devStudentId: "dev_student_001", devAccessCode: "demo1234" }),
     };
   }
 }

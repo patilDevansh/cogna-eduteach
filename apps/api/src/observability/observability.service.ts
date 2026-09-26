@@ -73,7 +73,7 @@ export interface AlertStatus {
 
 /**
  * Minimal observability hooks — activates PostHog/Sentry when env vars are set.
- * MVP: structured logs only; vendor SDKs are optional stubs.
+ * Sentry is a real SDK (initSentry in ./sentry.ts, wired in main.ts); PostHog is still a logging stub.
  * Pilot dashboard aggregates Prisma counters for ops visibility.
  */
 @Injectable()
@@ -105,7 +105,7 @@ export class ObservabilityService implements OnModuleInit {
     if (sentryDsn) {
       this.sentryEnabled = true;
       this.logger.log(
-        JSON.stringify({ event: "observability.sentry", status: "stub_ready" }),
+        JSON.stringify({ event: "observability.sentry", status: "active" }),
       );
     }
   }

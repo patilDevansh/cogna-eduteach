@@ -1,0 +1,15 @@
+.git
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+.env
+.env.*
+!.env.example
+generated-media
+artifacts
+COGNA*
+testUI-claude
+*.log
+.claude
+.claude-scratch-*
