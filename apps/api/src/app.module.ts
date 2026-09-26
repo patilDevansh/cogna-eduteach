@@ -36,15 +36,21 @@ import { ClassroomsModule } from "./classrooms/classrooms.module";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      // turbo runs api from apps/api; repo secrets live in monorepo root .env
+      // turbo runs api from apps/api; repo secrets live in monorepo root .env.
+      // NestJS's ConfigModule merges these in array order with LATER paths
+      // overriding earlier ones for any key present in both — confirmed
+      // directly: packages/database/.env (a point-in-time copy made only for
+      // Prisma CLI's own cwd-relative .env lookup, see media-storage.ts
+      // comments) had a stale OPENAI_API_KEY that silently shadowed a
+      // rotated key in the real root .env for every apps/api request, with
+      // no error at startup. The root .env candidates MUST stay last so they
+      // always win; packages/database/.env is only here as a DATABASE_URL
+      // fallback for Lotus standalone mode, listed first (lowest priority).
       envFilePath: [
+        join(__dirname, "..", "..", "..", "packages", "database", ".env"),
         join(__dirname, "..", "..", "..", ".env"),
         join(process.cwd(), ".env"),
         join(process.cwd(), "..", "..", ".env"),
-        // The local Prisma configuration is the source of the development
-        // database URL. Lotus standalone mode must use that durable database
-        // too; it is not permitted to fall back to browser/process memory.
-        join(__dirname, "..", "..", "..", "packages", "database", ".env"),
       ],
     }),
     ObservabilityModule,

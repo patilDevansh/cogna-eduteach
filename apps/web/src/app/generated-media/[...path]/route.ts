@@ -38,8 +38,28 @@ function isAllowedLessonFile(name: string): boolean {
   return ALLOWED_LESSON_FILES.has(name) || SCENE_AUDIO_FILE.test(name);
 }
 
+// Kept in sync with apps/api/src/access/cogna-access.ts's sessionSecretFromEnv —
+// this route can't import that module's compiled output at the edge, but the
+// fallback branch is NOT optional: without it, every media request 401s in
+// any local/dev environment that relies on COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET
+// instead of a real COGNA_SESSION_SECRET (confirmed directly: this file was
+// missing the fallback entirely, silently rejecting every signed media token
+// even though the token itself was minted and shaped correctly).
+const INSECURE_LOCAL_DEV_SESSION_SECRET = "INSECURE_LOCAL_DEV_ONLY_cogna-session-secret";
+
+function isProductionLike(): boolean {
+  const era = (process.env.COGNA_ENV ?? "").trim().toLowerCase();
+  return process.env.NODE_ENV === "production" || era === "production" || era === "staging";
+}
+
 function sessionSecretFromEnv(): string | null {
-  return process.env.COGNA_SESSION_SECRET?.trim() || null;
+  const configured = process.env.COGNA_SESSION_SECRET?.trim();
+  if (configured) return configured;
+  if (isProductionLike()) return null;
+  if (process.env.COGNA_ALLOW_INSECURE_LOCAL_SESSION_SECRET === "true") {
+    return INSECURE_LOCAL_DEV_SESSION_SECRET;
+  }
+  return null;
 }
 
 function verifyMac(token: string, secret: string): string | null {
