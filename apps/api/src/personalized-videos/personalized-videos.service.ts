@@ -44,6 +44,7 @@ import {
   PILOT_TEMPLATE_KEYS,
   selectTemplateFromEvidence,
   templateForKey,
+  themedLesson,
 } from "./approved-templates";
 import { snapshotFromLotusSession } from "./lotus-evidence";
 import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
@@ -211,7 +212,7 @@ export class PersonalizedVideosService {
       options.allowTestHooks && input.scriptOverride
         ? (input.scriptSource ?? "CONSTRAINED_AI")
         : "APPROVED_TEMPLATE";
-    const lesson = (options.allowTestHooks ? input.scriptOverride : undefined) ?? template?.lesson ?? null;
+    const lesson = (options.allowTestHooks ? input.scriptOverride : undefined) ?? (template ? themedLesson(template) : null);
     const exit = (options.allowTestHooks ? input.exitOverride : undefined) ?? template?.exit ?? null;
     const stored: StoredScript = {
       name: input.name ?? template?.name ?? "Student",
