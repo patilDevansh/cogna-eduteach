@@ -361,6 +361,27 @@ export function classifySimplification(studentAnswer: string, expression: string
   } catch { return "UNREADABLE"; }
 }
 
+/**
+ * Authoring-time check for a claimed-reduced SIMPLIFY answer, when there is no
+ * independently verified `key` to compare against yet — the candidate answer
+ * IS the key being validated, so classifySimplification's `degree(s) <=
+ * degree(k)` test is a no-op if called with the candidate as both arguments.
+ * Instead this compares the candidate against the original (unreduced)
+ * expression it's meant to simplify, and requires STRICTLY lower total
+ * numerator+denominator degree — equal-or-less would accept the untouched
+ * original as its own "simplification".
+ */
+export function classifyReducedForm(candidate: string, originalExpression: string): FactorisationVerdict {
+  let equal: boolean;
+  try { equal = algebraicallyEqual(candidate, originalExpression); } catch { return "UNREADABLE"; }
+  if (!equal) return "INCORRECT";
+  try {
+    const c = toFrac(parseExpression(candidate));
+    const o = toFrac(parseExpression(originalExpression));
+    return degree(c.num) + degree(c.den) < degree(o.num) + degree(o.den) ? "CORRECT" : "UNFINISHED";
+  } catch { return "UNREADABLE"; }
+}
+
 /** Two answers are the same factorisation when they're equal and have the same factors, in any order and up to sign. */
 export function sameFactorisation(a: string, b: string): boolean {
   try {

@@ -11,10 +11,12 @@ import assert from "node:assert/strict";
 import type {
   LotusDebateClosure,
   LotusGptDebateResponse,
+  LotusQuestionAudit,
   LotusModelAssessment,
   LotusSessionView,
 } from "@cogna/shared";
-import { LotusService } from "../../src/lotus/lotus.service";
+import { adaptiveDecisionFor, LotusService } from "../../src/lotus/lotus.service";
+import type { PlanAction } from "../../src/lotus/lotus-factorisation";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
 import { FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalogue";
 import { LotusQuestionFactory, prettyPowers } from "../../src/lotus/lotus-question-factory";
@@ -348,6 +350,37 @@ describe("factorisation session — every Submit is instant", () => {
         `changed turns ${changed.map((t: { turn: number; status: string; purpose?: string }) => `${t.turn}:${t.purpose ?? t.status}`).join(" ")}`);
     });
   }
+
+  it("records a dependent question's deferred status alongside the primary adaptive action", () => {
+    const actions: PlanAction[] = [
+      {
+        kind: "REPURPOSE",
+        turn: 8,
+        purpose: "CHECK",
+        forSkill: "FAC_GCF_NEGATIVE",
+        spec: FACTORISATION_SLOTS[4]!,
+        reason: "A fresh negative-factor check can distinguish a repeatable difficulty from a slip.",
+      },
+      {
+        kind: "SKIP",
+        turn: 17,
+        reason: "Not tested: it depends on Taking out a negative common factor, which isn't secure yet.",
+      },
+    ];
+    const decision = adaptiveDecisionFor({
+      response: { answer: "-6(-x - 2)", working: "", confidence: 60, responseTimeMs: 30_000, didNotKnow: false },
+      skillEvidence: [{ skillId: "FAC_GCF_NEGATIVE", kind: "MISTAKE", description: "The signs inside the negative factor were not reversed." }],
+    } as LotusQuestionAudit, actions);
+    assert.equal(decision.action, "TARGETED_PROBE", "the checked item remains the primary decision");
+    assert.equal(decision.targetTurn, 8);
+    assert.deepEqual(decision.planEffects, [{
+      action: "REMOVE_OR_DEFER",
+      targetTurn: 17,
+      requestedPlacement: "Question 17",
+      outcome: "DEFERRED",
+      detail: "Question 17 was removed from this diagnostic because it depends on Taking out a negative common factor, which isn't secure yet.",
+    }], "the dependent removal is a separate, truthful deferred effect—not lost behind the probe");
+  });
 });
 
 describe("factorisation session — safety of the running test", () => {
@@ -491,10 +524,39 @@ describe("factorisation session — safety of the running test", () => {
     assert.equal(taggedAudit!.questionSelection.adaptationTag?.kind, "TARGETED_CHECK");
     assert.match(String((taggedAudit!.questionSelection.adaptationTag as { skill: string }).skill), /\S/, "the tag must name the skill it targets");
 
+    const originatingAudit = session.audits.find((audit: { adaptiveDecision?: { targetTurn?: number } }) =>
+      audit.adaptiveDecision?.targetTurn === check.turn,
+    );
+    assert.ok(originatingAudit?.adaptiveDecision?.validatedAt, "the action timeline records when its replacement passed independent checks");
+    assert.ok(originatingAudit?.adaptiveDecision?.installedAt, "the action timeline records when its replacement entered the unseen plan");
+    assert.equal(originatingAudit?.adaptiveDecision?.outcome, "INSTALLED", "installed must remain distinct from merely queued or shown");
+
+    // Submitting the targeted item is the durable acknowledgement that the
+    // browser actually reached it. This must update the originating decision,
+    // not merely infer exposure because a later slot changed.
+    view = await submit(service, view, predictedWrong(service, view));
+    session = internal(service, view.sessionId);
+    const shownDecision = session.audits.find((audit: { adaptiveDecision?: { targetTurn?: number } }) =>
+      audit.adaptiveDecision?.targetTurn === check.turn,
+    )?.adaptiveDecision;
+    assert.ok(shownDecision?.shownAt, "the originating decision records browser-confirmed student exposure");
+    assert.equal(shownDecision?.actualPlacement, `Question ${check.turn}`);
+    assert.equal(shownDecision?.outcome, "SHOWN");
+
     // The public view is the same JSON a student can inspect in devtools.
-    // It must not disclose the hypothesis behind an unseen target question.
+    // It must not disclose either the hypothesis behind an unseen target
+    // question or the live action record that names its target skill. The
+    // authorised observer copy is a separate teacher-only path.
     assert.ok(view.audits.every((audit) => audit.questionSelection.adaptationTag === undefined));
     assert.ok(view.audits.every((audit) => audit.questionSelection.planningNote === undefined));
+    assert.ok(view.audits.every((audit) => audit.adaptiveDecision === undefined));
+
+    const observerView = await service.getForObserver(view.sessionId);
+    const observerDecision = observerView.audits.find((audit) =>
+      audit.adaptiveDecision?.targetTurn === check.turn,
+    )?.adaptiveDecision;
+    assert.ok(observerDecision?.shownAt, "the authorised observer receives the durable shown acknowledgement");
+    assert.equal(observerDecision?.actualPlacement, `Question ${check.turn}`);
   });
 
   it("never exposes an AI rewrite slot until its checked question is ready", async () => {
@@ -648,12 +710,33 @@ describe("factorisation session — safety of the running test", () => {
     assert.equal(audit.analysisStatus, "COMPLETE");
     assert.equal(audit.analysisLate, true);
     assert.equal(audit.adaptiveDecision?.action, "KEEP");
+    assert.equal(audit.adaptiveDecision?.outcome, "STALE", "a late result must be labelled stale rather than silently looking like a deliberate KEEP");
     assert.match(audit.adaptiveDecision?.implementationDetail ?? "", /evidence was added only/i);
     assert.deepEqual(
       session.factorisation.state.turns.map((turn: { turn: number; status: string; purpose?: string }) => ({ ...turn })),
       before,
       "a stale analysis must not revise an unseen-plan slot",
     );
+  });
+
+  it("labels an exhausted rejected targeted rewrite without claiming it was deferred or installed", async () => {
+    const { models, service } = setup();
+    models.firstWrongStep = 2;
+    let view = await startReady(service, "demo_rejected_rewrite");
+    // The baseline is already ready. Only the newly requested targeted item
+    // fails, so this isolates the Phase 5 outcome from preparation failure.
+    models.writer = () => { throw new Error("controlled targeted-write rejection"); };
+    view = await submit(service, view, "3(2x + 4)");
+    await flush();
+    const session = internal(service, view.sessionId);
+    const decision = session.audits[0]?.adaptiveDecision;
+    assert.equal(decision?.action, "TARGETED_PROBE");
+    assert.equal(decision?.implementation, "NOT_APPLIED");
+    assert.equal(decision?.outcome, "REJECTED");
+    assert.equal(decision?.validatedAt, undefined);
+    assert.equal(decision?.installedAt, undefined);
+    assert.equal(decision?.shownAt, undefined);
+    assert.match(decision?.implementationDetail ?? "", /could not be prepared/i);
   });
 
   it("when a secure skill has no different representation to check, the decision is an explicit KEEP, never an invented probe", async () => {

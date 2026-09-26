@@ -216,14 +216,21 @@ Per `LOTUS_CONTINUOUS_DIAGNOSTIC.md` §9, two further suites build on this:
    diagnostics from a server-side test-only audit endpoint (never the
    browser payload), and apply the same profile logic this suite already
    uses at the service level.
-2. **Live-model diagnostic suite.** Requires the real writer/analyser models,
-   real cost, and — critically — the blinded educator-review workflow
-   `LOTUS_CONTINUOUS_DIAGNOSTIC.md` §9 specifies: two maths educators
-   independently label what an actual response transcript supports, blinded
-   to Lotus's own analysis, before any comparison against the predeclared
-   latent profile happens. Nothing in this document or its test files
-   produces or approximates that blinded review — it is a human process this
-   deterministic foundation deliberately does not attempt to substitute for.
-   Running it requires product-owner notification (exact suite, environment,
-   live-model usage, expected duration/cost, test-data reset) per §10, which
-   this parallel task was explicitly instructed not to initiate.
+2. **Live-model diagnostic suite.** Requires the real writer/analyser models
+   and real cost, then scores each transcript against an independent,
+   versioned machine oracle derived from the persona's declared capability,
+   misconception, working, support-signal, pace, and permitted actions. The
+   oracle may not inspect Lotus's analysis before it labels the transcript.
+   Nothing in this deterministic foundation claims to be a live-model run;
+   the next implementation must execute those real runs and emit their
+   machine-readable scorecard. Running it requires product-owner notification
+   (exact suite, environment, live-model usage, expected duration/cost,
+   test-data reset) per §10, which this parallel task was explicitly
+   instructed not to initiate.
+
+The executable runner is `scripts/lotus-autonomous-persona-eval.ts`. It
+drives Playwright through the normal student interface and gets a question's
+private diagnostics only through a fresh, process-local token guarded by the
+API in non-production mode. Its default controlled-model mode verifies the
+runner for free; live mode is deliberately opt-in. The browser remains unable
+to access answer keys, purposes, skill IDs, or the evaluation endpoint.

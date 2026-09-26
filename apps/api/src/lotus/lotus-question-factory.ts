@@ -57,6 +57,11 @@ function makerPrompt(req: WriteRequest): string {
     "",
     `Skill tested: ${spec.skillId} — ${skillName(spec.skillId)}`,
     `Difficulty: ${spec.level}`,
+    // Keep the requested planning role explicit even when a CHECK has no
+    // single named predicted mistake. That makes the constraint legible to
+    // the writer and lets the deterministic browser adapter exercise every
+    // checked rewrite, not only ones with a mistake-code label.
+    `Generation purpose: ${req.purpose}`,
     `Follow this shape, but write a NEW question with DIFFERENT numbers: ${spec.shape}`,
   ];
   if (spec.note) lines.push(`Requirement: ${spec.note}.`);
@@ -235,7 +240,11 @@ export class LotusQuestionFactory {
         try {
           const solved = await this.models.solveBlind(blindPrompt(item));
           const choice = str(solved.choice);
-          if (!choice || normalizeMathText(choice) !== normalizeMathText(item.answerKey.canonicalAnswer)) {
+          // Case-insensitive to match sameChoice() in lotus-factorisation.ts, the
+          // real grading path a student's answer goes through — otherwise this
+          // self-check is stricter than production grading and can burn a factory
+          // attempt on a casing difference no student would ever be marked wrong for.
+          if (!choice || normalizeMathText(choice).toLowerCase() !== normalizeMathText(item.answerKey.canonicalAnswer).toLowerCase()) {
             reasons.push(`blind solver chose "${choice}", the key says "${item.answerKey.canonicalAnswer}"`);
           }
         } catch (e) {

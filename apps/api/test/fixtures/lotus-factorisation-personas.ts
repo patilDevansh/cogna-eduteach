@@ -6,9 +6,8 @@
  * and policy invariants* of the diagnostic (evidence rules, adaptive
  * decisions, no duplicate probes, honest report boundaries) against a
  * deterministic, free, no-network fake model. They do NOT measure whether a
- * live model correctly diagnoses a real learner — see
- * COGNA 10.0/LOTUS_FACTORISATION_PERSONA_EVAL_SPEC.md for that distinction
- * and the later blinded-educator-review workflow required for it.
+ * live model correctly diagnoses a real learner — the separate live-model
+ * runner scores that against the versioned autonomous persona oracle.
  *
  * New file only — does not modify any existing application, contract,
  * persistence, or golden-test file. Its `PersonaFakeModels` class is a
@@ -422,6 +421,7 @@ export const PERSONA_CATALOGUE: PersonaProfile[] = [
 export interface PersonaQuestionLike {
   answerKey: {
     canonicalAnswer: string;
+    workedSolution?: string[];
     diagnostics?: {
       skillId: string;
       taggedSkills: string[];
@@ -432,8 +432,32 @@ export interface PersonaQuestionLike {
 
 export interface PersonaResponsePlan {
   answer: string;
+  /** Meaningful student working, derived from the declared approach rather
+   * than repeating the submitted final answer. This is deliberately carried
+   * through the real answer flow so a future live-model runner tests the
+   * analyst on the same evidence a child would provide. */
+  working: string;
   didNotKnow: boolean;
   isDeliberateMistake: boolean;
+}
+
+function workingForMistake(mistakeCode: string, answer: string): string {
+  const explanation: Record<string, string> = {
+    TOOK_HIGHEST_POWER: "I chose the largest power of the variable I could see and took it outside the bracket.",
+    INCLUDED_NON_COMMON_VARIABLE: "I took out every variable that appears somewhere in the expression.",
+    DIVIDED_FIRST_TERM_ONLY: "I took out the common factor and divided the first term, then kept the other term unchanged.",
+    KEPT_ORIGINAL_SIGNS: "I took out a negative factor and kept the signs inside the bracket the same.",
+    WROTE_PERFECT_SQUARE: "Both terms are squares, so I wrote them as one squared bracket.",
+    PAIRS_SHARE_NOTHING: "I grouped the first pair and the second pair, then used the bracket I thought they had in common.",
+  };
+  return `${explanation[mistakeCode] ?? "I used the factorisation method I thought fitted the expression."} My answer is ${answer}.`;
+}
+
+function workingForCorrect(question: PersonaQuestionLike): string {
+  const steps = question.answerKey.workedSolution?.filter(Boolean) ?? [];
+  return steps.length > 0
+    ? steps.join("\n")
+    : `I checked the factorisation by expanding it back to the original expression: ${question.answerKey.canonicalAnswer}.`;
 }
 
 export function chooseResponse(
@@ -444,15 +468,42 @@ export function chooseResponse(
   const diagnostics = question.answerKey.diagnostics;
   const skillId = diagnostics?.skillId;
   if (skillId && persona.supportSkills?.includes(skillId)) {
-    return { answer: "I don't know", didNotKnow: true, isDeliberateMistake: false };
+    return {
+      answer: "I don't know",
+      working: "I am not sure how to begin this type of factorisation yet.",
+      didNotKnow: true,
+      isDeliberateMistake: false,
+    };
   }
-  const shouldSlip = persona.slipOnTurn === turnIndex && persona.misconception?.skillId === skillId;
-  const misconceptionMatches = persona.misconception?.skillId === skillId;
+  // A real student with a genuine gap in a skill doesn't only slip when that
+  // skill is the question's headline focus — they slip whenever the skill is
+  // actually exercised, including as a secondary/tagged step inside a
+  // question whose primary skill is something else. Matching only on primary
+  // skillId under-tests the diagnostic: it lets a persona answer correctly
+  // (and Lotus look appropriately cautious) on turns where the honest
+  // simulation would have them slip, silently softening the eval.
+  const misconceptionSkillId = persona.misconception?.skillId;
+  const misconceptionMatches = misconceptionSkillId != null && (
+    misconceptionSkillId === skillId || !!diagnostics?.taggedSkills?.includes(misconceptionSkillId)
+  );
+  const shouldSlip = persona.slipOnTurn === turnIndex && misconceptionMatches;
   if ((shouldSlip || (misconceptionMatches && persona.slipOnTurn === undefined)) && diagnostics) {
     const predicted = diagnostics.predictedMistakes.find((m) => m.mistake === persona.misconception!.mistakeCode);
-    if (predicted) return { answer: predicted.answer, didNotKnow: false, isDeliberateMistake: true };
+    if (predicted) {
+      return {
+        answer: predicted.answer,
+        working: workingForMistake(persona.misconception!.mistakeCode, predicted.answer),
+        didNotKnow: false,
+        isDeliberateMistake: true,
+      };
+    }
   }
-  return { answer: question.answerKey.canonicalAnswer, didNotKnow: false, isDeliberateMistake: false };
+  return {
+    answer: question.answerKey.canonicalAnswer,
+    working: workingForCorrect(question),
+    didNotKnow: false,
+    isDeliberateMistake: false,
+  };
 }
 
 // ---------------------------------------------------------------------------

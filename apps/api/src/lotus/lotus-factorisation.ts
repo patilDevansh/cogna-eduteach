@@ -223,8 +223,16 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
           e.needsSupport = true;
           continue;
         }
+        // Captured before this mistake is pushed: does this skill already
+        // carry a mistake from an earlier, since-cleared suspicion? If so,
+        // this is a second independent negative on the skill, not a fresh
+        // first-time slip — it should confirm outright rather than restart
+        // the SUSPECTED/SECURE cycle and let a repeatable misconception hide
+        // behind alternating right/wrong turns indefinitely.
+        const hadPriorMistake = e.mistakes.length > 0;
         if (negative.mistake) e.mistakes.push(negative.mistake);
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) { e.state = "CONFIRMED"; e.confirmedAt = q; }
+        else if (e.state === "SECURE" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
       } else {
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
@@ -287,10 +295,6 @@ function usesSkill(item: LotusQuestion | undefined, skillId: string): boolean {
   return !!d && skillsUsedBy(d).includes(skillId);
 }
 
-function fingerprint(item: Omit<LotusQuestion, "id">): string {
-  return normalizeMathText(item.answerKey.diagnostics?.expression ?? item.prompt).toLowerCase();
-}
-
 /**
  * A different catalogue shape for a skill already secured on one
  * representation — e.g. the numeric "x^2 - 9" difference-of-squares slot
@@ -312,9 +316,15 @@ function widenTargets(skillId: string, askedSlots: Set<number>, max: number): Ar
  * Which skills to check underneath a confirmed gap, nearest first. A skill
  * already secure is solid ground, so nothing below it is visited. A skill
  * with no question available here (or one that's already shaky) is passed
- * through to the skills below it.
+ * through to the skills below it. Unlike widenTargets, this deliberately
+ * does not exclude an already-asked slot: the repurposed turn always gets a
+ * fresh AI-written numeric variant (never the original fixed item verbatim),
+ * so revisiting the same shape to check a now-relevant prerequisite is safe
+ * even when that shape was already shown earlier in the curriculum — and for
+ * a skill with only one catalogue slot (e.g. FAC_GCF_VARIABLE), excluding it
+ * would make that skill permanently undescendable after turn 1.
  */
-function descentTargets(skillId: string, ledger: Ledger, _asked: Set<string>, max: number) {
+function descentTargets(skillId: string, ledger: Ledger, max: number) {
   const found: Array<{ skill: string; spec: SlotSpec }> = [];
   const queue = [...(findFactorisationSkill(skillId)?.dependsOn ?? [])];
   const seen = new Set<string>();
@@ -337,18 +347,19 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   const { state, ledger, itemAt } = input;
   const actions: PlanAction[] = [];
   const frozenNext = input.freezeNext === false ? state.planTurn : nextOpenTurn(state, state.planTurn);
-  const asked = new Set(input.askedItems.map(fingerprint));
   const askedSlots = new Set(
     input.askedItems
       .map((item) => item.answerKey.diagnostics?.slot)
       .filter((slot): slot is number => slot !== undefined),
   );
   const claimed = new Set<number>();
-  // Skills already given a CHECK action within THIS call. state.turns only
-  // reflects turns installed by a *previous* call (applyPlanAction runs
-  // after planAdjustments returns), so without this, forceCheckSkills and
-  // the suspicion loop below could each independently check the same skill
-  // in the same replan and install two probes for one mistake.
+  // Skills already given a dedicated CHECK or DESCENT probe within THIS call.
+  // state.turns only reflects turns installed by a *previous* call
+  // (applyPlanAction runs after planAdjustments returns), so without this,
+  // forceCheckSkills and the suspicion loop below could each independently
+  // check the same skill in the same replan and install two probes for one
+  // mistake — and two different confirmed gaps that share an untested
+  // prerequisite could each independently claim a descent turn for it.
   const checkedThisCall = new Set<string>();
   const mutable = () => state.turns.filter((t) =>
     t.turn > (frozenNext ?? state.planTurn) && t.status !== "SKIPPED" && !claimed.has(t.turn));
@@ -421,14 +432,15 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // suspicion-only confirmation path, or a pure "I don't know" remains
     // UNTESTED and can never receive the promised support action.
     if (e.needsSupport) {
-      const support = descentTargets(e.skillId, ledger, asked, 1)[0];
-      const supportAlreadyReserved = support && state.turns.some((t) =>
-        t.purpose === "DESCENT" && t.forSkill === support.skill);
+      const support = descentTargets(e.skillId, ledger, 1)[0];
+      const supportAlreadyReserved = support && (checkedThisCall.has(support.skill) || state.turns.some((t) =>
+        t.purpose === "DESCENT" && t.forSkill === support.skill));
       if (support && !supportAlreadyReserved) {
         const turn = pickVictim();
         if (turn !== null) {
           claimed.add(turn);
           protectedTurns.add(turn);
+          checkedThisCall.add(support.skill);
           actions.push({
             kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: support.skill,
             spec: support.spec,
@@ -482,14 +494,20 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
         });
       }
     }
-    // Going down: are the skills underneath solid?
-    for (const { skill: p, spec } of descentTargets(e.skillId, ledger, asked, 2)) {
+    // Going down: are the skills underneath solid? Two different confirmed
+    // skills can share the same untested prerequisite (they're independent
+    // ledger entries, so nothing else stops both from picking it); skip one
+    // already claimed for a probe this call rather than installing a second
+    // turn for the same hypothesis.
+    for (const { skill: p, spec } of descentTargets(e.skillId, ledger, 2)) {
+      if (checkedThisCall.has(p)) continue;
       const turn = freed.shift() ?? pickVictim();
       if (turn === null) break;
       claimed.add(turn);
       // A freed turn was just marked SKIP above; the descent question takes it back.
       const skipIndex = actions.findIndex((a) => a.kind === "SKIP" && a.turn === turn);
       if (skipIndex >= 0) actions.splice(skipIndex, 1);
+      checkedThisCall.add(p);
       actions.push({
         kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: p, spec,
         reason: `Going down: is ${skillName(p)} solid underneath ${skillName(e.skillId)}?`,

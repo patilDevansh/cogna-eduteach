@@ -43,7 +43,14 @@ function demoSessionsAllowed(): boolean {
 }
 
 function canMintDemoStudent(studentId: string): boolean {
-  return demoSessionsAllowed() && /^demo_[a-z][a-z0-9_]*$/.test(studentId);
+  // Real demo/practice-code accounts (parents.service.ts) are minted as
+  // `demo_` + randomBytes(12).toString("hex") — 24 lowercase hex chars, most
+  // of which start with a digit. Requiring a letter right after `demo_`
+  // rejected the majority of genuine demo students the moment any feature
+  // (Lotus, personalized-video, classroom) called ensureDemoStudentSession
+  // to refresh their token, even though the rest of the pattern already
+  // allows digits freely — this only ever excluded them from position 0.
+  return demoSessionsAllowed() && /^demo_[a-z0-9][a-z0-9_]*$/.test(studentId);
 }
 
 function sessionSecretFromEnv(): string | null {
