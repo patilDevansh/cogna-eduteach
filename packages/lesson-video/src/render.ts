@@ -10,6 +10,17 @@ import {
   type LessonVideoProps,
   type LessonVideoScene,
 } from "./types";
+import {
+  distributionLessonDurationInFrames,
+  lessonFps,
+  verifyDistributionLesson,
+  type DistributionLessonProps,
+} from "./distribution/lesson";
+import {
+  trinomialDurationInFrames,
+  verifyTrinomialLesson,
+  type TrinomialLessonProps,
+} from "./trinomial/trinomial";
 
 function packageRoot(): string {
   return path.resolve(__dirname, "..");
@@ -39,6 +50,37 @@ async function audioPathToDataUri(audioPath: string): Promise<string> {
 export type { EquationStep, LessonVideoProps, LessonVideoScene } from "./types";
 export { buildLessonVtt } from "./transcript";
 export { LESSON_VIDEO_FPS, lessonDurationInFrames } from "./types";
+export {
+  AARAV_EXAMPLE,
+  MEENA_EXAMPLE,
+  buildDistributionLesson,
+  formatExpression,
+  verifyDistributionLesson,
+  type DistributionLessonInput,
+  type DistributionLessonProps,
+} from "./distribution/lesson";
+export { matchDistributionMistake, type DistributionErrorMatch, type DistributionMistake } from "./distribution/evidence";
+export {
+  AARAV_TRINOMIAL_EXAMPLE,
+  buildTrinomialLesson,
+  classifyTrinomialAnswer,
+  formatTrinomial,
+  parsePair,
+  parseTrinomial,
+  verifyTrinomialLesson,
+  type TrinomialLessonInput,
+  type TrinomialLessonProps,
+} from "./trinomial/trinomial";
+export { LESSON_THEMES, lessonTheme, type LessonThemeId } from "./themes";
+export type { LessonCheckpoint } from "./lesson-types";
+export {
+  authoredDurationInFrames,
+  buildAuthoredLesson,
+  prettyMath,
+  type AuthoredDraftForPlayback,
+  type AuthoredLessonInput,
+  type AuthoredLessonProps,
+} from "./authored/build";
 
 export interface RenderApprovedLessonInput {
   assignmentId: string;
@@ -193,4 +235,80 @@ export async function renderProductLoop(outputPath: string): Promise<RenderProdu
     sha256: createHash("sha256").update(bytes).digest("hex"),
     provider: "remotion-local",
   };
+}
+
+export interface RenderDistributionLessonResult {
+  mp4Path: string;
+  durationMs: number;
+  sha256: string;
+  provider: "remotion-local";
+}
+
+interface BeatLesson {
+  scenes: Array<{ beats: Array<{ text: string; seconds: number; audioPath?: string; audioSrc?: string }> }>;
+}
+
+/** Shared by every evidence-built lesson: inline narration, render the composition, sanity-check the MP4. */
+async function renderBeatLesson(compositionId: string, lesson: BeatLesson, durationFrames: number, outputPath: string): Promise<RenderDistributionLessonResult> {
+  const fps = lessonFps();
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  const withAudio = {
+    ...lesson,
+    scenes: await Promise.all(
+      lesson.scenes.map(async (scene) => ({
+        ...scene,
+        beats: await Promise.all(
+          scene.beats.map(async (beat) => (beat.audioPath ? { ...beat, audioSrc: await audioPathToDataUri(beat.audioPath) } : beat)),
+        ),
+      })),
+    ),
+  };
+  const inputProps = { ...withAudio } as unknown as Record<string, unknown>;
+
+  const { ensureBrowser, renderMedia, selectComposition } = await import("@remotion/renderer");
+  const browserExecutable = chromeExecutable();
+  await ensureBrowser({ browserExecutable });
+  const serveUrl = await bundleComposition();
+  const composition = await selectComposition({ serveUrl, id: compositionId, inputProps, browserExecutable });
+
+  await renderMedia({
+    composition,
+    serveUrl,
+    codec: "h264",
+    outputLocation: outputPath,
+    inputProps,
+    browserExecutable,
+    // Every tab loads the narration as data URIs; more than 4 tabs has made
+    // Chrome stop answering Remotion's page loads. Higher didn't render faster.
+    concurrency: 4,
+    logLevel: "error",
+    timeoutInMilliseconds: 300_000,
+  });
+
+  const bytes = await readFile(outputPath);
+  if (bytes.length < 32 || !bytes.subarray(4, 8).toString("ascii").includes("ftyp")) {
+    throw new Error("Remotion did not produce a playable MP4.");
+  }
+  return {
+    mp4Path: outputPath,
+    durationMs: Math.round((durationFrames / fps) * 1000),
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    provider: "remotion-local",
+  };
+}
+
+/**
+ * Renders the distribution lesson. The props must come from
+ * buildDistributionLesson; this re-verifies anyway so a hand-edited props
+ * file can't bypass the gate.
+ */
+export async function renderDistributionLesson(lesson: DistributionLessonProps, outputPath: string): Promise<RenderDistributionLessonResult> {
+  verifyDistributionLesson(lesson);
+  return renderBeatLesson("DistributionLesson", lesson, distributionLessonDurationInFrames(lesson, lessonFps()), outputPath);
+}
+
+/** Renders the trinomial-signs lesson; re-verified for the same reason. */
+export async function renderTrinomialLesson(lesson: TrinomialLessonProps, outputPath: string): Promise<RenderDistributionLessonResult> {
+  verifyTrinomialLesson(lesson);
+  return renderBeatLesson("TrinomialLesson", lesson, trinomialDurationInFrames(lesson, lessonFps()), outputPath);
 }

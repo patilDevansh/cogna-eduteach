@@ -3,6 +3,10 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ClassroomAssignmentKind, ClassroomRunPhase, Prisma, UserRole } from "@cogna/database";
 import { AccessActor, assertTeacher } from "../access/cogna-access";
 import { PrismaService } from "../prisma/prisma.service";
+import type { LotusQuestionAudit } from "@cogna/shared";
+import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
+import { buildClassReport, type StudentEvidence } from "./class-report";
+import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
 
 const PHASE_KIND = {
   DIAGNOSTIC: ClassroomAssignmentKind.DIAGNOSTIC,
@@ -42,12 +46,21 @@ export class ClassroomsService {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
     const classroom = await this.prisma.classroom.findUnique({ where: { joinCode: input.joinCode.trim().toUpperCase() } });
     if (!classroom || classroom.archivedAt) throw new NotFoundException("That class code was not found.");
-    return this.prisma.classroomEnrollment.upsert({
+    const enrollment = await this.prisma.classroomEnrollment.upsert({
       where: { classroomId_studentId: { classroomId: classroom.id, studentId: actor.studentId } },
       create: { classroomId: classroom.id, studentId: actor.studentId, rollNumber: input.rollNumber?.trim(), admissionNumber: input.admissionNumber?.trim() },
       update: { leftAt: null, rollNumber: input.rollNumber?.trim(), admissionNumber: input.admissionNumber?.trim() },
       include: { classroom: { select: { id: true, name: true, grade: true, subjectId: true, joinCode: true } } },
     });
+    // Pilot: a student who joins after the diagnostic was released gets it straight away.
+    const live = await this.prisma.classroomRun.findFirst({ where: { classroomId: classroom.id, status: "LIVE" }, orderBy: { createdAt: "desc" } });
+    if (live && autoAdvanceEnabled(live.config) && (await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) {
+      await this.prisma.classroomAssignment.createMany({
+        data: [{ runId: live.id, enrollmentId: enrollment.id, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY", availableAt: new Date(), payload: live.config as Prisma.InputJsonValue }],
+        skipDuplicates: true,
+      });
+    }
+    return enrollment;
   }
 
   private async ownedRun(actor: AccessActor, runId: string) {
@@ -71,7 +84,7 @@ export class ClassroomsService {
     const kind = PHASE_KIND[phase];
     const prerequisites = phase === "TEACHING" ? ClassroomAssignmentKind.DIAGNOSTIC : phase === "INDEPENDENT_EXIT" ? ClassroomAssignmentKind.TEACHING : null;
     const previous = prerequisites ? await this.prisma.classroomAssignment.findMany({ where: { runId, kind: prerequisites, enrollmentId: { in: enrollmentIds } } }) : [];
-    if (prerequisites && (previous.length !== enrollmentIds.length || previous.some((row) => row.status !== "COMPLETE"))) {
+    if (prerequisites && !autoAdvanceEnabled(run.config) && (previous.length !== enrollmentIds.length || previous.some((row) => row.status !== "COMPLETE"))) {
       throw new BadRequestException(phase === "TEACHING" ? "Wait for every enrolled student to complete the diagnostic before sending teaching." : "Wait for every student to complete personalized teaching before sending the independent exit check.");
     }
     const previousByEnrollment = new Map(previous.map((row) => [row.enrollmentId, row]));
@@ -132,22 +145,126 @@ export class ClassroomsService {
       const event = await this.prisma.personalizedVideoEvent.findFirst({ where: { assignmentId: video.id, studentId: actor.studentId, kind: eventKind }, orderBy: { createdAt: "desc" } });
       if (!event) throw new BadRequestException(assignment.kind === ClassroomAssignmentKind.TEACHING ? "Complete the personalized lesson before finishing this assignment." : "Submit the independent exit check before finishing this assignment.");
       if (assignment.kind === ClassroomAssignmentKind.TEACHING) {
-        const rawScore = input.result?.gameScore;
-        const gameScore = typeof rawScore === "number" && Number.isFinite(rawScore) ? Math.max(0, Math.min(300, Math.round(rawScore))) : 0;
-        trustedResult = { lessonStatus: video.status, delivery: video.assetId ? "VIDEO" : "HTML_FALLBACK", watched: true, gameScore, gameMaxScore: 300 };
+        // Practice is read from the lesson's own server-side record, never from the browser.
+        const script = (video.script ?? {}) as { practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }>; animationKind?: string };
+        const attempts = Object.values(script.practiceAttempts ?? {});
+        trustedResult = {
+          lessonStatus: video.status,
+          delivery: script.animationKind ? "ANIMATED" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
+          watched: true,
+          practice: { total: script.practice?.items?.length ?? 0, attempted: attempts.length, correct: attempts.filter((a) => a.correct).length },
+        };
       } else {
         trustedResult = { prompt: event.exitPrompt, answer: event.exitAnswer, working: event.exitWorking, correct: event.exitCorrect, independent: true };
       }
     }
     const completed = await this.prisma.classroomAssignment.update({ where: { id }, data: { status: "COMPLETE", completedAt: new Date(), diagnosticSessionId, videoAssignmentId, result: trustedResult as Prisma.InputJsonValue } });
+    const next = await this.advance(completed, trustedResult);
     const remaining = await this.prisma.classroomAssignment.count({ where: { runId: assignment.runId, kind: assignment.kind, status: { not: "COMPLETE" } } });
-    if (remaining === 0 && assignment.kind === ClassroomAssignmentKind.DIAGNOSTIC) {
+    if (remaining === 0 && assignment.kind === ClassroomAssignmentKind.DIAGNOSTIC && !next && !(await this.isAutoRun(assignment.runId))) {
       await this.prisma.classroomRun.update({ where: { id: assignment.runId }, data: { phase: "CLASS_REPORT", status: "PAUSED" } });
     }
-    if (remaining === 0 && assignment.kind === ClassroomAssignmentKind.INDEPENDENT_EXIT) {
+    // A run is complete when no student has a stage left to do (skipped stages count as done).
+    const open = await this.prisma.classroomAssignment.count({ where: { runId: assignment.runId, status: { in: ["READY", "IN_PROGRESS", "WAITING"] } } });
+    if (open === 0 && (assignment.kind === ClassroomAssignmentKind.INDEPENDENT_EXIT || (await this.isAutoRun(assignment.runId)))) {
       await this.prisma.classroomRun.update({ where: { id: assignment.runId }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } });
     }
-    return completed;
+    return { ...completed, next };
+  }
+
+  private async isAutoRun(runId: string): Promise<boolean> {
+    const run = await this.prisma.classroomRun.findUnique({ where: { id: runId }, select: { config: true } });
+    return autoAdvanceEnabled(run?.config);
+  }
+
+  /**
+   * Pilot auto-advance: creates this student's next stage the moment one is
+   * done (pilot-flow.ts). Returns the new assignment so the student's screen
+   * can go straight on. A student with nothing to teach has the remaining
+   * stages recorded as SKIPPED, with the reason.
+   */
+  private async advance(
+    done: { id: string; runId: string; enrollmentId: string; kind: ClassroomAssignmentKind; diagnosticSessionId: string | null; videoAssignmentId: string | null },
+    result: Record<string, unknown>,
+  ): Promise<{ id: string; kind: ClassroomAssignmentKind } | null> {
+    const run = await this.prisma.classroomRun.findUnique({ where: { id: done.runId } });
+    const kind = nextStage(done.kind);
+    if (!run || !kind || !autoAdvanceEnabled(run.config)) return null;
+    const base = { runId: done.runId, enrollmentId: done.enrollmentId, diagnosticSessionId: done.diagnosticSessionId, videoAssignmentId: done.videoAssignmentId, payload: { ...(run.config as Record<string, unknown>), sourceAssignmentId: done.id } as Prisma.InputJsonValue };
+    if (done.kind === ClassroomAssignmentKind.DIAGNOSTIC) {
+      const lesson = done.videoAssignmentId ? await this.prisma.personalizedVideoAssignment.findUnique({ where: { id: done.videoAssignmentId }, select: { status: true } }) : null;
+      const plan = stagesAfterDiagnostic({ outcome: result.outcome, lessonStatus: lesson ? lesson.status : "ABSTAINED" });
+      if (plan.kind === "SKIP_REST") {
+        await this.prisma.classroomAssignment.createMany({
+          data: [ClassroomAssignmentKind.TEACHING, ClassroomAssignmentKind.INDEPENDENT_EXIT].map((k) => ({ ...base, kind: k, status: "SKIPPED" as const, completedAt: new Date(), result: { skipped: true, reason: plan.reason } as Prisma.InputJsonValue })),
+          skipDuplicates: true,
+        });
+        return null;
+      }
+    }
+    const created = await this.prisma.classroomAssignment.upsert({
+      where: { runId_enrollmentId_kind: { runId: done.runId, enrollmentId: done.enrollmentId, kind } },
+      create: { ...base, kind, status: "READY", availableAt: new Date() },
+      update: {},
+    });
+    return { id: created.id, kind };
+  }
+
+  /** Loads each enrolled student's stored evidence and hands it to the pure aggregator (class-report.ts). */
+  private async classReport(
+    classroomId: string,
+    assignments: Array<{ enrollmentId: string; kind: ClassroomAssignmentKind; status: string; startedAt: Date | null; completedAt: Date | null; diagnosticSessionId: string | null; videoAssignmentId: string | null }>,
+  ) {
+    const enrollments = await this.prisma.classroomEnrollment.findMany({ where: { classroomId, leftAt: null }, include: { student: { select: { id: true, name: true } } }, orderBy: { joinedAt: "asc" } });
+    const sessionIds = [...new Set(assignments.map((a) => a.diagnosticSessionId).filter((v): v is string => Boolean(v)))];
+    const videoIds = [...new Set(assignments.map((a) => a.videoAssignmentId).filter((v): v is string => Boolean(v)))];
+    const [lotus, videos, exits] = await Promise.all([
+      sessionIds.length ? this.prisma.lotusSessionRecord.findMany({ where: { sessionId: { in: sessionIds } } }) : [],
+      videoIds.length ? this.prisma.personalizedVideoAssignment.findMany({ where: { id: { in: videoIds } }, select: { id: true, status: true, script: true, scriptSource: true } }) : [],
+      videoIds.length ? this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId: { in: videoIds }, kind: "INDEPENDENT_EXIT" }, orderBy: { createdAt: "desc" } }) : [],
+    ]);
+    const lotusBySession = new Map(lotus.map((r) => [r.sessionId, r]));
+    const videoById = new Map(videos.map((v) => [v.id, v]));
+    const evidence: StudentEvidence[] = enrollments.map((enrollment) => {
+      const own = assignments.filter((a) => a.enrollmentId === enrollment.id);
+      const sessionId = own.find((a) => a.diagnosticSessionId)?.diagnosticSessionId;
+      const videoId = own.find((a) => a.videoAssignmentId)?.videoAssignmentId;
+      const record = sessionId ? lotusBySession.get(sessionId) : undefined;
+      const payload = (record?.payload ?? null) as { audits?: LotusQuestionAudit[]; finalReport?: { outcome?: string; skills?: Array<{ skillId: string; name: string; state: string }>; limitations?: string[] } } | null;
+      const audits = payload?.audits ?? [];
+      const video = videoId ? videoById.get(videoId) : undefined;
+      const script = (video?.script ?? {}) as { lesson?: { title?: string }; practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }>; animationKind?: string };
+      const tries = Object.values(script.practiceAttempts ?? {});
+      const exit = videoId ? exits.find((e) => e.assignmentId === videoId) : undefined;
+      const last = audits.at(-1)?.createdAt;
+      return {
+        studentId: enrollment.student.id,
+        name: enrollment.student.name,
+        rollNumber: enrollment.rollNumber,
+        assignments: own.map((a) => ({ kind: a.kind, status: a.status, startedAt: a.startedAt, completedAt: a.completedAt })),
+        diagnostic: record?.status === "COMPLETE" && payload?.finalReport
+          ? {
+              outcome: payload.finalReport.outcome,
+              startingSkillId: payload.finalReport.outcome === "SOLID_GAP" ? confirmedByDepth(foldLedger(audits))[0]?.skillId : undefined,
+              skills: payload.finalReport.skills ?? [],
+              answered: audits.length,
+              correct: audits.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length,
+              minutes: last ? Math.max(1, Math.round((new Date(last).getTime() - record.startedAt.getTime()) / 60000)) : null,
+              endedNote: payload.finalReport.limitations?.find((l) => /time limit|found the starting point/.test(l)),
+            }
+          : null,
+        lesson: video
+          ? {
+              title: script.lesson?.title,
+              status: video.status,
+              authoredBy: video.scriptSource === "CONSTRAINED_AI" ? "AI" : "RECIPE",
+              practice: { total: script.practice?.items?.length ?? 0, attempted: tries.length, correct: tries.filter((t) => t.correct).length },
+            }
+          : null,
+        exit: exit ? { prompt: exit.exitPrompt, correct: exit.exitCorrect } : null,
+      };
+    });
+    return buildClassReport(evidence);
   }
 
   async report(actor: AccessActor, runId: string) {
@@ -161,6 +278,8 @@ export class ClassroomsService {
     const exitVerified = exitRows.filter((row) => Boolean((row.result as Record<string, unknown> | null)?.correct)).length;
     return {
       run,
+      autoAdvance: autoAdvanceEnabled(run.config),
+      classReport: await this.classReport(run.classroomId, assignments),
       progress: byKind,
       summary: {
         enrolled: new Set(assignments.map((row) => row.enrollmentId)).size,

@@ -7,8 +7,10 @@ function matchesWhere(row: Row, where: Record<string, unknown> | undefined): boo
   if (!where) return true;
   return Object.entries(where).every(([key, value]) => {
     if (value === undefined) return true;
-    if (value && typeof value === "object" && !Array.isArray(value) && "in" in value) {
-      return (value.in as unknown[]).includes(row[key]);
+    if (key === "OR" && Array.isArray(value)) return value.some((branch) => matchesWhere(row, branch as Record<string, unknown>));
+    if (value && typeof value === "object" && !Array.isArray(value) && !(value instanceof Date)) {
+      if ("in" in value) return (value.in as unknown[]).includes(row[key]);
+      if ("lt" in value) return row[key] instanceof Date && (row[key] as Date) < (value.lt as Date);
     }
     return row[key] === value;
   });
@@ -185,7 +187,9 @@ export function createPersonalizedVideoMemoryDb() {
         let count = 0;
         for (const [id, row] of jobs) {
           if (!matchesWhere(row, where)) continue;
-          jobs.set(id, { ...row, ...data, updatedAt: new Date() });
+          const inc = data.attemptCount as unknown as { increment?: number } | undefined;
+          const attemptCount = inc && typeof inc === "object" ? ((row.attemptCount as number) ?? 0) + (inc.increment ?? 0) : (data.attemptCount ?? row.attemptCount);
+          jobs.set(id, { ...row, ...data, attemptCount, updatedAt: new Date() });
           count += 1;
         }
         return { count };

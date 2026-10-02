@@ -18,11 +18,16 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").rep
  */
 const FAKE_API_URL = process.env.LOTUS_FAKE_API_URL?.replace(/\/$/, "");
 
+/** The API this request goes to: the fake-model instance when the dev switch asks for it, else the real one. */
+function targetApi(request: Request): { base: string; fake: boolean } {
+  const fake = process.env.NODE_ENV !== "production" && !!FAKE_API_URL && request.headers.get("x-cogna-lotus-model-mode") === "fake";
+  return { base: fake ? FAKE_API_URL! : API_URL, fake };
+}
+
 function lotusUrl(request: Request, segments: string[]): string {
   const source = new URL(request.url);
   const path = segments.map(encodeURIComponent).join("/");
-  const wantsFake = process.env.NODE_ENV !== "production" && !!FAKE_API_URL && request.headers.get("x-cogna-lotus-model-mode") === "fake";
-  return `${wantsFake ? FAKE_API_URL : API_URL}/lotus/${path}${source.search}`;
+  return `${targetApi(request).base}/lotus/${path}${source.search}`;
 }
 
 function forwardedHeaders(request: Request): Headers {
@@ -59,8 +64,13 @@ async function proxy(
     if (contentType) headers.set("content-type", contentType);
     return new Response(response.body, { status: response.status, headers });
   } catch {
+    const { base, fake } = targetApi(request);
     return Response.json(
-      { message: `Cogna Lotus is unavailable at ${API_URL}. Start the API and retry.` },
+      {
+        message: fake
+          ? `The fake-model API is not running at ${base}. Start the "api-fake" server, or turn Fake model off in the Dev panel.`
+          : `Cogna Lotus is unavailable at ${base}. Start the API and retry.`,
+      },
       { status: 503 },
     );
   }

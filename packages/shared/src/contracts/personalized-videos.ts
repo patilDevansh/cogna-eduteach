@@ -23,6 +23,8 @@ export const PERSONALIZED_VIDEO_DELIVERIES = [
   "UNDER_REVIEW",
   "VIDEO",
   "SLIDES",
+  /** Evidence-built animation played live in the browser, with checkpoints (see PersonalizedLessonAnimationView). */
+  "ANIMATED",
   "HTML_FALLBACK",
   "UNAVAILABLE",
   "ABSTAINED",
@@ -221,3 +223,28 @@ export const PERSONALIZED_VIDEO_LIMITATIONS = [
   "Guided success is not independent success.",
   "One exit item is not broad mastery, transfer, or retention.",
 ] as const;
+
+
+export type LessonThemeChoice = "classic" | "cricket" | "space";
+
+/**
+ * Everything the interactive player needs for one theme: the composition's
+ * props (every beat carrying a signed Cartesia narration URL and its real
+ * length), plus narrated checkpoint prompts and per-option feedback.
+ */
+export interface PersonalizedLessonAnimationView {
+  assignmentId: string;
+  /** "authored": written by the AI author and passed the maths verifier (see authored-lessons.ts). */
+  kind: "distribution" | "trinomial" | "authored";
+  theme: LessonThemeChoice;
+  voice: { id: string; name: string };
+  /** For AI-written lessons: which model wrote it, how many drafts it took, and how many maths claims the verifier checked. */
+  authoredBy?: { model: string; attempts: number; claimsChecked: number };
+  /** Which TTS service and API key (last 4 characters only) narrated this lesson; shown in dev mode. */
+  tts?: { provider: string; keyHint?: string };
+  /** DistributionLessonProps | TrinomialLessonProps from @cogna/lesson-video, with beat.audioSrc set. */
+  props: Record<string, unknown>;
+  checkpointAudio: Record<string, { prompt?: string; options: Array<string | undefined> }>;
+  /** Beats that could not be narrated (TTS off or failed) — they play silent at estimated pace. */
+  silentBeats: number;
+}

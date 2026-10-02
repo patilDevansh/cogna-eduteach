@@ -77,7 +77,8 @@ export class VideoRendererAdapter {
   constructor(
     private readonly config: VideoRendererConfig,
     private readonly fetchImpl: typeof fetch = fetch,
-    private readonly localQueue?: Pick<LocalRenderQueue, "submit" | "poll">,
+    private readonly localQueue?: Pick<LocalRenderQueue, "submit" | "poll"> &
+      Partial<Pick<LocalRenderQueue, "submitAnimated">>,
   ) {}
 
   isConfigured(): boolean {
@@ -98,7 +99,18 @@ export class VideoRendererAdapter {
     throw new RendererUnavailableError();
   }
 
-  async poll(providerJobId: string): Promise<RendererPollResult> {
+  /**
+   * Evidence-built animations (DistributionLesson) render only on the local
+   * Remotion queue; a remote endpoint has no such composition.
+   */
+  async submitAnimated(input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" }): Promise<{ providerJobId: string }> {
+    if (this.config.localRenderer && !this.config.endpoint && this.localQueue?.submitAnimated) {
+      return this.localQueue.submitAnimated(input);
+    }
+    throw new RendererUnavailableError("Animated lessons need the local Remotion renderer.");
+  }
+
+    async poll(providerJobId: string): Promise<RendererPollResult> {
     if (this.config.endpoint) {
       return this.pollRemote(providerJobId);
     }

@@ -7,6 +7,12 @@
   font-size: var(--text-hero);
   font-weight: 800;
   margin-top: var(--s-3);
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+}
+
+.accentYou {
+  color: var(--accent);
 }
 
 .workedEquation {

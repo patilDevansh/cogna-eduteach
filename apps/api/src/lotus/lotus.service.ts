@@ -28,6 +28,7 @@ import type {
   LotusUnseenPlanEntry,
   LotusTopic,
 } from "@cogna/shared";
+import { isLotusDemoGap, type LotusDemoGap } from "@cogna/shared";
 import { randomUUID } from "crypto";
 import { isDemoStudentId } from "../access/cogna-access";
 import {
@@ -37,7 +38,7 @@ import {
   reserveCandidatesPrompt,
 } from "./lotus-prompts";
 import type { PrismaClient } from "@cogna/database";
-import { LotusModelService } from "./lotus-model.service";
+import { LotusModelService, PROVIDER_OUTAGE_PROBE_MS } from "./lotus-model.service";
 import { pickOpener } from "./lotus-openers";
 import { buildLotusCoveragePlan } from "./lotus-coverage-plan";
 import {
@@ -58,6 +59,7 @@ import {
   type PlanAction,
   buildFactorisationReport,
   evidenceFromAnalysis,
+  factorisationStopReason,
   foldLedger,
   instantVerdict,
   nextOpenTurn,
@@ -452,12 +454,19 @@ function preferredItem(f: FactorisationSession, turn: number): LotusQuestion | u
   return list.find((item) => item.id === f.preferred[String(turn)]) ?? list[0];
 }
 
-/** Which predicted mistakes each demo persona makes in the factorisation test. Personas not listed answer correctly. */
-const DEMO_FACTORISATION_WEAKNESS: Record<string, RegExp> = {
-  aarav: /SIGN|FLIP/,
-  meena: /GROUP|PAIRS|SUM_ACCEPTED|BRACKET_NOT_SEEN|LEFTOVERS/,
-  rohan: /INCOMPLETE|COMMON_NOT_HIGHEST|PARTIAL_GCF|SKIPPED_COMMON/,
+/** Which predicted mistakes each demo gap makes in the factorisation test. "none" answers everything correctly. */
+const DEMO_FACTORISATION_WEAKNESS: Record<LotusDemoGap, RegExp | undefined> = {
+  signs: /SIGN|FLIP/,
+  grouping: /GROUP|PAIRS|SUM_ACCEPTED|BRACKET_NOT_SEEN|LEFTOVERS/,
+  "common-factor": /INCOMPLETE|COMMON_NOT_HIGHEST|PARTIAL_GCF|SKIPPED_COMMON/,
+  none: undefined,
 };
+
+/** The named demo student whose wrong answers a gap borrows in the (non-factorisation) brackets test. */
+const DEMO_GAP_PERSONA: Record<LotusDemoGap, string> = { signs: "aarav", grouping: "meena", "common-factor": "rohan", none: "aadya" };
+
+/** Each named demo student's usual gap, used when the caller doesn't pick one. */
+const DEMO_PERSONA_GAP: Record<string, LotusDemoGap> = { aarav: "signs", meena: "grouping", rohan: "common-factor" };
 
 const REFLECTION_PROMPTS = [
   "While the AIs review your last answer — how sure are you about it, looking back?",
@@ -830,7 +839,21 @@ export class LotusService implements OnModuleDestroy {
   async get(sessionId: string): Promise<LotusSessionView> {
     const session = await this.requireSession(sessionId);
     this.ensureFactorisationWrites(session);
-    return publicCopy(session);
+    return this.withPreparationBlock(publicCopy(session));
+  }
+
+  /**
+   * A student waiting on question preparation must see *why* it isn't moving
+   * when the cause is the AI account, not a spinner. Uses the last outage
+   * (not just the fail-fast window) so the message holds between probes;
+   * any successful call clears it.
+   */
+  private withPreparationBlock(view: LotusSessionView): LotusSessionView {
+    const outage = this.models.lastOutage;
+    if (outage && view.preparation && !view.preparation.ready) {
+      view.preparation.blockedReason = `The AI that writes your questions is unavailable: ${outage.reason}.`;
+    }
+    return view;
   }
 
   /**
@@ -910,6 +933,7 @@ export class LotusService implements OnModuleDestroy {
   async demoFill(
     sessionId: string,
     studentId: string,
+    gapChoice?: string,
   ): Promise<{ answer: string; working: string; confidence: number }> {
     // Disposable browser-test identities can use the same server-side fill
     // path only under the deterministic fake-model harness. In every normal
@@ -917,7 +941,13 @@ export class LotusService implements OnModuleDestroy {
     // production students can never ask the server to fill an answer.
     const e2eDemoFill = process.env.LOTUS_E2E_FAKE_MODEL === "true"
       && /^demo_e2e[a-z0-9_]+$/.test(studentId);
-    if (!isDemoStudentId(studentId) && !e2eDemoFill) {
+    // Recorded pilot walkthroughs use real classroom accounts named walk_*; their
+    // answers are scripted, everything Cogna does in response is live. Dev only.
+    const walkthroughFill = process.env.NODE_ENV !== "production"
+      && process.env.COGNA_WALKTHROUGH_FILL === "true"
+      && /^walk_[a-z]+$/.test(studentId)
+      && isLotusDemoGap(gapChoice);
+    if (!isDemoStudentId(studentId) && !e2eDemoFill && !walkthroughFill) {
       throw new ForbiddenException("Demo response filling is only available for demo student accounts.");
     }
     const session = await this.requireSession(sessionId);
@@ -928,12 +958,15 @@ export class LotusService implements OnModuleDestroy {
     if (!question) {
       throw new BadRequestException("There is no active question to fill a demo response for.");
     }
-    const key = studentId.replace(/^demo_/, "");
+    const persona = studentId.replace(/^demo_/, "");
+    // An explicit gap overrides the student's own: any demo student can be walked through any gap.
+    const gap: LotusDemoGap | undefined = isLotusDemoGap(gapChoice) ? gapChoice : DEMO_PERSONA_GAP[persona];
+    const key = gap ? DEMO_GAP_PERSONA[gap] : persona;
     const canonical = question.answerKey.canonicalAnswer;
     const diagnostics = question.answerKey.diagnostics;
     if (diagnostics) {
       // Factorisation: each persona makes one family of predicted mistakes, so a gap shows up twice and gets confirmed.
-      const weakness = DEMO_FACTORISATION_WEAKNESS[key];
+      const weakness = gap ? DEMO_FACTORISATION_WEAKNESS[gap] : undefined;
       const predicted = weakness ? diagnostics.predictedMistakes.find((mistake) => weakness.test(mistake.mistake)) : undefined;
       if (predicted) return { answer: predicted.answer, working: predicted.answer, confidence: 60 };
       const worked = question.answerKey.workedSolution ?? [];
@@ -982,6 +1015,7 @@ export class LotusService implements OnModuleDestroy {
       );
     }
     if (session.coveragePlan && atHardLimit) {
+      session.reportPending = true;
       // The final report needs the earlier answers' actual deep evidence, not
       // the placeholder audits that made their next questions appear quickly.
       await this.waitForSessionAnalyses(session.sessionId);
@@ -1281,6 +1315,7 @@ export class LotusService implements OnModuleDestroy {
 
     if (conclusion.exitDiagnostic) {
       session.status = "COMPLETE";
+      session.reportPending = false;
       session.currentQuestion = null;
       session.finalReport = conclusion.report ?? null;
       session.phase = conclusion.phase;
@@ -1718,6 +1753,7 @@ export class LotusService implements OnModuleDestroy {
       latestAudit.conclusion = conclusion;
       latestAudit.questionSelection = this.exitSelection(conclusion);
       session.status = "COMPLETE";
+      session.reportPending = false;
       session.currentQuestion = null;
       session.finalReport = conclusion.report ?? null;
       await this.persist(session);
@@ -1954,6 +1990,10 @@ Create one materially different question that adds new diagnostic evidence. Test
     const f = session?.factorisation;
     // Checked before spending a model call, and again when the result lands.
     if (!session || !f || session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) return;
+    // The provider is refusing this account (no credits / bad key): writing
+    // now can only fail. Leave the turn unqueued — the next poll's
+    // ensureFactorisationWrites re-arms it once the outage window passes.
+    if (this.models.activeOutage) return;
     // Q1 has a session-specific required expression, so it intentionally
     // misses the bank and is freshly authored. Other slots may reuse only an
     // item that was generated by AI, independently checked, and actually
@@ -2052,6 +2092,26 @@ Create one materially different question that adds new diagnostic evidence. Test
     const retryOrRecord = async (outcome: FactorisationWriteLog["outcome"]): Promise<void> => {
       const retryCount = job.retryCount ?? 0;
       record(outcome);
+      const outage = this.models.activeOutage;
+      if (outage) {
+        // Account-level failure: retrying is pointless and the item was never
+        // judged. Pause this turn until a probe is allowed, without counting
+        // toward WRITE_LIFETIME_ATTEMPT_CAP (which is for content that can't
+        // be written, not for an unpaid bill).
+        let queue = this.writeQueues.get(sessionId);
+        if (!queue) {
+          queue = { pending: [], running: 0, activeTurns: new Set(), blockedTurns: new Map() };
+          this.writeQueues.set(sessionId, queue);
+        }
+        const prior = queue.blockedTurns.get(job.turn);
+        queue.blockedTurns.set(job.turn, {
+          until: outage.at + PROVIDER_OUTAGE_PROBE_MS,
+          totalAttempts: prior?.totalAttempts ?? 0,
+          episodeCount: prior?.episodeCount ?? 0,
+        });
+        this.logger.error(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} paused: ${outage.reason}. It resumes automatically when the provider accepts calls again.`);
+        return;
+      }
       if (retryCount >= FACTORY_MAX_RETRIES) {
         markNotApplied(
           `Question ${job.turn} was kept out of the diagnostic because a checked AI replacement could not be prepared in time.`,
@@ -2257,8 +2317,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     const instant = instantVerdict(currentQuestion, response);
     if (instant.fastSkip) state.fastSkips += 1;
 
+    // Time box or a found starting point ends the test here, even if the browser has the next question staged.
+    const stop = factorisationStopReason(
+      [...session.audits, { skillEvidence: instant.evidence } as LotusQuestionAudit],
+      elapsedSeconds,
+    );
+    if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
-    const nextTurn = nextOpenTurn(state, state.planTurn);
+    const nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
     let next: LotusQuestion | undefined;
     if (nextTurn !== null) {
       const versions = f.versions[String(nextTurn)] ?? [];
@@ -2328,8 +2394,10 @@ Create one materially different question that adds new diagnostic evidence. Test
         observedError: audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
           ?? audit.verification?.explanation
           ?? "The planned diagnostic reached its end.",
-        alternatives: ["A further question could add evidence, but there is no authorized remaining slot."],
-        rationale: "The 25-slot plan has no further safe question to install.",
+        alternatives: stop
+          ? ["Continue the plan, but the stopping rule says more questions wouldn't change the result or the time is up."]
+          : ["A further question could add evidence, but there is no authorized remaining slot."],
+        rationale: stop?.note ?? "The 25-slot plan has no further safe question to install.",
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
         implementation: "APPLIED",
         outcome: "NO_CHANGE",
@@ -2338,6 +2406,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         source: "RULE_VALIDATED_PLAN",
       };
       session.currentQuestion = null;
+      session.reportPending = true;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
       // The report is better with the last reviews in it, but the student shouldn't wait long for them.
       await settleWithin(this.waitForSessionAnalyses(session.sessionId), FINAL_REPORT_WAIT_MS);
@@ -2418,6 +2487,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       informationGain: { passed: true, explanation: "No next question — the test ended." },
     };
     session.status = "COMPLETE";
+    session.reportPending = false;
     session.currentQuestion = null;
     session.finalReport = report;
     session.liveProgress = null;

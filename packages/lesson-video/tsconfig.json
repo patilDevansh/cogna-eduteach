@@ -12,5 +12,5 @@
     "jsx": "react-jsx",
     "types": ["node"]
   },
-  "include": ["src/render.ts", "src/transcript.ts", "src/types.ts", "src/cli.ts"]
+  "include": ["src/render.ts", "src/transcript.ts", "src/types.ts", "src/cli.ts", "src/distribution/math.ts", "src/distribution/lesson.ts", "src/distribution/evidence.ts", "src/trinomial/trinomial.ts", "src/lesson-types.ts"]
 }

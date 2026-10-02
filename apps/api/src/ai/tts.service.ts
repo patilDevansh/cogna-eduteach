@@ -8,6 +8,39 @@ export interface SynthesizedSpeech {
 }
 
 /**
+ * Shared shape both TtsService (OpenAI) and CartesiaTtsService implement,
+ * so personalized-videos.service.ts's synthesizeNarration works unchanged
+ * regardless of which provider ai.module.ts's factory selects via
+ * COGNA_TTS_PROVIDER. Every implementation must keep the same non-throwing
+ * contract: a TTS outage never fails a lesson render, it falls back silent.
+ */
+/** "…f0a89": enough to tell keys apart without exposing one. */
+export function maskKey(key: string | undefined): string | undefined {
+  const trimmed = key?.trim();
+  return trimmed ? `…${trimmed.slice(-4)}` : undefined;
+}
+
+export interface TtsProvider {
+  /** Which service speaks: voice IDs are only meaningful to their own provider. */
+  readonly provider: "openai" | "elevenlabs" | "cartesia" | "sarvam";
+  readonly enabled: boolean;
+  /** Last characters of the configured API key (never the key), so dev tools can show which one is in use. */
+  readonly keyHint?: string;
+  readonly model: string;
+  readonly voice: string;
+  readonly instructions?: string;
+  /** `voiceId` overrides the configured voice for one call (providers that can't switch ignore it). */
+  synthesize(text: string, options?: { voiceId?: string }): Promise<SynthesizedSpeech | null>;
+}
+
+/** Explicit ElevenLabs pauses: short after commas/semicolons/colons, longer after sentence ends. */
+export function withPauses(text: string): string {
+  return text
+    .replace(/([,;:])\s+/g, '$1 <break time="0.4s" /> ')
+    .replace(/([.!?])\s+/g, '$1 <break time="0.8s" /> ');
+}
+
+/**
  * Wraps OpenAI's text-to-speech endpoint for narrating lesson-video scenes.
  * Deliberately non-throwing on missing config or a failed call — a TTS
  * outage must never fail a lesson render; the caller falls back to a silent
@@ -20,20 +53,21 @@ export interface SynthesizedSpeech {
  * PersonalizedVideosService: wire it via an explicit factory in ai.module.ts
  * instead of relying on decorator-based auto-DI.
  */
-/** Explicit ElevenLabs pauses: short after commas/semicolons/colons, longer after sentence ends. */
-export function withPauses(text: string): string {
-  return text
-    .replace(/([,;:])\s+/g, '$1 <break time="0.4s" /> ')
-    .replace(/([.!?])\s+/g, '$1 <break time="0.8s" /> ');
-}
-
-export class TtsService {
+export class TtsService implements TtsProvider {
   constructor(
     private readonly openai: OpenAIService,
     private readonly config: ConfigService,
   ) {}
 
   /** ElevenLabs is used when its key is set (set COGNA_LESSON_AUDIO_PROVIDER=openai to opt out). */
+  get provider(): "openai" | "elevenlabs" {
+    return this.useEleven ? "elevenlabs" : "openai";
+  }
+
+  get keyHint(): string | undefined {
+    return this.useEleven ? maskKey(this.config.get<string>("ELEVENLABS_API_KEY")) : maskKey(this.config.get<string>("OPENAI_API_KEY"));
+  }
+
   get useEleven(): boolean {
     return (
       Boolean(this.config.get<string>("ELEVENLABS_API_KEY")) &&
@@ -94,9 +128,9 @@ export class TtsService {
    * fails fast and lets the caller move on to a silent scene instead of
    * stalling the whole render.
    */
-  async synthesize(text: string): Promise<SynthesizedSpeech | null> {
+  async synthesize(text: string, options?: { voiceId?: string }): Promise<SynthesizedSpeech | null> {
     if (!this.enabled || !text.trim()) return null;
-    if (this.useEleven) return this.synthesizeEleven(text);
+    if (this.useEleven) return this.synthesizeEleven(text, options?.voiceId ?? this.voice);
     try {
       const response = await this.openai.getClient().audio.speech.create(
         {
@@ -117,11 +151,11 @@ export class TtsService {
 
   // No OpenAI fallback on failure: a fallback clip would be cached under the ElevenLabs cache key
   // (voice/model are part of it) and hide the outage. A failed call means a silent, timer-paced scene.
-  private async synthesizeEleven(text: string): Promise<SynthesizedSpeech | null> {
+  private async synthesizeEleven(text: string, voiceId: string): Promise<SynthesizedSpeech | null> {
     try {
       consumeBudget("elevenlabs", "ELEVENLABS");
       const response = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${this.voice}?output_format=mp3_44100_128`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
         {
           method: "POST",
           headers: {
@@ -137,7 +171,10 @@ export class TtsService {
           signal: AbortSignal.timeout(30_000),
         },
       );
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn(`[elevenlabs] ${response.status} for voice ${voiceId}: ${(await response.text().catch(() => "")).slice(0, 200)}`);
+        return null;
+      }
       return { bytes: Buffer.from(await response.arrayBuffer()), format: "mp3" };
     } catch {
       return null;

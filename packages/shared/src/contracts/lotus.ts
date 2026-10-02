@@ -88,6 +88,20 @@ export interface LotusAnswerKey {
   diagnostics?: LotusItemDiagnostics;
 }
 
+/** Dev/demo only: the learning gap a skipped-through test should show (see LotusService.demoFill). */
+export const LOTUS_DEMO_GAPS = [
+  { id: "signs", label: "Sign errors (like Aarav)" },
+  { id: "grouping", label: "Grouping and pair sums (like Meena)" },
+  { id: "common-factor", label: "Common factors (like Rohan)" },
+  { id: "none", label: "No gap: all correct" },
+] as const;
+
+export type LotusDemoGap = (typeof LOTUS_DEMO_GAPS)[number]["id"];
+
+export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
+  return LOTUS_DEMO_GAPS.some((gap) => gap.id === value);
+}
+
 export interface LotusStudentResponse {
   answer: string;
   working: string;
@@ -489,6 +503,12 @@ export interface LotusSessionView {
   board: "CBSE";
   topic?: LotusTopic;
   status: "ACTIVE" | "COMPLETE";
+  /**
+   * True from the moment the final answer is accepted until the report is
+   * written (status COMPLETE). Lets the browser leave the question screen
+   * immediately instead of waiting on the final review.
+   */
+  reportPending?: boolean;
   experimental: true;
   phase: LotusPhase;
   startedAt: string;
@@ -509,6 +529,12 @@ export interface LotusSessionView {
     targetQuestions: number;
     totalQuestions: number;
     ready: boolean;
+    /**
+     * Set while question writing can't progress because the AI provider is
+     * unavailable at the account level (no credits, bad key). Preparation
+     * resumes on its own once the provider answers again.
+     */
+    blockedReason?: string;
   };
 }
 
@@ -534,4 +560,6 @@ export interface LotusStatusResponse {
   models: { primary: string; challenger: string };
   /** When false, liveProgress is never populated — clients should not poll. */
   progressiveStreamingEnabled: boolean;
+  /** Present when the AI provider recently refused calls at the account level (no credits, bad key). */
+  unavailableReason?: string;
 }

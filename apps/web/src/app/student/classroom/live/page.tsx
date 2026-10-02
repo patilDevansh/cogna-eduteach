@@ -1,20 +1,149 @@
 "use client";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, ApiError, type ClassroomStudentAssignment } from "@/lib/api";
-import { getStudent } from "@/lib/session";
+import { api, ApiError, classroomAssignmentHref, type ClassroomStudentAssignment } from "@/lib/api";
+import { clearStudent, getStudent, isFixtureStudentSession, type StudentSessionRecord } from "@/lib/session";
 import { Wordmark } from "@/components/ui";
 import styles from "../student-demo.module.css";
 
-function assignmentHref(item: ClassroomStudentAssignment) { const suffix = `assignment=${encodeURIComponent(item.id)}&run=${encodeURIComponent(item.run.id)}`; if (item.kind === "DIAGNOSTIC") return `/student/lotus?${suffix}`; if (item.kind === "TEACHING") return `/student/personalized-video?${suffix}`; return `/student/classroom/exit?${suffix}`; }
+/** What each pilot stage is called on the student's screen. */
+const STEP: Record<ClassroomStudentAssignment["kind"], { title: string; note: string; cta: string }> = {
+  DIAGNOSTIC: { title: "Your Lotus diagnostic", note: "About 15 minutes. It stops early once Cogna knows where to start.", cta: "Start the diagnostic" },
+  TEACHING: { title: "Your lesson and practice", note: "A short lesson made from your own answers, then a few questions to practise.", cta: "Start my lesson" },
+  INDEPENDENT_EXIT: { title: "One question on your own", note: "No hints. This shows your teacher what you can do now.", cta: "Start" },
+};
+
+function classroomGreeting(student: StudentSessionRecord | null, joinedClass: string | null): string {
+  if (joinedClass) return "You're in.";
+  if (student && !isFixtureStudentSession(student) && student.name.trim()) {
+    return `Welcome, ${student.name.trim()}.`;
+  }
+  return "Join your class.";
+}
 
 export default function ProductionClassroomPage() {
-  const [code, setCode] = useState(""); const [rollNumber, setRollNumber] = useState(""); const [assignments, setAssignments] = useState<ClassroomStudentAssignment[]>([]); const [joined, setJoined] = useState<string | null>(null); const [error, setError] = useState("");
-  const student = typeof window === "undefined" ? null : getStudent();
-  async function refresh() { if (!getStudent()?.token) return; try { setAssignments(await api.getStudentClassroomAssignments()); setError(""); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "Could not load assignments."); } }
-  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 5000); return () => window.clearInterval(timer); }, []);
-  async function join(event: React.FormEvent) { event.preventDefault(); setError(""); try { const result = await api.joinClassroom({ joinCode: code, rollNumber }); setJoined(result.classroom.name); await refresh(); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "Could not join the class."); } }
-  return <main className={styles.stage}><header className={styles.top}><Wordmark href="/"/><span>Production classroom</span></header><div className={styles.wrap}><div className={styles.narrow}><section className={styles.hero}><div className={styles.eyebrow}>Live Cogna classroom</div><h1>{student ? `Welcome, ${student.name}.` : "Sign in to join your class."}</h1><p>Teacher assignments appear automatically on this screen.</p></section>
-    {!student?.token ? <section className={styles.card}><p>A signed student account is required for a production classroom.</p><Link className={styles.button} href="/student/login">Student sign in →</Link></section> : <><form className={styles.card} onSubmit={join}><div className={styles.field}><label>Class code</label><input className={styles.input} value={code} onChange={e => setCode(e.target.value.toUpperCase().replace(/\s/g,""))} required /></div><div className={styles.field}><label>Roll number</label><input className={styles.input} value={rollNumber} onChange={e => setRollNumber(e.target.value)} /></div>{error && <div className={styles.error}>{error}</div>}<button className={styles.button}>Join class →</button>{joined && <div className={styles.hint}><strong>Joined:</strong> {joined}</div>}</form><section className={styles.card}><div className={styles.eyebrow}>Assigned by your teacher</div><h2>{assignments.length ? `${assignments.length} ready now` : "Waiting for the teacher"}</h2><div className={styles.rules}>{assignments.map(item => <div className={styles.rule} key={item.id}><b>→</b><span><strong>{item.kind.replaceAll("_"," ")}</strong><br/>{item.run.title} · {item.run.classroom.name}<br/><Link href={assignmentHref(item)}>Start now</Link></span></div>)}</div>{!assignments.length && <p>This page checks for new work automatically.</p>}</section></>}
-    <p><Link href="/student/classroom?demo=1">Use demo classroom instead</Link></p></div></div></main>;
+  const [code, setCode] = useState("");
+  const [rollNumber, setRollNumber] = useState("");
+  const [assignments, setAssignments] = useState<ClassroomStudentAssignment[]>([]);
+  const [joined, setJoined] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [student, setStudent] = useState<StudentSessionRecord | null>(null);
+
+  useEffect(() => {
+    const existing = getStudent();
+    if (isFixtureStudentSession(existing)) {
+      clearStudent();
+      setStudent(null);
+      return;
+    }
+    setStudent(existing);
+  }, []);
+
+  async function refresh() {
+    const current = getStudent();
+    if (!current?.token || isFixtureStudentSession(current)) return;
+    try {
+      setAssignments(await api.getStudentClassroomAssignments());
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not load assignments.");
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function join(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    try {
+      const result = await api.joinClassroom({ joinCode: code, rollNumber });
+      setJoined(result.classroom.name);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not join the class.");
+    }
+  }
+
+  const signedIn = Boolean(student?.token) && !isFixtureStudentSession(student);
+
+  return (
+    <main className={styles.stage}>
+      <header className={styles.top}>
+        <Wordmark href="/" />
+        <span>Production classroom</span>
+      </header>
+      <div className={styles.wrap}>
+        <div className={styles.narrow}>
+          <section className={styles.hero}>
+            <div className={styles.eyebrow}>Live Cogna classroom</div>
+            <h1>{classroomGreeting(signedIn ? student : null, joined)}</h1>
+            <p>
+              {joined
+                ? `Joined ${joined}. Teacher assignments appear automatically on this screen.`
+                : "Use the class code your teacher displayed. A class code finds your classroom; it does not identify you by name."}
+            </p>
+          </section>
+          {!signedIn ? (
+            <section className={styles.card}>
+              <p>Enter your practice code first. A class code only finds the classroom — it does not name you.</p>
+              <Link className={styles.button} href="/student/login">
+                Student sign in →
+              </Link>
+            </section>
+          ) : (
+            <>
+              <form className={styles.card} onSubmit={join}>
+                <div className={styles.field}>
+                  <label>Class code</label>
+                  <input
+                    className={styles.input}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                    required
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label>Roll number</label>
+                  <input className={styles.input} value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} />
+                </div>
+                {error && <div className={styles.error}>{error}</div>}
+                <button className={styles.button}>Join class →</button>
+                {joined && (
+                  <div className={styles.hint}>
+                    <strong>Joined:</strong> {joined}
+                  </div>
+                )}
+              </form>
+              <section className={styles.card}>
+                <div className={styles.eyebrow}>Your next step</div>
+                {assignments[0] ? (
+                  <>
+                    <h2>{STEP[assignments[0].kind].title}</h2>
+                    <p>{STEP[assignments[0].kind].note}</p>
+                    <p className={styles.progress}>{assignments[0].run.classroom.name}</p>
+                    <Link className={styles.button} style={{ display: "flex", textDecoration: "none" }} href={classroomAssignmentHref(assignments[0])}>
+                      {assignments[0].status === "IN_PROGRESS" ? "Carry on" : STEP[assignments[0].kind].cta} →
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h2>{joined ? "Waiting for your teacher" : "Nothing to do yet"}</h2>
+                    <p>This page checks for new work automatically.</p>
+                  </>
+                )}
+              </section>
+            </>
+          )}
+          <p>
+            <Link href="/student/classroom?demo=1">Use demo classroom instead</Link>
+          </p>
+        </div>
+      </div>
+    </main>
+  );
 }

@@ -118,10 +118,28 @@ export default function StudentLoginPage() {
         <p className={styles.helperLine}>
           Don&apos;t have a code? Ask the grown-up who set up your account.
         </p>
-        <Link href="/student/classroom/live" className="btn btn-ghost" style={{ marginTop: "var(--s-2)" }}>
-          Join with my teacher&apos;s class code
-        </Link>
-        <Link href="/prototype/classroom/join" className="btn btn-quiet" style={{ marginTop: "var(--s-2)" }}>
+
+        <div className={styles.classJoin}>
+          <p className={styles.classJoinEyebrow}>In class with your teacher?</p>
+          <Link href="/student/classroom/live?join=1" className={styles.classJoinCard}>
+            <span className={styles.classJoinIcon} aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <rect x="2.5" y="3.5" width="17" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M8 19h6M11 15.5V19" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <path d="M7 8.5h8M7 11.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className={styles.classJoinCopy}>
+              <strong>Join your class</strong>
+              <span>Enter the code your teacher put on the board.</span>
+            </span>
+            <span className={styles.classJoinArrow} aria-hidden="true">
+              →
+            </span>
+          </Link>
+        </div>
+
+        <Link href="/prototype/classroom/join" className={styles.mockLink}>
           Open mock classroom demo
         </Link>
       </div>

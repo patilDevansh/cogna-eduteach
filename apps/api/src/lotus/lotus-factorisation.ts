@@ -540,11 +540,16 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 
 // ---------- report ----------
 
-function depth(skillId: string, seen = new Set<string>()): number {
+export function depth(skillId: string, seen = new Set<string>()): number {
   if (seen.has(skillId)) return 0;
   seen.add(skillId);
   const deps = findFactorisationSkill(skillId)?.dependsOn ?? [];
   return deps.length ? 1 + Math.max(...deps.map((d) => depth(d, seen))) : 0;
+}
+
+/** Confirmed gaps, most foundational first — [0] is the report's starting point. */
+export function confirmedByDepth(ledger: Ledger): SkillLedgerEntry[] {
+  return [...ledger.values()].filter((e) => e.state === "CONFIRMED").sort((a, b) => depth(a.skillId) - depth(b.skillId));
 }
 
 export function buildFactorisationReport(args: {
@@ -553,7 +558,7 @@ export function buildFactorisationReport(args: {
   pendingAnalyses: number;
 }): LotusFinalReport {
   const entries = [...args.ledger.values()];
-  const confirmed = entries.filter((e) => e.state === "CONFIRMED").sort((a, b) => depth(a.skillId) - depth(b.skillId));
+  const confirmed = confirmedByDepth(args.ledger);
   const suspected = entries.filter((e) => e.state === "SUSPECTED");
   const secure = entries.filter((e) => e.state === "SECURE").sort((a, b) => depth(b.skillId) - depth(a.skillId));
 
@@ -605,5 +610,57 @@ export function buildFactorisationReport(args: {
     limitations,
     notTested,
     skills: summaries.sort((a, b) => FACTORISATION_SKILLS.findIndex((s) => s.id === a.skillId) - FACTORISATION_SKILLS.findIndex((s) => s.id === b.skillId)),
+  };
+}
+
+// ---------- stopping rule ----------
+
+/** Pilot time box for the factorisation diagnostic. LOTUS_TIME_LIMIT_MINUTES overrides it. */
+export function factorisationTimeLimitSeconds(env: NodeJS.ProcessEnv = process.env): number {
+  const minutes = Number(env.LOTUS_TIME_LIMIT_MINUTES);
+  return (Number.isFinite(minutes) && minutes > 0 ? minutes : 15) * 60;
+}
+
+/** Fewest answers before a starting point may end the test: one confirmed gap needs two questions, and its prerequisites need checking. */
+export const MIN_ANSWERS_FOR_EARLY_STOP = 8;
+
+export type FactorisationStop =
+  | { reason: "TIME_LIMIT"; note: string }
+  | { reason: "STARTING_POINT_FOUND"; skillId: string; note: string };
+
+/**
+ * Whether the diagnostic should end now, with the answer just given counted.
+ *
+ * - TIME_LIMIT: the pilot's 15 minutes are up.
+ * - STARTING_POINT_FOUND: the most foundational confirmed gap is the real
+ *   starting point — every skill it depends on has been tested and is
+ *   secure, so more questions wouldn't move the start any lower. A gap whose
+ *   prerequisites are untested or shaky keeps the test going, because the
+ *   plan probes those next.
+ *
+ * Pure and deterministic: it reads only the code-marked evidence ledger.
+ */
+export function factorisationStopReason(
+  audits: LotusQuestionAudit[],
+  elapsedSeconds: number,
+  timeLimitSeconds: number = factorisationTimeLimitSeconds(),
+): FactorisationStop | null {
+  const answered = audits.length;
+  if (elapsedSeconds >= timeLimitSeconds) {
+    return {
+      reason: "TIME_LIMIT",
+      note: `The ${Math.round(timeLimitSeconds / 60)}-minute time limit ended the test after ${answered} question${answered === 1 ? "" : "s"}. Skills planned after that point weren't reached.`,
+    };
+  }
+  if (answered < MIN_ANSWERS_FOR_EARLY_STOP) return null;
+  const ledger = foldLedger(audits);
+  const start = confirmedByDepth(ledger)[0];
+  if (!start) return null;
+  const prerequisites = findFactorisationSkill(start.skillId)?.dependsOn ?? [];
+  if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE")) return null;
+  return {
+    reason: "STARTING_POINT_FOUND",
+    skillId: start.skillId,
+    note: `Lotus found the starting point after ${answered} questions: ${skillName(start.skillId).toLowerCase()} went wrong twice while everything it builds on was secure, so the test ended early.`,
   };
 }

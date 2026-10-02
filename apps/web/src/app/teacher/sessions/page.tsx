@@ -1,28 +1,296 @@
 "use client";
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { api, ApiError, type ClassroomAssignmentKind, type ClassroomRunReport, type ProductionClassroom } from "@/lib/api";
-import styles from "../teacher.module.css";
+import { api, ApiError, type ClassroomAssignmentKind, type ClassroomRunReport, type PilotClassReport, type ProductionClassroom } from "@/lib/api";
+import shared from "../teacher.module.css";
+import styles from "./pilot.module.css";
 
-const phases: Array<[ClassroomAssignmentKind,string,string]> = [
-  ["DIAGNOSTIC","Send Cogna Lotus diagnostic","Students receive the real adaptive, evidence-audited diagnostic."],
-  ["TEACHING","Send personalized teaching","Verified videos and interactive challenges are selected from each learner’s evidence."],
-  ["INDEPENDENT_EXIT","Send independent exit check","Every learner receives fresh, unassisted evidence questions."],
+/**
+ * Pilot console. The teacher's one action is releasing the Lotus diagnostic;
+ * after that every student moves through diagnostic → lesson and practice →
+ * independent exit on their own (apps/api/src/classrooms/pilot-flow.ts), and
+ * this page shows the class as it happens.
+ */
+
+const PILOT_TOPIC = "factorisation";
+const REFRESH_MS = 3000;
+
+type Row = PilotClassReport["students"][number];
+
+const STAGES: Array<{ key: Row["stage"]; label: string }> = [
+  { key: "DIAGNOSTIC", label: "Diagnostic" },
+  { key: "LESSON", label: "Lesson" },
+  { key: "EXIT", label: "Exit" },
 ];
+const ORDER: Row["stage"][] = ["JOINED", "DIAGNOSTIC", "LESSON", "EXIT", "DONE"];
 
-export default function TeacherSessionsPage() {
-  const [classes,setClasses]=useState<ProductionClassroom[]>([]); const [classroomId,setClassroomId]=useState(""); const [runId,setRunId]=useState(""); const [title,setTitle]=useState("Algebra diagnostic and teaching cycle"); const [topicId,setTopicId]=useState("signed-bracket-expansion"); const [report,setReport]=useState<ClassroomRunReport|null>(null); const [busy,setBusy]=useState(""); const [error,setError]=useState("");
-  const activeClass=useMemo(()=>classes.find(item=>item.id===classroomId),[classes,classroomId]);
-  useEffect(()=>{api.listClassrooms().then(items=>{setClasses(items);const requested=new URLSearchParams(window.location.search).get("classroom");const selected=requested&&items.some(x=>x.id===requested)?requested:items[0]?.id??"";setClassroomId(selected);const latest=items.find(x=>x.id===selected)?.runs?.[0];if(latest)setRunId(latest.id);}).catch(e=>setError(e instanceof Error?e.message:"Could not load classes."));},[]);
-  useEffect(()=>{if(!runId)return; const refresh=()=>api.getClassroomRunReport(runId).then(setReport).catch(()=>undefined); void refresh(); const timer=window.setInterval(refresh,4000); return()=>window.clearInterval(timer);},[runId]);
-  async function createRun(){if(!classroomId)return;setBusy("create");setError("");try{const run=await api.createClassroomRun(classroomId,{title,topicId,config:{diagnostic:"LOTUS",teaching:["VERIFIED_VIDEO","GAME_CHALLENGE"],exit:"PERSONALIZED_INDEPENDENT"}});setRunId(run.id);setReport(await api.getClassroomRunReport(run.id));}catch(cause){setError(cause instanceof ApiError?cause.message:"Could not create session.");}finally{setBusy("");}}
-  async function launch(phase:ClassroomAssignmentKind){if(!runId)return;setBusy(phase);setError("");try{setReport(await api.launchClassroomPhase(runId,phase));}catch(cause){setError(cause instanceof ApiError?cause.message:"Could not launch this stage.");}finally{setBusy("");}}
-  return <><div className={styles.pageHeader}><div><div className={styles.dateLine}>Production classroom orchestration</div><h1>Run the complete learning cycle</h1><p>One teacher-controlled flow from diagnosis to independent exit evidence.</p></div><Link className={styles.secondary} href="/teacher/classes">Manage classes</Link></div>
-    {error&&<section className={styles.emptyCard}><strong>Action could not be completed</strong><p>{error}</p></section>}
-    {!runId?<section className={styles.panel}><div className={styles.formGrid}><label className={`${styles.formLabel} ${styles.full}`}>Class<select className={styles.formInput} value={classroomId} onChange={e=>setClassroomId(e.target.value)}>{classes.map(item=><option value={item.id} key={item.id}>{item.name} · {item._count?.enrollments??0} students</option>)}</select></label><label className={`${styles.formLabel} ${styles.full}`}>Session title<input className={styles.formInput} value={title} onChange={e=>setTitle(e.target.value)}/></label><label className={`${styles.formLabel} ${styles.full}`}>Topic<input className={styles.formInput} value={topicId} onChange={e=>setTopicId(e.target.value)}/></label><button className={styles.submitButton} onClick={createRun} disabled={!classroomId||Boolean(busy)}>{busy?"Creating…":"Create live session →"}</button></div>{!classes.length&&<p>Create a production class and enroll at least one student first.</p>}</section>:<>
-      <section className={styles.liveEvidence}><div className={styles.liveEvidenceHead}><div><div className={styles.dateLine}>● {report?.run.status??"DRAFT"}</div><h2>{report?.run.title??title}</h2><p>{activeClass?.name} · Current stage: {report?.run.phase.replaceAll("_"," ")??"ENROLLMENT"}</p></div><Link className={styles.secondary} href="/student/classroom/live">Open student screen →</Link></div></section>
-      <section className={styles.sessionCards}>{phases.map(([phase,label,copy],index)=>{const progress=report?.progress.find(x=>x.kind===phase);return <article className={styles.sessionCard} key={phase}><div className={styles.sessionIcon}>0{index+1}</div><h3>{label}</h3><p>{copy}</p><p>{progress?`${progress.complete}/${progress.total} complete · ${progress.inProgress} working`:"Not sent"}</p><button className={styles.primary} onClick={()=>launch(phase)} disabled={Boolean(busy)}>{busy===phase?"Sending…":progress?"Send to newly enrolled students":"Send now"}</button></article>})}</section>
-      <section className={styles.panel} style={{marginTop:"1rem"}}><div className={styles.panelHeader}><div><h3>Live student progress</h3><p>Updates automatically from persisted evidence.</p></div></div><div className={styles.nextSteps}>{report?.students.map(row=><div className={styles.nextStep} key={row.assignmentId}><span>{row.kind.replaceAll("_"," ")}</span><strong>{row.studentName}</strong><p>{row.status.replaceAll("_"," ")}</p></div>)}{!report?.students.length&&<p>Launch the diagnostic when students are enrolled.</p>}</div></section>
-    </>}
-  </>;
+function stepState(row: Row, step: Row["stage"]): "done" | "now" | "next" | "skipped" {
+  const at = ORDER.indexOf(row.stage);
+  const me = ORDER.indexOf(step);
+  if (row.stage === "DONE" && row.stageStatus === "SKIPPED" && step !== "DIAGNOSTIC") return "skipped";
+  if (at > me) return "done";
+  if (at === me) return row.stageStatus === "COMPLETE" ? "done" : "now";
+  return "next";
+}
+
+const PROGRESS_LABEL: Record<Row["progress"], string> = {
+  IMPROVED: "Improved",
+  NOT_YET: "Not yet",
+  NO_GAP: "Secure",
+  UNCLEAR: "Unclear",
+  PENDING: "—",
+};
+
+export default function PilotConsolePage() {
+  const [classes, setClasses] = useState<ProductionClassroom[]>([]);
+  const [classroomId, setClassroomId] = useState("");
+  const [runId, setRunId] = useState("");
+  const [report, setReport] = useState<ClassroomRunReport | null>(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  const activeClass = useMemo(() => classes.find((c) => c.id === classroomId), [classes, classroomId]);
+
+  useEffect(() => {
+    api
+      .listClassrooms()
+      .then((items) => {
+        setClasses(items);
+        const requested = new URLSearchParams(window.location.search).get("classroom");
+        const selected = requested && items.some((c) => c.id === requested) ? requested : items[0]?.id ?? "";
+        setClassroomId(selected);
+        const latest = items.find((c) => c.id === selected)?.runs?.[0];
+        if (latest) setRunId(latest.id);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load your classes."));
+  }, []);
+
+  useEffect(() => {
+    if (!runId) return;
+    const refresh = () => api.getClassroomRunReport(runId).then(setReport).catch(() => undefined);
+    void refresh();
+    const timer = window.setInterval(refresh, REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [runId]);
+
+  async function release() {
+    if (!classroomId) return;
+    setBusy("release");
+    setError("");
+    try {
+      const run = await api.createClassroomRun(classroomId, {
+        title: "Factorisation · Lotus diagnostic",
+        topicId: PILOT_TOPIC,
+        config: { diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true },
+      });
+      setRunId(run.id);
+      setReport(await api.launchClassroomPhase(run.id, "DIAGNOSTIC"));
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not release the diagnostic.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function launch(phase: ClassroomAssignmentKind) {
+    if (!runId) return;
+    setBusy(phase);
+    setError("");
+    try {
+      setReport(await api.launchClassroomPhase(runId, phase));
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not send this step.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  const cr = report?.classReport;
+  const t = cr?.totals;
+
+  return (
+    <>
+      <div className={shared.pageHeader}>
+        <div>
+          <div className={shared.dateLine}>Pilot · {activeClass ? `Grade ${activeClass.grade}` : "Lotus"}</div>
+          <h1>{activeClass?.name ?? "Your class"}</h1>
+          <p>Release the diagnostic. Each student is then taught and checked on their own, and the results build up here.</p>
+        </div>
+        <Link className={shared.secondary} href="/teacher/classes">Manage classes</Link>
+      </div>
+
+      {error && (
+        <section className={shared.emptyCard}>
+          <strong>That didn&apos;t work</strong>
+          <p>{error}</p>
+        </section>
+      )}
+
+      {!runId ? (
+        <section className={styles.releaseCard}>
+          <div>
+            <p className={styles.eyebrow}>Step 1 · students join</p>
+            <h2>Students open Cogna and enter this code</h2>
+            <div className={styles.joinCode} data-testid="join-code">{activeClass?.joinCode ?? "—"}</div>
+            <p className={styles.muted}>
+              {activeClass?._count?.enrollments ?? 0} joined so far.{" "}
+              {classes.length > 1 && (
+                <select className={styles.select} value={classroomId} onChange={(e) => setClassroomId(e.target.value)} aria-label="Class">
+                  {classes.map((c) => (
+                    <option value={c.id} key={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
+            </p>
+          </div>
+          <div className={styles.releaseSide}>
+            <p className={styles.eyebrow}>Step 2 · release</p>
+            <h2>Lotus diagnostic: factorisation</h2>
+            <ul className={styles.ruleList}>
+              <li>Up to 15 minutes. It ends early once Lotus confirms a starting point.</li>
+              <li>Each student then gets a lesson made from their own answers, animated practice and one independent question.</li>
+              <li>Nothing else to press: results appear here as students finish.</li>
+            </ul>
+            <button className={styles.releaseButton} onClick={() => void release()} disabled={!classroomId || Boolean(busy)}>
+              {busy === "release" ? "Releasing…" : "Release Lotus diagnostic →"}
+            </button>
+            {!classes.length && <p className={styles.muted}>Create a class first.</p>}
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className={styles.liveBar}>
+            <div>
+              <span className={styles.livePill} data-live={report?.run.status === "LIVE"}>{report?.run.status === "COMPLETE" ? "Complete" : "● Live"}</span>
+              <strong>{report?.run.title ?? "Factorisation · Lotus diagnostic"}</strong>
+            </div>
+            <div className={styles.liveCode}>
+              Join code <b data-testid="join-code">{report?.run.classroom.joinCode ?? activeClass?.joinCode}</b>
+            </div>
+          </section>
+
+          {t && (
+            <section className={styles.totals} aria-label="Class totals">
+              <Total label="Joined" value={t.enrolled} />
+              <Total label="Diagnostic done" value={t.diagnosticDone} of={t.enrolled} />
+              <Total label="Gap found" value={t.gapFound} of={t.diagnosticDone} />
+              <Total label="Lesson done" value={t.lessonDone} of={t.gapFound} />
+              <Total label="Exit done" value={t.exitDone} of={t.gapFound} />
+              <Total label="Improved" value={t.improved} of={t.exitDone} accent />
+            </section>
+          )}
+
+          <div className={styles.grid}>
+            <section className={styles.panel}>
+              <div className={styles.panelHead}>
+                <h3>Students</h3>
+                <span className={styles.muted}>Updates every few seconds</span>
+              </div>
+              <div className={styles.roster} role="table" aria-label="Student progress">
+                <div className={styles.rosterHead} role="row">
+                  <span>Student</span>
+                  <span>Progress</span>
+                  <span>Starting point</span>
+                  <span>Practice</span>
+                  <span>Result</span>
+                </div>
+                {cr?.students.map((row) => (
+                  <div className={styles.rosterRow} role="row" key={row.studentId} data-testid="roster-row">
+                    <span className={styles.name}>
+                      <i className={styles.avatar}>{row.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}</i>
+                      {row.name}
+                    </span>
+                    <span className={styles.steps}>
+                      {STAGES.map((s) => (
+                        <i key={s.key} className={styles.step} data-state={stepState(row, s.key)} title={s.label}>
+                          {s.label}
+                        </i>
+                      ))}
+                    </span>
+                    <span className={styles.start}>
+                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "No gap: secure" : row.outcome ? "Unclear" : row.stage === "DIAGNOSTIC" ? "Testing…" : "—")}
+                      {row.answered ? <small>{row.answered} questions{row.minutes ? ` · ${row.minutes} min` : ""}{row.endedNote ? " · ended early" : ""}</small> : null}
+                    </span>
+                    <span className={styles.practice}>
+                      {row.lesson?.practice?.total ? `${row.lesson.practice.correct}/${row.lesson.practice.total}` : "—"}
+                      {row.lesson?.authoredBy === "AI" && <small>AI lesson</small>}
+                    </span>
+                    <span>
+                      <b className={styles.progress} data-progress={row.progress}>{PROGRESS_LABEL[row.progress]}</b>
+                    </span>
+                  </div>
+                ))}
+                {!cr?.students.length && <p className={styles.muted}>No students yet. Share the join code.</p>}
+              </div>
+            </section>
+
+            <section className={styles.panel}>
+              <div className={styles.panelHead}>
+                <h3>Class results</h3>
+              </div>
+              <p className={styles.headline}>{cr?.headline ?? "Results appear as each diagnostic finishes."}</p>
+              {cr?.gapGroups.map((g) => (
+                <article className={styles.group} key={g.skillId} data-testid="gap-group">
+                  <p className={styles.eyebrow}>Need a bridge in</p>
+                  <h4>{g.name}</h4>
+                  <p>{g.students.join(", ")}</p>
+                  <small>
+                    {g.students.length} student{g.students.length === 1 ? "" : "s"} · lessons sent automatically
+                    {g.exitDone ? ` · ${g.exitCorrect} of ${g.exitDone} right on their own afterwards` : ""}
+                  </small>
+                </article>
+              ))}
+              {!!cr?.skills.length && (
+                <div className={styles.skills}>
+                  <p className={styles.eyebrow}>Skills across the class</p>
+                  {cr.skills.slice(0, 8).map((k) => {
+                    const total = Math.max(1, k.secure + k.gap + k.suspected);
+                    return (
+                      <div className={styles.skill} key={k.skillId}>
+                        <span>{k.name}</span>
+                        <span className={styles.bar} aria-label={`${k.secure} secure, ${k.suspected} unsure, ${k.gap} gap`}>
+                          <i style={{ width: `${(k.secure / total) * 100}%` }} data-kind="secure" />
+                          <i style={{ width: `${(k.suspected / total) * 100}%` }} data-kind="suspected" />
+                          <i style={{ width: `${(k.gap / total) * 100}%` }} data-kind="gap" />
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <p className={styles.legend}>
+                    <i data-kind="secure" /> secure <i data-kind="suspected" /> unsure <i data-kind="gap" /> gap
+                  </p>
+                </div>
+              )}
+            </section>
+          </div>
+
+          <section className={styles.footerActions}>
+            <button className={shared.secondary} onClick={() => void launch("DIAGNOSTIC")} disabled={Boolean(busy)}>
+              {busy === "DIAGNOSTIC" ? "Sending…" : "Send the diagnostic to anyone who joined late"}
+            </button>
+            {report && !report.autoAdvance && (
+              <>
+                <button className={shared.secondary} onClick={() => void launch("TEACHING")} disabled={Boolean(busy)}>Send teaching</button>
+                <button className={shared.secondary} onClick={() => void launch("INDEPENDENT_EXIT")} disabled={Boolean(busy)}>Send exit check</button>
+              </>
+            )}
+            <button className={shared.secondary} onClick={() => { setRunId(""); setReport(null); }}>Start a new release</button>
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
+function Total({ label, value, of, accent }: { label: string; value: number; of?: number; accent?: boolean }) {
+  return (
+    <div className={styles.total} data-accent={accent}>
+      <strong>
+        {value}
+        {of !== undefined && <small>/{of}</small>}
+      </strong>
+      <span>{label}</span>
+    </div>
+  );
 }

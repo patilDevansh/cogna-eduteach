@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TopBar } from "@/components/ui";
+import { InteractiveMicroscope } from "@/components/landing/InteractiveMicroscope";
 import styles from "./landing.module.css";
 
 export default function Landing() {
@@ -9,9 +10,9 @@ export default function Landing() {
         <TopBar
           right={
             <>
-              <Link href="/student/mission">10-Min Student Mission</Link>
-              <Link href="/parent/students/demo-student">30s Parent Card</Link>
-              <Link href="/teacher/reports">Teacher Brief</Link>
+              <Link href="/student/login">Student sign in</Link>
+              <Link href="/parent/login">Parent sign in</Link>
+              <Link href="/teacher/login">Teacher sign in</Link>
             </>
           }
         />
@@ -20,11 +21,10 @@ export default function Landing() {
       {/* Hero — one composition: the brand, the exact promise, the worked line. */}
       <main>
         <section className={`shell ${styles.hero}`}>
-          <p className="eyebrow">Grade 8 CBSE Mathematics · Rescoped Proof Wedge</p>
           <h1 className={styles.heroTitle}>
-            Find the exact step
+            The education
             <br />
-            where algebra breaks<span style={{ color: "var(--accent)" }}>.</span>
+            school can't give <span className={styles.accentYou}>you.</span>
           </h1>
 
           <div className={`${styles.workedEquation} worked-line`} aria-hidden="true">
@@ -34,22 +34,25 @@ export default function Landing() {
           </div>
 
           <p className={styles.heroLede}>
-            COGNA finds the exact step where algebra breaks, fixes that one gap, and checks
-            later that your child can solve it alone.
+            A class of forty has to move together. Cogna learns how you think — then builds
+            the next explanation, hint, and practice step for you alone.
           </p>
 
           <div className={styles.paths}>
-            <Link href="/student/mission" className="btn btn-primary btn-lg">
-              Start 10-Minute Student Mission →
+            <Link href="/student/login" className="btn btn-primary btn-lg">
+              Student sign in →
             </Link>
-            <Link href="/parent/students/demo-student" className="btn btn-secondary btn-lg">
-              View 30-Second Parent Card
+            <Link href="/parent/login" className="btn btn-secondary btn-lg">
+              Parent sign in →
             </Link>
-            <Link href="/teacher/reports" className="btn btn-ghost btn-lg">
-              Teacher Classroom Brief
+            <Link href="/teacher/login" className="btn btn-ghost btn-lg">
+              Teacher sign in →
             </Link>
           </div>
         </section>
+
+        {/* Live Interactive Verification Demo */}
+        <InteractiveMicroscope />
 
         {/* The Core Learning Loop */}
         <section className={styles.band}>
@@ -81,11 +84,13 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Trust — scientific restraint */}
+        {/* Transforming Education — Personalized Learning */}
         <section className={`shell-letter ${styles.trust}`}>
           <p className={styles.trustLine}>
-            No generic chatbots. No 2,000-question drill banks. No test anxiety. Just deterministic
-            mathematical verification, active dignity-first rescue, and independent before-and-after proof.
+            We are transforming education by replacing one-size-fits-all instruction with deeply
+            personalized learning. By understanding exactly how each student thinks, Cogna tailors
+            every explanation, hint, and practice step in real time—empowering every learner to master
+            challenging concepts with genuine confidence and lasting independence.
           </p>
         </section>
       </main>

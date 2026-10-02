@@ -175,6 +175,9 @@ function controlledWrite(prompt: string): Record<string, unknown> {
 export class FakeLotusModelService {
   readonly primaryModel = "fake-e2e-primary";
   readonly challengerModel = "fake-e2e-challenger";
+  /** The fake model never has a provider outage; kept for parity with LotusModelService. */
+  readonly activeOutage = null;
+  readonly lastOutage = null;
 
   get status() {
     return { enabled: true, ready: true, missingConfiguration: [] as string[], progressiveStreamingEnabled: false };

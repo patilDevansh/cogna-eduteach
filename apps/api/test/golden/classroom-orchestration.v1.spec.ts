@@ -10,7 +10,7 @@ function service(overrides: Record<string, unknown> = {}) {
   const prisma = {
     teacher: { findUnique: async () => ({ id: "teacher-1", schoolId: "school-1" }) },
     classroom: { findUnique: async () => ({ id: "class-1", joinCode: "MATH-8A", archivedAt: null }), findMany: async () => [] },
-    classroomEnrollment: { findMany: async () => [{ id: "enrol-1" }], upsert: async (args: unknown) => args },
+    classroomEnrollment: { findMany: async () => [{ id: "enrol-1", rollNumber: null, student: { id: "s1", name: "A" } }], upsert: async (args: unknown) => args },
     classroomRun: { findFirst: async () => ({ id: "run-1", classroomId: "class-1", classroom: { id: "class-1" } }), update: async (args: unknown) => args },
     classroomAssignment: { findMany: async () => [], createMany: async (args: unknown) => args, findFirst: async () => null, update: async (args: unknown) => args, count: async () => 0 },
     lotusSessionRecord: { findUnique: async () => null },
@@ -27,13 +27,33 @@ describe("production classroom orchestration", () => {
     await assert.rejects(() => service().join(teacherActor, { joinCode: "MATH-8A" }), ForbiddenException);
   });
 
-  it("requires every diagnostic before teaching is released", async () => {
+  it("in teacher-gated mode, requires every diagnostic before teaching is released", async () => {
     const classrooms = service({
+      classroomRun: { findFirst: async () => ({ id: "run-1", classroomId: "class-1", config: { autoAdvance: false }, classroom: { id: "class-1" } }) },
       classroomAssignment: {
         findMany: async () => [{ id: "diagnostic-1", enrollmentId: "enrol-1", status: "IN_PROGRESS" }],
       },
     });
     await assert.rejects(() => classrooms.launchPhase(teacherActor, "run-1", "TEACHING"), BadRequestException);
+  });
+
+  it("in pilot mode (the default), a student's next stage opens as soon as they finish one", async () => {
+    const created: Array<Record<string, unknown>> = [];
+    const classrooms = service({
+      classroomRun: { findUnique: async () => ({ id: "run-1", config: {} }), findFirst: async () => null, update: async (args: unknown) => args },
+      classroomAssignment: {
+        findFirst: async () => ({ id: "t1", runId: "run-1", enrollmentId: "enrol-1", kind: "TEACHING", status: "IN_PROGRESS", diagnosticSessionId: "lotus-1", videoAssignmentId: "video-1" }),
+        update: async (args: { data: Record<string, unknown> }) => ({ id: "t1", runId: "run-1", enrollmentId: "enrol-1", kind: "TEACHING", diagnosticSessionId: "lotus-1", videoAssignmentId: "video-1", ...args.data }),
+        upsert: async (args: { create: Record<string, unknown> }) => { created.push(args.create); return { id: "x1", ...args.create }; },
+        count: async () => 1,
+      },
+      personalizedVideoAssignment: { findFirst: async () => ({ id: "video-1", status: "READY", script: { practice: { items: [1, 2, 3, 4] }, practiceAttempts: { p1: { tries: 1, correct: true } } } }) },
+      personalizedVideoEvent: { findFirst: async () => ({ id: "ev-1" }) },
+    });
+    const done = await classrooms.completeAssignment(studentActor, "t1", { result: {} }) as { next: { kind: string } | null; result: { practice: { correct: number } } };
+    assert.equal(done.next?.kind, "INDEPENDENT_EXIT");
+    assert.equal(created[0]?.status, "READY");
+    assert.equal(done.result.practice.correct, 1, "practice is read from the server record");
   });
 
   it("lets a signed student join by code without exposing another student's enrollment", async () => {
@@ -81,7 +101,7 @@ describe("production classroom orchestration", () => {
     assert.deepEqual((where as { enrollment: unknown }).enrollment, { studentId: "student-1", leftAt: null });
   });
 
-  it("moves the run to a class report after the last diagnostic completes", async () => {
+  it("in teacher-gated mode, moves the run to a class report after the last diagnostic completes", async () => {
     let runUpdate: unknown;
     const classrooms = service({
       classroomAssignment: {
@@ -90,7 +110,7 @@ describe("production classroom orchestration", () => {
         count: async () => 0,
       },
       lotusSessionRecord: { findUnique: async () => ({ id: "lotus-row", studentId: "student-1", status: "COMPLETE", payload: { finalReport: { outcome: "ADVANCEMENT", observedStrengths: [], uncertainAreas: [] }, audits: [] } }) },
-      classroomRun: { update: async (args: unknown) => { runUpdate = args; return args; } },
+      classroomRun: { findUnique: async () => ({ id: "run-1", config: { autoAdvance: false } }), update: async (args: unknown) => { runUpdate = args; return args; } },
     });
     await classrooms.completeAssignment(studentActor, "a1", { diagnosticSessionId: "lotus-1", result: { outcome: "ADVANCEMENT" } });
     assert.deepEqual(runUpdate, { where: { id: "run-1" }, data: { phase: "CLASS_REPORT", status: "PAUSED" } });
@@ -106,7 +126,7 @@ describe("production classroom orchestration", () => {
       },
       personalizedVideoAssignment: { findFirst: async () => ({ id: "video-1", studentId: "student-1" }) },
       personalizedVideoEvent: { findFirst: async () => ({ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true }) },
-      classroomRun: { update: async (args: { data: Record<string, unknown> }) => { runUpdate = args; return args; } },
+      classroomRun: { findUnique: async () => ({ id: "run-1", config: {} }), update: async (args: { data: Record<string, unknown> }) => { runUpdate = args; return args; } },
     });
     await classrooms.completeAssignment(studentActor, "a3", { result: { correct: true } });
     assert.equal(runUpdate?.data?.phase, "FINAL_REPORT");

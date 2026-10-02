@@ -1,4 +1,10 @@
+import { lotusModelMode, setFakeModel } from "./dev-mode";
 import type {
+  PracticeAnswer,
+  PracticeCheckResult,
+  PracticeSetView,
+  LessonThemeChoice,
+  PersonalizedLessonAnimationView,
   ConceptMasteryBand,
   ConfidenceCalibrationSummary,
   DiagnosticV2DebugView,
@@ -119,26 +125,18 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-const LOTUS_DEV_MODEL_MODE_KEY = "cogna_lotus_model_mode";
-
-/** Dev-only: which model backend this tab's Lotus calls should hit. Never meaningful in production — the proxy route ignores the header there regardless. */
+/**
+ * Dev-only: which model backend Lotus calls hit. Backed by the dev-mode store
+ * (lib/dev-mode.ts) so the Dev panel switch, the Lotus page badge and these
+ * headers always agree. The proxy route ignores the header in production.
+ */
 export function getLotusDevModelMode(): "fake" | "real" {
   if (typeof window === "undefined") return "real";
-  try {
-    return sessionStorage.getItem(LOTUS_DEV_MODEL_MODE_KEY) === "fake" ? "fake" : "real";
-  } catch {
-    return "real";
-  }
+  return lotusModelMode();
 }
 
 export function setLotusDevModelMode(mode: "fake" | "real") {
-  if (typeof window === "undefined") return;
-  try {
-    if (mode === "fake") sessionStorage.setItem(LOTUS_DEV_MODEL_MODE_KEY, "fake");
-    else sessionStorage.removeItem(LOTUS_DEV_MODEL_MODE_KEY);
-  } catch {
-    /* ignore */
-  }
+  setFakeModel(mode === "fake");
 }
 
 function lotusDevModelModeHeaders(): Record<string, string> {
@@ -363,16 +361,56 @@ export interface ProductionClassroom {
   runs?: Array<{ id: string; title: string; phase: string; status: string }>;
 }
 
+/** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
+export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; videoAssignmentId?: string | null; run: { id: string; topicId: string } }): string {
+  const params = new URLSearchParams({ assignment: item.id, run: item.run.id });
+  if (item.videoAssignmentId) params.set("video", item.videoAssignmentId);
+  if (item.kind === "DIAGNOSTIC") {
+    if (/factor/i.test(item.run.topicId)) params.set("topic", "factorisation");
+    return `/student/lotus?${params.toString()}`;
+  }
+  // Lesson, practice and the independent exit share one page; the exit opens straight at its step.
+  if (item.kind === "INDEPENDENT_EXIT") params.set("stage", "exit");
+  return `/student/personalized-video?${params.toString()}`;
+}
+
 export interface ClassroomStudentAssignment {
   id: string;
   kind: ClassroomAssignmentKind;
   status: ClassroomAssignmentStatus;
+  videoAssignmentId?: string | null;
   payload: Record<string, unknown>;
   run: { id: string; title: string; topicId: string; classroom: { name: string; grade: number; subjectId: string } };
 }
 
+/** Pilot class results (apps/api/src/classrooms/class-report.ts). */
+export interface PilotClassReport {
+  totals: { enrolled: number; diagnosticDone: number; gapFound: number; noGap: number; unclear: number; lessonDone: number; exitDone: number; improved: number };
+  gapGroups: Array<{ skillId: string; name: string; students: string[]; exitCorrect: number; exitDone: number }>;
+  skills: Array<{ skillId: string; name: string; secure: number; gap: number; suspected: number }>;
+  headline: string;
+  students: Array<{
+    studentId: string;
+    name: string;
+    rollNumber?: string | null;
+    stage: "JOINED" | "DIAGNOSTIC" | "LESSON" | "EXIT" | "DONE";
+    stageStatus: string;
+    outcome?: string;
+    startingPoint?: { skillId: string; name: string };
+    answered?: number;
+    correct?: number;
+    minutes?: number | null;
+    endedNote?: string;
+    lesson?: { title?: string; status?: string; authoredBy?: "AI" | "RECIPE"; practice?: { attempted: number; correct: number; total: number } } | null;
+    exitCorrect?: boolean | null;
+    progress: "IMPROVED" | "NOT_YET" | "NO_GAP" | "UNCLEAR" | "PENDING";
+  }>;
+}
+
 export interface ClassroomRunReport {
-  run: { id: string; title: string; phase: string; status: string; classroom: ProductionClassroom };
+  run: { id: string; title: string; phase: string; status: string; topicId: string; classroom: ProductionClassroom };
+  autoAdvance: boolean;
+  classReport: PilotClassReport;
   progress: Array<{ kind: ClassroomAssignmentKind; total: number; ready: number; inProgress: number; complete: number }>;
   summary: { enrolled: number; diagnosticOutcomes: Record<string, number>; observedStrengths: Record<string, number>; uncertaintyAreas: Record<string, number>; lessonDeliveries: Record<string, number>; independentExit: { completed: number; verified: number; needsReview: number } };
   students: Array<{ assignmentId: string; studentId: string; studentName: string; kind: ClassroomAssignmentKind; status: ClassroomAssignmentStatus; result?: Record<string, unknown> | null }>;
@@ -423,7 +461,7 @@ export const api = {
   startClassroomAssignment: (assignmentId: string) => classroomFetch<ClassroomStudentAssignment>(`/classrooms/assignments/${assignmentId}/start`, { method: "POST" }),
 
   completeClassroomAssignment: (assignmentId: string, input: { diagnosticSessionId?: string; videoAssignmentId?: string; result: Record<string, unknown> }) =>
-    classroomFetch<ClassroomStudentAssignment>(`/classrooms/assignments/${assignmentId}/complete`, { method: "POST", body: JSON.stringify(input) }),
+    classroomFetch<ClassroomStudentAssignment & { next: { id: string; kind: ClassroomAssignmentKind } | null }>(`/classrooms/assignments/${assignmentId}/complete`, { method: "POST", body: JSON.stringify(input) }),
 
   parentSignup: (email: string, name: string) =>
     apiFetch<ParentSession>("/parents/dev/signup", {
@@ -750,9 +788,9 @@ export const api = {
     lotusObserverFetch<LotusSessionView>(`/sessions/${sessionId}/observer`),
 
   /** Server computes the demo answer now that the answer key isn't shipped to the client while a diagnostic is active. Demo student ids only. */
-  demoFillLotusResponse: (sessionId: string, studentId: string) =>
+  demoFillLotusResponse: (sessionId: string, studentId: string, gap?: string) =>
     lotusFetch<{ answer: string; working: string; confidence: number }>(
-      `/sessions/${sessionId}/demo-fill?studentId=${encodeURIComponent(studentId)}`,
+      `/sessions/${sessionId}/demo-fill?studentId=${encodeURIComponent(studentId)}${gap ? `&gap=${encodeURIComponent(gap)}` : ""}`,
     ),
 
   submitLotusAnswer: (
@@ -798,6 +836,25 @@ export const api = {
 
   getPersonalizedVideoById: (id: string) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}`),
+
+  /** Dev/demo: this demo student's animated lesson, created from pilot evidence if they don't have one yet. */
+  demoAnimatedLesson: (studentId: string) =>
+    personalizedVideoFetch<PersonalizedVideoAssignmentView>("/demo-animated", {
+      method: "POST",
+      body: JSON.stringify({ studentId }),
+    }),
+
+  /** The interactive, themed lesson; the first open of a theme narrates it with Cartesia (a few seconds). */
+  getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
+
+  checkPracticeAnswer: (id: string, itemId: string, answer: PracticeAnswer) =>
+    personalizedVideoFetch<PracticeCheckResult>(`/assignments/${id}/practice/${encodeURIComponent(itemId)}`, {
+      method: "POST",
+      body: JSON.stringify({ answer }),
+    }),
+
+  getLessonAnimation: (id: string, theme: LessonThemeChoice) =>
+    personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
 
   recordPersonalizedVideoWatched: (id: string, dwellMs = 0) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/watched`, {

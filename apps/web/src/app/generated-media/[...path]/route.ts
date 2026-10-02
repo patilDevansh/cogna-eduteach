@@ -33,9 +33,11 @@ loadWorkspaceEnvironment();
 
 const ALLOWED_LESSON_FILES = new Set(["lesson.mp4", "lesson.vtt"]);
 const SCENE_AUDIO_FILE = /^scene-\d+\.mp3$/;
+/** Narration clips for interactive animated lessons (see apps/api lesson-animation.ts). */
+const VOICE_CLIP_FILE = /^voice-[0-9a-f]{20}\.mp3$/;
 
 function isAllowedLessonFile(name: string): boolean {
-  return ALLOWED_LESSON_FILES.has(name) || SCENE_AUDIO_FILE.test(name);
+  return ALLOWED_LESSON_FILES.has(name) || SCENE_AUDIO_FILE.test(name) || VOICE_CLIP_FILE.test(name);
 }
 
 function authorizeGeneratedMediaPath(

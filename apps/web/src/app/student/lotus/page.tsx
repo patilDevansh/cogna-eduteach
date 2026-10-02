@@ -19,8 +19,14 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { api, getLotusDevModelMode, setLotusDevModelMode } from "@/lib/api";
+import { LOTUS_DEMO_GAPS, type LotusDemoGap } from "@cogna/shared";
+import { api } from "@/lib/api";
+import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
+import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
+
+/** The pilot student each skip-through gap signs in as. */
+const GAP_STUDENT: Record<LotusDemoGap, PilotStudentKey> = { signs: "aarav", grouping: "meena", "common-factor": "rohan", none: "divya" };
 import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classroom";
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
@@ -1023,20 +1029,9 @@ function LotusPage() {
   const [confidenceNudge, setConfidenceNudge] = useState(0);
   const confidenceRef = useRef<HTMLDivElement | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
-  // Dev-only: lets a developer point this browser tab at the free, instant
-  // fake-model API instead of the live one while iterating on UI, without an
-  // engineer manually restarting the API process. Never rendered in
-  // production (see the isDevBuild check below); persisted for this tab only
-  // so it survives the Start click and every later Lotus API call.
-  const [devFakeModel, setDevFakeModel] = useState(false);
-  useEffect(() => {
-    setDevFakeModel(getLotusDevModelMode() === "fake");
-  }, []);
-  function toggleDevFakeModel() {
-    const next = !devFakeModel;
-    setDevFakeModel(next);
-    setLotusDevModelMode(next ? "fake" : "real");
-  }
+  // Dev tools (demo fill, AI Lab, fake-model badge) follow the global Dev
+  // panel; the fake-model switch itself lives there too (lib/dev-mode.ts).
+  const { devMode, fakeModel: devFakeModel } = useDevState();
   const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -1046,8 +1041,10 @@ function LotusPage() {
   const [advancing, setAdvancing] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<LotusStudentResponse | null>(null);
   const [error, setError] = useState("");
+  const [skipping, setSkipping] = useState<LotusDemoGap | null>(null);
   const [liveProgress, setLiveProgress] = useState<LotusLiveProgress | null>(null);
-  const [teachingHref, setTeachingHref] = useState<string | null>(null);
+  const reportOpenedRef = useRef(false);
+  const reportWatchRef = useRef<number | null>(null);
   const [minimized, setMinimized] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
   const activeMathFieldRef = useRef<HTMLInputElement | null>(null);
@@ -1194,7 +1191,21 @@ function LotusPage() {
     }, 1500);
   }
 
-  useEffect(() => stopPolling, []);
+  useEffect(() => () => {
+    stopPolling();
+    stopReportWatch();
+  }, []);
+
+  // Turning dev mode off returns to exactly what a student sees.
+  useEffect(() => {
+    if (!devMode) setObserver(false);
+  }, [devMode]);
+
+  // The fake and live APIs hold separate sessions, so the model can't change mid-diagnostic.
+  useEffect(() => {
+    setFakeModelLocked(session?.status === "ACTIVE");
+    return () => setFakeModelLocked(false);
+  }, [session?.status]);
 
   // Deep review can improve a later flexible slot while the child is working.
   // Refresh only unseen items and audits; never replace the question on screen.
@@ -1261,32 +1272,39 @@ function LotusPage() {
     setSession(next);
     saveStoredLotusSession({ session: next, studentName, enrollment: classEnrollment, savedAt: new Date().toISOString() });
     resetResponse();
-    if (next.status === "COMPLETE") {
-      void api
-        .createPersonalizedVideoAssignment({
-          studentId,
-          lotusSessionId: next.sessionId,
-        })
-        .then(async (video) => {
-          if (classroomAssignmentId) {
-            await api.completeClassroomAssignment(classroomAssignmentId, {
-              diagnosticSessionId: next.sessionId,
-              videoAssignmentId: video.id,
-              result: {
-                outcome: next.finalReport?.outcome,
-                startingPoint: next.finalReport?.startingPoint,
-                observedStrengths: next.finalReport?.observedStrengths,
-                uncertainties: next.finalReport?.uncertainAreas,
-                audits: next.audits.length,
-              },
-            });
-          }
-          const href = `/student/personalized-video?studentId=${encodeURIComponent(studentId)}&video=${encodeURIComponent(video.id)}`;
-          setTeachingHref(href);
-          router.push(href);
+    if (next.status === "COMPLETE" || next.reportPending) openReport(next.sessionId);
+  }
+
+  /**
+   * The report (and the lesson built from it) live on their own page. Called
+   * as soon as the server says the final answer is in: the student never
+   * waits on the question screen for the last AI review.
+   */
+  function openReport(sessionId: string) {
+    if (reportOpenedRef.current) return;
+    reportOpenedRef.current = true;
+    stopReportWatch();
+    const params = new URLSearchParams({ session: sessionId });
+    if (classroomAssignmentId) params.set("assignment", classroomAssignmentId);
+    router.push(`/student/lotus/report?${params.toString()}`);
+  }
+
+  /** While an unstaged answer is saving, check whether it was the final one. */
+  function watchForReport(sessionId: string) {
+    stopReportWatch();
+    reportWatchRef.current = window.setInterval(() => {
+      api
+        .getLotusSession(sessionId)
+        .then((polled) => {
+          if (polled.reportPending || polled.status === "COMPLETE") openReport(sessionId);
         })
         .catch(() => undefined);
-    }
+    }, 700);
+  }
+
+  function stopReportWatch() {
+    if (reportWatchRef.current) window.clearInterval(reportWatchRef.current);
+    reportWatchRef.current = null;
   }
 
   async function start() {
@@ -1357,7 +1375,10 @@ function LotusPage() {
     }
     setBusy(true);
     setError("");
-    if (!staged) startPolling(session.sessionId, audits.length);
+    if (!staged) {
+      startPolling(session.sessionId, audits.length);
+      watchForReport(session.sessionId);
+    }
     try {
       const next = await api.submitLotusAnswer(session.sessionId, studentId, submission);
       rememberSession(next);
@@ -1371,6 +1392,7 @@ function LotusPage() {
           : "Your last answer was not confirmed. Retry saving it.");
     } finally {
       stopPolling();
+      stopReportWatch();
       setBusy(false);
     }
   }
@@ -1428,6 +1450,62 @@ function LotusPage() {
     }
   }
 
+  /**
+   * Dev only: answer the whole test as a learner with the chosen gap (signs, grouping, ...), through the
+   * same submit path a student uses, then land on the report and lesson. Demo students only.
+   */
+  async function skipThrough(gap: LotusDemoGap) {
+    if (skipping) return;
+    setSkipping(gap);
+    setBusy(true);
+    setError("");
+    try {
+      // Each gap is a named pilot student (the server only fills answers for those accounts).
+      const story = PILOT_STUDENT_STORIES[GAP_STUDENT[gap]];
+      const sid = `demo_${story.key}`;
+      let view = session && studentId === sid ? session : null;
+      if (!view) {
+        const activeStudent = await ensureDemoStudentSession(sid, story.name, { forceRefresh: true });
+        setStudentId(activeStudent.studentId);
+        setStudentName(story.name);
+        reportOpenedRef.current = false;
+        view = await api.startLotusSession(activeStudent.studentId, topic);
+        setPreviewQuestion(null);
+        setPendingSubmission(null);
+        setSession(view);
+        setPreparing(topic === "FACTORISATION" && !view.preparation?.ready);
+        setMinimized(false);
+      }
+      for (let turn = 0; turn < 40; turn++) {
+        // Factorisation questions are written on demand: wait for the next one.
+        const deadline = Date.now() + 180_000;
+        while (view.status === "ACTIVE" && !view.reportPending && !view.currentQuestion && Date.now() < deadline) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1000));
+          view = await api.getLotusSession(view.sessionId);
+        }
+        if (view.status !== "ACTIVE" || view.reportPending || !view.currentQuestion) break;
+        const filled = await api.demoFillLotusResponse(view.sessionId, sid, gap);
+        view = await api.submitLotusAnswer(view.sessionId, sid, {
+          answer: filled.answer,
+          working: filled.working,
+          confidence: filled.confidence,
+          responseTimeMs: 4000,
+          didNotKnow: false,
+          submissionId: crypto.randomUUID(),
+          questionId: view.currentQuestion.id,
+        });
+        setSession(view);
+      }
+      rememberSession(view);
+      if (view.status !== "COMPLETE" && !view.reportPending) watchForReport(view.sessionId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not skip through the test.");
+    } finally {
+      setSkipping(null);
+      setBusy(false);
+    }
+  }
+
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
@@ -1452,15 +1530,31 @@ function LotusPage() {
           <div className={styles.statusRow}>
             {observer && <span className={styles.observerBadge}>Observer view</span>}
             {session?.status === "ACTIVE" && (
-              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")} · Q{shownQuestionNumber}</span>
+              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{topic === "FACTORISATION" ? " of 15:00" : ""} · Q{shownQuestionNumber}</span>
             )}
-            <button
-              type="button"
-              className="btn btn-quiet"
-              onClick={() => setObserver((value) => !value)}
-            >
-              {observer ? "Student view" : "Show AI Lab"}
-            </button>
+            {devMode && (
+              <select
+                className="btn btn-quiet"
+                value=""
+                disabled={Boolean(skipping)}
+                onChange={(event) => void skipThrough(event.target.value as LotusDemoGap)}
+                aria-label="Skip through the test with a learning gap"
+              >
+                <option value="">{skipping ? "Skipping the test…" : "Skip test as…"}</option>
+                {LOTUS_DEMO_GAPS.map((gap) => (
+                  <option key={gap.id} value={gap.id}>{gap.label}</option>
+                ))}
+              </select>
+            )}
+            {devMode && (
+              <button
+                type="button"
+                className="btn btn-quiet"
+                onClick={() => setObserver((value) => !value)}
+              >
+                {observer ? "Student view" : "Show AI Lab"}
+              </button>
+            )}
           </div>
         </header>
 
@@ -1488,14 +1582,10 @@ function LotusPage() {
               {error && <div className={styles.error} style={{ marginTop: "1rem" }}>{error}</div>}
               {status && !status.ready && (
                 <div className={styles.error} style={{ marginTop: "1rem" }}>
-                  Lotus is not ready. Missing: {status.missingConfiguration.join(", ")}.
+                  {status.unavailableReason
+                    ? `${status.unavailableReason} Please try again in a little while.`
+                    : `Lotus is not ready. Missing: ${status.missingConfiguration.join(", ")}.`}
                 </div>
-              )}
-              {process.env.NODE_ENV !== "production" && (
-                <label className={styles.devModelToggle}>
-                  <input type="checkbox" checked={devFakeModel} onChange={toggleDevFakeModel} />
-                  Dev: use free fake model instead of live (no cost, instant, for UI-only changes)
-                </label>
               )}
               <div className={styles.actions} style={{ marginTop: "1.5rem" }}>
                 <button className="btn btn-primary" type="button" onClick={start} disabled={busy || !studentId || !status?.ready}>
@@ -1509,7 +1599,17 @@ function LotusPage() {
           <div className={observer ? styles.layout : styles.layoutStudent}>
             <div className={styles.studentPane}>
             {session.status === "COMPLETE" ? (
-              <FinalReport session={session} teachingHref={teachingHref} />
+              observer ? (
+                <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
+              ) : (
+                <section className={styles.introCard}>
+                  <h1>Your diagnostic is complete</h1>
+                  <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
+                  <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
+                    See your report →
+                  </Link>
+                </section>
+              )
             ) : preparing ? (
               <section className={styles.introCard} aria-live="polite">
                 <div className={styles.preparationSpinner} aria-hidden="true"><span /></div>
@@ -1522,9 +1622,22 @@ function LotusPage() {
                   <span style={{ width: `${Math.min(100, ((session.preparation?.readyQuestions ?? 0) / (session.preparation?.targetQuestions ?? 15)) * 100)}%` }} />
                 </div>
                 <p className={styles.muted} style={{ marginTop: "0.75rem" }}>
-                  {session.preparation?.readyQuestions ?? 0} of {session.preparation?.targetQuestions ?? 15} questions ready · usually takes 3 minutes
+                  {session.preparation?.readyQuestions ?? 0} of {session.preparation?.targetQuestions ?? 15} questions ready
+                  {session.preparation?.blockedReason ? "" : " · usually takes 3 minutes"}
                 </p>
-                {preparationTimedOut && (
+                {session.preparation?.blockedReason ? (
+                  <div className={styles.error} style={{ marginTop: "1rem" }} role="alert">
+                    <strong>We can&apos;t finish making your questions right now.</strong>{" "}
+                    The AI that writes them isn&apos;t available. This page carries on by itself as soon as it&apos;s back, or you can
+                    come back later.
+                    {devMode && (
+                      <span style={{ display: "block", marginTop: "0.5rem", fontSize: "0.85rem" }}>
+                        Dev · {session.preparation.blockedReason} To keep testing: leave this page, switch on Fake model in the Dev
+                        panel, then start again.
+                      </span>
+                    )}
+                  </div>
+                ) : preparationTimedOut && (
                   <p className={styles.muted} style={{ marginTop: "0.5rem" }}>
                     Still preparing—no hardcoded questions will be shown. AI is continuing to write and verify the remaining questions.
                   </p>
@@ -1697,14 +1810,14 @@ function LotusPage() {
                     </label>
 
                     {error && <div className={styles.error}>{error}</div>}
-                    {demoPersona && (
+                    {demoPersona && devMode && (
                       <button className="btn btn-ghost" type="button" onClick={fillDemoResponse} disabled={inputLocked}>
                         Fill {studentName.split(" ")[0]}’s demo response
                       </button>
                     )}
                     <button className="btn btn-primary" type="button" onClick={submit} disabled={busy}>
                       {busy ? (
-                        <span className={styles.loading}><span className={styles.pulse} />{previewQuestion ? "Saving your answer…" : "Preparing your report…"}</span>
+                        <span className={styles.loading}><span className={styles.pulse} />{previewQuestion ? "Saving your answer…" : "Checking your answer…"}</span>
                       ) : pendingSubmission ? "Retry saving previous answer" : "Submit answer"}
                     </button>
                     {busy && liveProgress?.reflectionPrompt && (

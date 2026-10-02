@@ -8,4 +8,6 @@ The [factorisation problems log](./FACTORISATION_PROBLEMS.md) separates browser-
 
 The [continuous diagnostic architecture](./LOTUS_CONTINUOUS_DIAGNOSTIC.md) is the proposed next design for prompt-only question staging on the student's device, a durable rolling pool, curriculum-balanced selection, and background analysis. It follows the live browser finding that the first reserve implementation is fast for arithmetic but still waits on symbolic and algebraic work. It is not yet implemented.
 
+The [content generation engine plan](./CONTENT_GENERATION_ENGINE_PLAN.md) proposes a governed intervention planner, reusable animation library, verified lesson recipes, scalable media delivery, and phase gates. It is a design proposal, not shipped behavior or a change to the canonical classroom contract.
+
 Current state: classroom implementation exists and Lotus has a limited arithmetic fast path. Syllabus ingestion, durable rolling readiness, and fast symbolic/algebraic transitions remain proposed and require implementation and evaluation.

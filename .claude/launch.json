@@ -4,15 +4,38 @@
     {
       "name": "api",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@cogna/api", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@cogna/api",
+        "dev"
+      ],
       "port": 3001
     },
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@cogna/web", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@cogna/web",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "api-fake",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@cogna/api",
+        "start"
+      ],
+      "port": 3098,
+      "env": {
+        "PORT": "3098",
+        "LOTUS_E2E_FAKE_MODEL": "true",
+        "LOTUS_E2E_DISABLE_QUESTION_BANK": "true"
+      }
     }
   ]
 }

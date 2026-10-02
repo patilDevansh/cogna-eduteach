@@ -156,10 +156,11 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("id") id: string,
     @Query("studentId") studentId: string,
+    @Query("gap") gap?: string,
   ): Promise<{ answer: string; working: string; confidence: number }> {
     const actor = resolveActor(headers);
     assertStudentAccess(actor, studentId);
-    return this.lotus.demoFill(id, studentId);
+    return this.lotus.demoFill(id, studentId, gap);
   }
 
   @Post("sessions/:id/override")

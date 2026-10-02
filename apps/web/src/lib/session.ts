@@ -35,6 +35,12 @@ export function getStudent(): StudentSessionRecord | null {
   return raw ? JSON.parse(raw) : null;
 }
 
+/** Gurukul/pilot fixture ids (`demo_rohan`, `dev_student_001`, …), not a practice-code login. */
+export function isFixtureStudentSession(student: StudentSessionRecord | null): boolean {
+  if (!student?.studentId) return false;
+  return student.studentId.startsWith("demo_") || student.studentId === "dev_student_001";
+}
+
 export function clearStudent() {
   localStorage.removeItem(STUDENT_KEY);
 }

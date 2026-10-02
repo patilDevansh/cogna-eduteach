@@ -44,7 +44,15 @@ export class LocalRenderQueue {
     return { providerJobId };
   }
 
-  poll(providerJobId: string): RendererPollResult {
+  /** Queues an evidence-built DistributionLesson (already narrated) behind any running render. */
+  submitAnimated(input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" }): { providerJobId: string } {
+    const providerJobId = randomUUID();
+    this.writeJob(providerJobId, { status: "RUNNING" });
+    this.chain = this.chain.then(() => this.renderAnimated(providerJobId, input)).catch(() => undefined);
+    return { providerJobId };
+  }
+
+    poll(providerJobId: string): RendererPollResult {
     const job = this.readJob(providerJobId);
     if (!job) {
       return { status: "FAILED", retryable: true, message: "Unknown local render job." };
@@ -135,9 +143,36 @@ export class LocalRenderQueue {
       await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
+
+  private async renderAnimated(providerJobId: string, input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" }): Promise<void> {
+    const workDir = path.join(os.tmpdir(), "cogna-lesson-video", providerJobId);
+    try {
+      await mkdir(workDir, { recursive: true });
+      const inputPath = path.join(workDir, "input.json");
+      await writeFile(inputPath, JSON.stringify({ lesson: input.lesson, outputDir: workDir }));
+      const rendered = await runLessonVideoCli(inputPath, input.kind === "trinomial" ? "--trinomial" : "--distribution");
+      const prefix = `lessons/${input.assignmentId}`;
+      const video = await this.storage.put({ key: `${prefix}/lesson.mp4`, body: await readFile(rendered.mp4Path), contentType: "video/mp4" });
+      const transcript = await this.storage.put({ key: `${prefix}/lesson.vtt`, body: await readFile(rendered.vttPath), contentType: "text/vtt" });
+      this.writeJob(providerJobId, {
+        status: "COMPLETED",
+        result: {
+          storageRef: video.publicUrl,
+          transcriptRef: transcript.publicUrl,
+          durationMs: rendered.durationMs,
+          integrity: { sha256: rendered.sha256, provider: rendered.provider, providerJobId, sceneCount: 3 },
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.writeJob(providerJobId, { status: "FAILED", retryable: true, message });
+    } finally {
+      await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
 }
 
-function runLessonVideoCli(inputPath: string): Promise<{
+function runLessonVideoCli(inputPath: string, mode?: "--distribution" | "--trinomial"): Promise<{
   mp4Path: string;
   vttPath: string;
   durationMs: number;
@@ -145,7 +180,7 @@ function runLessonVideoCli(inputPath: string): Promise<{
   provider: "remotion-local";
 }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [lessonVideoCli(), inputPath], {
+    const child = spawn(process.execPath, [lessonVideoCli(), ...(mode ? [mode] : []), inputPath], {
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });

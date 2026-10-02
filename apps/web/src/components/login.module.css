@@ -53,6 +53,94 @@
 
 .helperLine { text-align: center; font-size: var(--text-xs); color: var(--ink-faint); }
 
+.classJoin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+
+.classJoinEyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  text-align: center;
+}
+
+.classJoinCard {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0.95rem 1rem;
+  text-decoration: none;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 0 0 1px rgba(14, 107, 84, 0.08);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.classJoinCard:hover {
+  transform: translateY(-1px);
+  background: #d7ebe3;
+  box-shadow: 0 8px 18px rgba(8, 70, 58, 0.08);
+}
+
+.classJoinIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--accent);
+}
+
+.classJoinCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.classJoinCopy strong {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.classJoinCopy span {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.classJoinArrow {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.mockLink {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  text-decoration: none;
+}
+
+.mockLink:hover {
+  color: var(--accent-deep);
+  text-decoration: underline;
+}
+
 /* ---------- parent (letter-proportioned, account entry) ---------- */
 .parentWrap { width: 100%; max-width: 420px; margin: auto 0; }
 .parentCard {

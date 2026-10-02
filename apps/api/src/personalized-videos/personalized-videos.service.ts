@@ -23,10 +23,16 @@ import {
   type PersonalizedVideoScriptSource,
   type PersonalizedVideoTeacherReport,
   type PilotStudentKey,
+  type LessonThemeChoice,
+  type PersonalizedLessonAnimationView,
+  type PracticeAnswer,
+  type PracticeCheckResult,
+  type PracticeItem,
+  type PracticeSetView,
 } from "@cogna/shared";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
-import type { TtsService } from "../ai/tts.service";
+import type { TtsProvider } from "../ai/tts.service";
 import { probeAudioDurationSeconds, readTtsCache, writeTtsCache } from "./tts-cache";
 import {
   DEMO_SCHOOL_ID,
@@ -47,6 +53,24 @@ import {
   themedLesson,
 } from "./approved-templates";
 import { snapshotFromLotusSession } from "./lotus-evidence";
+import { animatedLessonsEnabled, planAnimatedLesson } from "./animated-lessons";
+import { planFactorisationLesson } from "./factorisation-lessons";
+import { DEMO_ANIMATIONS, LessonNarrator, buildForTheme, demoLessonRecord, type AnimationInput } from "./lesson-animation";
+import { authoredDurationInFrames, type AuthoredLessonProps, type DistributionLessonProps, type TrinomialLessonProps } from "@cogna/lesson-video";
+import type { OpenAIService } from "../ai/openai.service";
+import { buildLessonBrief, type LessonBrief } from "./ai-authoring/lesson-brief";
+import { authorLesson, type AuthoringAttempt } from "./ai-authoring/lesson-author";
+import { generatePractice } from "./ai-authoring/practice-generator";
+import { taskVerdict } from "./ai-authoring/lesson-verifier";
+import {
+  aiLessonsEnabled,
+  checkPracticeAnswer,
+  chooseAuthor,
+  placeholderLesson,
+  practiceItemView,
+  summaryFromDraft,
+} from "./ai-authoring/authoring-pipeline";
+import { skillName } from "../lotus/lotus-factorisation-catalogue";
 import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
 import { evaluateRemediationEligibility } from "./video-evidence";
 import { validateVideoLanguage } from "./video-language";
@@ -58,6 +82,9 @@ import {
 import { verifyStepValidity } from "../engines/diagnostic-v2/linear-bracket-verifier";
 
 const JOB_TYPE = "PERSONALIZED_VIDEO_RENDER";
+const MAX_ANIMATED_ATTEMPTS = 3;
+/** How long an AI-authoring claim holds before another worker may treat it as crashed and take over. */
+const AUTHORING_LOCK_MS = 10 * 60 * 1000;
 const WORKER_ID = `personalized-video-${process.pid}`;
 
 /**
@@ -67,6 +94,15 @@ const WORKER_ID = `personalized-video-${process.pid}`;
  * with a drag-eligible EQUATION_TRANSFORMATION claim — Rohan/Divya's drag
  * widget is one scene type slides can render, not the reason to use it.
  */
+/**
+ * Evidence-built animations play live in the browser (themed, narrated,
+ * with checkpoints) instead of being rendered to MP4. Set
+ * COGNA_ANIMATION_DELIVERY=mp4 to go back to the rendered-video path.
+ */
+export function interactiveAnimationEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.COGNA_ANIMATION_DELIVERY?.trim() !== "mp4";
+}
+
 export function slidesDeliveryEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.COGNA_SLIDES_DELIVERY_ENABLED?.trim() !== "false";
 }
@@ -74,6 +110,14 @@ export function slidesDeliveryEnabled(env: NodeJS.ProcessEnv = process.env): boo
 interface InteractiveRenderResult {
   interactive: true;
   scenesAudio: Array<{ index: number; key: string }>;
+}
+
+/** renderResult for a lesson delivered as a live, themed animation. */
+interface AnimationRenderResult {
+  animation: true;
+  kind: AnimationKind;
+  prewarmedTheme: string;
+  silentBeats: number;
 }
 
 type JobPayload = {
@@ -120,7 +164,37 @@ type StoredScript = {
   statusLabel: string;
   lesson: PersonalizedVideoLesson;
   exit: PersonalizedVideoExitItem | null;
+  /** Present when the lesson is an evidence-built animation (animated-lessons.ts / factorisation-lessons.ts / AI-authored). */
+  animation?: DistributionLessonProps | TrinomialLessonProps | AuthoredLessonProps;
+  /** Which composition renders `animation`; absent means distribution (older rows). */
+  animationKind?: AnimationKind;
+  /** The planner's builder input, so the interactive player can rebuild the lesson per theme. */
+  animationInput?: AnimationInput;
+  /**
+   * AI authoring: "pending" while the background job writes and verifies the
+   * lesson; "done" when a verified draft replaced the placeholder or recipe;
+   * "failed" when it never passed (the recipe lesson, if any, is used instead).
+   */
+  authoring?: {
+    status: "pending" | "done" | "failed";
+    brief: LessonBrief;
+    /** Which author: real sessions use GPT, fake-model sessions the fake author. */
+    author: "openai" | "fake";
+    model?: string;
+    attempts?: AuthoringAttempt[];
+    claimsChecked?: number;
+    practiceFromCode?: boolean;
+    reason?: string;
+  };
+  /** For exit items built by the AI author or the generator: graded by the algebra engine, so any equivalent finished form counts. */
+  exitCheck?: { task: "factorise" | "expand" | "simplify"; expression: string };
+  /** Independent practice played after the lesson; answers stay on the server. */
+  practice?: { source: "AI_VERIFIED" | "CODE_GENERATED"; skillId: string; items: PracticeItem[] };
+  /** Tries per practice item, for the reveal-after-two-misses rule and the teacher view. */
+  practiceAttempts?: Record<string, { tries: number; correct: boolean }>;
 };
+
+type AnimationKind = "distribution" | "trinomial" | "authored";
 
 function studentKeyFromId(studentId: string): PilotStudentKey | undefined {
   const match = studentId.match(/^demo_(aarav|meena|rohan|divya|kabir)$/);
@@ -137,12 +211,16 @@ function targetStudentId(actor: AccessActor, requested?: string): string {
 
 export class PersonalizedVideosService {
   private mediaStorage: MediaStorage | null = null;
+  private readonly narrator: LessonNarrator;
 
   constructor(
     private readonly prisma: PrismaClient,
     private readonly renderer: VideoRendererAdapter,
-    private readonly tts?: TtsService,
-  ) {}
+    private readonly tts?: TtsProvider,
+    private readonly openai?: OpenAIService,
+  ) {
+    this.narrator = new LessonNarrator(tts, () => this.getMediaStorage());
+  }
 
   private getMediaStorage(): MediaStorage {
     if (!this.mediaStorage) this.mediaStorage = createMediaStorageFromEnv();
@@ -212,17 +290,62 @@ export class PersonalizedVideosService {
       options.allowTestHooks && input.scriptOverride
         ? (input.scriptSource ?? "CONSTRAINED_AI")
         : "APPROVED_TEMPLATE";
-    const lesson = (options.allowTestHooks ? input.scriptOverride : undefined) ?? (template ? themedLesson(template) : null);
-    const exit = (options.allowTestHooks ? input.exitOverride : undefined) ?? template?.exit ?? null;
+    // An animation built from the student's own verified mistakes beats a
+    // keyword-matched template. Authored narration + computed numbers only,
+    // so it stays APPROVED_TEMPLATE (no model wrote any of it).
+    const names = await this.studentNames(studentId, input.name, template?.name);
+    const canAnimate =
+      gate.eligible &&
+      !(options.allowTestHooks && input.scriptOverride) &&
+      snapshot.evidenceSource === "LOTUS_SESSION" &&
+      animatedLessonsEnabled();
+    const factorisation = canAnimate && trusted.session ? planFactorisationLesson(trusted.session, names.first) : null;
+    const planned = factorisation?.kind === "trinomial" ? factorisation : null;
+    const distribution = canAnimate && !factorisation ? planAnimatedLesson(snapshot, names.first) : null;
+    const animated = planned
+      ? { ...planned, animationKind: "trinomial" as AnimationKind }
+      : distribution
+        ? { ...distribution, animationKind: "distribution" as AnimationKind }
+        : null;
+    // AI authoring: the model writes a lesson from this student's own answers, in the background job,
+    // and it is used only if every claim passes the verifier. The recipe lesson (if any) is the fallback.
+    const brief = canAnimate && aiLessonsEnabled() && trusted.session ? buildLessonBrief(trusted.session, names.first) : null;
+    const author = brief && trusted.session ? chooseAuthor(trusted.session, this.openai) : null;
+    const authoring: StoredScript["authoring"] = brief && author
+      ? { status: "pending", brief, author: author.label === "fake-lesson-author" ? "fake" : "openai" }
+      : undefined;
+    const abstainReason = factorisation?.kind === "abstain" ? factorisation.reason : undefined;
+    const lesson =
+      (options.allowTestHooks ? input.scriptOverride : undefined) ??
+      animated?.lesson ??
+      (authoring ? placeholderLesson(authoring.brief) : null) ??
+      (template && !factorisation ? themedLesson(template) : null);
+    const practiceSkill = brief?.targetSkill.id ?? (planned ? planned.skillId : distribution ? "C3_DISTRIBUTIVE_PROPERTY" : null);
+    const practice = practiceSkill && (animated || authoring)
+      ? generatePractice(practiceSkill, `${studentId}:${trusted.session?.sessionId ?? ""}`, brief?.studentItems.map((i) => i.expression) ?? [])
+      : null;
+    const exit =
+      (options.allowTestHooks ? input.exitOverride : undefined) ?? animated?.exit ?? template?.exit ?? null;
     const stored: StoredScript = {
-      name: input.name ?? template?.name ?? "Student",
+      name: names.full,
       roll: input.roll ?? template?.roll,
-      learnerDecision: template?.learnerDecision ?? "Use only the supported evidence.",
-      teacherDecision: template?.teacherDecision ?? "Inspect the exact question-and-step evidence before acting.",
-      uncertainty: template?.uncertainty ?? "High",
-      statusLabel: template?.statusLabel ?? (gate.eligible ? "Targeted bridge" : "Evidence check"),
+      learnerDecision: animated?.learnerDecision ?? template?.learnerDecision ?? "Use only the supported evidence.",
+      teacherDecision:
+        animated?.teacherDecision ?? template?.teacherDecision ?? "Inspect the exact question-and-step evidence before acting.",
+      uncertainty: animated ? "Moderate" : (template?.uncertainty ?? "High"),
+      statusLabel: animated ? "Targeted bridge" : (template?.statusLabel ?? (gate.eligible ? "Targeted bridge" : "Evidence check")),
       lesson: lesson as PersonalizedVideoLesson,
-      exit,
+      exit: exit ?? (practice ? { prompt: practice.exit.prompt, expected: practice.exit.answer, evidencePurpose: "A fresh item of the same kind, answered without support." } : null),
+      ...(!exit && practice ? { exitCheck: { task: practice.exit.task, expression: practice.exit.expression } } : {}),
+      ...(authoring ? { authoring } : {}),
+      ...(practice && practiceSkill ? { practice: { source: "CODE_GENERATED" as const, skillId: practiceSkill, items: practice.items } } : {}),
+      ...(animated
+        ? {
+            animation: animated.animation,
+            animationKind: animated.animationKind,
+            animationInput: { kind: animated.animationKind, input: animated.input } as AnimationInput,
+          }
+        : {}),
     };
 
     if (!gate.eligible || !lesson) {
@@ -240,7 +363,7 @@ export class PersonalizedVideosService {
           script: stored as object,
           scriptSource,
           abstainReason: gate.eligible
-            ? "No approved lesson is mapped to this evidence yet."
+            ? (abstainReason ?? "No approved lesson is mapped to this evidence yet.")
             : gate.reason,
         },
       });
@@ -288,7 +411,7 @@ export class PersonalizedVideosService {
       data: {
         id: assignmentId,
         studentId,
-        studentKey: template?.studentKey ?? (input.lotusSessionId ? undefined : input.studentKey),
+        studentKey: template?.studentKey ?? studentKeyFromId(studentId) ?? (input.lotusSessionId ? undefined : input.studentKey),
         schoolId,
         lotusSessionId: lotusRecordId,
         status: PersonalizedVideoAssignmentStatus.PREPARING,
@@ -390,6 +513,24 @@ export class PersonalizedVideosService {
     if (!lesson) {
       await this.applyUnavailable(assignmentId, jobId, "No lesson script to render.", true);
       return { status: JobStatus.FAILED_PERMANENT };
+    }
+
+    if (script?.authoring?.status === "pending" && interactiveAnimationEnabled()) {
+      return this.processAuthoringJob(jobId, job, assignmentId, script);
+    }
+
+    if (script?.animation && script.animationInput && interactiveAnimationEnabled()) {
+      return this.processAnimationReadyJob(jobId, job, assignmentId, script.animationInput);
+    }
+
+    // MP4 rendering exists for the recipe lessons only; AI-authored lessons always play live.
+    if (script?.animation && script.animationKind !== "authored" && script.animationInput?.kind !== "authored") {
+      return this.processAnimatedRenderJob(
+        jobId, job, assignmentId,
+        script.animation as DistributionLessonProps | TrinomialLessonProps,
+        (script.animationKind ?? "distribution") as "distribution" | "trinomial",
+        payload,
+      );
     }
 
     if (slidesDeliveryEnabled()) {
@@ -494,6 +635,402 @@ export class PersonalizedVideosService {
       await this.applyUnavailable(assignmentId, jobId, message, !retryable);
       return { status: retryable ? JobStatus.FAILED_RETRYABLE : JobStatus.FAILED_PERMANENT };
     }
+  }
+
+  /**
+   * Evidence-built animations always render to a real MP4 (there is no
+   * slides equivalent of the motion). Same claim → narrate → submit → poll
+   * shape as processRenderJob: narration is per beat, and each beat's length
+   * is set from its real audio so the motion lands on the words.
+   */
+  private async processAnimatedRenderJob(
+    jobId: string,
+    job: { status: JobStatus },
+    assignmentId: string,
+    animation: DistributionLessonProps | TrinomialLessonProps,
+    kind: "distribution" | "trinomial",
+    payload: JobPayload,
+  ): Promise<{ status: string }> {
+    try {
+      let providerJobId = payload.providerJobId;
+      if (!providerJobId) {
+        if (job.status === JobStatus.RUNNING) return { status: JobStatus.RUNNING };
+        const claim = await this.prisma.job.updateMany({
+          where: { id: jobId, status: job.status },
+          data: { status: JobStatus.RUNNING, lockedAt: new Date(), lockedBy: WORKER_ID, attemptCount: { increment: 1 } },
+        });
+        if (claim.count === 0) return { status: JobStatus.RUNNING };
+
+        // One beat at a time, like synthesizeNarration: firing every beat at
+        // once gets most of them rate-limited into silence.
+        const scenes: Array<(typeof animation.scenes)[number]> = [];
+        for (const scene of animation.scenes) {
+          const beats: (typeof animation.scenes)[number]["beats"] = [];
+          for (const beat of scene.beats) {
+            const voiced = await this.synthesizeBeat(beat.text);
+            beats.push(voiced ? { ...beat, audioPath: voiced.audioPath, seconds: voiced.seconds + 0.7 } : beat);
+          }
+          scenes.push({ ...scene, beats });
+        }
+        const silentBeats = scenes.flatMap((sc) => sc.beats).filter((b) => !b.audioPath).length;
+        if (silentBeats && this.tts?.enabled) {
+          console.warn(`[personalized-videos] ${silentBeats} animated beat(s) for ${assignmentId} have no narration; rendering them silent.`);
+        }
+        const narrated = { ...animation, scenes };
+        const submitted = await this.renderer.submitAnimated({ assignmentId, lesson: narrated, kind });
+        providerJobId = submitted.providerJobId;
+        await this.prisma.job.update({
+          where: { id: jobId },
+          data: { payload: { ...payload, providerJobId } as object },
+        });
+      }
+
+      const polled = await this.renderer.poll(providerJobId);
+      if (polled.status === "RUNNING") {
+        await this.prisma.job.update({
+          where: { id: jobId },
+          data: { status: JobStatus.RUNNING, runAfter: new Date(), payload: { ...payload, providerJobId } as object, lastError: null },
+        });
+        return { status: JobStatus.RUNNING };
+      }
+      if (polled.status === "FAILED") {
+        // A failed local render is final for that providerJobId — polling it
+        // again can only fail again. Drop it so the next tick re-narrates
+        // (cached) and resubmits, up to MAX_ANIMATED_ATTEMPTS.
+        const attempts = (await this.prisma.job.findUnique({ where: { id: jobId } }))?.attemptCount ?? 0;
+        const retry = polled.retryable && attempts < MAX_ANIMATED_ATTEMPTS;
+        await this.prisma.job.update({
+          where: { id: jobId },
+          data: { payload: { ...payload, providerJobId: undefined } as object },
+        });
+        await this.applyUnavailable(assignmentId, jobId, polled.message, !retry);
+        return { status: retry ? JobStatus.FAILED_RETRYABLE : JobStatus.FAILED_PERMANENT };
+      }
+      return this.completeRender(jobId, polled.result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const retryable = error instanceof RendererUnavailableError || error instanceof TypeError;
+      await this.applyUnavailable(assignmentId, jobId, message, !retryable);
+      return { status: retryable ? JobStatus.FAILED_RETRYABLE : JobStatus.FAILED_PERMANENT };
+    }
+  }
+
+  /**
+   * Live-animation delivery: nothing to render. Narrate the classic theme now
+   * (so the first open is instant) and mark the lesson ready. Other themes
+   * are narrated on first request and cached from then on.
+   */
+  private async processAnimationReadyJob(
+    jobId: string,
+    job: { status: JobStatus },
+    assignmentId: string,
+    source: AnimationInput,
+    options: { claimed?: boolean } = {},
+  ): Promise<{ status: string }> {
+    if (!options.claimed) {
+      if (job.status === JobStatus.RUNNING) return { status: JobStatus.RUNNING };
+      const claim = await this.prisma.job.updateMany({
+        where: { id: jobId, status: job.status },
+        data: { status: JobStatus.RUNNING, lockedAt: new Date(), lockedBy: WORKER_ID, attemptCount: { increment: 1 } },
+      });
+      if (claim.count === 0) return { status: JobStatus.RUNNING };
+    }
+    try {
+      const assignment = await this.requireAssignment(assignmentId);
+      const warm = await this.narrator.narrate({
+        assignmentId,
+        source,
+        theme: "classic",
+        claims: { assignmentId, studentId: assignment.studentId, schoolId: assignment.schoolId ?? schoolIdForStudent(assignment.studentId) },
+      });
+      const result: AnimationRenderResult = { animation: true, kind: source.kind, prewarmedTheme: "classic", silentBeats: warm.silentBeats };
+      await this.prisma.personalizedVideoAssignment.update({
+        where: { id: assignmentId },
+        data: { renderResult: result as object, status: PersonalizedVideoAssignmentStatus.READY },
+      });
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { status: JobStatus.COMPLETED, completedAt: new Date(), lastError: null, lockedAt: null, lockedBy: null },
+      });
+      return { status: JobStatus.COMPLETED };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.applyUnavailable(assignmentId, jobId, message, false);
+      return { status: JobStatus.FAILED_RETRYABLE };
+    }
+  }
+
+  /**
+   * AI authoring job: write → verify → rewrite (lesson-author.ts), then
+   * narrate the verified lesson like any other. If the AI is unavailable or
+   * never passes, the recipe lesson is used when there is one; otherwise the
+   * assignment abstains with the reason. A draft that failed is never shown.
+   */
+  private async processAuthoringJob(
+    jobId: string,
+    _job: { status: JobStatus },
+    assignmentId: string,
+    script: StoredScript,
+  ): Promise<{ status: string }> {
+    // Claim before calling the model: a worker tick during the minute GPT takes must not start a
+    // second author, whose lesson would overwrite this one under a student already practising.
+    // A RUNNING claim older than AUTHORING_LOCK_MS is a crashed run and may be taken over.
+    const staleBefore = new Date(Date.now() - AUTHORING_LOCK_MS);
+    const claim = await this.prisma.job.updateMany({
+      where: {
+        id: jobId,
+        OR: [
+          { status: { in: [JobStatus.PENDING, JobStatus.FAILED_RETRYABLE] } },
+          { status: JobStatus.RUNNING, lockedAt: { lt: staleBefore } },
+        ],
+      },
+      data: { status: JobStatus.RUNNING, lockedAt: new Date(), lockedBy: WORKER_ID, attemptCount: { increment: 1 } },
+    });
+    if (claim.count === 0) return { status: JobStatus.RUNNING };
+    const authoring = script.authoring!;
+    const author = authoring.author === "fake"
+      ? chooseAuthor({ modelConfiguration: { primary: "fake-e2e" } } as LotusSessionView, undefined)
+      : chooseAuthor({ modelConfiguration: { primary: "" } } as LotusSessionView, this.openai);
+    let next: StoredScript;
+    if (!author) {
+      next = { ...script, authoring: { ...authoring, status: "failed", reason: "No AI author is configured." } };
+    } else {
+      const outcome = await authorLesson(authoring.brief, author, { seed: assignmentId });
+      if (outcome.ok) {
+        const input = { draft: outcome.draft, studentName: authoring.brief.studentFirstName };
+        const source: AnimationInput = {
+          kind: "authored",
+          input,
+          authoredBy: { model: outcome.model, attempts: outcome.attempts.length, claimsChecked: outcome.claimsChecked },
+        };
+        const props = buildForTheme(source, "classic") as AuthoredLessonProps;
+        const summary = summaryFromDraft(outcome.draft, authoredDurationInFrames(props, 30) / 30);
+        next = {
+          ...script,
+          learnerDecision: outcome.draft.learnerDecision,
+          teacherDecision: outcome.draft.teacherDecision,
+          statusLabel: "Targeted bridge",
+          uncertainty: "Moderate",
+          lesson: summary.lesson,
+          exit: summary.exit,
+          exitCheck: { task: outcome.draft.exit.task, expression: outcome.draft.exit.expression },
+          animation: props,
+          animationKind: "authored",
+          animationInput: source,
+          practice: {
+            source: outcome.practiceFromCode ? "CODE_GENERATED" : "AI_VERIFIED",
+            skillId: authoring.brief.targetSkill.id,
+            items: outcome.draft.practice,
+          },
+          authoring: { ...authoring, status: "done", model: outcome.model, attempts: outcome.attempts, claimsChecked: outcome.claimsChecked, practiceFromCode: outcome.practiceFromCode },
+        };
+      } else {
+        next = { ...script, authoring: { ...authoring, status: "failed", model: outcome.model, attempts: outcome.attempts, reason: outcome.reason } };
+      }
+    }
+
+    if (next.authoring?.status === "failed" && !next.animationInput) {
+      await this.prisma.personalizedVideoAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          script: next as object,
+          status: PersonalizedVideoAssignmentStatus.ABSTAINED,
+          abstainReason: `No lesson yet for ${next.authoring.brief.targetSkill.name}: ${next.authoring.reason ?? "the AI lesson did not pass verification"}.`,
+        },
+      });
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { status: JobStatus.COMPLETED, completedAt: new Date(), lastError: next.authoring.reason ?? null, lockedAt: null, lockedBy: null },
+      });
+      return { status: JobStatus.COMPLETED };
+    }
+
+    await this.prisma.personalizedVideoAssignment.update({
+      where: { id: assignmentId },
+      data: {
+        script: next as object,
+        learningObjective: next.lesson.objective,
+        ...(next.authoring?.status === "done" ? { scriptSource: "CONSTRAINED_AI" as PersonalizedVideoScriptSource } : {}),
+      },
+    });
+    return this.processAnimationReadyJob(jobId, { status: JobStatus.RUNNING }, assignmentId, next.animationInput!, { claimed: true });
+  }
+
+  /** The practice set for a lesson, without answers. */
+  async practiceSet(id: string, actor: AccessActor): Promise<PracticeSetView> {
+    const row = await this.requireAssignment(id);
+    assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
+    const script = row.script as StoredScript | null;
+    if (!script?.practice?.items.length) throw new NotFoundException("This lesson has no practice set.");
+    return {
+      assignmentId: row.id,
+      source: script.practice.source,
+      skillName: skillName(script.practice.skillId),
+      items: script.practice.items.map(practiceItemView),
+    };
+  }
+
+  /**
+   * Dev only, for the recorded pilot walkthrough (scripts/pilot-walkthrough):
+   * the answers to a walk_* student's practice and exit, so a scripted
+   * student can answer them. Same guard as Lotus's walkthrough fill; real
+   * students can never read an answer key.
+   */
+  async walkthroughKey(id: string, actor: AccessActor): Promise<{ practice: Array<{ id: string; answer: unknown }>; exit: string | null }> {
+    const row = await this.requireAssignment(id);
+    if (process.env.NODE_ENV === "production" || process.env.COGNA_WALKTHROUGH_FILL !== "true" || !/^walk_[a-z]+$/.test(row.studentId)) {
+      throw new ForbiddenException("Answer keys are only available to walkthrough accounts in development.");
+    }
+    assertStudentOwner(actor, row.studentId);
+    const script = row.script as StoredScript | null;
+    return {
+      practice: (script?.practice?.items ?? []).map((item) => ({
+        id: item.id,
+        answer: item.format === "pair-hunt" ? item.answer : item.format === "spot-mistake" ? item.wrongLine : item.format === "choose" ? item.answerIndex : item.answer,
+      })),
+      exit: script?.exit?.expected ?? null,
+    };
+  }
+
+  /** Checks one practice answer on the server and records the attempt. */
+  async checkPractice(id: string, itemId: string, answer: PracticeAnswer, actor: AccessActor): Promise<PracticeCheckResult> {
+    const row = await this.requireAssignment(id);
+    assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
+    if (actor.role === "student") assertStudentOwner(actor, row.studentId);
+    const script = row.script as StoredScript | null;
+    const item = script?.practice?.items.find((it) => it.id === itemId);
+    if (!script || !item) throw new NotFoundException("No such practice item.");
+    const previous = script.practiceAttempts?.[itemId];
+    const attempt = (previous?.tries ?? 0) + 1;
+    const result = checkPracticeAnswer(item, answer ?? ({} as PracticeAnswer), attempt);
+    if (result.verdict !== "UNREADABLE") {
+      await this.prisma.personalizedVideoAssignment.update({
+        where: { id },
+        data: {
+          script: {
+            ...script,
+            practiceAttempts: { ...(script.practiceAttempts ?? {}), [itemId]: { tries: attempt, correct: previous?.correct || result.verdict === "CORRECT" } },
+          } as object,
+        },
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Dev/demo student switcher: the student's animated lesson, created from
+   * their pilot evidence if they don't have one yet. Students without an
+   * animation recipe get their normal lesson (slides or abstention).
+   */
+  async demoAnimatedLesson(studentId: string, actor: AccessActor): Promise<PersonalizedVideoAssignmentView> {
+    if (!demoSeedsAllowed() || !isDemoStudentId(studentId)) {
+      throw new ForbiddenException("Demo lessons are only available for demo students.");
+    }
+    assertStudentOwner(actor, studentId);
+    const key = studentKeyFromId(studentId);
+    const source = key ? DEMO_ANIMATIONS[key] : undefined;
+    if (!key || !source) return this.getForStudent(actor, { studentId });
+
+    const latest = await this.prisma.personalizedVideoAssignment.findFirst({
+      where: { studentId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (latest && (latest.script as StoredScript | null)?.animationInput && latest.status !== PersonalizedVideoAssignmentStatus.TEMPORARILY_UNAVAILABLE) {
+      return this.toView(latest);
+    }
+
+    const template = templateForKey(key);
+    const names = await this.studentNames(studentId, undefined, template?.name);
+    const record = demoLessonRecord(source, names.first);
+    const stored: StoredScript = {
+      name: names.full,
+      roll: template?.roll,
+      learnerDecision: record.learnerDecision,
+      teacherDecision: record.teacherDecision,
+      uncertainty: "Moderate",
+      statusLabel: "Targeted bridge",
+      lesson: record.lesson,
+      exit: record.exit,
+      animation: buildForTheme(record.input, "classic"),
+      animationKind: record.input.kind,
+      animationInput: record.input,
+    };
+    const assignmentId = randomUUID();
+    const job = await this.prisma.job.create({
+      data: {
+        jobType: JOB_TYPE,
+        idempotencyKey: `${JOB_TYPE}:${assignmentId}`,
+        payload: { assignmentId, studentId, forcePendingReview: false, scriptSource: "APPROVED_TEMPLATE" },
+        status: JobStatus.PENDING,
+      },
+    });
+    await this.prisma.personalizedVideoAssignment.create({
+      data: {
+        id: assignmentId,
+        studentId,
+        studentKey: key,
+        schoolId: schoolIdForStudent(studentId),
+        status: PersonalizedVideoAssignmentStatus.PREPARING,
+        diagnosticState: "supported-gap",
+        conceptId: record.conceptId,
+        learningObjective: record.lesson.objective,
+        evidenceSnapshot: { ...(template?.evidence ?? {}), evidenceSource: "DEMO_SEED" } as object,
+        script: stored as object,
+        scriptSource: "APPROVED_TEMPLATE",
+        mathValidation: { valid: true } as object,
+        languageValidation: { valid: true } as object,
+        renderJobId: job.id,
+      },
+    });
+    return this.toView(await this.requireAssignment(assignmentId));
+  }
+
+  /** The interactive, themed lesson with narration URLs. Themes other than the pre-warmed one narrate on first request. */
+  async lessonAnimation(
+    id: string,
+    theme: LessonThemeChoice,
+    actor: AccessActor,
+  ): Promise<PersonalizedLessonAnimationView> {
+    const row = await this.requireAssignment(id);
+    assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
+    const script = row.script as StoredScript | null;
+    if (!script?.animationInput) throw new NotFoundException("This lesson has no interactive animation.");
+    return this.narrator.narrate({
+      assignmentId: row.id,
+      source: script.animationInput,
+      theme,
+      claims: { assignmentId: row.id, studentId: row.studentId, schoolId: row.schoolId ?? schoolIdForStudent(row.studentId) },
+    });
+  }
+
+  /** One narrated beat: cached audio path and its real spoken length, or null when TTS is off/failed. */
+  private async synthesizeBeat(text: string): Promise<{ audioPath: string; seconds: number } | null> {
+    if (!this.tts?.enabled) return null;
+    const voiced = await this.synthesizeOneScene(
+      { eyebrow: "", headline: "", equation: [], narration: text, durationSeconds: 0, accent: "green" },
+      this.tts.voice,
+      this.tts.model,
+      this.tts.instructions,
+    );
+    return voiced.audioPath && voiced.narrationSeconds ? { audioPath: voiced.audioPath, seconds: voiced.narrationSeconds } : null;
+  }
+
+  /**
+   * First name for narration ("Aarav, here's…") and full name for the teacher
+   * view. Demo students take the pilot roster name; real ones their record.
+   */
+  private async studentNames(
+    studentId: string,
+    requested?: string,
+    templateName?: string,
+  ): Promise<{ full: string; first: string }> {
+    const key = studentKeyFromId(studentId);
+    let full = requested?.trim() || templateName || (key ? APPROVED_VIDEO_TEMPLATES[key]?.name : undefined);
+    if (!full) {
+      const student = await this.prisma.student.findUnique({ where: { id: studentId } }).catch(() => null);
+      full = student?.name?.trim() || undefined;
+    }
+    return { full: full ?? "Student", first: full?.split(/\s+/)[0] ?? "" };
   }
 
   /**
@@ -671,9 +1208,9 @@ export class PersonalizedVideosService {
     assertStudentOwner(actor, assignment.studentId);
     const script = assignment.script as StoredScript | null;
     const expected = script?.exit?.expected ?? "";
-    const correct =
-      Boolean(expected) &&
-      normalizeAlgebraAnswer(input.answer) === normalizeAlgebraAnswer(expected);
+    const correct = script?.exitCheck
+      ? taskVerdict(script.exitCheck.task, input.answer, script.exitCheck.expression) === "CORRECT"
+      : Boolean(expected) && normalizeAlgebraAnswer(input.answer) === normalizeAlgebraAnswer(expected);
     await this.prisma.personalizedVideoEvent.create({
       data: {
         assignmentId,
@@ -778,7 +1315,7 @@ export class PersonalizedVideosService {
     voice: string,
     model: string,
     instructions: string | undefined,
-  ): Promise<PersonalizedVideoLessonScene & { audioPath?: string }> {
+  ): Promise<PersonalizedVideoLessonScene & { audioPath?: string; narrationSeconds?: number }> {
     try {
       let audioPath = await readTtsCache(scene.narration, voice, model, instructions);
       let bytes: Buffer | null = audioPath ? await readFile(audioPath) : null;
@@ -813,7 +1350,7 @@ export class PersonalizedVideosService {
       const durationSeconds = probedSeconds
         ? Math.max(scene.durationSeconds, Math.ceil(probedSeconds) + 0.5)
         : scene.durationSeconds;
-      return { ...scene, audioPath, durationSeconds };
+      return { ...scene, audioPath, durationSeconds, narrationSeconds: probedSeconds ?? undefined };
     } catch {
       return scene;
     }
@@ -827,6 +1364,7 @@ export class PersonalizedVideosService {
     snapshot: PersonalizedVideoEvidenceSnapshot;
     template: ReturnType<typeof templateForKey>;
     lotusRecordId?: string;
+    session?: LotusSessionView;
   }> {
     if (input.lotusSessionId) {
       const record = await this.prisma.lotusSessionRecord.findUnique({
@@ -841,7 +1379,7 @@ export class PersonalizedVideosService {
       }
       const snapshot = snapshotFromLotusSession(session);
       const template = selectTemplateFromEvidence(snapshot);
-      return { snapshot, template, lotusRecordId: String(record.id) };
+      return { snapshot, template, lotusRecordId: String(record.id), session };
     }
 
     const studentKey = input.studentKey ?? studentKeyFromId(studentId);
@@ -1075,12 +1613,14 @@ export class PersonalizedVideosService {
       : null;
     const interactiveResult = row.renderResult as InteractiveRenderResult | null | undefined;
     const interactive = Boolean(interactiveResult?.interactive);
+    const animated = Boolean((row.renderResult as AnimationRenderResult | null | undefined)?.animation);
     const delivery = this.deliveryOf(
       row.status,
       asset?.reviewStatus,
       asset?.storageRef,
       script.lesson,
       interactive,
+      animated,
     );
     const mediaClaims = {
       assignmentId: row.id,
@@ -1161,12 +1701,14 @@ export class PersonalizedVideosService {
     storageRef?: string | null,
     lesson?: PersonalizedVideoLesson,
     interactive?: boolean,
+    animated?: boolean,
   ): PersonalizedVideoDelivery {
     if (status === "ABSTAINED") return "ABSTAINED";
     if (status === "PREPARING") return "PREPARING";
     if (status === "TEMPORARILY_UNAVAILABLE") return "UNAVAILABLE";
     if (reviewStatus === "PENDING_REVIEW") return "UNDER_REVIEW";
     if (status === "UNDER_REVIEW") return "UNDER_REVIEW";
+    if (animated && status === "READY") return "ANIMATED";
     if (interactive && status === "READY") return "SLIDES";
     if (status === "READY" && reviewStatus === "APPROVED" && this.isPlayableVideo(storageRef)) {
       return "VIDEO";
