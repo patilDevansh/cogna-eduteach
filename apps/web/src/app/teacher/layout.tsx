@@ -9,8 +9,7 @@ import styles from "./teacher.module.css";
 
 const links = [
   ["Today", "/teacher/today", "◉"],
-  ["Classes", "/teacher/classes", "▦"],
-  ["Sessions", "/teacher/sessions", "▶"],
+  ["Class", "/teacher/sessions", "▶"],
   ["Students", "/teacher/students", "◎"],
   ["Reports", "/teacher/reports", "↗"],
   ["Pilot story", "/teacher/pilot-story", "◇"],
@@ -47,10 +46,6 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
               </Link>
             ))}
           </nav>
-          <div className={styles.sideClass}>
-            <span>Viewing class</span>
-            <strong>Production data</strong>
-          </div>
         </aside>
         <main className={styles.main}>{children}</main>
       </div>

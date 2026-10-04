@@ -14,6 +14,9 @@ const PHASE_KIND = {
   INDEPENDENT_EXIT: ClassroomAssignmentKind.INDEPENDENT_EXIT,
 } as const;
 
+/** Marks a step closed by removing the student, so rejoining can reopen exactly those steps. */
+const REMOVED_FROM_CLASS = "removedFromClass";
+
 @Injectable()
 export class ClassroomsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -34,12 +37,69 @@ export class ClassroomsService {
 
   async listForTeacher(actor: AccessActor) {
     const teacher = await this.teacher(actor);
-    return this.prisma.classroom.findMany({ where: { teacherId: teacher.id, archivedAt: null }, include: { _count: { select: { enrollments: true } }, runs: { orderBy: { createdAt: "desc" }, take: 1 } }, orderBy: { createdAt: "desc" } });
+    return this.prisma.classroom.findMany({ where: { teacherId: teacher.id, archivedAt: null }, include: { _count: { select: { enrollments: true } }, runs: { orderBy: { createdAt: "desc" }, take: 12 } }, orderBy: { createdAt: "desc" } });
   }
 
   async create(actor: AccessActor, input: { name: string; grade: number; subjectId: string; joinCode?: string; isDemo?: boolean }) {
     const teacher = await this.teacher(actor);
     return this.prisma.classroom.create({ data: { teacherId: teacher.id, schoolId: teacher.schoolId, name: input.name.trim(), grade: input.grade, subjectId: input.subjectId.trim(), joinCode: (input.joinCode?.trim() || this.code()).toUpperCase(), isDemo: input.isDemo ?? false } });
+  }
+
+  async rename(actor: AccessActor, classroomId: string, name: string) {
+    const teacher = await this.teacher(actor);
+    const owned = await this.prisma.classroom.count({ where: { id: classroomId, teacherId: teacher.id, archivedAt: null } });
+    if (!owned) throw new NotFoundException("Classroom not found.");
+    return this.prisma.classroom.update({ where: { id: classroomId }, data: { name: name.trim() } });
+  }
+
+  private async ownedClassroom(actor: AccessActor, classroomId: string) {
+    const teacher = await this.teacher(actor);
+    const classroom = await this.prisma.classroom.findFirst({ where: { id: classroomId, teacherId: teacher.id, archivedAt: null } });
+    if (!classroom) throw new NotFoundException("Classroom not found.");
+    return classroom;
+  }
+
+  /** Students currently in a class, each with any of this teacher's other classes they are also in (usually a wrong code). */
+  async roster(actor: AccessActor, classroomId: string) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const enrollments = await this.prisma.classroomEnrollment.findMany({
+      where: { classroomId, leftAt: null },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            classroomEnrollments: {
+              where: { leftAt: null, classroomId: { not: classroomId }, classroom: { teacherId: classroom.teacherId, archivedAt: null } },
+              select: { classroom: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: "asc" },
+    });
+    return enrollments.map((row) => ({
+      studentId: row.student.id,
+      name: row.student.name,
+      rollNumber: row.rollNumber,
+      joinedAt: row.joinedAt,
+      alsoIn: row.student.classroomEnrollments.map((other) => other.classroom),
+    }));
+  }
+
+  /**
+   * Takes a student out of a class: their finished work stays in past results, anything still
+   * open is skipped and tagged, so rejoining the same running check reopens it (join()).
+   */
+  async removeStudent(actor: AccessActor, classroomId: string, studentId: string) {
+    await this.ownedClassroom(actor, classroomId);
+    const enrollment = await this.prisma.classroomEnrollment.findUnique({ where: { classroomId_studentId: { classroomId, studentId } } });
+    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
+    await this.prisma.$transaction([
+      this.prisma.classroomAssignment.updateMany({ where: { enrollmentId: enrollment.id, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED", result: { [REMOVED_FROM_CLASS]: true } } }),
+      this.prisma.classroomEnrollment.update({ where: { id: enrollment.id }, data: { leftAt: new Date() } }),
+    ]);
+    return { removed: true };
   }
 
   async join(actor: AccessActor, input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) {
@@ -52,6 +112,12 @@ export class ClassroomsService {
       update: { leftAt: null, rollNumber: input.rollNumber?.trim(), admissionNumber: input.admissionNumber?.trim() },
       include: { classroom: { select: { id: true, name: true, grade: true, subjectId: true, joinCode: true } } },
     });
+    // Rejoining after being removed reopens the steps the removal closed, in checks still running.
+    // Steps the pilot flow skipped on purpose (no gap found) carry no tag and stay skipped.
+    await this.prisma.classroomAssignment.updateMany({
+      where: { enrollmentId: enrollment.id, status: "SKIPPED", run: { status: "LIVE" }, result: { path: [REMOVED_FROM_CLASS], equals: true } },
+      data: { status: "READY", result: Prisma.DbNull, availableAt: new Date() },
+    });
     // Pilot: a student who joins after the diagnostic was released gets it straight away.
     const live = await this.prisma.classroomRun.findFirst({ where: { classroomId: classroom.id, status: "LIVE" }, orderBy: { createdAt: "desc" } });
     if (live && autoAdvanceEnabled(live.config) && (await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) {
@@ -60,7 +126,12 @@ export class ClassroomsService {
         skipDuplicates: true,
       });
     }
-    return enrollment;
+    // A second section of the same teacher is usually a mistyped code: tell the student so they can say so.
+    const alsoIn = await this.prisma.classroom.findMany({
+      where: { id: { not: classroom.id }, teacherId: classroom.teacherId, archivedAt: null, enrollments: { some: { studentId: actor.studentId, leftAt: null } } },
+      select: { id: true, name: true },
+    });
+    return { ...enrollment, alsoIn };
   }
 
   private async ownedRun(actor: AccessActor, runId: string) {
@@ -79,6 +150,7 @@ export class ClassroomsService {
 
   async launchPhase(actor: AccessActor, runId: string, phase: keyof typeof PHASE_KIND) {
     const run = await this.ownedRun(actor, runId);
+    if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended. Start a new one.");
     const enrollmentIds = (await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null }, select: { id: true } })).map((row) => row.id);
     if (!enrollmentIds.length) throw new BadRequestException("Enroll at least one student before launching.");
     const kind = PHASE_KIND[phase];
@@ -97,6 +169,18 @@ export class ClassroomsService {
       this.prisma.classroomAssignment.createMany({ data: newAssignments, skipDuplicates: true }),
       this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: phase as ClassroomRunPhase, status: "LIVE", startedAt: run.startedAt ?? new Date() } }),
     ]);
+    return this.report(actor, runId);
+  }
+
+  /** Teacher ends a check early: work already done stays in the results; every unfinished step is skipped. */
+  async endRun(actor: AccessActor, runId: string) {
+    const run = await this.ownedRun(actor, runId);
+    if (run.status !== "COMPLETE" && run.status !== "CANCELLED") {
+      await this.prisma.$transaction([
+        this.prisma.classroomAssignment.updateMany({ where: { runId, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED" } }),
+        this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } }),
+      ]);
+    }
     return this.report(actor, runId);
   }
 
@@ -123,6 +207,7 @@ export class ClassroomsService {
     const assignment = await this.ownedAssignment(actor, id);
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
     if (assignment.status === "COMPLETE") return assignment;
+    if (assignment.status === "SKIPPED") throw new BadRequestException("This step is closed. Ask your teacher if that's a mistake.");
     let trustedResult: Record<string, unknown>;
     let diagnosticSessionId = assignment.diagnosticSessionId ?? input.diagnosticSessionId;
     let videoAssignmentId = assignment.videoAssignmentId ?? input.videoAssignmentId;
@@ -146,11 +231,11 @@ export class ClassroomsService {
       if (!event) throw new BadRequestException(assignment.kind === ClassroomAssignmentKind.TEACHING ? "Complete the personalized lesson before finishing this assignment." : "Submit the independent exit check before finishing this assignment.");
       if (assignment.kind === ClassroomAssignmentKind.TEACHING) {
         // Practice is read from the lesson's own server-side record, never from the browser.
-        const script = (video.script ?? {}) as { practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }>; animationKind?: string };
+        const script = (video.script ?? {}) as { practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }> };
         const attempts = Object.values(script.practiceAttempts ?? {});
         trustedResult = {
           lessonStatus: video.status,
-          delivery: script.animationKind ? "ANIMATED" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
+          delivery: (video.renderResult as { interactive?: boolean } | null)?.interactive ? "SLIDES" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
           watched: true,
           practice: { total: script.practice?.items?.length ?? 0, attempted: attempts.length, correct: attempts.filter((a) => a.correct).length },
         };

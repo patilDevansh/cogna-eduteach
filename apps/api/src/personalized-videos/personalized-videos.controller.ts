@@ -11,7 +11,6 @@ import {
   PersonalizedVideoWatchDto,
 } from "./personalized-videos.dto";
 import { PersonalizedVideosService } from "./personalized-videos.service";
-import { isLessonTheme } from "./lesson-animation";
 import type { PracticeAnswer } from "@cogna/shared";
 
 @Controller("personalized-videos")
@@ -75,15 +74,6 @@ export class PersonalizedVideosController {
     @Body() body: { answer?: PracticeAnswer },
   ) {
     return this.videos.checkPractice(id, itemId, body?.answer as PracticeAnswer, resolveActor(headers));
-  }
-
-  @Get("assignments/:id/animation")
-  animation(
-    @Headers() headers: Record<string, string | string[] | undefined>,
-    @Param("id") id: string,
-    @Query("theme") theme?: string,
-  ) {
-    return this.videos.lessonAnimation(id, isLessonTheme(theme) ? theme : "classic", resolveActor(headers));
   }
 
     @Get("for-student")

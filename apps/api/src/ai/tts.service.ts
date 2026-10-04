@@ -33,13 +33,6 @@ export interface TtsProvider {
   synthesize(text: string, options?: { voiceId?: string }): Promise<SynthesizedSpeech | null>;
 }
 
-/** Explicit ElevenLabs pauses: short after commas/semicolons/colons, longer after sentence ends. */
-export function withPauses(text: string): string {
-  return text
-    .replace(/([,;:])\s+/g, '$1 <break time="0.4s" /> ')
-    .replace(/([.!?])\s+/g, '$1 <break time="0.8s" /> ');
-}
-
 /**
  * Wraps OpenAI's text-to-speech endpoint for narrating lesson-video scenes.
  * Deliberately non-throwing on missing config or a failed call — a TTS
@@ -88,8 +81,8 @@ export class TtsService implements TtsProvider {
   }
 
   get voice(): string {
-    // Sarah — a free premade ElevenLabs voice (library voices need a paid plan for API use).
-    if (this.useEleven) return this.config.get<string>("ELEVENLABS_VOICE_ID") ?? "EXAVITQu4vr4xnSDxMaL";
+    // Lily — a calm premade ElevenLabs voice (library voices need a paid plan for API use).
+    if (this.useEleven) return this.config.get<string>("ELEVENLABS_VOICE_ID") ?? "pFZP5JQG7iQjIQuC4Bku";
     // "alloy" (the SDK's own default) reads flat/neutral for a tutoring
     // context. "nova" was warmer but still had a clipped, announcer-like
     // cadence — "coral" (gpt-4o-mini-tts's newer voice) has noticeably more
@@ -164,7 +157,7 @@ export class TtsService implements TtsProvider {
           },
           // High stability + zero style = plain, even delivery (no performed "depth").
           body: JSON.stringify({
-            text: withPauses(text),
+            text,
             model_id: this.model,
             voice_settings: { stability: 0.7, similarity_boost: 0.75, style: 0, use_speaker_boost: false },
           }),

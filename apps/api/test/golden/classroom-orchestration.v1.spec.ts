@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ClassroomsService } from "../../src/classrooms/classrooms.service";
 
 const teacherActor = { role: "teacher", teacherEmail: "teacher@school.test", schoolId: "school-1" } as const;
@@ -12,7 +12,7 @@ function service(overrides: Record<string, unknown> = {}) {
     classroom: { findUnique: async () => ({ id: "class-1", joinCode: "MATH-8A", archivedAt: null }), findMany: async () => [] },
     classroomEnrollment: { findMany: async () => [{ id: "enrol-1", rollNumber: null, student: { id: "s1", name: "A" } }], upsert: async (args: unknown) => args },
     classroomRun: { findFirst: async () => ({ id: "run-1", classroomId: "class-1", classroom: { id: "class-1" } }), update: async (args: unknown) => args },
-    classroomAssignment: { findMany: async () => [], createMany: async (args: unknown) => args, findFirst: async () => null, update: async (args: unknown) => args, count: async () => 0 },
+    classroomAssignment: { findMany: async () => [], createMany: async (args: unknown) => args, findFirst: async () => null, update: async (args: unknown) => args, updateMany: async (args: unknown) => args, count: async () => 0 },
     lotusSessionRecord: { findUnique: async () => null },
     personalizedVideoAssignment: { findFirst: async () => null },
     personalizedVideoEvent: { findFirst: async () => null },
@@ -158,5 +158,98 @@ describe("production classroom orchestration", () => {
       personalizedVideoEvent: { findFirst: async () => null },
     });
     await assert.rejects(() => classrooms.completeAssignment(studentActor, "a3", { videoAssignmentId: "video-1", result: { correct: true, independent: true } }), BadRequestException);
+  });
+});
+
+describe("teacher class management", () => {
+  const ownedClass = { findFirst: async () => ({ id: "class-1", teacherId: "teacher-1", archivedAt: null }) };
+
+  it("renames only the teacher's own class, trimming the name", async () => {
+    let data: unknown;
+    const classrooms = service({ classroom: { count: async () => 1, update: async (args: { data: unknown }) => { data = args.data; return args; } } });
+    await classrooms.rename(teacherActor, "class-1", "  Grade 8 · Section B  ");
+    assert.deepEqual(data, { name: "Grade 8 · Section B" });
+    await assert.rejects(() => service({ classroom: { count: async () => 0 } }).rename(teacherActor, "class-9", "X class"), NotFoundException);
+  });
+
+  it("ending a check skips every unfinished step and marks the check complete", async () => {
+    const calls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+    const classrooms = service({
+      classroomRun: {
+        findFirst: async () => ({ id: "run-1", classroomId: "class-1", status: "LIVE", config: {}, classroom: { id: "class-1" } }),
+        update: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { calls.push(args); return args; },
+      },
+      classroomAssignment: { findMany: async () => [], updateMany: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { calls.push(args); return args; } },
+    });
+    await classrooms.endRun(teacherActor, "run-1");
+    assert.deepEqual(calls[0], { where: { runId: "run-1", status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED" } });
+    assert.equal(calls[1]?.data.status, "COMPLETE");
+  });
+
+  it("an ended check stays ended: no second close, no relaunch", async () => {
+    let touched = false;
+    const ended = { findFirst: async () => ({ id: "run-1", classroomId: "class-1", status: "COMPLETE", config: {}, classroom: { id: "class-1" } }), update: async () => { touched = true; } };
+    await service({ classroomRun: ended }).endRun(teacherActor, "run-1");
+    assert.equal(touched, false);
+    await assert.rejects(() => service({ classroomRun: ended }).launchPhase(teacherActor, "run-1", "DIAGNOSTIC"), BadRequestException);
+  });
+
+  it("a student cannot finish a step that was closed", async () => {
+    const classrooms = service({ classroomAssignment: { findFirst: async () => ({ id: "a1", runId: "run-1", kind: "DIAGNOSTIC", status: "SKIPPED" }) } });
+    await assert.rejects(() => classrooms.completeAssignment(studentActor, "a1", { result: {} }), BadRequestException);
+  });
+
+  it("the roster flags students who are also in another of the same teacher's classes", async () => {
+    let otherWhere: Record<string, unknown> | undefined;
+    const classrooms = service({
+      classroom: ownedClass,
+      classroomEnrollment: {
+        findMany: async (args: { include: { student: { select: { classroomEnrollments: { where: Record<string, unknown> } } } } }) => {
+          otherWhere = args.include.student.select.classroomEnrollments.where;
+          return [{ rollNumber: "8A-03", joinedAt: new Date(0), student: { id: "s3", name: "Rohan", classroomEnrollments: [{ classroom: { id: "class-2", name: "Section B" } }] } }];
+        },
+      },
+    });
+    const roster = await classrooms.roster(teacherActor, "class-1");
+    assert.deepEqual(roster[0]?.alsoIn, [{ id: "class-2", name: "Section B" }]);
+    assert.deepEqual(otherWhere, { leftAt: null, classroomId: { not: "class-1" }, classroom: { teacherId: "teacher-1", archivedAt: null } });
+  });
+
+  it("another teacher's class has no roster and no remove", async () => {
+    const notMine = service({ classroom: { findFirst: async () => null } });
+    await assert.rejects(() => notMine.roster(teacherActor, "class-9"), NotFoundException);
+    await assert.rejects(() => notMine.removeStudent(teacherActor, "class-9", "s1"), NotFoundException);
+  });
+
+  it("removing a student tags their open steps so a rejoin can reopen them", async () => {
+    const calls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+    const record = async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { calls.push(args); return args; };
+    const classrooms = service({
+      classroom: ownedClass,
+      classroomEnrollment: { findUnique: async () => ({ id: "enrol-3", leftAt: null }), update: record },
+      classroomAssignment: { updateMany: record },
+    });
+    await classrooms.removeStudent(teacherActor, "class-1", "s3");
+    assert.deepEqual(calls[0], { where: { enrollmentId: "enrol-3", status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED", result: { removedFromClass: true } } });
+    assert.ok(calls[1]?.data.leftAt instanceof Date);
+    const gone = service({ classroom: ownedClass, classroomEnrollment: { findUnique: async () => ({ id: "enrol-3", leftAt: new Date() }) } });
+    await assert.rejects(() => gone.removeStudent(teacherActor, "class-1", "s3"), NotFoundException);
+  });
+
+  it("rejoining reopens only removal-closed steps in running checks, and names the other classes", async () => {
+    let reopen: { where: Record<string, unknown>; data: Record<string, unknown> } | undefined;
+    const classrooms = service({
+      classroom: {
+        findUnique: async () => ({ id: "class-1", teacherId: "teacher-1", joinCode: "MATH-8A", archivedAt: null }),
+        findMany: async () => [{ id: "class-2", name: "Section B" }],
+      },
+      classroomEnrollment: { upsert: async () => ({ id: "enrol-3" }) },
+      classroomAssignment: { updateMany: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { reopen = args; return args; } },
+      classroomRun: { findFirst: async () => null },
+    });
+    const joined = await classrooms.join(studentActor, { joinCode: "MATH-8A" }) as { alsoIn: unknown };
+    assert.deepEqual(reopen?.where, { enrollmentId: "enrol-3", status: "SKIPPED", run: { status: "LIVE" }, result: { path: ["removedFromClass"], equals: true } });
+    assert.equal(reopen?.data.status, "READY");
+    assert.deepEqual(joined.alsoIn, [{ id: "class-2", name: "Section B" }]);
   });
 });

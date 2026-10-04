@@ -1,251 +1,197 @@
 "use client";
-import { useEffect, useState } from "react";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { api, type ClassroomRunReport } from "@/lib/api";
 import { MOCK_TEACHER_REPORT_DATA } from "@/lib/teacher-report/mock-data";
+import { useTeacherClasses } from "@/lib/teacher-classes";
+import { studentStatus } from "@/lib/teacher-status";
 import { ThirtySecondOverview } from "@/components/teacher-report/ThirtySecondOverview";
+import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
-import chart from "@/components/teacher-report/teacher-report.module.css";
+import r from "./reports.module.css";
 
-const OUTCOME_COLORS: Record<string, string> = {
-  SOLID_GAP: "#0d7a5f",
-  ADVANCEMENT: "#5366d6",
-  INSUFFICIENT_OR_CONFLICTING: "#8b63bd",
-};
-const FALLBACK_COLORS = ["#0d7a5f", "#5366d6", "#df6b58", "#8b63bd", "#dc991c"];
-const PHASE_COLORS = ["#0d7a5f", "#5366d6", "#dc991c"];
+const when = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
 
-interface DonutSegment {
-  label: string;
-  value: number;
-  color: string;
-}
-
-function Donut({ title, segments, centerValue, centerLabel }: {
-  title: string;
-  segments: DonutSegment[];
-  centerValue: string;
-  centerLabel: string;
-}) {
-  const total = segments.reduce((sum, s) => sum + s.value, 0);
-  let cursor = 0;
-  const stops = segments
-    .map((s) => {
-      const start = total ? (cursor / total) * 100 : 0;
-      cursor += s.value;
-      const end = total ? (cursor / total) * 100 : 0;
-      return `${s.color} ${start}% ${end}%`;
-    })
-    .join(", ");
-
-  return (
-    <article className={chart.insightCard}>
-      <div className={chart.cardQuestionHeader}>
-        <div>
-          <h2>{title}</h2>
-        </div>
-      </div>
-      <div className={chart.chartLayout}>
-        <div
-          className={chart.donutChart}
-          style={{ background: total ? `conic-gradient(${stops})` : "var(--line)" }}
-          role="img"
-          aria-label={segments.map((s) => `${s.value} ${s.label}`).join(", ") || "No evidence yet"}
-        >
-          <div className={chart.donutCenter}>
-            <strong>{centerValue}</strong>
-            <span>{centerLabel}</span>
-          </div>
-        </div>
-        <div className={chart.chartLegend}>
-          {segments.map((s) => (
-            <div key={s.label} className={chart.legendDefinition}>
-              <span className={chart.legendDot} style={{ background: s.color }} />
-              <span>
-                <strong>{s.label}</strong>
-              </span>
-              <b>{s.value}</b>
-            </div>
-          ))}
-        </div>
-      </div>
-    </article>
-  );
+/** The one sentence a teacher reads first. */
+function summary(report: ClassroomRunReport): string {
+  const t = report.classReport.totals;
+  if (report.run.status === "LIVE") return `Still running: ${t.diagnosticDone} of ${t.enrolled} have finished the check.`;
+  if (!t.diagnosticDone) return "The check ended before anyone finished it.";
+  const fixed = t.exitDone ? `, and ${t.improved} of ${t.exitDone} got it right on their own afterwards` : "";
+  const early = t.diagnosticDone < t.enrolled ? ` ${t.enrolled - t.diagnosticDone} didn’t finish.` : "";
+  return `${t.diagnosticDone} of ${t.enrolled} finished the check. ${t.gapFound} needed a fix${fixed}.${early}`;
 }
 
 export default function TeacherReportsPage() {
-  const [reports, setReports] = useState<ClassroomRunReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { classes, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
+  const [runId, setRunId] = useState("");
+  const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [error, setError] = useState("");
-  const [demo, setDemo] = useState(false);
+  const [sample, setSample] = useState(false);
+
+  useEffect(() => setSample(new URLSearchParams(window.location.search).get("demo") === "1"), []);
+
+  const runs = selected?.runs ?? [];
+  useEffect(() => setRunId(runs[0]?.id ?? ""), [selectedId, runs[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setDemo(new URLSearchParams(window.location.search).get("demo") === "1");
-    api
-      .listClassrooms()
-      .then(async (classes) => {
-        const values = await Promise.all(
-          classes.flatMap((item) => (item.runs ?? []).map((run) => api.getClassroomRunReport(run.id))),
-        );
-        setReports(values);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Reports could not be loaded."))
-      .finally(() => setLoading(false));
-  }, []);
+    setReport(null);
+    setError("");
+    if (!runId) return;
+    api.getClassroomRunReport(runId).then(setReport).catch((cause) => setError(cause instanceof Error ? cause.message : "This report could not be loaded."));
+  }, [runId]);
 
-  if (demo) {
+  if (sample) {
     return (
       <>
-        <ThirtySecondOverview
-          data={MOCK_TEACHER_REPORT_DATA}
-          onOpenActionBlueprint={() => undefined}
-          onOpenEvidenceAudit={() => undefined}
-          onSelectReadinessTab={() => undefined}
-        />
-        <p style={{ marginTop: "1rem" }}>
-          <Link href="/teacher/reports">Return to production reports</Link>
-        </p>
+        <ThirtySecondOverview data={MOCK_TEACHER_REPORT_DATA} onOpenActionBlueprint={() => undefined} onOpenEvidenceAudit={() => undefined} onSelectReadinessTab={() => undefined} />
+        <p style={{ marginTop: "1rem" }}><Link href="/teacher/reports">← Back to your reports</Link></p>
       </>
     );
   }
+
+  const cr = report?.classReport;
+  const t = cr?.totals;
+  const funnel = t
+    ? [
+        ["Joined", t.enrolled],
+        ["Finished the check", t.diagnosticDone],
+        ["Needed a fix", t.gapFound],
+        ["Did the lesson", t.lessonDone],
+        ["Final question", t.exitDone],
+        ["Fixed it", t.improved],
+      ] as const
+    : [];
 
   return (
     <>
       <div className={styles.pageHeader}>
         <div>
-          <div className={styles.dateLine}>Evidence-backed production reports</div>
-          <h1>Class reports</h1>
-          <p>Diagnostic, teaching, and independent evidence remain visibly separate.</p>
+          <div className={styles.dateLine}>Reports</div>
+          <h1>{selected?.name ?? "Reports"}</h1>
+          <p>How each quick check went, and who still needs help.</p>
         </div>
-        <Link className={styles.secondary} href="/teacher/reports?demo=1">
-          View mock report
-        </Link>
+        <Link className={styles.secondary} href="/teacher/reports?demo=1">See a sample report</Link>
       </div>
 
-      {loading && (
-        <section className={styles.emptyCard}>
-          <h2>Loading classroom evidence…</h2>
-        </section>
-      )}
-      {error && (
-        <section className={styles.emptyCard}>
-          <h2>Reports unavailable</h2>
-          <p>{error}</p>
-        </section>
-      )}
+      <ClassTabs classes={classes} selectedId={selectedId} onSelect={(id) => void select(id)} />
 
-      {reports.map((report) => {
-        const diagnostic = report.progress.find((x) => x.kind === "DIAGNOSTIC");
-        const teaching = report.progress.find((x) => x.kind === "TEACHING");
-        const exit = report.progress.find((x) => x.kind === "INDEPENDENT_EXIT");
-        const topStrength = Object.entries(report.summary.observedStrengths).sort((a, b) => b[1] - a[1])[0];
-        const topUncertainty = Object.entries(report.summary.uncertaintyAreas).sort((a, b) => b[1] - a[1])[0];
+      {(error || loadError) && <section className={styles.emptyCard}><strong>That didn&apos;t work</strong><p>{error || loadError}</p></section>}
 
-        const outcomeEntries = Object.entries(report.summary.diagnosticOutcomes);
-        const outcomeSegments: DonutSegment[] = outcomeEntries.map(([key, value], i) => ({
-          label: key.replaceAll("_", " "),
-          value,
-          color: OUTCOME_COLORS[key] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length],
-        }));
-        const outcomeTotal = outcomeEntries.reduce((sum, [, v]) => sum + v, 0);
+      {loaded && !classes.length ? (
+        <section className={styles.emptyCard}><h2>No classes yet</h2><p>Create a class and run a quick check. Its report appears here.</p><Link className={styles.primary} href="/teacher/sessions">Create a class →</Link></section>
+      ) : selected && !runs.length ? (
+        <section className={styles.emptyCard}><h2>No checks in {selected.name} yet</h2><p>Each quick check you run gets its own report here.</p><Link className={styles.primary} href="/teacher/sessions">Start the quick check →</Link></section>
+      ) : selected ? (
+        <div className={r.layout}>
+          <nav className={r.history} aria-label={`Checks in ${selected.name}`}>
+            <h3>Checks</h3>
+            {runs.map((run) => (
+              <button type="button" key={run.id} aria-current={run.id === runId ? "true" : undefined} onClick={() => setRunId(run.id)}>
+                <strong>{run.title}</strong>
+                <span>{when(run.startedAt ?? run.createdAt)}</span>
+                <i data-live={run.status === "LIVE"}>{run.status === "LIVE" ? "Running" : "Finished"}</i>
+              </button>
+            ))}
+          </nav>
 
-        const phaseSegments: DonutSegment[] = [
-          { label: "Diagnostic", value: diagnostic?.complete ?? 0, color: PHASE_COLORS[0] },
-          { label: "Teaching", value: teaching?.complete ?? 0, color: PHASE_COLORS[1] },
-          { label: "Independent exit", value: exit?.complete ?? 0, color: PHASE_COLORS[2] },
-        ];
-        const phaseTotal = (diagnostic?.total ?? 0) + (teaching?.total ?? 0) + (exit?.total ?? 0);
-        const phaseComplete = phaseSegments.reduce((sum, s) => sum + s.value, 0);
+          <div className={r.report}>
+            {!report || !cr || !t ? (
+              <section className={styles.emptyCard}><p>Loading the report…</p></section>
+            ) : (
+              <>
+                <section className={r.summary}>
+                  <div className={r.summaryMeta}>
+                    <span data-live={report.run.status === "LIVE"}>{report.run.status === "LIVE" ? "● Running" : "Finished"}</span>
+                    {report.run.title} · {when(runs.find((x) => x.id === runId)?.startedAt ?? runs.find((x) => x.id === runId)?.createdAt)}
+                  </div>
+                  <h2>{summary(report)}</h2>
+                  {cr.headline && t.diagnosticDone > 0 && <p>{cr.headline}</p>}
+                  <ol className={r.funnel} aria-label="How far students got">
+                    {funnel.map(([label, value]) => (
+                      <li key={label}>
+                        <strong>{value}</strong>
+                        <span>{label}</span>
+                        <i style={{ width: `${t.enrolled ? Math.max(4, (value / t.enrolled) * 100) : 4}%` }} />
+                      </li>
+                    ))}
+                  </ol>
+                </section>
 
-        return (
-          <section className={styles.decisionCard} key={report.run.id}>
-            <div className={styles.decisionTop}>
-              <div>
-                <div className={styles.dateLine}>
-                  {report.run.classroom.name} · {report.run.phase.replaceAll("_", " ")}
+                <div className={r.twoCol}>
+                  <section className={r.card}>
+                    <h3>Who needs help with what</h3>
+                    {cr.gapGroups.length ? (
+                      <ul className={r.groups}>
+                        {cr.gapGroups.map((g) => (
+                          <li key={g.skillId}>
+                            <strong>{g.name}</strong>
+                            <span>{g.students.join(", ")}</span>
+                            <small>{g.exitDone ? `${g.exitCorrect} of ${g.exitDone} got the final question right afterwards` : "Lessons sent; final question not done yet"}</small>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className={r.muted}>{t.diagnosticDone ? "No one needed a fix in this check." : "Groups appear as students finish the check."}</p>
+                    )}
+                  </section>
+
+                  <section className={r.card}>
+                    <h3>Skills across the class</h3>
+                    {cr.skills.length ? (
+                      <>
+                        <div className={r.skills}>
+                          {cr.skills.slice(0, 8).map((k) => {
+                            const total = Math.max(1, k.secure + k.gap + k.suspected);
+                            return (
+                              <div key={k.skillId} className={r.skill}>
+                                <span>{k.name}</span>
+                                <span className={r.bar} aria-label={`${k.secure} secure, ${k.suspected} not sure yet, ${k.gap} need a fix`}>
+                                  <i data-kind="secure" style={{ width: `${(k.secure / total) * 100}%` }} />
+                                  <i data-kind="unsure" style={{ width: `${(k.suspected / total) * 100}%` }} />
+                                  <i data-kind="gap" style={{ width: `${(k.gap / total) * 100}%` }} />
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className={r.legend}><i data-kind="secure" /> Secure <i data-kind="unsure" /> Not sure yet <i data-kind="gap" /> Needs a fix</p>
+                      </>
+                    ) : (
+                      <p className={r.muted}>Skills appear as students finish the check.</p>
+                    )}
+                  </section>
                 </div>
-                <h2>{report.run.title}</h2>
-                <p>Generated from submitted classroom assignments, not mock roster data.</p>
-              </div>
-              <span className={styles.signal}>{report.run.status}</span>
-            </div>
 
-            <div className={styles.liveStats}>
-              <div>
-                <span>Diagnostic complete</span>
-                <strong>
-                  {diagnostic?.complete ?? 0}/{diagnostic?.total ?? 0}
-                </strong>
-              </div>
-              <div>
-                <span>Teaching complete</span>
-                <strong>
-                  {teaching?.complete ?? 0}/{teaching?.total ?? 0}
-                </strong>
-              </div>
-              <div>
-                <span>Exit verified</span>
-                <strong>
-                  {report.summary.independentExit.verified}/{exit?.total ?? 0}
-                </strong>
-              </div>
-              <div>
-                <span>Exit needs review</span>
-                <strong>{report.summary.independentExit.needsReview}</strong>
-              </div>
-            </div>
-
-            <div className={chart.insightGrid} style={{ marginTop: "1.1rem" }}>
-              <Donut
-                title="Diagnostic outcomes"
-                segments={outcomeSegments}
-                centerValue={String(outcomeTotal)}
-                centerLabel="learners"
-              />
-              <Donut
-                title="Learning-cycle progress"
-                segments={phaseSegments}
-                centerValue={phaseTotal ? `${Math.round((phaseComplete / phaseTotal) * 100)}%` : "0%"}
-                centerLabel="complete"
-              />
-            </div>
-
-            <div className={styles.nextSteps} style={{ marginTop: "1.1rem" }}>
-              {topStrength && (
-                <div className={styles.nextStep}>
-                  <span>Most observed strength · {topStrength[1]} learners</span>
-                  <strong>{topStrength[0]}</strong>
-                </div>
-              )}
-              {topUncertainty && (
-                <div className={styles.nextStep}>
-                  <span>Most common uncertainty · {topUncertainty[1]} learners</span>
-                  <strong>{topUncertainty[0]}</strong>
-                </div>
-              )}
-            </div>
-
-            <div className={styles.decisionAction}>
-              <strong>
-                {report.students.length} persisted evidence records · {report.summary.enrolled} learners
-              </strong>
-              <Link className={styles.decisionLink} href={`/teacher/sessions?classroom=${report.run.classroom.id}`}>
-                Open live session →
-              </Link>
-            </div>
-          </section>
-        );
-      })}
-
-      {!loading && !reports.length && !error && (
-        <section className={styles.emptyCard}>
-          <h2>No production report yet</h2>
-          <p>Create a classroom session, launch the diagnostic, and completed evidence will appear here.</p>
-          <Link className={styles.primary} href="/teacher/sessions">
-            Start a session →
-          </Link>
-        </section>
-      )}
+                <section className={r.card}>
+                  <div className={r.cardHead}><h3>Each student</h3><Link className={styles.textLink} href="/teacher/students">Manage students →</Link></div>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table} style={{ minWidth: 520 }}>
+                      <thead><tr><th>Student</th><th>Result</th><th>Needs help with</th><th>Practice</th><th>Final question</th></tr></thead>
+                      <tbody>
+                        {cr.students.map((row) => {
+                          const status = studentStatus(row);
+                          return (
+                            <tr key={row.studentId}>
+                              <td><span className={styles.studentName}>{row.name}</span>{row.rollNumber ? <span className={styles.studentMeta}>Roll {row.rollNumber}</span> : null}</td>
+                              <td><span className={`${styles.status} ${styles[status.tone] ?? ""}`}>{status.label}</span></td>
+                              <td>{row.startingPoint?.name ?? "—"}</td>
+                              <td>{row.lesson?.practice?.total ? `${row.lesson.practice.correct}/${row.lesson.practice.total} right` : "—"}</td>
+                              <td>{row.exitCorrect === true ? "Right on their own" : row.exitCorrect === false ? "Not yet" : "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

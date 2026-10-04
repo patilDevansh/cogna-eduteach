@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from "@nestjs/common";
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Min } from "class-validator";
 import { resolveActor } from "../access/cogna-access";
 import { ClassroomsService } from "./classrooms.service";
@@ -9,6 +9,10 @@ class CreateClassroomDto {
   @IsString() @Length(2, 80) subjectId!: string;
   @IsOptional() @IsString() @Length(6, 12) joinCode?: string;
   @IsOptional() @IsBoolean() isDemo?: boolean;
+}
+
+class RenameClassroomDto {
+  @IsString() @Length(2, 100) name!: string;
 }
 
 class JoinClassroomDto {
@@ -48,6 +52,21 @@ export class ClassroomsController {
     return this.classrooms.create(resolveActor(headers), body);
   }
 
+  @Patch(":classroomId")
+  rename(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: RenameClassroomDto): Promise<unknown> {
+    return this.classrooms.rename(resolveActor(headers), classroomId, body.name);
+  }
+
+  @Get(":classroomId/students")
+  roster(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string): Promise<unknown> {
+    return this.classrooms.roster(resolveActor(headers), classroomId);
+  }
+
+  @Delete(":classroomId/students/:studentId")
+  removeStudent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string): Promise<unknown> {
+    return this.classrooms.removeStudent(resolveActor(headers), classroomId, studentId);
+  }
+
   @Post("join")
   join(@Headers() headers: Record<string, string | string[] | undefined>, @Body() body: JoinClassroomDto): Promise<unknown> {
     return this.classrooms.join(resolveActor(headers), body);
@@ -61,6 +80,11 @@ export class ClassroomsController {
   @Post("runs/:runId/launch")
   launch(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Body() body: LaunchPhaseDto): Promise<unknown> {
     return this.classrooms.launchPhase(resolveActor(headers), runId, body.phase);
+  }
+
+  @Post("runs/:runId/end")
+  end(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string): Promise<unknown> {
+    return this.classrooms.endRun(resolveActor(headers), runId);
   }
 
   @Get("runs/:runId/report")

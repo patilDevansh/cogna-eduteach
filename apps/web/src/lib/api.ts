@@ -3,8 +3,6 @@ import type {
   PracticeAnswer,
   PracticeCheckResult,
   PracticeSetView,
-  LessonThemeChoice,
-  PersonalizedLessonAnimationView,
   ConceptMasteryBand,
   ConfidenceCalibrationSummary,
   DiagnosticV2DebugView,
@@ -358,7 +356,8 @@ export interface ProductionClassroom {
   joinCode: string;
   isDemo: boolean;
   _count?: { enrollments: number };
-  runs?: Array<{ id: string; title: string; phase: string; status: string }>;
+  /** Newest first (up to 12), so runs[0] is the latest check. */
+  runs?: Array<{ id: string; title: string; phase: string; status: string; createdAt: string; startedAt?: string | null; completedAt?: string | null }>;
 }
 
 /** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
@@ -372,6 +371,15 @@ export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssig
   // Lesson, practice and the independent exit share one page; the exit opens straight at its step.
   if (item.kind === "INDEPENDENT_EXIT") params.set("stage", "exit");
   return `/student/personalized-video?${params.toString()}`;
+}
+
+export interface ClassRosterStudent {
+  studentId: string;
+  name: string;
+  rollNumber?: string | null;
+  joinedAt: string;
+  /** The same teacher's other classes this student is also in — usually a mistyped code. */
+  alsoIn: Array<{ id: string; name: string }>;
 }
 
 export interface ClassroomStudentAssignment {
@@ -446,13 +454,25 @@ export const api = {
     classroomFetch<ProductionClassroom>("/classrooms", { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
 
   joinClassroom: (input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) =>
-    classroomFetch<{ id: string; classroom: ProductionClassroom }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+    classroomFetch<{ id: string; classroom: ProductionClassroom; alsoIn: Array<{ id: string; name: string }> }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+
+  getClassRoster: (classroomId: string) =>
+    classroomFetch<ClassRosterStudent[]>(`/classrooms/${classroomId}/students`, { headers: teacherAuthHeaders() }),
+
+  removeStudentFromClass: (classroomId: string, studentId: string) =>
+    classroomFetch<{ removed: true }>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}`, { method: "DELETE", headers: teacherAuthHeaders() }),
 
   createClassroomRun: (classroomId: string, input: { title: string; topicId: string; config?: Record<string, unknown> }) =>
     classroomFetch<{ id: string; title: string; phase: string; status: string }>(`/classrooms/${classroomId}/runs`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
 
   launchClassroomPhase: (runId: string, phase: ClassroomAssignmentKind) =>
     classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/launch`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ phase }) }),
+
+  renameClassroom: (classroomId: string, name: string) =>
+    classroomFetch<ProductionClassroom>(`/classrooms/${classroomId}`, { method: "PATCH", headers: teacherAuthHeaders(), body: JSON.stringify({ name }) }),
+
+  endClassroomRun: (runId: string) =>
+    classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/end`, { method: "POST", headers: teacherAuthHeaders() }),
 
   getClassroomRunReport: (runId: string) => classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/report`, { headers: teacherAuthHeaders() }),
 
@@ -844,7 +864,6 @@ export const api = {
       body: JSON.stringify({ studentId }),
     }),
 
-  /** The interactive, themed lesson; the first open of a theme narrates it with Cartesia (a few seconds). */
   getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
 
   checkPracticeAnswer: (id: string, itemId: string, answer: PracticeAnswer) =>
@@ -852,9 +871,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ answer }),
     }),
-
-  getLessonAnimation: (id: string, theme: LessonThemeChoice) =>
-    personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
 
   recordPersonalizedVideoWatched: (id: string, dwellMs = 0) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/watched`, {
