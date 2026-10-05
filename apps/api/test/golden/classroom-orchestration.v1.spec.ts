@@ -306,4 +306,34 @@ describe("class list import and sign-in codes", () => {
     const family = service({ ...base, classroomEnrollment: { findUnique: async () => ({ leftAt: null, student: { name: "Rohan", primaryParentId: "a-real-parent" } }) } });
     await assert.rejects(() => family.resetAccessCode(teacherActor, "class-1", "s3"), ForbiddenException);
   });
+
+  it("a parent's view of a class carries only their own child's row, never classmates'", async () => {
+    const classrooms = service({
+      classroomEnrollment: {
+        findMany: async (args: { where: { studentId?: string } }) =>
+          args.where.studentId
+            ? [{ classroom: { id: "class-1", name: "Section A", grade: 8, teacher: { name: "Ms Rao" } } }]
+            : [
+                { id: "enrol-1", rollNumber: null, student: { id: "s1", name: "Aarav" } },
+                { id: "enrol-2", rollNumber: null, student: { id: "s2", name: "Meena" } },
+              ],
+      },
+      classroomRun: { findFirst: async () => ({ id: "run-1", title: "Quick check", status: "LIVE", startedAt: null, createdAt: new Date(0) }) },
+      classroomAssignment: {
+        findMany: async () => [
+          { enrollmentId: "enrol-1", kind: "DIAGNOSTIC", status: "COMPLETE", startedAt: null, completedAt: null, diagnosticSessionId: null, videoAssignmentId: null },
+          { enrollmentId: "enrol-2", kind: "DIAGNOSTIC", status: "READY", startedAt: null, completedAt: null, diagnosticSessionId: null, videoAssignmentId: null },
+        ],
+      },
+    });
+    const [section] = await classrooms.forStudent("s1");
+    assert.equal(section?.name, "Section A");
+    assert.equal(section?.teacherName, "Ms Rao");
+    assert.equal(section?.check?.stageStatus, "COMPLETE");
+    assert.ok(!JSON.stringify(section).includes("Meena"), "no classmate data");
+  });
+
+  it("only a signed-in student can list their own classes", async () => {
+    await assert.rejects(() => service().classesForStudent(teacherActor), ForbiddenException);
+  });
 });

@@ -103,6 +103,11 @@ export class ClassroomsController {
     return this.classrooms.report(resolveActor(headers), runId);
   }
 
+  @Get("student/classes")
+  studentClasses(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.classrooms.classesForStudent(resolveActor(headers));
+  }
+
   @Get("student/assignments")
   studentAssignments(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
     return this.classrooms.assignmentsForStudent(resolveActor(headers));

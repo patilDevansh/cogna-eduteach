@@ -331,6 +331,31 @@ export interface WeeklyStructuredSummary {
   parentActions?: string[];
 }
 
+/** One child, as their parent sees it: their own class results (never classmates') and recent personal lessons. */
+export interface ParentChildOverview {
+  student: { id: string; name: string; grade: number };
+  classes: Array<{
+    classroomId: string;
+    name: string;
+    grade: number;
+    teacherName: string;
+    check: {
+      title: string;
+      live: boolean;
+      date: string;
+      stage: "JOINED" | "DIAGNOSTIC" | "LESSON" | "EXIT" | "DONE";
+      stageStatus: string;
+      progress: "IMPROVED" | "NOT_YET" | "NO_GAP" | "UNCLEAR" | "PENDING";
+      need: string | null;
+      lessonTitle: string | null;
+      finalCorrect: boolean | null;
+    } | null;
+  }>;
+  lessons: Array<{ id: string; title: string; date: string; finished: boolean; finalCorrect: boolean | null }>;
+  totals: { checksDone: number; lessonsFinished: number };
+  lastActive: string | null;
+}
+
 export interface ParentWeeklySummary {
   studentId: string;
   reportId?: string;
@@ -401,7 +426,7 @@ export interface ClassroomStudentAssignment {
   status: ClassroomAssignmentStatus;
   videoAssignmentId?: string | null;
   payload: Record<string, unknown>;
-  run: { id: string; title: string; topicId: string; classroom: { name: string; grade: number; subjectId: string } };
+  run: { id: string; title: string; topicId: string; classroom: { id: string; name: string; grade: number; subjectId: string } };
 }
 
 /** Pilot class results (apps/api/src/classrooms/class-report.ts). */
@@ -494,6 +519,9 @@ export const api = {
     classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/end`, { method: "POST", headers: teacherAuthHeaders() }),
 
   getClassroomRunReport: (runId: string) => classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/report`, { headers: teacherAuthHeaders() }),
+
+  /** The signed-in student's classes and where they are in each one's latest check. */
+  getStudentClasses: () => classroomFetch<ParentChildOverview["classes"]>("/classrooms/student/classes"),
 
   getStudentClassroomAssignments: () => classroomFetch<ClassroomStudentAssignment[]>("/classrooms/student/assignments"),
 
@@ -686,6 +714,13 @@ export const api = {
     }),
 
   /** MVP 2.0 — may 404 until backend lands. */
+  getParentChildOverview: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<ParentChildOverview>(
+      `/parents/me/students/${studentId}/overview`,
+      { headers: buildParentAuthHeaders(auth) },
+      false,
+    ),
+
   getParentWeeklySummary: (
     auth: string | ParentAuthInput | undefined,
     studentId: string,

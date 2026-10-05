@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError, type ClassRosterStudent, type ClassroomRunReport } from "@/lib/api";
 import { studentStatus } from "@/lib/teacher-status";
 import { useTeacherClasses } from "@/lib/teacher-classes";
+import { useRefreshTick } from "@/lib/use-refresh-tick";
 import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
@@ -17,16 +18,22 @@ export default function TeacherStudentsPage() {
   const [error, setError] = useState("");
 
   const runId = selected?.runs?.[0]?.id;
+  const tick = useRefreshTick();
+  const shown = useRef("");
   useEffect(() => {
-    setRoster([]);
-    setReport(null);
+    // Clear only when switching class or sample mode; a live refresh keeps the page on screen.
+    if (shown.current !== `${selectedId}|${runId}|${sample}`) {
+      setRoster([]);
+      setReport(null);
+    }
+    shown.current = `${selectedId}|${runId}|${sample}`;
     if (!selectedId) return;
     const data = teacherData(sample);
     let current = true; // a slower, outdated load must not overwrite a newer one
     data.getClassRoster(selectedId).then((r) => current && setRoster(r)).catch((cause) => current && setError(cause instanceof Error ? cause.message : "Could not load students."));
     if (runId) data.getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
     return () => { current = false; };
-  }, [selectedId, runId, sample]);
+  }, [selectedId, runId, sample, tick]);
 
   async function remove(student: ClassRosterStudent) {
     setConfirming(null);

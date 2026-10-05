@@ -106,6 +106,16 @@ export class ParentsController {
     return this.parents.getStudentSummary(parentId, studentId);
   }
 
+  @Get("me/students/:studentId/overview")
+  async getOverview(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.getOverview(parentId, studentId);
+  }
+
   @Get("me/students/:studentId/weekly-summary")
   async getWeeklySummary(
     @Headers("x-parent-id") parentIdHeader: string | undefined,

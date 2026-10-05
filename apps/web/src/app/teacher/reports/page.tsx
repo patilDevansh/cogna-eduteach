@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ClassroomRunReport } from "@/lib/api";
 import { useTeacherClasses } from "@/lib/teacher-classes";
+import { useRefreshTick } from "@/lib/use-refresh-tick";
 import { teacherData } from "@/lib/teacher-mode";
 import { studentStatus } from "@/lib/teacher-status";
 import { ClassTabs } from "../class-tabs";
@@ -32,16 +33,22 @@ export default function TeacherReportsPage() {
   const runs = selected?.runs ?? [];
   useEffect(() => setRunId(runs[0]?.id ?? ""), [selectedId, runs[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const tick = useRefreshTick();
+  const shown = useRef("");
   useEffect(() => {
-    setReport(null);
-    setError("");
+    // Clear only when switching report or sample mode; a live refresh keeps the page on screen.
+    if (shown.current !== `${runId}|${sample}`) {
+      setReport(null);
+      setError("");
+    }
+    shown.current = `${runId}|${sample}`;
     if (!runId) return;
     let current = true; // a slower, outdated load must not overwrite a newer one
     teacherData(sample).getClassroomRunReport(runId)
       .then((r) => current && setReport(r))
       .catch((cause) => current && setError(cause instanceof Error ? cause.message : "This report could not be loaded."));
     return () => { current = false; };
-  }, [runId, sample]);
+  }, [runId, sample, tick]);
 
   const cr = report?.classReport;
   const t = cr?.totals;

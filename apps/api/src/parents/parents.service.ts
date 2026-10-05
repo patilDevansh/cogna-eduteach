@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { hashAccessCode } from "./access-code";
 import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { ReportAudience, UserRole } from "@cogna/database";
 import { PrismaService } from "../prisma/prisma.service";
@@ -10,14 +11,9 @@ import {
   isDemoFreshStudentPerLoginEnabled,
 } from "../engines/diagnostic-v2/demo-student";
 import { issueStudentToken } from "../access/cogna-access";
+import { ClassroomsService } from "../classrooms/classrooms.service";
 
-function normalizeAccessCode(code: string): string {
-  return code.trim().toLowerCase();
-}
-
-export function hashAccessCode(code: string): string {
-  return createHash("sha256").update(normalizeAccessCode(code)).digest("hex");
-}
+export { hashAccessCode };
 
 function generateAccessCode(): string {
   return randomBytes(3).toString("hex").toUpperCase();
@@ -36,6 +32,7 @@ export class ParentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reportGenerator: ReportGeneratorService,
+    private readonly classrooms: ClassroomsService,
   ) {}
 
   /** Seeded pilot parent (links to Demo Student via db:seed). */
@@ -228,6 +225,57 @@ export class ParentsService {
       renderedText: report.renderedText,
       periodStart: report.periodStart.toISOString(),
       periodEnd: report.periodEnd.toISOString(),
+    };
+  }
+
+  /** What a parent sees for one child: their classes (own results only) and their recent personal lessons. */
+  async getOverview(parentId: string, studentId: string) {
+    const link = await this.prisma.parentStudentLink.findUnique({
+      where: { parentId_studentId: { parentId, studentId } },
+      include: { student: { select: { id: true, name: true, grade: true } } },
+    });
+    if (!link || !link.canViewReports) {
+      throw new UnauthorizedException("Parent cannot view reports for this student.");
+    }
+
+    const [classes, lessons, checksDone, lastCheck] = await Promise.all([
+      this.classrooms.forStudent(studentId),
+      this.prisma.personalizedVideoAssignment.findMany({
+        where: { studentId, status: { in: ["READY", "FALLBACK"] } },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          createdAt: true,
+          learningObjective: true,
+          script: true,
+          events: { select: { kind: true, exitCorrect: true, createdAt: true }, orderBy: { createdAt: "desc" } },
+        },
+      }),
+      this.prisma.lotusSessionRecord.count({ where: { studentId, status: "COMPLETE" } }),
+      this.prisma.lotusSessionRecord.findFirst({ where: { studentId }, orderBy: { startedAt: "desc" }, select: { startedAt: true } }),
+    ]);
+
+    const lessonRows = lessons.map((l) => {
+      const exit = l.events.find((e) => e.kind === "INDEPENDENT_EXIT");
+      return {
+        id: l.id,
+        title: (l.script as { lesson?: { title?: string } } | null)?.lesson?.title ?? l.learningObjective,
+        date: l.createdAt,
+        finished: l.events.some((e) => e.kind === "COMPLETED"),
+        finalCorrect: exit ? exit.exitCorrect : null,
+      };
+    });
+    const lastActive = [lastCheck?.startedAt, ...lessons.flatMap((l) => l.events.map((e) => e.createdAt))]
+      .filter((d): d is Date => Boolean(d))
+      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+    return {
+      student: link.student,
+      classes,
+      lessons: lessonRows,
+      totals: { checksDone, lessonsFinished: lessonRows.filter((l) => l.finished).length },
+      lastActive,
     };
   }
 

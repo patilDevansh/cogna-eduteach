@@ -5,14 +5,8 @@ import { useEffect, useState } from "react";
 import { api, ApiError, classroomAssignmentHref, type ClassroomStudentAssignment } from "@/lib/api";
 import { clearStudent, getStudent, isFixtureStudentSession, type StudentSessionRecord } from "@/lib/session";
 import { Wordmark } from "@/components/ui";
+import { STEP } from "@/lib/class-steps";
 import styles from "../student-demo.module.css";
-
-/** What each pilot stage is called on the student's screen. */
-const STEP: Record<ClassroomStudentAssignment["kind"], { title: string; note: string; cta: string }> = {
-  DIAGNOSTIC: { title: "Your Lotus diagnostic", note: "About 15 minutes. It stops early once Cogna knows where to start.", cta: "Start the diagnostic" },
-  TEACHING: { title: "Your lesson and practice", note: "A short lesson made from your own answers, then a few questions to practise.", cta: "Start my lesson" },
-  INDEPENDENT_EXIT: { title: "One question on your own", note: "No hints. This shows your teacher what you can do now.", cta: "Start" },
-};
 
 function classroomGreeting(student: StudentSessionRecord | null, joinedClass: string | null): string {
   if (joinedClass) return "You're in.";

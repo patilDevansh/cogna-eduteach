@@ -2,7 +2,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ClassroomAssignmentKind, ClassroomRunPhase, Prisma, UserRole } from "@cogna/database";
 import { AccessActor, assertTeacher } from "../access/cogna-access";
-import { hashAccessCode } from "../parents/parents.service";
+import { hashAccessCode } from "../parents/access-code";
 import { PrismaService } from "../prisma/prisma.service";
 import type { LotusQuestionAudit } from "@cogna/shared";
 import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
@@ -270,7 +270,13 @@ export class ClassroomsService {
 
   async assignmentsForStudent(actor: AccessActor) {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
-    return this.prisma.classroomAssignment.findMany({ where: { enrollment: { studentId: actor.studentId, leftAt: null }, status: { in: ["READY", "IN_PROGRESS"] } }, include: { run: { include: { classroom: { select: { name: true, subjectId: true, grade: true } } } } }, orderBy: { availableAt: "asc" } });
+    return this.prisma.classroomAssignment.findMany({ where: { enrollment: { studentId: actor.studentId, leftAt: null }, status: { in: ["READY", "IN_PROGRESS"] } }, include: { run: { include: { classroom: { select: { id: true, name: true, subjectId: true, grade: true } } } } }, orderBy: { availableAt: "asc" } });
+  }
+
+  /** The signed-in student's own classes and where they are in each one's latest check. */
+  async classesForStudent(actor: AccessActor) {
+    if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    return this.forStudent(actor.studentId);
   }
 
   private async ownedAssignment(actor: AccessActor, id: string) {
@@ -434,6 +440,43 @@ export class ClassroomsService {
       };
     });
     return buildClassReport(evidence);
+  }
+
+  /** A student's classes and how they did on each class's latest check, for their parent. Only this student's row leaves here, never classmates'. */
+  async forStudent(studentId: string) {
+    const enrollments = await this.prisma.classroomEnrollment.findMany({
+      where: { studentId, leftAt: null, classroom: { archivedAt: null } },
+      include: { classroom: { select: { id: true, name: true, grade: true, teacher: { select: { name: true } } } } },
+      orderBy: { joinedAt: "asc" },
+    });
+    return Promise.all(enrollments.map(async ({ classroom }) => {
+      const run = await this.prisma.classroomRun.findFirst({
+        where: { classroomId: classroom.id, status: { in: ["LIVE", "COMPLETE"] } },
+        orderBy: { createdAt: "desc" },
+      });
+      const row = run
+        ? (await this.classReport(classroom.id, await this.prisma.classroomAssignment.findMany({ where: { runId: run.id } }))).students.find((s) => s.studentId === studentId)
+        : undefined;
+      return {
+        classroomId: classroom.id,
+        name: classroom.name,
+        grade: classroom.grade,
+        teacherName: classroom.teacher.name,
+        check: run && row
+          ? {
+              title: run.title,
+              live: run.status === "LIVE",
+              date: run.startedAt ?? run.createdAt,
+              stage: row.stage,
+              stageStatus: row.stageStatus,
+              progress: row.progress,
+              need: row.startingPoint?.name ?? null,
+              lessonTitle: row.lesson?.title ?? null,
+              finalCorrect: row.exitCorrect ?? null,
+            }
+          : null,
+      };
+    }));
   }
 
   async report(actor: AccessActor, runId: string) {

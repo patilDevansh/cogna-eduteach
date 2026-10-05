@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ClassroomRunReport } from "@/lib/api";
 import { getTeacherInvitation } from "@/lib/session";
 import { useTeacherClasses } from "@/lib/teacher-classes";
 import { teacherData } from "@/lib/teacher-mode";
+import { useRefreshTick } from "@/lib/use-refresh-tick";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
 
@@ -54,12 +55,16 @@ export default function TeacherTodayPage() {
   useEffect(() => setTeacherName(getTeacherInvitation()?.teacherName?.split(/\s+/)[0] ?? ""), []);
 
   const runId = selected?.runs?.[0]?.id;
+  const tick = useRefreshTick();
+  const shown = useRef("");
   useEffect(() => {
-    setReport(null);
+    // Clear only when switching class or sample mode; a live refresh keeps the page on screen.
+    if (shown.current !== `${runId}|${sample}`) setReport(null);
+    shown.current = `${runId}|${sample}`;
     let current = true; // a slower, outdated load must not overwrite a newer one
     if (runId) teacherData(sample).getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
     return () => { current = false; };
-  }, [runId, sample]);
+  }, [runId, sample, tick]);
 
   const plan = report ? nextMoves(report) : null;
   const t = report?.classReport.totals;
