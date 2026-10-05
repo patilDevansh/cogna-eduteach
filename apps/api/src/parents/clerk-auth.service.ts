@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
+import { isProductionLike } from "../access/cogna-access";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
@@ -17,13 +18,16 @@ export class ClerkAuthService {
   }
 
   /**
-   * Resolve parent ID from Clerk Bearer token or dev X-Parent-Id header.
+   * Resolve parent ID from a Clerk Bearer token. Outside production, the X-Parent-Id header and the
+   * seeded dev parent are also accepted (local dev, CI scenarios); in production only Clerk counts,
+   * because a header anyone can set must never stand in for a login.
    */
   async resolveParentId(
     authHeader?: string,
     headerParentId?: string,
   ): Promise<string> {
-    if (headerParentId) {
+    const devShortcuts = !isProductionLike();
+    if (headerParentId && devShortcuts) {
       const parent = await this.prisma.parent.findUnique({
         where: { id: headerParentId },
       });
@@ -44,6 +48,8 @@ export class ClerkAuthService {
         return parent.id;
       }
     }
+
+    if (!devShortcuts) throw new UnauthorizedException("Sign in as a parent to continue.");
 
     const devParent = await this.prisma.parent.findFirst({
       where: { user: { clerkId: "dev_parent_clerk" } },

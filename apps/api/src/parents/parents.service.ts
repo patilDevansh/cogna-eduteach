@@ -372,7 +372,8 @@ export class AuthService {
   ): Promise<string> {
     try {
       return await this.clerkAuth.resolveParentId(authHeader, headerParentId);
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error; // "sign in", not "no account"
       throw new NotFoundException("No parent account found. Run db:seed or sign up.");
     }
   }

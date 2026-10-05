@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { rateLimitMiddleware } from "./rate-limit.middleware";
 import { allowedWebOrigins } from "./web-origins";
+import { isProductionLike, sessionSecretFromEnv } from "./access/cogna-access";
 import { SentryExceptionFilter, initSentry } from "./observability/sentry";
 
 const bootLogger = new Logger("Bootstrap");
@@ -20,6 +21,9 @@ process.on("uncaughtException", (err) => {
 
 async function bootstrap() {
   const webOrigins = allowedWebOrigins(); // throws in production without WEB_URL, before anything starts
+  if (isProductionLike() && !sessionSecretFromEnv()) {
+    throw new Error("COGNA_SESSION_SECRET must be set in production, or no student or teacher can sign in.");
+  }
   const sentryActive = initSentry();
   const app = await NestFactory.create(AppModule);
   if (sentryActive) app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
@@ -47,7 +51,8 @@ async function bootstrap() {
     .setDescription("AI Cognitive Learning Engine")
     .setVersion("0.0.1")
     .build();
-  SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, swagger));
+  // The API docs list every route: useful locally, an attack map in production.
+  if (!isProductionLike()) SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, swagger));
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);

@@ -90,13 +90,16 @@ function cognaAuthHeaders(): Record<string, string> {
   return {};
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+/** `sendSession: false` for calls made as a parent, so a child signed in on the same browser is not sent too. */
+async function apiFetch<T>(path: string, options?: RequestInit, sendSession = true): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        // Student/teacher session: the API checks every per-student route against it.
+        ...(sendSession ? cognaAuthHeaders() : {}),
         ...options?.headers,
       },
     });
@@ -677,13 +680,16 @@ export const api = {
     ),
 
   /** MVP 2.0 — optional trigger; may 404 until backend lands. */
+  /** `parentAuth` when a parent asks (the API checks they are linked to this student). */
   requestWeeklyReport: (
     studentId: string,
     body: { periodStart: string; periodEnd: string; requestId?: string },
+    parentAuth?: string | ParentAuthInput,
   ) =>
     apiFetch<{ reportId: string; status: string; idempotencyKey?: string }>(
       `/students/${studentId}/reports/weekly`,
-      { method: "POST", body: JSON.stringify(body) },
+      { method: "POST", body: JSON.stringify(body), ...(parentAuth ? { headers: buildParentAuthHeaders(parentAuth) } : {}) },
+      !parentAuth,
     ),
 
   getHomeSummary: (studentId: string) =>
