@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/ui";
 import { getTeacherInvitation, type TeacherInvitationRecord } from "@/lib/session";
+import { SampleModeProvider, useSampleMode } from "@/lib/teacher-mode";
 import styles from "./teacher.module.css";
 
 const links = [
   ["Today", "/teacher/today", "◉"],
-  ["Classes", "/teacher/classes", "▦"],
-  ["Sessions", "/teacher/sessions", "▶"],
+  ["Class", "/teacher/sessions", "▶"],
   ["Students", "/teacher/students", "◎"],
   ["Reports", "/teacher/reports", "↗"],
   ["Pilot story", "/teacher/pilot-story", "◇"],
@@ -18,10 +18,15 @@ const links = [
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [teacher,setTeacher]=useState<TeacherInvitationRecord|null>(null);
-  useEffect(()=>setTeacher(getTeacherInvitation()),[]);
   const isAuth = pathname === "/teacher/signup" || pathname === "/teacher/login" || pathname === "/teacher/setup";
   if (isAuth) return children;
+  return <SampleModeProvider><TeacherShell pathname={pathname}>{children}</TeacherShell></SampleModeProvider>;
+}
+
+function TeacherShell({ pathname, children }: { pathname: string; children: React.ReactNode }) {
+  const [teacher,setTeacher]=useState<TeacherInvitationRecord|null>(null);
+  useEffect(()=>setTeacher(getTeacherInvitation()),[]);
+  const { sample, setSample } = useSampleMode();
 
   return (
     <div className={styles.teacherPage}>
@@ -29,6 +34,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         <div className={styles.appHeaderInner}>
           <Wordmark href="/teacher/today" size="1.35rem" />
           <div className={styles.teacherIdentity}>
+            {sample && <span className={styles.samplePill}>Sample data</span>}
             <div className={styles.teacherIdentityText}>
               <strong>{teacher?.teacherName ?? "Teacher workspace"}</strong>
               <span>{teacher?.schoolName ?? "Cogna production classroom"}</span>
@@ -47,9 +53,12 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
               </Link>
             ))}
           </nav>
-          <div className={styles.sideClass}>
-            <span>Viewing class</span>
-            <strong>Production data</strong>
+          <div className={styles.sampleSwitch}>
+            <button type="button" role="switch" aria-checked={sample} onClick={() => setSample(!sample)}>
+              <span className={styles.switchTrack} data-on={sample}><span /></span>
+              Sample data
+            </button>
+            <p>{sample ? "Showing two sample classes. Your real classes are untouched." : "Show sample classes, e.g. for a demo."}</p>
           </div>
         </aside>
         <main className={styles.main}>{children}</main>

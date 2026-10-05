@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { join } from "path";
 import { PrismaModule } from "./prisma/prisma.module";
+import { AccessModule } from "./access/access.module";
 import { StudentsModule } from "./students/students.module";
 import { SessionsModule } from "./sessions/sessions.module";
 import { LearningLoopModule } from "./learning-loop/learning-loop.module";
@@ -34,6 +35,7 @@ import { ClassroomsModule } from "./classrooms/classrooms.module";
 
 @Module({
   imports: [
+    AccessModule,
     ConfigModule.forRoot({
       isGlobal: true,
       // turbo runs api from apps/api; repo secrets live in monorepo root .env.

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, type HomeSummary } from "@/lib/api";
+import { api, classroomAssignmentHref, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview } from "@/lib/api";
+import { STEP } from "@/lib/class-steps";
 import { getStudent, clearStudent } from "@/lib/session";
 import { conceptLabelStudent } from "@/lib/concept-labels";
 import styles from "@/components/dashboard.module.css";
@@ -29,6 +30,19 @@ const JOURNEY_POINTS = [
 
 const DEMO_STUDENT_ID = "dev_student_001";
 
+type ClassStatus = ParentChildOverview["classes"][number];
+
+/** Where a student stands in a class when there's nothing to start right now. */
+function classDoneLine(c: ClassStatus): string {
+  const check = c.check;
+  if (!check) return "No work from your teacher yet. It will appear here.";
+  if (check.progress === "IMPROVED") return "All done. You got the last question right on your own.";
+  if (check.progress === "NOT_YET") return "All done. Your teacher will help with the tricky part.";
+  if (check.progress === "NO_GAP" || check.progress === "UNCLEAR") return "Quick check done. Nothing else to do right now.";
+  if (check.stage === "DONE") return "This check is closed.";
+  return "Your next step is being prepared. It will appear here.";
+}
+
 function formatRecapWhen(iso: string): string {
   const hours = (Date.now() - new Date(iso).getTime()) / 3_600_000;
   if (hours < 20) return "Earlier today";
@@ -43,6 +57,8 @@ export default function StudentHomePage() {
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<ClassStatus[] | null>(null);
+  const [work, setWork] = useState<ClassroomStudentAssignment[]>([]);
 
   useEffect(() => {
     document.title = "Home — Cogna";
@@ -63,6 +79,30 @@ export default function StudentHomePage() {
       .finally(() => setLoading(false));
   }, [router]);
 
+  // Class work: checked every 10 seconds and whenever the student comes back to this tab.
+  useEffect(() => {
+    if (!getStudent()?.token) {
+      setClasses([]);
+      return;
+    }
+    const load = () => {
+      Promise.all([api.getStudentClasses(), api.getStudentClassroomAssignments()])
+        .then(([list, open]) => {
+          setClasses(list);
+          setWork(open);
+        })
+        .catch(() => setClasses((prev) => prev ?? []));
+    };
+    load();
+    const timer = window.setInterval(load, 10_000);
+    const onFocus = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
+
   function signOut() {
     clearStudent();
     router.push("/");
@@ -80,7 +120,7 @@ export default function StudentHomePage() {
     </div>
   );
 
-  if (loading) {
+  if (loading || classes === null) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--s-5)" }}>
         {chrome}
@@ -90,6 +130,41 @@ export default function StudentHomePage() {
   }
 
   const hasHistory = Boolean(summary?.nextAction || summary?.recap);
+
+  // In a class, home is the class to-do list only, so everything the student does counts for their teacher.
+  if (classes.length) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--s-5)" }}>
+        {chrome}
+        <div className={`${styles.phone} phase-in`}>
+          {work.map((item) => (
+            <div className={styles.heroCard} key={item.id}>
+              <span className={styles.kicker}>From your teacher · {item.run.classroom.name}</span>
+              <h2>{STEP[item.kind].title}</h2>
+              <p className={styles.meta}>{STEP[item.kind].note}</p>
+              <Link href={classroomAssignmentHref(item)} className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
+                {item.status === "IN_PROGRESS" ? "Carry on" : STEP[item.kind].cta} →
+              </Link>
+            </div>
+          ))}
+          {classes
+            .filter((c) => !work.some((w) => w.run.classroom.id === c.classroomId))
+            .map((c) => (
+              <div className={styles.heroCard} key={c.classroomId}>
+                <span className={styles.kicker}>{c.name}{c.check ? ` · ${c.check.title}` : ""}</span>
+                <p className={styles.meta} style={{ fontSize: "var(--text-md)", color: "var(--ink)" }}>{classDoneLine(c)}</p>
+              </div>
+            ))}
+          <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>
+            <Link href="/student/classroom/live">Join another class</Link>
+            <button type="button" className="btn-quiet" onClick={signOut} style={{ padding: 0 }}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--s-5)" }}>
