@@ -1,0 +1,49 @@
+/* Targeted micro-lesson card: dark green screen, moving maths, waveform, progress. */
+.card { background: #fff; border: 1px solid #dce4dd; border-radius: 22px; padding: 14px 14px 16px; display: grid; gap: 10px; box-shadow: 0 3px 0 #dce4dd; }
+.screen { --lt: #f3f7f4; --ls: #a9cbbd; --lm: #9fd8c0; --ly: #f2c14e; position: relative; container-type: inline-size; aspect-ratio: 16 / 9; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto auto auto; padding: 3.6cqi 4cqi 3.4cqi; border-radius: 16px; background: #1f4b3f; color: var(--lt); }
+.who { margin: 0; font-size: max(10px, 2.1cqi); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.stage { position: relative; display: grid; justify-items: center; align-content: center; gap: 0.6cqi; min-height: 0; }
+.expr { display: flex; align-items: center; gap: 0; white-space: nowrap; font-weight: 800; font-size: 7.4cqi; line-height: 1.15; letter-spacing: -0.01em; }
+.tok { position: relative; display: inline-block; padding: 0 0.05em; border-radius: 0.2em; transition: background 0.35s, color 0.35s, opacity 0.45s, transform 0.45s, box-shadow 0.35s; }
+.tok::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -0.16em; height: 0.11em; border-radius: 9px; background: var(--ly); transform: scaleX(0); transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.hl { background: rgba(159, 216, 192, 0.24); box-shadow: 0 0 0 0.06em rgba(159, 216, 192, 0.45); }
+.hy { color: var(--ly); }
+.hv { background: rgba(185, 166, 240, 0.26); }
+.ghost { opacity: 0; }
+.dim { opacity: 0.32; }
+.under::after { transform: scaleX(1); }
+.pulse { animation: pulse 0.7s ease-out; }
+.down { height: 7cqi; margin: 0.4cqi 0; transition: opacity 0.4s; }
+.down svg { height: 100%; display: block; }
+.off { opacity: 0; }
+.arcs { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.arcs path { fill: none; stroke: var(--lm); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 400; stroke-dashoffset: 400; transition: stroke-dashoffset 0.8s ease-in-out; }
+.arcs path.arcOn { stroke-dashoffset: 0; }
+.sub { margin: 0 0 1cqi; min-height: 1.35em; text-align: center; font-size: max(11px, 2.05cqi); color: var(--ls); }
+.wave { display: flex; align-items: center; gap: 0.55cqi; height: 7cqi; }
+.wave i { flex: none; width: 0.7cqi; min-width: 2px; border-radius: 2px; background: var(--lm); transition: height 0.07s linear; }
+.prog { height: 0.6cqi; min-height: 3px; margin-top: 1.4cqi; border-radius: 9px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.prog i { display: block; height: 100%; border-radius: 9px; background: var(--lm); }
+.pills { position: absolute; top: 3.2cqi; right: 15cqi; display: grid; gap: 0.8cqi; justify-items: end; }
+.pill { white-space: nowrap; padding: 0.5cqi 1.4cqi; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font-size: max(10px, 1.9cqi); font-weight: 600; animation: rise 0.35s ease-out; }
+.bad { background: rgba(240, 138, 93, 0.22); color: #ffc7ad; }
+.good { background: rgba(159, 216, 192, 0.22); color: var(--lm); }
+.warn { background: rgba(242, 193, 78, 0.2); color: var(--ly); }
+.play { position: absolute; top: 3cqi; right: 3.4cqi; width: 9cqi; min-width: 38px; aspect-ratio: 1; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--lt); color: #1f4b3f; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); cursor: pointer; transition: transform 0.2s; }
+.play:hover { transform: scale(1.06); }
+.play svg { width: 42%; height: 42%; }
+.takeaway { margin: 0; padding-inline: 4px; font-size: 1.1rem; }
+.note { margin: -6px 0 0; padding-inline: 4px; font-size: 0.85rem; color: #7d8c84; }
+.check { display: grid; gap: 8px; padding: 10px 4px 0; border-top: 1px dashed #dce4dd; }
+.check p { margin: 0; font-weight: 600; }
+.math { font-family: "Source Serif 4", Georgia, serif; font-size: 1.05rem; font-weight: 400; }
+.options { display: flex; flex-wrap: wrap; gap: 8px; }
+.option { border: 1px solid #dce4dd; background: #fff; border-radius: 10px; padding: 8px 14px; font-family: "Source Serif 4", Georgia, serif; font-size: 1.05rem; cursor: pointer; }
+.option[data-state="right"] { border-color: #17734f; background: #e2f2e8; }
+.option[data-state="wrong"] { border-color: #c2410c; animation: shake 0.4s; }
+.feedback { font-weight: 500 !important; color: #c2410c; }
+.feedback[data-ok] { color: #17734f; }
+@keyframes pulse { 40% { transform: scale(1.12); } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@media (prefers-reduced-motion: reduce) { .card * { animation-duration: 1ms !important; transition-duration: 1ms !important; } }

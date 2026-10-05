@@ -35,9 +35,15 @@ export function chooseLotusInteraction(
 
 /** Attaches a tile game to the question when one applies. Mutates and returns the question. */
 export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
+  // A game probe (e.g. garden fences) already carries its own checked tiles.
+  if (question.interaction) {
+    question.asksForWorking = false;
+    return question;
+  }
   const interaction = chooseLotusInteraction(question, context, env);
   if (interaction) {
     question.interaction = interaction;
+    question.presentation ??= "BRIDGE";
     question.asksForWorking = false;
   }
   return question;

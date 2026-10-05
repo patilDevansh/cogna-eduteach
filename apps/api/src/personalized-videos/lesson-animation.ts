@@ -159,6 +159,21 @@ export class LessonNarrator {
     }
   }
 
+  /**
+   * Narrates free-standing lines (micro-lessons, quick-check replies) in the
+   * theme's voice. Captions keep the maths symbols; `spoken` is what the voice
+   * says. Null entries are lines the voice couldn't produce (they play silent).
+   */
+  async lines(input: { assignmentId: string; spoken: string[]; theme: LessonThemeChoice; claims: MediaAccessClaims }): Promise<Array<Clip | null>> {
+    const voice = themeVoices(this.tts)[input.theme];
+    const concurrency = this.tts?.provider === "elevenlabs" ? ELEVENLABS_CONCURRENCY : NARRATION_CONCURRENCY;
+    const clips = await pool(input.spoken, concurrency, (text) => this.clip(input.assignmentId, text, voice.id, input.claims));
+    for (let i = 0; i < clips.length; i++) {
+      if (!clips[i]) clips[i] = await this.clip(input.assignmentId, input.spoken[i]!, voice.id, input.claims);
+    }
+    return clips;
+  }
+
   async narrate(input: {
     assignmentId: string;
     source: AnimationInput;

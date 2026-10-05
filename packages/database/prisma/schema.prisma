@@ -1493,6 +1493,8 @@ model PersonalizedVideoEvent {
   exitAnswer   String?
   exitWorking  String?
   exitCorrect  Boolean?
+  /// Which exit question this answers: 0 = the main item, 1 = the transfer item. Null on older rows means 0.
+  exitItem     Int?
   createdAt    DateTime                      @default(now())
 
   @@index([assignmentId, createdAt])

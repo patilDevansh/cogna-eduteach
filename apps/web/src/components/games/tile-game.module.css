@@ -6,6 +6,15 @@
 .scene { position: relative; display: grid; justify-items: center; gap: 12px; border-radius: 14px; padding: 16px 10px 20px; overflow: hidden; min-height: 150px; }
 .game[data-theme="bridge"] .scene { background: linear-gradient(#d7eef6 0 58%, #8ccbe0 58%); }
 .game[data-theme="crystal"] .scene { background: linear-gradient(135deg, #f3efff, #eef4fb); }
+.game[data-theme="garden"] .scene { background: linear-gradient(180deg, #e9f6e4, #cfe9c4); }
+.game[data-theme="garden"] .box { border-color: #a07a3f; background: #f6ead2; }
+.game[data-theme="garden"] .box[data-filled] { background: #ead7ae; }
+.garden { display: grid; grid-template-columns: 96px 70px; grid-template-rows: 72px 44px; gap: 3px; font-family: "Source Serif 4", Georgia, serif; color: #16241d; }
+.garden span { display: grid; place-items: center; border-radius: 6px; background-image: radial-gradient(circle at 25% 30%, rgba(23, 115, 79, 0.25) 2px, transparent 3px); background-size: 20px 20px; }
+.plotBig { background-color: #e8ecfb; grid-row: 1; grid-column: 1; }
+.plotStrip { background-color: #e2f2e8; grid-row: 1 / span 2; grid-column: 2; }
+.plotUnits { background-color: #f7eedd; grid-row: 2; grid-column: 1; }
+.game[data-sealed][data-theme="garden"] .garden span { animation: shine 0.8s ease-out; }
 .game[data-theme="lantern"] .scene { background: linear-gradient(180deg, #1b2b45, #2d4566); }
 
 .sign { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(1.25rem, 4vw, 1.6rem); background: #fffdf6; color: #2b2a26; border: 2px solid #b88b4a; border-radius: 8px; padding: 2px 12px; white-space: nowrap; }

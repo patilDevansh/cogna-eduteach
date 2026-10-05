@@ -37,6 +37,10 @@ export type AuthoredVisual =
    * (not equal) — and the verifier checks it, so the narration can't misdescribe the mistake.
    */
   | { type: "mistake"; expr: string; task: AuthoredTask; wrong: string; wrongKind: "unfinished" | "incorrect"; right: string; note: string }
+  /** Algebra tiles for a positive x² + bx + c sliding into one rectangle: sides[0] + sides[1] = b strips, sides[0] × sides[1] = c squares. */
+  | { type: "tiles"; b: number; c: number; sides: [number, number] }
+  /** Signed numbers as moves on a number line: start, then each move hops left (negative) or right (positive). */
+  | { type: "number-line"; start: number; moves: number[]; caption?: string }
   /** A short routine card (2–4 lines of words, no maths claims). */
   | { type: "rule"; heading: string; lines: string[] };
 
@@ -128,6 +132,44 @@ export type PracticeItem =
       sum: number;
       answer: [number, number];
     }
+  /** Make it a rectangle: split the x-strips between the side and the bottom until the small squares fill the corner exactly. Positive trinomials only. Built by code only. */
+  | {
+      id: string;
+      format: "rectangle";
+      prompt: string;
+      expression: string;
+      /** The middle coefficient (number of x-strips) and the constant (number of small squares). */
+      strips: number;
+      units: number;
+      /** Strips on the side and on the bottom when it fits. */
+      answer: [number, number];
+    }
+  /** Marker's desk: Bit the robot hands in papers; stamp each right or wrong and name the mistake. Built by code only. */
+  | {
+      id: string;
+      format: "mark-it";
+      prompt: string;
+      papers: Array<{
+        question: string;
+        expression: string;
+        task: AuthoredTask;
+        bitAnswer: string;
+        /** Decided by the algebra engine when the item is built. */
+        verdict: "right" | "wrong";
+        /** Mistake reasons that count as a correct diagnosis (wrong papers only). */
+        reasons: MarkReason[];
+        /** What Bit says once the mistake is named, or the check when Bit was right. */
+        learn: string;
+      }>;
+    }
+  /** Bracket rush: a timed round of quick picks; misses come back later in the round. Fluency only. Built by code only. */
+  | {
+      id: string;
+      format: "rush";
+      prompt: string;
+      seconds: number;
+      rounds: Array<{ expression: string; task: AuthoredTask; options: string[]; answerIndex: number; why: string[] }>;
+    }
   /** Build the answer from tiles; the server assembles the picks and the algebra engine marks them. Built by code only. */
   | {
       id: string;
@@ -139,6 +181,15 @@ export type PracticeItem =
       interaction: TileBuildInteraction;
       workedSteps: string[];
     };
+
+/** The mistakes a student can name at the marker's desk. */
+export type MarkReason = "sign" | "forgot" | "unfinished" | "pair";
+export const MARK_REASONS: Array<{ code: MarkReason; label: string }> = [
+  { code: "sign", label: "Sign slip" },
+  { code: "forgot", label: "Forgot a term" },
+  { code: "unfinished", label: "Not finished" },
+  { code: "pair", label: "Wrong pair" },
+];
 
 export type PracticeFormat = PracticeItem["format"];
 
@@ -165,7 +216,10 @@ export type PracticeItemView =
   | Omit<Extract<PracticeItem, { format: "choose" }>, "answerIndex" | "feedback">
   | Omit<Extract<PracticeItem, { format: "type-answer" }>, "answer" | "workedSteps">
   | Omit<Extract<PracticeItem, { format: "factor-safe" }>, "answer">
-  | Omit<Extract<PracticeItem, { format: "build" }>, "answer" | "workedSteps">;
+  | Omit<Extract<PracticeItem, { format: "build" }>, "answer" | "workedSteps">
+  | Omit<Extract<PracticeItem, { format: "rectangle" }>, "answer">
+  | (Omit<Extract<PracticeItem, { format: "mark-it" }>, "papers"> & { papers: Array<{ question: string; bitAnswer: string }> })
+  | (Omit<Extract<PracticeItem, { format: "rush" }>, "rounds"> & { rounds: Array<{ expression: string; options: string[] }> });
 
 export interface PracticeSetView {
   assignmentId: string;
@@ -181,7 +235,9 @@ export type PracticeAnswer =
   | { line: number }
   | { option: number }
   | { text: string }
-  | { picks: Array<number | null> };
+  | { picks: Array<number | null> }
+  | { paper: number; mark: "right" | "wrong"; reason?: MarkReason }
+  | { round: number; option: number };
 
 export interface PracticeCheckResult {
   itemId: string;

@@ -10,6 +10,7 @@ import { useDevState } from "@/lib/dev-mode";
 import { getStoredLotusSessions, saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import { getStudent } from "@/lib/session";
 import styles from "./report.module.css";
+import { LotusBloom } from "@/components/games/LotusGames";
 
 const SESSION_POLL_MS = 1500;
 const LESSON_POLL_MS = 3000;
@@ -178,6 +179,11 @@ function ReportPage() {
         {student?.name && <span className={styles.who}>{student.name}</span>}
       </header>
 
+      {session?.topic === "FACTORISATION" && session.audits.length > 0 && !error && (
+        <div style={{ maxWidth: 880, margin: "1rem auto 0", padding: "0 16px" }}>
+          <LotusBloom answered={session.audits.length} firstName={student?.name?.split(" ")[0]} />
+        </div>
+      )}
       {error ? (
         <section className={styles.centerCard}>
           <h1>We couldn&apos;t open this report</h1>

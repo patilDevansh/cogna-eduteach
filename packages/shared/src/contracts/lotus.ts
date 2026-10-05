@@ -33,7 +33,8 @@ export interface LotusPredictedMistake {
  * browser before the student answers.
  */
 export interface LotusItemDiagnostics {
-  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE";
+  /** SELECT: choose every option that fits (e.g. "net every fully factorised expression"); built by code only. */
+  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE" | "SELECT";
   /** The expression the student works on (for FACTORISE and SIMPLIFY items). */
   expression?: string;
   skillId: string;
@@ -44,9 +45,10 @@ export interface LotusItemDiagnostics {
   predictedMistakes: LotusPredictedMistake[];
   slot?: number;
   level?: "easy" | "medium" | "hard";
-  origin: "FALLBACK" | "AI";
-  /** AI-only source shown to observers; omitted on older session records. */
-  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK";
+  /** CODE: a game question built and checked by code (see lotus-probes.ts), accepted like a checked AI item. */
+  origin: "FALLBACK" | "AI" | "CODE";
+  /** Source shown to observers; omitted on older session records. */
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME";
 }
 
 export interface LotusQuestion {
@@ -76,7 +78,20 @@ export interface LotusQuestion {
    * answer key; carries no answer. The picks are re-assembled server-side.
    */
   interaction?: TileBuildInteraction;
+  /**
+   * How the question is staged as a game. A skin only: marking follows the
+   * item kind. FIREFLY and IMPOSTOR stage a CHOICE item, DETECTIVE a CHOICE
+   * over `lines`, FISHING a SELECT item, GARDEN and BRIDGE a tile question.
+   */
+  presentation?: LotusPresentation;
+  /** DETECTIVE: the worked solution the student inspects (line 0 is the question). Contains no answer. */
+  lines?: string[];
 }
+
+export type LotusPresentation = "BRIDGE" | "GARDEN" | "FIREFLY" | "IMPOSTOR" | "DETECTIVE" | "FISHING";
+
+/** SELECT answers travel as the chosen options joined with this separator. */
+export const LOTUS_SELECT_SEPARATOR = " | ";
 
 export interface LotusAnswerKey {
   kind: "NUMERIC" | "MULTIPLE_CHOICE" | "OPEN_RESPONSE";
@@ -308,6 +323,7 @@ export interface LotusQuestionSelection {
   provenance?:
     | "AI_GENERATED_FOR_SESSION"
     | "AI_REUSED_FROM_BANK"
+    | "CODE_BUILT_GAME"
     | "HARDCODED_SYSTEM";
   /**
    * Present only when THIS specific item was installed by an adaptive
@@ -560,7 +576,7 @@ export interface LotusUnseenPlanEntry {
   skill: string;
   purpose: "COVERAGE" | "TARGETED_CHECK" | "EASIER_PREREQUISITE" | "BROADENED_EVIDENCE" | "COVERAGE_REPLACEMENT";
   readiness: "READY" | "AWAITING_GENERATION";
-  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK";
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME";
 }
 
 export interface LotusStatusResponse {

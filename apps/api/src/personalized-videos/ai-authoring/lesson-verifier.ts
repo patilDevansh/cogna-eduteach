@@ -48,9 +48,9 @@ export const LIMITS = {
   text: 200,
 } as const;
 
-const VISUAL_TYPES = new Set(["title", "expression", "steps", "distribute", "area", "pair-search", "common-factor", "mistake", "rule"]);
+const VISUAL_TYPES = new Set(["title", "expression", "steps", "distribute", "area", "pair-search", "common-factor", "mistake", "rule", "tiles", "number-line"]);
 const TASKS = new Set(["factorise", "expand", "simplify"]);
-const FORMATS = new Set(["pair-hunt", "spot-mistake", "choose", "type-answer", "factor-safe", "build"]);
+const FORMATS = new Set(["pair-hunt", "spot-mistake", "choose", "type-answer", "factor-safe", "build", "rectangle", "mark-it", "rush"]);
 
 /** Verdict of an answer to a task on an expression, by exact algebra. */
 export function taskVerdict(task: AuthoredTask, answer: string, expression: string): "CORRECT" | "UNFINISHED" | "INCORRECT" | "UNREADABLE" {
@@ -254,6 +254,34 @@ class Checker {
         }
         return;
       }
+      case "tiles": {
+        const { b, c, sides } = visual;
+        const ok = [b, c].every((n) => Number.isInteger(n) && n > 0 && n <= 30) && Array.isArray(sides) && sides.length === 2 && sides.every((n) => Number.isInteger(n) && n > 0);
+        if (!ok) {
+          this.fail(path, "tiles need positive whole numbers: b strips (up to 30), c squares (up to 30) and two positive sides");
+          return;
+        }
+        this.claim(`${path}.sides`, sides[0] + sides[1] === b && sides[0] * sides[1] === c, `sides ${sides[0]} and ${sides[1]} must add to ${b} and multiply to ${c}`);
+        return;
+      }
+      case "number-line": {
+        const { start, moves } = visual;
+        const ok = Number.isInteger(start) && Math.abs(start) <= 12 && Array.isArray(moves) && moves.length >= 1 && moves.length <= 3 && moves.every((m) => Number.isInteger(m) && m !== 0 && Math.abs(m) <= 12);
+        if (!ok) {
+          this.fail(path, "a number line needs a whole start within ±12 and 1–3 non-zero whole moves within ±12");
+          return;
+        }
+        let at = start;
+        for (const m of moves) at += m;
+        this.claim(`${path}.moves`, Math.abs(at) <= 15, "the walk must stay on the drawn line (within ±15)");
+        if (visual.caption !== undefined) {
+          this.text(`${path}.caption`, visual.caption, 80);
+          // A caption that states the landing point must state the right one.
+          const said = visual.caption.match(/(-|−)?\d+\s*$/);
+          if (said) this.claim(`${path}.caption`, Number(said[0].replace("−", "-").replace(/\s/g, "")) === at, `the walk lands on ${at}, not ${said[0].trim()}`);
+        }
+        return;
+      }
       case "mistake": {
         if (!TASKS.has(visual.task)) this.fail(`${path}.task`, "must be factorise, expand or simplify");
         this.text(`${path}.note`, visual.note, 120);
@@ -454,6 +482,47 @@ class Checker {
         this.claim(`${path}.answer`, answer.every((n) => Number.isInteger(n) && Math.abs(n) <= 12 && n !== 0), "the dials only reach −12 to 12, without 0");
         return;
       }
+      case "rectangle": {
+        const [side, bottom] = item.answer ?? [];
+        if (!Number.isInteger(side) || !Number.isInteger(bottom) || side! < 1 || bottom! < 1) {
+          this.fail(`${path}.answer`, "needs two positive whole numbers");
+          return;
+        }
+        if (this.math(`${path}.expression`, item.expression)) {
+          this.claim(`${path}.expression`, equal(item.expression, `x^2 + ${item.strips}x + ${item.units}`), `"${item.expression}" is not x² + ${item.strips}x + ${item.units}`);
+        }
+        this.claim(`${path}.answer`, side! + bottom! === item.strips && side! * bottom! === item.units, `${side} and ${bottom} must split the ${item.strips} strips and fill the ${item.units} squares`);
+        return;
+      }
+      case "mark-it": {
+        if (!Array.isArray(item.papers) || item.papers.length < 2 || item.papers.length > 6) {
+          this.fail(`${path}.papers`, "needs 2 to 6 papers");
+          return;
+        }
+        item.papers.forEach((paper, j) => {
+          const at = `${path}.papers[${j}]`;
+          if (!this.math(`${at}.expression`, paper.expression) || !this.math(`${at}.bitAnswer`, paper.bitAnswer)) return;
+          const verdict = taskVerdict(paper.task, paper.bitAnswer, paper.expression);
+          this.claim(`${at}.verdict`, (verdict === "CORRECT") === (paper.verdict === "right"), `Bit's answer is ${verdict}, but the paper says ${paper.verdict}`);
+          if (paper.verdict === "wrong") this.claim(`${at}.reasons`, paper.reasons.length > 0 && paper.reasons.includes("unfinished") === (verdict === "UNFINISHED"), "a wrong paper needs its real mistake named");
+        });
+        this.claim(`${path}.papers`, item.papers.some((p) => p.verdict === "right") && item.papers.some((p) => p.verdict === "wrong"), "mix right and wrong papers");
+        return;
+      }
+      case "rush": {
+        if (!Array.isArray(item.rounds) || item.rounds.length < 4 || item.rounds.length > 20) {
+          this.fail(`${path}.rounds`, "needs 4 to 20 rounds");
+          return;
+        }
+        item.rounds.forEach((round, j) => {
+          const at = `${path}.rounds[${j}]`;
+          if (!this.math(`${at}.expression`, round.expression)) return;
+          round.options.forEach((option, k) => {
+            if (this.math(`${at}.options[${k}]`, option)) this.verdict(`${at}.options[${k}]`, round.task, option, round.expression, k === round.answerIndex ? "CORRECT" : "NOT_CORRECT", k === round.answerIndex ? "the answer" : "a distractor");
+          });
+        });
+        return;
+      }
       case "build": {
         if (!TASKS.has(item.task) || item.task === "simplify") this.fail(`${path}.task`, "must be factorise or expand");
         const tiles = item.interaction?.tiles;
@@ -484,7 +553,10 @@ function expressionsUsed(draft: AuthoredLessonDraft): string[] {
       : v.type === "common-factor" ? [sum(v.terms)]
       : [];
   const fromPractice = (p: PracticeItem): string[] =>
-    p.format === "spot-mistake" ? [p.lines[0] ?? ""] : [p.expression];
+    p.format === "spot-mistake" ? [p.lines[0] ?? ""]
+      : p.format === "mark-it" ? p.papers.map((x) => x.expression)
+      : p.format === "rush" ? p.rounds.map((r) => r.expression)
+      : [p.expression];
   return [
     ...(draft.scenes ?? []).flatMap((s) => (s.beats ?? []).flatMap((b) => (b?.visual ? fromVisual(b.visual) : []))),
     ...(draft.practice ?? []).flatMap((p) => (p ? fromPractice(p) : [])),

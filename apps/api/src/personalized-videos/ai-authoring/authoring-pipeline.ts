@@ -104,6 +104,14 @@ export function practiceItemView(item: PracticeItem): PracticeItemView {
       const { answer: _a, workedSteps: _s, ...rest } = item;
       return rest;
     }
+    case "rectangle": {
+      const { answer: _a, ...rest } = item;
+      return rest;
+    }
+    case "mark-it":
+      return { ...item, papers: item.papers.map((p) => ({ question: p.question, bitAnswer: p.bitAnswer })) };
+    case "rush":
+      return { ...item, rounds: item.rounds.map((r) => ({ expression: r.expression, options: r.options })) };
   }
 }
 
@@ -160,6 +168,39 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
       if (a * b === item.product && a + b === -item.sum) return result("INCORRECT", `So close: the product is right, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}. Flip both signs.`, reveal);
       if (a * b === item.product) return result("INCORRECT", `The product lamp is on, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}.`, reveal);
       return result("INCORRECT", `They multiply to ${fmt(a * b)}, not ${fmt(item.product)}.`, reveal);
+    }
+    case "rectangle": {
+      if (!("pair" in answer) || !Array.isArray(answer.pair) || !answer.pair.every(Number.isInteger)) return result("UNREADABLE", "Move the strips first.");
+      const [side, bottom] = answer.pair;
+      const spaces = side * bottom;
+      const reveal = { answer: `(x + ${item.answer[0]})(x + ${item.answer[1]})`, steps: [`${item.answer[0]} + ${item.answer[1]} = ${item.strips} strips`, `${item.answer[0]} × ${item.answer[1]} = ${item.units} small squares`] };
+      if (side + bottom !== item.strips) return result("UNREADABLE", `Use all ${item.strips} strips.`);
+      if (spaces === item.units) return result("CORRECT", `It fits: ${side} × ${bottom} = ${item.units}. The sides are x + ${side} and x + ${bottom}.`, reveal);
+      if (bottom === 0 || side === 0) return result("INCORRECT", `Move some strips to the other side to make a corner for the ${item.units} small squares.`, reveal);
+      return result("INCORRECT", spaces < item.units
+        ? `${side} × ${bottom} = ${spaces} spaces, but there are ${item.units} small squares: ${item.units - spaces} left over.`
+        : `${side} × ${bottom} = ${spaces} spaces, but only ${item.units} small squares: ${spaces - item.units} hole${spaces - item.units === 1 ? "" : "s"}.`, reveal);
+    }
+    case "mark-it": {
+      if (!("paper" in answer) || !item.papers[answer.paper]) return result("UNREADABLE", "Pick a paper to mark.");
+      const paper = item.papers[answer.paper]!;
+      const stamped = answer.mark;
+      if (stamped !== "right" && stamped !== "wrong") return result("UNREADABLE", "Stamp it right or wrong.");
+      if (stamped !== paper.verdict) {
+        return result("INCORRECT", paper.verdict === "right" ? `Are you sure? Multiply it back out: ${paper.learn.replace(/ I was right!$/, "")}` : "My teacher says there's a mistake in this one. Can you find it?");
+      }
+      if (paper.verdict === "right") return result("CORRECT", paper.learn);
+      if (!answer.reason) return result("UNFINISHED", "Right, it's wrong! What went wrong?");
+      if (paper.reasons.includes(answer.reason)) return result("CORRECT", paper.learn);
+      return result("INCORRECT", attempt > 1 ? "Multiply Bit's answer back out and compare it with the question." : "Not that one. Look again.");
+    }
+    case "rush": {
+      if (!("round" in answer) || !item.rounds[answer.round] || !Number.isInteger(answer.option)) return result("UNREADABLE", "Tap an answer.");
+      const round = item.rounds[answer.round]!;
+      if (!round.options[answer.option]) return result("UNREADABLE", "Tap an answer.");
+      const reveal = { answer: round.options[round.answerIndex]!, steps: [] };
+      if (answer.option === round.answerIndex) return result("CORRECT", round.why[answer.option] ?? "", reveal);
+      return { ...result("INCORRECT", `${round.why[answer.option] ?? ""} It was ${round.options[round.answerIndex]}.`), reveal };
     }
     case "build": {
       if (!("picks" in answer)) return result("UNREADABLE", "Fill the boxes with tiles first.");

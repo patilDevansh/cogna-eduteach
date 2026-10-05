@@ -27,8 +27,8 @@ export interface TileGameState {
 export function prettyAlgebra(text: string): string {
   return text
     .replace(/\^([2-5])/g, (_, d: string) => ({ "2": "²", "3": "³", "4": "⁴", "5": "⁵" })[d]!)
-    .replace(/(^|[\s(])-\s?/g, (_, lead: string) => `${lead}−`)
-    .replace(/ − (?=\S)/g, " − ")
+    .replace(/ - /g, " − ")
+    .replace(/(^|\()-/g, "$1−")
     .replace(/\*/g, "×");
 }
 
@@ -40,9 +40,12 @@ export function TileGame({
   interaction,
   disabled = false,
   sealed = false,
+  look,
   onChange,
 }: {
   interaction: TileBuildInteraction;
+  /** "garden": the two brackets are the fences of a planted garden (Lotus GARDEN presentation). */
+  look?: "garden";
   disabled?: boolean;
   /** Set once the answer is submitted: the scene plays its finishing move (frog crosses, crystal splits, lanterns light). */
   sealed?: boolean;
@@ -50,7 +53,9 @@ export function TileGame({
 }) {
   const [picks, setPicks] = useState<Array<number | null>>(() => Array.from({ length: interaction.slots }, () => null));
   const changesRef = useRef(0);
-  const spec = INTERACTION_FORMATS[interaction.format];
+  const spec = look === "garden"
+    ? { title: "Garden fences", instruction: "Choose the fence for the top and the fence for the side." }
+    : INTERACTION_FORMATS[interaction.format];
 
   useEffect(() => {
     setPicks(Array.from({ length: interaction.slots }, () => null));
@@ -79,7 +84,7 @@ export function TileGame({
     update(next);
   }
 
-  const theme = interaction.format === "BRACKET_BRIDGE" ? "bridge" : interaction.format === "FACTOR_BUILDER" ? "crystal" : "lantern";
+  const theme = look ?? (interaction.format === "BRACKET_BRIDGE" ? "bridge" : interaction.format === "FACTOR_BUILDER" ? "crystal" : "lantern");
   const filled = picks.filter((p) => p !== null).length;
 
   return (
@@ -115,6 +120,13 @@ export function TileGame({
             ),
           )}
         </div>
+        {theme === "garden" && (
+          <div className={styles.garden} aria-hidden="true">
+            <span className={styles.plotBig}>x²</span>
+            <span className={styles.plotStrip}>{prettyAlgebra(interaction.expression).split(" ").slice(1, 3).join(" ").replace(/^\+ /, "")}</span>
+            <span className={styles.plotUnits}>{prettyAlgebra(interaction.expression).split(" ").slice(3).join(" ").replace(/^\+ /, "")}</span>
+          </div>
+        )}
         {theme === "lantern" && (
           <div className={styles.lanterns} aria-hidden="true">
             {picks.map((p, i) => <span key={i} className={styles.lantern} data-on={p !== null || undefined} />)}

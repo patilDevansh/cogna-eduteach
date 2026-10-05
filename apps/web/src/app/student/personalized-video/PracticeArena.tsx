@@ -6,6 +6,7 @@ import { prettyMath } from "@cogna/lesson-video/player";
 import { api } from "@/lib/api";
 import styles from "./practice.module.css";
 import { FactorSafe, TileGame, type TileGameState } from "@/components/games/TileGame";
+import { BracketRush, MarkersDesk, RectangleGame } from "@/components/games/PracticeGames";
 
 /**
  * Independent practice after the targeted lesson. Every answer is checked
@@ -143,9 +144,10 @@ function ItemCard({
   const [inputError, setInputError] = useState("");
   const [build, setBuild] = useState<TileGameState | null>(null);
   const resolvedRef = useRef(false);
+  const [gameDone, setGameDone] = useState(false);
 
   /** Correct, or revealed after two misses: either way the student can move on. */
-  const done = result?.verdict === "CORRECT" || Boolean(result?.reveal);
+  const done = result?.verdict === "CORRECT" || Boolean(result?.reveal) || gameDone;
 
   async function submit(answer: PracticeAnswer, pickedIndex: number | null) {
     if (busy || result?.verdict === "CORRECT") return;
@@ -167,6 +169,14 @@ function ItemCard({
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Marker's desk and bracket rush run their own rounds; they report once when they finish. */
+  function finishGame(outcome: Outcome) {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    setGameDone(true);
+    onResolved(outcome);
   }
 
   const state = (i: number) =>
@@ -306,6 +316,23 @@ function ItemCard({
         />
       )}
 
+      {item.format === "rectangle" && (
+        <RectangleGame
+          item={item}
+          disabled={busy}
+          fitted={result?.verdict === "CORRECT"}
+          onSubmit={(pair) => void submit({ pair }, 0)}
+        />
+      )}
+
+      {(item.format === "mark-it" || item.format === "rush") && (
+        item.format === "mark-it" ? (
+          <MarkersDesk item={item} check={(answer) => api.checkPracticeAnswer(assignmentId, item.id, answer)} onDone={finishGame} />
+        ) : (
+          <BracketRush item={item} check={(answer) => api.checkPracticeAnswer(assignmentId, item.id, answer)} onDone={finishGame} />
+        )
+      )}
+
       {item.format === "build" && (
         <>
           <TileGame
@@ -326,7 +353,7 @@ function ItemCard({
         </>
       )}
 
-      {result && result.verdict !== "UNREADABLE" && (
+      {result && result.verdict !== "UNREADABLE" && item.format !== "mark-it" && item.format !== "rush" && (
         <p key={`${result.attempt}-${result.verdict}`} className={styles.feedback} data-verdict={result.verdict} aria-live="polite">
           {result.verdict === "CORRECT" ? "✓ " : result.verdict === "UNFINISHED" ? "◐ " : "↻ "}
           {prettyText(result.feedback)}
@@ -334,7 +361,7 @@ function ItemCard({
       )}
       {result?.verdict === "UNREADABLE" && <p className={styles.inputError}>{result.feedback}</p>}
 
-      {result?.reveal && result.reveal.steps.length > 0 && (item.format === "type-answer" || item.format === "pair-hunt" || item.format === "factor-safe" || item.format === "build") && (
+      {result?.reveal && result.reveal.steps.length > 0 && (item.format === "type-answer" || item.format === "pair-hunt" || item.format === "factor-safe" || item.format === "build" || item.format === "rectangle") && (
         <div className={styles.worked}>
           <p className={styles.workedLabel}>{result.verdict === "CORRECT" ? "Check" : "Here's how it goes"}</p>
           {result.reveal.steps.map((step, i) => (

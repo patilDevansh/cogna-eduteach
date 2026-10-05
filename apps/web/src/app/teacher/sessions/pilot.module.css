@@ -93,3 +93,5 @@
   .rosterHead { display: none; }
   .rosterRow { grid-template-columns: 1fr 1fr; }
 }
+
+.exitScore { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--ink-soft, #51635a); }

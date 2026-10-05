@@ -31,7 +31,7 @@ export interface StudentEvidence {
     authoredBy?: "AI" | "RECIPE";
     practice?: { attempted: number; correct: number; total: number };
   } | null;
-  exit?: { prompt?: string | null; correct?: boolean | null } | null;
+  exit?: { prompt?: string | null; correct?: boolean | null; items?: Array<{ prompt: string | null; correct: boolean | null }> } | null;
 }
 
 export interface StudentRow {
@@ -48,6 +48,8 @@ export interface StudentRow {
   endedNote?: string;
   lesson?: StudentEvidence["lesson"];
   exitCorrect?: boolean | null;
+  /** The independent questions answered alone after teaching, and how many were right. */
+  exitScore?: { right: number; total: number };
   progress: Progress;
 }
 
@@ -115,6 +117,7 @@ export function buildClassReport(students: StudentEvidence[]): ClassReport {
       endedNote: s.diagnostic?.endedNote,
       lesson: s.lesson ?? undefined,
       exitCorrect: s.exit?.correct ?? null,
+      ...(s.exit?.items?.length ? { exitScore: { right: s.exit.items.filter((i) => i.correct === true).length, total: s.exit.items.length } } : {}),
       progress: progressOf(s),
     };
   });

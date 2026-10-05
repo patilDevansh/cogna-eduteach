@@ -149,7 +149,7 @@ export default function PilotConsolePage() {
             <h2>Lotus diagnostic: factorisation</h2>
             <ul className={styles.ruleList}>
               <li>Up to 15 minutes. It ends early once Lotus confirms a starting point.</li>
-              <li>Each student then gets a lesson made from their own answers, animated practice and one independent question.</li>
+              <li>Each student then gets a 20-second lesson on their own mistake, a longer lesson, practice games and two independent questions.</li>
               <li>Nothing else to press: results appear here as students finish.</li>
             </ul>
             <button className={styles.releaseButton} onClick={() => void release()} disabled={!classroomId || Boolean(busy)}>
@@ -218,6 +218,7 @@ export default function PilotConsolePage() {
                     </span>
                     <span>
                       <b className={styles.progress} data-progress={row.progress}>{PROGRESS_LABEL[row.progress]}</b>
+                      {row.exitScore && <small className={styles.exitScore}>Alone, after the lesson: {row.exitScore.right} of {row.exitScore.total} right</small>}
                     </span>
                   </div>
                 ))}

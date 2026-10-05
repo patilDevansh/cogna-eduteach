@@ -23,6 +23,8 @@ export type AuthoredVisual =
   | { type: "pair-search"; product: number; sum: number; pairs: Array<[number, number]>; answer: [number, number] }
   | { type: "common-factor"; terms: string[]; factor: string; remaining: string[] }
   | { type: "mistake"; expr: string; task: AuthoredTask; wrong: string; wrongKind: "unfinished" | "incorrect"; right: string; note: string }
+  | { type: "tiles"; b: number; c: number; sides: [number, number] }
+  | { type: "number-line"; start: number; moves: number[]; caption?: string }
   | { type: "rule"; heading: string; lines: string[] };
 
 export interface AuthoredDraftForPlayback {

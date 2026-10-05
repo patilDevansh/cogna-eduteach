@@ -1,49 +1,76 @@
-# Interaction formats (game-like answers)
+# Games, micro-lessons and the lantern gate
 
-Status: **implemented**, on by default, one kill switch (`COGNA_GAME_FORMATS=off`).
+Status: **implemented**. One kill switch for every game format: `COGNA_GAME_FORMATS=off`. The narration voice is the configured TTS provider (`COGNA_TTS_PROVIDER=cartesia` for the pilot).
 
-Students in the pilot can answer some questions by building the answer from tiles instead of typing it: a **bracket bridge** (two brackets for x² + bx + c), **split it** (a full factorisation, boxes may stay empty) and a **term builder** (an expansion, one signed term per box). Practice also gets a **factor safe** (two dials with live product and sum lamps).
+This is the production version of the Interaction Lab prototypes (`claude.ai/artifact/RBikAZAKiZp9cEBdwfytXj`).
 
-## The rule that makes this safe
+## The rule that keeps it honest
 
-A format changes how a student *enters* an answer, never how it is *marked*.
+A game changes how a student **enters** an answer or how a question is **staged**. It never changes how the answer is **marked**.
 
-1. **The server builds the tiles** (`apps/api/src/interaction-formats/tile-builder.ts`) from the verified answer key and the item's known mistakes (Lotus `predictedMistakes`). Wrong tiles are the pieces of real mistakes: swapped signs, the other factor pair, the unfinished factor (x² − 9), part of a common factor (6 instead of 6x), the unmultiplied term (+ 2 in 3(x + 2)).
-2. **Every tile set is checked before use.** The right picks must assemble into an answer the algebra engine marks `CORRECT` for the expression, every tile must parse, and there must be wrong tiles to choose. Otherwise the function returns null and the question stays typed. No model is involved.
-3. **The browser sends picks, not answers.** `assembleTileAnswer` (in `@cogna/shared`) turns picks into plain answer text. The server re-runs it against the interaction it issued and marks that text with the existing code (`instantVerdict`, `taskVerdict`, `checkPracticeAnswer`). Whatever answer text the browser sends alongside is ignored.
-4. **No answer key in the payload.** `TileBuildInteraction` carries the expression, the frame, the box count and the tile labels only.
+- **Built by the server from a verified key.** Tile sets, game questions and micro-lessons are built by code. Every claim is re-derived with the exact algebra engine (`lotus-algebra.ts`) before use. Anything that fails returns null, and the plain question or lesson is used instead. No model writes any of it.
+- **The browser sends picks, not answers.** For tile games, the server rebuilds the answer from the picks against the tiles it issued, then marks it with the existing code (`instantVerdict`, `taskVerdict`, `checkPracticeAnswer`).
+- **No answer keys in any payload.** Tile sets, game options, Bit's papers, rush rounds and micro-lesson checks all reach the browser without their keys. The independent exit's expected answer is blank until every exit question is sealed.
 
-## Where each stage uses it
+## Diagnostic (Lotus)
 
-| Stage | Which questions | Rules |
-|---|---|---|
-| Lotus diagnostic | `FACTORISE` items only, on turn 1, on every turn the plan repurposed (check / descent / widen), and every third coverage turn (`lotus-interactions.ts`). | No feedback, as before. A tile question drops the working request; the other ~60 % stay typed with working, which is the richest evidence. A repurposed check is in a different format from the evidence that raised the suspicion, so a gap confirmed in two formats isn't a format effect. The student can still choose "I don't know". Picks and "took a tile back out" counts are stored on the audit as weak evidence only. |
-| Independent exit | Any exit with a code-checkable `exitCheck` (factorise or expand). | One attempt, enforced on the server (`409` on a second). The expected answer is blank in the view until the attempt is made. Only constructed formats are allowed. The scene plays its finishing move, then the picks are sent. |
-| Practice | Code-generated sets gain a `build` item per family and a `factor-safe` item for trinomials. | Feedback, retries and worked steps as for other practice. The lesson verifier also checks these two formats, so salvaged and fake-author sets still pass. |
+| Game | Item | When | Server |
+|---|---|---|---|
+| Bracket bridge / Split it | FACTORISE item, answered with tiles | Turn 1, every repurposed turn (check, descent, widen), every 3rd turn | `lotus-interactions.ts`, `interaction-formats/tile-builder.ts` |
+| Garden fences | Positive x² + bx + c, tiles | Easy trinomial slot; trinomial rewritten to avoid a sign gap | `lotus-probes.ts` |
+| Firefly catch | CHOICE: the product–sum pair | Pair slot | `lotus-probes.ts` |
+| Spot the impostor | CHOICE: the form that isn't equal | Verify-by-expanding slot | `lotus-probes.ts` |
+| Detective | CHOICE over `lines`: the first wrong line | Re-check of taking out a negative factor | `lotus-probes.ts` |
+| Fishing | SELECT (new item kind): net every fully factorised expression | "What factorised means" slot; re-check of factorising fully | `lotus-probes.ts`, `instantVerdict` |
 
-## Contracts
+- **Where game questions come from.** They are installed through the same writer queue as AI questions (`codeProbeFor` runs before the bank and the AI writer). They must pass `checkWrittenItem`, including covering the suspected mistake on a CHECK. They carry `origin: "CODE"` and `provenance: "CODE_BUILT_GAME"`, so observers never see them labelled AI-written.
+- **Which questions stay typed.** Everything else keeps typed answers with working, which is the richest evidence.
+- **SELECT marking.** The exact set is correct. Netting a wrong option logs that option's named mistake. Leaving a right one out has no named mistake, so the review decides what it means.
+- **The pond and the bloom.** The page shows a pond progress map (a frog and a petal per answer) and "Your lotus bloomed" at the end. It never shows a score, and nothing in a game reveals right or wrong.
+- **Read it to me.** `GET /lotus/sessions/:id/read-aloud` reads the current question with the configured voice (Cartesia), using `spokenMath` for the maths. It is cached per text and voice, and only reads what is already on the student's screen.
 
-- `packages/shared/src/contracts/interaction-formats.ts`: `TileBuildInteraction`, `TileBuildResponse`, `assembleTileAnswer`, `INTERACTION_FORMATS`, `formatAllowedAt`.
-- `LotusQuestion.interaction?`, `LotusStudentResponse.interaction?`.
-- `PersonalizedVideoExitItem.interaction?`. `expected` is now blank before the attempt.
-- `PracticeItem` gains `factor-safe` and `build`, and `PracticeAnswer` gains `{ picks }`.
+## Lessons
 
-## Web
+- **Targeted micro-lesson.** `micro-lessons.ts` and `MicroLessonCard`: 15–25 seconds, built from the student's own diagnostic answer, which is stored as `script.micro.brief` when the lesson is created. There are five templates:
 
-`apps/web/src/components/games/TileGame.tsx` holds `TileGame` (bridge / crystal / lantern themes by format) and `FactorSafe`. They are used by the Lotus student page, the exit stage of the lesson page and `PracticeArena`. The component shows no right/wrong in the diagnostic or exit; it only reports picks.
+  | Template | When it's used |
+  |---|---|
+  | Signs in the pair | Right numbers, wrong signs in x² + bx + c |
+  | Equal but not finished | The answer is equal but still splits |
+  | Common bracket | Both terms share a bracket |
+  | Negative times a bracket | A sign slip expanding a negative factor |
+  | Your answer vs the right one | Anything else |
+
+  The maths moves on screen as a declarative script: highlights, arcs, tokens flying between rows. Each line is narrated in the theme's voice through `LessonNarrator.lines` (Cartesia: Sana, Kabir or Siya). One quick check follows, marked by `POST assignments/:id/micro-check`. It plays first on the lesson page, before the longer lesson.
+- **New lesson visuals.** `tiles` (algebra tiles slide into a rectangle) and `number-line` (signed hops) are added to the authored-lesson catalogue, the AI prompt, the verifier and the Remotion `AuthoredLesson`. The verifier checks that the sides add to b and multiply to c, and that a number-line caption names where the walk actually lands.
+- **Cartesia voice.** The pilot `.env` sets `COGNA_TTS_PROVIDER=cartesia`. Lesson beats, micro-lessons and read-aloud all use it.
+
+## Practice
+
+These are code-built formats, each with a server checker and verifier rules. They replace pair hunt and pick-from-three in the trinomial set.
+
+- **Factor safe:** two dials with live product and sum lamps, and a named swapped-sign hint.
+- **Make it a rectangle:** move x-strips between the side and the bottom until the corner fits. Positive trinomials only.
+- **Marker's desk:** Bit the robot's papers. The algebra engine decides whether each paper is right. The student stamps it, then names the mistake (sign slip, forgot a term, not finished, wrong pair).
+- **Bracket rush:** a 45-second round. Every option is classified by the engine when the round is built. Misses come back two questions later. Fluency only.
+- **Build it:** a tile build with feedback.
+
+## Independent exit: the lantern gate
+
+- **Two questions.** The main exit question, plus a transfer question: same skill, different form (the other sign pattern), generated by code.
+- **One attempt each, enforced on the server.** A second answer returns `409`, and an unknown question returns `400`.
+- **Results open together.** Neither result shows until both are sealed, and the expected answers stay blank until then.
+- **What counts.** Classroom completion requires both questions, and counts as right only if both are. The teacher roster shows "Alone, after the lesson: n of 2 right".
+- **Storage.** `PersonalizedVideoEvent.exitItem` (migration `20261005120000_add_exit_item`) records which question an answer belongs to. Older rows count as question 0.
 
 ## Tests
 
-`apps/api/test/golden/interaction-formats.v1.spec.ts` (20 tests) covers:
-- tile building and safety;
-- picks that are tampered with or incomplete;
-- the Lotus policy and kill switch;
-- the server rebuilding the answer from the picks rather than the browser's text;
-- the practice formats;
-- the exit: one attempt, answer hidden before the attempt, and incomplete picks not using up the attempt.
+- `test/golden/interaction-formats.v1.spec.ts` (40 tests): tile building and safety, tampered picks, the Lotus policy, every diagnostic game probe and its marking, SELECT marking, practice games, the one-attempt exit, the lantern gate.
+- `test/golden/micro-lessons.v1.spec.ts` (9 tests): every template, check integrity, the new visuals in the verifier.
+- `scripts/pilot-walkthrough/check-games.mjs`: end-to-end in the real app. A teacher makes a class, a student plays the diagnostic, micro-lesson, practice and exit; it screenshots every game.
 
-## Open before relying on it for reports
+## Still open
 
-- **Calibration.** Give the same skill in typed and tile form to the same pilot children. Until the results agree, tile answers should be read alongside typed ones, not instead of them.
-- **More tile games** (spot the impostor, fishing, firefly catch, garden fences) are prototyped in the Interaction Lab but need new item kinds in Lotus. They are not built here.
-- **Read-aloud** for questions is prototyped with recorded Cartesia audio. Live narration needs a server text-to-speech route.
+- **Calibration in the pilot.** Give children the same skill typed and as a game, and compare. Until the results agree, read game answers alongside typed ones.
+- **Live waveform.** The micro-lesson waveform follows the voice's timing, not its actual loudness: measuring loudness needs the media served with CORS for Web Audio.
+- **The prototype's Lotus side panel.** It is the existing observer audit view; the teacher's class report is the production version.

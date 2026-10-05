@@ -40,7 +40,8 @@ export function tidyAlgebra(text: string): string {
     if ((c === "+" || c === "-") && i > 0 && prev !== "(" && prev !== "^" && prev !== "*") out += ` ${c} `;
     else out += c;
   }
-  return out.trim();
+  // A coefficient of 1 is written as nothing: 1x → x (10x and 2.1x are untouched).
+  return out.trim().replace(/(^|[^\d.])1(?=[a-z])/g, "$1");
 }
 
 /**
@@ -157,7 +158,8 @@ function collect(correct: string[], distractors: string[], max: number): string[
   }
   for (const tile of distractors) {
     if (out.length >= max) break;
-    if (!tile || seen.has(key(tile))) continue;
+    // A bare 1 is never a meaningful wrong piece.
+    if (!tile || tile === "1" || seen.has(key(tile))) continue;
     seen.add(key(tile));
     out.push(tile);
   }

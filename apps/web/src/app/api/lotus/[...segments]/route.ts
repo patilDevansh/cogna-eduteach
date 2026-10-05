@@ -4,6 +4,8 @@
  * the Next bundle avoids two independent Lotus session stores and lets web and
  * API deploy independently.
  */
+import { forwardToLotus, LotusUpstreamTimeout, lotusTimeoutMs } from "@/lib/lotus-proxy";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -51,19 +53,26 @@ async function proxy(
   context: { params: Promise<{ segments: string[] }> },
 ): Promise<Response> {
   const { segments } = await context.params;
+  const method = request.method;
   try {
-    const method = request.method;
-    const response = await fetch(lotusUrl(request, segments), {
-      method,
-      headers: forwardedHeaders(request),
-      body: method === "GET" || method === "HEAD" ? undefined : await request.text(),
-      cache: "no-store",
-    });
+    const upstream = await forwardToLotus(
+      lotusUrl(request, segments),
+      {
+        method,
+        headers: forwardedHeaders(request),
+        body: method === "GET" || method === "HEAD" ? undefined : await request.text(),
+        cache: "no-store",
+      },
+      { timeoutMs: lotusTimeoutMs(method, segments) },
+    );
     const headers = new Headers();
-    const contentType = response.headers.get("content-type");
-    if (contentType) headers.set("content-type", contentType);
-    return new Response(response.body, { status: response.status, headers });
-  } catch {
+    if (upstream.contentType) headers.set("content-type", upstream.contentType);
+    return new Response(upstream.body, { status: upstream.status, headers });
+  } catch (err) {
+    if (err instanceof LotusUpstreamTimeout) {
+      // The answer may well have been saved: the page retries it with the same submissionId.
+      return Response.json({ message: "Lotus is taking longer than usual. Your answer is safe; trying again." }, { status: 504 });
+    }
     const { base, fake } = targetApi(request);
     return Response.json(
       {

@@ -7,6 +7,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Max,
   Min,
   ValidateIf,
 } from "class-validator";
@@ -51,6 +52,14 @@ export class PersonalizedVideoExitDto {
   @IsOptional()
   @IsObject()
   interaction?: TileBuildResponse;
+
+  /** 0 = the main exit question, 1 = the transfer question. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  item?: number;
 }
 
 export class PersonalizedVideoWatchDto {
@@ -90,4 +99,12 @@ export class PersonalizedVideoRenderCallbackDto {
   @IsOptional()
   @IsString()
   message?: string;
+}
+
+export class PersonalizedVideoMicroCheckDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  option!: number;
 }

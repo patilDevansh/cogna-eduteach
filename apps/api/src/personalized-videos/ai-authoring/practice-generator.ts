@@ -1,4 +1,5 @@
-import type { AuthoredTask, PracticeItem } from "@cogna/shared";
+import type { AuthoredTask, MarkReason, PracticeItem } from "@cogna/shared";
+import { taskVerdict } from "./lesson-verifier";
 import { buildTileInteraction } from "../../interaction-formats/tile-builder";
 
 /**
@@ -113,6 +114,92 @@ function factorSafe(id: string, t: { p: number; q: number; expr: string }): Prac
   };
 }
 
+/** Make it a rectangle: a positive x² + bx + c, where the strips split b and the corner holds c. */
+function rectangleItem(id: string, rand: () => number, used: Set<string>): PracticeItem[] {
+  for (let tries = 0; tries < 40; tries++) {
+    const p = pick(rand, [1, 2, 3, 4, 5]);
+    const q = pick(rand, [2, 3, 4, 5, 6]);
+    if (p === q) continue;
+    const expr = formatTrinomial(p + q, p * q);
+    if (used.has(expr)) continue;
+    used.add(expr);
+    return [{ id, format: "rectangle", prompt: `Make ${expr} into one rectangle.`, expression: expr, strips: p + q, units: p * q, answer: [Math.max(p, q), Math.min(p, q)] }];
+  }
+  return [];
+}
+
+type Paper = Extract<PracticeItem, { format: "mark-it" }>["papers"][number];
+
+/** One of Bit's papers. Right or wrong is decided by the algebra engine, never by the label. */
+function paper(task: AuthoredTask, expression: string, bitAnswer: string, reasons: MarkReason[], learn: string): Paper | null {
+  const verdict = taskVerdict(task, bitAnswer, expression);
+  if (verdict === "UNREADABLE") return null;
+  const right = verdict === "CORRECT";
+  if (right !== (reasons.length === 0)) return null;
+  if (!right && reasons.includes("unfinished") !== (verdict === "UNFINISHED")) return null;
+  return {
+    question: `${task === "expand" ? "Expand" : "Factorise"} ${expression}${task === "factorise" && reasons.includes("unfinished") ? " fully" : ""}`,
+    expression, task, bitAnswer, verdict: right ? "right" : "wrong", reasons, learn,
+  };
+}
+
+/** Marker's desk: three of Bit's papers, mixed right and wrong. */
+function markItItem(id: string, family: PracticeFamily, rand: () => number, used: Set<string>): PracticeItem[] {
+  let papers: Array<Paper | null>;
+  if (family === "trinomial") {
+    const a = freshTrinomial(rand, used), b = freshTrinomial(rand, used), c = freshTrinomial(rand, used);
+    papers = [
+      paper("factorise", a.expr, a.signSwapped, ["sign", "pair"], `Oh! Both signs were flipped. It should be ${a.answer}.`),
+      paper("factorise", b.expr, b.answer, [], `Multiply it back out: ${b.expr}. I was right!`),
+      paper("factorise", c.expr, c.oneSign, ["sign", "pair"], `I flipped one sign. The pair multiplies to the last number and adds to the middle: ${c.answer}.`),
+    ];
+  } else if (family === "expand") {
+    const a = freshExpansion(rand, used), b = freshExpansion(rand, used), c = freshExpansion(rand, used);
+    papers = [
+      paper("expand", a.expr, a.firstOnly, ["forgot"], `The ${a.k} multiplies the last term too. It's ${a.answer}.`),
+      paper("expand", b.expr, b.answer, [], `One arrow to every term: ${b.answer}. I was right!`),
+      paper("expand", c.expr, c.signSlip, ["sign"], `Watch the signs when multiplying: ${c.answer}.`),
+    ];
+  } else {
+    const a = freshCommonFactor(rand, used), b = freshCommonFactor(rand, used), c = freshCommonFactor(rand, used);
+    papers = [
+      paper("factorise", a.expr, a.numberOnly, ["unfinished"], `Every term still shares an x. Take it out too: ${a.answer}.`),
+      paper("factorise", b.expr, b.answer, [], `Multiply it back out and you get ${b.expr}. I was right!`),
+      paper("factorise", c.expr, c.signSlip, ["sign"], `A sign changed inside the bracket. It's ${c.answer}.`),
+    ];
+  }
+  if (papers.some((p) => !p)) return [];
+  return [{ id, format: "mark-it", prompt: "Bit did some homework. Stamp each paper right or wrong, and name the mistake.", papers: shuffle(rand, papers as Paper[]) }];
+}
+
+/** Bracket rush: twelve quick picks. Every option is classified by the algebra engine when it's built. */
+function rushItem(id: string, family: PracticeFamily, rand: () => number, used: Set<string>): PracticeItem[] {
+  // Rush expressions join the shared pool, so the exit questions never repeat one.
+  const local = used;
+  const rounds: Extract<PracticeItem, { format: "rush" }>["rounds"] = [];
+  for (let i = 0; i < 12; i++) {
+    let task: AuthoredTask, expression: string, right: string, wrong: Array<[string, string]>;
+    if (family === "trinomial") {
+      const t = freshTrinomial(rand, local);
+      task = "factorise"; expression = t.expr; right = t.answer;
+      wrong = [[t.signSwapped, "Those multiply to the right number but add to the wrong sign."], [t.oneSign, "One sign is flipped: multiply it back and the middle term changes."]];
+    } else if (family === "expand") {
+      const e = freshExpansion(rand, local);
+      task = "expand"; expression = e.expr; right = e.answer;
+      wrong = [[e.firstOnly, "The outside number has to multiply the last term too."], [e.signSlip, "Check the sign of the last term."]];
+    } else {
+      const c = freshCommonFactor(rand, local);
+      task = "factorise"; expression = c.expr; right = c.answer;
+      wrong = [[c.numberOnly, "Equal, but every term still shares an x."], [c.signSlip, "A sign changed inside the bracket."]];
+    }
+    if (taskVerdict(task, right, expression) !== "CORRECT" || wrong.some(([w]) => taskVerdict(task, w, expression) === "CORRECT")) continue;
+    const options = shuffle(rand, [[right, "Right: it multiplies back to the original."] as [string, string], ...wrong]);
+    if (new Set(options.map(([o]) => o)).size !== options.length) continue;
+    rounds.push({ expression, task, options: options.map(([o]) => o), answerIndex: options.findIndex(([o]) => o === right), why: options.map(([, w]) => w) });
+  }
+  return rounds.length >= 8 ? [{ id, format: "rush", prompt: "Bracket rush: tap the right answer before it lands.", seconds: 45, rounds }] : [];
+}
+
 // ---------- families ----------
 
 function freshTrinomial(rand: () => number, used: Set<string>) {
@@ -160,8 +247,11 @@ function freshExpansion(rand: () => number, used: Set<string>) {
     const a = pick(rand, [1, 2, 3, 4]);
     const b = pick(rand, [1, 2, 3, 4, 5, 6]) * pick(rand, [1, -1]);
     const expr = `${k}(${binomial(a, "x", b, "")})`;
-    if (used.has(expr)) continue;
+    // 2(4x + 6) and 4(2x + 3) are the same expression: dedupe by the expanded form too.
+    const expanded = binomial(k * a, "x", k * b, "");
+    if (used.has(expr) || used.has(expanded)) continue;
     used.add(expr);
+    used.add(expanded);
     return {
       k, a, b, expr,
       answer: binomial(k * a, "x", k * b, ""),
@@ -175,32 +265,12 @@ function freshExpansion(rand: () => number, used: Set<string>) {
 }
 
 function trinomialSet(rand: () => number, used: Set<string>): PracticeItem[] {
-  const t1 = freshTrinomial(rand, used);
-  const t2 = freshTrinomial(rand, used);
+  // Pair hunt and pick-from-three are replaced by games where the child does the maths (factor safe, rectangle, build).
   const t3 = freshTrinomial(rand, used);
   const t4 = freshTrinomial(rand, used);
-  const c = t1.p * t1.q;
-  const pairs: Array<[number, number]> = [[t1.p, t1.q], [-t1.p, -t1.q]];
-  // A pair with the right product but the wrong sum, when one exists.
-  for (let d = 1; d <= Math.abs(c); d++) {
-    if (c % d !== 0) continue;
-    const e = c / d;
-    if (d + e !== t1.p + t1.q && !pairs.some(([x, y]) => (x === d && y === e) || (x === e && y === d))) {
-      pairs.push([d, e]);
-      break;
-    }
-  }
   return [
-    {
-      id: "p1", format: "pair-hunt",
-      prompt: `Find the pair that multiplies to ${c} and adds to ${t1.p + t1.q}.`,
-      expression: t1.expr, product: c, sum: t1.p + t1.q, options: shuffle(rand, pairs), answer: [t1.p, t1.q],
-    },
-    choose(rand, "p2", `Factorise ${t2.expr}.`, t2.expr, "factorise", [
-      { text: t2.answer, kind: "right" },
-      { text: t2.signSwapped, kind: "wrong" },
-      { text: t2.oneSign, kind: "wrong" },
-    ]),
+    factorSafe("p1", freshTrinomial(rand, used)),
+    ...rectangleItem("p2", rand, used),
     {
       id: "p3", format: "spot-mistake",
       prompt: "One line of this working goes wrong. Which one?",
@@ -208,18 +278,19 @@ function trinomialSet(rand: () => number, used: Set<string>): PracticeItem[] {
       wrongLine: 1, fix: t3.answer,
       explanation: "Both signs in the brackets were flipped, so the middle term comes out with the wrong sign. Read the last sign, then the middle sign.",
     },
+    ...(() => {
+      const t6 = freshTrinomial(rand, used);
+      return buildItem("p4", `Build ${t6.expr} as two brackets.`, t6.expr, "factorise", t6.answer, [t6.signSwapped, t6.oneSign],
+        [t6.expr, `x^2${term(t6.p, "x")}${term(t6.q, "x")}${term(t6.p * t6.q, "")}`, t6.answer]);
+    })(),
+    ...markItItem("p5", "trinomial", rand, used),
     {
-      id: "p4", format: "type-answer",
+      id: "p6", format: "type-answer",
       prompt: `Factorise ${t4.expr}.`, expression: t4.expr, task: "factorise", answer: t4.answer,
       hint: "Read the last sign first, then the middle sign, then find the pair.",
       workedSteps: [t4.expr, `x^2${term(t4.p, "x")}${term(t4.q, "x")}${term(t4.p * t4.q, "")}`, t4.answer],
     },
-    factorSafe("p5", freshTrinomial(rand, used)),
-    ...(() => {
-      const t6 = freshTrinomial(rand, used);
-      return buildItem("p6", `Build ${t6.expr} as two brackets.`, t6.expr, "factorise", t6.answer, [t6.signSwapped, t6.oneSign],
-        [t6.expr, `x^2${term(t6.p, "x")}${term(t6.q, "x")}${term(t6.p * t6.q, "")}`, t6.answer]);
-    })(),
+    ...rushItem("p7", "trinomial", rand, used),
   ];
 }
 
@@ -256,6 +327,8 @@ function commonFactorSet(rand: () => number, used: Set<string>): PracticeItem[] 
       const c5 = freshCommonFactor(rand, used);
       return buildItem("p5", `Build ${c5.expr} fully factorised.`, c5.expr, "factorise", c5.answer, [c5.numberOnly, c5.letterOnly, c5.signSlip], [c5.expr, c5.split, c5.answer]);
     })(),
+    ...markItItem("p6", "common-factor", rand, used),
+    ...rushItem("p7", "common-factor", rand, used),
   ];
 }
 
@@ -293,6 +366,8 @@ function expandSet(rand: () => number, used: Set<string>): PracticeItem[] {
       const e5 = freshExpansion(rand, used);
       return buildItem("p5", `Build the expansion of ${e5.expr}.`, e5.expr, "expand", e5.answer, [e5.firstOnly, e5.signSlip], [e5.expr, e5.split, e5.answer]);
     })(),
+    ...markItItem("p6", "expand", rand, used),
+    ...rushItem("p7", "expand", rand, used),
   ];
 }
 
@@ -301,6 +376,19 @@ export interface GeneratedPractice {
   items: PracticeItem[];
   /** A fresh, held-out item for the independent exit check. */
   exit: { prompt: string; expression: string; task: AuthoredTask; answer: string };
+  /**
+   * A second held-out item of the same skill in a different form (the other
+   * sign pattern), so the exit checks that the idea carries over, not just
+   * the numbers.
+   */
+  transfer: { prompt: string; expression: string; task: AuthoredTask; answer: string };
+}
+
+/** Draws until the item's sign pattern differs from the exit's, so the transfer item is a different form. */
+function differentForm<T>(make: () => T, signOf: (item: T) => number, exitSign: number): T {
+  let item = make();
+  for (let tries = 0; tries < 40 && Math.sign(signOf(item)) === Math.sign(exitSign); tries++) item = make();
+  return item;
 }
 
 /**
@@ -314,14 +402,29 @@ export function generatePractice(skillId: string, seed: string, avoid: string[] 
   if (family === "trinomial") {
     const items = trinomialSet(rand, used);
     const e = freshTrinomial(rand, used);
-    return { family, items, exit: { prompt: `Factorise ${e.expr}.`, expression: e.expr, task: "factorise", answer: e.answer } };
+    const t = differentForm(() => freshTrinomial(rand, used), (x) => x.p * x.q, e.p * e.q);
+    return {
+      family, items,
+      exit: { prompt: `Factorise ${e.expr}.`, expression: e.expr, task: "factorise", answer: e.answer },
+      transfer: { prompt: `Factorise ${t.expr}.`, expression: t.expr, task: "factorise", answer: t.answer },
+    };
   }
   if (family === "expand") {
     const items = expandSet(rand, used);
     const e = freshExpansion(rand, used);
-    return { family, items, exit: { prompt: `Expand ${e.expr}.`, expression: e.expr, task: "expand", answer: e.answer } };
+    const t = differentForm(() => freshExpansion(rand, used), (x) => x.k, e.k);
+    return {
+      family, items,
+      exit: { prompt: `Expand ${e.expr}.`, expression: e.expr, task: "expand", answer: e.answer },
+      transfer: { prompt: `Expand ${t.expr}.`, expression: t.expr, task: "expand", answer: t.answer },
+    };
   }
   const items = commonFactorSet(rand, used);
   const e = freshCommonFactor(rand, used);
-  return { family, items, exit: { prompt: `Factorise ${e.expr} fully.`, expression: e.expr, task: "factorise", answer: e.answer } };
+  const t = differentForm(() => freshCommonFactor(rand, used), (x) => x.b, e.b);
+  return {
+    family, items,
+    exit: { prompt: `Factorise ${e.expr} fully.`, expression: e.expr, task: "factorise", answer: e.answer },
+    transfer: { prompt: `Factorise ${t.expr} fully.`, expression: t.expr, task: "factorise", answer: t.answer },
+  };
 }

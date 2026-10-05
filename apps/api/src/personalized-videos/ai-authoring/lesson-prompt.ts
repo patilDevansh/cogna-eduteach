@@ -21,6 +21,8 @@ VISUALS (each beat shows exactly one; no other types exist):
 - {"type":"mistake","expr":"x^2 - 7x + 12","task":"factorise","wrong":"(x + 3)(x + 4)","wrongKind":"incorrect","right":"(x - 3)(x - 4)","note":"…"}
     wrongKind is "unfinished" when the wrong answer is EQUAL but not done (3(4x + 6) for 12x + 18), "incorrect" when it is not equal. It is checked: describe the mistake in the narration to match it.
 - {"type":"rule","heading":"Your routine","lines":["…","…","…"]}   2–4 short lines of words
+- {"type":"tiles","b":5,"c":6,"sides":[3,2]}   algebra tiles for a POSITIVE x² + bx + c sliding into a rectangle; sides add to b and multiply to c (a second picture of factorising)
+- {"type":"number-line","start":-3,"moves":[-4],"caption":"−3 + (−4) lands on −7"}   signed numbers as hops; a caption that ends with a number must be where the walk lands
 
 PRACTICE FORMATS (animated in the browser after the lesson):
 - {"id":"p1","format":"pair-hunt","prompt":"…","expression":"x^2 + 5x + 6","product":6,"sum":5,"options":[[2,3],[-2,-3],[1,6]],"answer":[2,3]}   only one option may fit both

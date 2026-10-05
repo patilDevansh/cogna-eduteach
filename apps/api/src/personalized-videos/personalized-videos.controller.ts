@@ -9,6 +9,7 @@ import {
   PersonalizedVideoRenderCallbackDto,
   PersonalizedVideoVerifyStepDto,
   PersonalizedVideoWatchDto,
+  PersonalizedVideoMicroCheckDto,
 } from "./personalized-videos.dto";
 import { PersonalizedVideosService } from "./personalized-videos.service";
 import { isLessonTheme } from "./lesson-animation";
@@ -55,6 +56,27 @@ export class PersonalizedVideosController {
     @Param("id") id: string,
   ) {
     return this.videos.practiceSet(id, resolveActor(headers));
+  }
+
+  /** The targeted micro-lesson (15–25 s, narrated), or null when the student's answers don't fit a template. */
+  @Get("assignments/:id/micro-lesson")
+  microLesson(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Query("theme") theme?: string,
+  ) {
+    const choice = theme === "cricket" || theme === "space" ? theme : "classic";
+    return this.videos.microLesson(id, resolveActor(headers), choice).then((lesson) => ({ lesson }));
+  }
+
+  /** Marks the micro-lesson's quick check (practice only). */
+  @Post("assignments/:id/micro-check")
+  microCheck(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: PersonalizedVideoMicroCheckDto,
+  ) {
+    return this.videos.microCheck(id, body.option, resolveActor(headers));
   }
 
   /** Dev only: answers for the scripted walkthrough students (walk_*). */

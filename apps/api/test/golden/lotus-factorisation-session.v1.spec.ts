@@ -19,6 +19,9 @@ import { adaptiveDecisionFor, LotusService } from "../../src/lotus/lotus.service
 import type { PlanAction } from "../../src/lotus/lotus-factorisation";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
 import { FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalogue";
+
+// These tests pin the AI writer's behaviour slot by slot; game probes (code-built) are covered in interaction-formats.v1.spec.ts.
+process.env.COGNA_GAME_FORMATS = "off";
 import { LotusQuestionFactory, prettyPowers } from "../../src/lotus/lotus-question-factory";
 
 const ASSESSMENT: LotusModelAssessment = {
