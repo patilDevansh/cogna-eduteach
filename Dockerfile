@@ -20,7 +20,8 @@ FROM build AS api
 ENV NODE_ENV=production COGNA_ENV=production COGNA_TRUST_PROXY=true
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD node -e "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["pnpm", "--filter", "@cogna/api", "start"]
+# Apply pending migrations before serving (Prisma takes a lock, so several replicas starting together is safe).
+CMD ["sh", "-c", "pnpm --filter @cogna/database migrate:deploy && pnpm --filter @cogna/api start"]
 
 FROM build AS web
 ARG NEXT_PUBLIC_API_URL

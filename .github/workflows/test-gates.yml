@@ -38,7 +38,9 @@ jobs:
       - run: pnpm install
       - run: pnpm --filter @cogna/shared build
       - run: pnpm --filter @cogna/database generate
-      - run: pnpm db:push
+      # Build the database from the real migrations (not db push), then fail if they don't match the schema.
+      - run: pnpm db:migrate:deploy
+      - run: pnpm --filter @cogna/database migrate:check
       - run: pnpm db:seed
       - name: Start API
         run: |

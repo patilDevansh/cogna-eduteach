@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { rateLimitMiddleware } from "./rate-limit.middleware";
+import { allowedWebOrigins } from "./web-origins";
 import { SentryExceptionFilter, initSentry } from "./observability/sentry";
 
 const bootLogger = new Logger("Bootstrap");
@@ -18,6 +19,7 @@ process.on("uncaughtException", (err) => {
 });
 
 async function bootstrap() {
+  const webOrigins = allowedWebOrigins(); // throws in production without WEB_URL, before anything starts
   const sentryActive = initSentry();
   const app = await NestFactory.create(AppModule);
   if (sentryActive) app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
@@ -27,12 +29,8 @@ async function bootstrap() {
   if (process.env.COGNA_TRUST_PROXY === "true") app.getHttpAdapter().getInstance().set("trust proxy", 1);
   app.use(rateLimitMiddleware);
 
-  const allowedWebOrigins = process.env.WEB_URL
-    ? [process.env.WEB_URL]
-    : ["http://localhost:3000", "http://localhost:3002"];
-
   app.enableCors({
-    origin: allowedWebOrigins,
+    origin: webOrigins,
     credentials: true,
   });
 
