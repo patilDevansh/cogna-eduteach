@@ -133,10 +133,6 @@ li[data-state="done"] .journeyDot { border-color: var(--accent); background: var
 /* ---------- player ---------- */
 
 .player {
-  padding: 10px;
-  border-radius: 26px;
-  background: linear-gradient(160deg, #10392f, #0a2a22);
-  box-shadow: 0 30px 70px rgba(8, 42, 34, 0.28), 0 2px 6px rgba(8, 42, 34, 0.2);
   animation: settle var(--dur-phase) var(--ease-settle);
 }
 .video {

@@ -497,6 +497,8 @@ model ConceptPrerequisite {
   prerequisite   Concept @relation("Prerequisite", fields: [prerequisiteId], references: [id], onDelete: Cascade)
 
   @@id([conceptId, prerequisiteId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([conceptId], map: "idx_concept_prerequisite_concept")
 }
 
 model Misconception {
@@ -541,6 +543,8 @@ model Question {
   @@id([id, version])
   @@index([conceptId, difficulty, reviewStatus])
   @@index([unitId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([conceptId, difficulty, questionIntent, reviewStatus], map: "idx_question_concept_difficulty_intent")
 }
 
 model Explanation {
@@ -625,6 +629,9 @@ model Attempt {
 
   @@index([studentId, createdAt])
   @@index([sessionId, createdAt])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, createdAt(sort: Desc)], map: "idx_attempt_student_recent")
+  @@index([sessionId, createdAt(sort: Desc)], map: "idx_attempt_session_recent")
 }
 
 // ─── Learner state ─────────────────────────────────────────────────────────
@@ -675,6 +682,8 @@ model DiagnosticFactor {
   createdAt               DateTime  @default(now())
 
   @@index([studentId, createdAt])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, conceptId, factorType, createdAt(sort: Desc)], map: "idx_diagnostic_factor_student_concept_type")
 }
 
 model MisconceptionRemediationState {
@@ -689,6 +698,8 @@ model MisconceptionRemediationState {
   updatedAt             DateTime         @updatedAt
 
   @@id([studentId, misconceptionId, conceptId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, conceptId, updatedAt(sort: Desc)], map: "idx_misconception_remediation_student_concept")
 }
 
 /**
@@ -778,6 +789,8 @@ model RevisionQueueItem {
 
   @@unique([studentId, dedupeKey])
   @@index([studentId, status, dueAt])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, status, dueAt(sort: Desc), priority(sort: Desc)], map: "idx_revision_queue_due")
 }
 
 model Report {
@@ -846,6 +859,8 @@ model RetentionEstimate {
 
   @@unique([studentId, conceptId, modelVersion, validUntil])
   @@index([studentId, conceptId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, conceptId, validUntil, createdAt(sort: Desc)], map: "idx_retention_estimate_valid")
 }
 
 model ExplanationOutcome {

@@ -3,8 +3,6 @@ import type {
   PracticeAnswer,
   PracticeCheckResult,
   PracticeSetView,
-  LessonThemeChoice,
-  PersonalizedLessonAnimationView,
   ConceptMasteryBand,
   ConfidenceCalibrationSummary,
   DiagnosticV2DebugView,
@@ -95,13 +93,16 @@ function cognaAuthHeaders(): Record<string, string> {
   return {};
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+/** `sendSession: false` for calls made as a parent, so a child signed in on the same browser is not sent too. */
+async function apiFetch<T>(path: string, options?: RequestInit, sendSession = true): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        // Student/teacher session: the API checks every per-student route against it.
+        ...(sendSession ? cognaAuthHeaders() : {}),
         ...options?.headers,
       },
     });
@@ -351,6 +352,31 @@ export interface WeeklyStructuredSummary {
   parentActions?: string[];
 }
 
+/** One child, as their parent sees it: their own class results (never classmates') and recent personal lessons. */
+export interface ParentChildOverview {
+  student: { id: string; name: string; grade: number };
+  classes: Array<{
+    classroomId: string;
+    name: string;
+    grade: number;
+    teacherName: string;
+    check: {
+      title: string;
+      live: boolean;
+      date: string;
+      stage: "JOINED" | "DIAGNOSTIC" | "LESSON" | "EXIT" | "DONE";
+      stageStatus: string;
+      progress: "IMPROVED" | "NOT_YET" | "NO_GAP" | "UNCLEAR" | "PENDING";
+      need: string | null;
+      lessonTitle: string | null;
+      finalCorrect: boolean | null;
+    } | null;
+  }>;
+  lessons: Array<{ id: string; title: string; date: string; finished: boolean; finalCorrect: boolean | null }>;
+  totals: { checksDone: number; lessonsFinished: number };
+  lastActive: string | null;
+}
+
 export interface ParentWeeklySummary {
   studentId: string;
   reportId?: string;
@@ -379,7 +405,8 @@ export interface ProductionClassroom {
   joinCode: string;
   isDemo: boolean;
   _count?: { enrollments: number };
-  runs?: Array<{ id: string; title: string; phase: string; status: string }>;
+  /** Newest first (up to 12), so runs[0] is the latest check. */
+  runs?: Array<{ id: string; title: string; phase: string; status: string; createdAt: string; startedAt?: string | null; completedAt?: string | null }>;
 }
 
 /** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
@@ -395,13 +422,32 @@ export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssig
   return `/student/personalized-video?${params.toString()}`;
 }
 
+export interface ClassRosterStudent {
+  studentId: string;
+  name: string;
+  rollNumber?: string | null;
+  joinedAt: string;
+  /** The same teacher's other classes this student is also in — usually a mistyped code. */
+  alsoIn: Array<{ id: string; name: string }>;
+  /** Created from the class list (not by a family), so the teacher can issue a new code. */
+  schoolIssuedCode: boolean;
+}
+
+/** A sign-in code, shown once: only its hash is stored. */
+export interface IssuedStudentCode {
+  studentId: string;
+  name: string;
+  rollNumber?: string | null;
+  accessCode: string;
+}
+
 export interface ClassroomStudentAssignment {
   id: string;
   kind: ClassroomAssignmentKind;
   status: ClassroomAssignmentStatus;
   videoAssignmentId?: string | null;
   payload: Record<string, unknown>;
-  run: { id: string; title: string; topicId: string; classroom: { name: string; grade: number; subjectId: string } };
+  run: { id: string; title: string; topicId: string; classroom: { id: string; name: string; grade: number; subjectId: string } };
 }
 
 /** Pilot class results (apps/api/src/classrooms/class-report.ts). */
@@ -468,7 +514,19 @@ export const api = {
     classroomFetch<ProductionClassroom>("/classrooms", { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
 
   joinClassroom: (input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) =>
-    classroomFetch<{ id: string; classroom: ProductionClassroom }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+    classroomFetch<{ id: string; classroom: ProductionClassroom; alsoIn: Array<{ id: string; name: string }> }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+
+  getClassRoster: (classroomId: string) =>
+    classroomFetch<ClassRosterStudent[]>(`/classrooms/${classroomId}/students`, { headers: teacherAuthHeaders() }),
+
+  importStudents: (classroomId: string, students: Array<{ name: string; rollNumber?: string }>) =>
+    classroomFetch<{ classroom: { id: string; name: string; joinCode: string }; students: IssuedStudentCode[] }>(`/classrooms/${classroomId}/students/import`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ students }) }),
+
+  resetStudentAccessCode: (classroomId: string, studentId: string) =>
+    classroomFetch<IssuedStudentCode>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/access-code`, { method: "POST", headers: teacherAuthHeaders() }),
+
+  removeStudentFromClass: (classroomId: string, studentId: string) =>
+    classroomFetch<{ removed: true }>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}`, { method: "DELETE", headers: teacherAuthHeaders() }),
 
   createClassroomRun: (classroomId: string, input: { title: string; topicId: string; config?: Record<string, unknown> }) =>
     classroomFetch<{ id: string; title: string; phase: string; status: string }>(`/classrooms/${classroomId}/runs`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
@@ -476,7 +534,16 @@ export const api = {
   launchClassroomPhase: (runId: string, phase: ClassroomAssignmentKind) =>
     classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/launch`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ phase }) }),
 
+  renameClassroom: (classroomId: string, name: string) =>
+    classroomFetch<ProductionClassroom>(`/classrooms/${classroomId}`, { method: "PATCH", headers: teacherAuthHeaders(), body: JSON.stringify({ name }) }),
+
+  endClassroomRun: (runId: string) =>
+    classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/end`, { method: "POST", headers: teacherAuthHeaders() }),
+
   getClassroomRunReport: (runId: string) => classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/report`, { headers: teacherAuthHeaders() }),
+
+  /** The signed-in student's classes and where they are in each one's latest check. */
+  getStudentClasses: () => classroomFetch<ParentChildOverview["classes"]>("/classrooms/student/classes"),
 
   getStudentClassroomAssignments: () => classroomFetch<ClassroomStudentAssignment[]>("/classrooms/student/assignments"),
 
@@ -669,6 +736,13 @@ export const api = {
     }),
 
   /** MVP 2.0 — may 404 until backend lands. */
+  getParentChildOverview: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<ParentChildOverview>(
+      `/parents/me/students/${studentId}/overview`,
+      { headers: buildParentAuthHeaders(auth) },
+      false,
+    ),
+
   getParentWeeklySummary: (
     auth: string | ParentAuthInput | undefined,
     studentId: string,
@@ -679,13 +753,16 @@ export const api = {
     ),
 
   /** MVP 2.0 — optional trigger; may 404 until backend lands. */
+  /** `parentAuth` when a parent asks (the API checks they are linked to this student). */
   requestWeeklyReport: (
     studentId: string,
     body: { periodStart: string; periodEnd: string; requestId?: string },
+    parentAuth?: string | ParentAuthInput,
   ) =>
     apiFetch<{ reportId: string; status: string; idempotencyKey?: string }>(
       `/students/${studentId}/reports/weekly`,
-      { method: "POST", body: JSON.stringify(body) },
+      { method: "POST", body: JSON.stringify(body), ...(parentAuth ? { headers: buildParentAuthHeaders(parentAuth) } : {}) },
+      !parentAuth,
     ),
 
   getHomeSummary: (studentId: string) =>
@@ -870,7 +947,6 @@ export const api = {
       body: JSON.stringify({ studentId }),
     }),
 
-  /** The interactive, themed lesson; the first open of a theme narrates it with Cartesia (a few seconds). */
   getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
 
   /** The narrated 20-second lesson on the student's own mistake, or null when none fits. */
@@ -885,9 +961,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ answer }),
     }),
-
-  getLessonAnimation: (id: string, theme: LessonThemeChoice) =>
-    personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
 
   recordPersonalizedVideoWatched: (id: string, dwellMs = 0) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/watched`, {

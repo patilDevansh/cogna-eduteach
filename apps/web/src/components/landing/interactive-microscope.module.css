@@ -1,5 +1,5 @@
 .container {
-  margin: var(--s-8) auto 0;
+  margin: var(--s-8) auto var(--s-8);
   max-width: 860px;
   background: var(--surface);
   border: 1px solid var(--line);

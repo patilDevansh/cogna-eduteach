@@ -10,10 +10,8 @@ import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
 import { renderEquationSteps } from "./equation-highlight";
 import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
-import { LessonMotifBottom, LessonMotifTop, PipMascot, SceneBackdrop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 import L from "./lesson.module.css";
-import { AnimatedLessonPlayer } from "./AnimatedLessonPlayer";
 import { PracticeArena } from "./PracticeArena";
 import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { MicroLessonCard } from "@/components/games/MicroLessonCard";
@@ -432,16 +430,7 @@ function PersonalizedVideoPage() {
             )}
 
             {!error && lessonReady && assignment && (
-              <div data-theme={lesson?.theme}>
-                {assignment.delivery === "ANIMATED" ? (
-                  <AnimatedLessonPlayer
-                    assignmentId={assignment.id}
-                    studentId={assignment.studentId}
-                    devMode={devMode}
-                    onStart={() => void markWatched()}
-                    onFinish={() => void finishLesson()}
-                  />
-                ) : (
+              <div>
                 <div className={L.player}>
                   {assignment.delivery === "SLIDES" ? (
                     <InteractiveLessonPlayer
@@ -477,10 +466,7 @@ function PersonalizedVideoPage() {
                     </video>
                   ) : scene ? (
                     <div className={L.slideShell}>
-                      <LessonMotifTop studentKey={assignment.studentKey ?? key} theme={lesson?.theme} />
                       <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
-                        <SceneBackdrop theme={lesson?.theme} sceneIndex={sceneIndex} />
-                        <PipMascot theme={lesson?.theme} sceneIndex={sceneIndex} />
                         <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
                         <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
                           <span>{scene.eyebrow}</span>
@@ -489,7 +475,6 @@ function PersonalizedVideoPage() {
                           <p>{scene.narration}</p>
                         </div>
                       </div>
-                      <LessonMotifBottom studentKey={assignment.studentKey ?? key} theme={lesson?.theme} />
                       <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
                       <div className={styles.controls}>
                         <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={() => goToScene(sceneIndex - 1, false)}>← Previous</button>
@@ -503,7 +488,6 @@ function PersonalizedVideoPage() {
                     </div>
                   ) : null}
                 </div>
-                )}
                 <p className={styles.srOnly}>Keyboard: space to play or pause, left and right arrows to move between scenes.</p>
 
                 {watchedCta}
@@ -551,7 +535,6 @@ function PersonalizedVideoPage() {
         {assignment && stage === "practice" && (
           <PracticeArena
             assignmentId={assignment.id}
-            studentId={assignment.studentId}
             firstName={firstName}
             devMode={devMode}
             onDone={() => void finishTeaching()}

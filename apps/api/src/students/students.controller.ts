@@ -2,60 +2,78 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Post,
   Query,
 } from "@nestjs/common";
 import { ReportAudience } from "@cogna/database";
+import { assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
+import { StudentAccessService } from "../access/student-access.service";
 import { StudentsService } from "./students.service";
+
+type RequestHeaders = Record<string, string | string[] | undefined>;
 
 @Controller("students")
 export class StudentsController {
-  constructor(private readonly students: StudentsService) {}
+  constructor(
+    private readonly students: StudentsService,
+    private readonly access: StudentAccessService,
+  ) {}
 
+  /** Configuration status, not student data: operators only. */
   @Get("auth/email-accounts/status")
-  emailAccountsStatus() {
+  emailAccountsStatus(@Headers() headers: RequestHeaders) {
+    assertWorker(resolveActor(headers));
     return this.students.studentEmailAccountsStatus();
   }
 
   @Get(":id/profile")
-  getProfile(@Param("id") id: string): Promise<unknown> {
+  async getProfile(@Headers() headers: RequestHeaders, @Param("id") id: string): Promise<unknown> {
+    await this.access.read(headers, id);
     return this.students.getProfile(id);
   }
 
   @Get(":id/home-summary")
-  getHomeSummary(@Param("id") id: string) {
+  async getHomeSummary(@Headers() headers: RequestHeaders, @Param("id") id: string) {
+    await this.access.read(headers, id);
     return this.students.getHomeSummary(id);
   }
 
   @Get(":id/mastery")
-  getMastery(@Param("id") id: string): Promise<unknown> {
+  async getMastery(@Headers() headers: RequestHeaders, @Param("id") id: string): Promise<unknown> {
+    await this.access.read(headers, id);
     return this.students.getMastery(id);
   }
 
   @Get(":id/revision-queue")
-  getRevisionQueue(@Param("id") id: string): Promise<unknown> {
+  async getRevisionQueue(@Headers() headers: RequestHeaders, @Param("id") id: string): Promise<unknown> {
+    await this.access.read(headers, id);
     return this.students.getRevisionQueue(id);
   }
 
   @Get(":id/revision-plan")
-  getRevisionPlan(@Param("id") id: string) {
+  async getRevisionPlan(@Headers() headers: RequestHeaders, @Param("id") id: string) {
+    await this.access.read(headers, id);
     return this.students.getRevisionPlan(id);
   }
 
   @Get(":id/retention")
-  getRetention(@Param("id") id: string) {
+  async getRetention(@Headers() headers: RequestHeaders, @Param("id") id: string) {
+    await this.access.read(headers, id);
     return this.students.getRetention(id);
   }
 
   @Post(":id/retention/recompute")
-  recomputeRetention(@Param("id") id: string) {
+  async recomputeRetention(@Headers() headers: RequestHeaders, @Param("id") id: string) {
+    await this.access.read(headers, id);
     return this.students.recomputeRetention(id);
   }
 
-  /** Staging fixture for CLI retention scenarios (R01/R03). */
+  /** Staging fixture for CLI retention scenarios (R01/R03). Not available in production. */
   @Post(":id/dev/retention-fixture")
-  retentionFixture(
+  async retentionFixture(
+    @Headers() headers: RequestHeaders,
     @Param("id") id: string,
     @Body()
     body: {
@@ -65,16 +83,20 @@ export class StudentsController {
       completedRevisionsLast14Days?: number;
     },
   ) {
+    this.access.devOnly();
+    await this.access.read(headers, id);
     return this.students.seedRetentionFixture(id, body);
   }
 
   @Get(":id/explanation-outcomes")
-  explanationOutcomes(@Param("id") id: string) {
+  async explanationOutcomes(@Headers() headers: RequestHeaders, @Param("id") id: string) {
+    await this.access.read(headers, id);
     return this.students.listExplanationOutcomes(id);
   }
 
   @Get(":id/reports/latest")
-  getLatestReport(
+  async getLatestReport(
+    @Headers() headers: RequestHeaders,
     @Param("id") id: string,
     @Query("audience") audience = "STUDENT",
   ): Promise<unknown> {
@@ -84,11 +106,19 @@ export class StudentsController {
         : audience === "INTERNAL"
           ? ReportAudience.INTERNAL
           : ReportAudience.STUDENT;
+    if (normalized === ReportAudience.INTERNAL) {
+      const actor = resolveActor(headers);
+      assertTeacher(actor);
+      await this.access.read(headers, id);
+    } else {
+      await this.access.read(headers, id, { allowParent: true });
+    }
     return this.students.getLatestReport(id, normalized);
   }
 
   @Post(":id/reports/weekly")
-  weeklyReport(
+  async weeklyReport(
+    @Headers() headers: RequestHeaders,
     @Param("id") id: string,
     @Body()
     body: {
@@ -98,11 +128,13 @@ export class StudentsController {
       force?: boolean;
     },
   ) {
+    await this.access.read(headers, id, { allowParent: true });
     return this.students.requestWeeklyReport(id, body);
   }
 
   @Post(":id/reports/email")
-  emailReport(
+  async emailReport(
+    @Headers() headers: RequestHeaders,
     @Param("id") id: string,
     @Body()
     body: {
@@ -113,6 +145,7 @@ export class StudentsController {
     },
     @Query("audience") audienceQuery = "PARENT",
   ) {
+    await this.access.read(headers, id, { allowParent: true });
     if (body?.reportId) {
       return this.students.emailReportDelivery(id, {
         reportId: body.reportId,

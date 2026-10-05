@@ -5,14 +5,8 @@ import { useEffect, useState } from "react";
 import { api, ApiError, classroomAssignmentHref, type ClassroomStudentAssignment } from "@/lib/api";
 import { clearStudent, getStudent, isFixtureStudentSession, type StudentSessionRecord } from "@/lib/session";
 import { Wordmark } from "@/components/ui";
+import { STEP } from "@/lib/class-steps";
 import styles from "../student-demo.module.css";
-
-/** What each pilot stage is called on the student's screen. */
-const STEP: Record<ClassroomStudentAssignment["kind"], { title: string; note: string; cta: string }> = {
-  DIAGNOSTIC: { title: "Your Lotus diagnostic", note: "About 15 minutes. It stops early once Cogna knows where to start.", cta: "Start the diagnostic" },
-  TEACHING: { title: "Your lesson and practice", note: "A short lesson made from your own answers, then a few questions to practise.", cta: "Start my lesson" },
-  INDEPENDENT_EXIT: { title: "Two questions on your own", note: "No hints, one try each. This shows your teacher what you can do now.", cta: "Start" },
-};
 
 function classroomGreeting(student: StudentSessionRecord | null, joinedClass: string | null): string {
   if (joinedClass) return "You're in.";
@@ -27,7 +21,10 @@ export default function ProductionClassroomPage() {
   const [rollNumber, setRollNumber] = useState("");
   const [assignments, setAssignments] = useState<ClassroomStudentAssignment[]>([]);
   const [joined, setJoined] = useState<string | null>(null);
+  const [alsoIn, setAlsoIn] = useState<string[]>([]);
   const [error, setError] = useState("");
+  // Kept apart from `error`: the 5-second assignment refresh clears that one, and a join error must stay visible.
+  const [joinError, setJoinError] = useState("");
   const [student, setStudent] = useState<StudentSessionRecord | null>(null);
 
   useEffect(() => {
@@ -59,13 +56,14 @@ export default function ProductionClassroomPage() {
 
   async function join(event: React.FormEvent) {
     event.preventDefault();
-    setError("");
+    setJoinError("");
     try {
-      const result = await api.joinClassroom({ joinCode: code, rollNumber });
+      const result = await api.joinClassroom({ joinCode: code.trim(), rollNumber: rollNumber.trim() || undefined });
       setJoined(result.classroom.name);
+      setAlsoIn(result.alsoIn?.map((c) => c.name) ?? []);
       await refresh();
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Could not join the class.");
+      setJoinError(cause instanceof ApiError ? cause.message : "Could not join the class.");
     }
   }
 
@@ -111,11 +109,16 @@ export default function ProductionClassroomPage() {
                   <label>Roll number</label>
                   <input className={styles.input} value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} />
                 </div>
-                {error && <div className={styles.error}>{error}</div>}
+                {(joinError || error) && <div className={styles.error}>{joinError || error}</div>}
                 <button className={styles.button}>Join class →</button>
                 {joined && (
                   <div className={styles.hint}>
                     <strong>Joined:</strong> {joined}
+                  </div>
+                )}
+                {joined && alsoIn.length > 0 && (
+                  <div className={styles.error} role="status">
+                    You&apos;re also in {alsoIn.join(" and ")}. If you&apos;re only meant to be in one class, tell your teacher.
                   </div>
                 )}
               </form>

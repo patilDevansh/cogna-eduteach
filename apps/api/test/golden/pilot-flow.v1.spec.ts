@@ -114,7 +114,7 @@ describe("class report", () => {
 
   it("totals and headline", () => {
     assert.deepEqual(report.totals, { enrolled: 5, diagnosticDone: 4, gapFound: 3, noGap: 1, unclear: 0, lessonDone: 2, exitDone: 2, improved: 1 });
-    assert.match(report.headline, /factorising fully \(2 of 4 finished\)/);
+    assert.match(report.headline, /Most common need: factorising fully \(2 of the 4 who finished\)/);
     assert.equal(report.skills[0]!.skillId, "FAC_FACTOR_FULLY");
   });
 });

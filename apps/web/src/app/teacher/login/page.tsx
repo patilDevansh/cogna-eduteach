@@ -45,7 +45,7 @@ export default function TeacherLoginPage() {
                 subject: "Mathematics",
                 shareCode: "GURU-8A",
               });
-              router.push("/teacher/classes");
+              router.push("/teacher/today");
             } catch (cause) {
               setError(
                 cause instanceof ApiError

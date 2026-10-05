@@ -1,7 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ClassroomAssignmentKind, ClassroomRunPhase, Prisma, UserRole } from "@cogna/database";
 import { AccessActor, assertTeacher } from "../access/cogna-access";
+import { hashAccessCode } from "../parents/access-code";
 import { PrismaService } from "../prisma/prisma.service";
 import type { LotusQuestionAudit } from "@cogna/shared";
 import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
@@ -13,6 +14,18 @@ const PHASE_KIND = {
   TEACHING: ClassroomAssignmentKind.TEACHING,
   INDEPENDENT_EXIT: ClassroomAssignmentKind.INDEPENDENT_EXIT,
 } as const;
+
+/** Student sign-in codes made by the school: no look-alike characters (0/O, 1/I/L), 8 long. */
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const MAX_IMPORT = 300;
+
+export interface RosterImportRow {
+  name: string;
+  rollNumber?: string;
+}
+
+/** Marks a step closed by removing the student, so rejoining can reopen exactly those steps. */
+const REMOVED_FROM_CLASS = "removedFromClass";
 
 @Injectable()
 export class ClassroomsService {
@@ -34,12 +47,138 @@ export class ClassroomsService {
 
   async listForTeacher(actor: AccessActor) {
     const teacher = await this.teacher(actor);
-    return this.prisma.classroom.findMany({ where: { teacherId: teacher.id, archivedAt: null }, include: { _count: { select: { enrollments: true } }, runs: { orderBy: { createdAt: "desc" }, take: 1 } }, orderBy: { createdAt: "desc" } });
+    return this.prisma.classroom.findMany({ where: { teacherId: teacher.id, archivedAt: null }, include: { _count: { select: { enrollments: true } }, runs: { orderBy: { createdAt: "desc" }, take: 12 } }, orderBy: { createdAt: "desc" } });
   }
 
   async create(actor: AccessActor, input: { name: string; grade: number; subjectId: string; joinCode?: string; isDemo?: boolean }) {
     const teacher = await this.teacher(actor);
     return this.prisma.classroom.create({ data: { teacherId: teacher.id, schoolId: teacher.schoolId, name: input.name.trim(), grade: input.grade, subjectId: input.subjectId.trim(), joinCode: (input.joinCode?.trim() || this.code()).toUpperCase(), isDemo: input.isDemo ?? false } });
+  }
+
+  async rename(actor: AccessActor, classroomId: string, name: string) {
+    const teacher = await this.teacher(actor);
+    const owned = await this.prisma.classroom.count({ where: { id: classroomId, teacherId: teacher.id, archivedAt: null } });
+    if (!owned) throw new NotFoundException("Classroom not found.");
+    return this.prisma.classroom.update({ where: { id: classroomId }, data: { name: name.trim() } });
+  }
+
+  private async ownedClassroom(actor: AccessActor, classroomId: string) {
+    const teacher = await this.teacher(actor);
+    const classroom = await this.prisma.classroom.findFirst({ where: { id: classroomId, teacherId: teacher.id, archivedAt: null } });
+    if (!classroom) throw new NotFoundException("Classroom not found.");
+    return classroom;
+  }
+
+  /** Students currently in a class, each with any of this teacher's other classes they are also in (usually a wrong code). */
+  async roster(actor: AccessActor, classroomId: string) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const rosterParent = await this.prisma.parent.findFirst({ where: { user: { clerkId: `school_roster:${classroom.schoolId ?? "default"}` } }, select: { id: true } });
+    const enrollments = await this.prisma.classroomEnrollment.findMany({
+      where: { classroomId, leftAt: null },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            primaryParentId: true,
+            classroomEnrollments: {
+              where: { leftAt: null, classroomId: { not: classroomId }, classroom: { teacherId: classroom.teacherId, archivedAt: null } },
+              select: { classroom: { select: { id: true, name: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: "asc" },
+    });
+    return enrollments.map((row) => ({
+      studentId: row.student.id,
+      name: row.student.name,
+      rollNumber: row.rollNumber,
+      joinedAt: row.joinedAt,
+      alsoIn: row.student.classroomEnrollments.map((other) => other.classroom),
+      schoolIssuedCode: Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id,
+    }));
+  }
+
+  /**
+   * Takes a student out of a class: their finished work stays in past results, anything still
+   * open is skipped and tagged, so rejoining the same running check reopens it (join()).
+   */
+  async removeStudent(actor: AccessActor, classroomId: string, studentId: string) {
+    await this.ownedClassroom(actor, classroomId);
+    const enrollment = await this.prisma.classroomEnrollment.findUnique({ where: { classroomId_studentId: { classroomId, studentId } } });
+    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
+    await this.prisma.$transaction([
+      this.prisma.classroomAssignment.updateMany({ where: { enrollmentId: enrollment.id, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED", result: { [REMOVED_FROM_CLASS]: true } } }),
+      this.prisma.classroomEnrollment.update({ where: { id: enrollment.id }, data: { leftAt: new Date() } }),
+    ]);
+    return { removed: true };
+  }
+
+  /**
+   * Creates student accounts from a class list and enrols them. Returns each new sign-in code once
+   * (only its hash is stored), so the teacher can print or download them. School-made students
+   * belong to one "school roster" parent account until a real parent is linked.
+   */
+  async importStudents(actor: AccessActor, classroomId: string, rows: RosterImportRow[]) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const cleaned = (Array.isArray(rows) ? rows : []).map((row) => ({
+      name: String(row?.name ?? "").replace(/\s+/g, " ").trim(),
+      rollNumber: String(row?.rollNumber ?? "").trim() || undefined,
+    }));
+    if (!cleaned.length) throw new BadRequestException("Add at least one student.");
+    if (cleaned.length > MAX_IMPORT) throw new BadRequestException(`Add at most ${MAX_IMPORT} students at a time.`);
+    const bad = cleaned.findIndex((row) => row.name.length < 2 || row.name.length > 80 || (row.rollNumber?.length ?? 0) > 40);
+    if (bad >= 0) throw new BadRequestException(`Line ${bad + 1}: a name needs 2–80 characters and a roll number at most 40.`);
+
+    const parentId = await this.rosterParentId(classroom.schoolId);
+    const created: Array<{ studentId: string; name: string; rollNumber?: string; accessCode: string }> = [];
+    const enrollmentIds: string[] = [];
+    for (const row of cleaned) {
+      const accessCode = await this.freshAccessCode();
+      const { student, enrollment } = await this.prisma.$transaction(async (tx) => {
+        const student = await tx.student.create({ data: { primaryParentId: parentId, name: row.name, grade: classroom.grade, accessCodeHash: hashAccessCode(accessCode) } });
+        const enrollment = await tx.classroomEnrollment.create({ data: { classroomId, studentId: student.id, rollNumber: row.rollNumber } });
+        return { student, enrollment };
+      });
+      enrollmentIds.push(enrollment.id);
+      created.push({ studentId: student.id, name: row.name, rollNumber: row.rollNumber, accessCode });
+    }
+    await this.giveRunningCheck(classroomId, enrollmentIds);
+    return { classroom: { id: classroom.id, name: classroom.name, joinCode: classroom.joinCode }, students: created };
+  }
+
+  /** A new sign-in code for a school-made student in this class (lost slip). The old code stops working. */
+  async resetAccessCode(actor: AccessActor, classroomId: string, studentId: string) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const enrollment = await this.prisma.classroomEnrollment.findUnique({
+      where: { classroomId_studentId: { classroomId, studentId } },
+      include: { student: { select: { name: true, primaryParentId: true } } },
+    });
+    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
+    // Never take over a family's own account: only codes the school issued can be reset here.
+    if (enrollment.student.primaryParentId !== (await this.rosterParentId(classroom.schoolId))) {
+      throw new ForbiddenException("This student signs in with their family's code. Ask the parent to reset it.");
+    }
+    const accessCode = await this.freshAccessCode();
+    await this.prisma.student.update({ where: { id: studentId }, data: { accessCodeHash: hashAccessCode(accessCode) } });
+    return { studentId, name: enrollment.student.name, rollNumber: enrollment.rollNumber, accessCode };
+  }
+
+  private async rosterParentId(schoolId: string | null): Promise<string> {
+    const key = `school_roster:${schoolId ?? "default"}`;
+    const user = await this.prisma.user.upsert({ where: { clerkId: key }, create: { clerkId: key, role: UserRole.PARENT }, update: {} });
+    const parent = await this.prisma.parent.upsert({ where: { userId: user.id }, create: { userId: user.id, name: "School roster" }, update: {} });
+    return parent.id;
+  }
+
+  /** Codes are stored only as hashes and sign-in takes the first match, so a new code must be unused. */
+  private async freshAccessCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = Array.from({ length: 8 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
+      if (!(await this.prisma.student.count({ where: { accessCodeHash: hashAccessCode(code) } }))) return code;
+    }
+    throw new Error("Could not generate a unique sign-in code.");
   }
 
   async join(actor: AccessActor, input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) {
@@ -52,15 +191,31 @@ export class ClassroomsService {
       update: { leftAt: null, rollNumber: input.rollNumber?.trim(), admissionNumber: input.admissionNumber?.trim() },
       include: { classroom: { select: { id: true, name: true, grade: true, subjectId: true, joinCode: true } } },
     });
-    // Pilot: a student who joins after the diagnostic was released gets it straight away.
-    const live = await this.prisma.classroomRun.findFirst({ where: { classroomId: classroom.id, status: "LIVE" }, orderBy: { createdAt: "desc" } });
-    if (live && autoAdvanceEnabled(live.config) && (await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) {
-      await this.prisma.classroomAssignment.createMany({
-        data: [{ runId: live.id, enrollmentId: enrollment.id, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY", availableAt: new Date(), payload: live.config as Prisma.InputJsonValue }],
-        skipDuplicates: true,
-      });
-    }
-    return enrollment;
+    // Rejoining after being removed reopens the steps the removal closed, in checks still running.
+    // Steps the pilot flow skipped on purpose (no gap found) carry no tag and stay skipped.
+    await this.prisma.classroomAssignment.updateMany({
+      where: { enrollmentId: enrollment.id, status: "SKIPPED", run: { status: "LIVE" }, result: { path: [REMOVED_FROM_CLASS], equals: true } },
+      data: { status: "READY", result: Prisma.DbNull, availableAt: new Date() },
+    });
+    await this.giveRunningCheck(classroom.id, [enrollment.id]);
+    // A second section of the same teacher is usually a mistyped code: tell the student so they can say so.
+    const alsoIn = await this.prisma.classroom.findMany({
+      where: { id: { not: classroom.id }, teacherId: classroom.teacherId, archivedAt: null, enrollments: { some: { studentId: actor.studentId, leftAt: null } } },
+      select: { id: true, name: true },
+    });
+    return { ...enrollment, alsoIn };
+  }
+
+  /** Pilot: anyone who arrives while a quick check is running (joined late, or added from the class list) gets it straight away. */
+  private async giveRunningCheck(classroomId: string, enrollmentIds: string[]) {
+    if (!enrollmentIds.length) return;
+    const live = await this.prisma.classroomRun.findFirst({ where: { classroomId, status: "LIVE" }, orderBy: { createdAt: "desc" } });
+    if (!live || !autoAdvanceEnabled(live.config)) return;
+    if (!(await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) return;
+    await this.prisma.classroomAssignment.createMany({
+      data: enrollmentIds.map((enrollmentId) => ({ runId: live.id, enrollmentId, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY" as const, availableAt: new Date(), payload: live.config as Prisma.InputJsonValue })),
+      skipDuplicates: true,
+    });
   }
 
   private async ownedRun(actor: AccessActor, runId: string) {
@@ -79,6 +234,7 @@ export class ClassroomsService {
 
   async launchPhase(actor: AccessActor, runId: string, phase: keyof typeof PHASE_KIND) {
     const run = await this.ownedRun(actor, runId);
+    if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended. Start a new one.");
     const enrollmentIds = (await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null }, select: { id: true } })).map((row) => row.id);
     if (!enrollmentIds.length) throw new BadRequestException("Enroll at least one student before launching.");
     const kind = PHASE_KIND[phase];
@@ -100,9 +256,27 @@ export class ClassroomsService {
     return this.report(actor, runId);
   }
 
+  /** Teacher ends a check early: work already done stays in the results; every unfinished step is skipped. */
+  async endRun(actor: AccessActor, runId: string) {
+    const run = await this.ownedRun(actor, runId);
+    if (run.status !== "COMPLETE" && run.status !== "CANCELLED") {
+      await this.prisma.$transaction([
+        this.prisma.classroomAssignment.updateMany({ where: { runId, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED" } }),
+        this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } }),
+      ]);
+    }
+    return this.report(actor, runId);
+  }
+
   async assignmentsForStudent(actor: AccessActor) {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
-    return this.prisma.classroomAssignment.findMany({ where: { enrollment: { studentId: actor.studentId, leftAt: null }, status: { in: ["READY", "IN_PROGRESS"] } }, include: { run: { include: { classroom: { select: { name: true, subjectId: true, grade: true } } } } }, orderBy: { availableAt: "asc" } });
+    return this.prisma.classroomAssignment.findMany({ where: { enrollment: { studentId: actor.studentId, leftAt: null }, status: { in: ["READY", "IN_PROGRESS"] } }, include: { run: { include: { classroom: { select: { id: true, name: true, subjectId: true, grade: true } } } } }, orderBy: { availableAt: "asc" } });
+  }
+
+  /** The signed-in student's own classes and where they are in each one's latest check. */
+  async classesForStudent(actor: AccessActor) {
+    if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    return this.forStudent(actor.studentId);
   }
 
   private async ownedAssignment(actor: AccessActor, id: string) {
@@ -123,6 +297,7 @@ export class ClassroomsService {
     const assignment = await this.ownedAssignment(actor, id);
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
     if (assignment.status === "COMPLETE") return assignment;
+    if (assignment.status === "SKIPPED") throw new BadRequestException("This step is closed. Ask your teacher if that's a mistake.");
     let trustedResult: Record<string, unknown>;
     let diagnosticSessionId = assignment.diagnosticSessionId ?? input.diagnosticSessionId;
     let videoAssignmentId = assignment.videoAssignmentId ?? input.videoAssignmentId;
@@ -152,11 +327,11 @@ export class ClassroomsService {
       }
       if (assignment.kind === ClassroomAssignmentKind.TEACHING) {
         // Practice is read from the lesson's own server-side record, never from the browser.
-        const script = (video.script ?? {}) as { practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }>; animationKind?: string };
+        const script = (video.script ?? {}) as { practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }> };
         const attempts = Object.values(script.practiceAttempts ?? {});
         trustedResult = {
           lessonStatus: video.status,
-          delivery: script.animationKind ? "ANIMATED" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
+          delivery: (video.renderResult as { interactive?: boolean } | null)?.interactive ? "SLIDES" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
           watched: true,
           practice: { total: script.practice?.items?.length ?? 0, attempted: attempts.length, correct: attempts.filter((a) => a.correct).length },
         };
@@ -271,6 +446,43 @@ export class ClassroomsService {
       };
     });
     return buildClassReport(evidence);
+  }
+
+  /** A student's classes and how they did on each class's latest check, for their parent. Only this student's row leaves here, never classmates'. */
+  async forStudent(studentId: string) {
+    const enrollments = await this.prisma.classroomEnrollment.findMany({
+      where: { studentId, leftAt: null, classroom: { archivedAt: null } },
+      include: { classroom: { select: { id: true, name: true, grade: true, teacher: { select: { name: true } } } } },
+      orderBy: { joinedAt: "asc" },
+    });
+    return Promise.all(enrollments.map(async ({ classroom }) => {
+      const run = await this.prisma.classroomRun.findFirst({
+        where: { classroomId: classroom.id, status: { in: ["LIVE", "COMPLETE"] } },
+        orderBy: { createdAt: "desc" },
+      });
+      const row = run
+        ? (await this.classReport(classroom.id, await this.prisma.classroomAssignment.findMany({ where: { runId: run.id } }))).students.find((s) => s.studentId === studentId)
+        : undefined;
+      return {
+        classroomId: classroom.id,
+        name: classroom.name,
+        grade: classroom.grade,
+        teacherName: classroom.teacher.name,
+        check: run && row
+          ? {
+              title: run.title,
+              live: run.status === "LIVE",
+              date: run.startedAt ?? run.createdAt,
+              stage: row.stage,
+              stageStatus: row.stageStatus,
+              progress: row.progress,
+              need: row.startingPoint?.name ?? null,
+              lessonTitle: row.lesson?.title ?? null,
+              finalCorrect: row.exitCorrect ?? null,
+            }
+          : null,
+      };
+    }));
   }
 
   async report(actor: AccessActor, runId: string) {

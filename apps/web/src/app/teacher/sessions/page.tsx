@@ -1,16 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { api, ApiError, type ClassroomAssignmentKind, type ClassroomRunReport, type PilotClassReport, type ProductionClassroom } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, ApiError, type ClassRosterStudent, type ClassroomAssignmentKind, type ClassroomRunReport, type IssuedStudentCode, type PilotClassReport } from "@/lib/api";
+import { useTeacherClasses } from "@/lib/teacher-classes";
+import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
+import { ClassTabs } from "../class-tabs";
+import { AddStudents, CodesSheet } from "./add-students";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
 
 /**
- * Pilot console. The teacher's one action is releasing the Lotus diagnostic;
- * after that every student moves through diagnostic → lesson and practice →
- * independent exit on their own (apps/api/src/classrooms/pilot-flow.ts), and
- * this page shows the class as it happens.
+ * The teacher's one class page: name the class (first time only), show the
+ * join code, start the quick check (the Lotus diagnostic). After that every
+ * student moves through check → lesson and practice → final question on their
+ * own (apps/api/src/classrooms/pilot-flow.ts), and this page shows it live.
  */
 
 const PILOT_TOPIC = "factorisation";
@@ -19,9 +22,9 @@ const REFRESH_MS = 3000;
 type Row = PilotClassReport["students"][number];
 
 const STAGES: Array<{ key: Row["stage"]; label: string }> = [
-  { key: "DIAGNOSTIC", label: "Diagnostic" },
+  { key: "DIAGNOSTIC", label: "Check" },
   { key: "LESSON", label: "Lesson" },
-  { key: "EXIT", label: "Exit" },
+  { key: "EXIT", label: "Final" },
 ];
 const ORDER: Row["stage"][] = ["JOINED", "DIAGNOSTIC", "LESSON", "EXIT", "DONE"];
 
@@ -35,65 +38,167 @@ function stepState(row: Row, step: Row["stage"]): "done" | "now" | "next" | "ski
 }
 
 const PROGRESS_LABEL: Record<Row["progress"], string> = {
-  IMPROVED: "Improved",
+  IMPROVED: "Fixed it",
   NOT_YET: "Not yet",
-  NO_GAP: "Secure",
-  UNCLEAR: "Unclear",
+  NO_GAP: "Ready",
+  UNCLEAR: "Check again",
   PENDING: "—",
 };
 
 export default function PilotConsolePage() {
-  const [classes, setClasses] = useState<ProductionClassroom[]>([]);
-  const [classroomId, setClassroomId] = useState("");
+  const { sample, classes, setClasses, selectedId: classroomId, selected: activeClass, select, refresh: refreshClasses, loaded, error: loadError } = useTeacherClasses();
   const [runId, setRunId] = useState("");
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [newName, setNewName] = useState("Grade 8 · Section A");
+  const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [confirmEnd, setConfirmEnd] = useState(false);
 
-  const activeClass = useMemo(() => classes.find((c) => c.id === classroomId), [classes, classroomId]);
+  const [roster, setRoster] = useState<ClassRosterStudent[]>([]);
+  const [issued, setIssued] = useState<IssuedStudentCode[] | null>(null);
+
+  // Follow the selected class's latest check. The list is re-read on every switch and
+  // after starting a check, so a check that is already running is never hidden.
+  const latestRunId = activeClass?.runs?.[0]?.id ?? "";
+  useEffect(() => {
+    setReport(null);
+    setRunId(latestRunId);
+  }, [classroomId, latestRunId]);
+
+  // Polls overlap with class switches: only a roster for the class (and mode) on screen is applied.
+  const rosterFor = useRef("");
+  const loadRoster = useCallback(() => {
+    if (!classroomId) return;
+    const key = `${sample}:${classroomId}`;
+    rosterFor.current = key;
+    teacherData(sample).getClassRoster(classroomId).then((r) => rosterFor.current === key && setRoster(r)).catch(() => undefined);
+  }, [classroomId, sample]);
 
   useEffect(() => {
-    api
-      .listClassrooms()
-      .then((items) => {
-        setClasses(items);
-        const requested = new URLSearchParams(window.location.search).get("classroom");
-        const selected = requested && items.some((c) => c.id === requested) ? requested : items[0]?.id ?? "";
-        setClassroomId(selected);
-        const latest = items.find((c) => c.id === selected)?.runs?.[0];
-        if (latest) setRunId(latest.id);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Could not load your classes."));
-  }, []);
+    setRoster([]);
+    loadRoster();
+    const timer = window.setInterval(loadRoster, REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [loadRoster]);
 
   useEffect(() => {
     if (!runId) return;
-    const refresh = () => api.getClassroomRunReport(runId).then(setReport).catch(() => undefined);
+    let current = true; // a slower, outdated load must not overwrite a newer one
+    const refresh = () => teacherData(sample).getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
     void refresh();
     const timer = window.setInterval(refresh, REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [runId]);
+    return () => { current = false; window.clearInterval(timer); };
+  }, [runId, sample]);
+
+  async function createClass(event: React.FormEvent) {
+    event.preventDefault();
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    setBusy("create");
+    setError("");
+    try {
+      const created = await api.createClassroom({ name: newName.trim(), grade: Number(newName.match(/\d+/)?.[0]) || 8, subjectId: "mathematics", isDemo: false });
+      await refreshClasses(created.id);
+      setCreating(false);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not create the class.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function selectClass(id: string) {
+    setCreating(false);
+    setRenaming(null);
+    setConfirmEnd(false);
+    void select(id);
+  }
+
+  async function saveName(event: React.FormEvent) {
+    event.preventDefault();
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    if (!activeClass || renaming === null || !renaming.trim()) return;
+    setBusy("rename");
+    setError("");
+    try {
+      const updated = await api.renameClassroom(activeClass.id, renaming.trim());
+      setClasses((prev) => prev.map((c) => (c.id === updated.id ? { ...c, name: updated.name } : c)));
+      setRenaming(null);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not rename the class.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function endCheck() {
+    setConfirmEnd(false);
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    if (!runId) return;
+    setBusy("end");
+    setError("");
+    try {
+      setReport(await api.endClassroomRun(runId));
+      setConfirmEnd(false);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not end the check.");
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function release() {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     if (!classroomId) return;
     setBusy("release");
     setError("");
     try {
       const run = await api.createClassroomRun(classroomId, {
-        title: "Factorisation · Lotus diagnostic",
+        title: "Factorisation · quick check",
         topicId: PILOT_TOPIC,
         config: { diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true },
       });
-      setRunId(run.id);
-      setReport(await api.launchClassroomPhase(run.id, "DIAGNOSTIC"));
+      await api.launchClassroomPhase(run.id, "DIAGNOSTIC");
+      await refreshClasses(classroomId);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Could not release the diagnostic.");
+      setError(cause instanceof ApiError ? cause.message : "Could not start the quick check.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function removeStudent(student: ClassRosterStudent) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    setBusy(`remove:${student.studentId}`);
+    setError("");
+    try {
+      await api.removeStudentFromClass(classroomId, student.studentId);
+      setRoster((prev) => prev.filter((row) => row.studentId !== student.studentId));
+      setClasses((prev) => prev.map((c) => (c.id === classroomId && c._count ? { ...c, _count: { enrollments: Math.max(0, c._count.enrollments - 1) } } : c)));
+      if (runId) setReport(await teacherData(sample).getClassroomRunReport(runId));
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not remove the student.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function resetCode(student: ClassRosterStudent) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    setBusy(`code:${student.studentId}`);
+    setError("");
+    try {
+      setIssued([await api.resetStudentAccessCode(classroomId, student.studentId)]);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not issue a new code.");
     } finally {
       setBusy("");
     }
   }
 
   async function launch(phase: ClassroomAssignmentKind) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     if (!runId) return;
     setBusy(phase);
     setError("");
@@ -106,6 +211,7 @@ export default function PilotConsolePage() {
     }
   }
 
+  const ended = report?.run.status === "COMPLETE" || report?.run.status === "CANCELLED";
   const cr = report?.classReport;
   const t = cr?.totals;
 
@@ -113,71 +219,95 @@ export default function PilotConsolePage() {
     <>
       <div className={shared.pageHeader}>
         <div>
-          <div className={shared.dateLine}>Pilot · {activeClass ? `Grade ${activeClass.grade}` : "Lotus"}</div>
-          <h1>{activeClass?.name ?? "Your class"}</h1>
-          <p>Release the diagnostic. Each student is then taught and checked on their own, and the results build up here.</p>
+          <div className={shared.dateLine}>Class{activeClass && !creating ? ` · Grade ${activeClass.grade}` : ""}</div>
+          {activeClass && renaming !== null ? (
+            <form className={styles.renameForm} onSubmit={saveName}>
+              <input className={shared.formInput} value={renaming} onChange={(e) => setRenaming(e.target.value)} aria-label="Class name" maxLength={100} autoFocus onFocus={(e) => e.currentTarget.select()} required />
+              <button className={shared.primary} disabled={busy === "rename" || renaming.trim().length < 2}>{busy === "rename" ? "Saving…" : "Save"}</button>
+              <button type="button" className={shared.secondary} onClick={() => setRenaming(null)}>Cancel</button>
+            </form>
+          ) : (
+            <div className={styles.titleRow}>
+              <h1>{creating ? "New class" : activeClass?.name ?? "Start your class"}</h1>
+              {activeClass && !creating && <button type="button" className={styles.renameButton} onClick={() => setRenaming(activeClass.name)}>Rename</button>}
+            </div>
+          )}
+          <p>Students join with the code, then you start the quick check. Cogna teaches and checks each student on their own, and results show up here.</p>
         </div>
-        <Link className={shared.secondary} href="/teacher/classes">Manage classes</Link>
       </div>
 
-      {error && (
+      {classes.length > 0 && (
+        <ClassTabs classes={classes} selectedId={classroomId} creating={creating} onSelect={selectClass} onNew={() => { setCreating(true); setRenaming(null); setNewName(""); }} />
+      )}
+
+      {(error || loadError) && (
         <section className={shared.emptyCard}>
-          <strong>That didn&apos;t work</strong>
-          <p>{error}</p>
+          <strong>{error === SAMPLE_ACTION_NOTE ? "Sample data" : "That didn\u2019t work"}</strong>
+          <p>{error || loadError}</p>
         </section>
       )}
 
-      {!runId ? (
+      {creating || !runId ? (
         <section className={styles.releaseCard}>
+          {(loaded && !classes.length) || creating ? (
+          <form onSubmit={createClass}>
+            <p className={styles.eyebrow}>Step 1 · name your class</p>
+            <h2>What do you call this class?</h2>
+            <label className={shared.formLabel}>Class name<input className={shared.formInput} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Grade 8 · Section B" autoFocus={creating} required /></label>
+            <button className={styles.releaseButton} disabled={Boolean(busy) || !newName.trim()}>{busy === "create" ? "Creating…" : "Create class and get a code →"}</button>
+          </form>
+          ) : (
           <div>
             <p className={styles.eyebrow}>Step 1 · students join</p>
             <h2>Students open Cogna and enter this code</h2>
             <div className={styles.joinCode} data-testid="join-code">{activeClass?.joinCode ?? "—"}</div>
-            <p className={styles.muted}>
-              {activeClass?._count?.enrollments ?? 0} joined so far.{" "}
-              {classes.length > 1 && (
-                <select className={styles.select} value={classroomId} onChange={(e) => setClassroomId(e.target.value)} aria-label="Class">
-                  {classes.map((c) => (
-                    <option value={c.id} key={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              )}
-            </p>
+            <p className={styles.muted}>{roster.length} joined so far. Names appear below as students join.</p>
           </div>
+          )}
           <div className={styles.releaseSide}>
-            <p className={styles.eyebrow}>Step 2 · release</p>
-            <h2>Lotus diagnostic: factorisation</h2>
+            <p className={styles.eyebrow}>Step 2 · start</p>
+            <h2>Quick check: factorisation</h2>
             <ul className={styles.ruleList}>
-              <li>Up to 15 minutes. It ends early once Lotus confirms a starting point.</li>
-              <li>Each student then gets a 20-second lesson on their own mistake, a longer lesson, practice games and two independent questions.</li>
+              <li>Up to 15 minutes. It ends early once Cogna knows where each student should start.</li>
+              <li>Each student then gets a short lesson made from their own answers, a 20-second lesson on their own mistake, practice games, and two final questions to try on their own.</li>
               <li>Nothing else to press: results appear here as students finish.</li>
             </ul>
-            <button className={styles.releaseButton} onClick={() => void release()} disabled={!classroomId || Boolean(busy)}>
-              {busy === "release" ? "Releasing…" : "Release Lotus diagnostic →"}
+            <button className={styles.releaseButton} onClick={() => void release()} disabled={!classroomId || creating || Boolean(busy)}>
+              {busy === "release" ? "Starting…" : "Start the quick check →"}
             </button>
-            {!classes.length && <p className={styles.muted}>Create a class first.</p>}
           </div>
         </section>
       ) : (
         <>
           <section className={styles.liveBar}>
             <div>
-              <span className={styles.livePill} data-live={report?.run.status === "LIVE"}>{report?.run.status === "COMPLETE" ? "Complete" : "● Live"}</span>
-              <strong>{report?.run.title ?? "Factorisation · Lotus diagnostic"}</strong>
+              <span className={styles.livePill} data-live={report?.run.status === "LIVE"}>{ended ? "Finished" : "● Live"}</span>
+              <strong>{report?.run.title ?? "Factorisation · quick check"}</strong>
             </div>
             <div className={styles.liveCode}>
               Join code <b data-testid="join-code">{report?.run.classroom.joinCode ?? activeClass?.joinCode}</b>
             </div>
+            {report && !ended && (
+              confirmEnd ? (
+                <div className={styles.endConfirm} role="group" aria-label="End the check">
+                  <span>End for everyone? Finished work is kept.</span>
+                  <button type="button" className={styles.endButton} onClick={() => void endCheck()} disabled={busy === "end"}>{busy === "end" ? "Ending…" : "Yes, end it"}</button>
+                  <button type="button" className={styles.keepButton} onClick={() => setConfirmEnd(false)}>Keep going</button>
+                </div>
+              ) : (
+                <button type="button" className={styles.keepButton} onClick={() => setConfirmEnd(true)}>End check</button>
+              )
+            )}
           </section>
 
           {t && (
             <section className={styles.totals} aria-label="Class totals">
               <Total label="Joined" value={t.enrolled} />
-              <Total label="Diagnostic done" value={t.diagnosticDone} of={t.enrolled} />
-              <Total label="Gap found" value={t.gapFound} of={t.diagnosticDone} />
+              <Total label="Check done" value={t.diagnosticDone} of={t.enrolled} />
+              <Total label="Need a fix" value={t.gapFound} of={t.diagnosticDone} />
               <Total label="Lesson done" value={t.lessonDone} of={t.gapFound} />
-              <Total label="Exit done" value={t.exitDone} of={t.gapFound} />
-              <Total label="Improved" value={t.improved} of={t.exitDone} accent />
+              <Total label="Final question done" value={t.exitDone} of={t.gapFound} />
+              <Total label="Fixed it" value={t.improved} of={t.exitDone} accent />
             </section>
           )}
 
@@ -191,7 +321,7 @@ export default function PilotConsolePage() {
                 <div className={styles.rosterHead} role="row">
                   <span>Student</span>
                   <span>Progress</span>
-                  <span>Starting point</span>
+                  <span>Where to start</span>
                   <span>Practice</span>
                   <span>Result</span>
                 </div>
@@ -209,7 +339,7 @@ export default function PilotConsolePage() {
                       ))}
                     </span>
                     <span className={styles.start}>
-                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "No gap: secure" : row.outcome ? "Unclear" : row.stage === "DIAGNOSTIC" ? "Testing…" : "—")}
+                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "Nothing to fix" : row.outcome ? "Not sure yet" : row.stage === "DIAGNOSTIC" ? "Checking…" : "—")}
                       {row.answered ? <small>{row.answered} questions{row.minutes ? ` · ${row.minutes} min` : ""}{row.endedNote ? " · ended early" : ""}</small> : null}
                     </span>
                     <span className={styles.practice}>
@@ -230,10 +360,10 @@ export default function PilotConsolePage() {
               <div className={styles.panelHead}>
                 <h3>Class results</h3>
               </div>
-              <p className={styles.headline}>{cr?.headline ?? "Results appear as each diagnostic finishes."}</p>
+              <p className={styles.headline}>{cr?.headline ?? "Results appear as each student finishes the quick check."}</p>
               {cr?.gapGroups.map((g) => (
                 <article className={styles.group} key={g.skillId} data-testid="gap-group">
-                  <p className={styles.eyebrow}>Need a bridge in</p>
+                  <p className={styles.eyebrow}>Needs help with</p>
                   <h4>{g.name}</h4>
                   <p>{g.students.join(", ")}</p>
                   <small>
@@ -267,20 +397,83 @@ export default function PilotConsolePage() {
           </div>
 
           <section className={styles.footerActions}>
+            {!ended && (
             <button className={shared.secondary} onClick={() => void launch("DIAGNOSTIC")} disabled={Boolean(busy)}>
-              {busy === "DIAGNOSTIC" ? "Sending…" : "Send the diagnostic to anyone who joined late"}
+              {busy === "DIAGNOSTIC" ? "Sending…" : "Send the quick check to anyone who joined late"}
             </button>
-            {report && !report.autoAdvance && (
+            )}
+            {report && !ended && !report.autoAdvance && (
               <>
                 <button className={shared.secondary} onClick={() => void launch("TEACHING")} disabled={Boolean(busy)}>Send teaching</button>
-                <button className={shared.secondary} onClick={() => void launch("INDEPENDENT_EXIT")} disabled={Boolean(busy)}>Send exit check</button>
+                <button className={shared.secondary} onClick={() => void launch("INDEPENDENT_EXIT")} disabled={Boolean(busy)}>Send final question</button>
               </>
             )}
-            <button className={shared.secondary} onClick={() => { setRunId(""); setReport(null); }}>Start a new release</button>
+            {ended && <button className={shared.primary} onClick={() => { setRunId(""); setReport(null); }}>Start a new check</button>}
           </section>
         </>
       )}
+      {activeClass && !creating && issued && (
+        <CodesSheet codes={issued} className={activeClass.name} onDone={() => setIssued(null)} />
+      )}
+      {activeClass && !creating && (
+        <RosterPanel
+          roster={roster}
+          className={activeClass.name}
+          busy={busy}
+          onRemove={(student) => void removeStudent(student)}
+          onResetCode={(student) => void resetCode(student)}
+          addStudents={sample ? <p className={styles.muted}>Adding students from a class list is turned off for sample data.</p> : <AddStudents classroomId={activeClass.id} onAdded={(codes) => { setIssued(codes); loadRoster(); }} />}
+        />
+      )}
     </>
+  );
+}
+
+function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStudents }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void; onResetCode: (student: ClassRosterStudent) => void; addStudents: React.ReactNode }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
+  const flagged = roster.filter((s) => s.alsoIn.length).length;
+  return (
+    <section className={styles.rosterPanel} aria-label={`Students in ${className}`}>
+      <div className={styles.panelHead}>
+        <h3>Students in {className} <span className={styles.muted}>· {roster.length}</span></h3>
+        {flagged > 0 && <span className={styles.flagNote}>{flagged} also in another of your classes</span>}
+      </div>
+      <div className={styles.rosterAdd}>{addStudents}</div>
+      {!roster.length ? (
+        <p className={styles.muted}>No one yet. Add your class list above, or students appear here as soon as they enter the join code.</p>
+      ) : (
+        <ul className={styles.rosterList}>
+          {roster.map((s) => (
+            <li key={s.studentId} data-flagged={s.alsoIn.length > 0}>
+              <span className={styles.rosterName}>
+                {s.name}
+                {s.rollNumber ? <small>Roll {s.rollNumber}</small> : null}
+                {s.alsoIn.length > 0 && <small className={styles.flag}>Also in {s.alsoIn.map((c) => c.name).join(", ")}</small>}
+              </span>
+              {confirmingCode === s.studentId ? (
+                <span className={styles.rosterConfirm}>
+                  New code? The old one stops working.
+                  <button type="button" className={styles.removeYes} onClick={() => { setConfirmingCode(null); onResetCode(s); }} disabled={busy === `code:${s.studentId}`}>New code</button>
+                  <button type="button" className={styles.removeNo} onClick={() => setConfirmingCode(null)}>Cancel</button>
+                </span>
+              ) : confirming === s.studentId ? (
+                <span className={styles.rosterConfirm}>
+                  Remove from this class?
+                  <button type="button" className={styles.removeYes} onClick={() => { setConfirming(null); onRemove(s); }} disabled={busy === `remove:${s.studentId}`}>Remove</button>
+                  <button type="button" className={styles.removeNo} onClick={() => setConfirming(null)}>Cancel</button>
+                </span>
+              ) : (
+                <span className={styles.rosterActions}>
+                  {s.schoolIssuedCode && <button type="button" className={styles.removeNo} onClick={() => setConfirmingCode(s.studentId)} aria-label={`New sign-in code for ${s.name}`}>New code</button>}
+                  <button type="button" className={styles.removeNo} onClick={() => setConfirming(s.studentId)} aria-label={`Remove ${s.name} from ${className}`}>Remove</button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

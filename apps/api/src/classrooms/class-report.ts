@@ -162,12 +162,12 @@ export function buildClassReport(students: StudentEvidence[]): ClassReport {
 
   const top = gapGroups[0];
   const headline = !totals.diagnosticDone
-    ? totals.enrolled ? `${totals.enrolled} student${totals.enrolled === 1 ? "" : "s"} enrolled. Results appear as each diagnostic finishes.` : "Waiting for students to join."
+    ? totals.enrolled ? `${totals.enrolled} student${totals.enrolled === 1 ? "" : "s"} in class. Results appear as each one finishes the quick check.` : "Waiting for students to join."
     : top && top.students.length > 1
-      ? `Most common starting point: ${top.name.toLowerCase()} (${top.students.length} of ${totals.diagnosticDone} finished).`
+      ? `Most common need: ${top.name.toLowerCase()} (${top.students.length} of the ${totals.diagnosticDone} who finished).`
       : top
-        ? `${gapGroups.length} different starting point${gapGroups.length === 1 ? "" : "s"} across ${totals.diagnosticDone} finished: each student gets their own lesson.`
-      : `${totals.diagnosticDone} finished. No shared gap so far.`;
+        ? `${gapGroups.length} different need${gapGroups.length === 1 ? "" : "s"} among the ${totals.diagnosticDone} who finished: each student gets their own lesson.`
+      : `${totals.diagnosticDone} finished. No shared need so far.`;
 
   return { totals, gapGroups, skills, headline, students: rows };
 }

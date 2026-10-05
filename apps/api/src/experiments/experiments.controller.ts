@@ -1,15 +1,9 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  HttpException,
-  HttpStatus,
-} from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, HttpException, HttpStatus, UseGuards } from "@nestjs/common";
+import { WorkerGuard } from "../access/worker.guard";
 import { ExperimentsService } from "./experiments.service";
 import { ExperimentDefinition, ExperimentArm } from "@cogna/shared";
 
+@UseGuards(WorkerGuard)
 @Controller("experiments")
 export class ExperimentsController {
   constructor(private readonly experimentsService: ExperimentsService) {}

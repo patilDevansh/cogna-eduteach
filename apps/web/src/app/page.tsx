@@ -22,9 +22,9 @@ export default function Landing() {
       <main>
         <section className={`shell ${styles.hero}`}>
           <h1 className={styles.heroTitle}>
-            The education
+            A personal tutor
             <br />
-            school can't give <span className={styles.accentYou}>you.</span>
+            at every <span className={styles.accentYou}>desk.</span>
           </h1>
 
           <div className={`${styles.workedEquation} worked-line`} aria-hidden="true">
