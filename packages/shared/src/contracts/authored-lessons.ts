@@ -14,6 +14,8 @@
  */
 
 /** One picture on screen while a beat is spoken. */
+import type { TileBuildInteraction } from "./interaction-formats";
+
 export type AuthoredVisual =
   /** A short statement or heading, no maths claim. */
   | { type: "title"; text: string }
@@ -115,6 +117,27 @@ export type PracticeItem =
       hint: string;
       /** Shown, step by step, after two misses. */
       workedSteps: string[];
+    }
+  /** Turn two dials until the product and sum lamps both light. Built by code only. */
+  | {
+      id: string;
+      format: "factor-safe";
+      prompt: string;
+      expression: string;
+      product: number;
+      sum: number;
+      answer: [number, number];
+    }
+  /** Build the answer from tiles; the server assembles the picks and the algebra engine marks them. Built by code only. */
+  | {
+      id: string;
+      format: "build";
+      prompt: string;
+      expression: string;
+      task: AuthoredTask;
+      answer: string;
+      interaction: TileBuildInteraction;
+      workedSteps: string[];
     };
 
 export type PracticeFormat = PracticeItem["format"];
@@ -140,7 +163,9 @@ export type PracticeItemView =
   | Omit<Extract<PracticeItem, { format: "pair-hunt" }>, "answer">
   | Omit<Extract<PracticeItem, { format: "spot-mistake" }>, "wrongLine" | "fix" | "explanation">
   | Omit<Extract<PracticeItem, { format: "choose" }>, "answerIndex" | "feedback">
-  | Omit<Extract<PracticeItem, { format: "type-answer" }>, "answer" | "workedSteps">;
+  | Omit<Extract<PracticeItem, { format: "type-answer" }>, "answer" | "workedSteps">
+  | Omit<Extract<PracticeItem, { format: "factor-safe" }>, "answer">
+  | Omit<Extract<PracticeItem, { format: "build" }>, "answer" | "workedSteps">;
 
 export interface PracticeSetView {
   assignmentId: string;
@@ -150,12 +175,13 @@ export interface PracticeSetView {
   items: PracticeItemView[];
 }
 
-/** A practice answer: pair-hunt sends the pair, spot-mistake the line, choose the option, type-answer the text. */
+/** A practice answer: pair-hunt and factor-safe send the pair, spot-mistake the line, choose the option, type-answer the text, build the tile picks. */
 export type PracticeAnswer =
   | { pair: [number, number] }
   | { line: number }
   | { option: number }
-  | { text: string };
+  | { text: string }
+  | { picks: Array<number | null> };
 
 export interface PracticeCheckResult {
   itemId: string;

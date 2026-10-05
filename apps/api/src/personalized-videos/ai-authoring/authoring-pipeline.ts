@@ -1,3 +1,4 @@
+import { answerFromPicks } from "../../interaction-formats/tile-builder";
 import type {
   AuthoredLessonDraft,
   LotusSessionView,
@@ -95,6 +96,14 @@ export function practiceItemView(item: PracticeItem): PracticeItemView {
       const { answer: _a, workedSteps: _s, ...rest } = item;
       return rest;
     }
+    case "factor-safe": {
+      const { answer: _a, ...rest } = item;
+      return rest;
+    }
+    case "build": {
+      const { answer: _a, workedSteps: _s, ...rest } = item;
+      return rest;
+    }
   }
 }
 
@@ -143,5 +152,26 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
       if (verdict === "UNREADABLE") return result("UNREADABLE", "I couldn't read that. Write it like (x - 3)(x - 4).");
       return result("INCORRECT", `Not quite. ${item.hint}`, reveal);
     }
+    case "factor-safe": {
+      if (!("pair" in answer) || !Array.isArray(answer.pair) || !answer.pair.every(Number.isInteger)) return result("UNREADABLE", "Set both dials first.");
+      const [a, b] = answer.pair;
+      const reveal = { answer: `(${linear(item.answer[0])})(${linear(item.answer[1])})`, steps: [`${fmt(item.answer[0])} × ${fmt(item.answer[1])} = ${fmt(item.product)}`, `${fmt(item.answer[0])} + ${fmt(item.answer[1])} = ${fmt(item.sum)}`] };
+      if (a * b === item.product && a + b === item.sum) return result("CORRECT", `Unlocked: ${fmt(a)} and ${fmt(b)} multiply to ${fmt(item.product)} and add to ${fmt(item.sum)}.`, reveal);
+      if (a * b === item.product && a + b === -item.sum) return result("INCORRECT", `So close: the product is right, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}. Flip both signs.`, reveal);
+      if (a * b === item.product) return result("INCORRECT", `The product lamp is on, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}.`, reveal);
+      return result("INCORRECT", `They multiply to ${fmt(a * b)}, not ${fmt(item.product)}.`, reveal);
+    }
+    case "build": {
+      if (!("picks" in answer)) return result("UNREADABLE", "Fill the boxes with tiles first.");
+      const built = answerFromPicks(item.interaction, { format: item.interaction.format, picks: answer.picks });
+      if (!built) return result("UNREADABLE", "Fill every box with a tile first.");
+      const verdict = taskVerdict(item.task, built, item.expression);
+      const reveal = { answer: item.answer, steps: item.workedSteps };
+      if (verdict === "CORRECT") return result("CORRECT", "Built it. It multiplies back to the original.", reveal);
+      if (verdict === "UNFINISHED") return result("UNFINISHED", "That's equal, but it isn't finished: one part still splits.", reveal);
+      return result("INCORRECT", "Multiply it back out: it doesn't give the original. Check each sign.", reveal);
+    }
   }
 }
+
+const linear = (n: number) => (n < 0 ? `x − ${-n}` : `x + ${n}`);

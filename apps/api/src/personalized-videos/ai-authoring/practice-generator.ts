@@ -1,4 +1,5 @@
 import type { AuthoredTask, PracticeItem } from "@cogna/shared";
+import { buildTileInteraction } from "../../interaction-formats/tile-builder";
 
 /**
  * Practice built by code, not by a model: every item is constructed from
@@ -92,6 +93,23 @@ function choose(rand: () => number, id: string, prompt: string, expression: stri
           ? "That's equal, but something common is still left inside the bracket."
           : "Multiply it back out: it doesn't give the original. Check each sign.",
     ),
+  };
+}
+
+// ---------- game items (code-built, checked by the same algebra engine) ----------
+
+/** A tile "build it" item, or nothing when the tile set can't be made safely. */
+function buildItem(id: string, prompt: string, expression: string, task: AuthoredTask, answer: string, mistakes: string[], workedSteps: string[]): PracticeItem[] {
+  if (task === "simplify") return [];
+  const interaction = buildTileInteraction({ stage: "PRACTICE", task, expression, answer, mistakes, seed: `${id}|${expression}` });
+  return interaction ? [{ id, format: "build", prompt, expression, task, answer, interaction, workedSteps }] : [];
+}
+
+function factorSafe(id: string, t: { p: number; q: number; expr: string }): PracticeItem {
+  return {
+    id, format: "factor-safe",
+    prompt: `Open the safe: turn the dials to two numbers for ${t.expr}.`,
+    expression: t.expr, product: t.p * t.q, sum: t.p + t.q, answer: [t.p, t.q],
   };
 }
 
@@ -196,6 +214,12 @@ function trinomialSet(rand: () => number, used: Set<string>): PracticeItem[] {
       hint: "Read the last sign first, then the middle sign, then find the pair.",
       workedSteps: [t4.expr, `x^2${term(t4.p, "x")}${term(t4.q, "x")}${term(t4.p * t4.q, "")}`, t4.answer],
     },
+    factorSafe("p5", freshTrinomial(rand, used)),
+    ...(() => {
+      const t6 = freshTrinomial(rand, used);
+      return buildItem("p6", `Build ${t6.expr} as two brackets.`, t6.expr, "factorise", t6.answer, [t6.signSwapped, t6.oneSign],
+        [t6.expr, `x^2${term(t6.p, "x")}${term(t6.q, "x")}${term(t6.p * t6.q, "")}`, t6.answer]);
+    })(),
   ];
 }
 
@@ -228,6 +252,10 @@ function commonFactorSet(rand: () => number, used: Set<string>): PracticeItem[] 
       { text: c4.answer, kind: "right" },
       { text: c4.signSlip, kind: "wrong" },
     ]),
+    ...(() => {
+      const c5 = freshCommonFactor(rand, used);
+      return buildItem("p5", `Build ${c5.expr} fully factorised.`, c5.expr, "factorise", c5.answer, [c5.numberOnly, c5.letterOnly, c5.signSlip], [c5.expr, c5.split, c5.answer]);
+    })(),
   ];
 }
 
@@ -261,6 +289,10 @@ function expandSet(rand: () => number, used: Set<string>): PracticeItem[] {
       hint: "Multiply the outside number into each term, keeping each sign.",
       workedSteps: [e4.expr, e4.split, e4.answer],
     },
+    ...(() => {
+      const e5 = freshExpansion(rand, used);
+      return buildItem("p5", `Build the expansion of ${e5.expr}.`, e5.expr, "expand", e5.answer, [e5.firstOnly, e5.signSlip], [e5.expr, e5.split, e5.answer]);
+    })(),
   ];
 }
 

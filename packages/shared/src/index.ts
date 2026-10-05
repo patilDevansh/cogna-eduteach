@@ -28,6 +28,8 @@ export * from "./contracts/lotus";
 // Personalized video production path
 export * from "./contracts/personalized-videos";
 export * from "./contracts/authored-lessons";
+// Game-like answer formats (diagnostic, exit, practice)
+export * from "./contracts/interaction-formats";
 // Voice / safe text
 export * from "./voice/forbidden-terms";
 export * from "./voice/safe-text";

@@ -15,6 +15,7 @@ import styles from "./personalized-video.module.css";
 import L from "./lesson.module.css";
 import { AnimatedLessonPlayer } from "./AnimatedLessonPlayer";
 import { PracticeArena } from "./PracticeArena";
+import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { useDevState } from "@/lib/dev-mode";
 
 type Stage = "lesson" | "practice" | "exit" | "result";
@@ -43,6 +44,9 @@ function PersonalizedVideoPage() {
   const [exitAssignmentId, setExitAssignmentId] = useState<string | null>(search.get("stage") === "exit" ? classroomAssignmentId : null);
   const [answer, setAnswer] = useState("");
   const [working, setWorking] = useState("");
+  /** A tile exit's picks; the server rebuilds the answer from them. */
+  const [exitTiles, setExitTiles] = useState<TileGameState | null>(null);
+  const [sealing, setSealing] = useState(false);
   const [correct, setCorrect] = useState<boolean | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const watchedRef = useRef(false);
@@ -250,7 +254,10 @@ function PersonalizedVideoPage() {
   async function submitExit() {
     if (!assignment) return;
     try {
-      const result = await api.submitPersonalizedVideoExit(assignment.id, answer, working);
+      const tileExit = assignment.exit?.interaction;
+      const result = tileExit && exitTiles?.answer
+        ? await api.submitPersonalizedVideoExit(assignment.id, exitTiles.answer, "", { format: tileExit.format, picks: exitTiles.picks, changes: exitTiles.changes })
+        : await api.submitPersonalizedVideoExit(assignment.id, answer, working);
       setAssignment(result);
       setCorrect(result.exitAttempt?.correct ?? false);
       setStage("result");
@@ -277,9 +284,18 @@ function PersonalizedVideoPage() {
         setStage("result");
         return;
       }
+      setSealing(false);
       setError(err instanceof Error ? err.message : "The independent check could not be stored.");
     }
   }
+
+  // The independent check is one attempt: once answered, it only shows the result.
+  useEffect(() => {
+    if (stage === "exit" && assignment?.exitAttempt) {
+      setCorrect(assignment.exitAttempt.correct ?? false);
+      setStage("result");
+    }
+  }, [assignment, stage]);
 
   const seed = key in PILOT_STUDENT_STORIES ? PILOT_STUDENT_STORIES[key] : PILOT_STUDENT_STORIES.aarav;
   const name = assignment?.name ?? seed.name;
@@ -514,17 +530,23 @@ function PersonalizedVideoPage() {
           <section className={L.task}>
             <p className={L.eyebrow}>{assignment.status === "ABSTAINED" ? "A fresh question" : "Your turn · no hints this time"}</p>
             <div className={L.question}>{displayMath(assignment.exit?.prompt ?? seed.exit.prompt)}</div>
-            <p className={L.taskNote}>Use the routine from the lesson. Your teacher sees this answer on its own, separate from the lesson.</p>
-            <label className={L.field}>
-              <span>Your answer</span>
-              <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
-            </label>
-            <label className={L.field}>
-              <span>Your working</span>
-              <textarea value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
-            </label>
+            <p className={L.taskNote}>Use the routine from the lesson. One attempt, no hints. Your teacher sees this answer on its own, separate from the lesson.</p>
+            {assignment.exit?.interaction ? (
+              <TileGame interaction={assignment.exit.interaction} sealed={sealing} disabled={sealing} onChange={setExitTiles} />
+            ) : (
+              <>
+                <label className={L.field}>
+                  <span>Your answer</span>
+                  <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
+                </label>
+                <label className={L.field}>
+                  <span>Your working</span>
+                  <textarea value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
+                </label>
+              </>
+            )}
             <div className={L.taskActions}>
-              {devMode && !isProductionClassroom && (
+              {devMode && !isProductionClassroom && !assignment.exit?.interaction && (
                 <button
                   className={L.ghost}
                   onClick={() => {
@@ -535,9 +557,23 @@ function PersonalizedVideoPage() {
                   Dev · fill demo response
                 </button>
               )}
-              <button className={L.primary} disabled={!answer.trim() || !working.trim()} onClick={() => void submitExit()}>
-                Check my answer <span aria-hidden="true">→</span>
-              </button>
+              {assignment.exit?.interaction ? (
+                <button
+                  className={L.primary}
+                  disabled={!exitTiles?.answer || sealing}
+                  onClick={() => {
+                    // The scene plays its finishing move, then the one attempt is sent.
+                    setSealing(true);
+                    window.setTimeout(() => void submitExit(), 900);
+                  }}
+                >
+                  Seal my answer <span aria-hidden="true">→</span>
+                </button>
+              ) : (
+                <button className={L.primary} disabled={!answer.trim() || !working.trim()} onClick={() => void submitExit()}>
+                  Check my answer <span aria-hidden="true">→</span>
+                </button>
+              )}
             </div>
           </section>
         )}
@@ -553,7 +589,7 @@ function PersonalizedVideoPage() {
             </p>
             <div className={L.recap}>
               <div><span>Question</span><strong>{displayMath(assignment.exit?.prompt ?? "")}</strong></div>
-              <div><span>Your answer</span><strong>{answer}</strong></div>
+              <div><span>Your answer</span><strong>{prettyAlgebra(assignment.exitAttempt?.answer ?? answer)}</strong></div>
             </div>
             <div className={L.taskActions}>
               <button

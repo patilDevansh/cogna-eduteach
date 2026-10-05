@@ -43,3 +43,6 @@ Assignments are durable per student and stage. Re-launching a stage is idempoten
 - API and web TypeScript checks pass.
 - Automated classroom lifecycle tests cover ownership, code enrollment, phase gating, idempotent launch, student assignment isolation, and report aggregation.
 - A browser walkthrough proves teacher create → student join → diagnostic → teaching → exit → report with demo mode still available.
+
+
+See [INTERACTION_FORMATS.md](./INTERACTION_FORMATS.md) for game-like answer formats in the diagnostic, exit and practice. The exit is one attempt, and its answer is hidden until then.

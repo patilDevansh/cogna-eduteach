@@ -26,6 +26,7 @@ import type {
   LotusUnseenPlanEntry,
   PersonalizedVideoAssignmentView,
   PersonalizedVideoTeacherReport,
+  TileBuildResponse,
 } from "@cogna/shared";
 import {
   buildParentAuthHeaders,
@@ -868,10 +869,11 @@ export const api = {
       body: JSON.stringify({ dwellMs }),
     }),
 
-  submitPersonalizedVideoExit: (id: string, answer: string, working: string) =>
+  /** One attempt. A tile exit sends its picks; the server rebuilds and marks the answer itself. */
+  submitPersonalizedVideoExit: (id: string, answer: string, working: string, interaction?: TileBuildResponse) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/exit`, {
       method: "POST",
-      body: JSON.stringify({ answer, working }),
+      body: JSON.stringify({ answer, working, ...(interaction ? { interaction } : {}) }),
     }),
 
   verifyPersonalizedVideoStep: (id: string, sceneIndex: number, assembledLine: string) =>

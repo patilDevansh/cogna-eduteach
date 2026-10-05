@@ -19,7 +19,7 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { LOTUS_DEMO_GAPS, type LotusDemoGap } from "@cogna/shared";
+import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, type LotusDemoGap } from "@cogna/shared";
 import { api } from "@/lib/api";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
@@ -30,6 +30,7 @@ const GAP_STUDENT: Record<LotusDemoGap, PilotStudentKey> = { signs: "aarav", gro
 import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classroom";
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
+import { TileGame, type TileGameState } from "@/components/games/TileGame";
 
 const CONFIDENCE_CHOICES = [
   { value: 25, label: "Not sure" },
@@ -643,6 +644,9 @@ function AuditCard({
                   </span>
                 )}
               </div>
+              {audit.response.interaction && (
+                <p><strong>Answered with:</strong> {INTERACTION_FORMATS[audit.response.interaction.format].title} (tiles; took a tile back out {audit.response.interaction.changes ?? 0}×)</p>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
                 <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
@@ -1029,6 +1033,8 @@ function LotusPage() {
   const [confidenceNudge, setConfidenceNudge] = useState(0);
   const confidenceRef = useRef<HTMLDivElement | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
+  /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
+  const [tiles, setTiles] = useState<TileGameState | null>(null);
   // Dev tools (demo fill, AI Lab, fake-model badge) follow the global Dev
   // panel; the fake-model switch itself lives there too (lib/dev-mode.ts).
   const { devMode, fakeModel: devFakeModel } = useDevState();
@@ -1263,6 +1269,7 @@ function LotusPage() {
     setConfidence(null);
     setConfidenceNudge(0);
     setDidNotKnow(false);
+    setTiles(null);
     setQuestionStartedAt(Date.now());
   }
 
@@ -1334,8 +1341,10 @@ function LotusPage() {
   }
 
   async function submit() {
-    if (!session || (!pendingSubmission && !didNotKnow && !answer.trim())) {
-      setError("Enter an answer or choose “I don’t know”.");
+    const tileGame = question?.interaction;
+    const typedOrBuilt = tileGame ? tiles?.answer ?? "" : answer.trim();
+    if (!session || (!pendingSubmission && !didNotKnow && !typedOrBuilt)) {
+      setError(tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
       return;
     }
     // Confidence has no honest default: forcing a real tap (rather than a
@@ -1355,7 +1364,7 @@ function LotusPage() {
       ? session.upcomingQuestions?.[0]
       : undefined;
     const submission: LotusStudentResponse = pendingSubmission ?? {
-      answer: didNotKnow ? "I don't know" : answer.trim(),
+      answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
       confidence: confidence ?? 60,
       responseTimeMs: Date.now() - questionStartedAt,
@@ -1363,6 +1372,7 @@ function LotusPage() {
       submissionId: crypto.randomUUID(),
       questionId: session.currentQuestion?.id,
       nextQuestionId: staged?.id,
+      ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
     };
     if (!pendingSubmission) {
       setPendingSubmission(submission);
@@ -1671,7 +1681,14 @@ function LotusPage() {
                       ))}
                     </div>
 
-                    {question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
+                    {question.interaction ? (
+                      <TileGame
+                        key={question.id}
+                        interaction={question.interaction}
+                        disabled={inputLocked || didNotKnow}
+                        onChange={(state) => { setTiles(state); setDidNotKnow(false); }}
+                      />
+                    ) : question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
                       <div className={styles.options}>
                         {question.options.map((option) => (
                           <label className={styles.option} key={option}>
@@ -1718,7 +1735,7 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.type !== "MULTIPLE_CHOICE" && (
+                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && (
                       <div className={styles.mathToolbar} aria-label="Math toolbox">
                         <span className={styles.mathToolbarLabel}>Math tools</span>
                         {[

@@ -6,6 +6,8 @@
  * independent exit is stored separately from completion.
  */
 
+import type { TileBuildInteraction } from "./interaction-formats";
+
 export const PERSONALIZED_VIDEO_ASSIGNMENT_STATUSES = [
   "PREPARING",
   "UNDER_REVIEW",
@@ -111,8 +113,11 @@ export interface PersonalizedVideoLesson {
 
 export interface PersonalizedVideoExitItem {
   prompt: string;
+  /** Blank in a student's view until the exit has been answered: the answer never reaches the browser first. */
   expected: string;
   evidencePurpose: string;
+  /** When set, the exit is answered by building from tiles (one attempt). Carries no answer. */
+  interaction?: TileBuildInteraction;
 }
 
 export interface PersonalizedVideoEvidenceObservation {

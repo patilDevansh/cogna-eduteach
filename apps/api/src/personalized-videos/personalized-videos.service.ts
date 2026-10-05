@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
@@ -29,6 +30,8 @@ import {
   type PracticeCheckResult,
   type PracticeItem,
   type PracticeSetView,
+  type TileBuildInteraction,
+  type TileBuildResponse,
 } from "@cogna/shared";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
@@ -61,6 +64,7 @@ import type { OpenAIService } from "../ai/openai.service";
 import { buildLessonBrief, type LessonBrief } from "./ai-authoring/lesson-brief";
 import { authorLesson, type AuthoringAttempt } from "./ai-authoring/lesson-author";
 import { generatePractice } from "./ai-authoring/practice-generator";
+import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
 import { taskVerdict } from "./ai-authoring/lesson-verifier";
 import {
   aiLessonsEnabled,
@@ -1201,24 +1205,35 @@ export class PersonalizedVideosService {
 
   async recordExit(
     assignmentId: string,
-    input: { answer: string; working: string },
+    input: { answer: string; working?: string; interaction?: TileBuildResponse },
     actor: AccessActor,
   ): Promise<PersonalizedVideoAssignmentView> {
     const assignment = await this.requireAssignableLesson(assignmentId);
     assertStudentOwner(actor, assignment.studentId);
     const script = assignment.script as StoredScript | null;
+    // The independent exit is one attempt: a second answer would turn it into practice.
+    const earlier = await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId, kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT } });
+    if (earlier.length > 0) throw new ConflictException("The independent check has already been answered.");
+    let answer = input.answer;
+    if (input.interaction) {
+      // A tile exit is rebuilt from the picks against the tiles this server issued.
+      const interaction = exitInteraction(script, assignmentId);
+      const built = interaction ? answerFromPicks(interaction, input.interaction) : null;
+      if (!built) throw new BadRequestException("Fill every box with a tile before submitting.");
+      answer = built;
+    }
     const expected = script?.exit?.expected ?? "";
     const correct = script?.exitCheck
-      ? taskVerdict(script.exitCheck.task, input.answer, script.exitCheck.expression) === "CORRECT"
-      : Boolean(expected) && normalizeAlgebraAnswer(input.answer) === normalizeAlgebraAnswer(expected);
+      ? taskVerdict(script.exitCheck.task, answer, script.exitCheck.expression) === "CORRECT"
+      : Boolean(expected) && normalizeAlgebraAnswer(answer) === normalizeAlgebraAnswer(expected);
     await this.prisma.personalizedVideoEvent.create({
       data: {
         assignmentId,
         studentId: assignment.studentId,
         kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT,
         exitPrompt: script?.exit?.prompt,
-        exitAnswer: input.answer,
-        exitWorking: input.working,
+        exitAnswer: answer,
+        exitWorking: input.working ?? (input.interaction ? `Built from tiles (${input.interaction.format})` : ""),
         exitCorrect: correct,
       },
     });
@@ -1659,7 +1674,14 @@ export class PersonalizedVideosService {
       statusLabel: script.statusLabel ?? row.status,
       evidenceSnapshot: row.evidenceSnapshot as PersonalizedVideoEvidenceSnapshot,
       lesson: lessonView,
-      exit: script.exit ?? null,
+      exit: script.exit
+        ? {
+            ...script.exit,
+            // The expected answer reaches the browser only after the one attempt is made.
+            expected: exitEvent ? script.exit.expected : "",
+            ...(exitEvent ? {} : exitInteractionField(script, row.id)),
+          }
+        : null,
       asset:
         asset && asset.reviewStatus === "APPROVED" && this.isPlayableVideo(asset.storageRef)
           ? {
@@ -1780,4 +1802,17 @@ export class PersonalizedVideosService {
       limitations: [...PERSONALIZED_VIDEO_LIMITATIONS],
     } as PersonalizedVideoTeacherReport["students"][number];
   }
+}
+
+/** The tile game for an exit, when its check is one code can build tiles for. Deterministic per assignment. */
+export function exitInteraction(script: Pick<StoredScript, "exit" | "exitCheck"> | null, assignmentId: string): TileBuildInteraction | null {
+  if (!script?.exitCheck || !script.exit?.expected || !gameFormatsEnabled()) return null;
+  const task = script.exitCheck.task;
+  if (task !== "factorise" && task !== "expand") return null;
+  return buildTileInteraction({ stage: "EXIT", task, expression: script.exitCheck.expression, answer: script.exit.expected, seed: `exit:${assignmentId}` });
+}
+
+function exitInteractionField(script: StoredScript, assignmentId: string): { interaction?: TileBuildInteraction } {
+  const interaction = exitInteraction(script, assignmentId);
+  return interaction ? { interaction } : {};
 }

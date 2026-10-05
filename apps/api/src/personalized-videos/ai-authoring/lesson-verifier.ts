@@ -12,6 +12,8 @@ import {
   isReadable,
   normalizeMathText,
 } from "../../lotus/lotus-algebra";
+import { assembleTileAnswer } from "@cogna/shared";
+import { splitFactors, splitTerms } from "../../interaction-formats/tile-builder";
 import { validateVideoLanguage } from "../video-language";
 import type { LessonBrief } from "./lesson-brief";
 
@@ -48,7 +50,7 @@ export const LIMITS = {
 
 const VISUAL_TYPES = new Set(["title", "expression", "steps", "distribute", "area", "pair-search", "common-factor", "mistake", "rule"]);
 const TASKS = new Set(["factorise", "expand", "simplify"]);
-const FORMATS = new Set(["pair-hunt", "spot-mistake", "choose", "type-answer"]);
+const FORMATS = new Set(["pair-hunt", "spot-mistake", "choose", "type-answer", "factor-safe", "build"]);
 
 /** Verdict of an answer to a task on an expression, by exact algebra. */
 export function taskVerdict(task: AuthoredTask, answer: string, expression: string): "CORRECT" | "UNFINISHED" | "INCORRECT" | "UNREADABLE" {
@@ -437,6 +439,36 @@ class Checker {
         }
         if (ok[0] && typeof item.expression === "string") this.claim(`${path}.workedSteps[0]`, equal(steps[0]!, item.expression), "the first worked step must be the expression itself");
         if (ok[steps.length - 1] && typeof item.answer === "string") this.claim(`${path}.workedSteps`, equal(steps[steps.length - 1]!, item.answer), "the last worked step must be the answer");
+        return;
+      }
+      case "factor-safe": {
+        const { product: p, sum: s, answer } = item;
+        if (!Array.isArray(answer) || answer.length !== 2) {
+          this.fail(path, "needs an answer pair");
+          return;
+        }
+        if (this.math(`${path}.expression`, item.expression)) {
+          this.claim(`${path}.expression`, equal(item.expression, `x^2 + (${s})x + (${p})`), `"${item.expression}" is not x² + ${s}x + ${p} (factor-safe is for x² + bx + c)`);
+        }
+        this.claim(`${path}.answer`, answer[0]! * answer[1]! === p && answer[0]! + answer[1]! === s, `${answer[0]} and ${answer[1]} must multiply to ${p} and add to ${s}`);
+        this.claim(`${path}.answer`, answer.every((n) => Number.isInteger(n) && Math.abs(n) <= 12 && n !== 0), "the dials only reach −12 to 12, without 0");
+        return;
+      }
+      case "build": {
+        if (!TASKS.has(item.task) || item.task === "simplify") this.fail(`${path}.task`, "must be factorise or expand");
+        const tiles = item.interaction?.tiles;
+        if (!Array.isArray(tiles) || tiles.length < 3 || tiles.length > 8) {
+          this.fail(`${path}.interaction`, "needs 3 to 8 tiles");
+          return;
+        }
+        if (this.math(`${path}.expression`, item.expression) && this.math(`${path}.answer`, item.answer)) {
+          this.verdict(`${path}.answer`, item.task, item.answer, item.expression, "CORRECT", "the answer");
+          const pieces = (item.task === "expand" ? splitTerms(item.answer) : item.interaction.format === "BRACKET_BRIDGE" ? splitFactors(item.answer)?.map((f) => f.slice(1, -1)) : splitFactors(item.answer)) ?? [];
+          const picks: Array<number | null> = pieces.map((piece) => tiles.findIndex((t) => normalizeMathText(t) === normalizeMathText(piece)));
+          while (picks.length < item.interaction.slots) picks.push(null);
+          const built = picks.includes(-1) ? null : assembleTileAnswer(item.interaction, picks);
+          this.claim(`${path}.interaction`, !!built && taskVerdict(item.task, built, item.expression) === "CORRECT", "the right tiles must build the correct answer");
+        }
         return;
       }
     }

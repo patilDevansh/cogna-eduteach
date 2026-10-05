@@ -5,13 +5,14 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Max,
   Min,
   ValidateIf,
 } from "class-validator";
-import type { LotusOverrideAction, LotusTopic } from "@cogna/shared";
+import type { LotusOverrideAction, LotusTopic, TileBuildResponse } from "@cogna/shared";
 
 export class StartLotusSessionDto {
   @IsString()
@@ -61,6 +62,11 @@ export class SubmitLotusAnswerDto {
   @IsOptional()
   @IsString()
   submissionId?: string;
+
+  /** Tile picks when the question was shown as a tile game. Shape-checked in the service; the answer is rebuilt from it. */
+  @IsOptional()
+  @IsObject()
+  interaction?: TileBuildResponse;
 }
 
 export class OverrideLotusSessionDto {

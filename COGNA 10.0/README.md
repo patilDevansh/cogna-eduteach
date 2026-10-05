@@ -11,3 +11,6 @@ The [continuous diagnostic architecture](./LOTUS_CONTINUOUS_DIAGNOSTIC.md) is th
 The [content generation engine plan](./CONTENT_GENERATION_ENGINE_PLAN.md) proposes a governed intervention planner, reusable animation library, verified lesson recipes, scalable media delivery, and phase gates. It is a design proposal, not shipped behavior or a change to the canonical classroom contract.
 
 Current state: classroom implementation exists and Lotus has a limited arithmetic fast path. Syllabus ingestion, durable rolling readiness, and fast symbolic/algebraic transitions remain proposed and require implementation and evaluation.
+
+
+[Interaction formats](../docs/mvp-10.0/INTERACTION_FORMATS.md) are implemented: tile-game answers (bracket bridge, split it, term builder, factor safe) in the Lotus diagnostic, the one-attempt independent exit and practice. They are marked by the unchanged algebra marking, and `COGNA_GAME_FORMATS=off` turns them off.

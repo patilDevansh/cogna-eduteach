@@ -148,6 +148,7 @@ export class LotusController {
       questionId: body.questionId,
       nextQuestionId: body.nextQuestionId,
       submissionId: body.submissionId,
+      ...(body.interaction ? { interaction: body.interaction } : {}),
     });
   }
 

@@ -50,6 +50,7 @@ import {
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
+import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import {
   FACTORISATION_SLOTS,
   skillName,
@@ -916,8 +917,17 @@ export class LotusService implements OnModuleDestroy {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
     }
 
+    // A tile-game answer is rebuilt from the picks against the interaction this server issued.
+    let resolved: LotusStudentResponse;
     try {
-      return await this.answerInner(session, response);
+      resolved = resolveLotusResponse(session.currentQuestion, response);
+    } catch (err) {
+      if (err instanceof TileAnswerError) throw new BadRequestException(err.message);
+      throw err;
+    }
+
+    try {
+      return await this.answerInner(session, resolved);
     } catch (err) {
       session.liveProgress = null;
       throw err;
@@ -2180,6 +2190,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     // leaves this unset so the student isn't asked every time.
     const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
     question.requiresConfidenceProbe = !!planTurn?.purpose;
+    // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
+    withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose });
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;

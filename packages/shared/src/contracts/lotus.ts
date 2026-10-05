@@ -6,6 +6,8 @@
  * every screen and payload must therefore retain the EXPERIMENTAL label.
  */
 
+import type { TileBuildInteraction, TileBuildResponse } from "./interaction-formats";
+
 export type LotusPhase = "EXPLORE" | "DIAGNOSE" | "CONFIRM";
 
 export type LotusQuestionType =
@@ -68,6 +70,12 @@ export interface LotusQuestion {
    * nothing about which skill or hypothesis is being tested.
    */
   requiresConfidenceProbe?: boolean;
+  /**
+   * When set, the student answers by building from tiles instead of typing
+   * (see interaction-formats.ts). Built on the server from the verified
+   * answer key; carries no answer. The picks are re-assembled server-side.
+   */
+  interaction?: TileBuildInteraction;
 }
 
 export interface LotusAnswerKey {
@@ -113,6 +121,8 @@ export interface LotusStudentResponse {
   questionId?: string;
   /** The prompt-only item that the browser painted immediately on Submit. */
   nextQuestionId?: string;
+  /** Tile picks when the question was shown as a tile game; the server rebuilds `answer` from them. */
+  interaction?: TileBuildResponse;
 }
 
 export interface LotusMathVerification {
