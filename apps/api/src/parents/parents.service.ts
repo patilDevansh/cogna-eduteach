@@ -15,7 +15,7 @@ function normalizeAccessCode(code: string): string {
   return code.trim().toLowerCase();
 }
 
-function hashAccessCode(code: string): string {
+export function hashAccessCode(code: string): string {
   return createHash("sha256").update(normalizeAccessCode(code)).digest("hex");
 }
 

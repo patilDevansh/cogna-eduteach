@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, type ClassroomRunReport } from "@/lib/api";
-import { MOCK_TEACHER_REPORT_DATA } from "@/lib/teacher-report/mock-data";
+import type { ClassroomRunReport } from "@/lib/api";
 import { useTeacherClasses } from "@/lib/teacher-classes";
+import { teacherData } from "@/lib/teacher-mode";
 import { studentStatus } from "@/lib/teacher-status";
-import { ThirtySecondOverview } from "@/components/teacher-report/ThirtySecondOverview";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
 import r from "./reports.module.css";
@@ -25,13 +24,10 @@ function summary(report: ClassroomRunReport): string {
 }
 
 export default function TeacherReportsPage() {
-  const { classes, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
+  const { sample, classes, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
   const [runId, setRunId] = useState("");
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [error, setError] = useState("");
-  const [sample, setSample] = useState(false);
-
-  useEffect(() => setSample(new URLSearchParams(window.location.search).get("demo") === "1"), []);
 
   const runs = selected?.runs ?? [];
   useEffect(() => setRunId(runs[0]?.id ?? ""), [selectedId, runs[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -40,17 +36,12 @@ export default function TeacherReportsPage() {
     setReport(null);
     setError("");
     if (!runId) return;
-    api.getClassroomRunReport(runId).then(setReport).catch((cause) => setError(cause instanceof Error ? cause.message : "This report could not be loaded."));
-  }, [runId]);
-
-  if (sample) {
-    return (
-      <>
-        <ThirtySecondOverview data={MOCK_TEACHER_REPORT_DATA} onOpenActionBlueprint={() => undefined} onOpenEvidenceAudit={() => undefined} onSelectReadinessTab={() => undefined} />
-        <p style={{ marginTop: "1rem" }}><Link href="/teacher/reports">← Back to your reports</Link></p>
-      </>
-    );
-  }
+    let current = true; // a slower, outdated load must not overwrite a newer one
+    teacherData(sample).getClassroomRunReport(runId)
+      .then((r) => current && setReport(r))
+      .catch((cause) => current && setError(cause instanceof Error ? cause.message : "This report could not be loaded."));
+    return () => { current = false; };
+  }, [runId, sample]);
 
   const cr = report?.classReport;
   const t = cr?.totals;
@@ -73,7 +64,6 @@ export default function TeacherReportsPage() {
           <h1>{selected?.name ?? "Reports"}</h1>
           <p>How each quick check went, and who still needs help.</p>
         </div>
-        <Link className={styles.secondary} href="/teacher/reports?demo=1">See a sample report</Link>
       </div>
 
       <ClassTabs classes={classes} selectedId={selectedId} onSelect={(id) => void select(id)} />

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, type ClassroomRunReport } from "@/lib/api";
+import type { ClassroomRunReport } from "@/lib/api";
 import { getTeacherInvitation } from "@/lib/session";
 import { useTeacherClasses } from "@/lib/teacher-classes";
+import { teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
 
@@ -46,7 +47,7 @@ function greeting() {
 }
 
 export default function TeacherTodayPage() {
-  const { classes, selectedId, selected, select, loaded } = useTeacherClasses();
+  const { sample, classes, selectedId, selected, select, loaded } = useTeacherClasses();
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [teacherName, setTeacherName] = useState("");
 
@@ -55,8 +56,10 @@ export default function TeacherTodayPage() {
   const runId = selected?.runs?.[0]?.id;
   useEffect(() => {
     setReport(null);
-    if (runId) api.getClassroomRunReport(runId).then(setReport).catch(() => undefined);
-  }, [runId]);
+    let current = true; // a slower, outdated load must not overwrite a newer one
+    if (runId) teacherData(sample).getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
+    return () => { current = false; };
+  }, [runId, sample]);
 
   const plan = report ? nextMoves(report) : null;
   const t = report?.classReport.totals;

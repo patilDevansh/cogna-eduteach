@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 import { api, ApiError, type ClassRosterStudent, type ClassroomRunReport } from "@/lib/api";
 import { studentStatus } from "@/lib/teacher-status";
 import { useTeacherClasses } from "@/lib/teacher-classes";
+import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
 
 export default function TeacherStudentsPage() {
-  const { classes, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
+  const { sample, classes, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
   const [roster, setRoster] = useState<ClassRosterStudent[]>([]);
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -20,13 +21,17 @@ export default function TeacherStudentsPage() {
     setRoster([]);
     setReport(null);
     if (!selectedId) return;
-    api.getClassRoster(selectedId).then(setRoster).catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load students."));
-    if (runId) api.getClassroomRunReport(runId).then(setReport).catch(() => undefined);
-  }, [selectedId, runId]);
+    const data = teacherData(sample);
+    let current = true; // a slower, outdated load must not overwrite a newer one
+    data.getClassRoster(selectedId).then((r) => current && setRoster(r)).catch((cause) => current && setError(cause instanceof Error ? cause.message : "Could not load students."));
+    if (runId) data.getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
+    return () => { current = false; };
+  }, [selectedId, runId, sample]);
 
   async function remove(student: ClassRosterStudent) {
     setConfirming(null);
     setError("");
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     try {
       await api.removeStudentFromClass(selectedId, student.studentId);
       setRoster((prev) => prev.filter((row) => row.studentId !== student.studentId));
@@ -51,7 +56,7 @@ export default function TeacherStudentsPage() {
 
       <ClassTabs classes={classes} selectedId={selectedId} onSelect={(id) => void select(id)} />
 
-      {(error || loadError) && <section className={styles.emptyCard}><strong>That didn&apos;t work</strong><p>{error || loadError}</p></section>}
+      {(error || loadError) && <section className={styles.emptyCard}><strong>{error === SAMPLE_ACTION_NOTE ? "Sample data" : "That didn\u2019t work"}</strong><p>{error || loadError}</p></section>}
 
       {loaded && !classes.length ? (
         <section className={styles.emptyCard}><h2>No classes yet</h2><p>Create a class and share its code. Students show up here as they join.</p><Link className={styles.primary} href="/teacher/sessions">Create a class →</Link></section>

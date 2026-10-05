@@ -239,3 +239,16 @@
 .removeConfirm { border: 0; background: var(--caution); color: white; border-radius: 8px; padding: 5px 10px; font: 700 .78rem var(--font-body); cursor: pointer; }
 .textButton:focus-visible, .removeConfirm:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .metric strong small { font-size: 1rem; color: var(--ink-faint); font-weight: 600; }
+
+/* Sidebar "Sample data" switch and header pill. */
+.sampleSwitch { margin: 2rem .6rem 0; padding-top: 1rem; border-top: 1px solid var(--line); }
+.sampleSwitch button { display: flex; align-items: center; gap: .55rem; border: 0; background: none; padding: 0; font: 700 .84rem var(--font-body); color: var(--ink); cursor: pointer; }
+.sampleSwitch button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+.sampleSwitch p { margin: .35rem 0 0; font-size: .72rem; color: var(--ink-faint); line-height: 1.4; }
+.switchTrack { width: 30px; height: 18px; border-radius: 99px; background: var(--line-strong); position: relative; transition: background .2s; flex: none; }
+.switchTrack span { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: white; transition: transform .2s; }
+.switchTrack[data-on="true"] { background: var(--accent); }
+.switchTrack[data-on="true"] span { transform: translateX(12px); }
+.samplePill { font-size: .7rem; font-weight: 800; color: var(--caution); background: var(--caution-wash); padding: .25rem .6rem; border-radius: 99px; margin-right: .6rem; }
+@media (prefers-reduced-motion: reduce) { .switchTrack, .switchTrack span { transition: none; } }
+@media (max-width: 900px) { .sampleSwitch p { display: none; } }

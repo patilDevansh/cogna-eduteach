@@ -1,7 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { ClassroomAssignmentKind, ClassroomRunPhase, Prisma, UserRole } from "@cogna/database";
 import { AccessActor, assertTeacher } from "../access/cogna-access";
+import { hashAccessCode } from "../parents/parents.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { LotusQuestionAudit } from "@cogna/shared";
 import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
@@ -13,6 +14,15 @@ const PHASE_KIND = {
   TEACHING: ClassroomAssignmentKind.TEACHING,
   INDEPENDENT_EXIT: ClassroomAssignmentKind.INDEPENDENT_EXIT,
 } as const;
+
+/** Student sign-in codes made by the school: no look-alike characters (0/O, 1/I/L), 8 long. */
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const MAX_IMPORT = 300;
+
+export interface RosterImportRow {
+  name: string;
+  rollNumber?: string;
+}
 
 /** Marks a step closed by removing the student, so rejoining can reopen exactly those steps. */
 const REMOVED_FROM_CLASS = "removedFromClass";
@@ -62,6 +72,7 @@ export class ClassroomsService {
   /** Students currently in a class, each with any of this teacher's other classes they are also in (usually a wrong code). */
   async roster(actor: AccessActor, classroomId: string) {
     const classroom = await this.ownedClassroom(actor, classroomId);
+    const rosterParent = await this.prisma.parent.findFirst({ where: { user: { clerkId: `school_roster:${classroom.schoolId ?? "default"}` } }, select: { id: true } });
     const enrollments = await this.prisma.classroomEnrollment.findMany({
       where: { classroomId, leftAt: null },
       include: {
@@ -69,6 +80,7 @@ export class ClassroomsService {
           select: {
             id: true,
             name: true,
+            primaryParentId: true,
             classroomEnrollments: {
               where: { leftAt: null, classroomId: { not: classroomId }, classroom: { teacherId: classroom.teacherId, archivedAt: null } },
               select: { classroom: { select: { id: true, name: true } } },
@@ -84,6 +96,7 @@ export class ClassroomsService {
       rollNumber: row.rollNumber,
       joinedAt: row.joinedAt,
       alsoIn: row.student.classroomEnrollments.map((other) => other.classroom),
+      schoolIssuedCode: Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id,
     }));
   }
 
@@ -102,6 +115,72 @@ export class ClassroomsService {
     return { removed: true };
   }
 
+  /**
+   * Creates student accounts from a class list and enrols them. Returns each new sign-in code once
+   * (only its hash is stored), so the teacher can print or download them. School-made students
+   * belong to one "school roster" parent account until a real parent is linked.
+   */
+  async importStudents(actor: AccessActor, classroomId: string, rows: RosterImportRow[]) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const cleaned = (Array.isArray(rows) ? rows : []).map((row) => ({
+      name: String(row?.name ?? "").replace(/\s+/g, " ").trim(),
+      rollNumber: String(row?.rollNumber ?? "").trim() || undefined,
+    }));
+    if (!cleaned.length) throw new BadRequestException("Add at least one student.");
+    if (cleaned.length > MAX_IMPORT) throw new BadRequestException(`Add at most ${MAX_IMPORT} students at a time.`);
+    const bad = cleaned.findIndex((row) => row.name.length < 2 || row.name.length > 80 || (row.rollNumber?.length ?? 0) > 40);
+    if (bad >= 0) throw new BadRequestException(`Line ${bad + 1}: a name needs 2–80 characters and a roll number at most 40.`);
+
+    const parentId = await this.rosterParentId(classroom.schoolId);
+    const created: Array<{ studentId: string; name: string; rollNumber?: string; accessCode: string }> = [];
+    const enrollmentIds: string[] = [];
+    for (const row of cleaned) {
+      const accessCode = await this.freshAccessCode();
+      const { student, enrollment } = await this.prisma.$transaction(async (tx) => {
+        const student = await tx.student.create({ data: { primaryParentId: parentId, name: row.name, grade: classroom.grade, accessCodeHash: hashAccessCode(accessCode) } });
+        const enrollment = await tx.classroomEnrollment.create({ data: { classroomId, studentId: student.id, rollNumber: row.rollNumber } });
+        return { student, enrollment };
+      });
+      enrollmentIds.push(enrollment.id);
+      created.push({ studentId: student.id, name: row.name, rollNumber: row.rollNumber, accessCode });
+    }
+    await this.giveRunningCheck(classroomId, enrollmentIds);
+    return { classroom: { id: classroom.id, name: classroom.name, joinCode: classroom.joinCode }, students: created };
+  }
+
+  /** A new sign-in code for a school-made student in this class (lost slip). The old code stops working. */
+  async resetAccessCode(actor: AccessActor, classroomId: string, studentId: string) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const enrollment = await this.prisma.classroomEnrollment.findUnique({
+      where: { classroomId_studentId: { classroomId, studentId } },
+      include: { student: { select: { name: true, primaryParentId: true } } },
+    });
+    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
+    // Never take over a family's own account: only codes the school issued can be reset here.
+    if (enrollment.student.primaryParentId !== (await this.rosterParentId(classroom.schoolId))) {
+      throw new ForbiddenException("This student signs in with their family's code. Ask the parent to reset it.");
+    }
+    const accessCode = await this.freshAccessCode();
+    await this.prisma.student.update({ where: { id: studentId }, data: { accessCodeHash: hashAccessCode(accessCode) } });
+    return { studentId, name: enrollment.student.name, rollNumber: enrollment.rollNumber, accessCode };
+  }
+
+  private async rosterParentId(schoolId: string | null): Promise<string> {
+    const key = `school_roster:${schoolId ?? "default"}`;
+    const user = await this.prisma.user.upsert({ where: { clerkId: key }, create: { clerkId: key, role: UserRole.PARENT }, update: {} });
+    const parent = await this.prisma.parent.upsert({ where: { userId: user.id }, create: { userId: user.id, name: "School roster" }, update: {} });
+    return parent.id;
+  }
+
+  /** Codes are stored only as hashes and sign-in takes the first match, so a new code must be unused. */
+  private async freshAccessCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = Array.from({ length: 8 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
+      if (!(await this.prisma.student.count({ where: { accessCodeHash: hashAccessCode(code) } }))) return code;
+    }
+    throw new Error("Could not generate a unique sign-in code.");
+  }
+
   async join(actor: AccessActor, input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
     const classroom = await this.prisma.classroom.findUnique({ where: { joinCode: input.joinCode.trim().toUpperCase() } });
@@ -118,20 +197,25 @@ export class ClassroomsService {
       where: { enrollmentId: enrollment.id, status: "SKIPPED", run: { status: "LIVE" }, result: { path: [REMOVED_FROM_CLASS], equals: true } },
       data: { status: "READY", result: Prisma.DbNull, availableAt: new Date() },
     });
-    // Pilot: a student who joins after the diagnostic was released gets it straight away.
-    const live = await this.prisma.classroomRun.findFirst({ where: { classroomId: classroom.id, status: "LIVE" }, orderBy: { createdAt: "desc" } });
-    if (live && autoAdvanceEnabled(live.config) && (await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) {
-      await this.prisma.classroomAssignment.createMany({
-        data: [{ runId: live.id, enrollmentId: enrollment.id, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY", availableAt: new Date(), payload: live.config as Prisma.InputJsonValue }],
-        skipDuplicates: true,
-      });
-    }
+    await this.giveRunningCheck(classroom.id, [enrollment.id]);
     // A second section of the same teacher is usually a mistyped code: tell the student so they can say so.
     const alsoIn = await this.prisma.classroom.findMany({
       where: { id: { not: classroom.id }, teacherId: classroom.teacherId, archivedAt: null, enrollments: { some: { studentId: actor.studentId, leftAt: null } } },
       select: { id: true, name: true },
     });
     return { ...enrollment, alsoIn };
+  }
+
+  /** Pilot: anyone who arrives while a quick check is running (joined late, or added from the class list) gets it straight away. */
+  private async giveRunningCheck(classroomId: string, enrollmentIds: string[]) {
+    if (!enrollmentIds.length) return;
+    const live = await this.prisma.classroomRun.findFirst({ where: { classroomId, status: "LIVE" }, orderBy: { createdAt: "desc" } });
+    if (!live || !autoAdvanceEnabled(live.config)) return;
+    if (!(await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) return;
+    await this.prisma.classroomAssignment.createMany({
+      data: enrollmentIds.map((enrollmentId) => ({ runId: live.id, enrollmentId, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY" as const, availableAt: new Date(), payload: live.config as Prisma.InputJsonValue })),
+      skipDuplicates: true,
+    });
   }
 
   private async ownedRun(actor: AccessActor, runId: string) {

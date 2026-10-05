@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from "@nestjs/common";
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Min } from "class-validator";
 import { resolveActor } from "../access/cogna-access";
-import { ClassroomsService } from "./classrooms.service";
+import { ClassroomsService, type RosterImportRow } from "./classrooms.service";
 
 class CreateClassroomDto {
   @IsString() @Length(2, 100) name!: string;
@@ -60,6 +60,17 @@ export class ClassroomsController {
   @Get(":classroomId/students")
   roster(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string): Promise<unknown> {
     return this.classrooms.roster(resolveActor(headers), classroomId);
+  }
+
+  /** Body: { students: [{ name, rollNumber? }] } (validated in the service). Returns each new sign-in code once. */
+  @Post(":classroomId/students/import")
+  importStudents(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: { students?: RosterImportRow[] }): Promise<unknown> {
+    return this.classrooms.importStudents(resolveActor(headers), classroomId, body?.students ?? []);
+  }
+
+  @Post(":classroomId/students/:studentId/access-code")
+  resetAccessCode(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string): Promise<unknown> {
+    return this.classrooms.resetAccessCode(resolveActor(headers), classroomId, studentId);
   }
 
   @Delete(":classroomId/students/:studentId")

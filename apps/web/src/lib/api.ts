@@ -383,6 +383,16 @@ export interface ClassRosterStudent {
   joinedAt: string;
   /** The same teacher's other classes this student is also in — usually a mistyped code. */
   alsoIn: Array<{ id: string; name: string }>;
+  /** Created from the class list (not by a family), so the teacher can issue a new code. */
+  schoolIssuedCode: boolean;
+}
+
+/** A sign-in code, shown once: only its hash is stored. */
+export interface IssuedStudentCode {
+  studentId: string;
+  name: string;
+  rollNumber?: string | null;
+  accessCode: string;
 }
 
 export interface ClassroomStudentAssignment {
@@ -461,6 +471,12 @@ export const api = {
 
   getClassRoster: (classroomId: string) =>
     classroomFetch<ClassRosterStudent[]>(`/classrooms/${classroomId}/students`, { headers: teacherAuthHeaders() }),
+
+  importStudents: (classroomId: string, students: Array<{ name: string; rollNumber?: string }>) =>
+    classroomFetch<{ classroom: { id: string; name: string; joinCode: string }; students: IssuedStudentCode[] }>(`/classrooms/${classroomId}/students/import`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ students }) }),
+
+  resetStudentAccessCode: (classroomId: string, studentId: string) =>
+    classroomFetch<IssuedStudentCode>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/access-code`, { method: "POST", headers: teacherAuthHeaders() }),
 
   removeStudentFromClass: (classroomId: string, studentId: string) =>
     classroomFetch<{ removed: true }>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}`, { method: "DELETE", headers: teacherAuthHeaders() }),

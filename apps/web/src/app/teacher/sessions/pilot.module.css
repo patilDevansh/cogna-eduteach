@@ -121,3 +121,29 @@
 .removeNo { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-soft); border-radius: 8px; padding: 4px 10px; font: 600 var(--text-xs) var(--font-body); cursor: pointer; flex: none; }
 .removeYes { border: 0; background: var(--caution); color: white; border-radius: 8px; padding: 5px 10px; font: 700 var(--text-xs) var(--font-body); cursor: pointer; }
 .removeNo:focus-visible, .removeYes:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Class list import, new codes, and printable slips. */
+.rosterAdd { margin: var(--s-2) 0 var(--s-3); }
+.rosterActions { display: flex; gap: 6px; flex: none; }
+.addStudents { display: grid; gap: var(--s-2); padding: var(--s-4); border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.addStudents label { display: grid; gap: 2px; }
+.addStudents label span { color: var(--ink-soft); font-size: var(--text-sm); }
+.addStudents textarea { width: 100%; font: 500 var(--text-sm) var(--font-math); padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); resize: vertical; }
+.addStudents textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.addActions { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
+.formError { margin: 0; color: var(--caution); font-weight: 600; font-size: var(--text-sm); }
+.codesSheet { margin-top: var(--s-5); padding: var(--s-5); border-radius: var(--radius-lg); background: var(--surface); border: 2px solid var(--accent); display: grid; gap: var(--s-3); }
+.codesHead { display: flex; justify-content: space-between; gap: var(--s-4); flex-wrap: wrap; align-items: flex-start; }
+.codesHead h3 { margin: 0; font-size: var(--text-lg); }
+.codesHead p { margin: 4px 0 0; color: var(--ink-soft); font-size: var(--text-sm); max-width: 60ch; }
+.code { font: 600 1rem var(--font-math); letter-spacing: 0.08em; color: var(--accent-deep); }
+.slips { display: none; }
+/* Hiding the rest of the page while slips print lives in globals.css (body.printing-slips). */
+@media print {
+  .slips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; position: absolute; left: 0; top: 0; width: 100%; }
+  .slip { display: grid; gap: 4px; padding: 14px 16px; border: 1px dashed #999; break-inside: avoid; font-family: var(--font-body); color: #000; }
+  .slip strong { font-size: 15px; }
+  .slip span { font-size: 12px; }
+  .slip code { font: 700 22px var(--font-math); letter-spacing: 0.12em; }
+  .slip small { font-size: 10px; color: #333; }
+}

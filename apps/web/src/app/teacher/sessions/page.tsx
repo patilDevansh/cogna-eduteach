@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, type ClassRosterStudent, type ClassroomAssignmentKind, type ClassroomRunReport, type PilotClassReport } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, ApiError, type ClassRosterStudent, type ClassroomAssignmentKind, type ClassroomRunReport, type IssuedStudentCode, type PilotClassReport } from "@/lib/api";
 import { useTeacherClasses } from "@/lib/teacher-classes";
+import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
+import { AddStudents, CodesSheet } from "./add-students";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
 
@@ -36,15 +38,15 @@ function stepState(row: Row, step: Row["stage"]): "done" | "now" | "next" | "ski
 }
 
 const PROGRESS_LABEL: Record<Row["progress"], string> = {
-  IMPROVED: "Improved",
+  IMPROVED: "Fixed it",
   NOT_YET: "Not yet",
-  NO_GAP: "Secure",
-  UNCLEAR: "Unclear",
+  NO_GAP: "Ready",
+  UNCLEAR: "Check again",
   PENDING: "—",
 };
 
 export default function PilotConsolePage() {
-  const { classes, setClasses, selectedId: classroomId, selected: activeClass, select, refresh: refreshClasses, loaded, error: loadError } = useTeacherClasses();
+  const { sample, classes, setClasses, selectedId: classroomId, selected: activeClass, select, refresh: refreshClasses, loaded, error: loadError } = useTeacherClasses();
   const [runId, setRunId] = useState("");
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [busy, setBusy] = useState("");
@@ -55,6 +57,7 @@ export default function PilotConsolePage() {
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   const [roster, setRoster] = useState<ClassRosterStudent[]>([]);
+  const [issued, setIssued] = useState<IssuedStudentCode[] | null>(null);
 
   // Follow the selected class's latest check. The list is re-read on every switch and
   // after starting a check, so a check that is already running is never hidden.
@@ -64,10 +67,14 @@ export default function PilotConsolePage() {
     setRunId(latestRunId);
   }, [classroomId, latestRunId]);
 
+  // Polls overlap with class switches: only a roster for the class (and mode) on screen is applied.
+  const rosterFor = useRef("");
   const loadRoster = useCallback(() => {
     if (!classroomId) return;
-    api.getClassRoster(classroomId).then(setRoster).catch(() => undefined);
-  }, [classroomId]);
+    const key = `${sample}:${classroomId}`;
+    rosterFor.current = key;
+    teacherData(sample).getClassRoster(classroomId).then((r) => rosterFor.current === key && setRoster(r)).catch(() => undefined);
+  }, [classroomId, sample]);
 
   useEffect(() => {
     setRoster([]);
@@ -78,14 +85,16 @@ export default function PilotConsolePage() {
 
   useEffect(() => {
     if (!runId) return;
-    const refresh = () => api.getClassroomRunReport(runId).then(setReport).catch(() => undefined);
+    let current = true; // a slower, outdated load must not overwrite a newer one
+    const refresh = () => teacherData(sample).getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
     void refresh();
     const timer = window.setInterval(refresh, REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [runId]);
+    return () => { current = false; window.clearInterval(timer); };
+  }, [runId, sample]);
 
   async function createClass(event: React.FormEvent) {
     event.preventDefault();
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     setBusy("create");
     setError("");
     try {
@@ -108,6 +117,7 @@ export default function PilotConsolePage() {
 
   async function saveName(event: React.FormEvent) {
     event.preventDefault();
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     if (!activeClass || renaming === null || !renaming.trim()) return;
     setBusy("rename");
     setError("");
@@ -123,6 +133,8 @@ export default function PilotConsolePage() {
   }
 
   async function endCheck() {
+    setConfirmEnd(false);
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     if (!runId) return;
     setBusy("end");
     setError("");
@@ -137,6 +149,7 @@ export default function PilotConsolePage() {
   }
 
   async function release() {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     if (!classroomId) return;
     setBusy("release");
     setError("");
@@ -156,13 +169,14 @@ export default function PilotConsolePage() {
   }
 
   async function removeStudent(student: ClassRosterStudent) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     setBusy(`remove:${student.studentId}`);
     setError("");
     try {
       await api.removeStudentFromClass(classroomId, student.studentId);
       setRoster((prev) => prev.filter((row) => row.studentId !== student.studentId));
       setClasses((prev) => prev.map((c) => (c.id === classroomId && c._count ? { ...c, _count: { enrollments: Math.max(0, c._count.enrollments - 1) } } : c)));
-      if (runId) setReport(await api.getClassroomRunReport(runId));
+      if (runId) setReport(await teacherData(sample).getClassroomRunReport(runId));
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not remove the student.");
     } finally {
@@ -170,7 +184,21 @@ export default function PilotConsolePage() {
     }
   }
 
+  async function resetCode(student: ClassRosterStudent) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    setBusy(`code:${student.studentId}`);
+    setError("");
+    try {
+      setIssued([await api.resetStudentAccessCode(classroomId, student.studentId)]);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not issue a new code.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function launch(phase: ClassroomAssignmentKind) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
     if (!runId) return;
     setBusy(phase);
     setError("");
@@ -214,7 +242,7 @@ export default function PilotConsolePage() {
 
       {(error || loadError) && (
         <section className={shared.emptyCard}>
-          <strong>That didn&apos;t work</strong>
+          <strong>{error === SAMPLE_ACTION_NOTE ? "Sample data" : "That didn\u2019t work"}</strong>
           <p>{error || loadError}</p>
         </section>
       )}
@@ -279,7 +307,7 @@ export default function PilotConsolePage() {
               <Total label="Need a fix" value={t.gapFound} of={t.diagnosticDone} />
               <Total label="Lesson done" value={t.lessonDone} of={t.gapFound} />
               <Total label="Final question done" value={t.exitDone} of={t.gapFound} />
-              <Total label="Improved" value={t.improved} of={t.exitDone} accent />
+              <Total label="Fixed it" value={t.improved} of={t.exitDone} accent />
             </section>
           )}
 
@@ -311,7 +339,7 @@ export default function PilotConsolePage() {
                       ))}
                     </span>
                     <span className={styles.start}>
-                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "No gap: secure" : row.outcome ? "Unclear" : row.stage === "DIAGNOSTIC" ? "Checking…" : "—")}
+                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "Nothing to fix" : row.outcome ? "Not sure yet" : row.stage === "DIAGNOSTIC" ? "Checking…" : "—")}
                       {row.answered ? <small>{row.answered} questions{row.minutes ? ` · ${row.minutes} min` : ""}{row.endedNote ? " · ended early" : ""}</small> : null}
                     </span>
                     <span className={styles.practice}>
@@ -383,20 +411,26 @@ export default function PilotConsolePage() {
           </section>
         </>
       )}
+      {activeClass && !creating && issued && (
+        <CodesSheet codes={issued} className={activeClass.name} onDone={() => setIssued(null)} />
+      )}
       {activeClass && !creating && (
         <RosterPanel
           roster={roster}
           className={activeClass.name}
           busy={busy}
           onRemove={(student) => void removeStudent(student)}
+          onResetCode={(student) => void resetCode(student)}
+          addStudents={sample ? <p className={styles.muted}>Adding students from a class list is turned off for sample data.</p> : <AddStudents classroomId={activeClass.id} onAdded={(codes) => { setIssued(codes); loadRoster(); }} />}
         />
       )}
     </>
   );
 }
 
-function RosterPanel({ roster, className, busy, onRemove }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void }) {
+function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStudents }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void; onResetCode: (student: ClassRosterStudent) => void; addStudents: React.ReactNode }) {
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
   const flagged = roster.filter((s) => s.alsoIn.length).length;
   return (
     <section className={styles.rosterPanel} aria-label={`Students in ${className}`}>
@@ -404,8 +438,9 @@ function RosterPanel({ roster, className, busy, onRemove }: { roster: ClassRoste
         <h3>Students in {className} <span className={styles.muted}>· {roster.length}</span></h3>
         {flagged > 0 && <span className={styles.flagNote}>{flagged} also in another of your classes</span>}
       </div>
+      <div className={styles.rosterAdd}>{addStudents}</div>
       {!roster.length ? (
-        <p className={styles.muted}>No one yet. Students appear here as soon as they enter the join code.</p>
+        <p className={styles.muted}>No one yet. Add your class list above, or students appear here as soon as they enter the join code.</p>
       ) : (
         <ul className={styles.rosterList}>
           {roster.map((s) => (
@@ -415,14 +450,23 @@ function RosterPanel({ roster, className, busy, onRemove }: { roster: ClassRoste
                 {s.rollNumber ? <small>Roll {s.rollNumber}</small> : null}
                 {s.alsoIn.length > 0 && <small className={styles.flag}>Also in {s.alsoIn.map((c) => c.name).join(", ")}</small>}
               </span>
-              {confirming === s.studentId ? (
+              {confirmingCode === s.studentId ? (
+                <span className={styles.rosterConfirm}>
+                  New code? The old one stops working.
+                  <button type="button" className={styles.removeYes} onClick={() => { setConfirmingCode(null); onResetCode(s); }} disabled={busy === `code:${s.studentId}`}>New code</button>
+                  <button type="button" className={styles.removeNo} onClick={() => setConfirmingCode(null)}>Cancel</button>
+                </span>
+              ) : confirming === s.studentId ? (
                 <span className={styles.rosterConfirm}>
                   Remove from this class?
                   <button type="button" className={styles.removeYes} onClick={() => { setConfirming(null); onRemove(s); }} disabled={busy === `remove:${s.studentId}`}>Remove</button>
                   <button type="button" className={styles.removeNo} onClick={() => setConfirming(null)}>Cancel</button>
                 </span>
               ) : (
-                <button type="button" className={styles.removeNo} onClick={() => setConfirming(s.studentId)} aria-label={`Remove ${s.name} from ${className}`}>Remove</button>
+                <span className={styles.rosterActions}>
+                  {s.schoolIssuedCode && <button type="button" className={styles.removeNo} onClick={() => setConfirmingCode(s.studentId)} aria-label={`New sign-in code for ${s.name}`}>New code</button>}
+                  <button type="button" className={styles.removeNo} onClick={() => setConfirming(s.studentId)} aria-label={`Remove ${s.name} from ${className}`}>Remove</button>
+                </span>
               )}
             </li>
           ))}

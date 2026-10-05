@@ -341,3 +341,9 @@ label { display: block; font-size: var(--text-sm); font-weight: 600; color: var(
 h1 { font-size: var(--text-2xl); }
 h2 { font-size: var(--text-lg); margin-top: var(--s-5); }
 
+/* Teacher "Print slips": print only the sign-in code slips (see teacher/sessions/add-students.tsx). */
+@media print {
+  body.printing-slips * { visibility: hidden; }
+  body.printing-slips .print-slips,
+  body.printing-slips .print-slips * { visibility: visible; }
+}
