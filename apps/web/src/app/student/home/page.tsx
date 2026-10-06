@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, classroomAssignmentHref, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview } from "@/lib/api";
+import { api, classroomAssignmentHref, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
 import { STEP } from "@/lib/class-steps";
 import { getStudent, clearStudent } from "@/lib/session";
 import { conceptLabelStudent } from "@/lib/concept-labels";
@@ -59,6 +59,7 @@ export default function StudentHomePage() {
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<ClassStatus[] | null>(null);
   const [work, setWork] = useState<ClassroomStudentAssignment[]>([]);
+  const [progress, setProgress] = useState<TopicGrowthEntry[]>([]);
 
   useEffect(() => {
     document.title = "Home — Cogna";
@@ -94,6 +95,7 @@ export default function StudentHomePage() {
         .catch(() => setClasses((prev) => prev ?? []));
     };
     load();
+    api.getStudentProgress().then(setProgress).catch(() => undefined);
     const timer = window.setInterval(load, 10_000);
     const onFocus = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onFocus);
@@ -139,7 +141,7 @@ export default function StudentHomePage() {
         <div className={`${styles.phone} phase-in`}>
           {work.map((item) => (
             <div className={styles.heroCard} key={item.id}>
-              <span className={styles.kicker}>From your teacher · {item.run.classroom.name}</span>
+              <span className={styles.kicker}>{item.run.classroom.name} · {item.run.title}</span>
               <h2>{STEP[item.kind].title}</h2>
               <p className={styles.meta}>{STEP[item.kind].note}</p>
               <Link href={classroomAssignmentHref(item)} className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
@@ -155,6 +157,27 @@ export default function StudentHomePage() {
                 <p className={styles.meta} style={{ fontSize: "var(--text-md)", color: "var(--ink)" }}>{classDoneLine(c)}</p>
               </div>
             ))}
+          {progress.length > 0 && (
+            <div className={styles.heroCard} style={{ background: "var(--surface)" }}>
+              <span className={styles.kicker}>Your progress</span>
+              {progress.map((t) => (
+                <div key={t.topicId} style={{ display: "grid", gap: 4 }}>
+                  <strong>{t.name}</strong>
+                  {t.growth.checks > 1 ? (
+                    <>
+                      <span className={styles.meta}>
+                        Skills you&apos;re sure of: {t.growth.firstSecure} → <b style={{ color: "var(--success)" }}>{t.growth.latestSecure}</b>
+                      </span>
+                      {t.growth.fixed.length > 0 && <span className={styles.meta}>You fixed: {t.growth.fixed.join(", ")}</span>}
+                    </>
+                  ) : (
+                    <span className={styles.meta}>First check done: {t.growth.latestSecure} skills you&apos;re sure of. Your next check will show how much you&apos;ve grown.</span>
+                  )}
+                  {t.growth.stillWorking.length > 0 && <span className={styles.meta}>Still working on: {t.growth.stillWorking.join(", ")}</span>}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>
             <Link href="/student/classroom/live">Join another class</Link>
             <button type="button" className="btn-quiet" onClick={signOut} style={{ padding: 0 }}>

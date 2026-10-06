@@ -8,6 +8,7 @@ import type { LotusQuestionAudit } from "@cogna/shared";
 import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
 import { buildClassReport, type StudentEvidence } from "./class-report";
 import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
+import { checkKindOf, checkStudentIds, type CheckRows } from "./topic-flow";
 
 const PHASE_KIND = {
   DIAGNOSTIC: ClassroomAssignmentKind.DIAGNOSTIC,
@@ -62,7 +63,7 @@ export class ClassroomsService {
     return this.prisma.classroom.update({ where: { id: classroomId }, data: { name: name.trim() } });
   }
 
-  private async ownedClassroom(actor: AccessActor, classroomId: string) {
+  async ownedClassroom(actor: AccessActor, classroomId: string) {
     const teacher = await this.teacher(actor);
     const classroom = await this.prisma.classroom.findFirst({ where: { id: classroomId, teacherId: teacher.id, archivedAt: null } });
     if (!classroom) throw new NotFoundException("Classroom not found.");
@@ -210,7 +211,7 @@ export class ClassroomsService {
   private async giveRunningCheck(classroomId: string, enrollmentIds: string[]) {
     if (!enrollmentIds.length) return;
     const live = await this.prisma.classroomRun.findFirst({ where: { classroomId, status: "LIVE" }, orderBy: { createdAt: "desc" } });
-    if (!live || !autoAdvanceEnabled(live.config)) return;
+    if (!live || !autoAdvanceEnabled(live.config) || checkStudentIds(live.config)) return;
     if (!(await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) return;
     await this.prisma.classroomAssignment.createMany({
       data: enrollmentIds.map((enrollmentId) => ({ runId: live.id, enrollmentId, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY" as const, availableAt: new Date(), payload: live.config as Prisma.InputJsonValue })),
@@ -235,7 +236,8 @@ export class ClassroomsService {
   async launchPhase(actor: AccessActor, runId: string, phase: keyof typeof PHASE_KIND) {
     const run = await this.ownedRun(actor, runId);
     if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended. Start a new one.");
-    const enrollmentIds = (await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null }, select: { id: true } })).map((row) => row.id);
+    const only = checkStudentIds(run.config);
+    const enrollmentIds = (await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null, ...(only ? { studentId: { in: only } } : {}) }, select: { id: true } })).map((row) => row.id);
     if (!enrollmentIds.length) throw new BadRequestException("Enroll at least one student before launching.");
     const kind = PHASE_KIND[phase];
     const prerequisites = phase === "TEACHING" ? ClassroomAssignmentKind.DIAGNOSTIC : phase === "INDEPENDENT_EXIT" ? ClassroomAssignmentKind.TEACHING : null;
@@ -394,9 +396,10 @@ export class ClassroomsService {
   /** Loads each enrolled student's stored evidence and hands it to the pure aggregator (class-report.ts). */
   private async classReport(
     classroomId: string,
+    studentIds: string[] | null,
     assignments: Array<{ enrollmentId: string; kind: ClassroomAssignmentKind; status: string; startedAt: Date | null; completedAt: Date | null; diagnosticSessionId: string | null; videoAssignmentId: string | null }>,
   ) {
-    const enrollments = await this.prisma.classroomEnrollment.findMany({ where: { classroomId, leftAt: null }, include: { student: { select: { id: true, name: true } } }, orderBy: { joinedAt: "asc" } });
+    const enrollments = await this.prisma.classroomEnrollment.findMany({ where: { classroomId, leftAt: null, ...(studentIds ? { studentId: { in: studentIds } } : {}) }, include: { student: { select: { id: true, name: true } } }, orderBy: { joinedAt: "asc" } });
     const sessionIds = [...new Set(assignments.map((a) => a.diagnosticSessionId).filter((v): v is string => Boolean(v)))];
     const videoIds = [...new Set(assignments.map((a) => a.videoAssignmentId).filter((v): v is string => Boolean(v)))];
     const [lotus, videos, exits] = await Promise.all([
@@ -461,7 +464,7 @@ export class ClassroomsService {
         orderBy: { createdAt: "desc" },
       });
       const row = run
-        ? (await this.classReport(classroom.id, await this.prisma.classroomAssignment.findMany({ where: { runId: run.id } }))).students.find((s) => s.studentId === studentId)
+        ? (await this.classReport(classroom.id, checkStudentIds(run.config), await this.prisma.classroomAssignment.findMany({ where: { runId: run.id } }))).students.find((s) => s.studentId === studentId)
         : undefined;
       return {
         classroomId: classroom.id,
@@ -485,6 +488,19 @@ export class ClassroomsService {
     }));
   }
 
+  /** Every started check on a topic in this class, oldest first, with each student's row (catch-ups: their students only). */
+  async checkRowsForTopic(classroomId: string, topicId: string): Promise<Array<CheckRows & { title: string; createdAt: Date; status: string }>> {
+    const runs = await this.prisma.classroomRun.findMany({
+      where: { classroomId, topicId, status: { in: ["LIVE", "COMPLETE"] } },
+      orderBy: { createdAt: "asc" },
+    });
+    return Promise.all(runs.map(async (run) => {
+      const assignments = await this.prisma.classroomAssignment.findMany({ where: { runId: run.id } });
+      const report = await this.classReport(classroomId, checkStudentIds(run.config), assignments);
+      return { runId: run.id, kind: checkKindOf(run.config), live: run.status === "LIVE", title: run.title, createdAt: run.createdAt, status: run.status, rows: report.students };
+    }));
+  }
+
   async report(actor: AccessActor, runId: string) {
     const run = await this.ownedRun(actor, runId);
     const assignments = await this.prisma.classroomAssignment.findMany({ where: { runId }, include: { enrollment: { include: { student: { select: { id: true, name: true } } } } }, orderBy: { enrollment: { joinedAt: "asc" } } });
@@ -497,7 +513,7 @@ export class ClassroomsService {
     return {
       run,
       autoAdvance: autoAdvanceEnabled(run.config),
-      classReport: await this.classReport(run.classroomId, assignments),
+      classReport: await this.classReport(run.classroomId, checkStudentIds(run.config), assignments),
       progress: byKind,
       summary: {
         enrolled: new Set(assignments.map((row) => row.enrollmentId)).size,

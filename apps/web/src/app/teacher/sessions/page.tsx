@@ -6,17 +6,18 @@ import { useTeacherClasses } from "@/lib/teacher-classes";
 import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
 import { AddStudents, CodesSheet } from "./add-students";
+import { TopicPanel } from "./topic-panel";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
 
 /**
  * The teacher's one class page: name the class (first time only), show the
- * join code, start the quick check (the Lotus diagnostic). After that every
- * student moves through check → lesson and practice → final question on their
- * own (apps/api/src/classrooms/pilot-flow.ts), and this page shows it live.
+ * join code, and work through the topic plan (TopicPanel: diagnostic, topic
+ * check, catch-up, move on). Every check runs check → lesson and practice →
+ * final question for each student on their own
+ * (apps/api/src/classrooms/pilot-flow.ts), and this page shows it live.
  */
 
-const PILOT_TOPIC = "factorisation";
 const REFRESH_MS = 3000;
 
 type Row = PilotClassReport["students"][number];
@@ -148,26 +149,6 @@ export default function PilotConsolePage() {
     }
   }
 
-  async function release() {
-    if (sample) return setError(SAMPLE_ACTION_NOTE);
-    if (!classroomId) return;
-    setBusy("release");
-    setError("");
-    try {
-      const run = await api.createClassroomRun(classroomId, {
-        title: "Factorisation · quick check",
-        topicId: PILOT_TOPIC,
-        config: { diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true },
-      });
-      await api.launchClassroomPhase(run.id, "DIAGNOSTIC");
-      await refreshClasses(classroomId);
-    } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Could not start the quick check.");
-    } finally {
-      setBusy("");
-    }
-  }
-
   async function removeStudent(student: ClassRosterStudent) {
     if (sample) return setError(SAMPLE_ACTION_NOTE);
     setBusy(`remove:${student.studentId}`);
@@ -232,7 +213,7 @@ export default function PilotConsolePage() {
               {activeClass && !creating && <button type="button" className={styles.renameButton} onClick={() => setRenaming(activeClass.name)}>Rename</button>}
             </div>
           )}
-          <p>Students join with the code, then you start the quick check. Cogna teaches and checks each student on their own, and results show up here.</p>
+          <p>Students join with the code. Pick the topic you&apos;re teaching and Cogna checks, teaches and rechecks each student on their own. Results show up here.</p>
         </div>
       </div>
 
@@ -245,6 +226,10 @@ export default function PilotConsolePage() {
           <strong>{error === SAMPLE_ACTION_NOTE ? "Sample data" : "That didn\u2019t work"}</strong>
           <p>{error || loadError}</p>
         </section>
+      )}
+
+      {activeClass && !creating && (
+        <TopicPanel classroomId={activeClass.id} sample={sample} onCheckStarted={() => void refreshClasses(activeClass.id)} />
       )}
 
       {creating || !runId ? (
@@ -265,16 +250,13 @@ export default function PilotConsolePage() {
           </div>
           )}
           <div className={styles.releaseSide}>
-            <p className={styles.eyebrow}>Step 2 · start</p>
-            <h2>Quick check: factorisation</h2>
+            <p className={styles.eyebrow}>Step 2 · pick your topic</p>
+            <h2>Then send its diagnostic</h2>
             <ul className={styles.ruleList}>
               <li>Up to 15 minutes. It ends early once Cogna knows where each student should start.</li>
-              <li>Each student then gets a short lesson made from their own answers, a 20-second lesson on their own mistake, practice games, and two final questions to try on their own.</li>
-              <li>Nothing else to press: results appear here as students finish.</li>
+              <li>Each student then gets a short lesson made from their own answers, practice games, and final questions to try on their own.</li>
+              <li>After you teach the topic, the topic check shows who has understood, and a catch-up goes to anyone still stuck.</li>
             </ul>
-            <button className={styles.releaseButton} onClick={() => void release()} disabled={!classroomId || creating || Boolean(busy)}>
-              {busy === "release" ? "Starting…" : "Start the quick check →"}
-            </button>
           </div>
         </section>
       ) : (

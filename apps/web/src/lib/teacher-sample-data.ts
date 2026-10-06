@@ -1,4 +1,4 @@
-import type { ClassRosterStudent, ClassroomRunReport, PilotClassReport, ProductionClassroom } from "./api";
+import type { ClassRosterStudent, ClassroomRunReport, ClassTopicPlan, PilotClassReport, ProductionClassroom, TopicStudentStatus } from "./api";
 
 /**
  * Sample classes for demos (the "Sample data" switch in the teacher sidebar). Two Grade 8 sections,
@@ -219,4 +219,76 @@ export function sampleRunReport(runId: string): ClassroomRunReport {
 
 export function sampleRoster(classroomId: string): ClassRosterStudent[] {
   return CLASSES.find((c) => c.classroom.id === classroomId)?.roster ?? [];
+}
+
+/** NCERT Class 8 order, as apps/api/src/classrooms/topic-catalogue.ts lists it. */
+const SAMPLE_SYLLABUS: Array<[string, string, boolean]> = [
+  ["rational-numbers", "Rational numbers", false],
+  ["linear-equations", "Linear equations in one variable", true],
+  ["quadrilaterals", "Understanding quadrilaterals", false],
+  ["data-handling", "Data handling", false],
+  ["squares-roots", "Squares and square roots", false],
+  ["cubes-roots", "Cubes and cube roots", false],
+  ["comparing-quantities", "Comparing quantities", false],
+  ["algebraic-expressions", "Algebraic expressions and identities", false],
+  ["mensuration", "Mensuration", false],
+  ["exponents-powers", "Exponents and powers", false],
+  ["proportions", "Direct and inverse proportions", false],
+  ["factorisation", "Factorisation", true],
+  ["graphs", "Introduction to graphs", false],
+];
+
+const SAMPLE_STATUS: Record<ClassroomRunReport["classReport"]["students"][number]["progress"], TopicStudentStatus> = {
+  IMPROVED: "UNDERSTOOD",
+  NO_GAP: "UNDERSTOOD",
+  NOT_YET: "STUCK",
+  UNCLEAR: "UNCLEAR",
+  PENDING: "IN_PROGRESS",
+};
+
+/** Sample classes are part-way through the year: everything before Factorisation is done, Factorisation is being taught. */
+export function sampleTopics(classroomId: string): ClassTopicPlan {
+  const sample = CLASSES.find((c) => c.classroom.id === classroomId);
+  if (!sample) throw new Error("Sample class not found.");
+  const fac = sample.checks.find((c) => c.runId.endsWith("-fac"))!;
+  const report = sampleRunReport(fac.runId);
+  const students = report.classReport.students.map((s) => ({
+    studentId: s.studentId,
+    name: s.name,
+    status: s.stage === "JOINED" ? ("NOT_CHECKED" as const) : SAMPLE_STATUS[s.progress],
+    need: s.startingPoint?.name,
+  }));
+  const counts = { UNDERSTOOD: 0, STUCK: 0, UNCLEAR: 0, IN_PROGRESS: 0, NOT_CHECKED: 0, enrolled: students.length };
+  for (const s of students) counts[s.status] += 1;
+  const factorisationAt = SAMPLE_SYLLABUS.findIndex(([id]) => id === "factorisation");
+  return {
+    classroomId,
+    grade: 8,
+    topics: SAMPLE_SYLLABUS.map(([topicId, name, available], i) => ({
+      topicId,
+      name,
+      chapter: i + 1,
+      status: i < factorisationAt ? "DONE" : i === factorisationAt ? "TEACHING" : "UPCOMING",
+      available,
+      startedAt: i <= factorisationAt ? daysAgo((factorisationAt - i) * 9 + 2) : null,
+      doneAt: i < factorisationAt ? daysAgo((factorisationAt - i) * 9 - 5) : null,
+      confirmedAt: i === factorisationAt ? daysAgo(1) : null,
+      checks: sample.checks
+        .filter((c) => (topicId === "factorisation" && c.runId.endsWith("-fac")) || (topicId === "linear-equations" && c.runId.endsWith("-lin")))
+        .map((c) => ({ runId: c.runId, kind: "DIAGNOSTIC" as const, title: c.title, status: c.live ? "LIVE" : "COMPLETE", createdAt: daysAgo(c.startedDaysAgo) })),
+    })),
+    current: {
+      topicId: "factorisation",
+      readiness: {
+        students,
+        counts,
+        recommendation: fac.live
+          ? { action: "WAIT", text: `The diagnostic is running: ${counts.enrolled - counts.IN_PROGRESS} of ${counts.enrolled} finished.` }
+          // The demo story: the diagnostic is done, the class is being taught, the topic check comes next.
+          : { action: "TOPIC_CHECK", text: `${counts.UNDERSTOOD} of ${counts.enrolled} already know factorisation. Teach it, then send the topic check to see who has understood.` },
+      },
+      growth: null,
+    },
+    next: "graphs",
+  };
 }

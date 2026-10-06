@@ -11,6 +11,7 @@ import {
   isDemoFreshStudentPerLoginEnabled,
 } from "../engines/diagnostic-v2/demo-student";
 import { issueStudentToken } from "../access/cogna-access";
+import { ClassTopicsService } from "../classrooms/class-topics.service";
 import { ClassroomsService } from "../classrooms/classrooms.service";
 
 export { hashAccessCode };
@@ -33,6 +34,7 @@ export class ParentsService {
     private readonly prisma: PrismaService,
     private readonly reportGenerator: ReportGeneratorService,
     private readonly classrooms: ClassroomsService,
+    private readonly topics: ClassTopicsService,
   ) {}
 
   /** Seeded pilot parent (links to Demo Student via db:seed). */
@@ -238,7 +240,7 @@ export class ParentsService {
       throw new UnauthorizedException("Parent cannot view reports for this student.");
     }
 
-    const [classes, lessons, checksDone, lastCheck] = await Promise.all([
+    const [classes, lessons, checksDone, lastCheck, growth] = await Promise.all([
       this.classrooms.forStudent(studentId),
       this.prisma.personalizedVideoAssignment.findMany({
         where: { studentId, status: { in: ["READY", "FALLBACK"] } },
@@ -254,6 +256,7 @@ export class ParentsService {
       }),
       this.prisma.lotusSessionRecord.count({ where: { studentId, status: "COMPLETE" } }),
       this.prisma.lotusSessionRecord.findFirst({ where: { studentId }, orderBy: { startedAt: "desc" }, select: { startedAt: true } }),
+      this.topics.growthForStudent(studentId),
     ]);
 
     const lessonRows = lessons.map((l) => {
@@ -276,6 +279,7 @@ export class ParentsService {
       lessons: lessonRows,
       totals: { checksDone, lessonsFinished: lessonRows.filter((l) => l.finished).length },
       lastActive,
+      growth,
     };
   }
 

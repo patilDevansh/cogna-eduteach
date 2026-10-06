@@ -352,6 +352,43 @@ export interface WeeklyStructuredSummary {
   parentActions?: string[];
 }
 
+export type CheckKind = "DIAGNOSTIC" | "TOPIC_CHECK" | "CATCH_UP";
+export type TopicStudentStatus = "UNDERSTOOD" | "STUCK" | "UNCLEAR" | "IN_PROGRESS" | "NOT_CHECKED";
+
+/** A class's topic plan (apps/api/src/classrooms/class-topics.service.ts). */
+export interface ClassTopicPlan {
+  classroomId: string;
+  grade: number;
+  topics: Array<{
+    topicId: string;
+    name: string;
+    chapter: number;
+    status: "UPCOMING" | "TEACHING" | "DONE";
+    available: boolean;
+    startedAt: string | null;
+    doneAt: string | null;
+    confirmedAt: string | null;
+    checks: Array<{ runId: string; kind: CheckKind; title: string; status: string; createdAt: string }>;
+  }>;
+  current: {
+    topicId: string;
+    readiness: {
+      students: Array<{ studentId: string; name: string; status: TopicStudentStatus; need?: string }>;
+      counts: Record<TopicStudentStatus, number> & { enrolled: number };
+      recommendation: { action: "DIAGNOSTIC" | "WAIT" | "TOPIC_CHECK" | "CATCH_UP" | "MOVE_ON"; text: string; studentIds?: string[] };
+    };
+    growth: { students: number; before: number; after: number } | null;
+  } | null;
+  next: string | null;
+}
+
+/** How a student grew on a topic between their first and latest check. */
+export interface TopicGrowthEntry {
+  topicId: string;
+  name: string;
+  growth: { checks: number; firstDate: string; latestDate: string; firstSecure: number; latestSecure: number; fixed: string[]; stillWorking: string[] };
+}
+
 /** One child, as their parent sees it: their own class results (never classmates') and recent personal lessons. */
 export interface ParentChildOverview {
   student: { id: string; name: string; grade: number };
@@ -375,6 +412,7 @@ export interface ParentChildOverview {
   lessons: Array<{ id: string; title: string; date: string; finished: boolean; finalCorrect: boolean | null }>;
   totals: { checksDone: number; lessonsFinished: number };
   lastActive: string | null;
+  growth: TopicGrowthEntry[];
 }
 
 export interface ParentWeeklySummary {
@@ -541,6 +579,17 @@ export const api = {
     classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/end`, { method: "POST", headers: teacherAuthHeaders() }),
 
   getClassroomRunReport: (runId: string) => classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/report`, { headers: teacherAuthHeaders() }),
+
+  getClassTopics: (classroomId: string) => classroomFetch<ClassTopicPlan>(`/classrooms/${classroomId}/topics`, { headers: teacherAuthHeaders() }),
+
+  setTopicStatus: (classroomId: string, topicId: string, action: "start" | "confirm" | "done") =>
+    classroomFetch<ClassTopicPlan>(`/classrooms/${classroomId}/topics/${encodeURIComponent(topicId)}/${action}`, { method: "POST", headers: teacherAuthHeaders() }),
+
+  startTopicCheck: (classroomId: string, topicId: string, kind: CheckKind, studentIds?: string[]) =>
+    classroomFetch<ClassTopicPlan>(`/classrooms/${classroomId}/topics/${encodeURIComponent(topicId)}/checks`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ kind, studentIds }) }),
+
+  /** The signed-in student's growth on each topic. */
+  getStudentProgress: () => classroomFetch<TopicGrowthEntry[]>("/classrooms/student/progress"),
 
   /** The signed-in student's classes and where they are in each one's latest check. */
   getStudentClasses: () => classroomFetch<ParentChildOverview["classes"]>("/classrooms/student/classes"),
