@@ -341,6 +341,93 @@ function RuleVisual({ v, clock, beat }: VisualProps<"rule">) {
   );
 }
 
+/** Algebra tiles: one x² square, b strips and c small squares slide from a loose pile into one rectangle. */
+function TilesVisual({ v, clock, beat }: VisualProps<"tiles">) {
+  const x = 150;
+  const u = Math.min(52, Math.max(30, 300 / Math.max(v.b, 4)));
+  const [m, n] = v.sides;
+  const ox = WIDTH / 2 - (x + m * u) / 2 + 40;
+  const oy = STAGE_TOP + 40;
+  const move = p(clock, beat, 0.3, 0.62);
+  const labels = p(clock, beat, 0.68, 0.8);
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+  const at = (sx: number, sy: number, tx: number, ty: number) => ({ left: sx + (tx - sx) * ease(move), top: sy + (ty - sy) * ease(move) });
+  const tile = (key: string, w: number, h: number, bg: string, pos: { left: number; top: number }, appear: number, text?: string) => (
+    <div key={key} style={{ position: "absolute", ...pos, width: w - 4, height: h - 4, background: bg, border: `2px solid ${C.line}`, borderRadius: 8, opacity: appear, transform: `scale(${0.7 + 0.3 * appear})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, color: C.ink }}>
+      {text ? <MathText text={text} /> : null}
+    </div>
+  );
+  const pile = (i: number, cols: number, baseX: number, baseY: number, gap: number) => ({ x: baseX + (i % cols) * gap, y: baseY + Math.floor(i / cols) * gap });
+  return (
+    <>
+      {tile("sq", x, x, C.blueSoft, at(80, STAGE_TOP + 30, ox, oy), p(clock, beat, 0, 0.1), "x²")}
+      {Array.from({ length: v.b }, (_, i) => {
+        const onSide = i < m;
+        const from = pile(i, 6, 300, STAGE_TOP + 20, u + 10);
+        return onSide
+          ? tile(`b${i}`, u, x, C.greenSoft, at(from.x, from.y, ox + x + i * u, oy), p(clock, beat, 0.05 + i * 0.01, 0.15 + i * 0.01))
+          : tile(`b${i}`, x, u, C.greenSoft, at(from.x, from.y + 160, ox, oy + x + (i - m) * u), p(clock, beat, 0.05 + i * 0.01, 0.15 + i * 0.01));
+      })}
+      {Array.from({ length: v.c }, (_, i) => {
+        const from = pile(i, 6, WIDTH - 360, STAGE_TOP + 260, u + 6);
+        return tile(`c${i}`, u, u, C.fixSoft, at(from.x, from.y, ox + x + (i % m) * u, oy + x + Math.floor(i / m) * u), p(clock, beat, 0.1 + i * 0.01, 0.2 + i * 0.01));
+      })}
+      <div style={{ position: "absolute", left: ox + (x + m * u) / 2 - 60, width: 120, top: oy - 58, textAlign: "center", fontSize: 40, color: C.green, opacity: labels }}>
+        <MathText text={`x + ${m}`} />
+      </div>
+      <div style={{ position: "absolute", left: ox - 150, width: 130, top: oy + (x + n * u) / 2 - 26, textAlign: "right", fontSize: 40, color: C.green, opacity: labels }}>
+        <MathText text={`x + ${n}`} />
+      </div>
+    </>
+  );
+}
+
+/** A number line: a dot starts at `start` and hops for each move, left for negative, right for positive. */
+function NumberLineVisual({ v, clock, beat }: VisualProps<"number-line">) {
+  const all = [v.start];
+  for (const move of v.moves) all.push(all[all.length - 1]! + move);
+  const lo = Math.min(-8, ...all) - 1, hi = Math.max(8, ...all) + 1;
+  const left = 120, right = WIDTH - 120, y = STAGE_TOP + 250;
+  const px = (n: number) => left + ((n - lo) / (hi - lo)) * (right - left);
+  const n = v.moves.length;
+  const fmt = (k: number) => (k < 0 ? `−${-k}` : `${k}`);
+  let dotX = px(v.start);
+  const hops = v.moves.map((move, i) => {
+    const from = all[i]!, to = all[i + 1]!;
+    const t = p(clock, beat, 0.15 + (i * 0.6) / n, 0.15 + ((i + 0.85) * 0.6) / n);
+    if (t > 0) dotX = px(from) + (px(to) - px(from)) * t;
+    return { from, to, t, move };
+  });
+  return (
+    <>
+      <Centered y={STAGE_TOP + 40} opacity={p(clock, beat, 0, 0.1)}>
+        <div style={{ fontSize: 56, color: C.ink }}><MathText text={[fmt(v.start), ...v.moves.map((m) => (m < 0 ? `+ (${fmt(m)})` : `+ ${m}`))].join(" ")} /></div>
+      </Centered>
+      <Svg>
+        <line x1={left} x2={right} y1={y} y2={y} stroke={C.line} strokeWidth={3} />
+        {Array.from({ length: hi - lo + 1 }, (_, i) => lo + i).map((k) => (
+          <g key={k}>
+            <line x1={px(k)} x2={px(k)} y1={y - 10} y2={y + 10} stroke={C.line} strokeWidth={2} />
+            <text x={px(k)} y={y + 40} textAnchor="middle" fontSize={20} fill={C.ink} fontFamily={UI_FONT}>{fmt(k)}</text>
+          </g>
+        ))}
+        {hops.map(({ from, to, t }, i) => {
+          if (t <= 0) return null;
+          const x1 = px(from), x2 = px(to), mid = (x1 + x2) / 2;
+          const d = `M ${x1} ${y - 14} Q ${mid} ${y - 110} ${x2} ${y - 14}`;
+          return <path key={i} d={d} fill="none" stroke={to < from ? C.miss : C.blue} strokeWidth={4} strokeLinecap="round" strokeDasharray={600} strokeDashoffset={600 * (1 - t)} />;
+        })}
+        <circle cx={dotX} cy={y} r={14} fill={C.miss} />
+      </Svg>
+      {v.caption && (
+        <Centered y={y + 110} opacity={p(clock, beat, 0.8, 0.92)}>
+          <div style={{ fontSize: 32, color: C.green, fontFamily: UI_FONT, fontWeight: 600 }}>{v.caption}</div>
+        </Centered>
+      )}
+    </>
+  );
+}
+
 function Visual({ v, clock, beat }: { v: AuthoredVisual; clock: BeatClock; beat: number }) {
   switch (v.type) {
     case "title": return <TitleVisual v={v} clock={clock} beat={beat} />;
@@ -352,6 +439,8 @@ function Visual({ v, clock, beat }: { v: AuthoredVisual; clock: BeatClock; beat:
     case "common-factor": return <CommonFactorVisual v={v} clock={clock} beat={beat} />;
     case "mistake": return <MistakeVisual v={v} clock={clock} beat={beat} />;
     case "rule": return <RuleVisual v={v} clock={clock} beat={beat} />;
+    case "tiles": return <TilesVisual v={v} clock={clock} beat={beat} />;
+    case "number-line": return <NumberLineVisual v={v} clock={clock} beat={beat} />;
   }
 }
 

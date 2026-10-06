@@ -125,7 +125,10 @@ describe("production classroom orchestration", () => {
         count: async () => 0,
       },
       personalizedVideoAssignment: { findFirst: async () => ({ id: "video-1", studentId: "student-1" }) },
-      personalizedVideoEvent: { findFirst: async () => ({ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true }) },
+      personalizedVideoEvent: {
+        findFirst: async () => ({ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true }),
+        findMany: async () => [{ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true, exitItem: 0, createdAt: new Date() }],
+      },
       classroomRun: { findUnique: async () => ({ id: "run-1", config: {} }), update: async (args: { data: Record<string, unknown> }) => { runUpdate = args; return args; } },
     });
     await classrooms.completeAssignment(studentActor, "a3", { result: { correct: true } });

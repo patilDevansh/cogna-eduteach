@@ -1,0 +1,72 @@
+/* Tile games: bridge (two brackets), crystal (full factorisation), lanterns (expansion), and the factor safe. */
+.game { display: grid; gap: 12px; }
+.title { margin: 0; font-size: 0.92rem; color: #51635a; }
+.title strong { color: #0e6b54; letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.78rem; margin-right: 2px; }
+
+.scene { position: relative; display: grid; justify-items: center; gap: 12px; border-radius: 14px; padding: 16px 10px 20px; overflow: hidden; min-height: 150px; }
+.game[data-theme="bridge"] .scene { background: linear-gradient(#d7eef6 0 58%, #8ccbe0 58%); }
+.game[data-theme="crystal"] .scene { background: linear-gradient(135deg, #f3efff, #eef4fb); }
+.game[data-theme="garden"] .scene { background: linear-gradient(180deg, #e9f6e4, #cfe9c4); }
+.game[data-theme="garden"] .box { border-color: #a07a3f; background: #f6ead2; }
+.game[data-theme="garden"] .box[data-filled] { background: #ead7ae; }
+.garden { display: grid; grid-template-columns: 96px 70px; grid-template-rows: 72px 44px; gap: 3px; font-family: "Source Serif 4", Georgia, serif; color: #16241d; }
+.garden span { display: grid; place-items: center; border-radius: 6px; background-image: radial-gradient(circle at 25% 30%, rgba(23, 115, 79, 0.25) 2px, transparent 3px); background-size: 20px 20px; }
+.plotBig { background-color: #e8ecfb; grid-row: 1; grid-column: 1; }
+.plotStrip { background-color: #e2f2e8; grid-row: 1 / span 2; grid-column: 2; }
+.plotUnits { background-color: #f7eedd; grid-row: 2; grid-column: 1; }
+.game[data-sealed][data-theme="garden"] .garden span { animation: shine 0.8s ease-out; }
+.game[data-theme="lantern"] .scene { background: linear-gradient(180deg, #1b2b45, #2d4566); }
+
+.sign { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(1.25rem, 4vw, 1.6rem); background: #fffdf6; color: #2b2a26; border: 2px solid #b88b4a; border-radius: 8px; padding: 2px 12px; white-space: nowrap; }
+.game[data-theme="crystal"] .sign { border-color: #b9a6f0; }
+.game[data-theme="lantern"] .sign { border-color: #e9a23b; }
+
+.boxes { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; font-family: "Source Serif 4", Georgia, serif; font-size: 1.5rem; color: #2b2a26; }
+.game[data-theme="lantern"] .boxes { color: #f3f7f4; }
+.frameText { white-space: pre; }
+.box { min-width: 86px; height: 46px; padding: 0 10px; border-radius: 10px; border: 2px dashed #b88b4a; background: #f1e0c0; color: #2b2a26; font: inherit; font-size: 1.1rem; cursor: pointer; transition: transform 0.2s, background 0.2s; }
+.box[data-filled] { border-style: solid; background: #e8cf9f; animation: pop 0.3s ease-out; }
+.game[data-theme="crystal"] .box { border-color: #8c7bd0; background: #f7f4ff; }
+.game[data-theme="crystal"] .box[data-filled] { background: #e7e0ff; }
+.game[data-theme="lantern"] .box { border-color: #e9a23b; background: #2c3a52; color: #fff3c4; }
+.game[data-theme="lantern"] .box[data-filled] { background: #4a5a74; }
+.box:disabled { cursor: default; }
+
+.bankLeft, .bankRight { position: absolute; bottom: 0; width: 15%; height: 50%; background: #7cc08f; }
+.bankLeft { left: 0; border-radius: 0 30px 0 0; }
+.bankRight { right: 0; border-radius: 30px 0 0 0; }
+.frog { position: absolute; left: 4%; bottom: 48%; font-size: 28px; transition: left 0.9s cubic-bezier(0.4, 0, 0.2, 1); }
+.game[data-sealed] .frog { left: 86%; animation: hop 0.45s 2 ease-out; }
+.game[data-sealed][data-theme="crystal"] .box[data-filled] { animation: shine 0.8s ease-out; }
+
+.lanterns { display: flex; gap: 14px; }
+.lantern { width: 26px; height: 38px; border-radius: 9px 9px 13px 13px; background: #4a5a74; transition: background 0.4s, box-shadow 0.4s; }
+.lantern[data-on] { background: #8b98b0; }
+.game[data-sealed] .lantern[data-on] { background: #e9a23b; box-shadow: 0 0 18px #f2c14e; }
+
+.bank { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.tile { font-family: "Source Serif 4", Georgia, serif; font-size: 1.1rem; padding: 8px 14px; border-radius: 10px; border: 1px solid #d2b07a; background: #f6ead2; color: #2b2a26; cursor: pointer; transition: transform 0.15s, opacity 0.2s; }
+.tile:hover:not(:disabled) { transform: translateY(-2px); }
+.tile[data-used] { opacity: 0.3; }
+.tile:disabled { cursor: default; }
+.hint { margin: 0; text-align: center; font-size: 0.85rem; color: #51635a; }
+
+/* factor safe */
+.safe { display: grid; gap: 12px; justify-items: center; background: #08463a; color: #f3f7f4; border-radius: 16px; padding: 16px; transition: transform 0.8s; }
+.safe[data-open] { box-shadow: 0 0 0 3px #7ee0b5; }
+.dials { display: flex; gap: 22px; }
+.dial { display: grid; justify-items: center; gap: 4px; }
+.dial button { border: 0; background: rgba(255, 255, 255, 0.12); color: inherit; border-radius: 8px; width: 46px; height: 28px; cursor: pointer; }
+.dial .flip { width: auto; padding: 2px 10px; border: 1px solid rgba(255, 255, 255, 0.3); background: transparent; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+.dialWindow { width: 72px; height: 60px; border-radius: 14px; background: #f3f7f4; color: #16241d; display: grid; place-items: center; font-weight: 800; font-size: 1.7rem; box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.18); }
+.lamps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.lamp { display: flex; align-items: center; gap: 8px; border-radius: 12px; padding: 8px 10px; background: rgba(255, 255, 255, 0.08); font-size: 0.95rem; }
+.lamp i { width: 13px; height: 13px; border-radius: 50%; background: #e0785a; flex: none; }
+.lamp[data-on] i { background: #7ee0b5; box-shadow: 0 0 12px #7ee0b5; }
+.lamp small { margin-left: auto; opacity: 0.7; }
+.open { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; background: #f3f7f4; color: #08463a; cursor: pointer; }
+
+@keyframes pop { 0% { transform: scale(0.85); } 70% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes hop { 40% { transform: translateY(-20px); } }
+@keyframes shine { 50% { box-shadow: 0 0 18px #b9a6f0; } }
+@media (prefers-reduced-motion: reduce) { .game *, .safe * { animation-duration: 1ms !important; transition-duration: 1ms !important; } }

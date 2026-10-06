@@ -319,6 +319,12 @@ export class ClassroomsService {
       const eventKind = assignment.kind === ClassroomAssignmentKind.TEACHING ? "COMPLETED" : "INDEPENDENT_EXIT";
       const event = await this.prisma.personalizedVideoEvent.findFirst({ where: { assignmentId: video.id, studentId: actor.studentId, kind: eventKind }, orderBy: { createdAt: "desc" } });
       if (!event) throw new BadRequestException(assignment.kind === ClassroomAssignmentKind.TEACHING ? "Complete the personalized lesson before finishing this assignment." : "Submit the independent exit check before finishing this assignment.");
+      // A two-question exit (lantern gate) is finished only when both are sealed.
+      const exitEvents = assignment.kind === ClassroomAssignmentKind.TEACHING ? [] : await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId: video.id, studentId: actor.studentId, kind: "INDEPENDENT_EXIT" } });
+      const hasTransfer = Boolean((video.script as { transfer?: unknown } | null)?.transfer);
+      if (assignment.kind !== ClassroomAssignmentKind.TEACHING && hasTransfer && !exitEvents.some((e) => e.exitItem === 1)) {
+        throw new BadRequestException("Answer both independent questions before finishing this assignment.");
+      }
       if (assignment.kind === ClassroomAssignmentKind.TEACHING) {
         // Practice is read from the lesson's own server-side record, never from the browser.
         const script = (video.script ?? {}) as { practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }> };
@@ -330,7 +336,7 @@ export class ClassroomsService {
           practice: { total: script.practice?.items?.length ?? 0, attempted: attempts.length, correct: attempts.filter((a) => a.correct).length },
         };
       } else {
-        trustedResult = { prompt: event.exitPrompt, answer: event.exitAnswer, working: event.exitWorking, correct: event.exitCorrect, independent: true };
+        trustedResult = exitResult(exitEvents);
       }
     }
     const completed = await this.prisma.classroomAssignment.update({ where: { id }, data: { status: "COMPLETE", completedAt: new Date(), diagnosticSessionId, videoAssignmentId, result: trustedResult as Prisma.InputJsonValue } });
@@ -436,7 +442,7 @@ export class ClassroomsService {
               practice: { total: script.practice?.items?.length ?? 0, attempted: tries.length, correct: tries.filter((t) => t.correct).length },
             }
           : null,
-        exit: exit ? { prompt: exit.exitPrompt, correct: exit.exitCorrect } : null,
+        exit: exit ? (({ prompt, correct, items }) => ({ prompt, correct, items }))(exitResult(exits.filter((e) => e.assignmentId === videoId))) : null,
       };
     });
     return buildClassReport(evidence);
@@ -504,4 +510,23 @@ export class ClassroomsService {
       students: assignments.map((row) => ({ assignmentId: row.id, studentId: row.enrollment.student.id, studentName: row.enrollment.student.name, kind: row.kind, status: row.status, result: row.result })),
     };
   }
+}
+
+/**
+ * The independent exit as the class sees it: one result across every exit
+ * question (the main one and, when present, the transfer one). Correct only
+ * when every question is right; the latest answer per question counts.
+ */
+function exitResult(events: Array<{ exitPrompt: string | null; exitAnswer: string | null; exitWorking: string | null; exitCorrect: boolean | null; exitItem?: number | null; createdAt: Date }>) {
+  const latest = new Map<number, (typeof events)[number]>();
+  for (const e of [...events].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) latest.set(e.exitItem ?? 0, e);
+  const items = [...latest.entries()].sort(([a], [b]) => a - b).map(([, e]) => e);
+  return {
+    prompt: items.map((e) => e.exitPrompt).filter(Boolean).join(" · "),
+    answer: items.map((e) => e.exitAnswer).filter(Boolean).join(" · "),
+    working: items.map((e) => e.exitWorking).filter(Boolean).join(" · "),
+    correct: items.length > 0 && items.every((e) => e.exitCorrect === true),
+    items: items.map((e) => ({ prompt: e.exitPrompt, answer: e.exitAnswer, correct: e.exitCorrect })),
+    independent: true,
+  };
 }

@@ -216,6 +216,9 @@ function InteractiveEquationStep({
 // scene "completed," which read as abrupt with no room to actually look at
 // the equation.
 const ADVANCE_GAP_MS = 1800;
+// A scene's narration that hasn't moved this long gets one play() nudge, then the lesson moves on.
+const AUDIO_NUDGE_MS = 4000;
+const AUDIO_STALL_MS = 10_000;
 
 export function InteractiveLessonPlayer({
   assignment,
@@ -308,6 +311,36 @@ export function InteractiveLessonPlayer({
     const id = setInterval(() => setElapsed((e) => e + 0.25), 250);
     return () => clearInterval(id);
   }, [started, paused, scene]);
+
+  // Narration that never starts or stops moving (autoplay refused, a dropped
+  // connection) would never fire "ended" and freeze the lesson on one slide.
+  // Nudge it once, then move on as if it had ended. Drag scenes still wait for their check.
+  useEffect(() => {
+    if (!started || !scene?.audioUrl || claim || paused) return;
+    let last = -1;
+    let stuckSince = Date.now();
+    let nudged = false;
+    const timer = window.setInterval(() => {
+      const audio = audioRef.current;
+      if (audio?.ended) return;
+      const t = audio?.currentTime ?? 0;
+      if (t !== last) {
+        last = t;
+        stuckSince = Date.now();
+        return;
+      }
+      const stuck = Date.now() - stuckSince;
+      if (stuck > AUDIO_NUDGE_MS && !nudged) {
+        nudged = true;
+        void audio?.play().catch(() => undefined);
+      } else if (stuck > AUDIO_STALL_MS) {
+        window.clearInterval(timer);
+        requestAdvance();
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, sceneIndex, scene, claim, paused]);
 
   if (!scene) return null;
 

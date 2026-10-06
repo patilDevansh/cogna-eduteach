@@ -269,7 +269,7 @@ export default function PilotConsolePage() {
             <h2>Quick check: factorisation</h2>
             <ul className={styles.ruleList}>
               <li>Up to 15 minutes. It ends early once Cogna knows where each student should start.</li>
-              <li>Each student then gets a short lesson made from their own answers, some practice, and one final question to try on their own.</li>
+              <li>Each student then gets a short lesson made from their own answers, a 20-second lesson on their own mistake, practice games, and two final questions to try on their own.</li>
               <li>Nothing else to press: results appear here as students finish.</li>
             </ul>
             <button className={styles.releaseButton} onClick={() => void release()} disabled={!classroomId || creating || Boolean(busy)}>
@@ -348,6 +348,7 @@ export default function PilotConsolePage() {
                     </span>
                     <span>
                       <b className={styles.progress} data-progress={row.progress}>{PROGRESS_LABEL[row.progress]}</b>
+                      {row.exitScore && <small className={styles.exitScore}>Alone, after the lesson: {row.exitScore.right} of {row.exitScore.total} right</small>}
                     </span>
                   </div>
                 ))}

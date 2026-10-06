@@ -1,17 +1,20 @@
 import React from "react";
 import { Composition, registerRoot } from "remotion";
-import { FPS, HEIGHT, WIDTH, Walkthrough, totalFrames, type WalkthroughProps } from "./Walkthrough";
+import { FPS, SIZES, Walkthrough, totalFrames, type WalkthroughProps } from "./Walkthrough";
 
 const Root: React.FC = () => (
   <Composition
     id="PilotWalkthrough"
     component={Walkthrough as unknown as React.FC<Record<string, unknown>>}
     fps={FPS}
-    width={WIDTH}
-    height={HEIGHT}
+    width={SIZES.wide.width}
+    height={SIZES.wide.height}
     durationInFrames={1}
-    defaultProps={{ segments: [], model: "real" } as WalkthroughProps as unknown as Record<string, unknown>}
-    calculateMetadata={({ props }) => ({ durationInFrames: totalFrames((props as unknown as WalkthroughProps).segments) })}
+    defaultProps={{ segments: [], model: "real", layout: "wide" } as WalkthroughProps as unknown as Record<string, unknown>}
+    calculateMetadata={({ props }) => {
+      const p = props as unknown as WalkthroughProps;
+      return { durationInFrames: totalFrames(p.segments), ...SIZES[p.layout ?? "wide"] };
+    }}
   />
 );
 

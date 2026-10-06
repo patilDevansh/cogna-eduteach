@@ -50,6 +50,8 @@ import {
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
+import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { codeProbeFor } from "./lotus-probes";
 import {
   FACTORISATION_SLOTS,
   skillName,
@@ -419,8 +421,15 @@ function adaptationTagFor(turn: { status: string; purpose?: string; forSkill?: s
   }
 }
 
+/** An item a student may see: checked AI writing, or a game question built and checked by code. */
+function isAcceptedItem(item: Omit<LotusQuestion, "id"> | undefined | null): boolean {
+  const origin = item?.answerKey.diagnostics?.origin;
+  return origin === "AI" || origin === "CODE";
+}
+
 function questionProvenance(question: LotusQuestion | Omit<LotusQuestion, "id">): LotusQuestionSelection["provenance"] {
   const diagnostics = question.answerKey.diagnostics;
+  if (diagnostics?.origin === "CODE") return "CODE_BUILT_GAME";
   if (diagnostics?.origin !== "AI") return "HARDCODED_SYSTEM";
   return diagnostics.provenance ?? "AI_GENERATED_FOR_SESSION";
 }
@@ -612,7 +621,7 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
   if (clone.status === "ACTIVE" && clone.factorisation) {
     const f = clone.factorisation;
     const readyQuestions = Object.entries(f.preferred)
-      .filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && item.answerKey.diagnostics?.origin === "AI"))
+      .filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item)))
       .length;
     clone.preparation = {
       readyQuestions,
@@ -623,11 +632,11 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     // Never expose a legacy/pre-change non-AI item from an old persisted
     // session. Such a session returns to the preparation screen and must be
     // rebuilt with accepted AI items rather than leaking a retired question.
-    if (clone.currentQuestion?.answerKey.diagnostics?.origin !== "AI") clone.currentQuestion = null;
+    if (clone.currentQuestion && !isAcceptedItem(clone.currentQuestion)) clone.currentQuestion = null;
     for (const turn of f.state.turns) {
       if (turn.turn <= f.state.planTurn || turn.status === "SKIPPED") continue;
       const item = preferredItem(f, turn.turn);
-      if (item?.answerKey.diagnostics?.origin === "AI") upcoming.push(redactQuestion(item));
+      if (item && isAcceptedItem(item)) upcoming.push(redactQuestion(item));
     }
   }
   delete clone.factorisation;
@@ -869,6 +878,22 @@ export class LotusService implements OnModuleDestroy {
     return session.currentQuestion ? structuredClone(session.currentQuestion) : null;
   }
 
+  /**
+   * The words "Read it to me" speaks for the question this student is on:
+   * the prompt, plus the choices, fish or working lines a game shows. Only
+   * what is already on the student's screen — never the key or purpose.
+   */
+  async readAloudText(sessionId: string, studentId: string): Promise<string> {
+    const session = await this.requireSession(sessionId);
+    if (session.studentId !== studentId) throw new BadRequestException("This Lotus session belongs to a different student.");
+    const question = session.status === "ACTIVE" ? session.currentQuestion : null;
+    if (!question) throw new BadRequestException("There is no question to read right now.");
+    const parts = [question.prompt];
+    if (question.lines?.length) parts.push(...question.lines.map((line, i) => (i === 0 ? `The working starts with ${line}.` : `Line ${i}: ${line}.`)));
+    if (question.options?.length && question.presentation !== "DETECTIVE") parts.push(`The choices are: ${question.options.join("; ")}.`);
+    return parts.join(" ");
+  }
+
   async answer(
     sessionId: string,
     studentId: string,
@@ -916,8 +941,17 @@ export class LotusService implements OnModuleDestroy {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
     }
 
+    // A tile-game answer is rebuilt from the picks against the interaction this server issued.
+    let resolved: LotusStudentResponse;
     try {
-      return await this.answerInner(session, response);
+      resolved = resolveLotusResponse(session.currentQuestion, response);
+    } catch (err) {
+      if (err instanceof TileAnswerError) throw new BadRequestException(err.message);
+      throw err;
+    }
+
+    try {
+      return await this.answerInner(session, resolved);
     } catch (err) {
       session.liveProgress = null;
       throw err;
@@ -1886,7 +1920,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (turn.turn > FACTORISATION_PREPARATION_TARGET) continue;
       const unansweredOpener = turn.turn === 1 && f.state.planTurn === 1 && session.audits.length === 0;
       if ((!unansweredOpener && turn.turn <= f.state.planTurn) || turn.status !== "PLANNED") continue;
-      if (preferredItem(f, turn.turn)?.answerKey.diagnostics?.origin === "AI") continue;
+      if (isAcceptedItem(preferredItem(f, turn.turn))) continue;
       const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
       const requiredExpression = turn.turn === 1
         ? factorisationOpeningExpression(session.sessionId, this.factorisationOpeningPrints)
@@ -1911,13 +1945,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (session.status !== "ACTIVE" || !f) return;
     const queue = this.writeQueues.get(session.sessionId);
     const queued = new Set([...(queue?.activeTurns ?? []), ...(queue?.pending ?? []).map((job) => job.turn)]);
-    const readyCount = Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && item.answerKey.diagnostics?.origin === "AI")).length;
+    const readyCount = Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length;
     const highestTurnToStage = readyCount >= FACTORISATION_PREPARATION_TARGET ? f.state.turns.length : FACTORISATION_PREPARATION_TARGET;
     for (const turn of f.state.turns) {
       if (turn.turn > highestTurnToStage) continue;
       const isOpeningTurn = turn.turn === 1 && f.state.planTurn === 1 && f.state.answeredTurns.length === 0;
       if (turn.status === "SKIPPED" || (!isOpeningTurn && turn.turn <= f.state.planTurn)) continue;
-      if (preferredItem(f, turn.turn)?.answerKey.diagnostics?.origin === "AI" || queued.has(turn.turn)) continue;
+      if (isAcceptedItem(preferredItem(f, turn.turn)) || queued.has(turn.turn)) continue;
       const blocked = queue?.blockedTurns.get(turn.turn);
       if (blocked && Date.now() < blocked.until) continue;
       const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
@@ -2003,6 +2037,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     // lacks the specific scripted misconception its synthetic learner must
     // demonstrate. This test-only switch leaves normal AI-bank reuse wholly
     // unchanged while making fake-model persona runs reproducible.
+    // Some slots are staged as games (fireflies, impostor, detective, fishing,
+    // garden): built and checked by code, no model call. See lotus-probes.ts.
+    const gameRequest = { ...job.request, variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`, avoid: this.testPrints(session, job.turn) };
+    const game = codeProbeFor(gameRequest);
+    if (game && !checkWrittenItem(gameRequest, game).length) {
+      await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
+      return;
+    }
     if (!job.retryCount && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
       const reused = await this.takeFactorisationBankItem(session, job);
       if (reused) {
@@ -2180,6 +2222,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     // leaves this unset so the student isn't asked every time.
     const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
     question.requiresConfidenceProbe = !!planTurn?.purpose;
+    // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
+    withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose });
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
@@ -3028,7 +3072,7 @@ Create one materially different question that tests a competing explanation or a
         const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
         const skillId = turn.forSkill ?? spec?.skillId ?? "";
         const item = preferredItem(f, turn.turn);
-        const ready = item?.answerKey.diagnostics?.origin === "AI";
+        const ready = isAcceptedItem(item);
         const purpose: LotusUnseenPlanEntry["purpose"] = turn.purpose === "CHECK"
           ? "TARGETED_CHECK"
           : turn.purpose === "DESCENT"

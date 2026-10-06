@@ -19,8 +19,8 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { LOTUS_DEMO_GAPS, type LotusDemoGap } from "@cogna/shared";
-import { api } from "@/lib/api";
+import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, type LotusDemoGap } from "@cogna/shared";
+import { api, ApiError } from "@/lib/api";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
@@ -30,6 +30,9 @@ const GAP_STUDENT: Record<LotusDemoGap, PilotStudentKey> = { signs: "aarav", gro
 import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classroom";
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
+import { TileGame, type TileGameState } from "@/components/games/TileGame";
+import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice, LotusBloom, PondMap } from "@/components/games/LotusGames";
+import gameStyles from "@/components/games/lotus-games.module.css";
 
 const CONFIDENCE_CHOICES = [
   { value: 25, label: "Not sure" },
@@ -643,6 +646,9 @@ function AuditCard({
                   </span>
                 )}
               </div>
+              {audit.response.interaction && (
+                <p><strong>Answered with:</strong> {INTERACTION_FORMATS[audit.response.interaction.format].title} (tiles; took a tile back out {audit.response.interaction.changes ?? 0}×)</p>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
                 <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
@@ -1000,6 +1006,22 @@ function FinalReport({
   );
 }
 
+/**
+ * Saves one answer, retrying once on a timeout or a dropped connection. Safe
+ * because the API treats a repeated submissionId as the same answer: a reply
+ * that was lost on the way back is simply returned again, never recorded twice.
+ */
+async function submitWithRetry(sessionId: string, studentId: string, submission: LotusStudentResponse): Promise<LotusSessionView> {
+  try {
+    return await api.submitLotusAnswer(sessionId, studentId, submission);
+  } catch (err) {
+    const status = err instanceof ApiError ? err.status : 0;
+    if (status !== 0 && status !== 502 && status !== 503 && status !== 504) throw err;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return api.submitLotusAnswer(sessionId, studentId, submission);
+  }
+}
+
 export default function LotusRoute() {
   return <Suspense fallback={<p>Loading diagnostic…</p>}><LotusPage /></Suspense>;
 }
@@ -1029,6 +1051,10 @@ function LotusPage() {
   const [confidenceNudge, setConfidenceNudge] = useState(0);
   const confidenceRef = useRef<HTMLDivElement | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
+  /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
+  const [tiles, setTiles] = useState<TileGameState | null>(null);
+  const [readingAloud, setReadingAloud] = useState(false);
+  const [readAloudError, setReadAloudError] = useState("");
   // Dev tools (demo fill, AI Lab, fake-model badge) follow the global Dev
   // panel; the fake-model switch itself lives there too (lib/dev-mode.ts).
   const { devMode, fakeModel: devFakeModel } = useDevState();
@@ -1257,12 +1283,36 @@ function LotusPage() {
     if (!preparing && session?.currentQuestion) setMinimized(false);
   }, [preparing]);
 
+  /** "Read it to me": the server speaks the question on screen (Cartesia), so reading isn't what's being measured. */
+  async function readAloud() {
+    if (!session) return;
+    setReadingAloud(true);
+    setReadAloudError("");
+    try {
+      const spoken = await api.readLotusAloud(session.sessionId, studentId);
+      const audio = new Audio(`data:audio/mpeg;base64,${spoken.audio}`);
+      const done = () => setReadingAloud(false);
+      audio.onended = done;
+      audio.onerror = done;
+      // A clip that never reports its end must not leave the button stuck on "Reading…".
+      audio.onloadedmetadata = () => {
+        const seconds = Number.isFinite(audio.duration) ? audio.duration : 20;
+        window.setTimeout(done, seconds * 1000 + 3000);
+      };
+      await audio.play();
+    } catch {
+      setReadingAloud(false);
+      setReadAloudError("Reading aloud isn't available right now. Ask your teacher to read it with you.");
+    }
+  }
+
   function resetResponse() {
     setAnswer("");
     setWorkingLines(["", "", ""]);
     setConfidence(null);
     setConfidenceNudge(0);
     setDidNotKnow(false);
+    setTiles(null);
     setQuestionStartedAt(Date.now());
   }
 
@@ -1334,8 +1384,10 @@ function LotusPage() {
   }
 
   async function submit() {
-    if (!session || (!pendingSubmission && !didNotKnow && !answer.trim())) {
-      setError("Enter an answer or choose “I don’t know”.");
+    const tileGame = question?.interaction;
+    const typedOrBuilt = tileGame ? tiles?.answer ?? "" : answer.trim();
+    if (!session || (!pendingSubmission && !didNotKnow && !typedOrBuilt)) {
+      setError(tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
       return;
     }
     // Confidence has no honest default: forcing a real tap (rather than a
@@ -1355,7 +1407,7 @@ function LotusPage() {
       ? session.upcomingQuestions?.[0]
       : undefined;
     const submission: LotusStudentResponse = pendingSubmission ?? {
-      answer: didNotKnow ? "I don't know" : answer.trim(),
+      answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
       confidence: confidence ?? 60,
       responseTimeMs: Date.now() - questionStartedAt,
@@ -1363,6 +1415,7 @@ function LotusPage() {
       submissionId: crypto.randomUUID(),
       questionId: session.currentQuestion?.id,
       nextQuestionId: staged?.id,
+      ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
     };
     if (!pendingSubmission) {
       setPendingSubmission(submission);
@@ -1380,7 +1433,7 @@ function LotusPage() {
       watchForReport(session.sessionId);
     }
     try {
-      const next = await api.submitLotusAnswer(session.sessionId, studentId, submission);
+      const next = await submitWithRetry(session.sessionId, studentId, submission);
       rememberSession(next);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
@@ -1603,6 +1656,7 @@ function LotusPage() {
                 <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
               ) : (
                 <section className={styles.introCard}>
+                  {session.topic === "FACTORISATION" && <LotusBloom answered={session.audits.length} firstName={studentName.split(" ")[0]} />}
                   <h1>Your diagnostic is complete</h1>
                   <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
                   <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
@@ -1665,13 +1719,38 @@ function LotusPage() {
                     <strong className={styles.questionNumber}>Question {shownQuestionNumber} of {totalQuestions}</strong>
                   </div>
                   <div className={styles.cardBody}>
+                    {session.topic === "FACTORISATION" && (
+                      <PondMap answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} />
+                    )}
                     <div className={styles.question}>
                       {promptLines.map((line, index) => (
                         <span key={`${line}-${index}`}>{line}</span>
                       ))}
                     </div>
+                    {session.topic === "FACTORISATION" && !previewQuestion && (
+                      <button type="button" className={gameStyles.readAloud} onClick={() => void readAloud()} disabled={readingAloud || busy}>
+                        {readingAloud ? "Reading…" : "🔈 Read it to me"}
+                      </button>
+                    )}
+                    {readAloudError && <p className={styles.muted} role="status">{readAloudError}</p>}
 
-                    {question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
+                    {question.interaction ? (
+                      <TileGame
+                        key={question.id}
+                        interaction={question.interaction}
+                        look={question.presentation === "GARDEN" ? "garden" : undefined}
+                        disabled={inputLocked || didNotKnow}
+                        onChange={(state) => { setTiles(state); setDidNotKnow(false); }}
+                      />
+                    ) : question.presentation === "FIREFLY" && question.options?.length ? (
+                      <FireflyChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.presentation === "IMPOSTOR" && question.options?.length ? (
+                      <ImpostorChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.presentation === "DETECTIVE" && question.lines?.length && question.options?.length ? (
+                      <DetectiveLines key={question.id} lines={question.lines} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.presentation === "FISHING" && question.options?.length ? (
+                      <FishingSelect key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
                       <div className={styles.options}>
                         {question.options.map((option) => (
                           <label className={styles.option} key={option}>
@@ -1718,7 +1797,7 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.type !== "MULTIPLE_CHOICE" && (
+                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && (
                       <div className={styles.mathToolbar} aria-label="Math toolbox">
                         <span className={styles.mathToolbarLabel}>Math tools</span>
                         {[

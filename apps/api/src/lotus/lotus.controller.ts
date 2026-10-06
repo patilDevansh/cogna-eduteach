@@ -1,4 +1,8 @@
-import { Body, Controller, Delete, Get, Headers, NotFoundException, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Inject, NotFoundException, Param, Post, Query, ServiceUnavailableException } from "@nestjs/common";
+import { createHash } from "node:crypto";
+import { TTS_PROVIDER } from "../ai/ai.module";
+import type { TtsProvider } from "../ai/tts.service";
+import { spokenMath } from "../ai/spoken-math";
 import { timingSafeEqual } from "node:crypto";
 import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
@@ -43,7 +47,13 @@ function observerTeacherGateBypassed(): boolean {
  */
 @Controller("lotus")
 export class LotusController {
-  constructor(private readonly lotus: LotusService) {}
+  constructor(
+    private readonly lotus: LotusService,
+    @Inject(TTS_PROVIDER) private readonly tts: TtsProvider,
+  ) {}
+
+  /** Spoken questions are cached by text and voice: the same question is never paid for twice. */
+  private readonly speech = new Map<string, string>();
 
   @Get("status")
   status(): LotusStatusResponse {
@@ -148,7 +158,29 @@ export class LotusController {
       questionId: body.questionId,
       nextQuestionId: body.nextQuestionId,
       submissionId: body.submissionId,
+      ...(body.interaction ? { interaction: body.interaction } : {}),
     });
+  }
+
+  /** "Read it to me": the current question, spoken, as base64 MP3. Students who struggle to read are not marked down for it. */
+  @Get("sessions/:id/read-aloud")
+  async readAloud(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Query("studentId") studentId: string,
+  ): Promise<{ audio: string; format: "mp3" }> {
+    const actor = resolveActor(headers);
+    assertStudentAccess(actor, studentId);
+    const text = spokenMath(await this.lotus.readAloudText(id, studentId));
+    const key = createHash("sha1").update(`${this.tts.provider}|${this.tts.voice}|${text}`).digest("hex");
+    const cached = this.speech.get(key);
+    if (cached) return { audio: cached, format: "mp3" };
+    const speech = await this.tts.synthesize(text);
+    if (!speech) throw new ServiceUnavailableException("Reading aloud isn't available right now.");
+    const audio = speech.bytes.toString("base64");
+    if (this.speech.size > 300) this.speech.delete(this.speech.keys().next().value!);
+    this.speech.set(key, audio);
+    return { audio, format: "mp3" };
   }
 
   @Get("sessions/:id/demo-fill")

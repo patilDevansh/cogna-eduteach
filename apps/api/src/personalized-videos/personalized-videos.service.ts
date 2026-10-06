@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import {
   BadRequestException,
+  ConflictException,
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
@@ -27,6 +29,10 @@ import {
   type PracticeCheckResult,
   type PracticeItem,
   type PracticeSetView,
+  type TileBuildInteraction,
+  type TileBuildResponse,
+  type MicroCheckResult,
+  type MicroLessonView,
 } from "@cogna/shared";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
@@ -38,6 +44,7 @@ import {
   assertStudentOwner,
   assertTeacher,
   attachMediaAccess,
+  type MediaAccessClaims,
   demoSeedsAllowed,
   isDemoStudentId,
   schoolIdForStudent,
@@ -58,6 +65,9 @@ import type { OpenAIService } from "../ai/openai.service";
 import { buildLessonBrief, type LessonBrief } from "./ai-authoring/lesson-brief";
 import { authorLesson, type AuthoringAttempt } from "./ai-authoring/lesson-author";
 import { generatePractice } from "./ai-authoring/practice-generator";
+import { buildMicroLesson, estimatedSeconds } from "./micro-lessons";
+import { spokenMath } from "../ai/spoken-math";
+import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
 import { taskVerdict } from "./ai-authoring/lesson-verifier";
 import {
   aiLessonsEnabled,
@@ -168,8 +178,12 @@ type StoredScript = {
   };
   /** For exit items built by the AI author or the generator: graded by the algebra engine, so any equivalent finished form counts. */
   exitCheck?: { task: "factorise" | "expand" | "simplify"; expression: string };
+  /** The second exit question: same skill, different form (code-generated, so right by construction). */
+  transfer?: { prompt: string; expression: string; task: "factorise" | "expand" | "simplify"; answer: string };
   /** Independent practice played after the lesson; answers stay on the server. */
   practice?: { source: "AI_VERIFIED" | "CODE_GENERATED"; skillId: string; items: PracticeItem[] };
+  /** The student's own diagnostic items, for the targeted micro-lesson (built and narrated on first open). */
+  micro?: { brief: LessonBrief };
   /** Tries per practice item, for the reveal-after-two-misses rule and the teacher view. */
   practiceAttempts?: Record<string, { tries: number; correct: boolean }>;
 };
@@ -288,6 +302,11 @@ export class PersonalizedVideosService {
     // AI authoring: the model writes a lesson from this student's own answers, in the background job,
     // and it is used only if every claim passes the verifier. The recipe lesson (if any) is the fallback.
     const brief = canAnimate && aiLessonsEnabled() && trusted.session ? buildLessonBrief(trusted.session, names.first) : null;
+    // The micro-lesson needs only the student's own items, so it is offered whether or not AI authoring is on.
+    let microBrief: LessonBrief | null = brief;
+    if (!microBrief && canAnimate && trusted.session) {
+      try { microBrief = buildLessonBrief(trusted.session, names.first); } catch { microBrief = null; }
+    }
     const author = brief && trusted.session ? chooseAuthor(trusted.session, this.openai) : null;
     const authoring: StoredScript["authoring"] = brief && author
       ? { status: "pending", brief, author: author.label === "fake-lesson-author" ? "fake" : "openai" }
@@ -315,6 +334,8 @@ export class PersonalizedVideosService {
       lesson: lesson as PersonalizedVideoLesson,
       exit: exit ?? (practice ? { prompt: practice.exit.prompt, expected: practice.exit.answer, evidencePurpose: "A fresh item of the same kind, answered without support." } : null),
       ...(!exit && practice ? { exitCheck: { task: practice.exit.task, expression: practice.exit.expression } } : {}),
+      ...(practice && normalizeAlgebraAnswer(practice.transfer.expression) !== normalizeAlgebraAnswer(practice.exit.expression) ? { transfer: practice.transfer } : {}),
+      ...(microBrief?.studentItems.length ? { micro: { brief: microBrief } } : {}),
       ...(authoring ? { authoring } : {}),
       ...(practice && practiceSkill ? { practice: { source: "CODE_GENERATED" as const, skillId: practiceSkill, items: practice.items } } : {}),
       ...(animated
@@ -661,7 +682,7 @@ export class PersonalizedVideosService {
           practice: {
             source: outcome.practiceFromCode ? "CODE_GENERATED" : "AI_VERIFIED",
             skillId: authoring.brief.targetSkill.id,
-            items: outcome.draft.practice,
+            items: withPracticeGames(outcome.draft.practice, authoring.brief.targetSkill.id, assignmentId, authoring.brief.studentItems.map((i) => i.expression)),
           },
           authoring: { ...authoring, status: "done", model: outcome.model, attempts: outcome.attempts, claimsChecked: outcome.claimsChecked, practiceFromCode: outcome.practiceFromCode },
         };
@@ -703,6 +724,72 @@ export class PersonalizedVideosService {
   }
 
   /** The practice set for a lesson, without answers. */
+  /**
+   * The targeted micro-lesson: built by code from the student's own answer
+   * (micro-lessons.ts), narrated in the theme's voice. Null when the student's
+   * items don't fit a template; the longer lesson still plays.
+   */
+  async microLesson(id: string, actor: AccessActor, theme: string = "classic"): Promise<MicroLessonView | null> {
+    const row = await this.requireAssignment(id);
+    assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
+    const script = row.script as StoredScript | null;
+    const built = script?.micro?.brief ? buildMicroLesson(script.micro.brief) : null;
+    if (!built) return null;
+    const claims: MediaAccessClaims = { assignmentId: row.id, studentId: row.studentId, schoolId: row.schoolId ?? schoolIdForStudent(row.studentId) };
+    void theme; // Lessons are narrated in the configured voice (one voice since slides-only lessons).
+    const clips: Array<{ url: string; seconds: number } | null> = [];
+    // One line at a time, like scene narration: a burst gets rate-limited into silence.
+    for (const step of built.view.steps) clips.push(await this.narrateLine(row.id, spokenMath(step.say), claims));
+    return {
+      ...built.view,
+      steps: built.view.steps.map((step, i) => ({
+        ...step,
+        ...(clips[i] ? { audioUrl: clips[i]!.url } : {}),
+        seconds: clips[i]?.seconds ?? estimatedSeconds(step.say),
+      })),
+    };
+  }
+
+  /** Uploaded clips this process already has, by storage key, so reopening a lesson doesn't re-upload. */
+  private readonly uploadedLines = new Map<string, string>();
+
+  /**
+   * One narrated line for a lesson: synthesized (or read from the TTS cache)
+   * in the configured voice, uploaded once, and returned as a signed URL.
+   * Null when the voice is unavailable; the line then plays silent with its caption.
+   */
+  private async narrateLine(assignmentId: string, text: string, claims: MediaAccessClaims): Promise<{ url: string; seconds: number } | null> {
+    if (!this.tts?.enabled || !text.trim()) return null;
+    try {
+      const voiced = await this.synthesizeOneScene(
+        { eyebrow: "", headline: "", equation: [], narration: text, durationSeconds: 0, accent: "green" },
+        this.tts.voice, this.tts.model, this.tts.instructions,
+      );
+      if (!voiced.audioPath || !voiced.narrationSeconds) return null;
+      // Flat "lessons/<id>/voice-<hash>.mp3": the web media route serves allow-listed files one level under the lesson.
+      const key = `lessons/${assignmentId}/voice-${createHash("sha1").update(`${this.tts.voice}|${text}`).digest("hex").slice(0, 20)}.mp3`;
+      let publicUrl = this.uploadedLines.get(key);
+      if (!publicUrl) {
+        publicUrl = (await this.getMediaStorage().put({ key, body: await readFile(voiced.audioPath), contentType: "audio/mpeg" })).publicUrl;
+        this.uploadedLines.set(key, publicUrl);
+      }
+      return { url: attachMediaAccess(publicUrl, claims) ?? publicUrl, seconds: voiced.narrationSeconds };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Marks the micro-lesson's quick check. Practice, never evidence. */
+  async microCheck(id: string, option: number, actor: AccessActor): Promise<MicroCheckResult> {
+    const row = await this.requireAssignment(id);
+    assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
+    if (actor.role === "student") assertStudentOwner(actor, row.studentId);
+    const script = row.script as StoredScript | null;
+    const built = script?.micro?.brief ? buildMicroLesson(script.micro.brief) : null;
+    if (!built || !Number.isInteger(option) || !built.view.check.options[option]) throw new BadRequestException("Pick one of the answers.");
+    return { correct: option === built.check.answerIndex, feedback: built.check.feedback[option] ?? "" };
+  }
+
   async practiceSet(id: string, actor: AccessActor): Promise<PracticeSetView> {
     const row = await this.requireAssignment(id);
     assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
@@ -722,7 +809,7 @@ export class PersonalizedVideosService {
    * student can answer them. Same guard as Lotus's walkthrough fill; real
    * students can never read an answer key.
    */
-  async walkthroughKey(id: string, actor: AccessActor): Promise<{ practice: Array<{ id: string; answer: unknown }>; exit: string | null }> {
+  async walkthroughKey(id: string, actor: AccessActor): Promise<{ practice: Array<{ id: string; answer: unknown }>; exit: string | null; transfer: string | null }> {
     const row = await this.requireAssignment(id);
     if (process.env.NODE_ENV === "production" || process.env.COGNA_WALKTHROUGH_FILL !== "true" || !/^walk_[a-z]+$/.test(row.studentId)) {
       throw new ForbiddenException("Answer keys are only available to walkthrough accounts in development.");
@@ -732,9 +819,14 @@ export class PersonalizedVideosService {
     return {
       practice: (script?.practice?.items ?? []).map((item) => ({
         id: item.id,
-        answer: item.format === "pair-hunt" ? item.answer : item.format === "spot-mistake" ? item.wrongLine : item.format === "choose" ? item.answerIndex : item.answer,
+        answer: item.format === "spot-mistake" ? item.wrongLine
+          : item.format === "choose" ? item.answerIndex
+          : item.format === "mark-it" ? item.papers.map((p) => ({ mark: p.verdict, reason: p.reasons[0] }))
+          : item.format === "rush" ? item.rounds.map((r) => r.answerIndex)
+          : item.answer,
       })),
       exit: script?.exit?.expected ?? null,
+      transfer: script?.transfer?.answer ?? null,
     };
   }
 
@@ -1017,24 +1109,40 @@ export class PersonalizedVideosService {
 
   async recordExit(
     assignmentId: string,
-    input: { answer: string; working: string },
+    input: { answer: string; working?: string; interaction?: TileBuildResponse; item?: number },
     actor: AccessActor,
   ): Promise<PersonalizedVideoAssignmentView> {
     const assignment = await this.requireAssignableLesson(assignmentId);
     assertStudentOwner(actor, assignment.studentId);
     const script = assignment.script as StoredScript | null;
+    const item = input.item ?? 0;
+    if (item !== 0 && !(item === 1 && script?.transfer)) throw new BadRequestException("There is no such exit question.");
+    // Each independent exit question is one attempt: a second answer would turn it into practice.
+    const earlier = await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId, kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT } });
+    if (earlier.some((event) => (event.exitItem ?? 0) === item)) throw new ConflictException("That independent question has already been answered.");
+    let answer = input.answer;
+    if (input.interaction) {
+      // A tile exit is rebuilt from the picks against the tiles this server issued.
+      const interaction = item === 1 ? transferInteraction(script, assignmentId) : exitInteraction(script, assignmentId);
+      const built = interaction ? answerFromPicks(interaction, input.interaction) : null;
+      if (!built) throw new BadRequestException("Fill every box with a tile before submitting.");
+      answer = built;
+    }
     const expected = script?.exit?.expected ?? "";
-    const correct = script?.exitCheck
-      ? taskVerdict(script.exitCheck.task, input.answer, script.exitCheck.expression) === "CORRECT"
-      : Boolean(expected) && normalizeAlgebraAnswer(input.answer) === normalizeAlgebraAnswer(expected);
+    const correct = item === 1
+      ? taskVerdict(script!.transfer!.task, answer, script!.transfer!.expression) === "CORRECT"
+      : script?.exitCheck
+        ? taskVerdict(script.exitCheck.task, answer, script.exitCheck.expression) === "CORRECT"
+        : Boolean(expected) && normalizeAlgebraAnswer(answer) === normalizeAlgebraAnswer(expected);
     await this.prisma.personalizedVideoEvent.create({
       data: {
         assignmentId,
         studentId: assignment.studentId,
         kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT,
-        exitPrompt: script?.exit?.prompt,
-        exitAnswer: input.answer,
-        exitWorking: input.working,
+        exitPrompt: item === 1 ? script?.transfer?.prompt : script?.exit?.prompt,
+        exitItem: item,
+        exitAnswer: answer,
+        exitWorking: input.working ?? (input.interaction ? `Built from tiles (${input.interaction.format})` : ""),
         exitCorrect: correct,
       },
     });
@@ -1420,7 +1528,10 @@ export class PersonalizedVideosService {
     });
     const watched = events.filter((event) => event.kind === "WATCHED");
     const completed = events.some((event) => event.kind === "COMPLETED");
-    const exitEvent = [...events].reverse().find((event) => event.kind === "INDEPENDENT_EXIT");
+    const exitEvent = [...events].reverse().find((event) => event.kind === "INDEPENDENT_EXIT" && (event.exitItem ?? 0) === 0);
+    const transferEvent = script.transfer ? [...events].reverse().find((event) => event.kind === "INDEPENDENT_EXIT" && event.exitItem === 1) : undefined;
+    // The lantern gate: neither result opens until every exit question is sealed.
+    const exitSealed = Boolean(exitEvent) && (!script.transfer || Boolean(transferEvent));
     const asset = row.assetId
       ? await this.prisma.modalityAsset.findUnique({ where: { assetId: row.assetId } })
       : null;
@@ -1476,7 +1587,17 @@ export class PersonalizedVideosService {
       statusLabel: script.statusLabel ?? row.status,
       evidenceSnapshot: row.evidenceSnapshot as PersonalizedVideoEvidenceSnapshot,
       lesson: lessonView,
-      exit: script.exit ?? null,
+      exit: script.exit
+        ? {
+            ...script.exit,
+            // The expected answer reaches the browser only after the one attempt is made.
+            expected: exitSealed ? script.exit.expected : "",
+            ...(exitEvent ? {} : exitInteractionField(script, row.id)),
+            ...(script.transfer
+              ? { transfer: { prompt: script.transfer.prompt, ...(transferEvent ? {} : transferInteractionField(script, row.id)) } }
+              : {}),
+          }
+        : null,
       asset:
         asset && asset.reviewStatus === "APPROVED" && this.isPlayableVideo(asset.storageRef)
           ? {
@@ -1504,8 +1625,17 @@ export class PersonalizedVideosService {
             prompt: exitEvent.exitPrompt ?? script.exit?.prompt ?? "",
             answer: exitEvent.exitAnswer ?? undefined,
             working: exitEvent.exitWorking ?? undefined,
-            correct: exitEvent.exitCorrect ?? undefined,
+            correct: exitSealed ? (exitEvent.exitCorrect ?? undefined) : undefined,
             createdAt: exitEvent.createdAt.toISOString(),
+          }
+        : null,
+      exitTransferAttempt: transferEvent
+        ? {
+            prompt: transferEvent.exitPrompt ?? script.transfer?.prompt ?? "",
+            answer: transferEvent.exitAnswer ?? undefined,
+            working: transferEvent.exitWorking ?? undefined,
+            correct: exitSealed ? (transferEvent.exitCorrect ?? undefined) : undefined,
+            createdAt: transferEvent.createdAt.toISOString(),
           }
         : null,
       limitations: [...PERSONALIZED_VIDEO_LIMITATIONS],
@@ -1595,4 +1725,44 @@ export class PersonalizedVideosService {
       limitations: [...PERSONALIZED_VIDEO_LIMITATIONS],
     } as PersonalizedVideoTeacherReport["students"][number];
   }
+}
+
+/** The tile game for an exit, when its check is one code can build tiles for. Deterministic per assignment. */
+export function exitInteraction(script: Pick<StoredScript, "exit" | "exitCheck"> | null, assignmentId: string): TileBuildInteraction | null {
+  if (!script?.exitCheck || !script.exit?.expected || !gameFormatsEnabled()) return null;
+  const task = script.exitCheck.task;
+  if (task !== "factorise" && task !== "expand") return null;
+  return buildTileInteraction({ stage: "EXIT", task, expression: script.exitCheck.expression, answer: script.exit.expected, seed: `exit:${assignmentId}` });
+}
+
+/** The tile game for the transfer question. */
+export function transferInteraction(script: Pick<StoredScript, "transfer"> | null, assignmentId: string): TileBuildInteraction | null {
+  const t = script?.transfer;
+  if (!t || !gameFormatsEnabled() || (t.task !== "factorise" && t.task !== "expand")) return null;
+  return buildTileInteraction({ stage: "EXIT", task: t.task, expression: t.expression, answer: t.answer, seed: `transfer:${assignmentId}` });
+}
+
+function transferInteractionField(script: StoredScript, assignmentId: string): { interaction?: TileBuildInteraction } {
+  const interaction = transferInteraction(script, assignmentId);
+  return interaction ? { interaction } : {};
+}
+
+function exitInteractionField(script: StoredScript, assignmentId: string): { interaction?: TileBuildInteraction } {
+  const interaction = exitInteraction(script, assignmentId);
+  return interaction ? { interaction } : {};
+}
+
+/** The code-built practice games (the AI author writes only the older formats). */
+const PRACTICE_GAMES = new Set(["factor-safe", "rectangle", "build", "mark-it", "rush"]);
+
+/**
+ * An AI-written practice set plus the code-built games for the same skill,
+ * so every student gets the games whoever wrote the rest. The games are
+ * built and checked by code; anything already in the set isn't repeated.
+ */
+export function withPracticeGames(items: PracticeItem[], skillId: string, seed: string, avoid: string[]): PracticeItem[] {
+  if (items.some((item) => PRACTICE_GAMES.has(item.format))) return items;
+  const used = [...avoid, ...items.flatMap((item) => ("expression" in item ? [item.expression] : []))];
+  const games = generatePractice(skillId, `games:${seed}`, used).items.filter((item) => PRACTICE_GAMES.has(item.format));
+  return [...items, ...games].map((item, i) => ({ ...item, id: `p${i + 1}` }));
 }

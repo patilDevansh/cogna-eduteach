@@ -24,6 +24,7 @@ import type {
   LotusSkillSummary,
   LotusStudentResponse,
 } from "@cogna/shared";
+import { LOTUS_SELECT_SEPARATOR } from "@cogna/shared";
 import {
   algebraicallyEqual,
   classifyFactorisation,
@@ -105,7 +106,7 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
   const d = question.answerKey.diagnostics!;
   const key = question.answerKey.canonicalAnswer;
   const verification = (status: LotusMathVerification["status"], explanation: string): LotusMathVerification => ({
-    status, correctAnswer: key, method: d.itemKind === "CHOICE" ? "AI_AUTHORED_REFERENCE" : "DETERMINISTIC_ALGEBRA", explanation,
+    status, correctAnswer: key, method: d.itemKind === "CHOICE" ? (d.origin === "CODE" ? "DETERMINISTIC_ALGEBRA" : "AI_AUTHORED_REFERENCE") : d.itemKind === "SELECT" ? "DETERMINISTIC_ALGEBRA" : "DETERMINISTIC_ALGEBRA", explanation,
   });
 
   if (response.didNotKnow) {
@@ -118,6 +119,22 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
   }
 
   const answer = response.answer;
+  if (d.itemKind === "SELECT") {
+    // "Net every one that fits": the chosen options, in any order.
+    const chosen = new Set(answer.split(LOTUS_SELECT_SEPARATOR).map((part) => normalizeMathText(part).toLowerCase()).filter(Boolean));
+    const keyed = new Set(key.split(LOTUS_SELECT_SEPARATOR).map((part) => normalizeMathText(part).toLowerCase()));
+    if (chosen.size === keyed.size && [...chosen].every((c) => keyed.has(c))) {
+      return { verification: verification("VERIFIED_CORRECT", "Chose exactly the right options."), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    }
+    const accepted = d.predictedMistakes.filter((p) => chosen.has(normalizeMathText(p.answer).toLowerCase()));
+    return {
+      verification: verification("VERIFIED_INCORRECT", accepted.length ? "Chose an option that doesn't fit." : "Left out an option that fits."),
+      evidence: accepted.map((p) => ({ skillId: ownerOfMistake(p.mistake, d), kind: "MISTAKE" as const, mistake: p.mistake, source: "INSTANT" as const, description: `Chose "${p.answer}".` })),
+      fastSkip: false,
+      // Only leaving a right option out has no named mistake: the review decides what it means.
+      needsAnalysis: accepted.length === 0,
+    };
+  }
   if (d.itemKind === "CHOICE") {
     if (sameChoice(answer, key)) return { verification: verification("VERIFIED_CORRECT", "Chose the correct option."), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
     const predicted = d.predictedMistakes.find((p) => sameChoice(p.answer, answer));

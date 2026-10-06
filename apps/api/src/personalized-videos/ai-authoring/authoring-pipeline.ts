@@ -1,8 +1,9 @@
-import { prettyMath, type AuthoredLessonProps } from "@cogna/lesson-video";
+import type { AuthoredLessonProps } from "@cogna/lesson-video";
+import { answerFromPicks } from "../../interaction-formats/tile-builder";
 import type {
   AuthoredLessonDraft,
+  AuthoredScene,
   AuthoredVisual,
-  EquationStep,
   SlideVisual,
   LotusSessionView,
   PersonalizedVideoExitItem,
@@ -16,6 +17,7 @@ import type { OpenAIService } from "../../ai/openai.service";
 import { FakeLessonAuthor, OpenAiLessonAuthor, type LessonAuthorModel } from "./author-models";
 import type { LessonBrief } from "./lesson-brief";
 import { taskVerdict } from "./lesson-verifier";
+import { pretty } from "../micro-lessons";
 
 /**
  * Glue between the lesson service and the AI author: which author to use,
@@ -52,50 +54,58 @@ export function placeholderLesson(brief: LessonBrief): PersonalizedVideoLesson {
   };
 }
 
-/** What a slide shows for one beat's picture, ready to read (titles show nothing: the slide's headline covers them). */
-function visualLines(v: AuthoredVisual): string[] {
-  const m = prettyMath;
-  const sum = (terms: string[]) => terms.map(m).join(" + ");
-  switch (v.type) {
-    case "title": return [];
-    case "expression": return [m(v.expr)];
-    case "steps": return v.steps.map(m);
-    case "distribute": return [`${m(v.outside)}(${sum(v.inside)})`, sum(v.result)];
-    case "area": return [`(${sum(v.rows)})(${sum(v.cols)})`, sum(v.cells.flat())];
-    case "pair-search": return [`${v.answer[0]} × ${v.answer[1]} = ${v.product}`, `${v.answer[0]} + ${v.answer[1]} = ${v.sum}`];
-    case "common-factor": return [sum(v.terms), `${m(v.factor)}(${sum(v.remaining)})`];
-    case "mistake": return [`${m(v.wrong)} ✗`, `${m(v.right)} ✓`];
-    case "rule": return v.lines;
+const num = (n: number) => (n < 0 ? `−${-n}` : `${n}`);
+/** Terms written as one sum: ["2x", "-5"] → "2x − 5". */
+const sum = (terms: string[]) => pretty(terms.map((t, i) => (i === 0 || /^\s*-/.test(t) ? t : `+ ${t}`)).join(" "));
+
+/**
+ * The maths lines a slide shows for one scene, taken from its beats' visuals
+ * (each one already passed the verifier). Visuals with no maths claim add nothing.
+ */
+export function sceneEquationLines(scene: AuthoredScene): Array<{ text: string }> {
+  const lines: string[] = [];
+  for (const { visual: v } of scene.beats) {
+    switch (v.type) {
+      case "expression": lines.push(pretty(v.expr)); break;
+      case "steps": lines.push(...v.steps.map(pretty)); break;
+      case "distribute": lines.push(`${pretty(v.outside)}(${sum(v.inside)})`, sum(v.result)); break;
+      case "common-factor": lines.push(sum(v.terms), `${pretty(v.factor)}(${sum(v.remaining)})`); break;
+      case "pair-search": lines.push(`${num(v.answer[0])} × ${num(v.answer[1])} = ${num(v.product)}`, `${num(v.answer[0])} + ${num(v.answer[1])} = ${num(v.sum)}`); break;
+      case "mistake": lines.push(pretty(v.expr), `✗ ${pretty(v.wrong)}`, `✓ ${pretty(v.right)}`); break;
+      case "tiles": lines.push(`x² + ${v.b}x + ${v.c} = (x + ${v.sides[0]})(x + ${v.sides[1]})`); break;
+      default: break;
+    }
   }
+  return [...new Set(lines)].slice(0, 4).map((text) => ({ text }));
 }
 
-/** A beat's picture as a slide draws it: maths formatted for reading, the diagram kinds shown as a column of steps. */
+/** A beat's picture as a slide draws it: maths formatted for reading; the diagram kinds as a column of their maths lines. */
 function slideVisual(v: AuthoredVisual): SlideVisual | null {
-  const m = prettyMath;
   switch (v.type) {
     case "title": return null;
-    case "expression": return { type: "expression", expr: m(v.expr), caption: v.caption };
-    case "mistake": return { ...v, expr: m(v.expr), wrong: m(v.wrong), right: m(v.right) };
+    case "expression": return { type: "expression", expr: pretty(v.expr), caption: v.caption };
+    case "mistake": return { ...v, expr: pretty(v.expr), wrong: pretty(v.wrong), right: pretty(v.right) };
     case "rule": return v;
-    case "steps": return { type: "steps", steps: v.steps.map(m), caption: v.caption };
-    default: return { type: "steps", steps: visualLines(v) };
+    case "steps": return { type: "steps", steps: v.steps.map(pretty), caption: v.caption };
+    default: {
+      const steps = sceneEquationLines({ beats: [{ visual: v }] } as AuthoredScene).map((l) => l.text);
+      return steps.length ? { type: "steps", steps, caption: "caption" in v ? v.caption : undefined } : null;
+    }
   }
 }
 
 /**
- * Slides read `lesson.scenes[i]`; an AI-written lesson keeps its maths in the animation's
- * beats instead. This gives each slide its beats' pictures (timed to the narration) and a
- * plain `equation` for the transcript, for rows stored before this existed too. Slides
- * that already have maths are left alone.
+ * The slides draw an AI-written lesson beat by beat: each beat's picture, timed to the
+ * narration, with its spoken line as the caption. Rows stored before slide maths existed
+ * also get their `equation` lines (for the transcript) filled here.
  */
 export function withBeatEquations(lesson: PersonalizedVideoLesson, animation: Pick<AuthoredLessonProps, "scenes"> | undefined): PersonalizedVideoLesson {
   if (!animation?.scenes?.length) return lesson;
   return {
     ...lesson,
     scenes: lesson.scenes.map((scene, i) => {
-      if (scene.equation.length) return scene;
-      const beats = (animation.scenes[i]?.beats ?? []) as Array<{ visual?: AuthoredVisual; seconds?: number; text?: string }>;
-      const equation: EquationStep[] = beats.flatMap((b) => (b.visual ? visualLines(b.visual) : [])).map((text) => ({ text }));
+      const beats = (animation.scenes[i]?.beats ?? []) as Array<{ visual: AuthoredVisual; seconds?: number; text?: string }>;
+      if (!beats.length) return scene;
       let at = 0;
       const visuals = beats.map((b) => {
         const start = at;
@@ -103,6 +113,7 @@ export function withBeatEquations(lesson: PersonalizedVideoLesson, animation: Pi
         at += seconds;
         return { at: Math.round(start * 10) / 10, seconds, say: b.text ?? "", visual: b.visual ? slideVisual(b.visual) : null };
       });
+      const equation = scene.equation.length ? scene.equation : sceneEquationLines({ beats } as unknown as AuthoredScene);
       return { ...scene, equation, visuals };
     }),
   };
@@ -120,7 +131,7 @@ export function summaryFromDraft(draft: AuthoredLessonDraft, seconds: number): {
       scenes: draft.scenes.map((scene) => ({
         eyebrow: "Your lesson",
         headline: scene.title,
-        equation: [],
+        equation: sceneEquationLines(scene),
         narration: scene.beats.map((b) => b.say).join(" "),
         durationSeconds: Math.ceil(scene.beats.length * 6),
         accent: "green" as const,
@@ -155,6 +166,22 @@ export function practiceItemView(item: PracticeItem): PracticeItemView {
       const { answer: _a, workedSteps: _s, ...rest } = item;
       return rest;
     }
+    case "factor-safe": {
+      const { answer: _a, ...rest } = item;
+      return rest;
+    }
+    case "build": {
+      const { answer: _a, workedSteps: _s, ...rest } = item;
+      return rest;
+    }
+    case "rectangle": {
+      const { answer: _a, ...rest } = item;
+      return rest;
+    }
+    case "mark-it":
+      return { ...item, papers: item.papers.map((p) => ({ question: p.question, bitAnswer: p.bitAnswer })) };
+    case "rush":
+      return { ...item, rounds: item.rounds.map((r) => ({ expression: r.expression, options: r.options })) };
   }
 }
 
@@ -203,5 +230,59 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
       if (verdict === "UNREADABLE") return result("UNREADABLE", "I couldn't read that. Write it like (x - 3)(x - 4).");
       return result("INCORRECT", `Not quite. ${item.hint}`, reveal);
     }
+    case "factor-safe": {
+      if (!("pair" in answer) || !Array.isArray(answer.pair) || !answer.pair.every(Number.isInteger)) return result("UNREADABLE", "Set both dials first.");
+      const [a, b] = answer.pair;
+      const reveal = { answer: `(${linear(item.answer[0])})(${linear(item.answer[1])})`, steps: [`${fmt(item.answer[0])} × ${fmt(item.answer[1])} = ${fmt(item.product)}`, `${fmt(item.answer[0])} + ${fmt(item.answer[1])} = ${fmt(item.sum)}`] };
+      if (a * b === item.product && a + b === item.sum) return result("CORRECT", `Unlocked: ${fmt(a)} and ${fmt(b)} multiply to ${fmt(item.product)} and add to ${fmt(item.sum)}.`, reveal);
+      if (a * b === item.product && a + b === -item.sum) return result("INCORRECT", `So close: the product is right, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}. Flip both signs.`, reveal);
+      if (a * b === item.product) return result("INCORRECT", `The product lamp is on, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}.`, reveal);
+      return result("INCORRECT", `They multiply to ${fmt(a * b)}, not ${fmt(item.product)}.`, reveal);
+    }
+    case "rectangle": {
+      if (!("pair" in answer) || !Array.isArray(answer.pair) || !answer.pair.every(Number.isInteger)) return result("UNREADABLE", "Move the strips first.");
+      const [side, bottom] = answer.pair;
+      const spaces = side * bottom;
+      const reveal = { answer: `(x + ${item.answer[0]})(x + ${item.answer[1]})`, steps: [`${item.answer[0]} + ${item.answer[1]} = ${item.strips} strips`, `${item.answer[0]} × ${item.answer[1]} = ${item.units} small squares`] };
+      if (side + bottom !== item.strips) return result("UNREADABLE", `Use all ${item.strips} strips.`);
+      if (spaces === item.units) return result("CORRECT", `It fits: ${side} × ${bottom} = ${item.units}. The sides are x + ${side} and x + ${bottom}.`, reveal);
+      if (bottom === 0 || side === 0) return result("INCORRECT", `Move some strips to the other side to make a corner for the ${item.units} small squares.`, reveal);
+      return result("INCORRECT", spaces < item.units
+        ? `${side} × ${bottom} = ${spaces} spaces, but there are ${item.units} small squares: ${item.units - spaces} left over.`
+        : `${side} × ${bottom} = ${spaces} spaces, but only ${item.units} small squares: ${spaces - item.units} hole${spaces - item.units === 1 ? "" : "s"}.`, reveal);
+    }
+    case "mark-it": {
+      if (!("paper" in answer) || !item.papers[answer.paper]) return result("UNREADABLE", "Pick a paper to mark.");
+      const paper = item.papers[answer.paper]!;
+      const stamped = answer.mark;
+      if (stamped !== "right" && stamped !== "wrong") return result("UNREADABLE", "Stamp it right or wrong.");
+      if (stamped !== paper.verdict) {
+        return result("INCORRECT", paper.verdict === "right" ? `Are you sure? Multiply it back out: ${paper.learn.replace(/ I was right!$/, "")}` : "My teacher says there's a mistake in this one. Can you find it?");
+      }
+      if (paper.verdict === "right") return result("CORRECT", paper.learn);
+      if (!answer.reason) return result("UNFINISHED", "Right, it's wrong! What went wrong?");
+      if (paper.reasons.includes(answer.reason)) return result("CORRECT", paper.learn);
+      return result("INCORRECT", attempt > 1 ? "Multiply Bit's answer back out and compare it with the question." : "Not that one. Look again.");
+    }
+    case "rush": {
+      if (!("round" in answer) || !item.rounds[answer.round] || !Number.isInteger(answer.option)) return result("UNREADABLE", "Tap an answer.");
+      const round = item.rounds[answer.round]!;
+      if (!round.options[answer.option]) return result("UNREADABLE", "Tap an answer.");
+      const reveal = { answer: round.options[round.answerIndex]!, steps: [] };
+      if (answer.option === round.answerIndex) return result("CORRECT", round.why[answer.option] ?? "", reveal);
+      return { ...result("INCORRECT", `${round.why[answer.option] ?? ""} It was ${round.options[round.answerIndex]}.`), reveal };
+    }
+    case "build": {
+      if (!("picks" in answer)) return result("UNREADABLE", "Fill the boxes with tiles first.");
+      const built = answerFromPicks(item.interaction, { format: item.interaction.format, picks: answer.picks });
+      if (!built) return result("UNREADABLE", "Fill every box with a tile first.");
+      const verdict = taskVerdict(item.task, built, item.expression);
+      const reveal = { answer: item.answer, steps: item.workedSteps };
+      if (verdict === "CORRECT") return result("CORRECT", "Built it. It multiplies back to the original.", reveal);
+      if (verdict === "UNFINISHED") return result("UNFINISHED", "That's equal, but it isn't finished: one part still splits.", reveal);
+      return result("INCORRECT", "Multiply it back out: it doesn't give the original. Check each sign.", reveal);
+    }
   }
 }
+
+const linear = (n: number) => (n < 0 ? `x − ${-n}` : `x + ${n}`);

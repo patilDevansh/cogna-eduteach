@@ -375,8 +375,11 @@ describe("slides for an AI-written lesson", () => {
     };
     const out = withBeatEquations(lesson, animation as never);
     assert.deepEqual(out.scenes[0]!.equation.map((e) => e.text), ["5x² − 20"]);
-    assert.equal(out.scenes[1]!.equation.length, 2);
-    assert.ok(out.scenes[1]!.equation[0]!.text.endsWith("✗") && out.scenes[1]!.equation[1]!.text.endsWith("✓"));
+    assert.deepEqual(out.scenes[1]!.equation.map((e) => e.text), ["5x² − 20", "✗ 5(x² − 4)", "✓ 5(x − 2)(x + 2)"]);
     assert.deepEqual(out.scenes[2]!.equation, [{ text: "kept" }]);
+    // Each beat becomes a timed picture; a title beat has none (the headline covers it).
+    assert.deepEqual(out.scenes[0]!.visuals?.map((v) => v.visual?.type ?? null), [null, "expression"]);
+    assert.equal(out.scenes[1]!.visuals?.[0]?.visual?.type, "mistake");
+    assert.equal(out.scenes[2]!.visuals?.[0]?.visual?.type, "rule");
   });
 });

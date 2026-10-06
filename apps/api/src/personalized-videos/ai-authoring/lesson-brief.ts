@@ -49,6 +49,35 @@ export function tidyExpression(expression: string): string {
   }
 }
 
+const PAIR = /^([−-]?\d+) and ([−-]?\d+)$/;
+const pairNumbers = (text: string | undefined) => {
+  const m = text?.trim().match(PAIR);
+  return m ? ([Number(m[1]!.replace("−", "-")), Number(m[2]!.replace("−", "-"))] as const) : null;
+};
+const linear = (n: number) => (n < 0 ? `x - ${-n}` : `x + ${n}`);
+
+/**
+ * For a "which two numbers…" pick: the trinomial the pair belongs to, its
+ * factorised form, and the student's pick, all from the verified key pair.
+ */
+function pairChoice(key: string | undefined, answer: string) {
+  const right = pairNumbers(key);
+  const chosen = pairNumbers(answer);
+  if (!right || !chosen) return null;
+  const [p, q] = right;
+  const P = p * q, S = p + q;
+  if (S === 0 || p === 0 || q === 0) return null;
+  const expression = `x^2 ${S < 0 ? "-" : "+"} ${Math.abs(S) === 1 ? "" : Math.abs(S)}x ${P < 0 ? "-" : "+"} ${Math.abs(P)}`;
+  const correctAnswer = `(${linear(p)})(${linear(q)})`;
+  if (!algebraicallyEqual(expression, correctAnswer)) return null;
+  return { expression, correctAnswer, studentAnswer: `${chosen[0]} and ${chosen[1]}` };
+}
+
+/** True when a student item's answer is a picked number pair rather than written algebra. */
+export function isPairAnswer(answer: string): boolean {
+  return PAIR.test(answer.trim());
+}
+
 export function buildLessonBrief(session: LotusSessionView, studentFirstName: string): LessonBrief | null {
   if (session.topic !== "FACTORISATION" || session.finalReport?.outcome !== "SOLID_GAP") return null;
   const target = confirmedByDepth(foldLedger(session.audits))[0];
@@ -58,9 +87,23 @@ export function buildLessonBrief(session: LotusSessionView, studentFirstName: st
   session.audits.forEach((audit, index) => {
     const d = audit.question.answerKey?.diagnostics;
     const answer = audit.response?.answer?.trim();
-    if (!d?.expression || !answer || audit.response?.didNotKnow || d.itemKind === "CHOICE") return;
+    if (!answer || audit.response?.didNotKnow) return;
     const evidence = (audit.skillEvidence ?? []).find((ev) => ev.skillId === target.skillId && ev.kind !== "SECURE");
     if (!evidence) return;
+    // A product-sum pair picked in a game: its trinomial and factorised form follow from the verified key.
+    const picked = pairChoice(audit.question.answerKey?.canonicalAnswer, answer);
+    if (picked) {
+      studentItems.push({
+        questionNumber: index + 1,
+        prompt: audit.question.prompt.slice(0, 200),
+        ...picked,
+        task: "factorise",
+        ...(evidence.mistake ? { mistake: evidence.mistake } : {}),
+        ...(evidence.description ? { mistakeDescription: evidence.description.slice(0, 160) } : {}),
+      });
+      return;
+    }
+    if (!d?.expression || d.itemKind === "CHOICE") return;
     const correct = audit.question.answerKey.canonicalAnswer;
     // Only maths the engine can read goes to the author: it has to be checkable later.
     if (!isReadable(d.expression) || !isReadable(correct)) return;

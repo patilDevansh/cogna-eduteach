@@ -1,4 +1,5 @@
 import { Type } from "class-transformer";
+import type { TileBuildResponse } from "@cogna/shared";
 import {
   IsInt,
   IsNotEmpty,
@@ -6,7 +7,9 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Max,
   Min,
+  ValidateIf,
 } from "class-validator";
 
 export class PersonalizedVideoVerifyStepDto {
@@ -39,9 +42,24 @@ export class PersonalizedVideoExitDto {
   @IsNotEmpty()
   answer!: string;
 
+  /** Required for a typed exit; a tile exit has nothing to write. */
+  @ValidateIf((value: PersonalizedVideoExitDto) => !value.interaction)
   @IsString()
   @IsNotEmpty()
   working!: string;
+
+  /** Tile picks when the exit was shown as a tile game. The server rebuilds the answer from them. */
+  @IsOptional()
+  @IsObject()
+  interaction?: TileBuildResponse;
+
+  /** 0 = the main exit question, 1 = the transfer question. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  item?: number;
 }
 
 export class PersonalizedVideoWatchDto {
@@ -81,4 +99,12 @@ export class PersonalizedVideoRenderCallbackDto {
   @IsOptional()
   @IsString()
   message?: string;
+}
+
+export class PersonalizedVideoMicroCheckDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  option!: number;
 }

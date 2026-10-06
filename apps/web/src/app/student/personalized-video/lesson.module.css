@@ -403,3 +403,17 @@ details[open] .chev { transform: rotate(180deg); }
 .dev ul { list-style: none; margin: 10px 0 0; padding: 0; }
 .dev li { padding: 2px 0; }
 .dev p { margin: 8px 0 0; word-break: break-word; }
+
+/* The lantern gate: one lantern per independent exit question. */
+.lanternGate { display: flex; align-items: flex-end; gap: 14px; height: 70px; border-radius: 12px; padding: 0 16px 10px; background: linear-gradient(180deg, #1b2b45, #2d4566); margin-bottom: 12px; }
+.lantern { position: relative; width: 30px; height: 44px; border-radius: 10px 10px 14px 14px; background: #4a5a74; transition: background 0.5s, box-shadow 0.5s; }
+.lantern::before { content: ""; position: absolute; left: 50%; top: -10px; width: 2px; height: 10px; background: #8a96aa; }
+.lantern i { position: absolute; inset: 8px 7px; border-radius: 6px; background: #2c3a52; }
+.lantern[data-state="sealed"] { background: #6f7f99; }
+.lantern[data-state="sealed"] i { background: #8b98b0; }
+.lantern[data-state="lit"] { background: #e9a23b; box-shadow: 0 0 22px #f2c14e; }
+.lantern[data-state="lit"] i { background: #fff3c4; }
+.lantern[data-state="dim"] { background: #5b6478; }
+.lanternLabel { margin-left: auto; align-self: center; color: #c9d4e6; font-size: 0.8rem; font-weight: 600; }
+
+.microSlot { display: grid; gap: 10px; max-width: 720px; margin: 0 auto 24px; }

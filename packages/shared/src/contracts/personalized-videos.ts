@@ -7,6 +7,7 @@
  */
 
 import type { AuthoredVisual } from "./authored-lessons";
+import type { TileBuildInteraction } from "./interaction-formats";
 
 /** What a slide can draw for one narrated beat (maths already formatted for reading). */
 export type SlideVisual = Extract<AuthoredVisual, { type: "expression" | "steps" | "mistake" | "rule" }>;
@@ -111,8 +112,17 @@ export interface PersonalizedVideoLesson {
 
 export interface PersonalizedVideoExitItem {
   prompt: string;
+  /** Blank in a student's view until the exit has been answered: the answer never reaches the browser first. */
   expected: string;
   evidencePurpose: string;
+  /** When set, the exit is answered by building from tiles (one attempt). Carries no answer. */
+  interaction?: TileBuildInteraction;
+  /**
+   * The second exit question (the "lantern gate"): same skill, different
+   * form, to check the idea carries over. One attempt. Results for both
+   * questions open only after both are sealed.
+   */
+  transfer?: { prompt: string; interaction?: TileBuildInteraction };
 }
 
 export interface PersonalizedVideoEvidenceObservation {
@@ -182,6 +192,8 @@ export interface PersonalizedVideoAssignmentView {
   completed: boolean;
   dwellMs: number;
   exitAttempt: PersonalizedVideoExitAttemptView | null;
+  /** The transfer question's attempt. While either exit question is unsealed, neither shows `correct`. */
+  exitTransferAttempt?: PersonalizedVideoExitAttemptView | null;
   limitations: string[];
 }
 

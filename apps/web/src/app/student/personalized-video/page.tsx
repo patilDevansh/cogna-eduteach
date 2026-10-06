@@ -13,6 +13,9 @@ import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
 import styles from "./personalized-video.module.css";
 import L from "./lesson.module.css";
 import { PracticeArena } from "./PracticeArena";
+import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/TileGame";
+import { MicroLessonCard } from "@/components/games/MicroLessonCard";
+import type { MicroLessonView } from "@cogna/shared";
 import { useDevState } from "@/lib/dev-mode";
 
 type Stage = "lesson" | "practice" | "exit" | "result";
@@ -41,6 +44,11 @@ function PersonalizedVideoPage() {
   const [exitAssignmentId, setExitAssignmentId] = useState<string | null>(search.get("stage") === "exit" ? classroomAssignmentId : null);
   const [answer, setAnswer] = useState("");
   const [working, setWorking] = useState("");
+  /** The 20-second lesson on the student's own mistake (null when none fits). */
+  const [micro, setMicro] = useState<MicroLessonView | null>(null);
+  /** A tile exit's picks; the server rebuilds the answer from them. */
+  const [exitTiles, setExitTiles] = useState<TileGameState | null>(null);
+  const [sealing, setSealing] = useState(false);
   const [correct, setCorrect] = useState<boolean | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const watchedRef = useRef(false);
@@ -245,12 +253,26 @@ function PersonalizedVideoPage() {
     ] as const;
   }, [assignment]);
 
+  /** Which exit question is on screen: 0, then 1 (the transfer question) when there is one. */
+  const exitStep = assignment?.exitAttempt && assignment.exit?.transfer ? 1 : 0;
+
   async function submitExit() {
     if (!assignment) return;
+    const step = exitStep;
+    const tileExit = step === 1 ? assignment.exit?.transfer?.interaction : assignment.exit?.interaction;
     try {
-      const result = await api.submitPersonalizedVideoExit(assignment.id, answer, working);
+      const result = tileExit && exitTiles?.answer
+        ? await api.submitPersonalizedVideoExit(assignment.id, exitTiles.answer, "", { format: tileExit.format, picks: exitTiles.picks, changes: exitTiles.changes }, step)
+        : await api.submitPersonalizedVideoExit(assignment.id, answer, working, undefined, step);
       setAssignment(result);
-      setCorrect(result.exitAttempt?.correct ?? false);
+      setExitTiles(null);
+      setAnswer("");
+      setWorking("");
+      setSealing(false);
+      const finished = !result.exit?.transfer || Boolean(result.exitTransferAttempt);
+      if (!finished) return; // the next lantern: the transfer question
+      const allCorrect = (result.exitAttempt?.correct ?? false) && (!result.exit?.transfer || (result.exitTransferAttempt?.correct ?? false));
+      setCorrect(allCorrect);
       setStage("result");
       const exitId = exitAssignmentId ?? (isProductionClassroom ? null : classroomAssignmentId);
       if (exitId) {
@@ -260,7 +282,7 @@ function PersonalizedVideoPage() {
             lessonStatus: result.status,
             delivery: result.delivery,
             watched: true,
-            independentExitCorrect: result.exitAttempt?.correct ?? false,
+            independentExitCorrect: allCorrect,
           },
         });
       }
@@ -275,9 +297,28 @@ function PersonalizedVideoPage() {
         setStage("result");
         return;
       }
+      setSealing(false);
       setError(err instanceof Error ? err.message : "The independent check could not be stored.");
     }
   }
+
+  useEffect(() => {
+    if (!assignment?.id || micro) return;
+    let cancelled = false;
+    api.getMicroLesson(assignment.id)
+      .then((r) => { if (!cancelled) setMicro(r.lesson); })
+      .catch(() => { /* the longer lesson still plays */ });
+    return () => { cancelled = true; };
+  }, [assignment?.id]);
+
+  // Each independent question is one attempt: once every one is sealed, only the result shows.
+  useEffect(() => {
+    const done = assignment?.exitAttempt && (!assignment.exit?.transfer || assignment.exitTransferAttempt);
+    if (stage === "exit" && done) {
+      setCorrect((assignment.exitAttempt?.correct ?? false) && (!assignment.exit?.transfer || (assignment.exitTransferAttempt?.correct ?? false)));
+      setStage("result");
+    }
+  }, [assignment, stage]);
 
   const seed = key in PILOT_STUDENT_STORIES ? PILOT_STUDENT_STORIES[key] : PILOT_STUDENT_STORIES.aarav;
   const name = assignment?.name ?? seed.name;
@@ -338,6 +379,13 @@ function PersonalizedVideoPage() {
                 </div>
               )}
             </section>
+
+            {micro && (
+              <section className={L.microSlot} aria-label="Your 20-second lesson">
+                <p className={L.eyebrow}>First, 20 seconds on your own answer</p>
+                <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment!.id, option)} />
+              </section>
+            )}
 
             {error && (
               <section className={L.panel}>
@@ -496,18 +544,31 @@ function PersonalizedVideoPage() {
         {assignment && stage === "exit" && (
           <section className={L.task}>
             <p className={L.eyebrow}>{assignment.status === "ABSTAINED" ? "A fresh question" : "Your turn · no hints this time"}</p>
-            <div className={L.question}>{displayMath(assignment.exit?.prompt ?? seed.exit.prompt)}</div>
-            <p className={L.taskNote}>Use the routine from the lesson. Your teacher sees this answer on its own, separate from the lesson.</p>
-            <label className={L.field}>
-              <span>Your answer</span>
-              <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
-            </label>
-            <label className={L.field}>
-              <span>Your working</span>
-              <textarea value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
-            </label>
+            {assignment.exit?.transfer && <LanternGate total={2} sealed={exitStep + (sealing ? 1 : 0)} />}
+            <div className={L.question}>{displayMath((exitStep === 1 ? assignment.exit?.transfer?.prompt : assignment.exit?.prompt) ?? seed.exit.prompt)}</div>
+            <p className={L.taskNote}>Use the routine from the lesson. One attempt, no hints. Your teacher sees this answer on its own, separate from the lesson.</p>
+            {(exitStep === 1 ? assignment.exit?.transfer?.interaction : assignment.exit?.interaction) ? (
+              <TileGame
+                key={`exit-${exitStep}`}
+                interaction={(exitStep === 1 ? assignment.exit!.transfer!.interaction : assignment.exit!.interaction)!}
+                sealed={sealing}
+                disabled={sealing}
+                onChange={setExitTiles}
+              />
+            ) : (
+              <>
+                <label className={L.field}>
+                  <span>Your answer</span>
+                  <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
+                </label>
+                <label className={L.field}>
+                  <span>Your working</span>
+                  <textarea value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
+                </label>
+              </>
+            )}
             <div className={L.taskActions}>
-              {devMode && !isProductionClassroom && (
+              {devMode && !isProductionClassroom && !assignment.exit?.interaction && !assignment.exit?.transfer && (
                 <button
                   className={L.ghost}
                   onClick={() => {
@@ -518,17 +579,35 @@ function PersonalizedVideoPage() {
                   Dev · fill demo response
                 </button>
               )}
-              <button className={L.primary} disabled={!answer.trim() || !working.trim()} onClick={() => void submitExit()}>
-                Check my answer <span aria-hidden="true">→</span>
-              </button>
+              {(exitStep === 1 ? assignment.exit?.transfer?.interaction : assignment.exit?.interaction) ? (
+                <button
+                  className={L.primary}
+                  disabled={!exitTiles?.answer || sealing}
+                  onClick={() => {
+                    // The scene plays its finishing move, then the one attempt is sent.
+                    setSealing(true);
+                    window.setTimeout(() => void submitExit(), 900);
+                  }}
+                >
+                  Seal my answer <span aria-hidden="true">→</span>
+                </button>
+              ) : (
+                <button className={L.primary} disabled={!answer.trim() || !working.trim()} onClick={() => void submitExit()}>
+                  Check my answer <span aria-hidden="true">→</span>
+                </button>
+              )}
             </div>
           </section>
         )}
 
         {assignment && stage === "result" && (
           <section className={`${L.task} ${L.result}`}>
-            <div className={`${L.resultIcon} ${correct ? L.resultGood : L.resultAgain}`}>{correct ? "✓" : "↻"}</div>
-            <h2>{correct ? `Nicely done${firstName ? `, ${firstName}` : ""}.` : "Not quite, and that's useful to know."}</h2>
+            {assignment.exit?.transfer ? (
+              <LanternGate total={2} sealed={2} results={[assignment.exitAttempt?.correct ?? false, assignment.exitTransferAttempt?.correct ?? false]} />
+            ) : (
+              <div className={`${L.resultIcon} ${correct ? L.resultGood : L.resultAgain}`}>{correct ? "✓" : "↻"}</div>
+            )}
+            <h2>{exitHeadline(assignment, correct, firstName)}</h2>
             <p className={L.taskNote}>
               {correct
                 ? "You solved a fresh question on your own. That's saved for your teacher: one right answer, not a claim you've mastered it forever."
@@ -536,7 +615,13 @@ function PersonalizedVideoPage() {
             </p>
             <div className={L.recap}>
               <div><span>Question</span><strong>{displayMath(assignment.exit?.prompt ?? "")}</strong></div>
-              <div><span>Your answer</span><strong>{answer}</strong></div>
+              <div><span>Your answer</span><strong>{prettyAlgebra(assignment.exitAttempt?.answer ?? answer)}</strong></div>
+              {assignment.exitTransferAttempt && (
+                <>
+                  <div><span>Second question</span><strong>{displayMath(assignment.exitTransferAttempt.prompt)}</strong></div>
+                  <div><span>Your answer</span><strong>{prettyAlgebra(assignment.exitTransferAttempt.answer ?? "")}</strong></div>
+                </>
+              )}
             </div>
             <div className={L.taskActions}>
               <button
@@ -575,4 +660,25 @@ export default function PersonalizedVideoRoute() {
       <PersonalizedVideoPage />
     </Suspense>
   );
+}
+
+/** The lantern gate: one lantern per independent question; they light only once every one is sealed. */
+function LanternGate({ total, sealed, results }: { total: number; sealed: number; results?: boolean[] }) {
+  return (
+    <div className={L.lanternGate} aria-label={results ? `${results.filter(Boolean).length} of ${total} right` : `${Math.min(sealed, total)} of ${total} sealed`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={L.lantern} data-state={results ? (results[i] ? "lit" : "dim") : i < sealed ? "sealed" : "open"}><i /></span>
+      ))}
+      <span className={L.lanternLabel}>{results ? "Results" : `${Math.min(sealed, total)} of ${total} sealed`}</span>
+    </div>
+  );
+}
+
+function exitHeadline(assignment: PersonalizedVideoAssignmentView, correct: boolean | null, firstName: string): string {
+  const name = firstName ? `, ${firstName}` : "";
+  if (!assignment.exit?.transfer) return correct ? `Nicely done${name}.` : "Not quite, and that's useful to know.";
+  const right = [assignment.exitAttempt?.correct, assignment.exitTransferAttempt?.correct].filter(Boolean).length;
+  if (right === 2) return `Both lanterns shine. You fixed it${name}!`;
+  if (right === 1) return `One lantern shines. You're nearly there${name}.`;
+  return `Not yet${name}. Your next lesson will show it a different way.`;
 }

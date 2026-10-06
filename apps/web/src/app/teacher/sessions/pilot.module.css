@@ -98,6 +98,7 @@
   .rosterRow { grid-template-columns: 1fr 1fr; }
 }
 
+.exitScore { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--ink-soft, #51635a); }
 /* Class switcher, rename and end-check controls. */
 .titleRow { display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
 .renameButton { border: 0; background: none; padding: 2px 4px; color: var(--accent); font: 600 var(--text-sm) var(--font-body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }

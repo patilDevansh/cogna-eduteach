@@ -24,6 +24,9 @@ import type {
   LotusUnseenPlanEntry,
   PersonalizedVideoAssignmentView,
   PersonalizedVideoTeacherReport,
+  TileBuildResponse,
+  MicroCheckResult,
+  MicroLessonView,
 } from "@cogna/shared";
 import {
   buildParentAuthHeaders,
@@ -144,11 +147,17 @@ function lotusDevModelModeHeaders(): Record<string, string> {
   return getLotusDevModelMode() === "fake" ? { "x-cogna-lotus-model-mode": "fake" } : {};
 }
 
-async function lotusFetch<T>(path: string, options?: RequestInit): Promise<T> {
+/** Longest a Lotus call may take before the page gives up and offers a retry (the proxy's own limit is 90 s for answers). */
+const LOTUS_CLIENT_TIMEOUT_MS = 100_000;
+
+async function lotusFetch<T>(path: string, options?: RequestInit, timeoutMs = LOTUS_CLIENT_TIMEOUT_MS): Promise<T> {
   let res: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     res = await fetch(`/api/lotus${path}`, {
       ...options,
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...cognaAuthHeaders(),
@@ -157,9 +166,21 @@ async function lotusFetch<T>(path: string, options?: RequestInit): Promise<T> {
       },
     });
   } catch (err) {
-    const detail = err instanceof Error ? err.message : "Network error";
+    clearTimeout(timer);
+    const detail = controller.signal.aborted ? "it took too long" : err instanceof Error ? err.message : "Network error";
     throw new ApiError(`Cogna Lotus request failed: ${detail}`, 0, path);
   }
+  try {
+    return await readLotusResponse<T>(res, path);
+  } catch (err) {
+    if (controller.signal.aborted) throw new ApiError("Cogna Lotus request failed: it took too long", 0, path);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readLotusResponse<T>(res: Response, path: string): Promise<T> {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
@@ -449,6 +470,7 @@ export interface PilotClassReport {
     endedNote?: string;
     lesson?: { title?: string; status?: string; authoredBy?: "AI" | "RECIPE"; practice?: { attempted: number; correct: number; total: number } } | null;
     exitCorrect?: boolean | null;
+    exitScore?: { right: number; total: number };
     progress: "IMPROVED" | "NOT_YET" | "NO_GAP" | "UNCLEAR" | "PENDING";
   }>;
 }
@@ -870,6 +892,10 @@ export const api = {
       `/sessions/${sessionId}/demo-fill?studentId=${encodeURIComponent(studentId)}${gap ? `&gap=${encodeURIComponent(gap)}` : ""}`,
     ),
 
+  /** The current question, spoken by the server's voice (base64 MP3). */
+  readLotusAloud: (sessionId: string, studentId: string) =>
+    lotusFetch<{ audio: string; format: "mp3" }>(`/sessions/${sessionId}/read-aloud?studentId=${encodeURIComponent(studentId)}`),
+
   submitLotusAnswer: (
     sessionId: string,
     studentId: string,
@@ -923,6 +949,13 @@ export const api = {
 
   getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
 
+  /** The narrated 20-second lesson on the student's own mistake, or null when none fits. */
+  getMicroLesson: (id: string, theme?: string) =>
+    personalizedVideoFetch<{ lesson: MicroLessonView | null }>(`/assignments/${id}/micro-lesson${theme ? `?theme=${encodeURIComponent(theme)}` : ""}`),
+
+  checkMicroLesson: (id: string, option: number) =>
+    personalizedVideoFetch<MicroCheckResult>(`/assignments/${id}/micro-check`, { method: "POST", body: JSON.stringify({ option }) }),
+
   checkPracticeAnswer: (id: string, itemId: string, answer: PracticeAnswer) =>
     personalizedVideoFetch<PracticeCheckResult>(`/assignments/${id}/practice/${encodeURIComponent(itemId)}`, {
       method: "POST",
@@ -941,10 +974,11 @@ export const api = {
       body: JSON.stringify({ dwellMs }),
     }),
 
-  submitPersonalizedVideoExit: (id: string, answer: string, working: string) =>
+  /** One attempt. A tile exit sends its picks; the server rebuilds and marks the answer itself. */
+  submitPersonalizedVideoExit: (id: string, answer: string, working: string, interaction?: TileBuildResponse, item = 0) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/exit`, {
       method: "POST",
-      body: JSON.stringify({ answer, working }),
+      body: JSON.stringify({ answer, working, item, ...(interaction ? { interaction } : {}) }),
     }),
 
   verifyPersonalizedVideoStep: (id: string, sceneIndex: number, assembledLine: string) =>
