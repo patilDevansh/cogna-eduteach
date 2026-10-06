@@ -66,6 +66,7 @@ import {
   placeholderLesson,
   practiceItemView,
   summaryFromDraft,
+  withBeatEquations,
 } from "./ai-authoring/authoring-pipeline";
 import { skillName } from "../lotus/lotus-factorisation-catalogue";
 import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
@@ -1440,11 +1441,14 @@ export class PersonalizedVideosService {
       studentId: row.studentId,
       schoolId: row.schoolId ?? schoolIdForStudent(row.studentId),
     };
+    const baseLesson = script.lesson && script.animationKind === "authored"
+      ? withBeatEquations(script.lesson, script.animation as AuthoredLessonProps)
+      : script.lesson;
     const lessonView =
-      interactive && script.lesson
+      interactive && baseLesson
         ? {
-            ...script.lesson,
-            scenes: script.lesson.scenes.map((scene, index) => {
+            ...baseLesson,
+            scenes: baseLesson.scenes.map((scene, index) => {
               const entry = interactiveResult?.scenesAudio.find((a) => a.index === index);
               if (!entry) return scene;
               const audioUrl = attachMediaAccess(
@@ -1454,7 +1458,7 @@ export class PersonalizedVideosService {
               return { ...scene, audioUrl };
             }),
           }
-        : (script.lesson ?? null);
+        : (baseLesson ?? null);
     return {
       id: row.id,
       studentId: row.studentId,

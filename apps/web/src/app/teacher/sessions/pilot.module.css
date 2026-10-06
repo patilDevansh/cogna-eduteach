@@ -85,6 +85,11 @@
 
 .footerActions { display: flex; gap: var(--s-3); flex-wrap: wrap; margin-top: var(--s-5); }
 
+/* The sidebar takes 214px, so the table and results panel only sit side by side on wide windows. */
+@media (max-width: 1200px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 900px) {
   .releaseCard, .grid { grid-template-columns: 1fr; }
   .releaseSide { border-left: 0; padding-left: 0; }

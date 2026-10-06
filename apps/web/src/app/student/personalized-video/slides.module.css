@@ -1,0 +1,137 @@
+/* The narrated slide: top bar, headline, one picture at a time, caption. */
+.slide {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 0.9rem;
+  min-height: clamp(380px, 52vw, 520px);
+  padding: clamp(1.25rem, 3.5vw, 2.25rem) clamp(1.25rem, 4vw, 2.75rem);
+  border-radius: 22px;
+  background: linear-gradient(150deg, #eef7f2 0%, #d5ebe0 100%);
+  box-shadow: 0 24px 60px rgba(12, 55, 45, 0.14);
+}
+.slide::after {
+  content: "";
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  right: -180px;
+  top: -200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.top { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.eyebrow { color: var(--accent-deep); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.count { font-size: 0.8rem; font-weight: 700; color: var(--accent-deep); background: rgba(255, 255, 255, 0.7); border-radius: 999px; padding: 0.25rem 0.7rem; }
+
+.headline { position: relative; z-index: 1; font-size: clamp(1.5rem, 3.2vw, 2.3rem); line-height: 1.1; color: #0d2b23; animation: rise 0.45s var(--ease-settle) both; }
+
+.stage { position: relative; z-index: 1; display: grid; place-items: center; min-height: 0; }
+.picture { width: 100%; display: grid; place-items: center; animation: rise 0.5s var(--ease-settle) both; }
+
+.caption {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: rgba(13, 43, 35, 0.86);
+  color: #f2f8f5;
+  font-size: clamp(0.95rem, 1.6vw, 1.08rem);
+  line-height: 1.5;
+  text-align: center;
+  animation: fade 0.35s ease both;
+}
+
+.paused * { animation-play-state: paused !important; }
+
+/* maths */
+.math { font-family: var(--font-display); font-weight: 650; letter-spacing: 0.01em; color: #0b3a2f; white-space: nowrap; }
+
+.expression { margin: 0; text-align: center; }
+.expression .math {
+  display: inline-block;
+  font-size: clamp(2.4rem, 7vw, 4.4rem);
+  padding: 0.6rem 2.2rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 30px rgba(12, 55, 45, 0.1);
+}
+
+.expression figcaption, .steps figcaption, .compare figcaption { margin-top: 0.8rem; color: #3f6156; font-size: 0.95rem; text-align: center; }
+
+.steps { margin: 0; display: grid; gap: 0.55rem; justify-items: start; }
+.step { display: grid; grid-template-columns: 1.6rem auto; align-items: center; gap: 0.6rem; animation: rise 0.45s var(--ease-settle) both; }
+.step .math { font-size: clamp(1.5rem, 3.6vw, 2.3rem); padding: 0.35rem 1rem; border-radius: 12px; background: rgba(255, 255, 255, 0.82); }
+.step:last-of-type .math { box-shadow: inset 0 0 0 2px rgba(23, 115, 79, 0.45); }
+.eq { font: 700 1.4rem var(--font-display); color: #5c8476; text-align: center; }
+
+.compare { margin: 0; width: min(100%, 720px); display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.compare figcaption { grid-column: 1 / -1; margin-top: 0.2rem; }
+.answer {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  padding: 1.1rem 1rem 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 2px solid transparent;
+  animation: rise 0.45s var(--ease-settle) both;
+}
+.answer .math { font-size: clamp(1.4rem, 3.2vw, 2.1rem); }
+.answerLabel { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #5c7168; }
+.verdict { font-size: 0.85rem; font-weight: 700; text-align: center; }
+.yours { border-color: #e7c27a; }
+.yours .verdict { color: #9a5f0a; }
+.right { border-color: #6fbf98; }
+.right .verdict { color: #17734f; }
+
+.rule { margin: 0; width: min(100%, 560px); }
+.rule ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.rule li {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  font-weight: 600;
+  color: #12352c;
+  animation: rise 0.45s var(--ease-settle) both;
+}
+.rule li > span {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font: 700 0.95rem var(--font-display);
+}
+
+/* ready-made lessons keep their single equation line */
+.legacyEquation { font-size: clamp(1.4rem, 3.4vw, 2.2rem); padding: 0.8rem 1.4rem; border-radius: 16px; background: rgba(255, 255, 255, 0.85); text-align: center; }
+
+.progress { position: relative; z-index: 1; display: flex; gap: 6px; }
+.progress span { flex: 1; height: 5px; border-radius: 99px; background: rgba(13, 43, 35, 0.12); overflow: hidden; }
+.progress span[data-state="done"] { background: var(--accent); }
+.progress span[data-state="now"] { background: rgba(14, 107, 84, 0.45); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 640px) {
+  .compare { grid-template-columns: 1fr; }
+  .math { white-space: normal; }
+  .expression .math { padding: 0.5rem 1.2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide *, .headline, .picture, .caption { animation: none !important; }
+}

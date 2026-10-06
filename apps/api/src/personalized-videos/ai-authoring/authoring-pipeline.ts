@@ -1,5 +1,9 @@
+import { prettyMath, type AuthoredLessonProps } from "@cogna/lesson-video";
 import type {
   AuthoredLessonDraft,
+  AuthoredVisual,
+  EquationStep,
+  SlideVisual,
   LotusSessionView,
   PersonalizedVideoExitItem,
   PersonalizedVideoLesson,
@@ -45,6 +49,62 @@ export function placeholderLesson(brief: LessonBrief): PersonalizedVideoLesson {
     generationReason: "Being written from your diagnostic answers, then every step is checked.",
     verification: "Every equation is checked by Cogna's algebra engine before you see it.",
     scenes: [],
+  };
+}
+
+/** What a slide shows for one beat's picture, ready to read (titles show nothing: the slide's headline covers them). */
+function visualLines(v: AuthoredVisual): string[] {
+  const m = prettyMath;
+  const sum = (terms: string[]) => terms.map(m).join(" + ");
+  switch (v.type) {
+    case "title": return [];
+    case "expression": return [m(v.expr)];
+    case "steps": return v.steps.map(m);
+    case "distribute": return [`${m(v.outside)}(${sum(v.inside)})`, sum(v.result)];
+    case "area": return [`(${sum(v.rows)})(${sum(v.cols)})`, sum(v.cells.flat())];
+    case "pair-search": return [`${v.answer[0]} × ${v.answer[1]} = ${v.product}`, `${v.answer[0]} + ${v.answer[1]} = ${v.sum}`];
+    case "common-factor": return [sum(v.terms), `${m(v.factor)}(${sum(v.remaining)})`];
+    case "mistake": return [`${m(v.wrong)} ✗`, `${m(v.right)} ✓`];
+    case "rule": return v.lines;
+  }
+}
+
+/** A beat's picture as a slide draws it: maths formatted for reading, the diagram kinds shown as a column of steps. */
+function slideVisual(v: AuthoredVisual): SlideVisual | null {
+  const m = prettyMath;
+  switch (v.type) {
+    case "title": return null;
+    case "expression": return { type: "expression", expr: m(v.expr), caption: v.caption };
+    case "mistake": return { ...v, expr: m(v.expr), wrong: m(v.wrong), right: m(v.right) };
+    case "rule": return v;
+    case "steps": return { type: "steps", steps: v.steps.map(m), caption: v.caption };
+    default: return { type: "steps", steps: visualLines(v) };
+  }
+}
+
+/**
+ * Slides read `lesson.scenes[i]`; an AI-written lesson keeps its maths in the animation's
+ * beats instead. This gives each slide its beats' pictures (timed to the narration) and a
+ * plain `equation` for the transcript, for rows stored before this existed too. Slides
+ * that already have maths are left alone.
+ */
+export function withBeatEquations(lesson: PersonalizedVideoLesson, animation: Pick<AuthoredLessonProps, "scenes"> | undefined): PersonalizedVideoLesson {
+  if (!animation?.scenes?.length) return lesson;
+  return {
+    ...lesson,
+    scenes: lesson.scenes.map((scene, i) => {
+      if (scene.equation.length) return scene;
+      const beats = (animation.scenes[i]?.beats ?? []) as Array<{ visual?: AuthoredVisual; seconds?: number; text?: string }>;
+      const equation: EquationStep[] = beats.flatMap((b) => (b.visual ? visualLines(b.visual) : [])).map((text) => ({ text }));
+      let at = 0;
+      const visuals = beats.map((b) => {
+        const start = at;
+        const seconds = b.seconds ?? 6;
+        at += seconds;
+        return { at: Math.round(start * 10) / 10, seconds, say: b.text ?? "", visual: b.visual ? slideVisual(b.visual) : null };
+      });
+      return { ...scene, equation, visuals };
+    }),
   };
 }
 

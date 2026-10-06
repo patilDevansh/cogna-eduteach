@@ -59,7 +59,7 @@
 .nav a { text-decoration: none; padding: .72rem .75rem; border-radius: 8px; font-size: .9rem; color: var(--ink-soft); display: flex; align-items: center; gap: .7rem; }
 .nav a:hover { background: var(--bg); color: var(--ink); }
 .nav a[data-active="true"] { background: var(--accent-wash); color: var(--accent-deep); font-weight: 750; }
-.main { padding: 2rem clamp(1.25rem, 3vw, 3rem) 4rem; max-width: 1320px; width: 100%; }
+.main { padding: 2rem clamp(1.25rem, 3vw, 3rem) 4rem; width: 100%; min-width: 0; }
 .pageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .pageHeader h1 { font-size: clamp(2rem, 4vw, 3rem); }
 .pageHeader p { color: var(--ink-soft); margin-top: .3rem; }
@@ -86,6 +86,7 @@
 .meter { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: .8rem; }
 .meter span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
 .sectionGrid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(310px, .65fr); gap: 1rem; margin-top: 1rem; }
+@media (max-width: 1200px) { .sectionGrid { grid-template-columns: 1fr; } }
 .panel { background: white; border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem; }
 .panelHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
 .panelHeader h3 { font-size: 1.12rem; }
