@@ -26,7 +26,9 @@ const RUN = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const OUT = join(HERE, "out", "games", RUN);
 const BASE = process.env.COGNA_WEB_URL ?? "http://localhost:3000";
 const FAKE = process.argv.includes("--fake");
-const GAP = process.env.CHECK_GAP ?? "none";
+const GAP = process.env.CHECK_GAP ?? "signs";
+// --pace=4000 answers at a human pace, so background reviews land mid-test (how real classes run).
+const PACE = Number(process.argv.find((a) => a.startsWith("--pace="))?.slice("--pace=".length) ?? 0);
 const MINUTE = 180_000; // dev pages compile on first visit
 mkdirSync(OUT, { recursive: true });
 
@@ -34,7 +36,7 @@ const seen = { diagnostic: {}, practice: [], errors: [] };
 const t0 = Date.now();
 const log = (...args) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1).padStart(6)}s]`, ...args);
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
-const norm = (t) => String(t ?? "").replace(/[−–]/g, "-").replace(/²/g, "^2").replace(/³/g, "^3").replace(/\s+/g, "").toLowerCase();
+const norm = (t) => String(t ?? "").replace(/[−–]/g, "-").replace(/²/g, "^2").replace(/³/g, "^3").replace(/\s+/g, "").toLowerCase().replace(/(^|[^0-9a-z])1([a-z])/g, "$1$2");
 
 const browser = await chromium.launch({ headless: !process.argv.includes("--headed") });
 async function person() {
@@ -62,19 +64,17 @@ await teacher.goto(`${BASE}/teacher/login`, { waitUntil: "domcontentloaded" });
 await pause(2500); // let the page hydrate before using its forms
 await teacher.locator("form button[type=submit], form button").last().click();
 await teacher.waitForURL(/\/teacher\/(today|classes|sessions)/, { timeout: MINUTE, waitUntil: "commit" });
-await teacher.goto(`${BASE}/teacher/classes`, { waitUntil: "domcontentloaded" });
+await teacher.goto(`${BASE}/teacher/sessions`, { waitUntil: "domcontentloaded" });
 await pause(2500); // let the page hydrate before using its forms
-await teacher.getByText("Create a production class").waitFor();
-// The class list loads after the page: read the existing join codes only once it's there.
-await teacher.waitForFunction(() => [...document.querySelectorAll("p b")].some((b) => /^CG-/.test(b.textContent)), null, { timeout: MINUTE });
-await pause(1000);
-const before = new Set(await teacher.locator("text=Join code:").locator("b").allTextContents());
-await teacher.locator("form input").first().fill(`Games check ${RUN.slice(11)}`);
-await teacher.getByRole("button", { name: /Create class/ }).click();
-await teacher.waitForFunction((seenCodes) => [...document.querySelectorAll("p b")].some((b) => /^CG-/.test(b.textContent) && !seenCodes.includes(b.textContent)), [...before]);
-const joinCode = (await teacher.locator("text=Join code:").locator("b").allTextContents()).find((c) => !before.has(c));
-await teacher.locator("p", { hasText: joinCode }).locator("..").getByRole("link", { name: /Open classroom/ }).click();
-await teacher.getByText(/Release Lotus diagnostic/).waitFor({ timeout: MINUTE });
+// With classes already there, open the new-class form from the class tabs; a first-ever class shows the form directly.
+const nameField = teacher.locator("form input").first();
+if (!(await nameField.isVisible().catch(() => false))) {
+  await teacher.getByRole("button", { name: /new class/i }).first().click();
+}
+await nameField.fill(`Games check ${RUN.slice(11)}`);
+await teacher.getByRole("button", { name: /Create class and get a code/ }).click();
+await teacher.getByText(/0 joined so far/).waitFor({ timeout: MINUTE });
+const joinCode = (await teacher.getByTestId("join-code").first().textContent()).trim();
 log("class", joinCode);
 
 // ---------------- student joins
@@ -92,23 +92,34 @@ await inputs.nth(0).fill(joinCode);
 await inputs.nth(1).fill("8B-03");
 await page.getByRole("button", { name: /Join class/ }).click();
 await page.getByText(/Joined:/).waitFor();
-// The join can take a moment to show on the console.
-for (let i = 0; i < 20; i++) {
-  await teacher.goto(teacher.url(), { waitUntil: "domcontentloaded" });
-  if (await teacher.getByText(/1 joined so far/).waitFor({ timeout: 6000 }).then(() => true).catch(() => false)) break;
-}
-await teacher.getByRole("button", { name: /Release Lotus diagnostic/ }).click();
+// The console polls the roster; the join shows within a few seconds.
+await teacher.getByText(/1 joined so far/).waitFor({ timeout: 2 * MINUTE });
+await teacher.getByRole("button", { name: /Start the quick check/ }).click();
 await teacher.getByTestId("roster-row").first().waitFor({ timeout: MINUTE });
 log("released");
 
 // ---------------- diagnostic
+if (process.env.DEBUG_LOTUS) {
+  // Every Lotus call the page makes, with how long it took: shows what a slow turn is waiting on.
+  const started = new Map();
+  page.on("request", (r) => r.url().includes("/api/lotus") && started.set(r, Date.now()));
+  const done = (r, how) => {
+    if (!started.has(r)) return;
+    const ms = Date.now() - started.get(r);
+    log(`  ${how} ${r.method()} ${r.url().replace(/^.*\/api\/lotus/, "").replace(/[0-9a-f-]{36}/, ":id").slice(0, 60)} ${ms}ms`);
+    started.delete(r);
+  };
+  page.on("requestfinished", (r) => done(r, "ok"));
+  page.on("requestfailed", (r) => done(r, `FAILED(${r.failure()?.errorText})`));
+  page.on("console", (m) => m.type() === "error" && log(`  console: ${m.text().slice(0, 160)}`));
+}
 let sessionId = "";
 page.on("response", async (res) => {
   if (res.request().method() === "POST" && /\/api\/lotus\/sessions(\?|$)/.test(res.url())) {
     try { sessionId = (await res.json()).sessionId ?? sessionId; } catch {}
   }
 });
-await page.getByRole("link", { name: /Start the diagnostic|Carry on/ }).first().click({ timeout: MINUTE });
+await page.getByRole("link", { name: /Start the quick check|Start the diagnostic|Carry on/ }).first().click({ timeout: MINUTE });
 await page.waitForURL(/\/student\/lotus/, { waitUntil: "commit" });
 await page.getByRole("button", { name: /^Start/ }).first().click({ timeout: MINUTE });
 
@@ -202,7 +213,7 @@ for (let turn = 1; turn <= 30; turn++) {
     log(`stall before turn ${turn} cleared`);
   }
   if (page.url().includes("/report")) break;
-  await pause(500);
+  await pause(500 + PACE);
   const kind = await staging();
   if (!sessionId) throw new Error("no Lotus session id seen");
   const fill = await demoFill();

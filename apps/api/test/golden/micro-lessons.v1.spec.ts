@@ -46,6 +46,13 @@ describe("targeted micro-lessons", () => {
     assert.equal(normalizeMathText(right), normalizeMathText("-3x + 12"));
   });
 
+  it("a number pair picked in the firefly game gets the signs lesson, quoted as a pick", () => {
+    const plan = buildMicroLesson(brief("Aarav", item("x^2 + 10x + 24", "factorise", "-6 and -4", "(x + 6)(x + 4)")))!;
+    assert.equal(plan.view.template, "SIGNS_IN_PAIR");
+    assert.match(plan.view.steps[0]!.say, /^Aarav, you picked -6 and -4\./);
+    assert.equal(buildMicroLesson(brief("Aarav", item("x^2 - 9", "factorise", "3 and 3", "(x - 3)(x + 3)"))), null, "a pair never feeds the written-answer templates");
+  });
+
   it("builds nothing for an answer that is already right", () => {
     assert.equal(buildMicroLesson(brief("Asha", item("x^2 - 9", "factorise", "(x - 3)(x + 3)", "(x - 3)(x + 3)"))), null);
   });
@@ -67,5 +74,22 @@ describe("new lesson visuals: algebra tiles and number line", async () => {
   it("accepts a number line whose caption names where it lands, and rejects a wrong landing", () => {
     assert.deepEqual(withVisual({ type: "number-line", start: -3, moves: [-4], caption: "−3 + (−4) lands on −7" }), []);
     assert.ok(withVisual({ type: "number-line", start: -3, moves: [-4], caption: "−3 + (−4) lands on 1" }).length > 0);
+  });
+});
+
+describe("slide lessons show each scene's maths", async () => {
+  const { sceneEquationLines } = await import("../../src/personalized-videos/ai-authoring/authoring-pipeline");
+  it("takes the lines from the scene's verified visuals, skipping words-only ones", () => {
+    const lines = sceneEquationLines({
+      title: "What happened",
+      beats: [
+        { say: "", visual: { type: "title", text: "Look" } },
+        { say: "", visual: { type: "mistake", expr: "x^2 - 5x + 6", task: "factorise", wrong: "(x + 2)(x + 3)", wrongKind: "incorrect", right: "(x - 2)(x - 3)", note: "" } },
+        { say: "", visual: { type: "steps", steps: ["(x - 2)(x - 3)", "x^2 - 5x + 6"] } },
+      ],
+    }).map((l) => l.text);
+    assert.deepEqual(lines, ["x² − 5x + 6", "✗ (x + 2)(x + 3)", "✓ (x − 2)(x − 3)", "(x − 2)(x − 3)"]);
+    assert.deepEqual(sceneEquationLines({ title: "", beats: [{ say: "", visual: { type: "pair-search", product: 6, sum: -5, pairs: [[-2, -3]], answer: [-2, -3] } }] }).map((l) => l.text),
+      ["−2 × −3 = 6", "−2 + −3 = −5"]);
   });
 });

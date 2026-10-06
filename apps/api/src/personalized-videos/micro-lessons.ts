@@ -2,7 +2,7 @@ import type { MicroAction, MicroLessonView, MicroStep, MicroTemplate, MicroToken
 import { algebraicallyEqual, classifyFactorisation, normalizeMathText } from "../lotus/lotus-algebra";
 import { splitFactors } from "../interaction-formats/tile-builder";
 import { taskVerdict } from "./ai-authoring/lesson-verifier";
-import type { LessonBrief } from "./ai-authoring/lesson-brief";
+import { isPairAnswer, type LessonBrief } from "./ai-authoring/lesson-brief";
 
 /**
  * Builds a 15–25 second targeted micro-lesson from the student's own
@@ -89,6 +89,7 @@ function signsInPair(item: Item, who: string): MicroLessonPlan | null {
   if (!pair || item.task !== "factorise") return null;
   const [p, q] = pair;
   const P = p * q, S = p + q;
+  const picked = isPairAnswer(item.studentAnswer);
   if (S === 0 || !algebraicallyEqual(item.expression, `x^2 + (${S})x + (${P})`)) return null;
   const rows: MicroToken[][] = [
     [["x2", "x²"], " ", ["b", `${S < 0 ? "−" : "+"} ${Math.abs(S) === 1 ? "" : Math.abs(S)}x`], " ", ["c", `${P < 0 ? "−" : "+"} ${Math.abs(P)}`]],
@@ -101,7 +102,9 @@ function signsInPair(item: Item, who: string): MicroLessonPlan | null {
     ? (S < 0 ? `Minus ${Math.abs(S)} in the middle means they must both be negative.` : `Plus ${S} in the middle means they're both positive.`)
     : `The middle is ${S < 0 ? "minus" : "plus"}, so the bigger number is ${S < 0 ? "negative" : "positive"}.`;
   const steps: MicroStep[] = [
-    { say: `${who}, you wrote ${pretty(item.studentAnswer)}. Let's check the signs.`, actions: [{ op: "pill", text: `${who} wrote: ${pretty(item.studentAnswer)}`, tone: "bad" }] },
+    picked
+      ? { say: `${who}, you picked ${item.studentAnswer}. Let's check the signs.`, actions: [{ op: "pill", text: `${who} picked: ${item.studentAnswer.replace(/-/g, "−")}`, tone: "bad" }] }
+      : { say: `${who}, you wrote ${pretty(item.studentAnswer)}. Let's check the signs.`, actions: [{ op: "pill", text: `${who} wrote: ${pretty(item.studentAnswer)}`, tone: "bad" }] },
     { say: signLine, actions: [{ op: "add", id: "c", cls: ["hl"] }, { op: "pulse", ids: ["c"] }] },
     { say: middleLine, actions: [{ op: "rm", id: "c", cls: ["hl"] }, { op: "add", id: "b", cls: ["hl", "hy"] }, { op: "pulse", ids: ["b"] }] },
     { say: `${signed(p)} and ${signed(q)} multiply to ${signed(P)} and add to ${signed(S)}.`, actions: [{ op: "clearPills" }, { op: "pill", text: `${signed(p)} × ${signed(q)} = ${signed(P)}`, tone: "good" }, { op: "later", ms: 900, then: { op: "pill", text: `${signed(p)} + ${signed(q)} = ${signed(S)}`, tone: "good" } }] },
@@ -218,7 +221,8 @@ function yourAnswerVsRight(item: Item, who: string): MicroLessonPlan | null {
 export function buildMicroLesson(brief: LessonBrief): MicroLessonPlan | null {
   const who = brief.studentFirstName || "Your";
   for (const item of brief.studentItems) {
-    for (const build of [negativeTimesBracket, commonBracket, equalNotFinished, signsInPair]) {
+    // A picked number pair only fits the signs lesson; the others read written algebra.
+    for (const build of isPairAnswer(item.studentAnswer) ? [signsInPair] : [negativeTimesBracket, commonBracket, equalNotFinished, signsInPair]) {
       try {
         const built = build(item, who);
         if (built) return built;
@@ -227,7 +231,7 @@ export function buildMicroLesson(brief: LessonBrief): MicroLessonPlan | null {
       }
     }
   }
-  for (const item of brief.studentItems) {
+  for (const item of brief.studentItems.filter((i) => !isPairAnswer(i.studentAnswer))) {
     try {
       const built = yourAnswerVsRight(item, who);
       if (built) return built;

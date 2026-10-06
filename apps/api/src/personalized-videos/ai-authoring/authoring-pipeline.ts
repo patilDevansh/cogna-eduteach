@@ -1,6 +1,7 @@
 import { answerFromPicks } from "../../interaction-formats/tile-builder";
 import type {
   AuthoredLessonDraft,
+  AuthoredScene,
   LotusSessionView,
   PersonalizedVideoExitItem,
   PersonalizedVideoLesson,
@@ -13,6 +14,7 @@ import type { OpenAIService } from "../../ai/openai.service";
 import { FakeLessonAuthor, OpenAiLessonAuthor, type LessonAuthorModel } from "./author-models";
 import type { LessonBrief } from "./lesson-brief";
 import { taskVerdict } from "./lesson-verifier";
+import { pretty } from "../micro-lessons";
 
 /**
  * Glue between the lesson service and the AI author: which author to use,
@@ -49,6 +51,31 @@ export function placeholderLesson(brief: LessonBrief): PersonalizedVideoLesson {
   };
 }
 
+const num = (n: number) => (n < 0 ? `−${-n}` : `${n}`);
+/** Terms written as one sum: ["2x", "-5"] → "2x − 5". */
+const sum = (terms: string[]) => pretty(terms.map((t, i) => (i === 0 || /^\s*-/.test(t) ? t : `+ ${t}`)).join(" "));
+
+/**
+ * The maths lines a slide shows for one scene, taken from its beats' visuals
+ * (each one already passed the verifier). Visuals with no maths claim add nothing.
+ */
+export function sceneEquationLines(scene: AuthoredScene): Array<{ text: string }> {
+  const lines: string[] = [];
+  for (const { visual: v } of scene.beats) {
+    switch (v.type) {
+      case "expression": lines.push(pretty(v.expr)); break;
+      case "steps": lines.push(...v.steps.map(pretty)); break;
+      case "distribute": lines.push(`${pretty(v.outside)}(${sum(v.inside)})`, sum(v.result)); break;
+      case "common-factor": lines.push(sum(v.terms), `${pretty(v.factor)}(${sum(v.remaining)})`); break;
+      case "pair-search": lines.push(`${num(v.answer[0])} × ${num(v.answer[1])} = ${num(v.product)}`, `${num(v.answer[0])} + ${num(v.answer[1])} = ${num(v.sum)}`); break;
+      case "mistake": lines.push(pretty(v.expr), `✗ ${pretty(v.wrong)}`, `✓ ${pretty(v.right)}`); break;
+      case "tiles": lines.push(`x² + ${v.b}x + ${v.c} = (x + ${v.sides[0]})(x + ${v.sides[1]})`); break;
+      default: break;
+    }
+  }
+  return [...new Set(lines)].slice(0, 4).map((text) => ({ text }));
+}
+
 /** The lesson summary and exit item stored for a verified draft. */
 export function summaryFromDraft(draft: AuthoredLessonDraft, seconds: number): { lesson: PersonalizedVideoLesson; exit: PersonalizedVideoExitItem } {
   return {
@@ -61,7 +88,7 @@ export function summaryFromDraft(draft: AuthoredLessonDraft, seconds: number): {
       scenes: draft.scenes.map((scene) => ({
         eyebrow: "Your lesson",
         headline: scene.title,
-        equation: [],
+        equation: sceneEquationLines(scene),
         narration: scene.beats.map((b) => b.say).join(" "),
         durationSeconds: Math.ceil(scene.beats.length * 6),
         accent: "green" as const,

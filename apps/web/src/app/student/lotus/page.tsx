@@ -1291,8 +1291,14 @@ function LotusPage() {
     try {
       const spoken = await api.readLotusAloud(session.sessionId, studentId);
       const audio = new Audio(`data:audio/mpeg;base64,${spoken.audio}`);
-      audio.onended = () => setReadingAloud(false);
-      audio.onerror = () => setReadingAloud(false);
+      const done = () => setReadingAloud(false);
+      audio.onended = done;
+      audio.onerror = done;
+      // A clip that never reports its end must not leave the button stuck on "Reading…".
+      audio.onloadedmetadata = () => {
+        const seconds = Number.isFinite(audio.duration) ? audio.duration : 20;
+        window.setTimeout(done, seconds * 1000 + 3000);
+      };
       await audio.play();
     } catch {
       setReadingAloud(false);
