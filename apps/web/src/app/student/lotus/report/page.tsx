@@ -179,11 +179,6 @@ function ReportPage() {
         {student?.name && <span className={styles.who}>{student.name}</span>}
       </header>
 
-      {session?.topic === "FACTORISATION" && session.audits.length > 0 && !error && (
-        <div style={{ maxWidth: 880, margin: "1rem auto 0", padding: "0 16px" }}>
-          <LotusBloom answered={session.audits.length} firstName={student?.name?.split(" ")[0]} />
-        </div>
-      )}
       {error ? (
         <section className={styles.centerCard}>
           <h1>We couldn&apos;t open this report</h1>
@@ -330,6 +325,9 @@ function Report({
   return (
     <div className={styles.report}>
       <section className={styles.hero}>
+        {session.topic === "FACTORISATION" && session.audits.length > 0 && (
+          <div className={styles.bloom}><LotusBloom answered={session.audits.length} /></div>
+        )}
         <p className={styles.eyebrow}>Your diagnostic report</p>
         <h1>{heading.title}</h1>
         <p className={styles.lede}>{heading.lede}</p>

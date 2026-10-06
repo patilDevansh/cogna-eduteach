@@ -164,6 +164,7 @@ li[data-state="active"] .stepMark {
 }
 
 .hero { padding: 28px 0 8px; }
+.bloom { margin-bottom: 22px; }
 .hero h1 {
   margin-top: 10px;
   font-size: clamp(2.1rem, 5vw, 3.4rem);

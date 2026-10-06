@@ -1656,7 +1656,7 @@ function LotusPage() {
                 <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
               ) : (
                 <section className={styles.introCard}>
-                  {session.topic === "FACTORISATION" && <LotusBloom answered={session.audits.length} firstName={studentName.split(" ")[0]} />}
+                  {session.topic === "FACTORISATION" && <div style={{ marginBottom: "1rem" }}><LotusBloom answered={session.audits.length} /></div>}
                   <h1>Your diagnostic is complete</h1>
                   <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
                   <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>

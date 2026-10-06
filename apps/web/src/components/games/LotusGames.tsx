@@ -15,7 +15,7 @@ import styles from "./lotus-games.module.css";
 export function LotusFlower({ petals, size = 46, bloom = false }: { petals: number; size?: number; bloom?: boolean }) {
   const n = Math.max(0, Math.min(8, petals));
   return (
-    <svg viewBox="0 0 60 56" width={size} height={size * 0.93} aria-hidden="true" className={bloom ? styles.bloom : undefined}>
+    <svg viewBox="-14 -6 88 62" width={size} height={size * 0.7} aria-hidden="true" className={bloom ? styles.bloom : undefined}>
       <ellipse cx="30" cy="50" rx="24" ry="5" fill="#5fae7d" />
       {Array.from({ length: n }, (_, i) => {
         const angle = n === 1 ? 0 : -72 + (144 * i) / (n - 1);
@@ -156,16 +156,24 @@ export function FishingSelect({ options, value, disabled, onChange }: { options:
   );
 }
 
-/** Shown when the diagnostic ends: the child sees their lotus bloom, never a score. */
-export function LotusBloom({ answered, firstName }: { answered: number; firstName?: string }) {
+/**
+ * Shown when the diagnostic ends: the stones the child crossed lead to their bloomed
+ * lotus. A celebration of finishing, never a score (right and wrong both count).
+ */
+export function LotusBloom({ answered }: { answered: number }) {
+  const stones = Math.min(answered, 24);
   return (
-    <div className={styles.bloomCard}>
-      <LotusFlower petals={Math.max(5, Math.min(8, answered))} size={110} bloom />
-      <div>
-        <p className={styles.bloomEyebrow}>Your lotus bloomed</p>
-        <h3>{firstName ? `Well done, ${firstName}.` : "Well done."} You crossed {answered} stone{answered === 1 ? "" : "s"}.</h3>
-        <p>Your teacher will see how you got on, and your first lesson is being made from your answers.</p>
+    <div className={styles.bloomStrip} role="img" aria-label={`Your lotus bloomed: ${answered} stones crossed`}>
+      <div className={styles.trail} aria-hidden="true">
+        {Array.from({ length: stones }, (_, i) => (
+          <i key={i} style={{ animationDelay: `${i * 40}ms` }} />
+        ))}
       </div>
+      <LotusFlower petals={8} size={64} bloom />
+      <p className={styles.bloomText}>
+        <strong>Your lotus bloomed</strong>
+        <span>{answered} stone{answered === 1 ? "" : "s"} crossed</span>
+      </p>
     </div>
   );
 }
