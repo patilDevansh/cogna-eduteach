@@ -1350,3 +1350,50 @@
   .actionStatusFilters { align-items: flex-start; flex-direction: column; }
   .actionStatusFilters > div { justify-content: flex-start; }
 }
+
+/* "How did you get it?": one tap after an answer code couldn't explain. */
+.reasonCard h2 {
+  margin: 0;
+}
+
+.reasonEcho {
+  display: grid;
+  gap: var(--s-1);
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.reasonPrompt {
+  font-family: var(--font-math);
+}
+
+.reasonEcho b {
+  font-family: var(--font-math);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.reasonOptions {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.reasonOption {
+  text-align: left;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reasonOption:hover:not(:disabled) {
+  border-color: var(--accent-deep);
+}
+
+.reasonOption[aria-busy="true"] {
+  border-color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent-deep) 8%, transparent);
+}

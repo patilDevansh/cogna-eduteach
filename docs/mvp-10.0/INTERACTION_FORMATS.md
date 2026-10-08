@@ -29,6 +29,19 @@ A game changes how a student **enters** an answer or how a question is **staged*
 - **The pond and the bloom.** The page shows a pond progress map (a frog and a petal per answer) and "Your lotus bloomed" at the end. It never shows a score, and nothing in a game reveals right or wrong.
 - **Read it to me.** `GET /lotus/sessions/:id/read-aloud` reads the current question with the configured voice (Cartesia), using `spokenMath` for the maths. It is cached per text and voice, and only reads what is already on the student's screen.
 
+## Typed questions: the final answer is the evidence
+
+Code names most mistakes from the final answer alone: every question carries the wrong answers its typical mistakes produce. Written working was only read by the background AI review, and only for wrong answers that match none of those mistakes. So typed questions no longer ask for it.
+
+- **Working is optional.** A typed question shows the answer box and maths keys. Working sits behind "Add working (optional)", and anything written there still goes to the review. Switch: `LOTUS_WORKING_PROMPT` = `optional` (default), `lines` (the three working lines, shown) or `split` (each student gets one arm, fixed by a hash of their id, for the pilot comparison). The arm is stored on the session as `workingPrompt`.
+- **"How did you get it?"** A wrong typed answer that matches none of the question's known mistakes gets one follow-up before the next question (`lotus-reasons.ts`). The choices are up to two of the question's own mistakes in the student's words (or one and "I knew the method but slipped up"), then "I wasn't sure what to do" and "I guessed". The browser gets only the words and opaque ids; the server rebuilds what each choice means from the question.
+  - A named mistake or a slip is one negative on the skill: suspected, and only confirmed by a later question, like any other single mistake.
+  - "I wasn't sure" is a support need (the planner checks an easier prerequisite).
+  - "I guessed" records nothing about any skill.
+  - It counts only if nothing (code or AI review) has explained that answer already. The choice is passed to later AI reviews.
+  - `POST /lotus/sessions/:id/reasons` `{ studentId, questionId, optionId }`: one answer per follow-up (the same tap again is a no-op; a different one is `409`).
+- **Checking by expanding is tested directly.** "Checks own answer by expanding" used to be confirmable only from later working, which students don't write. Its base question and every re-check, for either of its mistakes, are now Spot the impostor questions: all four forms share x² and the constant, so only expanding finds the impostor.
+
 ## Lessons
 
 - **Targeted micro-lesson.** `micro-lessons.ts` and `MicroLessonCard`: 15–25 seconds, built from the student's own diagnostic answer, which is stored as `script.micro.brief` when the lesson is created. There are five templates:

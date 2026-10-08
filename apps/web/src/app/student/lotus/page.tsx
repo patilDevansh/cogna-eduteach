@@ -1054,6 +1054,9 @@ function LotusPage() {
   /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
   const [tiles, setTiles] = useState<TileGameState | null>(null);
   const [readingAloud, setReadingAloud] = useState(false);
+  // Working is optional by default: the final answer is the evidence (see LotusWorkingPrompt).
+  const [workingOpen, setWorkingOpen] = useState(false);
+  const [reasonBusy, setReasonBusy] = useState("");
   const [readAloudError, setReadAloudError] = useState("");
   // Dev tools (demo fill, AI Lab, fake-model badge) follow the global Dev
   // panel; the fake-model switch itself lives there too (lib/dev-mode.ts).
@@ -1306,9 +1309,23 @@ function LotusPage() {
     }
   }
 
+  async function answerReason(optionId: string) {
+    if (!session || !reasonFollowUp || reasonBusy) return;
+    setReasonBusy(optionId);
+    setError("");
+    try {
+      setSession(await api.answerLotusReason(session.sessionId, studentId, reasonFollowUp.question.id, optionId));
+    } catch (err) {
+      setError(err instanceof Error ? `That didn't save: ${err.message}. Tap your choice again.` : "That didn't save. Tap your choice again.");
+    } finally {
+      setReasonBusy("");
+    }
+  }
+
   function resetResponse() {
     setAnswer("");
     setWorkingLines(["", "", ""]);
+    setWorkingOpen(false);
     setConfidence(null);
     setConfidenceNudge(0);
     setDidNotKnow(false);
@@ -1471,6 +1488,10 @@ function LotusPage() {
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
   const question = previewQuestion ?? session?.currentQuestion;
+  // A wrong answer code couldn't explain gets one "How did you get it?" tap before the next question.
+  const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
+  const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
+  const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
   // Factorisation always has a 25-question diagnostic. Some later questions
   // may still be generating, so don't derive the total from the currently
@@ -1697,6 +1718,26 @@ function LotusPage() {
                   </p>
                 )}
               </section>
+            ) : reasonFollowUp?.reasonCheck ? (
+              <section className={`${styles.questionCard} ${styles.reasonCard}`} aria-labelledby="reason-heading">
+                <div className={styles.cardBody}>
+                  <p className={styles.muted}>About your last answer</p>
+                  <p className={styles.reasonEcho}>
+                    <span className={styles.reasonPrompt}>{reasonFollowUp.question.prompt}</span>
+                    <span>You wrote <b>{reasonFollowUp.response?.answer}</b></span>
+                  </p>
+                  <h2 id="reason-heading">{reasonFollowUp.reasonCheck.prompt}</h2>
+                  <p className={styles.muted}>Pick the closest. There&apos;s no wrong choice here.</p>
+                  <div className={styles.reasonOptions} role="group" aria-labelledby="reason-heading">
+                    {reasonFollowUp.reasonCheck.options.map((option) => (
+                      <button key={option.id} type="button" className={styles.reasonOption} onClick={() => void answerReason(option.id)} disabled={Boolean(reasonBusy)} aria-busy={reasonBusy === option.id}>
+                        {option.text}
+                      </button>
+                    ))}
+                  </div>
+                  {error && <div className={styles.error} role="alert">{error}</div>}
+                </div>
+              </section>
             ) : question ? (
               <section className={`${styles.questionCard} ${advancing ? styles.questionAdvancing : ""}`}>
                 {advancing && <div className={styles.nextQuestionToast} aria-live="polite">Next question</div>}
@@ -1811,9 +1852,15 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.asksForWorking && (
+                    {question.asksForWorking && workingOptional && !workingOpen && (
+                      <button type="button" className={styles.addStep} onClick={() => setWorkingOpen(true)} disabled={inputLocked || didNotKnow}>
+                        + Add working (optional)
+                      </button>
+                    )}
+
+                    {question.asksForWorking && (!workingOptional || workingOpen) && (
                       <div className="field">
-                        <label>Show your working, one step at a time</label>
+                        <label>{workingOptional ? "Your working (optional)" : "Show your working, one step at a time"}</label>
                         <div className={styles.workingLines}>
                           {workingLines.map((line, index) => (
                             <div className={styles.workingLine} key={index}>

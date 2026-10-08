@@ -844,3 +844,55 @@ describe("question factory — AI writes, code checks", () => {
     assert.match(result.rejections.join(" "), /repeats a question/);
   });
 });
+
+describe("factorisation session — how did you get it?", () => {
+  it("only a wrong answer code can't explain earns the follow-up; a predicted mistake, a right answer and I-don't-know do not", async () => {
+    const { service } = setup();
+    let view = await startReady(service, "demo_reason_gate");
+    view = await submit(service, view, predictedWrong(service, view));
+    assert.equal(view.audits.at(-1)?.reasonCheck, undefined, "a known mistake is already named from the final answer");
+    view = await submit(service, view, "", { didNotKnow: true });
+    assert.equal(view.audits.at(-1)?.reasonCheck, undefined);
+    const right = internal(service, view.sessionId).currentQuestion.answerKey.canonicalAnswer;
+    view = await submit(service, view, right);
+    assert.equal(view.audits.at(-1)?.reasonCheck, undefined);
+    view = await submit(service, view, "(x + 1000)(x - 999)");
+    const check = view.audits.at(-1)?.reasonCheck;
+    assert.ok(check, "an unexplained wrong answer gets one follow-up");
+    assert.equal(check.prompt, "How did you get it?");
+    assert.ok(check.options.length >= 3 && check.options.length <= 4);
+    assert.deepEqual(check.options.slice(-2).map((o) => o.id), ["unsure", "guessed"]);
+    assert.ok(!JSON.stringify(check).match(/[A-Z]{3,}_[A-Z_]+/), "no mistake codes or meanings reach the browser");
+  });
+
+  it("a tap records the student's own reason as evidence once, and a second, different tap is refused", async () => {
+    const { service } = setup();
+    let view = await startReady(service, "demo_reason_tap");
+    view = await submit(service, view, "(x + 1000)(x - 999)");
+    const audit = view.audits.at(-1)!;
+    const first = audit.reasonCheck!.options[0]!;
+    view = await service.recordReason(view.sessionId, view.studentId, audit.question.id, first.id);
+    const saved = internal(service, view.sessionId).audits.at(-1);
+    assert.equal(saved.reasonCheck.chosenId, first.id);
+    const fromReason = saved.skillEvidence.filter((e: { source: string }) => e.source === "REASON");
+    assert.equal(fromReason.length, first.id === "guessed" ? 0 : 1);
+    // The same tap again (a retry) is harmless; a different one is a conflict.
+    await service.recordReason(view.sessionId, view.studentId, audit.question.id, first.id);
+    const other = audit.reasonCheck!.options.find((o) => o.id !== first.id)!;
+    await assert.rejects(service.recordReason(view.sessionId, view.studentId, audit.question.id, other.id), (err: { status?: number }) => err.status === 409);
+    await assert.rejects(service.recordReason(view.sessionId, view.studentId, audit.question.id, "made-up"), (err: { status?: number }) => err.status === 409 || err.status === 400);
+  });
+
+  it("'I wasn't sure what to do' is a support need, and 'I guessed' pins nothing on any skill", async () => {
+    for (const [optionId, kind] of [["unsure", "DID_NOT_KNOW"], ["guessed", null]] as const) {
+      const { service } = setup();
+      let view = await startReady(service, `demo_reason_${optionId}`);
+      view = await submit(service, view, "(x + 1000)(x - 999)");
+      const audit = view.audits.at(-1)!;
+      await service.recordReason(view.sessionId, view.studentId, audit.question.id, optionId);
+      const saved = internal(service, view.sessionId).audits.at(-1);
+      const reason = saved.skillEvidence.filter((e: { source: string }) => e.source === "REASON");
+      assert.deepEqual(reason.map((e: { kind: string }) => e.kind), kind ? [kind] : []);
+    }
+  });
+});

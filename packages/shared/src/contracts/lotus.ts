@@ -258,8 +258,32 @@ export interface LotusSkillEvidence {
   kind: "SECURE" | "MISTAKE" | "UNFINISHED" | "DID_NOT_KNOW";
   mistake?: string;
   description?: string;
-  source: "INSTANT" | "ANALYSIS";
+  /** REASON: the student's own one-tap answer to "How did you get it?". */
+  source: "INSTANT" | "ANALYSIS" | "REASON";
 }
+
+/** One choice in a "How did you get it?" follow-up. What it means is kept on the server. */
+export interface LotusReasonOption {
+  id: string;
+  text: string;
+}
+
+/**
+ * Asked once, right after a wrong typed answer that matches none of the
+ * question's known mistakes: one tap instead of written working.
+ */
+export interface LotusReasonCheck {
+  prompt: string;
+  options: LotusReasonOption[];
+  chosenId?: string;
+  chosenAt?: string;
+}
+
+/**
+ * How typed questions ask for working. OPTIONAL: final answer only, working
+ * behind "Add working (optional)". LINES: the three working lines, shown.
+ */
+export type LotusWorkingPrompt = "OPTIONAL" | "LINES";
 
 export interface LotusDebateClosure {
   verdict: LotusClosureVerdict;
@@ -455,6 +479,8 @@ export interface LotusAdaptiveDecision {
 export interface LotusQuestionAudit {
   question: LotusQuestion;
   response: LotusStudentResponse | null;
+  /** Present when this answer earned a "How did you get it?" follow-up. */
+  reasonCheck?: LotusReasonCheck;
   verification: LotusMathVerification | null;
   /** Instant deterministic read computed at submit time, independent of any AI call. */
   breakpoint?: LotusBreakpointDiagnosis | null;
@@ -549,6 +575,8 @@ export interface LotusSessionView {
     challenger: string;
   };
   liveProgress?: LotusLiveProgress | null;
+  /** How typed questions ask for working in this session (fixed when it starts; see LotusWorkingPrompt). */
+  workingPrompt?: LotusWorkingPrompt;
   /** Factorisation preparation is intentionally prompt-free while the student waits. */
   preparation?: {
     readyQuestions: number;

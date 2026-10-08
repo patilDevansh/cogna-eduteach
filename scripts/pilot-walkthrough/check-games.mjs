@@ -191,12 +191,21 @@ async function buildTiles(answer) {
 }
 
 const shots = {};
+let seenReasons = 0;
 for (let turn = 1; turn <= 30; turn++) {
   const outcome = await Promise.race([
     page.locator(".lotus-q, [class*=cardBody]").first().waitFor({ timeout: 5 * MINUTE }).then(() => "question"),
     page.waitForURL(/\/student\/lotus\/report/, { timeout: 5 * MINUTE, waitUntil: "commit" }).then(() => "report"),
   ]);
   if (outcome === "report" || page.url().includes("/report")) break;
+  // "How did you get it?" after an answer code couldn't explain: one tap, then the next question.
+  const reason = page.locator("[class*=reasonOptions] button");
+  if (await reason.first().waitFor({ timeout: 1500 }).then(() => true, () => false)) {
+    if (!seenReasons) await page.locator("[class*=reasonCard]").screenshot({ path: join(OUT, "diagnostic-how-did-you-get-it.png") }).catch(() => undefined);
+    await reason.first().click();
+    seenReasons += 1;
+    await page.locator("[class*=reasonOptions]").waitFor({ state: "detached", timeout: MINUTE }).catch(() => undefined);
+  }
   const ready = () => page.waitForFunction(() => location.pathname.includes("/report") || [...document.querySelectorAll("button")].some((b) => /Submit answer/.test(b.textContent) && !b.disabled), null, { timeout: 20_000, polling: 500 });
   if (!(await ready().then(() => true).catch(() => false))) {
     // A stall: record exactly what the student is looking at.
@@ -232,6 +241,7 @@ for (let turn = 1; turn <= 30; turn++) {
   } else if (kind === "CHOICE") {
     await clickByText("label", fill.answer);
   } else if (kind === "TYPED") {
+    if (!shots.TYPED) { shots.TYPED = true; await page.locator("[class*=cardBody]").first().screenshot({ path: join(OUT, "diagnostic-typed.png") }).catch(() => undefined); }
     await page.locator("#lotus-answer").fill(fill.answer);
     const step = page.locator("[aria-label='Working step 1']");
     if (await step.count()) await step.fill(fill.working.split("\n")[0] ?? fill.answer);
@@ -246,7 +256,8 @@ for (let turn = 1; turn <= 30; turn++) {
   await page.getByRole("button", { name: /Submit answer/ }).click();
   await pause(600);
 }
-log("diagnostic done", seen.diagnostic);
+seen.reasonFollowUps = seenReasons;
+log("diagnostic done", seen.diagnostic, `· ${seenReasons} "how did you get it?" follow-ups`);
 await page.waitForURL(/\/student\/lotus\/report/, { timeout: 5 * MINUTE, waitUntil: "commit" }).catch(() => undefined);
 await pause(2500);
 await shot(page, "report-bloom");

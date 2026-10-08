@@ -1,6 +1,6 @@
 import { ConfigService } from "@nestjs/config";
 import { OpenAIService } from "./openai.service";
-import { consumeBudget } from "./spend-cap";
+import { reserveBudget } from "./spend-cap";
 
 export interface SynthesizedSpeech {
   bytes: Buffer;
@@ -146,7 +146,7 @@ export class TtsService implements TtsProvider {
   // (voice/model are part of it) and hide the outage. A failed call means a silent, timer-paced scene.
   private async synthesizeEleven(text: string, voiceId: string): Promise<SynthesizedSpeech | null> {
     try {
-      consumeBudget("elevenlabs", "ELEVENLABS");
+      await reserveBudget("elevenlabs", "ELEVENLABS");
       const response = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
         {

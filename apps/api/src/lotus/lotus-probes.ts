@@ -133,8 +133,10 @@ function impostor(spec: SlotSpec, req: WriteRequest, rand: () => number): Item |
     answerKey: {
       kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(impostorForm),
       workedSolution: [`${pretty(impostorForm)} = ${pretty(trinomial(-(p + q), p * q))}`, `That is not ${pretty(expr)}: the middle sign is wrong`],
-      // Picking a genuinely equal form means the student couldn't check by expanding.
-      diagnostics: diagnostics(spec, "CHOICE", 2, equalForms.map((f) => ({ answer: pretty(f), mistake: "EXPAND_CHECK_FAIL" }))),
+      // Picking a genuinely equal form means the student couldn't check by expanding. All four forms
+      // share x² and the constant, so it is also exactly the "checked the first and last terms only" trap:
+      // a check of that mistake records it by name.
+      diagnostics: diagnostics(spec, "CHOICE", 2, equalForms.map((f) => ({ answer: pretty(f), mistake: req.targetMistake === "CHECKED_FIRST_TERM_ONLY" ? "CHECKED_FIRST_TERM_ONLY" : "EXPAND_CHECK_FAIL" }))),
     },
   };
 }
@@ -239,7 +241,8 @@ type Builder = (spec: SlotSpec, req: WriteRequest, rand: () => number) => Item |
 /** Which slot gets which game, and for which requests. Everything else stays with the AI writer. */
 const PROBES: Array<{ skillId: string; build: Builder; when: (req: WriteRequest) => boolean }> = [
   { skillId: "FAC_PAIR_PRODUCT_SUM", build: firefly, when: () => true },
-  { skillId: "FAC_VERIFY_EXPAND", build: impostor, when: (req) => !req.targetMistake || req.targetMistake === "EXPAND_CHECK_FAIL" },
+  // The only direct evidence for checking by expanding (nobody writes the check out): the base question and every re-check.
+  { skillId: "FAC_VERIFY_EXPAND", build: impostor, when: (req) => !req.targetMistake || req.targetMistake === "EXPAND_CHECK_FAIL" || req.targetMistake === "CHECKED_FIRST_TERM_ONLY" },
   { skillId: "FAC_GCF_NEGATIVE", build: detective, when: (req) => req.purpose === "CHECK" && (!req.targetMistake || req.targetMistake === "KEPT_ORIGINAL_SIGNS") },
   { skillId: "FAC_MEANING", build: fishing, when: (req) => req.spec.mistakes.includes("SUM_ACCEPTED_AS_FACTORISED") && (!req.targetMistake || req.targetMistake === "SUM_ACCEPTED_AS_FACTORISED") },
   { skillId: "FAC_FACTOR_FULLY", build: fishing, when: (req) => req.purpose === "CHECK" && (!req.targetMistake || req.targetMistake === "INCOMPLETE_FACTORISATION") },

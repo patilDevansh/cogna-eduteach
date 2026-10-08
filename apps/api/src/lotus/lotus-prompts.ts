@@ -89,6 +89,10 @@ export function evidenceLogForPrompt(audits: LotusQuestionAudit[]): string {
         question: audit.question,
         response: audit.response,
         verification: audit.verification,
+        // The student's own one-tap answer to "How did you get it?", in place of written working.
+        ...(audit.reasonCheck?.chosenId
+          ? { studentSaidHowTheyGotIt: audit.reasonCheck.options.find((o) => o.id === audit.reasonCheck!.chosenId)?.text }
+          : {}),
       }),
     )
     .join("\n");

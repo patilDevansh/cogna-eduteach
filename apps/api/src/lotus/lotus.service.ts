@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Logger,
   NotFoundException,
@@ -27,9 +28,10 @@ import type {
   LotusStudentResponse,
   LotusUnseenPlanEntry,
   LotusTopic,
+  LotusWorkingPrompt,
 } from "@cogna/shared";
 import { isLotusDemoGap, type LotusDemoGap } from "@cogna/shared";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { isDemoStudentId } from "../access/cogna-access";
 import {
   challengerClosurePrompt,
@@ -51,6 +53,7 @@ import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconc
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
 import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
 import { codeProbeFor } from "./lotus-probes";
 import {
   FACTORISATION_SLOTS,
@@ -615,6 +618,19 @@ function observerCopy(session: LotusSessionState): LotusSessionView {
  * back to them can be gamed. Once the diagnostic is COMPLETE the full trail
  * is released — that's what "Show AI Lab" and the final report use.
  */
+/**
+ * How this student's typed questions ask for working, fixed for the whole
+ * session. LOTUS_WORKING_PROMPT: "optional" (default) shows the final answer
+ * only, "lines" the three working lines, "split" gives each student one arm
+ * by a stable hash of their id, so the pilot can compare the two.
+ */
+export function workingPromptFor(studentId: string, env: NodeJS.ProcessEnv = process.env): LotusWorkingPrompt {
+  const mode = env.LOTUS_WORKING_PROMPT?.trim().toLowerCase();
+  if (mode === "lines") return "LINES";
+  if (mode === "split") return createHash("sha1").update(studentId).digest()[0]! % 2 === 0 ? "OPTIONAL" : "LINES";
+  return "OPTIONAL";
+}
+
 function publicCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
   const upcoming: LotusQuestion[] = [];
@@ -823,6 +839,7 @@ export class LotusService implements OnModuleDestroy {
       board: "CBSE",
       status: "ACTIVE",
       experimental: true,
+      workingPrompt: workingPromptFor(studentId),
       phase: question.phase,
       startedAt,
       currentQuestion: question,
@@ -1751,6 +1768,42 @@ export class LotusService implements OnModuleDestroy {
     this.reserves.set(sessionId, current);
   }
 
+  /**
+   * The student's one tap on "How did you get it?". Queued with answers so it
+   * never races the next one. The meaning of the choice is rebuilt from the
+   * question here; it counts as evidence only if nothing (code or AI review)
+   * has explained that answer yet, and like any single mistake it is only a
+   * suspicion until a later question confirms it.
+   */
+  async recordReason(sessionId: string, studentId: string, questionId: string, optionId: string): Promise<LotusSessionView> {
+    const existing = this.inFlightAnswers.get(sessionId);
+    if (existing) await existing.catch(() => undefined);
+    const task = (async () => {
+      const session = await this.requireSession(sessionId);
+      if (session.studentId !== studentId) throw new BadRequestException("This Lotus session belongs to a different student.");
+      const audit = session.audits.find((a) => a.question.id === questionId);
+      if (!audit?.reasonCheck) throw new BadRequestException("That question has no follow-up to answer.");
+      if (audit.reasonCheck.chosenId) {
+        if (audit.reasonCheck.chosenId === optionId) return publicCopy(session);
+        throw new ConflictException("That follow-up has already been answered.");
+      }
+      if (!audit.reasonCheck.options.some((o) => o.id === optionId)) throw new BadRequestException("That isn't one of the choices.");
+      const { valid, evidence } = reasonEvidence(audit.question, optionId);
+      if (!valid) throw new BadRequestException("That isn't one of the choices.");
+      audit.reasonCheck = { ...audit.reasonCheck, chosenId: optionId, chosenAt: new Date().toISOString() };
+      const explained = (audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE");
+      if (evidence && !explained) audit.skillEvidence = [...(audit.skillEvidence ?? []), evidence];
+      await this.persist(session, audit, true);
+      return publicCopy(session);
+    })();
+    this.inFlightAnswers.set(sessionId, task);
+    try {
+      return await task;
+    } finally {
+      if (this.inFlightAnswers.get(sessionId) === task) this.inFlightAnswers.delete(sessionId);
+    }
+  }
+
   async override(
     sessionId: string,
     studentId: string,
@@ -1881,6 +1934,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       topic: "FACTORISATION",
       status: "ACTIVE",
       experimental: true,
+      workingPrompt: workingPromptFor(studentId),
       phase: preparationQuestion.phase,
       startedAt,
       currentQuestion: null,
@@ -2423,6 +2477,8 @@ Create one materially different question that adds new diagnostic evidence. Test
         analysisDeadlineAt: new Date(Date.now() + deferredAnalysisUsefulAgeMs()).toISOString(),
       } : {}),
       skillEvidence: instant.evidence,
+      // A wrong answer code can't explain gets one "How did you get it?" tap instead of written working.
+      ...(needsReasonCheck(currentQuestion, instant.verification?.status, instant.evidence, response.didNotKnow) ? { reasonCheck: buildReasonCheck(currentQuestion) } : {}),
       stageAgreement: null,
       timingMs: null,
       createdAt: new Date().toISOString(),

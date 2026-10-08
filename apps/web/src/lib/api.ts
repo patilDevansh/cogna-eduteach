@@ -906,6 +906,13 @@ export const api = {
       body: JSON.stringify({ studentId, ...response }),
     }),
 
+  /** "How did you get it?": the student's one tap after an answer code couldn't explain. */
+  answerLotusReason: (sessionId: string, studentId: string, questionId: string, optionId: string) =>
+    lotusFetch<LotusSessionView>(`/sessions/${sessionId}/reasons`, {
+      method: "POST",
+      body: JSON.stringify({ studentId, questionId, optionId }),
+    }),
+
   overrideLotusSession: (
     sessionId: string,
     studentId: string,

@@ -7,7 +7,7 @@
  *
  * Token counts come directly from each OpenAI response and are always
  * exact. A dollar figure is only ever computed for a model with a verified
- * price configured below — never estimated or guessed for an unrecognised
+ * price configured — never estimated or guessed for an unrecognised
  * model. This matters here specifically: this deployment's configured
  * models (LOTUS_OPENAI_MODEL / LOTUS_CHALLENGER_MODEL, "gpt-5.6-terra" and
  * "gpt-5.6-sol" by default) are not models with publicly documented
@@ -16,46 +16,22 @@
  * more honest than reporting a wrong number that looks authoritative.
  */
 
+import { modelPricingFromEnv, parseModelPricingFromEnv, tokenCostUsd, type ModelPricingTable } from "../ai/model-pricing";
+
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
 }
 
-interface ModelPriceUsdPerMillionTokens {
-  input: number;
-  output: number;
-}
-
 /**
- * Verified USD-per-million-token pricing, keyed by the exact model string
- * passed to the API. Empty by default — see file header. An operator can
- * supply real, sourced prices without a code change via LOTUS_MODEL_PRICING_JSON
- * (a JSON object of exactly this shape, e.g. {"gpt-5.6-terra":{"input":1.25,"output":10}});
+ * Verified pricing comes from OPENAI_MODEL_PRICING_JSON (or the older
+ * LOTUS_MODEL_PRICING_JSON) — see ai/model-pricing.ts. The same table drives
+ * the daily dollar cap in ai/spend-cap.ts, so the two never disagree.
  * LotusCostTracker also accepts an explicit table directly, which is how
  * tests exercise the priced path without needing env parsing.
  */
-const MODEL_PRICING_USD_PER_MILLION_TOKENS: Record<string, ModelPriceUsdPerMillionTokens> = {};
-
-export function parseModelPricingFromEnv(json: string | undefined): Record<string, ModelPriceUsdPerMillionTokens> {
-  if (!json) return {};
-  try {
-    const parsed: unknown = JSON.parse(json);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const table: Record<string, ModelPriceUsdPerMillionTokens> = {};
-    for (const [model, price] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!price || typeof price !== "object") continue;
-      const input = (price as Record<string, unknown>).input;
-      const output = (price as Record<string, unknown>).output;
-      if (typeof input === "number" && typeof output === "number" && input >= 0 && output >= 0) {
-        table[model] = { input, output };
-      }
-    }
-    return table;
-  } catch {
-    return {};
-  }
-}
+export { parseModelPricingFromEnv };
 
 interface AggregateBucket {
   calls: number;
@@ -111,19 +87,17 @@ export class LotusCostTracker {
   private readonly byModel = new Map<string, AggregateBucket>();
   private readonly byKind = new Map<string, AggregateBucket>();
   private readonly unpricedModels = new Set<string>();
-  private readonly pricing: Record<string, ModelPriceUsdPerMillionTokens>;
+  private readonly pricing: ModelPricingTable;
 
-  /** `pricing` overrides the built-in (empty) table — merged on top, so an explicit table always wins over an unset default. Defaults to MODEL_PRICING_USD_PER_MILLION_TOKENS merged with LOTUS_MODEL_PRICING_JSON. */
-  constructor(pricing?: Record<string, ModelPriceUsdPerMillionTokens>) {
-    this.pricing = pricing ?? { ...MODEL_PRICING_USD_PER_MILLION_TOKENS, ...parseModelPricingFromEnv(process.env.LOTUS_MODEL_PRICING_JSON) };
+  /** `pricing` replaces the env-configured table; tests pass one explicitly. */
+  constructor(pricing?: ModelPricingTable) {
+    this.pricing = pricing ?? modelPricingFromEnv();
   }
 
   /** Records one completed call's exact token usage against its model and call kind. */
   record(model: string, kind: string, usage: TokenUsage): void {
     const price = this.pricing[model];
-    const costUsd = price
-      ? (usage.inputTokens / 1_000_000) * price.input + (usage.outputTokens / 1_000_000) * price.output
-      : null;
+    const costUsd = price ? tokenCostUsd(price, usage) : null;
     if (costUsd === null) this.unpricedModels.add(model);
 
     addToBucket(this.overall, usage, costUsd);

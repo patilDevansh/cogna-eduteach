@@ -7,6 +7,7 @@ import { timingSafeEqual } from "node:crypto";
 import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
 import {
+  LotusReasonDto,
   OverrideLotusSessionDto,
   StartLotusSessionDto,
   SubmitLotusAnswerDto,
@@ -160,6 +161,18 @@ export class LotusController {
       submissionId: body.submissionId,
       ...(body.interaction ? { interaction: body.interaction } : {}),
     });
+  }
+
+  /** "How did you get it?": the student's one tap after an answer code couldn't explain. */
+  @Post("sessions/:id/reasons")
+  reason(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: LotusReasonDto,
+  ): Promise<LotusSessionView> {
+    const actor = resolveActor(headers);
+    assertStudentAccess(actor, body.studentId);
+    return this.lotus.recordReason(id, body.studentId, body.questionId, body.optionId);
   }
 
   /** "Read it to me": the current question, spoken, as base64 MP3. Students who struggle to read are not marked down for it. */

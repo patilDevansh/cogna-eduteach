@@ -416,3 +416,26 @@ describe("AI-written practice gets the games too", async () => {
     assert.equal(withPracticeGames(merged, "FAC_FACTOR_FULLY", "a1", []).length, merged.length);
   });
 });
+
+describe("typed questions: working prompt and the verify-by-expanding check", async () => {
+  const { workingPromptFor } = await import("../../src/lotus/lotus.service");
+  const { codeProbeFor } = await import("../../src/lotus/lotus-probes");
+  const { FACTORISATION_SLOTS } = await import("../../src/lotus/lotus-factorisation-catalogue");
+
+  it("working is optional by default; 'lines' restores it; 'split' gives each student one fixed arm", () => {
+    assert.equal(workingPromptFor("s1", {}), "OPTIONAL");
+    assert.equal(workingPromptFor("s1", { LOTUS_WORKING_PROMPT: "lines" }), "LINES");
+    const arms = new Set(Array.from({ length: 40 }, (_, i) => workingPromptFor(`student-${i}`, { LOTUS_WORKING_PROMPT: "split" })));
+    assert.deepEqual([...arms].sort(), ["LINES", "OPTIONAL"]);
+    assert.equal(workingPromptFor("student-7", { LOTUS_WORKING_PROMPT: "split" }), workingPromptFor("student-7", { LOTUS_WORKING_PROMPT: "split" }));
+  });
+
+  it("every re-check of checking-by-expanding is an impostor question, named after the mistake being checked", () => {
+    const spec = FACTORISATION_SLOTS.find((s) => s.skillId === "FAC_VERIFY_EXPAND")!;
+    for (const targetMistake of ["EXPAND_CHECK_FAIL", "CHECKED_FIRST_TERM_ONLY"]) {
+      const item = codeProbeFor({ spec, purpose: "CHECK", targetMistake, avoid: [], variation: "t" } as never, {});
+      assert.equal(item?.presentation, "IMPOSTOR", targetMistake);
+      assert.ok(item!.answerKey.diagnostics!.predictedMistakes.every((p) => p.mistake === targetMistake));
+    }
+  });
+});

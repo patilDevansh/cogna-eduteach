@@ -69,6 +69,20 @@ export class SubmitLotusAnswerDto {
   interaction?: TileBuildResponse;
 }
 
+export class LotusReasonDto {
+  @IsString()
+  @IsNotEmpty()
+  studentId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  questionId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  optionId!: string;
+}
+
 export class OverrideLotusSessionDto {
   @IsString()
   @IsNotEmpty()

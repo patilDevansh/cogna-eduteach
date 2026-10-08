@@ -1515,3 +1515,17 @@ model PersonalizedVideoEvent {
   @@index([assignmentId, createdAt])
   @@index([studentId, kind])
 }
+
+/// Daily ledger of billed third-party API use (OpenAI, ElevenLabs), shared by every API replica.
+/// Written by apps/api/src/ai/spend-cap.ts to enforce the daily call and dollar caps.
+model ApiSpendDay {
+  service   String
+  /// UTC calendar day, yyyy-mm-dd.
+  day       String
+  calls     Int      @default(0)
+  /// Reserved worst-case cost of in-flight calls plus the real cost of finished ones.
+  costUsd   Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@id([service, day])
+}

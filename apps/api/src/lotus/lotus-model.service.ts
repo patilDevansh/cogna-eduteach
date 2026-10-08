@@ -8,6 +8,7 @@ import type {
   LotusReserveIntent,
 } from "@cogna/shared";
 import { OpenAIService } from "../ai/openai.service";
+import { SPEND_CAP_ERROR_CODE } from "../ai/openai-metering";
 import { LotusLatencyPolicy, type LotusCallKind } from "./lotus-latency-policy";
 import { LotusCostTracker, type LotusCostSnapshot } from "./lotus-cost-tracker";
 
@@ -38,7 +39,7 @@ function assertStringField(value: Record<string, unknown>, field: string, label:
 export const PROVIDER_OUTAGE_PROBE_MS = 60_000;
 
 export interface LotusProviderOutage {
-  kind: "NO_CREDITS" | "AUTH";
+  kind: "NO_CREDITS" | "AUTH" | "SPEND_CAP";
   /** Plain-English, safe to show a teacher or developer. */
   reason: string;
   /** The provider's own message, for logs and dev views. */
@@ -61,6 +62,9 @@ export function classifyProviderError(error: unknown): Omit<LotusProviderOutage,
   const status = (error as { status?: number })?.status;
   const code = (error as { code?: string })?.code;
   const message = error instanceof Error ? error.message : String(error ?? "");
+  if (status === 429 && code === SPEND_CAP_ERROR_CODE) {
+    return { kind: "SPEND_CAP", reason: "Cogna's daily AI spending limit has been reached (it resets at midnight UTC)", detail: message };
+  }
   if (status === 429 && (code === "insufficient_quota" || code === "credit_balance_exhausted" || /credits? remaining|insufficient[_ ]quota|billing/i.test(message))) {
     return { kind: "NO_CREDITS", reason: "the AI provider account has no credits left", detail: message };
   }

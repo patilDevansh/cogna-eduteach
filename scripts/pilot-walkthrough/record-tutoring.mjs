@@ -266,12 +266,21 @@ async function buildTiles(answer) {
 }
 
 let readAloudDone = false;
+let seenReasons = 0;
 for (let turn = 1; turn <= 30; turn++) {
   const outcome = await Promise.race([
     page.locator(".lotus-q, [class*=cardBody]").first().waitFor({ timeout: 5 * MINUTE }).then(() => "question", () => "timeout"),
     page.waitForURL(/\/student\/lotus\/report/, { timeout: 5 * MINUTE, waitUntil: "commit" }).then(() => "report", () => "timeout"),
   ]);
   if (outcome === "report" || page.url().includes("/report")) break;
+  // "How did you get it?" after an answer code couldn't explain: one tap, then the next question.
+  const reason = page.locator("[class*=reasonOptions] button");
+  if (await reason.first().waitFor({ timeout: 1500 }).then(() => true, () => false)) {
+    await pause(1800);
+    await click(page, reason.first());
+    seenReasons += 1;
+    await page.locator("[class*=reasonOptions]").waitFor({ state: "detached", timeout: MINUTE }).catch(() => undefined);
+  }
   const ready = await page.waitForFunction(() => location.pathname.includes("/report") || [...document.querySelectorAll("button")].some((b) => /Submit answer/.test(b.textContent) && !b.disabled), null, { timeout: 5 * MINUTE, polling: 500 }).then(() => true, () => false);
   if (!ready) {
     await page.screenshot({ path: join(OUT, `stall-turn-${turn}.png`) });
