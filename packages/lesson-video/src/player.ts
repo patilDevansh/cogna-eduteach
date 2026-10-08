@@ -6,6 +6,7 @@ export { TrinomialLesson } from "./trinomial/TrinomialLesson";
 export { DistributionLesson } from "./distribution/DistributionLesson";
 export { AuthoredLesson } from "./authored/AuthoredLesson";
 export { authoredDurationInFrames, prettyMath, type AuthoredLessonProps } from "./authored/build";
+export { gridExtent, missingAngle, pieSlices, polygonCorners, slicePath, towardCentre } from "./authored/figures";
 export { trinomialDurationInFrames, type TrinomialLessonProps } from "./trinomial/trinomial";
 export { distributionLessonDurationInFrames, lessonFps, type DistributionLessonProps } from "./distribution/lesson";
 export { LESSON_THEMES, type LessonThemeId } from "./themes";

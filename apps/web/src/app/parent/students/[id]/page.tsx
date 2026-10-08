@@ -85,6 +85,29 @@ export default function ParentChildPage() {
             )}
           </section>
 
+          {data.growth?.length > 0 && (
+            <section className={styles.section}>
+              <h2>Growth</h2>
+              <p>Each topic compares {first}&apos;s first check with the latest one: skills {first} is now sure of, and what changed.</p>
+              <ul className={styles.list}>
+                {data.growth.map((t) => (
+                  <li className={styles.item} key={t.topicId}>
+                    <div className={styles.itemHead}>
+                      <strong>{t.name}</strong>
+                      <span className={styles.meta}>{t.growth.checks} check{t.growth.checks === 1 ? "" : "s"} · since {shortDate(t.growth.firstDate)}</span>
+                    </div>
+                    <p className={`${styles.line} ${t.growth.latestSecure > t.growth.firstSecure ? styles.good : ""}`}>
+                      {t.growth.checks > 1
+                        ? `Skills secure: ${t.growth.firstSecure} → ${t.growth.latestSecure}.${t.growth.fixed.length ? ` Fixed: ${t.growth.fixed.join(", ")}.` : ""}`
+                        : `First check: ${t.growth.latestSecure} skills secure. The next check will show the growth.`}
+                    </p>
+                    {t.growth.stillWorking.length > 0 && <p className={`${styles.line} ${styles.work}`}>Still working on: {t.growth.stillWorking.join(", ")}.</p>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section className={styles.section}>
             <h2>Personal lessons</h2>
             <p>Each lesson is made for one step {first} was stuck on. The final question is answered with no help, so it shows what they can do on their own.</p>

@@ -8,7 +8,9 @@ import type {
 } from "@cogna/shared";
 import { api } from "@/lib/api";
 import { renderEquationSteps } from "./equation-highlight";
+import { SlideVisualView } from "./slide-visuals";
 import styles from "./personalized-video.module.css";
+import S from "./slides.module.css";
 
 type TransformationClaim = Extract<VideoMathClaim, { kind: "EQUATION_TRANSFORMATION" }> & {
   chipLabel: string;
@@ -243,6 +245,9 @@ export function InteractiveLessonPlayer({
   const scene = scenes[sceneIndex];
   const claim = scene ? findChipClaim(scene) : undefined;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Seconds into the current scene: from the narration audio when there is some, else a clock.
+  const [elapsed, setElapsed] = useState(0);
+  const [audioLength, setAudioLength] = useState(0);
   const gapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearGapTimer = () => {
@@ -296,6 +301,17 @@ export function InteractiveLessonPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started, sceneIndex, scene, claim, paused]);
 
+  useEffect(() => {
+    setElapsed(0);
+    setAudioLength(0);
+  }, [sceneIndex]);
+
+  useEffect(() => {
+    if (!started || paused || !scene || scene.audioUrl) return;
+    const id = setInterval(() => setElapsed((e) => e + 0.25), 250);
+    return () => clearInterval(id);
+  }, [started, paused, scene]);
+
   // Narration that never starts or stops moving (autoplay refused, a dropped
   // connection) would never fire "ended" and freeze the lesson on one slide.
   // Nudge it once, then move on as if it had ended. Drag scenes still wait for their check.
@@ -328,24 +344,46 @@ export function InteractiveLessonPlayer({
 
   if (!scene) return null;
 
+  // Beat timings come from the lesson's plan; stretch them to the scene's real length.
+  const beats = scene.visuals ?? [];
+  const planned = beats.reduce((sum, b) => sum + b.seconds, 0);
+  const actual = audioLength || scene.durationSeconds;
+  const scale = planned && actual ? actual / planned : 1;
+  const beatIndex = Math.max(0, beats.reduce((last, b, i) => (b.at * scale <= elapsed ? i : last), 0));
+  const beat = beats[beatIndex];
+  const pictureIndex = beats.slice(0, beatIndex + 1).reduce((last, b, i) => (b.visual ? i : last), -1);
+  const picture = pictureIndex >= 0 ? beats[pictureIndex]!.visual : null;
+
+  const accent = styles[scene.accent as "green" | "amber" | "violet"] ?? "";
+  const progressBar = (
+    <div className={S.progress} aria-label={`Part ${sceneIndex + 1} of ${scenes.length}`}>
+      {scenes.map((_, i) => (
+        <span key={i} data-state={i < sceneIndex ? "done" : i === sceneIndex ? "now" : undefined} />
+      ))}
+    </div>
+  );
+
   if (!started) {
     return (
       <>
-        <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
-          <div className={styles.sceneCopy}>
-            <span>{scene.eyebrow}</span>
-            <h2>{scene.headline}</h2>
-            <p>Press start to begin</p>
+        <div className={`${S.slide} ${accent}`}>
+          <div className={S.top}>
+            <span className={S.eyebrow}>{scene.eyebrow}</span>
+            <span className={S.count}>{scenes.length} parts</span>
           </div>
-          <button
-            className={styles.playButton}
-            onClick={() => {
-              setStarted(true);
-              onStart();
-            }}
-          >
-            ▶ Start lesson
-          </button>
+          <h2 className={S.headline}>{scene.headline}</h2>
+          <div className={S.stage}>
+            <button
+              className={styles.playButton}
+              onClick={() => {
+                setStarted(true);
+                onStart();
+              }}
+            >
+              ▶ Start lesson
+            </button>
+          </div>
+          {progressBar}
         </div>
         {belowSlide}
       </>
@@ -354,11 +392,13 @@ export function InteractiveLessonPlayer({
 
   return (
     <>
-      <div className={`${styles.videoStage} ${styles[scene.accent as "green" | "amber" | "violet"] ?? ""}`}>
-        <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
-        <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
-          <span>{scene.eyebrow}</span>
-          <h2>{scene.headline}</h2>
+      <div className={`${S.slide} ${accent} ${paused ? S.paused : ""}`}>
+        <div className={S.top}>
+          <span className={S.eyebrow}>{scene.eyebrow}</span>
+          <span className={S.count}>{sceneIndex + 1} of {scenes.length}</span>
+        </div>
+        <h2 className={S.headline} key={`h-${sceneIndex}`}>{scene.headline}</h2>
+        <div className={S.stage}>
           {claim ? (
             <InteractiveEquationStep
               assignmentId={assignment.id}
@@ -366,23 +406,29 @@ export function InteractiveLessonPlayer({
               claim={claim}
               onCorrect={requestAdvance}
             />
-          ) : (
-            <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
-          )}
-          <p>{scene.narration}</p>
+          ) : picture ? (
+            <div className={S.picture} key={`${sceneIndex}-${pictureIndex}`}>
+              <SlideVisualView visual={picture} />
+            </div>
+          ) : !beats.length && scene.equation.length ? (
+            <div className={S.picture} key={`${sceneIndex}-eq`}>
+              <div className={`${S.math} ${S.legacyEquation}`}>{renderEquationSteps(scene.equation)}</div>
+            </div>
+          ) : null}
         </div>
+        <p className={S.caption} key={`c-${sceneIndex}-${beatIndex}`}>{beat?.say || scene.narration}</p>
         {scene.audioUrl && (
           <audio
             ref={audioRef}
             key={scene.audioUrl}
             src={scene.audioUrl}
             autoPlay
+            onLoadedMetadata={(e) => setAudioLength(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+            onTimeUpdate={(e) => setElapsed(e.currentTarget.currentTime)}
             onEnded={claim ? undefined : requestAdvance}
           />
         )}
-        <div className={styles.progress}>
-          <span style={{ width: `${((sceneIndex + 1) / scenes.length) * 100}%` }} />
-        </div>
+        {progressBar}
       </div>
       {belowSlide}
       <div className={styles.controls}>

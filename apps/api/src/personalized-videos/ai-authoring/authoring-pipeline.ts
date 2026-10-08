@@ -1,7 +1,10 @@
+import type { AuthoredLessonProps } from "@cogna/lesson-video";
 import { answerFromPicks } from "../../interaction-formats/tile-builder";
 import type {
   AuthoredLessonDraft,
   AuthoredScene,
+  AuthoredVisual,
+  SlideVisual,
   LotusSessionView,
   PersonalizedVideoExitItem,
   PersonalizedVideoLesson,
@@ -74,6 +77,46 @@ export function sceneEquationLines(scene: AuthoredScene): Array<{ text: string }
     }
   }
   return [...new Set(lines)].slice(0, 4).map((text) => ({ text }));
+}
+
+/** A beat's picture as a slide draws it: maths formatted for reading; the diagram kinds as a column of their maths lines. */
+function slideVisual(v: AuthoredVisual): SlideVisual | null {
+  switch (v.type) {
+    case "title": return null;
+    case "expression": return { type: "expression", expr: pretty(v.expr), caption: v.caption };
+    case "mistake": return { ...v, expr: pretty(v.expr), wrong: pretty(v.wrong), right: pretty(v.right) };
+    case "rule": case "shape": case "chart": case "grid": return v;
+    case "steps": return { type: "steps", steps: v.steps.map(pretty), caption: v.caption };
+    default: {
+      const steps = sceneEquationLines({ beats: [{ visual: v }] } as AuthoredScene).map((l) => l.text);
+      return steps.length ? { type: "steps", steps, caption: "caption" in v ? v.caption : undefined } : null;
+    }
+  }
+}
+
+/**
+ * The slides draw an AI-written lesson beat by beat: each beat's picture, timed to the
+ * narration, with its spoken line as the caption. Rows stored before slide maths existed
+ * also get their `equation` lines (for the transcript) filled here.
+ */
+export function withBeatEquations(lesson: PersonalizedVideoLesson, animation: Pick<AuthoredLessonProps, "scenes"> | undefined): PersonalizedVideoLesson {
+  if (!animation?.scenes?.length) return lesson;
+  return {
+    ...lesson,
+    scenes: lesson.scenes.map((scene, i) => {
+      const beats = (animation.scenes[i]?.beats ?? []) as Array<{ visual: AuthoredVisual; seconds?: number; text?: string }>;
+      if (!beats.length) return scene;
+      let at = 0;
+      const visuals = beats.map((b) => {
+        const start = at;
+        const seconds = b.seconds ?? 6;
+        at += seconds;
+        return { at: Math.round(start * 10) / 10, seconds, say: b.text ?? "", visual: b.visual ? slideVisual(b.visual) : null };
+      });
+      const equation = scene.equation.length ? scene.equation : sceneEquationLines({ beats } as unknown as AuthoredScene);
+      return { ...scene, equation, visuals };
+    }),
+  };
 }
 
 /** The lesson summary and exit item stored for a verified draft. */

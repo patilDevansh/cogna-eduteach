@@ -27,6 +27,8 @@ const sup = (t: string) => t.replace(/\^2/g, "²").replace(/\^3/g, "³");
 /** How the maths looks on screen: x², real minus signs, even spacing. */
 export function pretty(text: string): string {
   return sup(String(text))
+    // 3*x reads as 3x, but 3/4 * 2/9 needs its ×: keep it before a number.
+    .replace(/\s*\*\s*(?=\d)/g, " × ")
     .replace(/\*/g, "")
     .replace(/\s*([+-])\s*/g, " $1 ")
     .replace(/\(\s+/g, "(")
@@ -63,7 +65,7 @@ function shuffleWith<T>(seed: string, items: T[]): T[] {
 }
 
 /** A quick check whose options the engine classifies; exactly one must be CORRECT. */
-function quickCheck(task: "factorise" | "expand", expression: string, options: Array<{ text: string; feedback: string }>, seed: string, right: string) {
+function quickCheck(task: "factorise" | "expand" | "calculate", expression: string, options: Array<{ text: string; feedback: string }>, seed: string, right: string) {
   const verdicts = options.map((o) => taskVerdict(task, o.text, expression));
   if (verdicts.filter((v) => v === "CORRECT").length !== 1 || verdicts.includes("UNREADABLE")) return null;
   const shuffled = shuffleWith(seed, options.map((o, i) => ({ ...o, verdict: verdicts[i]! })));
@@ -199,22 +201,26 @@ function negativeTimesBracket(item: Item, who: string): MicroLessonPlan | null {
   return plan("NEGATIVE_TIMES_BRACKET", who, "the sign of each term", "A negative times a bracket flips every sign inside.", rows, steps, check);
 }
 
-/** Anything else: your answer beside the right one, and how to check by multiplying back. */
+/** Anything else: your answer beside the right one, and how to check it (multiplying back for algebra, working through again for arithmetic). */
 function yourAnswerVsRight(item: Item, who: string): MicroLessonPlan | null {
-  const task = item.task === "factorise" ? "factorise" : "expand";
+  const task = item.task === "factorise" ? "factorise" : item.task === "calculate" ? "calculate" : "expand";
   if (taskVerdict(task, item.correctAnswer, item.expression) !== "CORRECT" || taskVerdict(task, item.studentAnswer, item.expression) === "CORRECT") return null;
+  const sums = task === "calculate";
+  const words = sums
+    ? { check: `Work it through again: ${pretty(item.expression)} doesn't come to that.`, rule: "Work it out one step at a time, then check each step.", pill: "one step at a time", again: "That's the answer from your test. Work it through again.", yes: `Yes! It comes to ${pretty(item.correctAnswer)}.`, gap: "working it through step by step", takeaway: "Work it out one step at a time, then check each step." }
+    : { check: `Multiply it back out: it doesn't give ${pretty(item.expression)}.`, rule: "Always multiply your answer back out to check it.", pill: "multiply back to check", again: "That's the answer from your test. Multiply it back out and compare.", yes: "Yes! It multiplies back to the original.", gap: "checking by multiplying back", takeaway: "Multiply your answer back out to check it." };
   const rows: MicroToken[][] = [[["e", pretty(item.expression)]], [["a", pretty(item.correctAnswer), "under"]]];
   const steps: MicroStep[] = [
     { say: `${who}, you wrote ${pretty(item.studentAnswer)}.`, actions: [{ op: "pill", text: `${who} wrote: ${pretty(item.studentAnswer)}`, tone: "bad" }] },
-    { say: `Multiply it back out: it doesn't give ${pretty(item.expression)}.`, actions: [{ op: "add", id: "e", cls: ["hl"] }, { op: "pulse", ids: ["e"] }] },
+    { say: words.check, actions: [{ op: "add", id: "e", cls: ["hl"] }, { op: "pulse", ids: ["e"] }] },
     { say: `The right answer is ${pretty(item.correctAnswer)}.`, actions: [{ op: "rm", id: "e", cls: ["hl"] }, { op: "down", index: 0 }, { op: "show", ids: ["a"] }, { op: "pulse", ids: ["a"] }, { op: "later", ms: 500, then: { op: "add", id: "a", cls: ["under"] } }] },
-    { say: "Always multiply your answer back out to check it.", actions: [{ op: "clearPills" }, { op: "pill", text: "multiply back to check", tone: "good" }] },
+    { say: words.rule, actions: [{ op: "clearPills" }, { op: "pill", text: words.pill, tone: "good" }] },
   ];
   const check = quickCheck(task, item.expression, [
     { text: item.correctAnswer, feedback: "" },
-    { text: item.studentAnswer, feedback: "That's the answer from your test. Multiply it back out and compare." },
-  ], `${who}|vs`, "Yes! It multiplies back to the original.");
-  return plan("YOUR_ANSWER_VS_RIGHT", who, "checking by multiplying back", "Multiply your answer back out to check it.", rows, steps, check);
+    { text: item.studentAnswer, feedback: words.again },
+  ], `${who}|vs`, words.yes);
+  return plan("YOUR_ANSWER_VS_RIGHT", who, words.gap, words.takeaway, rows, steps, check);
 }
 
 /** The micro-lesson for this brief: the first of the student's items that fits a template. */

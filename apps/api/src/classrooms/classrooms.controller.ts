@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from "@nestjs/common";
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Min } from "class-validator";
 import { resolveActor } from "../access/cogna-access";
+import { ClassTopicsService } from "./class-topics.service";
 import { ClassroomsService, type RosterImportRow } from "./classrooms.service";
 
 class CreateClassroomDto {
@@ -40,7 +41,10 @@ class CompleteAssignmentDto {
 
 @Controller("classrooms")
 export class ClassroomsController {
-  constructor(private readonly classrooms: ClassroomsService) {}
+  constructor(
+    private readonly classrooms: ClassroomsService,
+    private readonly topics: ClassTopicsService,
+  ) {}
 
   @Get()
   list(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
@@ -55,6 +59,41 @@ export class ClassroomsController {
   @Patch(":classroomId")
   rename(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: RenameClassroomDto): Promise<unknown> {
     return this.classrooms.rename(resolveActor(headers), classroomId, body.name);
+  }
+
+  /** The class's topic plan, the topic being taught, where every student stands on it and what to do next. */
+  @Get(":classroomId/topics")
+  topicPlan(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string): Promise<unknown> {
+    return this.topics.plan(resolveActor(headers), classroomId);
+  }
+
+  /** Teach this topic now (any other topic being taught goes back in the plan). */
+  @Post(":classroomId/topics/:topicId/start")
+  startTopic(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("topicId") topicId: string): Promise<unknown> {
+    return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "start");
+  }
+
+  /** "Still on it today." */
+  @Post(":classroomId/topics/:topicId/confirm")
+  confirmTopic(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("topicId") topicId: string): Promise<unknown> {
+    return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "confirm");
+  }
+
+  /** Move on: the topic is done. */
+  @Post(":classroomId/topics/:topicId/done")
+  finishTopic(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("topicId") topicId: string): Promise<unknown> {
+    return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "done");
+  }
+
+  /** Body: { kind: DIAGNOSTIC | TOPIC_CHECK | CATCH_UP, studentIds? (catch-up only) } (validated in the service). */
+  @Post(":classroomId/topics/:topicId/checks")
+  startTopicCheck(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("classroomId") classroomId: string,
+    @Param("topicId") topicId: string,
+    @Body() body: { kind?: string; studentIds?: string[] },
+  ): Promise<unknown> {
+    return this.topics.startCheck(resolveActor(headers), classroomId, topicId, body ?? {});
   }
 
   @Get(":classroomId/students")
@@ -106,6 +145,11 @@ export class ClassroomsController {
   @Get("student/classes")
   studentClasses(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
     return this.classrooms.classesForStudent(resolveActor(headers));
+  }
+
+  @Get("student/progress")
+  studentProgress(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.topics.growthForSignedStudent(resolveActor(headers));
   }
 
   @Get("student/assignments")

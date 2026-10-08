@@ -41,10 +41,17 @@ export type AuthoredVisual =
   | { type: "tiles"; b: number; c: number; sides: [number, number] }
   /** Signed numbers as moves on a number line: start, then each move hops left (negative) or right (positive). */
   | { type: "number-line"; start: number; moves: number[]; caption?: string }
+  /** A shape with each corner's angle (null = the one to find) and optional side labels, e.g. "7 cm". 3–6 corners. */
+  | { type: "shape"; angles: Array<number | null>; sides?: string[]; caption?: string }
+  /** A bar or pie chart of a small data set; pie slices are drawn in proportion to the values. */
+  | { type: "chart"; kind: "bar" | "pie"; labels: string[]; values: number[]; caption?: string }
+  /** A first-quadrant grid with labelled points, and optionally the line y = m·x + c they all lie on. */
+  | { type: "grid"; points: Array<{ label: string; x: number; y: number }>; line?: { m: number; c: number }; caption?: string }
   /** A short routine card (2–4 lines of words, no maths claims). */
   | { type: "rule"; heading: string; lines: string[] };
 
-export type AuthoredTask = "factorise" | "expand" | "simplify";
+/** calculate: the expression is arithmetic and the answer one number or fraction. */
+export type AuthoredTask = "factorise" | "expand" | "simplify" | "calculate";
 
 export interface AuthoredBeat {
   /** What the narrator says (one or two sentences). */

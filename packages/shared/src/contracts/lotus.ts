@@ -18,7 +18,33 @@ export type LotusQuestionType =
   | "ERROR_ANALYSIS";
 
 /** Which diagnostic a session runs. BRACKETS is the original Grade 8 signed-bracket unit. */
-export type LotusTopic = "BRACKETS" | "FACTORISATION";
+/** Topics run as a planned test on a skill map: AI writes each question, code checks it and marks the answer. */
+export const LOTUS_PLANNED_TOPICS = [
+  "FACTORISATION", "RATIONAL_NUMBERS", "QUADRILATERALS", "DATA_HANDLING", "SQUARES_ROOTS", "CUBES_ROOTS",
+  "COMPARING_QUANTITIES", "ALGEBRAIC_EXPRESSIONS", "MENSURATION", "EXPONENTS_POWERS", "PROPORTIONS", "GRAPHS",
+] as const;
+export type LotusPlannedTopic = (typeof LOTUS_PLANNED_TOPICS)[number];
+/** BRACKETS is the original adaptive test (fixed opening bank, AI picks each next question). */
+export type LotusTopic = "BRACKETS" | LotusPlannedTopic;
+export const LOTUS_TOPICS: LotusTopic[] = ["BRACKETS", ...LOTUS_PLANNED_TOPICS];
+export const LOTUS_TOPIC_NAMES: Record<LotusTopic, string> = {
+  BRACKETS: "Brackets and linear equations",
+  FACTORISATION: "Factorisation",
+  RATIONAL_NUMBERS: "Rational numbers",
+  QUADRILATERALS: "Understanding quadrilaterals",
+  DATA_HANDLING: "Data handling",
+  SQUARES_ROOTS: "Squares and square roots",
+  CUBES_ROOTS: "Cubes and cube roots",
+  COMPARING_QUANTITIES: "Comparing quantities",
+  ALGEBRAIC_EXPRESSIONS: "Algebraic expressions and identities",
+  MENSURATION: "Mensuration",
+  EXPONENTS_POWERS: "Exponents and powers",
+  PROPORTIONS: "Direct and inverse proportions",
+  GRAPHS: "Introduction to graphs",
+};
+export function isPlannedLotusTopic(topic: LotusTopic | undefined | null): topic is LotusPlannedTopic {
+  return !!topic && topic !== "BRACKETS";
+}
 
 /** What a student making one specific mistake writes — used to recognise that mistake instantly, with no AI call. */
 export interface LotusPredictedMistake {
@@ -34,9 +60,12 @@ export interface LotusPredictedMistake {
  */
 export interface LotusItemDiagnostics {
   /** SELECT: choose every option that fits (e.g. "net every fully factorised expression"); built by code only. */
-  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE" | "SELECT";
-  /** The expression the student works on (for FACTORISE and SIMPLIFY items). */
+  /** EXPAND: expand or simplify to collected terms. NUMBER: the answer is a number or fraction. */
+  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE" | "SELECT" | "EXPAND" | "NUMBER";
+  /** The expression the student works on (for FACTORISE, SIMPLIFY and EXPAND items). */
   expression?: string;
+  /** NUMBER only: arithmetic (or an equation in x) that code re-evaluates to prove the answer. */
+  check?: string;
   skillId: string;
   /** Other skills this item genuinely uses, from the skill map. */
   taggedSkills: string[];
@@ -554,6 +583,10 @@ export interface LotusSessionView {
   grade: 8;
   board: "CBSE";
   topic?: LotusTopic;
+  /** The class assignment this diagnostic was started for, so the class can be updated even if the browser never reports back. */
+  classroomAssignmentId?: string;
+  /** A teacher's catch-up: a short test on only these skills (by name), the ones this student still had open. */
+  catchUp?: { skills: string[] };
   status: "ACTIVE" | "COMPLETE";
   /**
    * True from the moment the final answer is accepted until the report is

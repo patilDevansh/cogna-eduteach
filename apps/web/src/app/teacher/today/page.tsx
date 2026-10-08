@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { ClassroomRunReport } from "@/lib/api";
+import { api, ApiError, type ClassTopicPlan, type ClassroomRunReport } from "@/lib/api";
 import { getTeacherInvitation } from "@/lib/session";
 import { useTeacherClasses } from "@/lib/teacher-classes";
-import { teacherData } from "@/lib/teacher-mode";
+import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { useRefreshTick } from "@/lib/use-refresh-tick";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
@@ -42,13 +42,104 @@ function nextMoves(report: ClassroomRunReport): { headline: string; moves: Move[
   return { headline, moves };
 }
 
+const isToday = (iso: string | null) => Boolean(iso) && new Date(iso!).toDateString() === new Date().toDateString();
+
+/**
+ * The daily one-tap: "still on Factorisation?" Cogna asks instead of waiting to be told,
+ * so the topic plan stays right without the teacher setting anything up.
+ */
+function TopicToday({ classroomId, className, sample, onCheckStarted }: { classroomId: string; className: string; sample: boolean; onCheckStarted: () => void }) {
+  const [plan, setPlan] = useState<ClassTopicPlan | null>(null);
+  const [busy, setBusy] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    setPlan(null);
+    setNote("");
+    let current = true;
+    teacherData(sample).getClassTopics(classroomId).then((p) => current && setPlan(p)).catch(() => undefined);
+    return () => { current = false; };
+  }, [classroomId, sample]);
+
+  if (!plan || !plan.topics.length) return null;
+  const topic = plan.topics.find((t) => t.status === "TEACHING");
+  const next = plan.topics.find((t) => t.topicId === plan.next);
+
+  async function act(label: string, run: () => Promise<ClassTopicPlan>, done: string, startsCheck = false) {
+    if (sample) return setNote(SAMPLE_ACTION_NOTE);
+    setBusy(label);
+    setNote("");
+    try {
+      setPlan(await run());
+      setNote(done);
+      if (startsCheck) onCheckStarted();
+    } catch (cause) {
+      setNote(cause instanceof ApiError ? cause.message : "That didn't work. Please try again.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  if (!topic) {
+    return (
+      <section className={styles.topicToday}>
+        <div>
+          <div className={styles.dateLine}>Today in {className}</div>
+          <h2>What are you teaching?</h2>
+          {next && <p>Next in your plan: {next.name} (chapter {next.chapter}).</p>}
+          {note && <p className={styles.topicNote}>{note}</p>}
+        </div>
+        <div className={styles.headerActions}>
+          {next && <button type="button" className={styles.primary} disabled={Boolean(busy)} onClick={() => void act("start", () => api.setTopicStatus(classroomId, next.topicId, "start"), `Started ${next.name.toLowerCase()}.`)}>{busy === "start" ? "Starting…" : `Start ${next.name.toLowerCase()}`}</button>}
+          <Link className={styles.secondary} href="/teacher/sessions">Pick a topic</Link>
+        </div>
+      </section>
+    );
+  }
+
+  const recommendation = plan.current?.topicId === topic.topicId ? plan.current.readiness.recommendation : null;
+  if (isToday(topic.confirmedAt)) {
+    return (
+      <section className={styles.topicToday}>
+        <div>
+          <div className={styles.dateLine}>Today in {className} · {topic.name}</div>
+          <p>{note || recommendation?.text || "Teaching as planned."}</p>
+        </div>
+        <div className={styles.headerActions}><Link className={styles.secondary} href="/teacher/sessions">Open the class →</Link></div>
+      </section>
+    );
+  }
+
+  const finished = () =>
+    topic.available && recommendation?.action !== "WAIT"
+      ? act("finished", () => api.startTopicCheck(classroomId, topic.topicId, "TOPIC_CHECK"), `Topic check sent to ${className}.`, true)
+      : act("finished", () => api.setTopicStatus(classroomId, topic.topicId, "done"), `${topic.name} marked done.`);
+
+  return (
+    <section className={styles.topicToday}>
+      <div>
+        <div className={styles.dateLine}>Today in {className}</div>
+        <h2>Still on {topic.name.toLowerCase()}?</h2>
+        {note && <p className={styles.topicNote}>{note}</p>}
+      </div>
+      <div className={styles.headerActions}>
+        <button type="button" className={styles.primary} disabled={Boolean(busy)} onClick={() => void act("confirm", () => api.setTopicStatus(classroomId, topic.topicId, "confirm"), "Thanks. Noted for today.")}>{busy === "confirm" ? "Saving…" : "Yes, still on it"}</button>
+        <button type="button" className={styles.secondary} disabled={Boolean(busy)} onClick={() => void finished()}>
+          {busy === "finished" ? "Sending…" : topic.available ? "Finished: send the topic check" : "Finished teaching it"}
+        </button>
+        <Link className={styles.secondary} href="/teacher/sessions">Something else</Link>
+      </div>
+    </section>
+  );
+}
+
 function greeting() {
   const hour = new Date().getHours();
   return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 }
 
 export default function TeacherTodayPage() {
-  const { sample, classes, selectedId, selected, select, loaded } = useTeacherClasses();
+  const { sample, classes, selectedId, selected, select, loaded, refresh } = useTeacherClasses();
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [teacherName, setTeacherName] = useState("");
 
@@ -84,6 +175,8 @@ export default function TeacherTodayPage() {
       </div>
 
       <ClassTabs classes={classes} selectedId={selectedId} onSelect={(id) => void select(id)} />
+
+      {selected && <TopicToday classroomId={selected.id} className={selected.name} sample={sample} onCheckStarted={() => void refresh(selected.id)} />}
 
       {loaded && !classes.length ? (
         <section className={styles.emptyCard}><h2>Create your first class</h2><p>Name it, share the code, and start a quick check. Your next moves show up here.</p><Link className={styles.primary} href="/teacher/sessions">Create a class →</Link></section>

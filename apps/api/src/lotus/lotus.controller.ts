@@ -68,7 +68,7 @@ export class LotusController {
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
     assertStudentAccess(actor, body.studentId);
-    return this.lotus.start(body.studentId, body.topic);
+    return this.lotus.start(body.studentId, body.topic, body.classroomAssignmentId);
   }
 
   @Get("sessions/:id")

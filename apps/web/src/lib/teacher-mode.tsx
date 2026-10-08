@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "./api";
-import { SAMPLE_CLASSES, sampleRoster, sampleRunReport } from "./teacher-sample-data";
+import { SAMPLE_CLASSES, sampleRoster, sampleRunReport, sampleTopics } from "./teacher-sample-data";
 
 const KEY = "cogna_teacher_sample_data";
 
@@ -45,11 +45,13 @@ export function teacherData(sample: boolean) {
         listClassrooms: async () => SAMPLE_CLASSES,
         getClassroomRunReport: async (runId: string) => sampleRunReport(runId),
         getClassRoster: async (classroomId: string) => sampleRoster(classroomId),
+        getClassTopics: async (classroomId: string) => sampleTopics(classroomId),
       }
     : {
         listClassrooms: api.listClassrooms,
         getClassroomRunReport: api.getClassroomRunReport,
         getClassRoster: api.getClassRoster,
+        getClassTopics: api.getClassTopics,
       };
 }
 

@@ -357,3 +357,29 @@ describe("the authoring job runs once", () => {
     assert.equal((row?.script as { authoring: { status: string } }).authoring.status, "done");
   });
 });
+
+describe("slides for an AI-written lesson", () => {
+  it("each slide shows its scene's maths, and slides that already have maths keep it", async () => {
+    const { withBeatEquations } = await import("../../src/personalized-videos/ai-authoring/authoring-pipeline");
+    const slide = { eyebrow: "Your lesson", headline: "", narration: "", durationSeconds: 6, accent: "green" as const };
+    const lesson = {
+      title: "t", duration: "1 min", objective: "o", generationReason: "g", verification: "v",
+      scenes: [{ ...slide, equation: [] }, { ...slide, equation: [] }, { ...slide, equation: [{ text: "kept" }] }],
+    };
+    const animation = {
+      scenes: [
+        { beats: [{ visual: { type: "title", text: "Factorising fully" } }, { visual: { type: "expression", expr: "5x^2 - 20" } }] },
+        { beats: [{ visual: { type: "mistake", expr: "5x^2 - 20", task: "factorise", wrong: "5(x^2 - 4)", wrongKind: "unfinished", right: "5(x - 2)(x + 2)", note: "" } }] },
+        { beats: [{ visual: { type: "rule", heading: "h", lines: ["a"] } }] },
+      ],
+    };
+    const out = withBeatEquations(lesson, animation as never);
+    assert.deepEqual(out.scenes[0]!.equation.map((e) => e.text), ["5x² − 20"]);
+    assert.deepEqual(out.scenes[1]!.equation.map((e) => e.text), ["5x² − 20", "✗ 5(x² − 4)", "✓ 5(x − 2)(x + 2)"]);
+    assert.deepEqual(out.scenes[2]!.equation, [{ text: "kept" }]);
+    // Each beat becomes a timed picture; a title beat has none (the headline covers it).
+    assert.deepEqual(out.scenes[0]!.visuals?.map((v) => v.visual?.type ?? null), [null, "expression"]);
+    assert.equal(out.scenes[1]!.visuals?.[0]?.visual?.type, "mistake");
+    assert.equal(out.scenes[2]!.visuals?.[0]?.visual?.type, "rule");
+  });
+});

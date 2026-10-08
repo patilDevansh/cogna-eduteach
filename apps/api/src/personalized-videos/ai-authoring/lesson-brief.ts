@@ -1,11 +1,11 @@
-import type { LotusSessionView } from "@cogna/shared";
+import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusSessionView } from "@cogna/shared";
 import { confirmedByDepth, foldLedger } from "../../lotus/lotus-factorisation";
-import { findFactorisationSkill, skillName } from "../../lotus/lotus-factorisation-catalogue";
-import { algebraicallyEqual, isReadable } from "../../lotus/lotus-algebra";
+import { findSkill, skillName } from "../../lotus/lotus-factorisation-catalogue";
+import { algebraicallyEqual, exactDecimals, isReadable } from "../../lotus/lotus-algebra";
 
 /**
  * Everything the AI author is told about one student, built from a finished
- * factorisation diagnostic. Deliberately small: first name only, the target
+ * planned diagnostic (factorisation or another Class 8 chapter). Deliberately small: first name only, the target
  * skill, the student's own wrong answers on it (with the verified correct
  * answers from the answer keys), and what they already do well. No ids, no
  * school, no free-text notes about the child.
@@ -13,7 +13,8 @@ import { algebraicallyEqual, isReadable } from "../../lotus/lotus-algebra";
 export interface LessonBrief {
   studentFirstName: string;
   grade: 8;
-  topic: "Factorisation";
+  /** The chapter, e.g. "Factorisation" or "Mensuration". */
+  topic: string;
   targetSkill: { id: string; name: string };
   /** Skills the target builds on, by name, so the lesson can lean on them. */
   buildsOn: string[];
@@ -24,7 +25,7 @@ export interface LessonBrief {
     questionNumber: number;
     prompt: string;
     expression: string;
-    task: "factorise" | "simplify";
+    task: "factorise" | "simplify" | "expand" | "calculate";
     studentAnswer: string;
     correctAnswer: string;
     mistake?: string;
@@ -79,7 +80,7 @@ export function isPairAnswer(answer: string): boolean {
 }
 
 export function buildLessonBrief(session: LotusSessionView, studentFirstName: string): LessonBrief | null {
-  if (session.topic !== "FACTORISATION" || session.finalReport?.outcome !== "SOLID_GAP") return null;
+  if (!isPlannedLotusTopic(session.topic) || session.finalReport?.outcome !== "SOLID_GAP") return null;
   const target = confirmedByDepth(foldLedger(session.audits))[0];
   if (!target) return null;
 
@@ -103,15 +104,29 @@ export function buildLessonBrief(session: LotusSessionView, studentFirstName: st
       });
       return;
     }
-    if (!d?.expression || d.itemKind === "CHOICE") return;
     const correct = audit.question.answerKey.canonicalAnswer;
+    // A number question: its checked arithmetic is the expression the lesson can work on.
+    if (d?.itemKind === "NUMBER" && d.check && !d.check.includes("=") && isReadable(exactDecimals(d.check))) {
+      studentItems.push({
+        questionNumber: index + 1,
+        prompt: audit.question.prompt.slice(0, 200),
+        expression: d.check,
+        task: "calculate",
+        studentAnswer: answer.slice(0, 80),
+        correctAnswer: correct,
+        ...(evidence.mistake ? { mistake: evidence.mistake } : {}),
+        ...(evidence.description ? { mistakeDescription: evidence.description.slice(0, 160) } : {}),
+      });
+      return;
+    }
+    if (!d?.expression || d.itemKind === "CHOICE" || d.itemKind === "SELECT") return;
     // Only maths the engine can read goes to the author: it has to be checkable later.
     if (!isReadable(d.expression) || !isReadable(correct)) return;
     studentItems.push({
       questionNumber: index + 1,
       prompt: audit.question.prompt.replace(d.expression, tidyExpression(d.expression)).slice(0, 200),
       expression: tidyExpression(d.expression),
-      task: d.itemKind === "SIMPLIFY" ? "simplify" : "factorise",
+      task: d.itemKind === "SIMPLIFY" ? "simplify" : d.itemKind === "EXPAND" ? "expand" : "factorise",
       studentAnswer: answer.slice(0, 80),
       correctAnswer: correct,
       ...(evidence.mistake ? { mistake: evidence.mistake } : {}),
@@ -121,12 +136,12 @@ export function buildLessonBrief(session: LotusSessionView, studentFirstName: st
 
   const counts = new Map<string, number>();
   for (const m of target.mistakes) counts.set(m, (counts.get(m) ?? 0) + 1);
-  const skill = findFactorisationSkill(target.skillId);
+  const skill = findSkill(target.skillId);
 
   return {
     studentFirstName: studentFirstName.split(" ")[0] ?? "",
     grade: 8,
-    topic: "Factorisation",
+    topic: LOTUS_TOPIC_NAMES[session.topic],
     targetSkill: { id: target.skillId, name: skillName(target.skillId) },
     buildsOn: (skill?.dependsOn ?? []).map(skillName),
     mistakes: [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m),

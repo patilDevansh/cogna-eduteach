@@ -98,7 +98,7 @@ describe("production classroom orchestration", () => {
       findMany: async (args: { where: unknown }) => { where = args.where; return []; },
     } });
     await classrooms.assignmentsForStudent(studentActor);
-    assert.deepEqual((where as { enrollment: unknown }).enrollment, { studentId: "student-1", leftAt: null });
+    assert.deepEqual((where as { enrollment: unknown }).enrollment, { studentId: "student-1", leftAt: null, classroom: { archivedAt: null } });
   });
 
   it("in teacher-gated mode, moves the run to a class report after the last diagnostic completes", async () => {
@@ -231,9 +231,12 @@ describe("teacher class management", () => {
     const classrooms = service({
       classroom: ownedClass,
       classroomEnrollment: { findUnique: async () => ({ id: "enrol-3", leftAt: null }), update: record },
-      classroomAssignment: { updateMany: record },
+      classroomAssignment: { updateMany: record, count: async (args: { where: { status?: unknown } }) => (args.where.status ? 0 : 2) },
+      classroomRun: { findMany: async () => [{ id: "run-live" }], update: record },
     });
     await classrooms.removeStudent(teacherActor, "class-1", "s3");
+    const closed = calls.find((c) => (c.where as { id?: string }).id === "run-live");
+    assert.equal(closed?.data.status, "COMPLETE", "the last open student's removal finishes the check");
     assert.deepEqual(calls[0], { where: { enrollmentId: "enrol-3", status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED", result: { removedFromClass: true } } });
     assert.ok(calls[1]?.data.leftAt instanceof Date);
     const gone = service({ classroom: ownedClass, classroomEnrollment: { findUnique: async () => ({ id: "enrol-3", leftAt: new Date() }) } });

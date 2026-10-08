@@ -1,20 +1,22 @@
 /**
- * Writes one factorisation question with the AI, then proves it with code
+ * Writes one question for a planned topic with the AI, then proves it with code
  * before anything can use it:
- *  - the answer is equal to the expression and fully factorised (exact algebra, not sampling)
+ *  - the answer is equal to the expression and fully factorised or expanded (exact algebra, not sampling)
+ *  - a number answer is re-derived from the writer's own arithmetic check
  *  - every predicted wrong answer really is wrong, or equal-but-unfinished with an "unfinished" mistake
  *  - the question text actually shows the expression
- *  - worded (multiple-choice) questions are solved blind by a second AI, and must agree
+ *  - multiple-choice and number questions are solved blind by a second AI, and must agree
  * A question that fails any check is rejected and retried; if every attempt
  * fails, no question is installed. The diagnostic remains in preparation.
  */
 import type { LotusQuestion } from "@cogna/shared";
-import { normalizeMathText } from "./lotus-algebra";
+import { normalizeMathText, sameNumber } from "./lotus-algebra";
 import {
   type SlotSpec,
   assertFixedItemIsValid,
+  curriculumOfSkill,
   dependsOnTransitively,
-  findFactorisationSkill,
+  findSkill,
   skillName,
 } from "./lotus-factorisation-catalogue";
 
@@ -51,9 +53,12 @@ const MAX_ATTEMPTS = 2;
 
 function makerPrompt(req: WriteRequest): string {
   const { spec } = req;
+  const curriculum = curriculumOfSkill(spec.skillId);
+  const topicName = (curriculum?.name ?? "Factorisation").toLowerCase();
+  const isFactorisation = !curriculum || curriculum.topic === "FACTORISATION";
   const minWrong = Math.min(2, spec.mistakes.length);
   const lines = [
-    "You write ONE diagnostic maths question for a Grade 8 CBSE student taking a factorisation diagnostic.",
+    `You write ONE diagnostic maths question for a Grade 8 CBSE student taking a ${topicName} diagnostic.`,
     "",
     `Skill tested: ${spec.skillId} — ${skillName(spec.skillId)}`,
     `Difficulty: ${spec.level}`,
@@ -65,6 +70,7 @@ function makerPrompt(req: WriteRequest): string {
     `Follow this shape, but write a NEW question with DIFFERENT numbers: ${spec.shape}`,
   ];
   if (spec.note) lines.push(`Requirement: ${spec.note}.`);
+  if (spec.example) lines.push(`Its answer was: ${spec.example.answer}${spec.example.options ? ` (options: ${spec.example.options.join(" | ")})` : ""}. Yours must differ.`);
   if (req.purpose === "CHECK" && req.targetMistake) {
     lines.push(`This question re-checks a suspected mistake: ${req.targetMistake}. Test the same skill in a different form, so a student with that misconception would make it again and a student who only slipped would not.`);
   }
@@ -82,13 +88,15 @@ function makerPrompt(req: WriteRequest): string {
   lines.push(
     "",
     `Mistakes this question must be able to catch — give at least ${minWrong} wrong answer(s), each EXACTLY what a student making that mistake would write:`,
-    ...spec.mistakes.map((m) => `- ${m}`),
+    ...spec.mistakes.map((m) => `- ${m}${curriculum?.mistakeNotes[m] ? `: ${curriculum.mistakeNotes[m]}` : ""}`),
     "",
     "Rules:",
-    "- One clear task. The student-facing prompt is 25 words or fewer.",
-    "- Grade 8 numbers: whole numbers, coefficients up to 12, constants up to 50.",
+    `- One clear task. The student-facing prompt is ${isFactorisation ? 25 : 40} words or fewer. Describe any figure, table or graph in words: the student sees no picture.`,
+    isFactorisation
+      ? "- Grade 8 numbers: whole numbers, coefficients up to 12, constants up to 50."
+      : "- Grade 8 numbers a student can work without a calculator. Use Indian contexts (₹, km, Indian names) where a story helps.",
     "- Machine fields use plain ASCII maths: ^ for powers, no unicode, e.g. 2x^2(5 - 9x + 7x^2).",
-    `- Tag every solution step with the skill it uses. Allowed skills: ${[spec.skillId, ...spec.tagged].join(", ")} (or another skill id from the factorisation map if a step genuinely needs it).`,
+    `- Tag every solution step with the skill it uses. Allowed skills: ${[spec.skillId, ...spec.tagged].join(", ")} (or another skill id from the ${topicName} map if a step genuinely needs it).`,
   );
   if (spec.kind === "CHOICE") {
     lines.push(
@@ -96,9 +104,18 @@ function makerPrompt(req: WriteRequest): string {
       "Return JSON only:",
       '{"prompt": "...", "options": ["...", "...", "...", "..."], "correctOption": "<exact text>", "wrongOptionMistakes": [{"option": "<exact text>", "mistake": "<CODE>"}], "steps": [{"line": "...", "skill": "<SKILL_ID>"}]}',
     );
+  } else if (spec.kind === "NUMBER") {
+    lines.push(
+      '- "answer" is a single number or fraction such as 36, -3/2 or 37.5: no units or words. Every wrong answer is a number too.',
+      '- "check" is plain ASCII arithmetic whose value is the answer, e.g. "(1250 - 1000) / 1250 * 100", or an equation in x that the answer solves, e.g. "3*(x - 4) = 18". Code evaluates it.',
+      "Return JSON only:",
+      '{"prompt": "...", "answer": "...", "check": "...", "wrongAnswers": [{"answer": "...", "mistake": "<CODE>"}], "steps": [{"line": "...", "skill": "<SKILL_ID>"}]}',
+    );
   } else {
     lines.push(
-      spec.kind === "SIMPLIFY"
+      spec.kind === "EXPAND"
+        ? '- "expression" is exactly what the student must expand or simplify, and the prompt MUST show it. "answer" is the result with no brackets and like terms collected, e.g. 2a^2 + 7a - 15.'
+        : spec.kind === "SIMPLIFY"
         ? '- "expression" is the division to simplify, as (numerator)/(denominator). The prompt MUST show the full division, e.g. "Simplify fully: (x^2 - 9) / (x^2 - 6x + 9)". "answer" is the fully simplified result.'
         : '- "expression" is exactly what the student must factorise, and the prompt MUST show it. "answer" is the FULLY factorised form, written as a product.',
       "Return JSON only:",
@@ -109,6 +126,13 @@ function makerPrompt(req: WriteRequest): string {
 }
 
 function blindPrompt(item: Item): string {
+  if (item.answerKey.diagnostics?.itemKind === "NUMBER") {
+    return [
+      "You are a careful Grade 8 maths student. Answer this question.",
+      `Question: ${item.prompt}`,
+      'Return JSON only: {"answer": "<just the number or fraction, no units>"}',
+    ].join("\n");
+  }
   return [
     "You are a careful Grade 8 maths student. Answer this multiple-choice question.",
     `Question: ${item.prompt}`,
@@ -142,7 +166,7 @@ function toItem(req: WriteRequest, raw: Record<string, unknown>): Item | string 
     if (!line) continue;
     const skill = str((s as Record<string, unknown>).skill);
     stepLines.push(line);
-    stepSkills.push(skill && findFactorisationSkill(skill) ? skill : spec.skillId);
+    stepSkills.push(skill && findSkill(skill) ? skill : spec.skillId);
   }
   if (!stepLines.length) return "no worked steps";
   const base = {
@@ -172,20 +196,36 @@ function toItem(req: WriteRequest, raw: Record<string, unknown>): Item | string 
       },
     };
   }
+  const wrong = Array.isArray(raw.wrongAnswers) ? raw.wrongAnswers : [];
+  const predictedMistakes = wrong.flatMap((w) => {
+    const a = str((w as Record<string, unknown>)?.answer); const mistake = str((w as Record<string, unknown>)?.mistake);
+    return a && mistake ? [{ answer: a, mistake }] : [];
+  });
+  if (spec.kind === "NUMBER") {
+    const answer = str(raw.answer);
+    const check = str(raw.check);
+    if (!answer || !check) return "missing answer or check";
+    return {
+      ...base, type: "CONSTRUCTED_RESPONSE", asksForWorking: true,
+      answerKey: {
+        kind: "OPEN_RESPONSE", canonicalAnswer: answer, workedSolution: stepLines,
+        diagnostics: {
+          itemKind: "NUMBER", check, skillId: spec.skillId, taggedSkills: spec.tagged, stepSkills, slot: spec.slot, level: spec.level, origin: "AI", provenance: "AI_GENERATED_FOR_SESSION",
+          predictedMistakes,
+        },
+      },
+    };
+  }
   const expression = str(raw.expression);
   const answer = str(raw.answer);
   if (!expression || !answer) return "missing expression or answer";
-  const wrong = Array.isArray(raw.wrongAnswers) ? raw.wrongAnswers : [];
   return {
     ...base, type: "CONSTRUCTED_RESPONSE", asksForWorking: true,
     answerKey: {
       kind: "OPEN_RESPONSE", canonicalAnswer: answer, workedSolution: stepLines,
       diagnostics: {
         itemKind: spec.kind, expression, skillId: spec.skillId, taggedSkills: spec.tagged, stepSkills, slot: spec.slot, level: spec.level, origin: "AI", provenance: "AI_GENERATED_FOR_SESSION",
-        predictedMistakes: wrong.flatMap((w) => {
-          const a = str((w as Record<string, unknown>)?.answer); const mistake = str((w as Record<string, unknown>)?.mistake);
-          return a && mistake ? [{ answer: a, mistake }] : [];
-        }),
+        predictedMistakes,
       },
     },
   };
@@ -236,6 +276,14 @@ export class LotusQuestionFactory {
       const item = toItem(req, raw);
       if (typeof item === "string") { rejections.push(`attempt ${attempt}: ${item}`); continue; }
       const reasons = checkWrittenItem(req, item);
+      if (!reasons.length && req.spec.kind === "NUMBER") {
+        try {
+          const solved = str((await this.models.solveBlind(blindPrompt(item))).answer);
+          if (!solved || !sameNumber(solved, item.answerKey.canonicalAnswer)) reasons.push(`blind solver got "${solved}", the key says "${item.answerKey.canonicalAnswer}"`);
+        } catch (e) {
+          reasons.push(`blind solver failed — ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
       if (!reasons.length && req.spec.kind === "CHOICE") {
         try {
           const solved = await this.models.solveBlind(blindPrompt(item));

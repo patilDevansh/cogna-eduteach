@@ -1,6 +1,7 @@
 import type { AuthoredTask, MarkReason, PracticeItem } from "@cogna/shared";
 import { taskVerdict } from "./lesson-verifier";
 import { buildTileInteraction } from "../../interaction-formats/tile-builder";
+import { curriculumOfSkill } from "../../lotus/lotus-factorisation-catalogue";
 
 /**
  * Practice built by code, not by a model: every item is constructed from
@@ -18,7 +19,17 @@ const TRINOMIAL_SKILLS = new Set([
   "FAC_MONIC_TRINOMIAL", "FAC_PAIR_PRODUCT_SUM", "FAC_READ_ABC_SIGNS", "FND_FACTOR_PAIRS",
   "FND_SIGN_MUL_DIV", "FND_SIGN_ADD_SUB", "FAC_VERIFY_EXPAND", "EXP_EXPAND_BINOMIALS",
 ]);
-const EXPAND_SKILLS = new Set(["EXP_EXPAND_SINGLE", "C3_DISTRIBUTIVE_PROPERTY"]);
+const EXPAND_SKILLS = new Set(["EXP_EXPAND_SINGLE", "C3_DISTRIBUTIVE_PROPERTY", "AE_MONO_POLY"]);
+
+/**
+ * Whether code-generated practice suits this skill: the factorisation and
+ * bracket skills it was built for, plus expanding a bracket. Other chapters'
+ * practice comes only from their verified AI lesson.
+ */
+export function codePracticeFits(skillId: string): boolean {
+  const topic = curriculumOfSkill(skillId)?.topic;
+  return !topic || topic === "FACTORISATION" || EXPAND_SKILLS.has(skillId) || TRINOMIAL_SKILLS.has(skillId);
+}
 
 export function practiceFamilyFor(skillId: string): PracticeFamily {
   if (TRINOMIAL_SKILLS.has(skillId)) return "trinomial";
@@ -101,7 +112,7 @@ function choose(rand: () => number, id: string, prompt: string, expression: stri
 
 /** A tile "build it" item, or nothing when the tile set can't be made safely. */
 function buildItem(id: string, prompt: string, expression: string, task: AuthoredTask, answer: string, mistakes: string[], workedSteps: string[]): PracticeItem[] {
-  if (task === "simplify") return [];
+  if (task === "simplify" || task === "calculate") return [];
   const interaction = buildTileInteraction({ stage: "PRACTICE", task, expression, answer, mistakes, seed: `${id}|${expression}` });
   return interaction ? [{ id, format: "build", prompt, expression, task, answer, interaction, workedSteps }] : [];
 }

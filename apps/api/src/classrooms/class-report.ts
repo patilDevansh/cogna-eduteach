@@ -51,6 +51,8 @@ export interface StudentRow {
   /** The independent questions answered alone after teaching, and how many were right. */
   exitScore?: { right: number; total: number };
   progress: Progress;
+  /** This student's skill states from the check (for growth between checks). */
+  skills?: Array<{ skillId: string; name: string; state: string }>;
 }
 
 export interface ClassReport {
@@ -119,6 +121,7 @@ export function buildClassReport(students: StudentEvidence[]): ClassReport {
       exitCorrect: s.exit?.correct ?? null,
       ...(s.exit?.items?.length ? { exitScore: { right: s.exit.items.filter((i) => i.correct === true).length, total: s.exit.items.length } } : {}),
       progress: progressOf(s),
+      skills: s.diagnostic?.skills ?? [],
     };
   });
 
@@ -156,7 +159,8 @@ export function buildClassReport(students: StudentEvidence[]): ClassReport {
     noGap: rows.filter((r) => r.outcome === "ADVANCEMENT").length,
     unclear: rows.filter((r) => r.outcome && r.outcome !== "SOLID_GAP" && r.outcome !== "ADVANCEMENT").length,
     lessonDone: done("TEACHING"),
-    exitDone: done("INDEPENDENT_EXIT"),
+    // Counted from the answer itself, like "improved", so the two always agree.
+    exitDone: Math.max(done("INDEPENDENT_EXIT"), rows.filter((r) => r.exitCorrect !== null && r.exitCorrect !== undefined).length),
     improved: rows.filter((r) => r.progress === "IMPROVED").length,
   };
 

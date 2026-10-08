@@ -31,6 +31,13 @@ declare module "@cogna/lesson-video/player" {
   export function authoredDurationInFrames(props: { scenes: KitScene[] }, fps: number): number;
   /** ASCII algebra → display form: x^2 → x², binary minus → " − ". */
   export function prettyMath(text: string): string;
+  export interface Point { x: number; y: number }
+  export function polygonCorners(n: number, cx: number, cy: number, r: number): Point[];
+  export function towardCentre(p: Point, cx: number, cy: number, by: number): Point;
+  export function missingAngle(angles: Array<number | null>): number | null;
+  export function pieSlices(values: number[]): Array<{ start: number; end: number }>;
+  export function slicePath(cx: number, cy: number, r: number, start: number, end: number): string;
+  export function gridExtent(points: Point[]): number;
   export function trinomialDurationInFrames(props: { scenes: KitScene[] }, fps: number): number;
   export function distributionLessonDurationInFrames(props: { scenes: KitScene[] }, fps: number): number;
   export function lessonFps(): number;

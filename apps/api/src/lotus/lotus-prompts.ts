@@ -1,4 +1,5 @@
-import type { LotusMathVerification, LotusQuestionAudit, LotusPhase, LotusTopic } from "@cogna/shared";
+import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestionAudit, type LotusPhase, type LotusTopic } from "@cogna/shared";
+import { curriculumFor } from "./lotus-factorisation-catalogue";
 
 export const LOTUS_POLICY = `
 You are one assessment agent inside Cogna Lotus, an EXPERIMENTAL AI-only diagnostic.
@@ -31,9 +32,13 @@ const FACTORISATION_SPINE =
 
 /** The shared policy with the student-context and coverage lines for the session's topic. Everything else is identical across topics. */
 export function lotusPolicy(topic?: LotusTopic): string {
-  if (topic !== "FACTORISATION") return LOTUS_POLICY;
+  if (!isPlannedLotusTopic(topic)) return LOTUS_POLICY;
+  const curriculum = curriculumFor(topic);
+  const context = topic === "FACTORISATION"
+    ? FACTORISATION_CONTEXT
+    : `Student context: Grade 8, CBSE. Diagnostic focus: ${curriculum.name.toLowerCase()} — ${curriculum.skills.map((s) => s.name.toLowerCase()).join(", ")}. You may descend to the foundations when the evidence warrants it. You do not know the student's ability, personality, intelligence, prior teaching, or weakness.`;
   return LOTUS_POLICY
-    .replace(/^Student context:.*$/m, FACTORISATION_CONTEXT)
+    .replace(/^Student context:.*$/m, context)
     .replace(/^- The soft coverage spine.*$/m, FACTORISATION_SPINE);
 }
 

@@ -320,10 +320,12 @@ function PersonalizedVideoPage() {
     }
   }, [assignment, stage]);
 
-  const seed = key in PILOT_STUDENT_STORIES ? PILOT_STUDENT_STORIES[key] : PILOT_STUDENT_STORIES.aarav;
-  const name = assignment?.name ?? seed.name;
-  // Classroom students never borrow a pilot story's roll number.
-  const roll = assignment?.roll ?? (isProductionClassroom ? undefined : seed.roll);
+  // A pilot demo student: named in the link, or a demo_ account. A real student is neither.
+  const isStory = key in PILOT_STUDENT_STORIES && studentId.startsWith("demo_");
+  const seed = isStory ? PILOT_STUDENT_STORIES[key] : PILOT_STUDENT_STORIES.aarav;
+  // Only the pilot demo students borrow a story's name and roll number; a real student never shows someone else's.
+  const name = assignment?.name ?? (isStory ? seed.name : "");
+  const roll = assignment?.roll ?? (isStory && !isProductionClassroom ? seed.roll : undefined);
   const waiting =
     !assignment ||
     assignment.delivery === "PREPARING" ||

@@ -395,9 +395,31 @@ model Classroom {
 
   enrollments ClassroomEnrollment[]
   runs        ClassroomRun[]
+  topics      ClassroomTopic[]
 
   @@index([teacherId, archivedAt])
   @@index([schoolId])
+}
+
+/// A class's topic plan: one row per syllabus topic, in teaching order.
+model ClassroomTopic {
+  id          String    @id @default(cuid())
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  /// Catalogue id (apps/api/src/classrooms/topic-catalogue.ts), also ClassroomRun.topicId.
+  topicId     String
+  position    Int
+  /// UPCOMING | TEACHING | DONE
+  status      String    @default("UPCOMING")
+  startedAt   DateTime?
+  doneAt      DateTime?
+  /// Last time the teacher said the class is still on this topic.
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([classroomId, topicId])
+  @@index([classroomId, position])
 }
 
 model ClassroomEnrollment {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useParentAuth } from "@/lib/parent-auth-context";
+import styles from "@/components/login.module.css";
 
 export default function NewStudentPage() {
   const router = useRouter();
@@ -44,60 +45,48 @@ export default function NewStudentPage() {
 
   if (accessCode) {
     return (
-      <div className="card">
-        <h1>Student created</h1>
-        <p className="lead">
-          Share this access code with <strong>{name}</strong>. They will use it
-          to log in and practice.
-        </p>
-        <div className="access-code">{accessCode}</div>
-        <p className="success">Save this code — it won&apos;t be shown again.</p>
-        <div className="actions">
-          <Link href="/parent/dashboard" className="btn btn-primary">
-            Back to dashboard
-          </Link>
+      <div className={styles.stage}>
+        <div className={`${styles.parentWrap} phase-in`}>
+          <div className={styles.parentCard}>
+            <div className={styles.parentHead}>
+              <h1>{name} is ready</h1>
+              <p>Share this sign-in code with {name}. They type it on the student sign-in page.</p>
+            </div>
+            <div className="stack-4">
+              <p style={{ font: "700 2rem var(--font-mono, monospace)", letterSpacing: "0.12em", textAlign: "center" }}>{accessCode}</p>
+              <p className="muted">Save it now: it won&apos;t be shown again. You can make a new one from your dashboard.</p>
+              <Link href="/parent/dashboard" className="btn btn-primary btn-lg">Back to your children</Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="card">
-      <h1>Add a student</h1>
-      <p className="lead">Create a profile and receive an access code for practice.</p>
-
-      {error && <p className="error">{error}</p>}
-
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="name">Student first name</label>
-        <input
-          id="name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Student name"
-        />
-
-        <label htmlFor="grade">Grade</label>
-        <input
-          id="grade"
-          type="number"
-          min={6}
-          max={12}
-          value={grade}
-          onChange={(e) => setGrade(Number(e.target.value))}
-        />
-
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? "Creating…" : "Create student"}
-        </button>
-      </form>
-
-      <div className="actions" style={{ marginTop: "1rem" }}>
-        <Link href="/parent/dashboard" className="btn btn-secondary">
-          Cancel
-        </Link>
+    <div className={styles.stage}>
+      <div className={`${styles.parentWrap} phase-in`}>
+        <div className={styles.parentCard}>
+          <div className={styles.parentHead}>
+            <h1>Add a child</h1>
+            <p>They get their own sign-in code for practice and class.</p>
+          </div>
+          <form onSubmit={handleSubmit} className="stack-4">
+            <div className="field">
+              <label htmlFor="name">First name</label>
+              <input id="name" className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Aarav" />
+            </div>
+            <div className="field">
+              <label htmlFor="grade">Grade</label>
+              <input id="grade" className="input" type="number" min={6} max={12} value={grade} onChange={(e) => setGrade(Number(e.target.value))} />
+            </div>
+            {error && <p className="error">{error}</p>}
+            <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+              {loading ? "Creating…" : "Create sign-in code"}
+            </button>
+            <Link href="/parent/dashboard" className="btn btn-secondary">Cancel</Link>
+          </form>
+        </div>
       </div>
     </div>
   );

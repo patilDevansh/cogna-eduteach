@@ -6,7 +6,11 @@
  * independent exit is stored separately from completion.
  */
 
+import type { AuthoredVisual } from "./authored-lessons";
 import type { TileBuildInteraction } from "./interaction-formats";
+
+/** What a slide can draw for one narrated beat (maths already formatted for reading). */
+export type SlideVisual = Extract<AuthoredVisual, { type: "expression" | "steps" | "mistake" | "rule" | "shape" | "chart" | "grid" }>;
 
 export const PERSONALIZED_VIDEO_ASSIGNMENT_STATUSES = [
   "PREPARING",
@@ -93,6 +97,8 @@ export interface PersonalizedVideoLessonScene {
    * the authored template.
    */
   audioUrl?: string;
+  /** AI-written lessons: each narrated beat, `at` seconds into the scene, with its picture (null: the headline is enough). */
+  visuals?: Array<{ at: number; seconds: number; say: string; visual: SlideVisual | null }>;
 }
 
 export interface PersonalizedVideoLesson {

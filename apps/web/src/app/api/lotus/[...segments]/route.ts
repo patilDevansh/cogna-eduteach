@@ -18,7 +18,8 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").rep
  * iterate on UI. Never consulted in production, regardless of whether it's
  * set in that environment.
  */
-const FAKE_API_URL = process.env.LOTUS_FAKE_API_URL?.replace(/\/$/, "");
+// Defaults to the "api-fake" launch config's port, so the Dev panel switch never silently falls through to the real model.
+const FAKE_API_URL = (process.env.LOTUS_FAKE_API_URL ?? "http://localhost:3098").replace(/\/$/, "");
 
 /** The API this request goes to: the fake-model instance when the dev switch asks for it, else the real one. */
 function targetApi(request: Request): { base: string; fake: boolean } {

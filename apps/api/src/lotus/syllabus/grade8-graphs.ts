@@ -1,0 +1,53 @@
+import { draftChapter } from "./draft";
+
+/** Each graph is given as its points in words, so students answer without seeing a picture. */
+export const GRAPHS = draftChapter("graphs", 13, [
+  ["GR_COORDS", "Reading coordinates (x, y)", 0, [], ["COORDS_SWAPPED"]],
+  ["GR_AXES", "Points on the axes", 1, ["GR_COORDS"], ["ZERO_COORD_WRONG_AXIS"]],
+  ["GR_LINE_GRAPH_READ", "Reading a line graph", 1, ["GR_COORDS"], ["READ_WRONG_AXIS"]],
+  ["GR_LINEAR_TABLE", "Table of values for a straight-line rule", 2, [], ["SUBSTITUTION_ERROR"]],
+  ["GR_CHANGE", "Change between two points", 2, ["GR_LINE_GRAPH_READ"], ["GAVE_VALUE_NOT_CHANGE"]],
+  ["GR_STEEPEST", "Where a graph rises fastest", 3, ["GR_CHANGE"], ["HIGHEST_AS_STEEPEST"]],
+  ["GR_LINEAR_PLOT", "Does a point lie on a line", 3, ["GR_LINEAR_TABLE", "GR_COORDS"], ["COORDS_SWAPPED", "SUBSTITUTION_ERROR"]],
+  ["GR_LINEAR_READ", "Reading a straight-line graph", 3, ["GR_LINE_GRAPH_READ"], ["READ_WRONG_AXIS"]],
+  ["GR_RATE", "Rate from a straight-line graph", 4, ["GR_LINEAR_READ"], ["RATE_UPSIDE_DOWN"]],
+  ["GR_SHAPE", "Matching a story to a graph's shape", 4, ["GR_STEEPEST"], ["FLAT_AS_MOVING", "GRAPH_AS_PICTURE"]],
+], {
+  COORDS_SWAPPED: "Writes (y, x) instead of (x, y).",
+  ZERO_COORD_WRONG_AXIS: "Puts (0, 5) on the x-axis.",
+  READ_WRONG_AXIS: "Reads the value off the wrong axis.",
+  SUBSTITUTION_ERROR: "Puts the value into the rule wrongly.",
+  GAVE_VALUE_NOT_CHANGE: "Gives a value when the question asks for the change.",
+  HIGHEST_AS_STEEPEST: "Picks the highest point instead of the steepest part.",
+  RATE_UPSIDE_DOWN: "Divides time by distance instead of distance by time.",
+  FLAT_AS_MOVING: "Thinks a flat part of a distance–time graph means moving steadily.",
+  GRAPH_AS_PICTURE: "Reads the graph as a picture of the journey (a hill-shaped graph for a hill).",
+}, [
+  ["GR_COORDS", "CHOICE", "easy", "EXPLORE", "Point P is 4 units to the right of the origin and 2 units up. What are its coordinates?", ["(4, 2)", "(2, 4)", "(4, 0)", "(0, 2)"], [], ["COORDS_SWAPPED"]],
+  ["GR_AXES", "CHOICE", "easy", "EXPLORE", "Where does the point (0, 5) lie?", ["On the y-axis", "On the x-axis", "At the origin", "Away from both axes"], [], ["ZERO_COORD_WRONG_AXIS"]],
+  ["GR_COORDS", "NUMBER", "easy", "EXPLORE", "What is the x-coordinate of the point (7, 3)?", "7", [], ["COORDS_SWAPPED"]],
+  ["GR_AXES", "CHOICE", "medium", "EXPLORE", "Which point lies on the x-axis?", ["(6, 0)", "(0, 6)", "(6, 6)", "(1, 6)"], [], ["ZERO_COORD_WRONG_AXIS"]],
+  ["GR_LINE_GRAPH_READ", "NUMBER", "easy", "EXPLORE", "A temperature line graph joins 6 am 18°C, 9 am 22°C, 12 noon 28°C and 3 pm 26°C. What was the temperature at 12 noon, in °C?", "28", [], ["READ_WRONG_AXIS"]],
+  ["GR_CHANGE", "NUMBER", "easy", "EXPLORE", "A temperature line graph joins 6 am 18°C, 9 am 22°C, 12 noon 28°C and 3 pm 26°C. By how many degrees did it warm up from 6 am to 12 noon?", "10", [], ["GAVE_VALUE_NOT_CHANGE"], "28 - 18"],
+  ["GR_STEEPEST", "CHOICE", "medium", "EXPLORE", "A temperature line graph joins 6 am 18°C, 9 am 22°C, 12 noon 28°C and 3 pm 26°C. In which 3 hours did it warm up fastest?", ["9 am to 12 noon", "6 am to 9 am", "12 noon to 3 pm", "It warmed at the same rate all day"], [], ["HIGHEST_AS_STEEPEST"]],
+  ["GR_LINEAR_TABLE", "NUMBER", "easy", "EXPLORE", "For y = 3x + 2, what is y when x = 4?", "14", [], ["SUBSTITUTION_ERROR"], "3 * 4 + 2"],
+  ["GR_LINEAR_PLOT", "CHOICE", "medium", "EXPLORE", "Which point lies on the line y = 2x?", ["(3, 6)", "(6, 3)", "(2, 2)", "(3, 5)"], [], ["COORDS_SWAPPED", "SUBSTITUTION_ERROR"]],
+  ["GR_LINEAR_READ", "NUMBER", "medium", "EXPLORE", "A distance–time graph is a straight line from (0 h, 0 km) to (2 h, 80 km). How far has the car gone after 1 hour, in km?", "40", [], ["READ_WRONG_AXIS"], "80 / 2"],
+  ["GR_RATE", "NUMBER", "medium", "EXPLORE", "A distance–time graph is a straight line from (0 h, 0 km) to (3 h, 150 km). What is the speed, in km/h?", "50", [], ["RATE_UPSIDE_DOWN"], "150 / 3"],
+  ["GR_LINE_GRAPH_READ", "NUMBER", "medium", "EXPLORE", "A plant's height graph joins week 1 4 cm, week 2 7 cm, week 3 11 cm and week 4 13 cm. In which week was the plant 11 cm tall?", "3", [], ["READ_WRONG_AXIS"]],
+  ["GR_LINEAR_TABLE", "CHOICE", "medium", "EXPLORE", "For y = x + 3, which row of the table is wrong?", ["x = 2, y = 6", "x = 0, y = 3", "x = 1, y = 4", "x = 4, y = 7"], [], ["SUBSTITUTION_ERROR"]],
+
+  ["GR_SHAPE", "CHOICE", "medium", "DIAGNOSE", "A distance–time graph is flat (horizontal) from 2 pm to 3 pm. What was the person doing then?", ["Standing still", "Walking fast", "Walking uphill", "Walking back home"], [], ["FLAT_AS_MOVING", "GRAPH_AS_PICTURE"]],
+  ["GR_RATE", "NUMBER", "hard", "DIAGNOSE", "Simple interest on a deposit is a straight line from (0 years, ₹0) to (4 years, ₹600). What is the interest for 1 year, in ₹?", "150", ["GR_LINEAR_READ"], ["RATE_UPSIDE_DOWN", "READ_WRONG_AXIS"], "600 / 4"],
+  ["GR_LINEAR_PLOT", "NUMBER", "medium", "DIAGNOSE", "The point (k, 9) lies on y = 2x + 1. What is k?", "4", [], ["SUBSTITUTION_ERROR", "COORDS_SWAPPED"], "2x + 1 = 9"],
+  ["GR_CHANGE", "NUMBER", "medium", "DIAGNOSE", "A rainfall graph shows January 20 mm, February 35 mm, March 15 mm. By how much did rainfall drop from February to March, in mm?", "20", [], ["GAVE_VALUE_NOT_CHANGE"], "35 - 15"],
+  ["GR_STEEPEST", "CHOICE", "hard", "DIAGNOSE", "Two cars' distance–time graphs are straight lines from the origin. Car A reaches 120 km at 2 h; car B reaches 150 km at 3 h. Which car is faster?", ["Car A", "Car B", "They are equally fast", "You can't tell"], ["GR_RATE"], ["HIGHEST_AS_STEEPEST", "RATE_UPSIDE_DOWN"]],
+  ["GR_SHAPE", "CHOICE", "hard", "DIAGNOSE", "A cyclist rides slowly up a hill, then quickly down the other side. What does their distance–time graph look like?", ["Gently rising, then steeply rising", "Up like a hill, then down", "Steeply rising, then gently rising", "Flat, then rising"], [], ["GRAPH_AS_PICTURE"]],
+
+  ["GR_LINEAR_READ", "NUMBER", "hard", "CONFIRM", "The cost of pens is a straight line from (0 pens, ₹0) to (5 pens, ₹35). What do 8 pens cost, in ₹?", "56", ["GR_RATE"], ["READ_WRONG_AXIS", "RATE_UPSIDE_DOWN"], "35 / 5 * 8"],
+  ["GR_LINEAR_PLOT", "CHOICE", "hard", "CONFIRM", "Which line passes through both (1, 5) and (2, 8)?", ["y = 3x + 2", "y = 2x + 3", "y = x + 4", "y = 5x"], ["GR_LINEAR_TABLE"], ["SUBSTITUTION_ERROR"]],
+  ["GR_CHANGE", "NUMBER", "hard", "CONFIRM", "A company's sales graph shows 2021 ₹40 lakh, 2022 ₹55 lakh, 2023 ₹50 lakh, 2024 ₹70 lakh. What was the biggest rise in one year, in ₹ lakh?", "20", ["GR_STEEPEST"], ["GAVE_VALUE_NOT_CHANGE", "HIGHEST_AS_STEEPEST"], "70 - 50"],
+  ["GR_SHAPE", "CHOICE", "medium", "CONFIRM", "A tank is filled at a steady rate. Which graph shows water level against time?", ["A straight line going up", "A flat line", "A line going down", "A curve that rises and then falls"], [], ["GRAPH_AS_PICTURE"]],
+  ["GR_COORDS", "CHOICE", "medium", "CONFIRM", "Points A(2, 3), B(2, 7) and C(5, 3) are plotted. Which two are on the same vertical line?", ["A and B", "A and C", "B and C", "None of them"], [], ["COORDS_SWAPPED"]],
+  ["GR_RATE", "NUMBER", "medium", "CONFIRM", "A car's distance–time graph is a straight line from (0 h, 0 km) to (4 h, 260 km). How far does it go in 1 hour, in km?", "65", [], ["RATE_UPSIDE_DOWN"], "260 / 4"],
+]);
