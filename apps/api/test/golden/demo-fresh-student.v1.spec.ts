@@ -145,6 +145,14 @@ function makeAuthHarness() {
         links.push(data);
         return data;
       },
+      async deleteMany({ where }: { where: { parentId: string; studentId: { startsWith: string } } }) {
+        const keep = links.filter(
+          (l) => l.parentId !== where.parentId || !l.studentId.startsWith(where.studentId.startsWith),
+        );
+        const count = links.length - keep.length;
+        links.splice(0, links.length, ...keep);
+        return { count };
+      },
     },
     microSkillStateV2: {
       async findMany({ where }: { where: { studentId: string } }) {
@@ -192,6 +200,16 @@ describe("AuthService.studentLogin — fresh demo student", () => {
     // Template is never returned.
     assert.notEqual(a.studentId, DEMO_STUDENT_TEMPLATE_ID);
     assert.notEqual(b.studentId, DEMO_STUDENT_TEMPLATE_ID);
+  });
+
+  it("the demo parent follows only the latest demo run, not every past one", async () => {
+    const { auth, links } = makeAuthHarness();
+    await auth.studentLogin("demo1234");
+    await auth.studentLogin("demo1234");
+    const latest = await auth.studentLogin("demo1234");
+    const clones = links.filter((l) => l.studentId.startsWith("demo_")).map((l) => l.studentId);
+    assert.deepEqual(clones, [latest.studentId]);
+    assert.ok(links.some((l) => l.studentId === DEMO_STUDENT_TEMPLATE_ID), "the template link is kept");
   });
 
   it("a freshly minted demo student has no MicroSkillStateV2 rows and no sessions", async () => {

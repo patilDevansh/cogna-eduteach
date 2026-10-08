@@ -86,7 +86,7 @@ export class ParentsService {
 
   async listStudents(parentId: string) {
     const links = await this.prisma.parentStudentLink.findMany({
-      where: { parentId },
+      where: { parentId, student: { deletedAt: null } },
       include: { student: true },
     });
 
@@ -405,6 +405,10 @@ export class AuthService {
       },
     });
     if (link) {
+      // The parent follows only the latest demo run; older runs stay listed in dev/demo-runs.
+      await this.prisma.parentStudentLink.deleteMany({
+        where: { parentId: template.primaryParentId, studentId: { startsWith: "demo_" } },
+      });
       await this.prisma.parentStudentLink.create({
         data: {
           parentId: template.primaryParentId,
