@@ -21,6 +21,12 @@ VISUALS (each beat shows exactly one; no other types exist):
 - {"type":"mistake","expr":"x^2 - 7x + 12","task":"factorise","wrong":"(x + 3)(x + 4)","wrongKind":"incorrect","right":"(x - 3)(x - 4)","note":"…"}
     wrongKind is "unfinished" when the wrong answer is EQUAL but not done (3(4x + 6) for 12x + 18), "incorrect" when it is not equal. It is checked: describe the mistake in the narration to match it.
 - {"type":"rule","heading":"Your routine","lines":["…","…","…"]}   2–4 short lines of words
+- {"type":"shape","angles":[70,110,null,105],"sides":["5 cm","8 cm","5 cm","8 cm"],"caption":"…"}   3–6 corners; at most one null (the angle to find); if none is null they must add to (n − 2) × 180
+- {"type":"chart","kind":"pie","labels":["Cricket","Football","Hockey"],"values":[180,120,60],"caption":"…"}   bar or pie, 2–6 items; pie slices are drawn in proportion (in degrees they must add to 360)
+- {"type":"grid","points":[{"label":"A","x":1,"y":3},{"label":"B","x":2,"y":5}],"line":{"m":2,"c":1},"caption":"…"}   whole coordinates 0–12; with "line", every point must lie on y = m·x + c
+  Use shape for angles and quadrilaterals, chart for data handling, grid for coordinates and straight-line graphs. Picture numbers may be spoken.
+TASKS: "factorise", "expand" (no brackets, like terms collected), "simplify", and "calculate" (the expression is ASCII arithmetic such as "2*(10 + 8)*4" or "(1250 - 1000)/1250*100"; the answer is ONE number or fraction, e.g. 2880 or -3/16).
+  A word problem becomes "calculate": put the story in the prompt and the arithmetic it needs in "expression". A "steps" visual works for arithmetic too: every line equals the one before.
 - {"type":"tiles","b":5,"c":6,"sides":[3,2]}   algebra tiles for a POSITIVE x² + bx + c sliding into a rectangle; sides add to b and multiply to c (a second picture of factorising)
 - {"type":"number-line","start":-3,"moves":[-4],"caption":"−3 + (−4) lands on −7"}   signed numbers as hops; a caption that ends with a number must be where the walk lands
 
@@ -46,7 +52,7 @@ RETURN ONE JSON OBJECT:
 const RULES = `
 RULES — a checker re-derives every claim with an exact algebra engine; one failure rejects the whole lesson:
 1. Maths strings are plain ASCII algebra: x^2, 3x, (x - 3)(x - 4), 6x^2y. No unicode minus, no "×", no words.
-2. Every equality you show must be exactly true. Every "right" answer must be fully finished (fully factorised / fully expanded).
+2. Every equality you show must be exactly true. Every "right" answer must be fully finished (fully factorised / fully expanded / a single number).
 3. "say" is read aloud by a narrator: plain words, at most ${LIMITS.sayWords.max} words, no symbols ^ * / =. Say "x squared", "minus 7 x", "times".
    Only mention numbers that appear in your checked maths. Any arithmetic you say ("3 times 4 is 12") is checked.
 4. ${LIMITS.scenes.min}–${LIMITS.scenes.max} scenes, ${LIMITS.beatsPerScene.min}–${LIMITS.beatsPerScene.max} beats each, at most ${LIMITS.totalBeats.max} beats in total.
@@ -54,7 +60,8 @@ RULES — a checker re-derives every claim with an exact algebra engine; one fai
    A wrong option should be the student's own kind of mistake, and its feedback should say what went wrong.
 6. ${LIMITS.practice.min}–${LIMITS.practice.max} practice items using at least ${LIMITS.practice.minFormats} formats, easy to harder, all on the target skill.
    Practice is independent: new expressions, not the lesson's. Include the student's own mistake as a distractor where it fits.
-7. The exit item is fresh: an expression used nowhere in the lesson, the practice, or the diagnostic. Its prompt must contain the expression itself ("Factorise 6x^2 - 9x fully.").
+7. The exit item is fresh: an expression used nowhere in the lesson, the practice, or the diagnostic. Its prompt must contain the expression itself ("Factorise 6x^2 - 9x fully.", "Work out 3/4 + 2/5.").
+8. Only use the visuals and practice formats that fit the topic: pair-search, common-factor, area and tiles are for factorising and expanding; shape, chart and grid are for geometry, data and graphs.
 
 HOW TO TEACH:
 - Open from something the student already does well (one of their strengths), by name.
@@ -68,7 +75,7 @@ export function buildAuthorPrompt(brief: LessonBrief, previousErrors: string[] =
     ? `\nYOUR LAST DRAFT WAS REJECTED BY THE CHECKER. Fix every one of these, keep everything else:\n${previousErrors.slice(0, 25).map((e) => `- ${e}`).join("\n")}\n`
     : "";
   return [
-    "You are writing one short, personalised maths lesson and its practice for a Grade 8 student in India (CBSE), as JSON data that an animation engine plays.",
+    `You are writing one short, personalised maths lesson on ${brief.topic.toLowerCase()} and its practice for a Grade 8 student in India (CBSE), as JSON data that an animation engine plays.`,
     "The lesson targets the one skill the diagnostic confirmed as the student's starting point.",
     CATALOGUE,
     RULES,

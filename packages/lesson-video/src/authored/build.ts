@@ -12,7 +12,7 @@ import type { LessonThemeId } from "../themes";
  * Nothing here computes or changes mathematics.
  */
 
-export type AuthoredTask = "factorise" | "expand" | "simplify";
+export type AuthoredTask = "factorise" | "expand" | "simplify" | "calculate";
 
 export type AuthoredVisual =
   | { type: "title"; text: string }
@@ -25,6 +25,12 @@ export type AuthoredVisual =
   | { type: "mistake"; expr: string; task: AuthoredTask; wrong: string; wrongKind: "unfinished" | "incorrect"; right: string; note: string }
   | { type: "tiles"; b: number; c: number; sides: [number, number] }
   | { type: "number-line"; start: number; moves: number[]; caption?: string }
+  /** A shape with each corner's angle (null = the one to find) and optional side labels, e.g. "7 cm". 3–6 corners. */
+  | { type: "shape"; angles: Array<number | null>; sides?: string[]; caption?: string }
+  /** A bar or pie chart of a small data set; pie slices are drawn in proportion to the values. */
+  | { type: "chart"; kind: "bar" | "pie"; labels: string[]; values: number[]; caption?: string }
+  /** A first-quadrant grid with labelled points, and optionally the line y = m·x + c they all lie on. */
+  | { type: "grid"; points: Array<{ label: string; x: number; y: number }>; line?: { m: number; c: number }; caption?: string }
   | { type: "rule"; heading: string; lines: string[] };
 
 export interface AuthoredDraftForPlayback {

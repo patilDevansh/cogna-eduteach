@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BadRequestException } from "@nestjs/common";
 import type { StudentRow } from "../../src/classrooms/class-report";
-import { ClassTopicsService, nextTopic } from "../../src/classrooms/class-topics.service";
+import { ClassTopicsService, nextTopic, openSkills } from "../../src/classrooms/class-topics.service";
 import { ClassroomsService } from "../../src/classrooms/classrooms.service";
 import { checkKindOf, checkStudentIds, topicGrowth, topicReadiness, type CheckRows } from "../../src/classrooms/topic-flow";
 import { findTopic, topicsForGrade } from "../../src/classrooms/topic-catalogue";
@@ -12,10 +12,11 @@ const check = (kind: CheckRows["kind"], rows: StudentRow[], live = false): Check
 const ten = Array.from({ length: 10 }, (_, i) => ({ studentId: `s${i}`, name: `S${i}` }));
 
 describe("topic catalogue", () => {
-  it("lists Class 8 in NCERT order, with checks only where Cogna has questions", () => {
+  it("lists Class 8 in NCERT order, with Cogna checks on every chapter", () => {
     const topics = topicsForGrade(8);
     assert.deepEqual(topics.map((t) => t.chapter), topics.map((_, i) => i + 1));
-    assert.deepEqual(topics.filter((t) => t.lotus).map((t) => t.id), ["linear-equations", "factorisation"]);
+    assert.ok(topics.every((t) => t.lotus));
+    assert.equal(findTopic("linear-equations")?.lotus, "BRACKETS");
     assert.equal(findTopic("factorisation")?.lotus, "FACTORISATION");
     assert.deepEqual(topicsForGrade(5), []);
   });
@@ -47,9 +48,9 @@ describe("topic readiness", () => {
   });
 
   it("while a check runs, waits and counts who has finished", () => {
-    const r = topicReadiness([check("DIAGNOSTIC", [row("s0", { progress: "NO_GAP" }), row("s1", { stage: "DIAGNOSTIC", stageStatus: "IN_PROGRESS" })], true)], ten, "Factorisation");
+    const r = topicReadiness([check("DIAGNOSTIC", [row("s0", { progress: "NO_GAP", outcome: "ADVANCEMENT" }), row("s1", { stage: "DIAGNOSTIC", stageStatus: "IN_PROGRESS" }), row("s2", { stage: "LESSON", stageStatus: "READY", outcome: "SOLID_GAP" })], true)], ten, "Factorisation");
     assert.equal(r.recommendation.action, "WAIT");
-    assert.match(r.recommendation.text, /1 of 2 finished/);
+    assert.match(r.recommendation.text, /2 of 3 finished the questions, 1 on their lesson now/);
   });
 
   it("after only a diagnostic, asks for the topic check (gaps before teaching are expected)", () => {
@@ -100,6 +101,17 @@ describe("topic growth", () => {
     assert.deepEqual(g?.stillWorking, ["C"]);
   });
 
+  it("a catch-up that re-tests two skills doesn't make the others look lost", () => {
+    const g = topicGrowth([
+      { date: new Date(1), kind: "DIAGNOSTIC", skills: [k("a", "SECURE"), k("b", "SECURE"), k("c", "CONFIRMED"), k("d", "SUSPECTED")] },
+      { date: new Date(2), kind: "CATCH_UP", skills: [k("c", "SECURE"), k("d", "SECURE")] },
+    ]);
+    assert.equal(g?.firstSecure, 2);
+    assert.equal(g?.latestSecure, 4);
+    assert.deepEqual(g?.fixed, ["C", "D"]);
+    assert.deepEqual(g?.stillWorking, []);
+  });
+
   it("one check is a starting point, not growth", () => {
     const g = topicGrowth([{ date: new Date(1), kind: "DIAGNOSTIC", skills: [k("a", "CONFIRMED")] }]);
     assert.equal(g?.checks, 1);
@@ -117,7 +129,7 @@ function topics(overrides: Record<string, unknown> = {}) {
     teacher: { findUnique: async () => ({ id: "teacher-1", schoolId: "school-1" }) },
     classroom: { findFirst: async () => ({ id: "class-1", grade: 8, archivedAt: null }) },
     classroomTopic: {
-      findMany: async () => [{ id: "t1", classroomId: "class-1", topicId: "factorisation", position: 12, status: "TEACHING" }, { id: "t2", classroomId: "class-1", topicId: "graphs", position: 13, status: "UPCOMING" }],
+      findMany: async () => [{ id: "t1", classroomId: "class-1", topicId: "factorisation", position: 12, status: "TEACHING" }, { id: "t2", classroomId: "class-1", topicId: "old-chapter", position: 13, status: "UPCOMING" }],
       updateMany: async () => ({ count: 0 }),
       update: async () => ({}),
       createMany: async () => ({ count: 0 }),
@@ -135,9 +147,22 @@ function topics(overrides: Record<string, unknown> = {}) {
   return { service: new ClassTopicsService(prisma as never, classrooms), launched, created };
 }
 
+describe("catch-up focus", () => {
+  it("targets each student's open skills from their latest finished check, else its starting point", () => {
+    const skill = (skillId: string, state: string) => ({ skillId, name: skillId, state });
+    const first = check("DIAGNOSTIC", [row("s1", { outcome: "SOLID_GAP", skills: [skill("A", "CONFIRMED"), skill("B", "SECURE")] })]);
+    const later = check("TOPIC_CHECK", [
+      row("s1", { outcome: "SOLID_GAP", skills: [skill("A", "SECURE"), skill("C", "CONFIRMED"), skill("D", "SUSPECTED")] }),
+      row("s2", { outcome: "INSUFFICIENT_OR_CONFLICTING", startingPoint: { skillId: "E", name: "E" }, skills: [skill("E", "SECURE")] }),
+      row("s3", { stage: "JOINED" }),
+    ]);
+    assert.deepEqual(openSkills([first, later], ["s1", "s2", "s3"]), { s1: ["C", "D"], s2: ["E"] });
+  });
+});
+
 describe("starting checks on a topic", () => {
   it("refuses a topic Cogna has no questions for", async () => {
-    await assert.rejects(() => topics().service.startCheck(teacherActor, "class-1", "graphs", { kind: "DIAGNOSTIC" }), /doesn't have questions/);
+    await assert.rejects(() => topics().service.startCheck(teacherActor, "class-1", "old-chapter", { kind: "DIAGNOSTIC" }), /doesn't have questions/);
   });
 
   it("refuses while another check is running in the class", async () => {
@@ -156,6 +181,7 @@ describe("starting checks on a topic", () => {
     await service.startCheck(teacherActor, "class-1", "factorisation", { kind: "CATCH_UP", studentIds: ["s9", "s9"] });
     assert.equal(created[0]?.data.title, "Factorisation · Catch-up");
     assert.deepEqual((created[0]?.data.config as { studentIds: string[] }).studentIds, ["s9"]);
+    assert.ok((created[0]?.data.config as { focus?: unknown }).focus, "the catch-up records what to check each student on");
     const launchQuery = launched.find((q) => JSON.stringify(q.where).includes('"in"'));
     assert.ok(launchQuery, "launch is limited to the catch-up's students");
   });
@@ -163,5 +189,14 @@ describe("starting checks on a topic", () => {
   it("moving on is refused while a check on the topic is still running", async () => {
     const { service } = topics({ classroomRun: { findFirst: async () => ({ id: "run-live" }), findMany: async () => [] } });
     await assert.rejects(() => service.setStatus(teacherActor, "class-1", "factorisation", "done"), /still running/);
+  });
+});
+
+describe("live check counts", () => {
+  it("a student sent a check but who hasn't opened it is not checked yet, not working on it", () => {
+    const r = topicReadiness([check("DIAGNOSTIC", [row("s0", { stage: "DIAGNOSTIC", stageStatus: "READY" }), row("s1", { stage: "DIAGNOSTIC", stageStatus: "IN_PROGRESS" })], true)], ten.slice(0, 2), "Factorisation");
+    assert.equal(r.students[0]?.status, "NOT_CHECKED");
+    assert.equal(r.students[1]?.status, "IN_PROGRESS");
+    assert.match(r.recommendation.text, /0 of 2 finished the questions/);
   });
 });

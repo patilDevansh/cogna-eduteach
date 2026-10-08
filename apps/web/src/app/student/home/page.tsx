@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, classroomAssignmentHref, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
-import { STEP } from "@/lib/class-steps";
+import { stepFor } from "@/lib/class-steps";
 import { getStudent, clearStudent } from "@/lib/session";
 import { conceptLabelStudent } from "@/lib/concept-labels";
 import styles from "@/components/dashboard.module.css";
@@ -142,10 +142,10 @@ export default function StudentHomePage() {
           {work.map((item) => (
             <div className={styles.heroCard} key={item.id}>
               <span className={styles.kicker}>{item.run.classroom.name} · {item.run.title}</span>
-              <h2>{STEP[item.kind].title}</h2>
-              <p className={styles.meta}>{STEP[item.kind].note}</p>
+              <h2>{stepFor(item).title}</h2>
+              <p className={styles.meta}>{stepFor(item).note}</p>
               <Link href={classroomAssignmentHref(item)} className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
-                {item.status === "IN_PROGRESS" ? "Carry on" : STEP[item.kind].cta} →
+                {item.status === "IN_PROGRESS" ? "Carry on" : stepFor(item).cta} →
               </Link>
             </div>
           ))}
@@ -196,18 +196,17 @@ export default function StudentHomePage() {
         {error && <p className="error">{error}</p>}
 
         <div className={styles.heroCard}>
-          <span className={styles.kicker}>Live classroom</span>
+          <span className={styles.kicker}>Your class</span>
           <h2>Join your teacher&apos;s class</h2>
           <p className={styles.meta}>
-            Enter the class code from your teacher and receive diagnostics, teaching activities,
-            and independent exit checks automatically.
+            Type the code your teacher shows the class. Their checks and your lessons then appear here.
           </p>
           <Link
             href="/student/classroom/live"
             className="btn btn-primary"
             style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}
           >
-            Open production classroom →
+            Join a class →
           </Link>
         </div>
 

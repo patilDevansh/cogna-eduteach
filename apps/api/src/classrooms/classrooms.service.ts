@@ -1,9 +1,11 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { ClassroomAssignmentKind, ClassroomRunPhase, Prisma, UserRole } from "@cogna/database";
 import { AccessActor, assertTeacher } from "../access/cogna-access";
 import { hashAccessCode } from "../parents/access-code";
 import { PrismaService } from "../prisma/prisma.service";
+import { PersonalizedVideosService } from "../personalized-videos/personalized-videos.service";
+import { findTopic } from "./topic-catalogue";
 import type { LotusQuestionAudit } from "@cogna/shared";
 import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
 import { buildClassReport, type StudentEvidence } from "./class-report";
@@ -30,7 +32,85 @@ const REMOVED_FROM_CLASS = "removedFromClass";
 
 @Injectable()
 export class ClassroomsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ClassroomsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly videos?: PersonalizedVideosService,
+  ) {}
+
+  /**
+   * A class diagnostic the student finished but whose page never reported back
+   * (tab closed, network dropped, report page never opened): settle it from the
+   * stored session, so the teacher, the parent and the student's own next step
+   * all move on. Waits two minutes after the session ended, giving the
+   * student's own report page the first go.
+   */
+  /**
+   * The lesson and exit steps, settled the same way: the lesson's own record
+   * says it was finished (or both exit questions were sealed), but the page's
+   * call to mark the class step done never arrived. A lesson waits 30 minutes
+   * after it was watched, because its practice comes after; an exit 2.
+   */
+  private async settleFinishedLessonSteps(where: Prisma.ClassroomAssignmentWhereInput): Promise<void> {
+    const open = await this.prisma.classroomAssignment.findMany({
+      where: { ...where, kind: { in: [ClassroomAssignmentKind.TEACHING, ClassroomAssignmentKind.INDEPENDENT_EXIT] }, status: { in: ["READY", "IN_PROGRESS"] }, videoAssignmentId: { not: null } },
+      select: { id: true, kind: true, videoAssignmentId: true, enrollment: { select: { studentId: true } } },
+      take: 60,
+    });
+    for (const assignment of open) {
+      const studentId = assignment.enrollment.studentId;
+      const video = await this.prisma.personalizedVideoAssignment.findFirst({ where: { id: assignment.videoAssignmentId!, studentId }, select: { id: true, script: true } });
+      if (!video) continue;
+      const events = await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId: video.id, studentId, kind: assignment.kind === ClassroomAssignmentKind.TEACHING ? "COMPLETED" : "INDEPENDENT_EXIT", createdAt: { lt: new Date(Date.now() - (assignment.kind === ClassroomAssignmentKind.TEACHING ? 30 : 2) * 60_000) } }, select: { exitItem: true } });
+      const hasTransfer = Boolean((video.script as { transfer?: unknown } | null)?.transfer);
+      const done = assignment.kind === ClassroomAssignmentKind.TEACHING ? events.length > 0 : events.some((e) => (e.exitItem ?? 0) === 0) && (!hasTransfer || events.some((e) => e.exitItem === 1));
+      if (!done) continue;
+      try {
+        await this.completeAssignment({ role: "student", studentId } as AccessActor, assignment.id, { videoAssignmentId: video.id, result: {} });
+      } catch (error) {
+        this.logger.warn(`Could not settle class step ${assignment.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+
+  /** A live check whose every step is done or skipped is complete. */
+  private async closeRunsWithNothingOpen(classroomId: string): Promise<void> {
+    const live = await this.prisma.classroomRun.findMany({ where: { classroomId, status: "LIVE" }, select: { id: true } });
+    for (const run of live) {
+      const [all, open] = await Promise.all([
+        this.prisma.classroomAssignment.count({ where: { runId: run.id } }),
+        this.prisma.classroomAssignment.count({ where: { runId: run.id, status: { in: ["READY", "IN_PROGRESS", "WAITING"] } } }),
+      ]);
+      if (all > 0 && open === 0) await this.prisma.classroomRun.update({ where: { id: run.id }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } });
+    }
+  }
+
+  private async settleFinishedDiagnostics(where: Prisma.ClassroomAssignmentWhereInput): Promise<void> {
+    if (!this.videos) return;
+    await this.settleFinishedLessonSteps(where);
+    const open = await this.prisma.classroomAssignment.findMany({
+      where: { ...where, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: { in: ["READY", "IN_PROGRESS"] }, startedAt: { not: null } },
+      select: { id: true, enrollment: { select: { studentId: true } } },
+      take: 60,
+    });
+    for (const assignment of open) {
+      const studentId = assignment.enrollment.studentId;
+      const lotus = await this.prisma.lotusSessionRecord.findFirst({
+        where: { studentId, status: "COMPLETE", endedAt: { lt: new Date(Date.now() - 2 * 60_000) }, payload: { path: ["classroomAssignmentId"], equals: assignment.id } },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!lotus) continue;
+      const actor = { role: "student", studentId } as AccessActor;
+      try {
+        const lesson = await this.videos.createAssignment({ studentId, lotusSessionId: lotus.sessionId }, { actor });
+        await this.completeAssignment(actor, assignment.id, { diagnosticSessionId: lotus.sessionId, videoAssignmentId: lesson.id, result: {} });
+      } catch (error) {
+        // Retried on the next read; the student's own report page may still finish it first.
+        this.logger.warn(`Could not settle class diagnostic ${assignment.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
 
   private async teacher(actor: AccessActor) {
     assertTeacher(actor);
@@ -113,6 +193,8 @@ export class ClassroomsService {
       this.prisma.classroomAssignment.updateMany({ where: { enrollmentId: enrollment.id, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED", result: { [REMOVED_FROM_CLASS]: true } } }),
       this.prisma.classroomEnrollment.update({ where: { id: enrollment.id }, data: { leftAt: new Date() } }),
     ]);
+    // If they were the last one a running check was waiting on, the check is finished.
+    await this.closeRunsWithNothingOpen(classroomId);
     return { removed: true };
   }
 
@@ -272,7 +354,8 @@ export class ClassroomsService {
 
   async assignmentsForStudent(actor: AccessActor) {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
-    return this.prisma.classroomAssignment.findMany({ where: { enrollment: { studentId: actor.studentId, leftAt: null }, status: { in: ["READY", "IN_PROGRESS"] } }, include: { run: { include: { classroom: { select: { id: true, name: true, subjectId: true, grade: true } } } } }, orderBy: { availableAt: "asc" } });
+    await this.settleFinishedDiagnostics({ enrollment: { studentId: actor.studentId, leftAt: null } });
+    return this.prisma.classroomAssignment.findMany({ where: { enrollment: { studentId: actor.studentId, leftAt: null, classroom: { archivedAt: null } }, status: { in: ["READY", "IN_PROGRESS"] } }, include: { run: { include: { classroom: { select: { id: true, name: true, subjectId: true, grade: true } } } } }, orderBy: { availableAt: "asc" } });
   }
 
   /** The signed-in student's own classes and where they are in each one's latest check. */
@@ -308,6 +391,11 @@ export class ClassroomsService {
       const lotus = await this.prisma.lotusSessionRecord.findUnique({ where: { sessionId: diagnosticSessionId } });
       if (!lotus || lotus.studentId !== actor.studentId || lotus.status !== "COMPLETE") throw new BadRequestException("The Lotus diagnostic is not complete for this student.");
       const payload = lotus.payload as Record<string, unknown>;
+      // The diagnostic must be the one taken for this check: same assignment when it says, and the check's topic.
+      if (payload.classroomAssignmentId && payload.classroomAssignmentId !== assignment.id) throw new BadRequestException("That diagnostic was taken for a different check.");
+      const run = await this.prisma.classroomRun.findUnique({ where: { id: assignment.runId }, select: { topicId: true } });
+      const wanted = run ? findTopic(run.topicId)?.lotus : undefined;
+      if (wanted && (payload.topic ?? "BRACKETS") !== wanted) throw new BadRequestException("That diagnostic is on a different topic from this check.");
       const finalReport = (payload.finalReport ?? {}) as Record<string, unknown>;
       trustedResult = { outcome: finalReport.outcome, startingPoint: finalReport.startingPoint, observedStrengths: finalReport.observedStrengths, uncertainties: finalReport.uncertainAreas, audits: Array.isArray(payload.audits) ? payload.audits.length : 0 };
       if (videoAssignmentId) {
@@ -453,6 +541,7 @@ export class ClassroomsService {
 
   /** A student's classes and how they did on each class's latest check, for their parent. Only this student's row leaves here, never classmates'. */
   async forStudent(studentId: string) {
+    await this.settleFinishedDiagnostics({ enrollment: { studentId, leftAt: null } });
     const enrollments = await this.prisma.classroomEnrollment.findMany({
       where: { studentId, leftAt: null, classroom: { archivedAt: null } },
       include: { classroom: { select: { id: true, name: true, grade: true, teacher: { select: { name: true } } } } },
@@ -490,6 +579,7 @@ export class ClassroomsService {
 
   /** Every started check on a topic in this class, oldest first, with each student's row (catch-ups: their students only). */
   async checkRowsForTopic(classroomId: string, topicId: string): Promise<Array<CheckRows & { title: string; createdAt: Date; status: string }>> {
+    await this.settleFinishedDiagnostics({ run: { classroomId, topicId, status: "LIVE" } });
     const runs = await this.prisma.classroomRun.findMany({
       where: { classroomId, topicId, status: { in: ["LIVE", "COMPLETE"] } },
       orderBy: { createdAt: "asc" },
@@ -503,6 +593,7 @@ export class ClassroomsService {
 
   async report(actor: AccessActor, runId: string) {
     const run = await this.ownedRun(actor, runId);
+    await this.settleFinishedDiagnostics({ runId });
     const assignments = await this.prisma.classroomAssignment.findMany({ where: { runId }, include: { enrollment: { include: { student: { select: { id: true, name: true } } } } }, orderBy: { enrollment: { joinedAt: "asc" } } });
     const byKind = Object.values(ClassroomAssignmentKind).map((kind) => { const rows = assignments.filter((row) => row.kind === kind); return { kind, total: rows.length, ready: rows.filter((row) => row.status === "READY").length, inProgress: rows.filter((row) => row.status === "IN_PROGRESS").length, complete: rows.filter((row) => row.status === "COMPLETE").length }; });
     const results = assignments.map((row) => row.result).filter((value): value is Prisma.JsonObject => Boolean(value) && typeof value === "object" && !Array.isArray(value)) as Array<Record<string, unknown>>;

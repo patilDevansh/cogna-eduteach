@@ -19,7 +19,8 @@ export default function ParentDashboardPage() {
   const [error, setError] = useState("");
   const [codes, setCodes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
-  const tick = useRefreshTick();
+  // One request per child per refresh: a minute is plenty for a parent's overview.
+  const tick = useRefreshTick(60_000);
 
   useEffect(() => {
     document.title = "Your children — Cogna";

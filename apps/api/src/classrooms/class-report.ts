@@ -159,7 +159,8 @@ export function buildClassReport(students: StudentEvidence[]): ClassReport {
     noGap: rows.filter((r) => r.outcome === "ADVANCEMENT").length,
     unclear: rows.filter((r) => r.outcome && r.outcome !== "SOLID_GAP" && r.outcome !== "ADVANCEMENT").length,
     lessonDone: done("TEACHING"),
-    exitDone: done("INDEPENDENT_EXIT"),
+    // Counted from the answer itself, like "improved", so the two always agree.
+    exitDone: Math.max(done("INDEPENDENT_EXIT"), rows.filter((r) => r.exitCorrect !== null && r.exitCorrect !== undefined).length),
     improved: rows.filter((r) => r.progress === "IMPROVED").length,
   };
 

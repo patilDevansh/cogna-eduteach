@@ -21,25 +21,28 @@ import type {
   LotusQuestionAudit,
   LotusSkillEvidence,
   LotusSkillState,
+  LotusPlannedTopic,
   LotusSkillSummary,
   LotusStudentResponse,
 } from "@cogna/shared";
 import { LOTUS_SELECT_SEPARATOR } from "@cogna/shared";
 import {
   algebraicallyEqual,
+  classifyExpansion,
   classifyFactorisation,
   classifySimplification,
   factorisationDefect,
   nonConstantFactorCount,
   normalizeMathText,
+  readNumberAnswer,
   sameFactorisation,
+  sameNumber,
 } from "./lotus-algebra";
 import {
-  FACTORISATION_SKILLS,
-  FACTORISATION_SLOTS,
   type SlotSpec,
+  curriculumFor,
   dependsOnTransitively,
-  findFactorisationSkill,
+  findSkill,
   ownerOfMistake,
   skillName,
   skillsUsedBy,
@@ -61,6 +64,10 @@ export interface FactorisationTurn {
 }
 
 export interface FactorisationState {
+  /** The planned topic this test follows. Missing on sessions from before other topics existed: those are factorisation. */
+  topic?: LotusPlannedTopic;
+  /** A catch-up: only these skills are planned, and the result is judged on them alone. */
+  focusSkills?: string[];
   /** The plan turn currently on the student's screen. */
   planTurn: number;
   turns: FactorisationTurn[];
@@ -146,22 +153,39 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
     };
   }
 
+  if (d.itemKind === "NUMBER") {
+    if (readNumberAnswer(answer) === null) {
+      return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as a number, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
+    }
+    if (sameNumber(answer, key)) return { verification: verification("VERIFIED_CORRECT", `Equal to ${key}.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    const predicted = d.predictedMistakes.find((p) => sameNumber(p.answer, answer));
+    return {
+      verification: verification("VERIFIED_INCORRECT", `Not equal to ${key}.`),
+      evidence: predicted ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
+      fastSkip: false,
+      needsAnalysis: !predicted,
+    };
+  }
+
   const expression = d.expression!;
-  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(answer, expression, key) : classifyFactorisation(answer, expression);
+  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(answer, expression, key)
+    : d.itemKind === "EXPAND" ? classifyExpansion(answer, expression)
+      : classifyFactorisation(answer, expression);
+  const done = d.itemKind === "SIMPLIFY" ? "simplified" : d.itemKind === "EXPAND" ? "expanded and collected" : "factorised";
   if (verdict === "CORRECT") {
-    return { verification: verification("VERIFIED_CORRECT", `Equal to ${expression} and fully ${d.itemKind === "SIMPLIFY" ? "simplified" : "factorised"} — checked by expanding.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    return { verification: verification("VERIFIED_CORRECT", `Equal to ${expression} and fully ${done} — checked by expanding.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
   }
   if (verdict === "UNREADABLE") {
     return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as an expression, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
   }
-  const matches = (p: { answer: string }) => d.itemKind === "SIMPLIFY"
+  const matches = (p: { answer: string }) => d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND"
     ? safe(() => algebraicallyEqual(p.answer, answer))
     : sameFactorisation(p.answer, answer);
   const predicted = d.predictedMistakes.find(matches);
   if (verdict === "UNFINISHED") {
-    const code = predicted?.mistake ?? unfinishedCode(answer);
+    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(answer));
     return {
-      verification: verification("VERIFIED_UNFINISHED", `Equal to ${expression}, but not fully ${d.itemKind === "SIMPLIFY" ? "simplified" : "factorised"}.`),
+      verification: verification("VERIFIED_UNFINISHED", `Equal to ${expression}, but not fully ${done}.`),
       evidence: [{ skillId: ownerOfMistake(code, d), kind: "UNFINISHED", mistake: code, source: "INSTANT", description: `Wrote ${answer}.` }],
       fastSkip: false,
       needsAnalysis: false,
@@ -322,8 +346,8 @@ function usesSkill(item: LotusQuestion | undefined, skillId: string): boolean {
  * (the served item's content, not the turn number it was shown on — a
  * REPURPOSEd turn shows a different slot's content than its own base slot).
  */
-function widenTargets(skillId: string, askedSlots: Set<number>, max: number): Array<{ skill: string; spec: SlotSpec }> {
-  return FACTORISATION_SLOTS
+function widenTargets(slots: SlotSpec[], skillId: string, askedSlots: Set<number>, max: number): Array<{ skill: string; spec: SlotSpec }> {
+  return slots
     .filter((spec) => spec.skillId === skillId && !askedSlots.has(spec.slot))
     .slice(0, max)
     .map((spec) => ({ skill: skillId, spec }));
@@ -341,9 +365,9 @@ function widenTargets(skillId: string, askedSlots: Set<number>, max: number): Ar
  * a skill with only one catalogue slot (e.g. FAC_GCF_VARIABLE), excluding it
  * would make that skill permanently undescendable after turn 1.
  */
-function descentTargets(skillId: string, ledger: Ledger, max: number) {
+function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number) {
   const found: Array<{ skill: string; spec: SlotSpec }> = [];
-  const queue = [...(findFactorisationSkill(skillId)?.dependsOn ?? [])];
+  const queue = [...(findSkill(skillId)?.dependsOn ?? [])];
   const seen = new Set<string>();
   while (queue.length && found.length < max) {
     const p = queue.shift()!;
@@ -352,16 +376,17 @@ function descentTargets(skillId: string, ledger: Ledger, max: number) {
     const state = ledger.get(p)?.state ?? "UNTESTED";
     if (state === "SECURE") continue;
     if (state === "UNTESTED") {
-      const spec = FACTORISATION_SLOTS.find((s) => s.skillId === p);
+      const spec = slots.find((s) => s.skillId === p);
       if (spec) { found.push({ skill: p, spec }); continue; }
     }
-    queue.push(...(findFactorisationSkill(p)?.dependsOn ?? []));
+    queue.push(...(findSkill(p)?.dependsOn ?? []));
   }
   return found;
 }
 
 export function planAdjustments(input: PlanInput): PlanAction[] {
   const { state, ledger, itemAt } = input;
+  const slots = curriculumFor(state.topic).slots;
   const actions: PlanAction[] = [];
   const frozenNext = input.freezeNext === false ? state.planTurn : nextOpenTurn(state, state.planTurn);
   const askedSlots = new Set(
@@ -414,7 +439,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   // evidence. Keep the question already visible to the student, but reserve
   // the next mutable future slot for an AI-written check of the same skill.
   for (const skillId of input.forceCheckSkills ?? []) {
-    const spec = FACTORISATION_SLOTS.find((s) => s.skillId === skillId);
+    const spec = slots.find((s) => s.skillId === skillId);
     const evidence = ledger.get(skillId);
     if (!spec || !evidence || claimed.has(spec.slot)) continue;
     // A duplicate request for the same skill (e.g. a code-instant suspicion
@@ -449,7 +474,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // suspicion-only confirmation path, or a pure "I don't know" remains
     // UNTESTED and can never receive the promised support action.
     if (e.needsSupport) {
-      const support = descentTargets(e.skillId, ledger, 1)[0];
+      const support = descentTargets(slots, e.skillId, ledger, 1)[0];
       const supportAlreadyReserved = support && (checkedThisCall.has(support.skill) || state.turns.some((t) =>
         t.purpose === "DESCENT" && t.forSkill === support.skill));
       if (support && !supportAlreadyReserved) {
@@ -474,7 +499,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       ((t.purpose === "CHECK" && t.forSkill === e.skillId) ||
         (t.status !== "SKIPPED" && usesSkill(itemAt(t.turn), e.skillId))));
     if (hasCheck) continue;
-    const spec = FACTORISATION_SLOTS.find((s) => s.skillId === e.skillId);
+    const spec = slots.find((s) => s.skillId === e.skillId);
     if (!spec) continue;
     const turn = pickVictim();
     if (turn === null) continue;
@@ -503,7 +528,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
         freed.push(t.turn);
       } else if (skillsUsedBy(d).some((u) => dependsOnTransitively(u, e.skillId))) {
         claimed.add(t.turn);
-        const spec = FACTORISATION_SLOTS.find((s) => s.slot === t.slot) ?? null;
+        const spec = slots.find((s) => s.slot === t.slot) ?? null;
         actions.push({
           kind: "REPURPOSE", turn: t.turn, purpose: "AVOID", forSkill: d.skillId, spec,
           avoidSkill: e.skillId, skipUntilReady: true,
@@ -516,7 +541,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // ledger entries, so nothing else stops both from picking it); skip one
     // already claimed for a probe this call rather than installing a second
     // turn for the same hypothesis.
-    for (const { skill: p, spec } of descentTargets(e.skillId, ledger, 2)) {
+    for (const { skill: p, spec } of descentTargets(slots, e.skillId, ledger, 2)) {
       if (checkedThisCall.has(p)) continue;
       const turn = freed.shift() ?? pickVictim();
       if (turn === null) break;
@@ -541,7 +566,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     if (e.state !== "SECURE" || e.clearedAfterSlip || e.notes.length !== 1) continue;
     if (state.handledBroadened.includes(e.skillId)) continue;
     state.handledBroadened.push(e.skillId);
-    const target = widenTargets(e.skillId, askedSlots, 1)[0];
+    const target = widenTargets(slots, e.skillId, askedSlots, 1)[0];
     if (!target) continue;
     const turn = pickVictim();
     if (turn === null) continue;
@@ -555,12 +580,48 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   return actions;
 }
 
+// ---------- catch-up ----------
+
+/** Most a catch-up asks, and the fewest worth sending. */
+export const CATCH_UP_MAX = 8;
+export const CATCH_UP_MIN = 5;
+
+/**
+ * A catch-up's questions: two per open skill (so a gap can be confirmed or
+ * cleared), most foundational first, topped up toward five with the skills
+ * they build on (and theirs), and never more than eight. A chapter whose
+ * skill chain is short can give fewer than five. Empty when the topic has no question
+ * for any of them — the caller then runs the full test.
+ */
+export function catchUpSlots(topic: LotusPlannedTopic, focusSkills: string[]): SlotSpec[] {
+  const slots = curriculumFor(topic).slots;
+  const focus = [...new Set(focusSkills)].filter((id) => slots.some((s) => s.skillId === id)).sort((a, b) => depth(a) - depth(b));
+  const chosen: SlotSpec[] = [];
+  for (const skill of focus) {
+    const own = slots.filter((s) => s.skillId === skill);
+    chosen.push(own[0]!, own[1] ?? own[0]!);
+  }
+  if (!chosen.length) return [];
+  // Nearest prerequisites first, then theirs, until there are five questions.
+  const seen = new Set(focus);
+  const queue = focus.flatMap((id) => findSkill(id)?.dependsOn ?? []);
+  while (queue.length && chosen.length < CATCH_UP_MIN) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const spec = slots.find((s) => s.skillId === id);
+    if (spec) chosen.unshift(spec);
+    queue.push(...(findSkill(id)?.dependsOn ?? []));
+  }
+  return chosen.slice(0, CATCH_UP_MAX);
+}
+
 // ---------- report ----------
 
 export function depth(skillId: string, seen = new Set<string>()): number {
   if (seen.has(skillId)) return 0;
   seen.add(skillId);
-  const deps = findFactorisationSkill(skillId)?.dependsOn ?? [];
+  const deps = findSkill(skillId)?.dependsOn ?? [];
   return deps.length ? 1 + Math.max(...deps.map((d) => depth(d, seen))) : 0;
 }
 
@@ -574,6 +635,8 @@ export function buildFactorisationReport(args: {
   state: FactorisationState;
   pendingAnalyses: number;
 }): LotusFinalReport {
+  const curriculum = curriculumFor(args.state.topic);
+  const slotSkill = (slot: number) => curriculum.slots.find((s) => s.slot === slot)?.skillId;
   const entries = [...args.ledger.values()];
   const confirmed = confirmedByDepth(args.ledger);
   const suspected = entries.filter((e) => e.state === "SUSPECTED");
@@ -582,20 +645,25 @@ export function buildFactorisationReport(args: {
   const skipped = args.state.turns.filter((t) => t.status === "SKIPPED" && t.reason);
   // A skill tested on another question isn't "not tested", even if one of its questions was removed.
   const notTested = [...new Map(skipped.flatMap((t) => {
-    const slotSkill = FACTORISATION_SLOTS.find((s) => s.slot === t.slot)?.skillId;
-    if (!slotSkill || args.ledger.has(slotSkill)) return [];
-    return [[slotSkill, `${skillName(slotSkill)} — ${t.reason!.replace(/^Not tested: /, "not tested: ")}`] as const];
+    const skill = slotSkill(t.slot);
+    if (!skill || args.ledger.has(skill)) return [];
+    return [[skill, `${skillName(skill)} — ${t.reason!.replace(/^Not tested: /, "not tested: ")}`] as const];
   })).values()];
 
   const start = confirmed[0];
-  const outcome: LotusFinalReport["outcome"] = confirmed.length
-    ? "SOLID_GAP"
-    : suspected.length === 0 && secure.length >= 5 ? "ADVANCEMENT" : "INSUFFICIENT_OR_CONFLICTING";
+  // A catch-up is judged only on the skills it was sent for: all of them secure, nothing still suspected, means caught up.
+  const focus = args.state.focusSkills;
+  const caughtUp = focus?.length
+    ? focus.every((id) => args.ledger.get(id)?.state === "SECURE") && suspected.length === 0
+    : suspected.length === 0 && secure.length >= 5;
+  const outcome: LotusFinalReport["outcome"] = confirmed.length ? "SOLID_GAP" : caughtUp ? "ADVANCEMENT" : "INSUFFICIENT_OR_CONFLICTING";
 
   const startingPoint = start
     ? `Start with ${skillName(start.skillId).toLowerCase()}. ${start.notes.filter((n) => !n.includes(": right")).slice(0, 2).join(" · ")}`
     : outcome === "ADVANCEMENT"
-      ? "Factorisation looks secure across the skills tested. Move on to harder factorisation or the next topic."
+      ? focus?.length
+        ? `Caught up: ${focus.map((id) => skillName(id).toLowerCase()).join(", ")} ${focus.length === 1 ? "is" : "are"} now secure.`
+        : `${curriculum.name} looks secure across the skills tested. Move on to harder questions or the next topic.`
       : "No gap was confirmed. Review the suspected areas below before deciding where to start.";
 
   const limitations = [
@@ -608,7 +676,7 @@ export function buildFactorisationReport(args: {
   const summaries: LotusSkillSummary[] = [
     ...entries.map((e) => ({ skillId: e.skillId, name: skillName(e.skillId), state: e.state, evidence: e.notes })),
     ...skipped
-      .map((t) => FACTORISATION_SLOTS.find((s) => s.slot === t.slot)?.skillId)
+      .map((t) => slotSkill(t.slot))
       .filter((id): id is string => !!id && !args.ledger.has(id))
       .map((id) => ({ skillId: id, name: skillName(id), state: "NOT_TESTED_DEPENDENCY" as const, evidence: [] })),
   ].filter((s, i, all) => all.findIndex((o) => o.skillId === s.skillId) === i);
@@ -623,10 +691,10 @@ export function buildFactorisationReport(args: {
       ? `Teach ${skillName(start.skillId).toLowerCase()} directly, then re-check it with a fresh question.`
       : suspected[0]
         ? `Give one more question on ${skillName(suspected[0].skillId).toLowerCase()} to see whether the mistake repeats.`
-        : "No teaching gap found in factorisation from this test.",
+        : `No teaching gap found in ${curriculum.name.toLowerCase()} from this test.`,
     limitations,
     notTested,
-    skills: summaries.sort((a, b) => FACTORISATION_SKILLS.findIndex((s) => s.id === a.skillId) - FACTORISATION_SKILLS.findIndex((s) => s.id === b.skillId)),
+    skills: summaries.sort((a, b) => curriculum.skills.findIndex((s) => s.id === a.skillId) - curriculum.skills.findIndex((s) => s.id === b.skillId)),
   };
 }
 
@@ -673,7 +741,7 @@ export function factorisationStopReason(
   const ledger = foldLedger(audits);
   const start = confirmedByDepth(ledger)[0];
   if (!start) return null;
-  const prerequisites = findFactorisationSkill(start.skillId)?.dependsOn ?? [];
+  const prerequisites = findSkill(start.skillId)?.dependsOn ?? [];
   if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE")) return null;
   return {
     reason: "STARTING_POINT_FOUND",

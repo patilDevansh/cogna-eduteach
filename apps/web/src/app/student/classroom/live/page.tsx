@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError, classroomAssignmentHref, type ClassroomStudentAssignment } from "@/lib/api";
 import { clearStudent, getStudent, isFixtureStudentSession, type StudentSessionRecord } from "@/lib/session";
 import { Wordmark } from "@/components/ui";
-import { STEP } from "@/lib/class-steps";
+import { stepFor } from "@/lib/class-steps";
 import styles from "../student-demo.module.css";
 
 function classroomGreeting(student: StudentSessionRecord | null, joinedClass: string | null): string {
@@ -73,17 +73,17 @@ export default function ProductionClassroomPage() {
     <main className={styles.stage}>
       <header className={styles.top}>
         <Wordmark href="/" />
-        <span>Production classroom</span>
+        <span>Your class</span>
       </header>
       <div className={styles.wrap}>
         <div className={styles.narrow}>
           <section className={styles.hero}>
-            <div className={styles.eyebrow}>Live Cogna classroom</div>
+            <div className={styles.eyebrow}>Join your class</div>
             <h1>{classroomGreeting(signedIn ? student : null, joined)}</h1>
             <p>
               {joined
-                ? `Joined ${joined}. Teacher assignments appear automatically on this screen.`
-                : "Use the class code your teacher displayed. A class code finds your classroom; it does not identify you by name."}
+                ? `Joined ${joined}. What your teacher sends will appear here.`
+                : "Type the code your teacher shows the class."}
             </p>
           </section>
           {!signedIn ? (
@@ -126,11 +126,11 @@ export default function ProductionClassroomPage() {
                 <div className={styles.eyebrow}>Your next step</div>
                 {assignments[0] ? (
                   <>
-                    <h2>{STEP[assignments[0].kind].title}</h2>
-                    <p>{STEP[assignments[0].kind].note}</p>
+                    <h2>{stepFor(assignments[0]).title}</h2>
+                    <p>{stepFor(assignments[0]).note}</p>
                     <p className={styles.progress}>{assignments[0].run.classroom.name}</p>
                     <Link className={styles.button} style={{ display: "flex", textDecoration: "none" }} href={classroomAssignmentHref(assignments[0])}>
-                      {assignments[0].status === "IN_PROGRESS" ? "Carry on" : STEP[assignments[0].kind].cta} →
+                      {assignments[0].status === "IN_PROGRESS" ? "Carry on" : stepFor(assignments[0]).cta} →
                     </Link>
                   </>
                 ) : (
@@ -142,9 +142,11 @@ export default function ProductionClassroomPage() {
               </section>
             </>
           )}
-          <p>
-            <Link href="/student/classroom?demo=1">Use demo classroom instead</Link>
-          </p>
+          {process.env.NODE_ENV !== "production" && (
+            <p>
+              <Link href="/student/classroom?demo=1">Dev · use the demo classroom</Link>
+            </p>
+          )}
         </div>
       </div>
     </main>

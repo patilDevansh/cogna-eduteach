@@ -12,7 +12,7 @@ import {
   Min,
   ValidateIf,
 } from "class-validator";
-import type { LotusOverrideAction, LotusTopic, TileBuildResponse } from "@cogna/shared";
+import { LOTUS_TOPICS, type LotusOverrideAction, type LotusTopic, type TileBuildResponse } from "@cogna/shared";
 
 export class StartLotusSessionDto {
   @IsString()
@@ -20,8 +20,13 @@ export class StartLotusSessionDto {
   studentId!: string;
 
   @IsOptional()
-  @IsIn(["BRACKETS", "FACTORISATION"])
+  @IsIn(LOTUS_TOPICS)
   topic?: LotusTopic;
+
+  /** The class assignment this diagnostic is for; a teacher's catch-up narrows it to the student's open skills. */
+  @IsOptional()
+  @IsString()
+  classroomAssignmentId?: string;
 }
 
 export class SubmitLotusAnswerDto {

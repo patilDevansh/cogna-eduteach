@@ -264,7 +264,7 @@ export default function PilotConsolePage() {
           <section className={styles.liveBar}>
             <div>
               <span className={styles.livePill} data-live={report?.run.status === "LIVE"}>{ended ? "Finished" : "● Live"}</span>
-              <strong>{report?.run.title ?? "Factorisation · quick check"}</strong>
+              <strong>{report?.run.title ?? "Quick check"}</strong>
             </div>
             <div className={styles.liveCode}>
               Join code <b data-testid="join-code">{report?.run.classroom.joinCode ?? activeClass?.joinCode}</b>

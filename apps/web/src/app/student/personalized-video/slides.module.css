@@ -135,3 +135,23 @@
 @media (prefers-reduced-motion: reduce) {
   .slide *, .headline, .picture, .caption { animation: none !important; }
 }
+
+/* Shape, chart and grid pictures (geometry, data handling, graphs). */
+.figure { margin: 0; width: min(100%, 460px); text-align: center; }
+.figure svg { width: 100%; height: auto; overflow: visible; }
+.figure figcaption { margin-top: 0.6rem; color: #3f6156; font-size: 0.95rem; }
+.figure text { font-family: var(--font-display); text-anchor: middle; dominant-baseline: middle; }
+.shapeFill { fill: rgba(47, 125, 99, 0.12); stroke: #2f7d63; stroke-width: 3; stroke-linejoin: round; }
+.angle { font-size: 15px; font-weight: 700; fill: #0b3a2f; }
+.unknown { font-size: 20px; font-weight: 800; fill: #c4584b; }
+.sideLabel { font-size: 13px; fill: #3f6156; }
+.figure .keyLabel { font-size: 13px; fill: #0b3a2f; text-anchor: start; }
+.figure .scaleNote { font-size: 10px; fill: #7a958c; text-anchor: end; }
+.axis { stroke: #3f6156; stroke-width: 2; }
+.gridLine { stroke: rgba(63, 97, 86, 0.18); stroke-width: 1; }
+.tick { font-size: 10px; fill: #5c8476; }
+.plotLine { stroke: #e3a33b; stroke-width: 3; stroke-linecap: round; }
+.point { fill: #2f7d63; stroke: #fff; stroke-width: 2; }
+.bar { transform-box: fill-box; transform-origin: bottom; animation: grow 0.6s var(--ease-settle) both; }
+@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .bar { animation: none; } }

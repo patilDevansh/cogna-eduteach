@@ -8,9 +8,12 @@ import type {
 } from "@cogna/shared";
 import {
   algebraicallyEqual,
+  classifyExpansion,
   classifyFactorisation,
+  exactDecimals,
   isReadable,
   normalizeMathText,
+  readNumberAnswer,
 } from "../../lotus/lotus-algebra";
 import { assembleTileAnswer } from "@cogna/shared";
 import { splitFactors, splitTerms } from "../../interaction-formats/tile-builder";
@@ -48,18 +51,27 @@ export const LIMITS = {
   text: 200,
 } as const;
 
-const VISUAL_TYPES = new Set(["title", "expression", "steps", "distribute", "area", "pair-search", "common-factor", "mistake", "rule", "tiles", "number-line"]);
-const TASKS = new Set(["factorise", "expand", "simplify"]);
+const VISUAL_TYPES = new Set(["title", "expression", "steps", "distribute", "area", "pair-search", "common-factor", "mistake", "rule", "tiles", "number-line", "shape", "chart", "grid"]);
+const TASKS = new Set(["factorise", "expand", "simplify", "calculate"]);
 const FORMATS = new Set(["pair-hunt", "spot-mistake", "choose", "type-answer", "factor-safe", "build", "rectangle", "mark-it", "rush"]);
 
 /** Verdict of an answer to a task on an expression, by exact algebra. */
 export function taskVerdict(task: AuthoredTask, answer: string, expression: string): "CORRECT" | "UNFINISHED" | "INCORRECT" | "UNREADABLE" {
+  if (task === "calculate") {
+    // A number (units and ₹ allowed) is finished; working that still equals the expression isn't.
+    const value = readNumberAnswer(answer) ?? (isReadable(answer) ? answer : null);
+    if (value === null || !isReadable(exactDecimals(expression))) return "UNREADABLE";
+    let same: boolean;
+    try { same = algebraicallyEqual(exactDecimals(value), exactDecimals(expression)); } catch { return "UNREADABLE"; }
+    if (!same) return "INCORRECT";
+    return readNumberAnswer(answer) !== null ? "CORRECT" : "UNFINISHED";
+  }
   if (!isReadable(answer) || !isReadable(expression)) return "UNREADABLE";
   if (task === "factorise") return classifyFactorisation(answer, expression);
   let equal: boolean;
   try { equal = algebraicallyEqual(answer, expression); } catch { return "UNREADABLE"; }
   if (!equal) return "INCORRECT";
-  if (task === "expand") return normalizeMathText(answer).includes("(") ? "UNFINISHED" : "CORRECT";
+  if (task === "expand") return classifyExpansion(answer, expression);
   return "CORRECT";
 }
 
@@ -264,6 +276,61 @@ class Checker {
         this.claim(`${path}.sides`, sides[0] + sides[1] === b && sides[0] * sides[1] === c, `sides ${sides[0]} and ${sides[1]} must add to ${b} and multiply to ${c}`);
         return;
       }
+      case "shape": {
+        const { angles, sides } = visual;
+        const n = Array.isArray(angles) ? angles.length : 0;
+        if (n < 3 || n > 6 || !angles.every((a) => a === null || (typeof a === "number" && a > 0 && a < 360))) {
+          this.fail(`${path}.angles`, "a shape needs 3–6 corner angles, each between 0° and 360°, or null for the one to find");
+          return;
+        }
+        const total = (n - 2) * 180;
+        const unknown = angles.filter((a) => a === null).length;
+        const given = angles.reduce<number>((sum, a) => sum + (a ?? 0), 0);
+        if (unknown === 0) this.claim(`${path}.angles`, given === total, `the angles add to ${given}°, but a ${n}-sided shape's add to ${total}°`);
+        else if (unknown === 1) this.claim(`${path}.angles`, total - given > 0 && total - given < 360, `the missing angle would be ${total - given}°, which no corner can be`);
+        else this.fail(`${path}.angles`, "at most one angle can be left to find");
+        if (sides !== undefined && (!Array.isArray(sides) || sides.length !== n || sides.some((t) => typeof t !== "string" || t.length > 12))) {
+          this.fail(`${path}.sides`, `give one short label per side (${n}), e.g. "7 cm"`);
+        }
+        for (const a of [...angles, total, total - given]) if (typeof a === "number") this.backedNumbers.add(a);
+        for (const t of sides ?? []) for (const k of numbersIn(t)) this.backedNumbers.add(k);
+        if (visual.caption !== undefined) this.text(`${path}.caption`, visual.caption, 90);
+        return;
+      }
+      case "chart": {
+        const { kind, labels, values } = visual;
+        const ok = (kind === "bar" || kind === "pie") && Array.isArray(labels) && Array.isArray(values)
+          && labels.length === values.length && labels.length >= 2 && labels.length <= 6
+          && values.every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0) && values.some((v) => v > 0)
+          && labels.every((l) => typeof l === "string" && l.length >= 1 && l.length <= 16);
+        if (!ok) {
+          this.fail(path, 'a chart needs kind "bar" or "pie" and 2–6 short labels with matching non-negative values');
+          return;
+        }
+        const total = values.reduce((a, b) => a + b, 0);
+        for (const v of [...values, total]) this.backedNumbers.add(v);
+        // A pie given in degrees must go all the way round.
+        if (kind === "pie" && visual.caption && /°|degree/i.test(visual.caption)) this.claim(`${path}.values`, total === 360, `the slices add to ${total}°, not 360°`);
+        if (visual.caption !== undefined) this.text(`${path}.caption`, visual.caption, 90);
+        return;
+      }
+      case "grid": {
+        const { points, line } = visual;
+        const ok = Array.isArray(points) && points.length >= 1 && points.length <= 6
+          && points.every((pt) => pt && typeof pt.label === "string" && pt.label.length <= 3 && Number.isInteger(pt.x) && Number.isInteger(pt.y) && pt.x >= 0 && pt.y >= 0 && pt.x <= 12 && pt.y <= 12);
+        if (!ok) {
+          this.fail(path, "a grid needs 1–6 points with short labels and whole coordinates from 0 to 12");
+          return;
+        }
+        if (line !== undefined) {
+          if (typeof line?.m !== "number" || typeof line?.c !== "number") this.fail(`${path}.line`, "a line needs numbers m and c (y = m·x + c)");
+          else for (const pt of points) this.claim(`${path}.points`, pt.y === line.m * pt.x + line.c, `${pt.label}(${pt.x}, ${pt.y}) is not on y = ${line.m}x + ${line.c}`);
+        }
+        for (const pt of points) { this.backedNumbers.add(pt.x); this.backedNumbers.add(pt.y); }
+        if (line) { this.backedNumbers.add(Math.abs(line.m)); this.backedNumbers.add(Math.abs(line.c)); }
+        if (visual.caption !== undefined) this.text(`${path}.caption`, visual.caption, 90);
+        return;
+      }
       case "number-line": {
         const { start, moves } = visual;
         const ok = Number.isInteger(start) && Math.abs(start) <= 12 && Array.isArray(moves) && moves.length >= 1 && moves.length <= 3 && moves.every((m) => Number.isInteger(m) && m !== 0 && Math.abs(m) <= 12);
@@ -283,7 +350,7 @@ class Checker {
         return;
       }
       case "mistake": {
-        if (!TASKS.has(visual.task)) this.fail(`${path}.task`, "must be factorise, expand or simplify");
+        if (!TASKS.has(visual.task)) this.fail(`${path}.task`, "must be factorise, expand, simplify or calculate");
         this.text(`${path}.note`, visual.note, 120);
         if (this.math(`${path}.expr`, visual.expr) && this.math(`${path}.right`, visual.right) && this.math(`${path}.wrong`, visual.wrong)) {
           this.verdict(`${path}.right`, visual.task, visual.right, visual.expr, "CORRECT", "the right answer");
@@ -367,7 +434,7 @@ class Checker {
 
   private checkpointMath(path: string, cp: AuthoredCheckpoint, options: AuthoredCheckpoint["options"]) {
     if (cp.check) {
-      if (!TASKS.has(cp.check.task)) this.fail(`${path}.check.task`, "must be factorise, expand or simplify");
+      if (!TASKS.has(cp.check.task)) this.fail(`${path}.check.task`, "must be factorise, expand, simplify or calculate");
       else if (this.math(`${path}.check.expression`, cp.check.expression)) {
         options.forEach((o, j) => {
           if (this.math(`${path}.options[${j}].label`, o.label)) {
@@ -432,7 +499,7 @@ class Checker {
         return;
       }
       case "choose": {
-        if (!TASKS.has(item.task)) this.fail(`${path}.task`, "must be factorise, expand or simplify");
+        if (!TASKS.has(item.task)) this.fail(`${path}.task`, "must be factorise, expand, simplify or calculate");
         const { options, feedback, answerIndex } = item;
         if (!Array.isArray(options) || options.length < 2 || options.length > 4 || !Array.isArray(feedback) || feedback.length !== options.length) {
           this.fail(path, "needs 2–4 options and one feedback line per option");
@@ -451,7 +518,7 @@ class Checker {
         return;
       }
       case "type-answer": {
-        if (!TASKS.has(item.task)) this.fail(`${path}.task`, "must be factorise, expand or simplify");
+        if (!TASKS.has(item.task)) this.fail(`${path}.task`, "must be factorise, expand, simplify or calculate");
         this.text(`${path}.hint`, item.hint, 160);
         if (this.math(`${path}.expression`, item.expression) && this.math(`${path}.answer`, item.answer)) {
           this.verdict(`${path}.answer`, item.task, item.answer, item.expression, "CORRECT", "the answer");
@@ -524,7 +591,7 @@ class Checker {
         return;
       }
       case "build": {
-        if (!TASKS.has(item.task) || item.task === "simplify") this.fail(`${path}.task`, "must be factorise or expand");
+        if (!TASKS.has(item.task) || item.task === "simplify" || item.task === "calculate") this.fail(`${path}.task`, "must be factorise or expand");
         const tiles = item.interaction?.tiles;
         if (!Array.isArray(tiles) || tiles.length < 3 || tiles.length > 8) {
           this.fail(`${path}.interaction`, "needs 3 to 8 tiles");
@@ -584,7 +651,7 @@ export function verifyAuthoredLesson(draft: AuthoredLessonDraft, brief: LessonBr
   c.practice(draft.practice);
 
   const exit = draft.exit;
-  if (!exit || !TASKS.has(exit.task)) c.fail("exit", "needs prompt, expression, task (factorise/expand/simplify) and answer");
+  if (!exit || !TASKS.has(exit.task)) c.fail("exit", "needs prompt, expression, task (factorise/expand/simplify/calculate) and answer");
   else {
     c.text("exit.prompt", exit.prompt, 140);
     // The exit page shows only the prompt, so it must contain the expression the student works on.

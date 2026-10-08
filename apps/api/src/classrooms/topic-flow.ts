@@ -41,7 +41,8 @@ export function rowStatus(row: StudentRow, live: boolean): Exclude<TopicStatus, 
   if (row.progress === "IMPROVED" || row.progress === "NO_GAP") return "UNDERSTOOD";
   if (row.progress === "NOT_YET") return "STUCK";
   if (row.progress === "UNCLEAR") return "UNCLEAR";
-  if (row.stage === "JOINED") return null;
+  // Not given it yet, or given but not opened: it says nothing yet.
+  if (row.stage === "JOINED" || (row.stage === "DIAGNOSTIC" && row.stageStatus === "READY")) return null;
   if (row.outcome === "SOLID_GAP") return live && row.stage !== "DONE" ? "IN_PROGRESS" : "STUCK";
   return live && row.stage !== "DONE" ? "IN_PROGRESS" : null;
 }
@@ -71,9 +72,14 @@ export function topicReadiness(checks: CheckRows[], enrolled: Array<{ studentId:
   const recommendation: TopicReadiness["recommendation"] = (() => {
     if (!n) return { action: "WAIT", text: "Add students to the class first." };
     if (live) {
+      // Same counts as the live view: who has finished the questions, and who is on their lesson after it.
       const given = live.rows.filter((r) => r.stage !== "JOINED");
-      const finished = given.filter((r) => rowStatus(r, true) !== "IN_PROGRESS").length;
-      return { action: "WAIT", text: `The ${CHECK_LABEL[live.kind].toLowerCase()} is running: ${finished} of ${given.length} finished.` };
+      const answered = given.filter((r) => r.outcome).length;
+      const learning = given.filter((r) => r.stage === "LESSON" || r.stage === "EXIT").length;
+      return {
+        action: "WAIT",
+        text: `The ${CHECK_LABEL[live.kind].toLowerCase()} is running: ${answered} of ${given.length} finished the questions${learning ? `, ${learning} on their lesson now` : ""}.`,
+      };
     }
     if (!checks.length) return { action: "DIAGNOSTIC", text: `Start with a diagnostic to see what everyone already knows about ${lower}.` };
     const stuck = students.filter((s) => s.status === "STUCK" || s.status === "UNCLEAR");
@@ -88,7 +94,7 @@ export function topicReadiness(checks: CheckRows[], enrolled: Array<{ studentId:
       return { action: "TOPIC_CHECK", text: `${counts.UNDERSTOOD} of ${n} already know ${lower}. Teach it, then send the topic check to see who has understood.` };
     }
     if (stuck.length) {
-      return { action: "CATCH_UP", text: `${stuck.length} ${stuck.length === 1 ? "is" : "are"} still stuck on ${lower}. Send them a catch-up check: each gets a new lesson on their own gap.`, studentIds: stuck.map((s) => s.studentId) };
+      return { action: "CATCH_UP", text: `${stuck.length} ${stuck.length === 1 ? "is" : "are"} still stuck on ${lower}. Send them a catch-up: a few questions (up to 8) on just the skills each still has open, and a lesson if it's still a gap.`, studentIds: stuck.map((s) => s.studentId) };
     }
     return { action: "TOPIC_CHECK", text: `${counts.NOT_CHECKED} ${counts.NOT_CHECKED === 1 ? "hasn't" : "haven't"} done a check on ${lower} yet. Send the topic check, or move on.` };
   })();
@@ -113,21 +119,29 @@ export interface TopicGrowth {
   stillWorking: string[];
 }
 
-/** How a student grew on a topic between their first and latest finished check. */
+/**
+ * How a student grew on a topic between their first finished check and now.
+ * "Now" is each skill's most recent result across every check, because a
+ * catch-up re-tests only a few skills: comparing it alone with a full
+ * diagnostic would look like skills were lost.
+ */
 export function topicGrowth(snapshots: SkillSnapshot[]): TopicGrowth | null {
   const done = snapshots.filter((s) => s.skills.length).sort((a, b) => a.date.getTime() - b.date.getTime());
   const first = done[0];
   const last = done.at(-1);
   if (!first || !last) return null;
-  const secure = (s: SkillSnapshot) => s.skills.filter((k) => k.state === "SECURE");
+  const tested = (state: string) => state === "SECURE" || state === "CONFIRMED" || state === "SUSPECTED";
+  const now = new Map<string, { name: string; state: string }>();
+  for (const snap of done) for (const k of snap.skills) if (tested(k.state)) now.set(k.skillId, { name: k.name, state: k.state });
   const firstState = new Map(first.skills.map((k) => [k.skillId, k.state]));
+  const current = [...now.entries()];
   return {
     checks: done.length,
     firstDate: first.date,
     latestDate: last.date,
-    firstSecure: secure(first).length,
-    latestSecure: secure(last).length,
-    fixed: done.length > 1 ? secure(last).filter((k) => ["CONFIRMED", "SUSPECTED"].includes(firstState.get(k.skillId) ?? "")).map((k) => k.name) : [],
-    stillWorking: last.skills.filter((k) => k.state === "CONFIRMED").map((k) => k.name),
+    firstSecure: first.skills.filter((k) => k.state === "SECURE").length,
+    latestSecure: current.filter(([, k]) => k.state === "SECURE").length,
+    fixed: done.length > 1 ? current.filter(([id, k]) => k.state === "SECURE" && ["CONFIRMED", "SUSPECTED"].includes(firstState.get(id) ?? "")).map(([, k]) => k.name) : [],
+    stillWorking: current.filter(([, k]) => k.state === "CONFIRMED").map(([, k]) => k.name),
   };
 }

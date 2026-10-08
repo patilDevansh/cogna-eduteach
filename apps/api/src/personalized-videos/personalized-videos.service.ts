@@ -34,6 +34,7 @@ import {
   type MicroCheckResult,
   type MicroLessonView,
 } from "@cogna/shared";
+import { isPlannedLotusTopic, type AuthoredTask } from "@cogna/shared";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
 import type { TtsProvider } from "../ai/tts.service";
@@ -64,7 +65,7 @@ import { authoredDurationInFrames, type AuthoredLessonProps, type DistributionLe
 import type { OpenAIService } from "../ai/openai.service";
 import { buildLessonBrief, type LessonBrief } from "./ai-authoring/lesson-brief";
 import { authorLesson, type AuthoringAttempt } from "./ai-authoring/lesson-author";
-import { generatePractice } from "./ai-authoring/practice-generator";
+import { codePracticeFits, generatePractice } from "./ai-authoring/practice-generator";
 import { buildMicroLesson, estimatedSeconds } from "./micro-lessons";
 import { spokenMath } from "../ai/spoken-math";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
@@ -177,9 +178,9 @@ type StoredScript = {
     reason?: string;
   };
   /** For exit items built by the AI author or the generator: graded by the algebra engine, so any equivalent finished form counts. */
-  exitCheck?: { task: "factorise" | "expand" | "simplify"; expression: string };
+  exitCheck?: { task: AuthoredTask; expression: string };
   /** The second exit question: same skill, different form (code-generated, so right by construction). */
-  transfer?: { prompt: string; expression: string; task: "factorise" | "expand" | "simplify"; answer: string };
+  transfer?: { prompt: string; expression: string; task: AuthoredTask; answer: string };
   /** Independent practice played after the lesson; answers stay on the server. */
   practice?: { source: "AI_VERIFIED" | "CODE_GENERATED"; skillId: string; items: PracticeItem[] };
   /** The student's own diagnostic items, for the targeted micro-lesson (built and narrated on first open). */
@@ -275,8 +276,16 @@ export class PersonalizedVideosService {
       allowTestHooks: options.allowTestHooks === true,
     });
     const snapshot = trusted.snapshot;
-    const template = trusted.template;
+    // The approved templates and the bracket animation are brackets lessons: a diagnostic on
+    // another chapter (quadrilaterals, mensuration…) gets only its own AI lesson, or none.
+    const otherChapter = isPlannedLotusTopic(trusted.session?.topic) && trusted.session?.topic !== "FACTORISATION";
+    const template = otherChapter ? undefined : trusted.template;
     const lotusRecordId = trusted.lotusRecordId;
+    // One lesson per diagnostic: the report page and the class's own catch-up of a finished diagnostic may both ask.
+    if (lotusRecordId && !(options.allowTestHooks && input.scriptOverride)) {
+      const prior = await this.prisma.personalizedVideoAssignment.findFirst({ where: { studentId, lotusSessionId: lotusRecordId }, orderBy: { createdAt: "asc" } });
+      if (prior) return this.toView(prior);
+    }
     const gate = evaluateRemediationEligibility(snapshot);
     const scriptSource: PersonalizedVideoScriptSource =
       options.allowTestHooks && input.scriptOverride
@@ -293,7 +302,7 @@ export class PersonalizedVideosService {
       animatedLessonsEnabled();
     const factorisation = canAnimate && trusted.session ? planFactorisationLesson(trusted.session, names.first) : null;
     const planned = factorisation?.kind === "trinomial" ? factorisation : null;
-    const distribution = canAnimate && !factorisation ? planAnimatedLesson(snapshot, names.first) : null;
+    const distribution = canAnimate && !factorisation && !otherChapter ? planAnimatedLesson(snapshot, names.first) : null;
     const animated = planned
       ? { ...planned, animationKind: "trinomial" as AnimationKind }
       : distribution
@@ -318,7 +327,7 @@ export class PersonalizedVideosService {
       (authoring ? placeholderLesson(authoring.brief) : null) ??
       (template && !factorisation ? template.lesson : null);
     const practiceSkill = brief?.targetSkill.id ?? (planned ? planned.skillId : distribution ? "C3_DISTRIBUTIVE_PROPERTY" : null);
-    const practice = practiceSkill && (animated || authoring)
+    const practice = practiceSkill && codePracticeFits(practiceSkill) && (animated || authoring)
       ? generatePractice(practiceSkill, `${studentId}:${trusted.session?.sessionId ?? ""}`, brief?.studentItems.map((i) => i.expression) ?? [])
       : null;
     const exit =

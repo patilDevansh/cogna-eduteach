@@ -2,7 +2,7 @@ import type { AuthoredLessonDraft } from "@cogna/shared";
 import { AuthorUnavailableError, type LessonAuthorModel } from "./author-models";
 import type { LessonBrief } from "./lesson-brief";
 import { buildAuthorPrompt } from "./lesson-prompt";
-import { generatePractice } from "./practice-generator";
+import { codePracticeFits, generatePractice } from "./practice-generator";
 import { verifyAuthoredLesson } from "./lesson-verifier";
 
 /**
@@ -66,7 +66,7 @@ export async function authorLesson(
   }
 
   // Salvage: the lesson is sound and only the practice/exit failed.
-  if (lastDraft && lastErrors.length && lastErrors.every((e) => LESSON_ONLY.test(e))) {
+  if (lastDraft && lastErrors.length && lastErrors.every((e) => LESSON_ONLY.test(e)) && codePracticeFits(brief.targetSkill.id)) {
     const generated = generatePractice(brief.targetSkill.id, options.seed ?? brief.targetSkill.id, brief.studentItems.map((i) => i.expression));
     const patched: AuthoredLessonDraft = { ...lastDraft, practice: generated.items, exit: generated.exit };
     const result = verifyAuthoredLesson(patched, brief);

@@ -1,8 +1,14 @@
-/** Factorisation skills and AI-writing specifications. No question bank lives here. */
-import type { LotusItemDiagnostics, LotusPhase } from "@cogna/shared";
-import { classifyFactorisation, classifyReducedForm, classifySimplification, normalizeMathText } from "./lotus-algebra";
+/**
+ * The skill maps and AI-writing specifications for every planned Lotus topic:
+ * factorisation (below) and the Class 8 chapters drafted in ./syllabus. Skill
+ * ids are unique across topics, so a skill lookup needs no topic; a slot
+ * lookup does (each topic numbers its slots 1–25). No question bank lives here.
+ */
+import { LOTUS_PLANNED_TOPICS, LOTUS_TOPIC_NAMES, type LotusItemDiagnostics, type LotusPhase, type LotusPlannedTopic, type LotusTopic } from "@cogna/shared";
+import { checkProves, classifyExpansion, classifyFactorisation, classifyReducedForm, classifySimplification, normalizeMathText, readNumberAnswer, sameNumber } from "./lotus-algebra";
+import { GRADE_8_DRAFTS } from "./syllabus";
 
-export interface FactorisationSkill { id: string; name: string; group: 0|1|2|3|4|5|6; dependsOn: string[]; mistakes: string[]; }
+export interface FactorisationSkill { id: string; name: string; group: number; dependsOn: string[]; mistakes: string[]; }
 export const FACTORISATION_SKILLS: FactorisationSkill[] = [
   {id:"FND_FACTOR_PAIRS",name:"Factor pairs of a number",group:0,dependsOn:[],mistakes:["NO_NEGATIVE_PAIRS","MISSED_PAIR"]},
   {id:"FND_GCD_NUMERIC",name:"HCF of whole numbers",group:0,dependsOn:["FND_FACTOR_PAIRS"],mistakes:["GAVE_LCM","COMMON_NOT_HIGHEST"]},
@@ -36,16 +42,12 @@ export const FACTORISATION_SKILLS: FactorisationSkill[] = [
   {id:"FAC_VERIFY_EXPAND",name:"Checking a factorisation by expanding",group:6,dependsOn:["EXP_EXPAND_BINOMIALS"],mistakes:["EXPAND_CHECK_FAIL","CHECKED_FIRST_TERM_ONLY"]},
   {id:"FAC_CANCEL_COMMON_FACTOR",name:"Cancelling factors, never terms",group:6,dependsOn:["FAC_MEANING","FAC_DIVIDE_TERMS"],mistakes:["CANCELLED_TERMS_NOT_FACTORS","DIVIDED_ONE_TERM_ONLY"]},
 ];
-const SKILL_BY_ID = new Map(FACTORISATION_SKILLS.map((s) => [s.id,s]));
-export function findFactorisationSkill(id:string):FactorisationSkill|undefined{return SKILL_BY_ID.get(id);}
-export function skillName(id:string):string{return SKILL_BY_ID.get(id)?.name??id;}
 export const UNFINISHED_MISTAKES = new Set(["COMMON_NOT_HIGHEST","PARTIAL_GCF","INCOMPLETE_FACTORISATION","SUM_ACCEPTED_AS_FACTORISED","BRACKET_NOT_SEEN_AS_FACTOR","PAIRS_SHARE_NOTHING","SKIPPED_COMMON_FACTOR_CHECK"]);
-export function dependsOnTransitively(skill:string,target:string,seen=new Set<string>()):boolean{if(skill===target)return true;if(seen.has(skill))return false;seen.add(skill);return(SKILL_BY_ID.get(skill)?.dependsOn??[]).some((d)=>dependsOnTransitively(d,target,seen));}
-export function ownerOfMistake(code:string,diagnostics:Pick<LotusItemDiagnostics,"skillId"|"taggedSkills">):string{if(SKILL_BY_ID.get(diagnostics.skillId)?.mistakes.includes(code))return diagnostics.skillId;const tagged=diagnostics.taggedSkills.find((s)=>SKILL_BY_ID.get(s)?.mistakes.includes(code));return tagged??FACTORISATION_SKILLS.find((s)=>s.mistakes.includes(code))?.id??diagnostics.skillId;}
-export function skillsUsedBy(diagnostics:Pick<LotusItemDiagnostics,"skillId"|"taggedSkills"|"stepSkills">):string[]{return[...new Set([diagnostics.skillId,...diagnostics.taggedSkills,...diagnostics.stepSkills])];}
 
 type Level="easy"|"medium"|"hard";
-export interface SlotSpec{slot:number;skillId:string;tagged:string[];kind:LotusItemDiagnostics["itemKind"];level:Level;phase:LotusPhase;shape:string;note?:string;mistakes:string[];}
+export interface SlotSpec{slot:number;skillId:string;tagged:string[];kind:LotusItemDiagnostics["itemKind"];level:Level;phase:LotusPhase;shape:string;note?:string;mistakes:string[];
+  /** Drafted chapters: the worked example for this slot (the answer, choice options, or the check that proves a number). */
+  example?:{answer:string;options?:string[];check?:string};}
 const raw:Array<[string,SlotSpec["kind"],Level,LotusPhase,string,string[],string[],string?]>=[
  ["FAC_DIVIDE_TERMS","FACTORISE","easy","EXPLORE","6x + 9",["FAC_GCF_NUMERIC"],["DIVIDED_FIRST_TERM_ONLY","COMMON_NOT_HIGHEST"]],
  ["FAC_GCF_VARIABLE","FACTORISE","easy","EXPLORE","x^2 + 5x",["FAC_DIVIDE_TERMS"],["TOOK_HIGHEST_POWER","INCLUDED_NON_COMMON_VARIABLE","DIVIDED_FIRST_TERM_ONLY"]],
@@ -75,7 +77,114 @@ const raw:Array<[string,SlotSpec["kind"],Level,LotusPhase,string,string[],string
 ];
 export const FACTORISATION_SLOTS:SlotSpec[]=raw.map(([skillId,kind,level,phase,shape,tagged,mistakes,note],i)=>({slot:i+1,skillId,kind,level,phase,shape,tagged,mistakes,note}));
 
+export interface Curriculum {
+  topic: LotusPlannedTopic;
+  name: string;
+  skills: FactorisationSkill[];
+  slots: SlotSpec[];
+  /** What each mistake code means, when the chapter's draft says (factorisation's codes are self-describing). */
+  mistakeNotes: Record<string, string>;
+}
+
+const DRAFT_KIND = { EXPRESSION: "EXPAND", NUMBER: "NUMBER", CHOICE: "CHOICE" } as const;
+
+const CURRICULA: Curriculum[] = [
+  { topic: "FACTORISATION", name: LOTUS_TOPIC_NAMES.FACTORISATION, skills: FACTORISATION_SKILLS, slots: FACTORISATION_SLOTS, mistakeNotes: {} },
+  ...GRADE_8_DRAFTS.flatMap((draft): Curriculum[] => {
+    const topic = draft.topicId.toUpperCase().replace(/-/g, "_") as LotusPlannedTopic;
+    // Linear equations still runs the original brackets test; its draft waits.
+    if (!(LOTUS_PLANNED_TOPICS as readonly string[]).includes(topic)) return [];
+    return [{
+      topic,
+      name: LOTUS_TOPIC_NAMES[topic],
+      skills: draft.skills,
+      mistakeNotes: draft.mistakes,
+      slots: draft.slots.map((d) => ({
+        slot: d.slot, skillId: d.skillId, tagged: d.tagged, kind: DRAFT_KIND[d.kind], level: d.level, phase: d.phase,
+        shape: d.prompt, mistakes: d.mistakes,
+        example: { answer: d.answer, ...(d.options ? { options: d.options } : {}), ...(d.check ? { check: d.check } : {}) },
+      })),
+    }];
+  }),
+];
+
+const BY_TOPIC = new Map(CURRICULA.map((c) => [c.topic, c]));
+const SKILL_BY_ID = new Map<string, FactorisationSkill>();
+const TOPIC_OF_SKILL = new Map<string, Curriculum>();
+for (const c of CURRICULA) for (const skill of c.skills) {
+  if (SKILL_BY_ID.has(skill.id)) throw new Error(`Skill ${skill.id} is in two topics.`);
+  SKILL_BY_ID.set(skill.id, skill);
+  TOPIC_OF_SKILL.set(skill.id, c);
+}
+
+export function curriculumFor(topic: LotusTopic | undefined): Curriculum {
+  return BY_TOPIC.get((topic ?? "FACTORISATION") as LotusPlannedTopic) ?? BY_TOPIC.get("FACTORISATION")!;
+}
+export function hasCurriculum(topic: LotusTopic | undefined): boolean { return !!topic && BY_TOPIC.has(topic as LotusPlannedTopic); }
+/** The topic a skill belongs to. */
+export function curriculumOfSkill(id: string): Curriculum | undefined { return TOPIC_OF_SKILL.get(id); }
+export function findSkill(id: string): FactorisationSkill | undefined { return SKILL_BY_ID.get(id); }
+export function skillName(id: string): string { return SKILL_BY_ID.get(id)?.name ?? id; }
+export function dependsOnTransitively(skill: string, target: string, seen = new Set<string>()): boolean {
+  if (skill === target) return true;
+  if (seen.has(skill)) return false;
+  seen.add(skill);
+  return (SKILL_BY_ID.get(skill)?.dependsOn ?? []).some((d) => dependsOnTransitively(d, target, seen));
+}
+/** The skill a mistake belongs to: the item's own skill, then its tagged skills, then any skill in the same topic. */
+export function ownerOfMistake(code: string, diagnostics: Pick<LotusItemDiagnostics, "skillId" | "taggedSkills">): string {
+  if (SKILL_BY_ID.get(diagnostics.skillId)?.mistakes.includes(code)) return diagnostics.skillId;
+  const tagged = diagnostics.taggedSkills.find((s) => SKILL_BY_ID.get(s)?.mistakes.includes(code));
+  const sameTopic = TOPIC_OF_SKILL.get(diagnostics.skillId)?.skills ?? FACTORISATION_SKILLS;
+  return tagged ?? sameTopic.find((s) => s.mistakes.includes(code))?.id ?? diagnostics.skillId;
+}
+export function skillsUsedBy(diagnostics: Pick<LotusItemDiagnostics, "skillId" | "taggedSkills" | "stepSkills">): string[] {
+  return [...new Set([diagnostics.skillId, ...diagnostics.taggedSkills, ...diagnostics.stepSkills])];
+}
+
 /** Validates an AI-created item before it can be installed for a learner. */
-export function assertFixedItemIsValid(item:any,label:string):void{const d=item?.answerKey?.diagnostics;if(!d)throw new Error(`${label}: missing diagnostics`);if(!findFactorisationSkill(d.skillId))throw new Error(`${label}: unknown skill ${d.skillId}`);for(const s of[...(d.taggedSkills??[]),...(d.stepSkills??[])])if(!findFactorisationSkill(s))throw new Error(`${label}: unknown skill ${s}`);if((d.stepSkills??[]).length!==(item.answerKey.workedSolution??[]).length)throw new Error(`${label}: stepSkills must line up with workedSolution`);if(d.itemKind==="SELECT"){const options=item.options??[];const chosen=String(item.answerKey.canonicalAnswer).split(" | ").filter(Boolean);if(options.length<4||options.length>6||new Set(options).size!==options.length)throw new Error(`${label}: invalid select options`);if(!chosen.length||chosen.length>=options.length||!chosen.every((c:string)=>options.includes(c)))throw new Error(`${label}: invalid select key`);for(const p of d.predictedMistakes??[])if(!options.includes(p.answer)||chosen.includes(p.answer))throw new Error(`${label}: invalid select mistake`);return;}if(d.itemKind==="CHOICE"){const options=item.options??[];if(options.length!==4||new Set(options).size!==4||!options.includes(item.answerKey.canonicalAnswer))throw new Error(`${label}: invalid choice`);return;}const expression=d.expression;if(!expression||!normalizeMathText(item.prompt).includes(normalizeMathText(expression)))throw new Error(`${label}: prompt must show expression`);const verdict=d.itemKind==="SIMPLIFY"?classifyReducedForm(item.answerKey.canonicalAnswer,expression):classifyFactorisation(item.answerKey.canonicalAnswer,expression);if(verdict!=="CORRECT")throw new Error(`${label}: answer is ${verdict}`);for(const p of d.predictedMistakes??[]){const v=d.itemKind==="SIMPLIFY"?classifySimplification(p.answer,expression,item.answerKey.canonicalAnswer):classifyFactorisation(p.answer,expression);if(v==="CORRECT"||v==="UNREADABLE")throw new Error(`${label}: invalid predicted answer`);if(v==="UNFINISHED"&&!UNFINISHED_MISTAKES.has(p.mistake))throw new Error(`${label}: invalid unfinished mistake`);}}
-if(FACTORISATION_SLOTS.length!==25)throw new Error("The factorisation plan must have 25 AI slots.");
-for(const skill of FACTORISATION_SKILLS)for(const d of skill.dependsOn)if(!SKILL_BY_ID.has(d))throw new Error(`${skill.id} depends on unknown ${d}`);
+export function assertFixedItemIsValid(item: any, label: string): void {
+  const d = item?.answerKey?.diagnostics;
+  if (!d) throw new Error(`${label}: missing diagnostics`);
+  if (!findSkill(d.skillId)) throw new Error(`${label}: unknown skill ${d.skillId}`);
+  for (const s of [...(d.taggedSkills ?? []), ...(d.stepSkills ?? [])]) if (!findSkill(s)) throw new Error(`${label}: unknown skill ${s}`);
+  if ((d.stepSkills ?? []).length !== (item.answerKey.workedSolution ?? []).length) throw new Error(`${label}: stepSkills must line up with workedSolution`);
+  const key = String(item.answerKey.canonicalAnswer);
+  if (d.itemKind === "SELECT") {
+    const options = item.options ?? [];
+    const chosen = key.split(" | ").filter(Boolean);
+    if (options.length < 4 || options.length > 6 || new Set(options).size !== options.length) throw new Error(`${label}: invalid select options`);
+    if (!chosen.length || chosen.length >= options.length || !chosen.every((c: string) => options.includes(c))) throw new Error(`${label}: invalid select key`);
+    for (const p of d.predictedMistakes ?? []) if (!options.includes(p.answer) || chosen.includes(p.answer)) throw new Error(`${label}: invalid select mistake`);
+    return;
+  }
+  if (d.itemKind === "CHOICE") {
+    const options = item.options ?? [];
+    if (options.length !== 4 || new Set(options).size !== 4 || !options.includes(key)) throw new Error(`${label}: invalid choice`);
+    return;
+  }
+  if (d.itemKind === "NUMBER") {
+    if (readNumberAnswer(key) === null) throw new Error(`${label}: answer ${key} is not a number`);
+    if (!d.check || !checkProves(d.check, key)) throw new Error(`${label}: check ${d.check ?? "(none)"} doesn't prove ${key}`);
+    for (const p of d.predictedMistakes ?? []) {
+      if (readNumberAnswer(p.answer) === null || sameNumber(p.answer, key)) throw new Error(`${label}: invalid predicted answer`);
+    }
+    return;
+  }
+  const expression = d.expression;
+  if (!expression || !normalizeMathText(item.prompt).includes(normalizeMathText(expression))) throw new Error(`${label}: prompt must show expression`);
+  const classify = (answer: string) => d.itemKind === "EXPAND" ? classifyExpansion(answer, expression)
+    : d.itemKind === "SIMPLIFY" ? classifyReducedForm(answer, expression) : classifyFactorisation(answer, expression);
+  const verdict = classify(key);
+  if (verdict !== "CORRECT") throw new Error(`${label}: answer is ${verdict}`);
+  for (const p of d.predictedMistakes ?? []) {
+    const v = d.itemKind === "SIMPLIFY" ? classifySimplification(p.answer, expression, key) : classify(p.answer);
+    if (v === "CORRECT" || v === "UNREADABLE") throw new Error(`${label}: invalid predicted answer`);
+    if (v === "UNFINISHED" && d.itemKind !== "EXPAND" && !UNFINISHED_MISTAKES.has(p.mistake)) throw new Error(`${label}: invalid unfinished mistake`);
+  }
+}
+
+for (const c of CURRICULA) {
+  if (c.slots.length !== 25) throw new Error(`The ${c.name} plan must have 25 AI slots.`);
+  for (const skill of c.skills) for (const d of skill.dependsOn) if (!SKILL_BY_ID.has(d)) throw new Error(`${skill.id} depends on unknown ${d}`);
+}

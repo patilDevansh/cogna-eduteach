@@ -16,7 +16,40 @@ import type {
   LotusQuestion,
   LotusReserveIntent,
 } from "@cogna/shared";
+import { LOTUS_PLANNED_TOPICS } from "@cogna/shared";
 import { LotusCostTracker } from "./lotus-cost-tracker";
+import { curriculumFor, type SlotSpec } from "./lotus-factorisation-catalogue";
+
+/** Drafted chapters' slots by their example prompt: the fake writer returns each slot's own worked example. */
+const DRAFTED_SLOTS = new Map<string, SlotSpec>(
+  LOTUS_PLANNED_TOPICS.filter((t) => t !== "FACTORISATION").flatMap((t) => curriculumFor(t).slots).map((spec) => [spec.shape, spec]),
+);
+
+function draftedWrite(spec: SlotSpec, variant: number, target?: string): Record<string, unknown> {
+  const example = spec.example!;
+  const steps = [{ line: "Work it through.", skill: spec.skillId }];
+  // A re-check must catch the mistake it was asked about, so that one comes first.
+  const codes = target ? [target, ...spec.mistakes.filter((m) => m !== target)] : spec.mistakes;
+  const mistake = (i: number) => codes[i % codes.length]!;
+  if (spec.kind === "CHOICE") {
+    const options = example.options!;
+    return {
+      prompt: `${spec.shape} (Version ${variant}.)`, options, correctOption: example.answer,
+      wrongOptionMistakes: options.slice(1, 3).map((option, i) => ({ option, mistake: mistake(i) })), steps,
+    };
+  }
+  if (spec.kind === "EXPAND") {
+    const expression = `(${example.check}) + ${variant} - ${variant}`;
+    return {
+      prompt: `Expand and simplify: ${expression}`, expression, answer: example.answer,
+      wrongAnswers: [1, 2].map((n, i) => ({ answer: `${example.answer} + ${n}`, mistake: mistake(i) })), steps,
+    };
+  }
+  return {
+    prompt: `${spec.shape} (Version ${variant}.)`, answer: example.answer, check: example.check ?? example.answer,
+    wrongAnswers: [1, 2].map((n, i) => ({ answer: `${example.answer}${n}`, mistake: mistake(i) })), steps,
+  };
+}
 
 const ASSESSMENT: LotusModelAssessment = {
   mathJudgment: "UNRESOLVED",
@@ -130,6 +163,8 @@ function controlledWrite(prompt: string): Record<string, unknown> {
     wrongOptionMistakes: options.filter((option) => option !== correct).slice(0, 2).map((option, index) => ({ option, mistake: index ? "WRONG_FACTOR_PAIR_SUM" : "SIGN_PAIR_ERROR" })),
     steps: [{ line: "Check the condition carefully.", skill }],
   });
+  const drafted = shape ? DRAFTED_SLOTS.get(shape) : undefined;
+  if (drafted) return draftedWrite(drafted, variant, prompt.match(/re-checks a suspected mistake: ([A-Z0-9_]+)/)?.[1]);
   switch (shape) {
     case "x^2 + 5x": return factor("2x^2 + 10x", "2x(x + 5)", "FAC_GCF_VARIABLE", [
       { answer: "2x^2(x + 5)", mistake: "TOOK_HIGHEST_POWER" },
@@ -211,6 +246,9 @@ export class FakeLotusModelService {
     return controlledWrite(prompt);
   }
   async solveBlind(prompt: string): Promise<Record<string, unknown>> {
+    const question = prompt.match(/Question: (.+?) \(Version \d+\.\)/)?.[1];
+    const drafted = question ? DRAFTED_SLOTS.get(question) : undefined;
+    if (drafted?.kind === "NUMBER") return { answer: drafted.example!.answer };
     const choice = prompt.match(/Options:\n- ([^\n]+)/)?.[1] ?? "";
     return { choice };
   }

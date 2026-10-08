@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { LotusSessionView, LotusSkillState, PersonalizedVideoAssignmentView } from "@cogna/shared";
+import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic } from "@cogna/shared";
 import { Wordmark } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useDevState } from "@/lib/dev-mode";
@@ -212,7 +213,7 @@ function Preparing({ session }: { session: LotusSessionView | null }) {
       <section className={styles.centerCard}>
         <h1>This diagnostic isn&apos;t finished yet</h1>
         <p>Answer the remaining questions and your report will appear here.</p>
-        <Link className={styles.primary} href="/student/lotus?topic=factorisation">Back to the diagnostic</Link>
+        <Link className={styles.primary} href={`/student/lotus?topic=${(session.topic ?? "brackets").toLowerCase()}`}>Back to the diagnostic</Link>
       </section>
     );
   }
@@ -309,7 +310,7 @@ function Report({
     report.outcome === "SOLID_GAP"
       ? { title: `We found where to start${name}.`, lede: "One idea is worth sharpening before anything else, and your lesson is built for exactly that." }
       : report.outcome === "ADVANCEMENT"
-        ? { title: `You're ready for the next step${name}.`, lede: "Everything we tested looks secure. Your next practice can move on to harder factorisation." }
+        ? { title: `You're ready for the next step${name}.`, lede: session.catchUp ? "Everything you were working on is secure now." : `Everything we tested looks secure. Your next practice can move on to harder ${(session.topic ? LOTUS_TOPIC_NAMES[session.topic] : "questions").toLowerCase()}.` }
         : { title: `Thanks${name}. We need a little more to go on.`, lede: "Your answers didn't point clearly to one thing to work on, so we won't guess. A short check will help." };
 
   const lessonState = lessonError
@@ -325,7 +326,7 @@ function Report({
   return (
     <div className={styles.report}>
       <section className={styles.hero}>
-        {session.topic === "FACTORISATION" && session.audits.length > 0 && (
+        {isPlannedLotusTopic(session.topic) && session.audits.length > 0 && (
           <div className={styles.bloom}><LotusBloom answered={session.audits.length} /></div>
         )}
         <p className={styles.eyebrow}>Your diagnostic report</p>

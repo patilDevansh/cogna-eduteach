@@ -223,19 +223,19 @@ export function sampleRoster(classroomId: string): ClassRosterStudent[] {
 
 /** NCERT Class 8 order, as apps/api/src/classrooms/topic-catalogue.ts lists it. */
 const SAMPLE_SYLLABUS: Array<[string, string, boolean]> = [
-  ["rational-numbers", "Rational numbers", false],
+  ["rational-numbers", "Rational numbers", true],
   ["linear-equations", "Linear equations in one variable", true],
-  ["quadrilaterals", "Understanding quadrilaterals", false],
-  ["data-handling", "Data handling", false],
-  ["squares-roots", "Squares and square roots", false],
-  ["cubes-roots", "Cubes and cube roots", false],
-  ["comparing-quantities", "Comparing quantities", false],
-  ["algebraic-expressions", "Algebraic expressions and identities", false],
-  ["mensuration", "Mensuration", false],
-  ["exponents-powers", "Exponents and powers", false],
-  ["proportions", "Direct and inverse proportions", false],
+  ["quadrilaterals", "Understanding quadrilaterals", true],
+  ["data-handling", "Data handling", true],
+  ["squares-roots", "Squares and square roots", true],
+  ["cubes-roots", "Cubes and cube roots", true],
+  ["comparing-quantities", "Comparing quantities", true],
+  ["algebraic-expressions", "Algebraic expressions and identities", true],
+  ["mensuration", "Mensuration", true],
+  ["exponents-powers", "Exponents and powers", true],
+  ["proportions", "Direct and inverse proportions", true],
   ["factorisation", "Factorisation", true],
-  ["graphs", "Introduction to graphs", false],
+  ["graphs", "Introduction to graphs", true],
 ];
 
 const SAMPLE_STATUS: Record<ClassroomRunReport["classReport"]["students"][number]["progress"], TopicStudentStatus> = {

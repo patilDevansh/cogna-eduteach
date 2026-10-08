@@ -18,6 +18,7 @@ import {
   type BeatClock,
 } from "../lesson-kit";
 import { prettyMath, type AuthoredLessonProps, type AuthoredVisual } from "./build";
+import { gridExtent, pieSlices, polygonCorners, slicePath, towardCentre } from "./figures";
 
 /**
  * Plays an AI-authored lesson. Each beat shows one visual from the fixed
@@ -441,7 +442,106 @@ function Visual({ v, clock, beat }: { v: AuthoredVisual; clock: BeatClock; beat:
     case "rule": return <RuleVisual v={v} clock={clock} beat={beat} />;
     case "tiles": return <TilesVisual v={v} clock={clock} beat={beat} />;
     case "number-line": return <NumberLineVisual v={v} clock={clock} beat={beat} />;
+    case "shape": return <ShapeVisual v={v} clock={clock} beat={beat} />;
+    case "chart": return <ChartVisual v={v} clock={clock} beat={beat} />;
+    case "grid": return <GridVisual v={v} clock={clock} beat={beat} />;
   }
+}
+
+const FIGURE_COLOURS = ["#2f7d63", "#e3a33b", "#4f7fc0", "#c4584b", "#7d5fb0", "#5aa6a0"];
+const FIG = { cx: WIDTH / 2, cy: STAGE_TOP + 230 };
+
+function FigureCaption({ text, clock, beat }: { text?: string; clock: BeatClock; beat: number }) {
+  if (!text) return null;
+  return (
+    <Centered y={FIG.cy + 230} opacity={p(clock, beat, 0.6, 0.75)}>
+      <div style={{ fontSize: 32, color: C.green, fontFamily: UI_FONT, fontWeight: 600 }}>{text}</div>
+    </Centered>
+  );
+}
+
+function ShapeVisual({ v, clock, beat }: VisualProps<"shape">) {
+  const corners = polygonCorners(v.angles.length, FIG.cx, FIG.cy, 190);
+  return (
+    <>
+      <Svg>
+        <polygon points={corners.map((q) => `${q.x},${q.y}`).join(" ")} fill={C.greenSoft} stroke={C.green} strokeWidth={6} strokeLinejoin="round" opacity={p(clock, beat, 0, 0.15)} />
+        <text x={FIG.cx + 260} y={FIG.cy + 200} textAnchor="end" fontSize={20} fill={C.muted} fontFamily={UI_FONT}>Not to scale</text>
+        {corners.map((q, i) => {
+          const at = towardCentre(q, FIG.cx, FIG.cy, 55);
+          const a = v.angles[i];
+          return <text key={i} x={at.x} y={at.y} textAnchor="middle" dominantBaseline="middle" fontSize={a === null ? 44 : 32} fontWeight={800} fill={a === null ? C.miss : C.ink} fontFamily={UI_FONT} opacity={p(clock, beat, 0.15 + i * 0.08, 0.3 + i * 0.08)}>{a === null ? "?" : `${a}°`}</text>;
+        })}
+        {v.sides?.map((label, i) => {
+          const a = corners[i]!, b = corners[(i + 1) % corners.length]!;
+          const mid = towardCentre({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, FIG.cx, FIG.cy, -34);
+          return <text key={`s${i}`} x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle" fontSize={26} fill={C.muted} fontFamily={UI_FONT} opacity={p(clock, beat, 0.4, 0.55)}>{label}</text>;
+        })}
+      </Svg>
+      <FigureCaption text={v.caption} clock={clock} beat={beat} />
+    </>
+  );
+}
+
+function ChartVisual({ v, clock, beat }: VisualProps<"chart">) {
+  const max = Math.max(...v.values, 1);
+  const colour = (i: number) => FIGURE_COLOURS[i % FIGURE_COLOURS.length]!;
+  return (
+    <>
+      <Svg>
+        {v.kind === "bar"
+          ? v.values.map((value, i) => {
+              const w = 900 / v.values.length, x = FIG.cx - 450 + i * w, base = FIG.cy + 170;
+              const h = (value / max) * 340 * p(clock, beat, 0.05 + i * 0.08, 0.3 + i * 0.08);
+              return (
+                <g key={i}>
+                  <rect x={x + w * 0.15} y={base - h} width={w * 0.7} height={h} rx={8} fill={colour(i)} />
+                  <text x={x + w / 2} y={base - h - 20} textAnchor="middle" fontSize={30} fontWeight={700} fill={C.ink} fontFamily={UI_FONT}>{value}</text>
+                  <text x={x + w / 2} y={base + 36} textAnchor="middle" fontSize={26} fill={C.muted} fontFamily={UI_FONT}>{v.labels[i]}</text>
+                </g>
+              );
+            })
+          : pieSlices(v.values).map((slice, i) => (
+              <g key={i} opacity={p(clock, beat, i * 0.1, 0.15 + i * 0.1)}>
+                <path d={slicePath(FIG.cx - 200, FIG.cy, 200, slice.start, slice.end)} fill={colour(i)} stroke="#fff" strokeWidth={4} />
+                <rect x={FIG.cx + 80} y={FIG.cy - 150 + i * 56} width={28} height={28} rx={6} fill={colour(i)} />
+                <text x={FIG.cx + 124} y={FIG.cy - 128 + i * 56} fontSize={30} fill={C.ink} fontFamily={UI_FONT}>{v.labels[i]} · {v.values[i]}</text>
+              </g>
+            ))}
+      </Svg>
+      <FigureCaption text={v.caption} clock={clock} beat={beat} />
+    </>
+  );
+}
+
+function GridVisual({ v, clock, beat }: VisualProps<"grid">) {
+  const n = gridExtent(v.points), size = 420, step = size / n, ox = FIG.cx - size / 2, oy = FIG.cy + size / 2;
+  const at = (x: number, y: number) => ({ x: ox + x * step, y: oy - y * step });
+  const end = v.line ? Math.min(n, v.line.m > 0 ? (n - v.line.c) / v.line.m : n) : 0;
+  return (
+    <>
+      <Svg>
+        {Array.from({ length: n + 1 }, (_, i) => (
+          <g key={i}>
+            <line x1={at(i, 0).x} y1={oy} x2={at(i, n).x} y2={at(i, n).y} stroke={C.line} strokeWidth={2} />
+            <line x1={ox} y1={at(0, i).y} x2={at(n, i).x} y2={at(n, i).y} stroke={C.line} strokeWidth={2} />
+            <text x={at(i, 0).x} y={oy + 30} textAnchor="middle" fontSize={20} fill={C.muted} fontFamily={UI_FONT}>{i}</text>
+            {i > 0 && <text x={ox - 22} y={at(0, i).y + 7} textAnchor="middle" fontSize={20} fill={C.muted} fontFamily={UI_FONT}>{i}</text>}
+          </g>
+        ))}
+        {v.line && end > 0 && (
+          <line x1={at(0, v.line.c).x} y1={at(0, v.line.c).y} x2={at(end, v.line.m * end + v.line.c).x} y2={at(end, v.line.m * end + v.line.c).y} stroke={C.fix} strokeWidth={6} strokeLinecap="round" opacity={p(clock, beat, 0.5, 0.65)} />
+        )}
+        {v.points.map((pt, i) => (
+          <g key={pt.label} opacity={p(clock, beat, 0.1 + i * 0.1, 0.25 + i * 0.1)}>
+            <circle cx={at(pt.x, pt.y).x} cy={at(pt.x, pt.y).y} r={11} fill={C.green} stroke="#fff" strokeWidth={3} />
+            <text x={at(pt.x, pt.y).x + 18} y={at(pt.x, pt.y).y - 16} fontSize={26} fontWeight={700} fill={C.ink} fontFamily={UI_FONT}>{pt.label}({pt.x}, {pt.y})</text>
+          </g>
+        ))}
+      </Svg>
+      <FigureCaption text={v.caption} clock={clock} beat={beat} />
+    </>
+  );
 }
 
 export const AuthoredLesson: React.FC<AuthoredLessonProps> = (lesson) => {

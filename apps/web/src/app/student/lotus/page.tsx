@@ -19,8 +19,8 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, type LotusDemoGap } from "@cogna/shared";
-import { api, ApiError } from "@/lib/api";
+import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusDemoGap } from "@cogna/shared";
+import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
@@ -1031,7 +1031,9 @@ function LotusPage() {
   const searchParams = useSearchParams();
   const demoPersona = searchParams.get("demo");
   const classroomAssignmentId = searchParams.get("assignment");
-  const topic: LotusTopic = searchParams.get("topic")?.toLowerCase().startsWith("factori") ? "FACTORISATION" : "BRACKETS";
+  const topic: LotusTopic = lotusTopicForClassTopic(searchParams.get("topic") ?? "");
+  const planned = isPlannedLotusTopic(topic);
+  const catchUp = planned && searchParams.get("check") === "catch-up";
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [classEnrollment, setClassEnrollment] = useState<MockStudentEnrollment | null>(null);
@@ -1254,7 +1256,7 @@ function LotusPage() {
   // items are ready. Poll only the safe preparation counter; answer keys remain
   // redacted by the API while the session is active.
   useEffect(() => {
-    if (!preparing || !session || session.topic !== "FACTORISATION" || session.status !== "ACTIVE") return;
+    if (!preparing || !session || !isPlannedLotusTopic(session.topic) || session.status !== "ACTIVE") return;
     const timer = window.setInterval(() => {
       void api.getLotusSession(session.sessionId).then((fresh) => {
         setSession(fresh);
@@ -1367,11 +1369,11 @@ function LotusPage() {
       const activeStudent = studentId.startsWith("demo_")
         ? await ensureDemoStudentSession(studentId, studentName, { forceRefresh: true })
         : { studentId };
-      const next = await api.startLotusSession(activeStudent.studentId, topic);
+      const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined);
       setPreviewQuestion(null);
       setPendingSubmission(null);
       setSession(next);
-      setPreparing(topic === "FACTORISATION" && !next.preparation?.ready);
+      setPreparing(planned && !next.preparation?.ready);
       setMinimized(false);
       setPreparationTimedOut(false);
       saveStoredLotusSession({ session: next, studentName, enrollment: classEnrollment, savedAt: new Date().toISOString() });
@@ -1403,7 +1405,7 @@ function LotusPage() {
       return;
     }
     // The brackets test ends at 20 minutes, so its staged question would be refused after that. The factorisation test has no time limit.
-    const staged = session.topic === "FACTORISATION" || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
+    const staged = isPlannedLotusTopic(session.topic) || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
       ? session.upcomingQuestions?.[0]
       : undefined;
     const submission: LotusStudentResponse = pendingSubmission ?? {
@@ -1475,9 +1477,7 @@ function LotusPage() {
   // Factorisation always has a 25-question diagnostic. Some later questions
   // may still be generating, so don't derive the total from the currently
   // exposed/prefetched list.
-  const totalQuestions = session?.topic === "FACTORISATION"
-    ? 25
-    : 16;
+  const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
   const inputLocked = busy || Boolean(pendingSubmission);
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
@@ -1526,7 +1526,7 @@ function LotusPage() {
         setPreviewQuestion(null);
         setPendingSubmission(null);
         setSession(view);
-        setPreparing(topic === "FACTORISATION" && !view.preparation?.ready);
+        setPreparing(planned && !view.preparation?.ready);
         setMinimized(false);
       }
       for (let turn = 0; turn < 40; turn++) {
@@ -1583,7 +1583,7 @@ function LotusPage() {
           <div className={styles.statusRow}>
             {observer && <span className={styles.observerBadge}>Observer view</span>}
             {session?.status === "ACTIVE" && (
-              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{topic === "FACTORISATION" ? " of 15:00" : ""} · Q{shownQuestionNumber}</span>
+              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{planned ? " of 15:00" : ""} · Q{shownQuestionNumber}</span>
             )}
             {devMode && (
               <select
@@ -1617,13 +1617,15 @@ function LotusPage() {
               <div className={styles.phaseRow}>
                 <span className={styles.phaseBadge}>Grade 8 · CBSE</span>
                 {classEnrollment && <span className={styles.phaseBadge}>{classEnrollment.className} · Roll {classEnrollment.rollNumber}</span>}
-                <span className={styles.phaseBadge}>{topic === "FACTORISATION" ? "Factorisation · up to 25 questions" : "Up to 20 minutes"}</span>
+                <span className={styles.phaseBadge}>{catchUp ? `${LOTUS_TOPIC_NAMES[topic]} · catch-up · up to 8 questions` : planned ? `${LOTUS_TOPIC_NAMES[topic]} · up to 25 questions` : "Up to 20 minutes"}</span>
               </div>
               <h1 style={{ marginTop: "1rem" }}>
-                {topic === "FACTORISATION" ? "Find where factorisation breaks down." : "Let Cogna Lotus find the right starting point."}
+                {catchUp ? `A quick catch-up on ${LOTUS_TOPIC_NAMES[topic].toLowerCase()}.` : planned ? `Find where ${LOTUS_TOPIC_NAMES[topic].toLowerCase()} breaks down.` : "Let Cogna Lotus find the right starting point."}
               </h1>
               <p style={{ marginTop: "0.75rem" }}>
-                {topic === "FACTORISATION"
+                {catchUp
+                  ? "A few questions on just the skills you were still working on. AI is preparing them now."
+                  : planned
                   ? "AI is preparing your personalised diagnostic."
                   : "Cogna has a checked, curriculum-balanced question path ready before you begin. When you submit, the next question appears immediately while two AI reviewers examine your answer and can shape later questions. Conclusions remain experimental research evidence."}
               </p>
@@ -1656,7 +1658,7 @@ function LotusPage() {
                 <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
               ) : (
                 <section className={styles.introCard}>
-                  {session.topic === "FACTORISATION" && <div style={{ marginBottom: "1rem" }}><LotusBloom answered={session.audits.length} /></div>}
+                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1rem" }}><LotusBloom answered={session.audits.length} /></div>}
                   <h1>Your diagnostic is complete</h1>
                   <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
                   <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
@@ -1719,7 +1721,7 @@ function LotusPage() {
                     <strong className={styles.questionNumber}>Question {shownQuestionNumber} of {totalQuestions}</strong>
                   </div>
                   <div className={styles.cardBody}>
-                    {session.topic === "FACTORISATION" && (
+                    {isPlannedLotusTopic(session.topic) && (
                       <PondMap answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} />
                     )}
                     <div className={styles.question}>
@@ -1727,7 +1729,7 @@ function LotusPage() {
                         <span key={`${line}-${index}`}>{line}</span>
                       ))}
                     </div>
-                    {session.topic === "FACTORISATION" && !previewQuestion && (
+                    {isPlannedLotusTopic(session.topic) && !previewQuestion && (
                       <button type="button" className={gameStyles.readAloud} onClick={() => void readAloud()} disabled={readingAloud || busy}>
                         {readingAloud ? "Reading…" : "🔈 Read it to me"}
                       </button>
@@ -1945,7 +1947,7 @@ function LotusPage() {
                     </div>
                     <SessionOverview audits={observerAudits} />
                     <ReportEvidenceTrace session={observerSession} audits={observerAudits} />
-                    {observerSession.topic === "FACTORISATION" && observerSession.status === "ACTIVE" && (
+                    {isPlannedLotusTopic(observerSession.topic) && observerSession.status === "ACTIVE" && (
                       <UnseenPlanPanel sessionId={observerSession.sessionId} answeredCount={observerAudits.length} />
                     )}
                     <div className={styles.actionStatusFilters} role="group" aria-label="Decision status">

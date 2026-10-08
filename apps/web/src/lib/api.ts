@@ -28,6 +28,7 @@ import type {
   MicroCheckResult,
   MicroLessonView,
 } from "@cogna/shared";
+import { LOTUS_PLANNED_TOPICS } from "@cogna/shared";
 import {
   buildParentAuthHeaders,
   type ParentAuthInput,
@@ -447,12 +448,21 @@ export interface ProductionClassroom {
   runs?: Array<{ id: string; title: string; phase: string; status: string; createdAt: string; startedAt?: string | null; completedAt?: string | null }>;
 }
 
+/** The Lotus test for a class topic id ("algebraic-expressions" → ALGEBRAIC_EXPRESSIONS); linear equations and anything unknown run the brackets test. */
+export function lotusTopicForClassTopic(topicId: string): LotusTopic {
+  if (/factor/i.test(topicId)) return "FACTORISATION";
+  const key = topicId.toUpperCase().replace(/-/g, "_");
+  return (LOTUS_PLANNED_TOPICS as readonly string[]).includes(key) ? (key as LotusTopic) : "BRACKETS";
+}
+
 /** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
-export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; videoAssignmentId?: string | null; run: { id: string; topicId: string } }): string {
+export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; videoAssignmentId?: string | null; payload?: Record<string, unknown>; run: { id: string; topicId: string } }): string {
   const params = new URLSearchParams({ assignment: item.id, run: item.run.id });
   if (item.videoAssignmentId) params.set("video", item.videoAssignmentId);
   if (item.kind === "DIAGNOSTIC") {
-    if (/factor/i.test(item.run.topicId)) params.set("topic", "factorisation");
+    const topic = lotusTopicForClassTopic(item.run.topicId);
+    if (topic !== "BRACKETS") params.set("topic", topic.toLowerCase());
+    if (item.payload?.kind === "CATCH_UP") params.set("check", "catch-up");
     return `/student/lotus?${params.toString()}`;
   }
   // Lesson, practice and the independent exit share one page; the exit opens straight at its step.
@@ -923,10 +933,10 @@ export const api = {
   /** Cogna Lotus — experimental dual-model AI Lab, isolated from diagnostic-v2. */
   getLotusStatus: () => lotusFetch<LotusStatusResponse>("/status"),
 
-  startLotusSession: (studentId: string, topic?: LotusTopic) =>
+  startLotusSession: (studentId: string, topic?: LotusTopic, classroomAssignmentId?: string) =>
     lotusFetch<LotusSessionView>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ studentId, topic }),
+      body: JSON.stringify({ studentId, topic, ...(classroomAssignmentId ? { classroomAssignmentId } : {}) }),
     }),
 
   getLotusSession: (sessionId: string) =>

@@ -85,7 +85,7 @@ function slideVisual(v: AuthoredVisual): SlideVisual | null {
     case "title": return null;
     case "expression": return { type: "expression", expr: pretty(v.expr), caption: v.caption };
     case "mistake": return { ...v, expr: pretty(v.expr), wrong: pretty(v.wrong), right: pretty(v.right) };
-    case "rule": return v;
+    case "rule": case "shape": case "chart": case "grid": return v;
     case "steps": return { type: "steps", steps: v.steps.map(pretty), caption: v.caption };
     default: {
       const steps = sceneEquationLines({ beats: [{ visual: v }] } as AuthoredScene).map((l) => l.text);

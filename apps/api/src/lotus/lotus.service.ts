@@ -28,7 +28,7 @@ import type {
   LotusUnseenPlanEntry,
   LotusTopic,
 } from "@cogna/shared";
-import { isLotusDemoGap, type LotusDemoGap } from "@cogna/shared";
+import { isLotusDemoGap, isPlannedLotusTopic, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { randomUUID } from "crypto";
 import { isDemoStudentId } from "../access/cogna-access";
 import {
@@ -53,13 +53,14 @@ import { normalizeMathText } from "./lotus-algebra";
 import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { codeProbeFor } from "./lotus-probes";
 import {
-  FACTORISATION_SLOTS,
+  curriculumFor,
   skillName,
 } from "./lotus-factorisation-catalogue";
 import {
   type FactorisationState,
   type PlanAction,
   buildFactorisationReport,
+  catchUpSlots,
   evidenceFromAnalysis,
   factorisationStopReason,
   foldLedger,
@@ -198,6 +199,10 @@ const WRITE_BACKOFF_MS = 20_000;
 const WRITE_LIFETIME_ATTEMPT_CAP = 12;
 /** Factorisation never serves a fixed question. The student starts once the first 15 slots have accepted AI items; later slots continue in the background. */
 const FACTORISATION_PREPARATION_TARGET = 15;
+/** Questions ready before the student starts: 15, or the whole test when it's shorter (a catch-up). */
+function preparationTarget(f: FactorisationSession): number {
+  return Math.min(FACTORISATION_PREPARATION_TARGET, f.state.turns.length);
+}
 /** On the last answer, how long to wait for outstanding AI reviews before writing the report anyway. Later reviews still update it. */
 const FINAL_REPORT_WAIT_MS = 20_000;
 /** How long after last activity a finished session stays hot in memory before falling back to a DB reload on next access. */
@@ -375,7 +380,7 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
     .filter((turn) => turn.turn > factorisation.state.planTurn)
     .slice(0, 10)
     .map((turn) => {
-      const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
+      const spec = slotSpec(factorisation, turn.slot);
       return {
         turn: turn.turn,
         skill: spec?.skillId,
@@ -456,6 +461,16 @@ function factorisationOpeningExpression(sessionId: string, alreadyUsed: Readonly
     if (!alreadyUsed.has(normalizeMathText(candidate).toLowerCase())) return candidate;
   }
   return null;
+}
+
+/** The plan slot a turn came from, in the session's own topic. */
+function slotSpec(f: FactorisationSession, slot: number) {
+  return curriculumFor(f.state.topic).slots.find((candidate) => candidate.slot === slot);
+}
+
+/** Factorisation opens on a fresh common-factor expression per session; other topics open on slot 1 as written. */
+function needsOpeningExpression(f: FactorisationSession, turn: number): boolean {
+  return turn === 1 && (f.state.topic ?? "FACTORISATION") === "FACTORISATION" && !f.state.focusSkills?.length;
 }
 
 function preferredItem(f: FactorisationSession, turn: number): LotusQuestion | undefined {
@@ -625,9 +640,9 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
       .length;
     clone.preparation = {
       readyQuestions,
-      targetQuestions: FACTORISATION_PREPARATION_TARGET,
-      totalQuestions: 25,
-      ready: readyQuestions >= FACTORISATION_PREPARATION_TARGET,
+      targetQuestions: preparationTarget(f),
+      totalQuestions: f.state.turns.length,
+      ready: readyQuestions >= preparationTarget(f),
     };
     // Never expose a legacy/pre-change non-AI item from an old persisted
     // session. Such a session returns to the preparation screen and must be
@@ -665,7 +680,7 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     question: openingQuestionIsLive ? redactQuestion(clone.openingAudit.question) : clone.openingAudit.question,
   });
   clone.audits = clone.audits.map(redactAudit);
-  if (clone.topic === "FACTORISATION") {
+  if (isPlannedLotusTopic(clone.topic)) {
     // A turn's selection reason names the gap a coming question is checking ("re-checks a suspected sign gap").
     clone.audits = clone.audits.map((audit) => ({ ...audit, questionSelection: { ...audit.questionSelection, reason: "" } }));
   }
@@ -784,9 +799,10 @@ export class LotusService implements OnModuleDestroy {
     };
   }
 
-  async start(studentId: string, topic: LotusTopic = "BRACKETS"): Promise<LotusSessionView> {
+  async start(studentId: string, topic: LotusTopic = "BRACKETS", classroomAssignmentId?: string): Promise<LotusSessionView> {
     this.models.assertReady();
-    if (topic === "FACTORISATION") return this.startFactorisation(studentId);
+    const assignmentId = await this.ownAssignment(studentId, classroomAssignmentId);
+    if (isPlannedLotusTopic(topic)) return this.startFactorisation(studentId, topic, await this.catchUpFocus(studentId, assignmentId), assignmentId);
     const startedAt = new Date().toISOString();
     const coveragePlan = buildLotusCoveragePlan(studentId).map(withQuestionId);
     const question = coveragePlan[0]!;
@@ -819,6 +835,7 @@ export class LotusService implements OnModuleDestroy {
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
+      ...(assignmentId ? { classroomAssignmentId: assignmentId } : {}),
       grade: 8,
       board: "CBSE",
       status: "ACTIVE",
@@ -1835,7 +1852,34 @@ Create one materially different question that adds new diagnostic evidence. Test
   // answer on the spot; the AI review runs in the background and can replan
   // only questions the student has not reached.
 
-  private async startFactorisation(studentId: string): Promise<LotusSessionView> {
+  /**
+   * The skills a teacher's catch-up asks this student about, read from the
+   * class assignment itself (never from the browser), or undefined for a
+   * normal diagnostic.
+   */
+  /** The assignment id, only when it really is this student's class assignment. */
+  private async ownAssignment(studentId: string, classroomAssignmentId?: string): Promise<string | undefined> {
+    if (!classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return undefined;
+    const row = await this.prisma.classroomAssignment.findFirst({ where: { id: classroomAssignmentId, enrollment: { studentId } }, select: { id: true } });
+    return row?.id;
+  }
+
+  private async catchUpFocus(studentId: string, classroomAssignmentId?: string): Promise<string[] | undefined> {
+    if (!classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return undefined;
+    const assignment = await this.prisma.classroomAssignment.findFirst({
+      where: { id: classroomAssignmentId, enrollment: { studentId } },
+      select: { payload: true },
+    });
+    const payload = (assignment?.payload ?? {}) as { kind?: unknown; focus?: Record<string, unknown> };
+    if (payload.kind !== "CATCH_UP") return undefined;
+    const skills = payload.focus?.[studentId];
+    return Array.isArray(skills) && skills.every((s) => typeof s === "string") && skills.length ? skills as string[] : undefined;
+  }
+
+  private async startFactorisation(studentId: string, topic: LotusPlannedTopic = "FACTORISATION", focusSkills?: string[], classroomAssignmentId?: string): Promise<LotusSessionView> {
+    const catchUp = focusSkills ? catchUpSlots(topic, focusSkills) : [];
+    const plan = catchUp.length ? catchUp : curriculumFor(topic).slots;
+    const focus = catchUp.length ? [...new Set(focusSkills)].filter((id) => catchUp.some((s) => s.skillId === id)) : undefined;
     const startedAt = new Date().toISOString();
     // There is deliberately no question in the session yet. The opening audit
     // below is a preparation placeholder, not a student-facing item. Q1 is
@@ -1876,9 +1920,11 @@ Create one materially different question that adds new diagnostic evidence. Test
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
+      ...(classroomAssignmentId ? { classroomAssignmentId } : {}),
       grade: 8,
       board: "CBSE",
-      topic: "FACTORISATION",
+      topic,
+      ...(focus ? { catchUp: { skills: focus.map(skillName) } } : {}),
       status: "ACTIVE",
       experimental: true,
       phase: preparationQuestion.phase,
@@ -1894,8 +1940,10 @@ Create one materially different question that adds new diagnostic evidence. Test
       liveProgress: null,
       factorisation: {
         state: {
+          topic,
+          ...(focus ? { focusSkills: focus } : {}),
           planTurn: 1,
-          turns: FACTORISATION_SLOTS.map((spec) => ({ turn: spec.slot, slot: spec.slot, status: "PLANNED" as const, version: 0 })),
+          turns: plan.map((spec, i) => ({ turn: i + 1, slot: spec.slot, status: "PLANNED" as const, version: 0 })),
           answeredTurns: [],
           handledConfirmed: [],
           handledBroadened: [],
@@ -1917,15 +1965,15 @@ Create one materially different question that adds new diagnostic evidence. Test
   private buildSkeleton(session: LotusSessionState): void {
     const f = session.factorisation!;
     for (const turn of f.state.turns) {
-      if (turn.turn > FACTORISATION_PREPARATION_TARGET) continue;
+      if (turn.turn > preparationTarget(f)) continue;
       const unansweredOpener = turn.turn === 1 && f.state.planTurn === 1 && session.audits.length === 0;
       if ((!unansweredOpener && turn.turn <= f.state.planTurn) || turn.status !== "PLANNED") continue;
       if (isAcceptedItem(preferredItem(f, turn.turn))) continue;
-      const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
-      const requiredExpression = turn.turn === 1
+      const spec = slotSpec(f, turn.slot);
+      const requiredExpression = needsOpeningExpression(f, turn.turn)
         ? factorisationOpeningExpression(session.sessionId, this.factorisationOpeningPrints)
         : undefined;
-      if (spec && (turn.turn !== 1 || requiredExpression)) this.enqueueWrite(session.sessionId, {
+      if (spec && (!needsOpeningExpression(f, turn.turn) || requiredExpression)) this.enqueueWrite(session.sessionId, {
         turn: turn.turn,
         version: turn.version,
         request: {
@@ -1946,7 +1994,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const queue = this.writeQueues.get(session.sessionId);
     const queued = new Set([...(queue?.activeTurns ?? []), ...(queue?.pending ?? []).map((job) => job.turn)]);
     const readyCount = Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length;
-    const highestTurnToStage = readyCount >= FACTORISATION_PREPARATION_TARGET ? f.state.turns.length : FACTORISATION_PREPARATION_TARGET;
+    const highestTurnToStage = readyCount >= preparationTarget(f) ? f.state.turns.length : preparationTarget(f);
     for (const turn of f.state.turns) {
       if (turn.turn > highestTurnToStage) continue;
       const isOpeningTurn = turn.turn === 1 && f.state.planTurn === 1 && f.state.answeredTurns.length === 0;
@@ -1954,11 +2002,11 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (isAcceptedItem(preferredItem(f, turn.turn)) || queued.has(turn.turn)) continue;
       const blocked = queue?.blockedTurns.get(turn.turn);
       if (blocked && Date.now() < blocked.until) continue;
-      const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
-      const requiredExpression = turn.turn === 1
+      const spec = slotSpec(f, turn.slot);
+      const requiredExpression = needsOpeningExpression(f, turn.turn)
         ? factorisationOpeningExpression(session.sessionId, this.factorisationOpeningPrints)
         : undefined;
-      if (spec && (turn.turn !== 1 || requiredExpression)) this.enqueueWrite(session.sessionId, {
+      if (spec && (!needsOpeningExpression(f, turn.turn) || requiredExpression)) this.enqueueWrite(session.sessionId, {
         turn: turn.turn,
         version: turn.version,
         request: {
@@ -2081,7 +2129,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const existingPrints = new Set(this.testPrints(session, job.turn).map((print) => normalizeMathText(print).toLowerCase()));
     const rows = await this.prisma.lotusQuestionBankItem.findMany({
       where: {
-        topic: "FACTORISATION",
+        topic: session.topic ?? "FACTORISATION",
         skillId: job.request.spec.skillId,
         isActive: true,
         sourceSessionId: { not: session.sessionId },
@@ -2119,7 +2167,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (!session || !f) return;
     const record = (outcome: FactorisationWriteLog["outcome"]) => {
       f.writes.push({ turn: job.turn, purpose: job.request.purpose, ms: result.ms, attempts: result.attempts, outcome, rejections: result.rejections, at: new Date().toISOString() });
-      this.logger.log(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
+      this.logger.log(`Question write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
     };
     const markNotApplied = (detail: string, outcome: "DEFERRED" | "REJECTED" | "STALE") => {
       for (const audit of session.audits) {
@@ -2151,7 +2199,7 @@ Create one materially different question that adds new diagnostic evidence. Test
           totalAttempts: prior?.totalAttempts ?? 0,
           episodeCount: prior?.episodeCount ?? 0,
         });
-        this.logger.error(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} paused: ${outage.reason}. It resumes automatically when the provider accepts calls again.`);
+        this.logger.error(`Question write ${sessionId.slice(0, 8)} turn ${job.turn} paused: ${outage.reason}. It resumes automatically when the provider accepts calls again.`);
         return;
       }
       if (retryCount >= FACTORY_MAX_RETRIES) {
@@ -2179,7 +2227,7 @@ Create one materially different question that adds new diagnostic evidence. Test
           episodeCount,
         });
         this.logger.error(
-          `Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds ` +
+          `Question write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds ` +
           `(${totalAttempts}/${WRITE_LIFETIME_ATTEMPT_CAP} lifetime attempts); ` +
           (exhaustedLifetime
             ? "permanently blocked — this catalogue shape has no remaining distinct expression; needs a content or uniqueness-rule fix, not another retry."
@@ -2188,7 +2236,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         return;
       }
       await this.persist(session, undefined, true);
-      this.logger.warn(`Retrying factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} (${retryCount + 1}/${FACTORY_MAX_RETRIES}) after ${outcome}.`);
+      this.logger.warn(`Retrying question write ${sessionId.slice(0, 8)} turn ${job.turn} (${retryCount + 1}/${FACTORY_MAX_RETRIES}) after ${outcome}.`);
       this.enqueueWrite(sessionId, { ...job, retryCount: retryCount + 1, urgent: true });
     };
     if (session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) {
@@ -2307,7 +2355,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (!turn) return;
     turn.version += 1;
     turn.reason = action.reason;
-    this.logger.log(`Factorisation plan ${session.sessionId.slice(0, 8)} turn ${action.turn}: ${action.kind}${action.kind === "REPURPOSE" ? ` ${action.purpose} ${action.forSkill}` : ""} — ${action.reason}`);
+    this.logger.log(`Plan ${session.sessionId.slice(0, 8)} turn ${action.turn}: ${action.kind}${action.kind === "REPURPOSE" ? ` ${action.purpose} ${action.forSkill}` : ""} — ${action.reason}`);
     if (action.kind === "SKIP") {
       turn.status = "SKIPPED";
       delete turn.purpose;
@@ -3069,7 +3117,7 @@ Create one materially different question that tests a competing explanation or a
       .filter((turn) => turn.turn > f.state.planTurn && turn.status !== "SKIPPED")
       .slice(0, count)
       .map((turn) => {
-        const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
+        const spec = slotSpec(f, turn.slot);
         const skillId = turn.forSkill ?? spec?.skillId ?? "";
         const item = preferredItem(f, turn.turn);
         const ready = isAcceptedItem(item);

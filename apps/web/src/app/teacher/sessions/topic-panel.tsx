@@ -12,7 +12,7 @@ const STATUS_LABEL: Record<TopicStudentStatus, string> = {
   UNDERSTOOD: "Understood",
   STUCK: "Still stuck",
   UNCLEAR: "Not sure yet",
-  IN_PROGRESS: "Doing a check",
+  IN_PROGRESS: "Working on a check",
   NOT_CHECKED: "Not checked",
 };
 
@@ -180,6 +180,7 @@ export function TopicPanel({ classroomId, sample, onCheckStarted }: { classroomI
               {(action === "CATCH_UP" || action === "MOVE_ON") && recommended && (
                 <fieldset className={styles.catchUp}>
                   <legend>Still need help</legend>
+                  <p className={styles.muted}>A catch-up gives each student a few questions (up to 8) on only their own open skills.</p>
                   {readiness.students.filter((s) => recommended.split(",").includes(s.studentId)).map((s) => (
                     <label key={s.studentId}>
                       <input

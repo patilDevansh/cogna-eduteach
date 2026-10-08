@@ -4,6 +4,7 @@ import type { AccessActor } from "../access/cogna-access";
 import { PrismaService } from "../prisma/prisma.service";
 import { ClassroomsService } from "./classrooms.service";
 import { findTopic, topicName, topicsForGrade } from "./topic-catalogue";
+import type { StudentRow } from "./class-report";
 import { CHECK_KINDS, CHECK_LABEL, checkKindOf, topicGrowth, topicReadiness, type CheckKind, type SkillSnapshot } from "./topic-flow";
 
 type TopicAction = "start" | "confirm" | "done";
@@ -123,18 +124,20 @@ export class ClassTopicsService {
     if (live) throw new BadRequestException(`"${live.title}" is still running in this class. End it or let it finish first.`);
 
     let studentIds: string[] | undefined;
+    let focus: Record<string, string[]> | undefined;
     if (kind === "CATCH_UP") {
       studentIds = [...new Set((input.studentIds ?? []).filter((id) => typeof id === "string" && id))];
       if (!studentIds.length) throw new BadRequestException("Choose at least one student for the catch-up.");
       const enrolled = await this.prisma.classroomEnrollment.count({ where: { classroomId, leftAt: null, studentId: { in: studentIds } } });
       if (enrolled !== studentIds.length) throw new BadRequestException("Some of those students aren't in this class.");
+      focus = openSkills(await this.classrooms.checkRowsForTopic(classroomId, topicId), studentIds);
     }
 
     await this.teach(classroomId, topicId);
     const run = await this.classrooms.createRun(actor, classroomId, {
       title: `${topic.name} · ${CHECK_LABEL[kind]}`,
       topicId,
-      config: { kind, diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true, ...(studentIds ? { studentIds } : {}) },
+      config: { kind, diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true, ...(studentIds ? { studentIds } : {}), ...(focus ? { focus } : {}) },
     });
     await this.classrooms.launchPhase(actor, run.id, "DIAGNOSTIC");
     return this.plan(actor, classroomId);
@@ -164,6 +167,24 @@ export class ClassTopicsService {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
     return this.growthForStudent(actor.studentId);
   }
+}
+
+/**
+ * What a catch-up checks for each student: the skills still a gap or a
+ * suspicion in their latest finished check on the topic, else that check's
+ * starting point. A student with nothing to target is left out, and takes
+ * the full diagnostic instead.
+ */
+export function openSkills(checks: Array<{ rows: StudentRow[] }>, studentIds: string[]): Record<string, string[]> {
+  const focus: Record<string, string[]> = {};
+  for (const studentId of studentIds) {
+    const latest = checks.flatMap((c) => c.rows).filter((r) => r.studentId === studentId && r.outcome).at(-1);
+    if (!latest) continue;
+    const open = (latest.skills ?? []).filter((k) => k.state === "CONFIRMED" || k.state === "SUSPECTED").map((k) => k.skillId);
+    const skills = open.length ? open : latest.startingPoint ? [latest.startingPoint.skillId] : [];
+    if (skills.length) focus[studentId] = skills;
+  }
+  return focus;
 }
 
 /** The next topic to teach: the first upcoming one after where the class is (being taught, else last finished), else the first upcoming at all. */

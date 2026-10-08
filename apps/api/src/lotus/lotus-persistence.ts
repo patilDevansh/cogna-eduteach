@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@cogna/database";
 import type { LotusQuestionAudit, LotusSessionView } from "@cogna/shared";
+import { isPlannedLotusTopic } from "@cogna/shared";
 import { normalizeMathText } from "./lotus-algebra";
 import { pseudonymousLearnerId, retentionDeadline } from "./lotus-privacy";
 
@@ -135,7 +136,7 @@ async function addAnsweredAiQuestionToBank(
   // let their controlled fake-model items become candidates for real or later
   // test sessions. Normal AI question-bank admission is unaffected.
   if (process.env.LOTUS_E2E_DISABLE_QUESTION_BANK === "true") return;
-  if (session.topic !== "FACTORISATION" || !audit.response || audit.question.answerKey.diagnostics?.origin !== "AI") return;
+  if (!isPlannedLotusTopic(session.topic) || !audit.response || audit.question.answerKey.diagnostics?.origin !== "AI") return;
   // A bank item remains the original generation; re-answering a reused item
   // must update its usage, not recursively create a new item.
   if (audit.question.answerKey.diagnostics.provenance === "AI_REUSED_FROM_BANK") return;
