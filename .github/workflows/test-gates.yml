@@ -2,7 +2,7 @@ name: Test gates
 
 on:
   push:
-    branches: [feat/mvp-2.0-build, main, master]
+    branches: [feat/mvp-2.0-build, main, master, codex/2026-08-12-improvements]
   pull_request:
 
 jobs:
