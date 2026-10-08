@@ -625,6 +625,18 @@ async function seedDevAccounts() {
   console.log("Dev access code:", demoAccessCode);
 }
 
+/**
+ * The one subject so far. Curriculum units and modality assets point at it
+ * (MVP 5.0); the old migrations inserted it, the squashed baseline does not.
+ */
+async function seedSubjects() {
+  await prisma.subject.upsert({
+    where: { subjectId: "mathematics" },
+    create: { subjectId: "mathematics", title: "Mathematics" },
+    update: {},
+  });
+}
+
 async function seedCurriculumUnits() {
   // MVP 4.0 Phase 0: Define initial curriculum units
   const units = [
@@ -743,12 +755,14 @@ async function seedCurriculumUnits() {
       where: { unitId: unit.unitId },
       create: {
         unitId: unit.unitId,
+        subjectId: "mathematics",
         title: unit.title,
         prerequisiteUnitIds: unit.prerequisiteUnitIds,
         unlockRule: unit.unlockRule,
         priorityWeight: unit.priorityWeight,
       },
       update: {
+        subjectId: "mathematics",
         title: unit.title,
         prerequisiteUnitIds: unit.prerequisiteUnitIds,
         unlockRule: unit.unlockRule,
@@ -793,6 +807,8 @@ async function main() {
   await seedQuestions();
   console.log("Seeding explanations…");
   await seedExplanations();
+  console.log("Seeding subjects…");
+  await seedSubjects();
   console.log("Seeding curriculum units (MVP 4.0)…");
   await seedCurriculumUnits();
   console.log("Seeding dev accounts…");
