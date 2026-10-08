@@ -39,8 +39,11 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install
+      # The apps import these workspace packages from their built dist/ (gitignored), so build all three.
       - run: pnpm --filter @cogna/shared build
       - run: pnpm --filter @cogna/database generate
+      - run: pnpm --filter @cogna/database build
+      - run: pnpm --filter @cogna/lesson-video build
       # Build the database from the real migrations (not db push), then fail if they don't match the schema.
       - run: pnpm db:migrate:deploy
       - run: pnpm --filter @cogna/database migrate:check
