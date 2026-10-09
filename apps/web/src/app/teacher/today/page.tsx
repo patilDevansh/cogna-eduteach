@@ -102,7 +102,7 @@ function TopicToday({ classroomId, className, sample, onCheckStarted }: { classr
     return (
       <section className={styles.topicToday}>
         <div>
-          <div className={styles.dateLine}>Today in {className} · {topic.name}</div>
+          <div className={styles.dateLine}>{topic.name} in {className}</div>
           <p>{note || recommendation?.text || "Teaching as planned."}</p>
         </div>
         <div className={styles.headerActions}><Link className={styles.secondary} href="/teacher/sessions">Open the class →</Link></div>
@@ -164,7 +164,6 @@ export default function TeacherTodayPage() {
     <>
       <div className={styles.pageHeader}>
         <div>
-          <div className={styles.dateLine}>Today</div>
           <h1>{greeting()}{teacherName ? `, ${teacherName}` : ""}.</h1>
           <p>{selected ? `${selected.name}: here’s what to do next.` : "Pick a class to see what to do next."}</p>
         </div>
@@ -185,7 +184,7 @@ export default function TeacherTodayPage() {
       ) : plan && t ? (
         <>
           <section className={styles.decisionCard}>
-            <div className={styles.dateLine} style={{ color: "#8ad2b8" }}>Your next moves · {report?.run.title}{report?.run.status === "LIVE" ? " · still running" : ""}</div>
+            <div className={styles.dateLine} style={{ color: "#8ad2b8" }}>Your next moves{report?.run.status === "LIVE" ? ", while the check is still running" : ""}</div>
             <h2>{plan.headline}</h2>
             {plan.moves.length > 0 && (
               <ol className={styles.moves}>
@@ -194,12 +193,7 @@ export default function TeacherTodayPage() {
             )}
           </section>
 
-          <section className={styles.metricGrid} aria-label="Class summary">
-            <article className={styles.metric}><div className={styles.metricTop}><span>FINISHED THE CHECK</span><span>✓</span></div><strong>{t.diagnosticDone}<small> / {t.enrolled}</small></strong><p>Students who finished the quick check.</p><div className={styles.meter}><span style={{ width: `${t.enrolled ? (t.diagnosticDone / t.enrolled) * 100 : 0}%` }} /></div></article>
-            <article className={styles.metric}><div className={styles.metricTop}><span>READY TO MOVE ON</span><span>→</span></div><strong>{t.noGap}</strong><p>Nothing to fix right now.</p><div className={styles.meter}><span style={{ width: `${t.enrolled ? (t.noGap / t.enrolled) * 100 : 0}%` }} /></div></article>
-            <article className={styles.metric}><div className={styles.metricTop}><span>NEED ONE FIX</span><span>△</span></div><strong>{t.gapFound}</strong><p>Each got a lesson on their own fix.</p><div className={styles.meter}><span style={{ width: `${t.enrolled ? (t.gapFound / t.enrolled) * 100 : 0}%`, background: "#d58b17" }} /></div></article>
-            <article className={styles.metric}><div className={styles.metricTop}><span>CHECK AGAIN</span><span>?</span></div><strong>{t.unclear}</strong><p>Not sure yet: their answers don’t agree.</p><div className={styles.meter}><span style={{ width: `${t.enrolled ? (t.unclear / t.enrolled) * 100 : 0}%`, background: "#7956a8" }} /></div></article>
-          </section>
+          <ClassMap t={t} />
 
           {report && report.classReport.skills.length > 0 && (
             <details className={styles.why}>
@@ -219,13 +213,54 @@ export default function TeacherTodayPage() {
           )}
         </>
       ) : selected ? (
-        <section className={styles.emptyCard}><p>Loading {selected.name}…</p></section>
+        <section className={styles.decisionCard} aria-busy="true" aria-label={`Loading ${selected.name}`}>
+          <div className="skeleton" style={{ height: 14, width: 180, opacity: .25 }} />
+          <div className="skeleton" style={{ height: 34, width: "70%", marginTop: 18, opacity: .25 }} />
+          <div className="skeleton" style={{ height: 34, width: "45%", marginTop: 10, opacity: .25 }} />
+        </section>
       ) : null}
 
       <section className={styles.pilotCallout} style={{ marginTop: "1rem" }}>
-        <div><div className={styles.dateLine}>Sample · personal lessons</div><h2>See five sample students’ personal lessons.</h2><p>What Cogna found for each one, the lesson it made, and how they did on their own afterwards.</p></div>
+        <div><h2>See five sample students’ personal lessons.</h2><p>What Cogna found for each one, the lesson it made, and how they did on their own afterwards.</p></div>
         <Link className={styles.secondary} href="/teacher/pilot-story">See the samples →</Link>
       </section>
     </>
+  );
+}
+
+/**
+ * The whole class at a glance: one dot per student, grouped by where they are.
+ * Counts come first and large; the dots show proportion without a chart.
+ */
+function ClassMap({ t }: { t: { enrolled: number; diagnosticDone: number; noGap: number; gapFound: number; unclear: number } }) {
+  const notYet = Math.max(0, t.enrolled - t.noGap - t.gapFound - t.unclear);
+  const groups = [
+    { key: "ready", n: t.noGap, label: "Ready to move on", note: "Nothing to fix right now." },
+    { key: "fix", n: t.gapFound, label: "Working on one fix", note: "Each has a lesson on their own fix." },
+    { key: "unsure", n: t.unclear, label: "Check again", note: "Their answers don’t agree yet." },
+    { key: "waiting", n: notYet, label: "Not finished", note: "Still to finish the check." },
+  ].filter((g) => g.n > 0 || g.key !== "waiting");
+  let index = 0;
+  // Even rows of at most 15, like seats in a room, so a 30-student class reads as two rows rather than 29 + 1.
+  const total = groups.reduce((n, g) => n + g.n, 0);
+  const cols = Math.ceil(total / Math.max(1, Math.ceil(total / 15)));
+  return (
+    <section className={styles.classMap} aria-label="Class summary">
+      <header>
+        <h3>Your class at a glance</h3>
+        <p>{t.diagnosticDone} of {t.enrolled} finished the check.</p>
+      </header>
+      <div className={styles.dots} style={{ ["--cols" as string]: cols }} role="img" aria-label={groups.map((g) => `${g.n} ${g.label.toLowerCase()}`).join(", ")}>
+        {groups.flatMap((g) => Array.from({ length: g.n }, () => <i key={index} data-group={g.key} style={{ ["--d" as string]: index++ }} />))}
+      </div>
+      <dl className={styles.mapLegend}>
+        {groups.map((g) => (
+          <div key={g.key} data-group={g.key}>
+            <dt>{g.label}</dt>
+            <dd><strong>{g.n}</strong><span>{g.note}</span></dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

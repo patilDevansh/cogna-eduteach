@@ -259,3 +259,102 @@
 .topicToday h2 { font-size: 1.35rem; margin-top: .25rem; }
 .topicToday p { margin: .3rem 0 0; color: var(--ink-soft); }
 .topicNote { color: var(--accent-deep) !important; font-weight: 600; }
+
+/* ---------- Calm workspace (Apple-like) ----------
+   Overrides above: soft grey page, borderless white cards, sentence-case labels, one accent. */
+.teacherPage { background: #f2f5f3; color: #10201a; }
+.appHeader { height: 60px; background: rgba(242, 245, 243, .8); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid rgba(0, 0, 0, .06); padding: 0 clamp(1rem, 3vw, 2rem); }
+.avatar { background: #e2e9e5; color: #10201a; font-weight: 600; }
+.appLayout { grid-template-columns: 220px minmax(0, 1fr); min-height: calc(100vh - 60px); }
+.sidebar { background: transparent; border-right: 0; padding: 1.75rem 1rem; }
+.navLabel { text-transform: none; letter-spacing: 0; font-size: .78rem; font-weight: 500; color: #84928b; }
+.nav a { color: #33443c; font-size: .95rem; padding: .6rem .8rem; border-radius: 10px; }
+.nav a:hover { background: rgba(0, 0, 0, .04); color: #10201a; }
+.nav a[data-active="true"] { background: #fff; color: #10201a; font-weight: 600; }
+.sampleSwitch { border-top: 1px solid rgba(0, 0, 0, .06); }
+.main { padding: 2.75rem clamp(1.25rem, 4vw, 3.5rem) 6rem; max-width: 1240px; }
+
+.pageHeader { margin-bottom: 2.25rem; }
+.pageHeader h1 { font-size: clamp(2.4rem, 5vw, 3.6rem); letter-spacing: -.035em; line-height: 1.04; }
+.pageHeader p { color: #56665e; font-size: clamp(1.05rem, 1.8vw, 1.25rem); font-weight: 500; margin-top: .55rem; }
+.dateLine { text-transform: none; letter-spacing: 0; font-size: .9rem; font-weight: 600; color: var(--accent); }
+
+.metric, .panel, .tableWrap, .emptyCard, .sessionCard, .evidenceSection, .observationGrid div,
+.pilotCallout, .pipelinePanel, .videoStudentCard, .topicToday {
+  background: #fff; border: 0; border-radius: 22px;
+}
+.metric, .panel, .sessionCard, .videoStudentCard, .pipelinePanel { padding: 1.5rem; }
+.emptyCard { padding: clamp(1.75rem, 4vw, 3rem); }
+.emptyCard h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); letter-spacing: -.025em; }
+.emptyCard p { color: #56665e; font-size: 1.05rem; }
+.topicToday { border-left: 0; padding: 1.25rem 1.5rem; }
+.metricGrid, .sectionGrid { gap: 1.25rem; margin-top: 1.25rem; }
+.metric strong { font-size: 2.6rem; letter-spacing: -.03em; font-weight: 700; }
+.metricTop, .nextStep span, .moves span, .liveStats span, .observationGrid span, .claimBlock span, .videoReadyRow span, .pilotHeroStat span {
+  text-transform: none; letter-spacing: 0; font-weight: 500; font-size: .8rem;
+}
+.metricTop { color: #56665e; }
+.meter, .skillTrack { background: #e6ece8; }
+.skillRow { border-top-color: #edf1ee; }
+.nextStep { background: #f2f5f3; border-radius: 14px; }
+
+.table th { text-transform: none; letter-spacing: 0; font-size: .8rem; font-weight: 500; color: #84928b; background: #fff; border-bottom-color: #edf1ee; }
+.table td { border-bottom-color: #edf1ee; font-size: .9rem; }
+
+.decisionCard, .pilotHero { background: #0c4a3d; border-radius: 28px; box-shadow: none; }
+.decisionCard h2 { letter-spacing: -.03em; line-height: 1.08; }
+.moves li { background: rgba(255, 255, 255, .07); border: 0; border-radius: 16px; }
+.decisionLink { border-radius: 999px; padding: .75rem 1.25rem; }
+.primary, .secondary { border-radius: 999px; padding: .65rem 1.25rem; font-weight: 600; }
+.secondary { border-color: #cdd8d2; }
+.liveEvidence { background: #fff; border: 0; border-radius: 22px; }
+
+/* Today: the class as dots, one per student. */
+.classMap { background: #fff; border-radius: 28px; padding: clamp(1.5rem, 3vw, 2.25rem); margin-top: 1.25rem; }
+.classMap header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.classMap h3 { font-size: 1.35rem; letter-spacing: -.02em; }
+.classMap header p { color: #56665e; margin: 0; }
+.dots { display: grid; grid-template-columns: repeat(var(--cols, 15), 22px); gap: 10px; margin: 1.6rem 0 1.8rem; }
+@media (max-width: 600px) { .dots { grid-template-columns: repeat(10, 22px); gap: 8px; } }
+.dots i {
+  width: 22px; height: 22px; border-radius: 50%; background: #e2e9e5;
+  animation: dot-in 500ms var(--ease-settle) both; animation-delay: calc(var(--d) * 18ms);
+}
+.dots i[data-group="ready"] { background: var(--accent); }
+.dots i[data-group="fix"] { background: #e0a03a; }
+.dots i[data-group="unsure"] { background: #fff; box-shadow: inset 0 0 0 2px #84928b; }
+@keyframes dot-in { from { opacity: 0; transform: scale(.4); } }
+.mapLegend { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1.25rem; margin: 0; padding-top: 1.5rem; border-top: 1px solid #edf1ee; }
+.mapLegend div { margin: 0; }
+.mapLegend dt { display: flex; align-items: center; gap: .5rem; font-size: .9rem; font-weight: 600; color: #10201a; }
+.mapLegend dt::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: #e2e9e5; }
+.mapLegend [data-group="ready"] dt::before { background: var(--accent); }
+.mapLegend [data-group="fix"] dt::before { background: #e0a03a; }
+.mapLegend [data-group="unsure"] dt::before { background: #fff; box-shadow: inset 0 0 0 2px #84928b; }
+.mapLegend dd { margin: .35rem 0 0; }
+.mapLegend strong { display: block; font: 700 2.6rem/1 var(--font-display); letter-spacing: -.03em; color: #10201a; font-variant-numeric: tabular-nums; }
+.mapLegend span { display: block; color: #56665e; font-size: .85rem; margin-top: .4rem; }
+@media (prefers-reduced-motion: reduce) { .dots i { animation: none; } }
+
+/* The one dark moment on the page, on purpose: the deepest shade of the brand green,
+   with depth from a soft highlight and grain rather than a flat block. */
+.decisionCard {
+  position: relative; overflow: hidden; isolation: isolate;
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(76, 170, 132, .32), transparent 60%),
+    radial-gradient(70% 90% at 0% 100%, rgba(8, 40, 33, .6), transparent 70%),
+    #0c4a3d;
+  box-shadow: 0 30px 60px -32px rgba(8, 57, 47, .55);
+}
+.decisionCard::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .09; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.decisionCard h2 { text-wrap: balance; }
+.moves li { background: rgba(255, 255, 255, .06); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); }
+.pageHeader h1 { text-wrap: balance; }
+.teacherPage { position: relative; }
+.metric, .panel, .tableWrap, .emptyCard, .sessionCard, .evidenceSection, .pilotCallout, .pipelinePanel, .videoStudentCard, .topicToday, .classMap {
+  box-shadow: 0 1px 2px rgba(12, 74, 61, .04), 0 12px 32px -20px rgba(12, 74, 61, .16);
+}
+.avatar { border-radius: 11px; }
