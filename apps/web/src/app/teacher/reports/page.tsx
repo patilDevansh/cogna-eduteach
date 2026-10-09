@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ClassroomRunReport } from "@/lib/api";
 import { useTeacherClasses } from "@/lib/teacher-classes";
-import { useRefreshTick } from "@/lib/use-refresh-tick";
+import { LIVE_MS, useRefreshTick } from "@/lib/use-refresh-tick";
 import { teacherData } from "@/lib/teacher-mode";
 import { studentStatus } from "@/lib/teacher-status";
 import { ClassTabs } from "../class-tabs";
@@ -33,7 +33,7 @@ export default function TeacherReportsPage() {
   const runs = selected?.runs ?? [];
   useEffect(() => setRunId(runs[0]?.id ?? ""), [selectedId, runs[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tick = useRefreshTick();
+  const tick = useRefreshTick(LIVE_MS);
   const shown = useRef("");
   useEffect(() => {
     // Clear only when switching report or sample mode; a live refresh keeps the page on screen.

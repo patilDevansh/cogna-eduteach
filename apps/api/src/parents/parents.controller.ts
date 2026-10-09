@@ -2,6 +2,12 @@ import { Body, Controller, Get, Headers, NotFoundException, Param, Patch, Post, 
 import { AuthService, ParentsService } from "./parents.service";
 import { ParentAnalyticsService } from "./parent-analytics.service";
 import { clampWeeks } from "./parent-analytics.formulas";
+import { isProductionLike } from "../access/cogna-access";
+
+/** Dev account shortcuts skip Clerk, so a deployed server answers 404. */
+function devOnly(): void {
+  if (isProductionLike()) throw new NotFoundException();
+}
 
 @Controller("auth")
 export class AuthController {
@@ -23,12 +29,14 @@ export class ParentsController {
 
   @Post("dev/signup")
   devSignup(@Body() body: { email: string; name: string }) {
+    devOnly();
     return this.parents.devSignup(body);
   }
 
   /** Returns seeded Demo Parent + Demo Student link (dev only). */
   @Post("dev/demo-login")
   async demoLogin() {
+    devOnly();
     const parent = await this.parents.getSeededDemoParent();
     if (!parent) {
       throw new NotFoundException("Seeded demo parent missing — run pnpm db:seed");

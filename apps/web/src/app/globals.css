@@ -347,3 +347,92 @@ h2 { font-size: var(--text-lg); margin-top: var(--s-5); }
   body.printing-slips .print-slips,
   body.printing-slips .print-slips * { visibility: visible; }
 }
+
+/* ---------- dashboards: calm, Apple-like ----------
+   Big type, lots of air, borderless white cards on soft grey, one accent. */
+.dash { background: #f2f5f3; min-height: 100vh; }
+.dash-wrap { max-width: 1080px; margin: 0 auto; padding: var(--s-5) clamp(1rem, 4vw, 2.5rem) var(--s-9); }
+.dash-nav {
+  position: sticky; top: 0; z-index: 10; margin: 0 calc(-1 * clamp(1rem, 4vw, 2.5rem)) var(--s-7);
+  padding: var(--s-3) clamp(1rem, 4vw, 2.5rem);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  background: rgba(242, 245, 243, 0.8); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.dash-nav .wordmark { font-size: 1.2rem; }
+.dash-eyebrow { font-size: var(--text-sm); font-weight: 600; color: var(--accent); margin: 0 0 var(--s-2); }
+.dash-title { font-size: clamp(2.5rem, 6.5vw, 4.25rem); line-height: 1.03; letter-spacing: -0.035em; font-weight: 700; margin: 0; color: #10201a; }
+.dash-sub { font-size: clamp(1.1rem, 2.2vw, 1.4rem); line-height: 1.4; color: #56665e; margin: var(--s-3) 0 0; max-width: 40ch; font-weight: 500; letter-spacing: -0.01em; }
+.dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-5); flex-wrap: wrap; margin-bottom: var(--s-7); }
+
+.dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--s-3); margin-bottom: var(--s-7); }
+.dash-stat { background: #fff; border-radius: 22px; padding: var(--s-5); }
+.dash-stat strong { display: block; font-family: var(--font-display); font-size: clamp(2.2rem, 4.5vw, 3rem); line-height: 1; letter-spacing: -0.03em; color: #10201a; font-variant-numeric: tabular-nums; }
+.dash-stat span { display: block; font-size: var(--text-sm); color: #56665e; margin-top: var(--s-2); }
+.dash-stat.accent strong { color: var(--accent); }
+
+.dash-section-title { font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -0.025em; margin: 0 0 var(--s-4); color: #10201a; }
+.dash-card {
+  background: #fff; border-radius: 28px; padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.btn-pill { border-radius: 999px; padding: 0.7rem 1.35rem; min-height: 44px; font-size: var(--text-sm); }
+.btn-link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent); font-weight: 600; font-size: var(--text-sm); text-decoration: none; }
+.btn-link:hover { text-decoration: underline; }
+
+.avatar {
+  flex: none; width: 48px; height: 48px; border-radius: 15px; display: grid; place-items: center;
+  font-weight: 600; font-size: 1rem; letter-spacing: 0.02em;
+  color: hsl(var(--hue, 160) 35% 28%); background: hsl(var(--hue, 160) 40% 92%);
+}
+
+/* Progress ring: set --p (0–100); put a .ring-label inside a .ring-wrap. */
+.ring-wrap { position: relative; width: 88px; height: 88px; flex: none; }
+.ring {
+  --p: 0; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), #e6ece8 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  animation: ring-fill 1.4s var(--ease-settle) both;
+}
+.ring-label { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
+.ring-label strong { font-family: var(--font-display); font-size: 1.35rem; letter-spacing: -0.02em; color: #10201a; }
+.ring-label span { display: block; font-size: 0.68rem; color: #84928b; margin-top: 3px; }
+@property --p { syntax: "<number>"; inherits: true; initial-value: 0; }
+@keyframes ring-fill { from { --p: 0; } }
+
+.status-chip { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--text-sm); font-weight: 500; color: #56665e; }
+.status-chip.good { color: var(--success); }
+.status-chip.work { color: #8a5a0c; }
+/* A dot only where it means something: this is happening right now. */
+.status-chip.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--accent); animation: live-pulse 1.8s ease-out infinite; }
+
+.rise { animation: rise 700ms var(--ease-settle) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(14, 107, 84, 0.45); } 100% { box-shadow: 0 0 0 8px rgba(14, 107, 84, 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .ring, .status-chip.live::before { animation: none; }
+}
+
+/* ---------- dashboards: finish ---------- */
+/* One faint grain over the page breaks the digital flatness. Fixed and non-interactive, so it never repaints on scroll. */
+.dash::before, .grain::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dash > *, .grain > * { position: relative; z-index: 1; }
+.dash-title, .dash-section-title { text-wrap: balance; }
+.dash-sub { text-wrap: pretty; }
+.dash-card { box-shadow: 0 1px 2px rgba(12, 74, 61, .04), 0 12px 32px -18px rgba(12, 74, 61, .18); }
+.btn-link:focus-visible, .btn-quiet:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+.btn:active { transform: scale(.98); }
+
+/* Placeholder shapes while data loads, matching the layout they stand in for. */
+.skeleton { border-radius: 12px; background: linear-gradient(90deg, #e6ece8 0%, #f1f5f2 45%, #e6ece8 90%); background-size: 200% 100%; animation: skeleton 1.4s ease-in-out infinite; }
+@keyframes skeleton { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+.skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 100; background: var(--accent-deep); color: #fff; padding: .6rem 1rem; border-radius: 10px; text-decoration: none; font-weight: 600; }
+.skip-link:focus { top: 1rem; }
+
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

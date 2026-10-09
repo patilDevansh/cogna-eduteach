@@ -55,7 +55,8 @@ function settleService(createDelayMs = 0) {
         return calls.completed.includes(id) ? [] : [{ id, enrollment: { studentId: `student-${args.where.runId}` } }];
       },
     },
-    lotusSessionRecord: { findFirst: async () => ({ sessionId: "lotus-1" }) },
+    // A finished Lotus test for the step: settled straight away, no grace period.
+    lotusSessionRecord: { findFirst: async () => ({ sessionId: "lotus-1", status: "COMPLETE", startedAt: new Date(Date.now() - 600_000), endedAt: new Date(Date.now() - 60_000) }) },
   };
   const videos = {
     createAssignment: async () => {

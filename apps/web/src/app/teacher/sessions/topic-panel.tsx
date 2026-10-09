@@ -6,7 +6,8 @@ import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
 
-const REFRESH_MS = 10_000;
+/** Without live updates, the plan is re-read this often. */
+const REFRESH_MS = 5_000;
 /** With live updates the plan reloads when something changes; this slow re-read only catches misses. */
 const LIVE_REFRESH_MS = 60_000;
 

@@ -10,7 +10,8 @@ import styles from "../teacher.module.css";
 export default function TeacherSignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [inviteCode, setInviteCode] = useState("GURUKUL-2026");
+  // Prefilled only for local demos — a deployed page must not hand out a working invitation.
+  const [inviteCode, setInviteCode] = useState(process.env.NODE_ENV !== "production" ? "GURUKUL-2026" : "");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
   return (

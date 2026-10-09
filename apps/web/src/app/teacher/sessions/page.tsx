@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LIVE_MS, useRefreshTick } from "@/lib/use-refresh-tick";
 import { api, ApiError, liveUpdates, type ClassActivityEvent, type ClassRosterStudent, type ClassroomAssignmentKind, type ClassroomRunReport, type IssuedStudentCode, type PilotClassReport } from "@/lib/api";
 import { activityLine, applyActivity } from "@/lib/class-live";
 import { useEventStream } from "@/lib/event-stream";
@@ -69,6 +70,11 @@ export default function PilotConsolePage() {
   // Follow the selected class's latest check. The list is re-read on every switch and
   // after starting a check, so a check that is already running is never hidden.
   const latestRunId = activeClass?.runs?.[0]?.id ?? "";
+  // The class list (and so its latest check) is re-read too, so a check started elsewhere appears.
+  const listTick = useRefreshTick(LIVE_MS * 2);
+  useEffect(() => {
+    if (listTick && classroomId) void refreshClasses(classroomId);
+  }, [listTick]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setReport(null);
     setRunId(latestRunId);
@@ -435,7 +441,7 @@ export default function PilotConsolePage() {
                       ))}
                     </span>
                     <span className={styles.start}>
-                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "Nothing to fix" : row.outcome ? "Not sure yet" : row.stage === "DIAGNOSTIC" ? "Checking…" : "—")}
+                      {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "Nothing to fix" : row.outcome ? "Not sure yet" : row.stage === "DIAGNOSTIC" ? (row.stageStatus === "IN_PROGRESS" ? "Checking…" : "Not started") : "—")}
                       {row.answered ? <small>{row.answered} questions{row.minutes ? ` · ${row.minutes} min` : ""}{row.endedNote ? " · ended early" : ""}</small> : null}
                     </span>
                     <span className={styles.practice}>
