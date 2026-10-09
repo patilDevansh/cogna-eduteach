@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, type ParentChildOverview } from "@/lib/api";
+import { api, type ParentChildOverview, type ParentNotificationItem } from "@/lib/api";
 import { useParentAuth } from "@/lib/parent-auth-context";
 import { classCheckLine, shortDate } from "@/lib/parent-status";
 import { useRefreshTick } from "@/lib/use-refresh-tick";
@@ -19,6 +19,7 @@ export default function ParentDashboardPage() {
   const [error, setError] = useState("");
   const [codes, setCodes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [updates, setUpdates] = useState<{ unread: number; items: ParentNotificationItem[] } | null>(null);
   // Asked on the card itself: browser confirm() dialogs are silently refused by some
   // embedded and kiosk-mode browsers (e.g. locked-down school tablets).
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export default function ParentDashboardPage() {
       .then(async (auth) => {
         const list = await api.listStudents(auth);
         setChildren(list);
+        api.getParentNotifications(auth).then(setUpdates).catch(() => undefined);
         // Each child's card fills in as its overview arrives; one failing doesn't hide the others.
         for (const child of list) {
           api.getParentChildOverview(auth, child.id)
@@ -60,6 +62,15 @@ export default function ParentDashboardPage() {
       setError("Couldn’t make a new code. Please try again.");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function markRead() {
+    try {
+      await api.markParentNotificationsRead(await getAuth());
+      setUpdates((prev) => (prev ? { unread: 0, items: prev.items.map((n) => ({ ...n, read: true })) } : prev));
+    } catch {
+      // Still unread; the next refresh shows them again.
     }
   }
 
@@ -114,6 +125,24 @@ export default function ParentDashboardPage() {
             <p className="dash-sub" style={{ marginBottom: "var(--s-5)" }}>You’ll get a sign-in code they use to start practising.</p>
             <Link href="/parent/students/new" className="btn btn-primary btn-pill">Add a child</Link>
           </div>
+        )}
+
+        {updates && updates.items.length > 0 && (
+          <section className={styles.updates} aria-label="Updates from school" data-testid="parent-updates">
+            <div className={styles.updatesHead}>
+              <h2>Updates from school{updates.unread ? ` · ${updates.unread} new` : ""}</h2>
+              {updates.unread > 0 && <button type="button" className="btn btn-ghost" onClick={() => void markRead()}>Mark all as read</button>}
+            </div>
+            <ul className={styles.cards}>
+              {updates.items.slice(0, 6).map((n) => (
+                <li key={n.id} className={`dash-card ${styles.update}`} data-unread={!n.read || undefined}>
+                  <strong>{n.title}</strong>
+                  <span>{shortDate(n.createdAt)}{n.read ? "" : " · New"}</span>
+                  <p>{n.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {children && children.length > 0 && <h2 className="dash-section-title rise" style={{ ["--i" as string]: 4 }}>Your children</h2>}

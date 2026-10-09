@@ -3,6 +3,8 @@ import type {
   PracticeAnswer,
   PracticeCheckResult,
   PracticeSetView,
+  LessonThemeChoice,
+  PersonalizedLessonAnimationView,
   ConceptMasteryBand,
   ConfidenceCalibrationSummary,
   DiagnosticV2DebugView,
@@ -250,6 +252,24 @@ async function personalizedVideoFetch<T>(path: string, options?: RequestInit): P
   return res.json() as Promise<T>;
 }
 
+/** Where class pages listen for live updates (lib/event-stream.ts), with the same sign-in as their other calls. */
+export const liveUpdates = {
+  classUrl: (classroomId: string) => `${API_URL}/classrooms/${encodeURIComponent(classroomId)}/events`,
+  studentUrl: () => `${API_URL}/classrooms/student/events`,
+  teacherHeaders: (): Record<string, string> => ({ ...cognaAuthHeaders(), ...teacherAuthHeaders() }),
+  studentHeaders: (): Record<string, string> => cognaAuthHeaders(),
+};
+
+/** A live "a student answered" update for one row of a teacher's class report. */
+export interface ClassActivityEvent {
+  type: "activity";
+  runId: string;
+  studentId: string;
+  answeredSoFar: number;
+  lastActiveAt: string;
+  testFinished: boolean;
+}
+
 async function classroomFetch<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -479,6 +499,10 @@ export interface ClassRosterStudent {
   alsoIn: Array<{ id: string; name: string }>;
   /** Created from the class list (not by a family), so the teacher can issue a new code. */
   schoolIssuedCode: boolean;
+  /** A family account owns this student (made them, or claimed them with the code from school). */
+  parentLinked?: boolean;
+  /** An unused parent link code is still valid. */
+  parentCodeActive?: boolean;
 }
 
 /** A sign-in code, shown once: only its hash is stored. */
@@ -486,7 +510,23 @@ export interface IssuedStudentCode {
   studentId: string;
   name: string;
   rollNumber?: string | null;
-  accessCode: string;
+  /** The student's sign-in code; absent when only a parent code was issued. */
+  accessCode?: string;
+  /** The one-time code a parent enters to link this student to their account. */
+  parentCode?: string;
+  parentCodeExpiresAt?: string;
+}
+
+/** An update from school on a parent's dashboard. */
+export interface ParentNotificationItem {
+  id: string;
+  studentId: string;
+  studentName: string;
+  kind: "CHECK_FINISHED" | "CATCH_UP_SET" | string;
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
 }
 
 export interface ClassroomStudentAssignment {
@@ -495,7 +535,7 @@ export interface ClassroomStudentAssignment {
   status: ClassroomAssignmentStatus;
   videoAssignmentId?: string | null;
   payload: Record<string, unknown>;
-  run: { id: string; title: string; topicId: string; classroom: { id: string; name: string; grade: number; subjectId: string } };
+  run: { id: string; title: string; topicId: string; config?: Record<string, unknown>; classroom: { id: string; name: string; grade: number; subjectId: string } };
 }
 
 /** Pilot class results (apps/api/src/classrooms/class-report.ts). */
@@ -520,12 +560,16 @@ export interface PilotClassReport {
     exitCorrect?: boolean | null;
     exitScore?: { right: number; total: number };
     progress: "IMPROVED" | "NOT_YET" | "NO_GAP" | "UNCLEAR" | "PENDING";
+    /** Only while a step is in progress, or a finished test is being filed. */
+    activity?: { state: "WORKING" | "IDLE" | "FILING"; lastActiveAt: string | null; quietMinutes: number | null; quietAfterMinutes: number; answeredSoFar?: number };
   }>;
 }
 
 export interface ClassroomRunReport {
   run: { id: string; title: string; phase: string; status: string; topicId: string; classroom: ProductionClassroom };
   autoAdvance: boolean;
+  /** Teacher controls on a running check: paused since, and when it ends by itself. */
+  controls?: { pausedAt: string | null; endsAt: string | null };
   classReport: PilotClassReport;
   progress: Array<{ kind: ClassroomAssignmentKind; total: number; ready: number; inProgress: number; complete: number }>;
   summary: { enrolled: number; diagnosticOutcomes: Record<string, number>; observedStrengths: Record<string, number>; uncertaintyAreas: Record<string, number>; lessonDeliveries: Record<string, number>; independentExit: { completed: number; verified: number; needsReview: number } };
@@ -572,6 +616,21 @@ export const api = {
 
   resetStudentAccessCode: (classroomId: string, studentId: string) =>
     classroomFetch<IssuedStudentCode>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/access-code`, { method: "POST", headers: teacherAuthHeaders() }),
+
+  issueParentCode: (classroomId: string, studentId: string) =>
+    classroomFetch<IssuedStudentCode>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/parent-code`, { method: "POST", headers: teacherAuthHeaders() }),
+
+  restartStudentCheck: (runId: string, studentId: string) =>
+    classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/students/${encodeURIComponent(studentId)}/restart`, { method: "POST", headers: teacherAuthHeaders() }),
+
+  pauseClassroomRun: (runId: string, paused: boolean) =>
+    classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/pause`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ paused }) }),
+
+  setClassroomRunTimeLimit: (runId: string, minutes: number | null) =>
+    classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/time-limit`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(minutes === null ? {} : { minutes }) }),
+
+  nudgeClassroomRun: (runId: string) =>
+    classroomFetch<{ nudged: number; alreadyReminded: number }>(`/classrooms/runs/${runId}/nudge`, { method: "POST", headers: teacherAuthHeaders() }),
 
   removeStudentFromClass: (classroomId: string, studentId: string) =>
     classroomFetch<{ removed: true }>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}`, { method: "DELETE", headers: teacherAuthHeaders() }),
@@ -639,6 +698,20 @@ export const api = {
         body: JSON.stringify({ name, grade }),
       },
     ),
+
+  /** Links a school-made student with the one-time code from school. */
+  claimStudentWithCode: (auth: string | ParentAuthInput | undefined, code: string) =>
+    apiFetch<{ id: string; name: string; grade: number }>("/parents/me/students/claim", {
+      method: "POST",
+      headers: buildParentAuthHeaders(auth),
+      body: JSON.stringify({ code }),
+    }),
+
+  getParentNotifications: (auth?: string | ParentAuthInput) =>
+    apiFetch<{ unread: number; items: ParentNotificationItem[] }>("/parents/me/notifications", { headers: buildParentAuthHeaders(auth) }),
+
+  markParentNotificationsRead: (auth?: string | ParentAuthInput) =>
+    apiFetch<{ marked: number }>("/parents/me/notifications/read", { method: "POST", headers: buildParentAuthHeaders(auth) }),
 
   regenerateAccessCode: (auth: string | ParentAuthInput | undefined, studentId: string) =>
     apiFetch<{ studentId: string; accessCode: string }>(
@@ -1012,6 +1085,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ studentId }),
     }),
+
+  /** The animated, voiced lesson in one world; the first open of a world narrates it (a few seconds). */
+  getLessonAnimation: (id: string, theme: LessonThemeChoice) =>
+    personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
 
   getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
 

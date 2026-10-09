@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, classroomAssignmentHref, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
-import { stepFor } from "@/lib/class-steps";
+import { api, classroomAssignmentHref, liveUpdates, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
+import { useEventStream } from "@/lib/event-stream";
+import { classNotice, stepFor } from "@/lib/class-steps";
 import { getStudent, clearStudent } from "@/lib/session";
 import { conceptLabelStudent } from "@/lib/concept-labels";
 import styles from "@/components/dashboard.module.css";
@@ -80,30 +81,40 @@ export default function StudentHomePage() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  // Class work: checked every 10 seconds and whenever the student comes back to this tab.
+  // Class work: reloaded the moment the teacher sends something (live updates), whenever the
+  // student comes back to this tab, and every 10 seconds if live updates aren't connected.
+  const [signedIn, setSignedIn] = useState(false);
+  const loadWork = useCallback(() => {
+    Promise.all([api.getStudentClasses(), api.getStudentClassroomAssignments()])
+      .then(([list, open]) => {
+        setClasses(list);
+        setWork(open);
+      })
+      .catch(() => setClasses((prev) => prev ?? []));
+  }, []);
+  const live = useEventStream(signedIn ? liveUpdates.studentUrl() : null, liveUpdates.studentHeaders, (event) => {
+    if (event.type === "work" || event.type === "nudge" || event.type === "ready") loadWork();
+  });
   useEffect(() => {
     if (!getStudent()?.token) {
       setClasses([]);
       return;
     }
-    const load = () => {
-      Promise.all([api.getStudentClasses(), api.getStudentClassroomAssignments()])
-        .then(([list, open]) => {
-          setClasses(list);
-          setWork(open);
-        })
-        .catch(() => setClasses((prev) => prev ?? []));
-    };
-    load();
+    setSignedIn(true);
+    loadWork();
     api.getStudentProgress().then(setProgress).catch(() => undefined);
-    const timer = window.setInterval(load, 10_000);
+  }, [loadWork]);
+  useEffect(() => {
+    if (!signedIn) return;
+    const load = loadWork;
+    const timer = window.setInterval(load, live ? 60_000 : 10_000);
     const onFocus = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onFocus);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, []);
+  }, [signedIn, live, loadWork]);
 
   function signOut() {
     clearStudent();
@@ -139,6 +150,7 @@ export default function StudentHomePage() {
   // In a class, home is the class to-do list only, so everything the student does counts for their teacher.
   if (classes.length) {
     const [first, ...rest] = work;
+    const firstNotice = first ? classNotice(first, Date.now()) : null;
     const idle = classes.filter((c) => !work.some((w) => w.run.classroom.id === c.classroomId));
     return (
       <div className="dash">
@@ -158,24 +170,33 @@ export default function StudentHomePage() {
               <span className={styles.nowClass}>{first.run.classroom.name}</span>
               <h2>{stepFor(first).title}</h2>
               <p>{stepFor(first).note}</p>
-              <Link href={classroomAssignmentHref(first)} className={`btn btn-lg ${styles.nowButton}`}>
-                {first.status === "IN_PROGRESS" ? "Carry on" : stepFor(first).cta} →
-              </Link>
+              {firstNotice && <p className={styles.notice} role="status" data-testid="class-notice">{firstNotice.text}</p>}
+              {firstNotice?.paused ? null : (
+                <Link href={classroomAssignmentHref(first)} className={`btn btn-lg ${styles.nowButton}`}>
+                  {first.status === "IN_PROGRESS" ? "Carry on" : stepFor(first).cta} →
+                </Link>
+              )}
             </section>
           )}
 
           {(rest.length > 0 || idle.length > 0) && (
             <div className={styles.queue}>
-              {rest.map((item, k) => (
-                <article className="dash-card rise" key={item.id} style={{ ["--i" as string]: k + 2 }}>
-                  <span className={styles.cardClass}>{item.run.classroom.name}</span>
-                  <h3>{stepFor(item).title}</h3>
-                  <p className={styles.cardNote}>{stepFor(item).note}</p>
-                  <Link href={classroomAssignmentHref(item)} className="btn btn-primary btn-pill">
-                    {item.status === "IN_PROGRESS" ? "Carry on" : stepFor(item).cta} →
-                  </Link>
-                </article>
-              ))}
+              {rest.map((item, k) => {
+                const notice = classNotice(item, Date.now());
+                return (
+                  <article className="dash-card rise" key={item.id} style={{ ["--i" as string]: k + 2 }}>
+                    <span className={styles.cardClass}>{item.run.classroom.name}</span>
+                    <h3>{stepFor(item).title}</h3>
+                    <p className={styles.cardNote}>{stepFor(item).note}</p>
+                    {notice && <p className={styles.notice} role="status" data-testid="class-notice">{notice.text}</p>}
+                    {notice?.paused ? null : (
+                      <Link href={classroomAssignmentHref(item)} className="btn btn-primary btn-pill">
+                        {item.status === "IN_PROGRESS" ? "Carry on" : stepFor(item).cta} →
+                      </Link>
+                    )}
+                  </article>
+                );
+              })}
               {idle.map((c, k) => (
                 <article className="dash-card rise" key={c.classroomId} style={{ ["--i" as string]: rest.length + k + 2 }}>
                   <span className={styles.cardClass}>{c.name}</span>

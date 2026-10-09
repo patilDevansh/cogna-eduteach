@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, ApiError, classroomAssignmentHref, type ClassroomStudentAssignment } from "@/lib/api";
+import { api, ApiError, classroomAssignmentHref, liveUpdates, type ClassroomStudentAssignment } from "@/lib/api";
+import { useEventStream } from "@/lib/event-stream";
 import { clearStudent, getStudent, isFixtureStudentSession, type StudentSessionRecord } from "@/lib/session";
 import { Wordmark } from "@/components/ui";
-import { stepFor } from "@/lib/class-steps";
+import { classNotice, stepFor } from "@/lib/class-steps";
 import styles from "../student-demo.module.css";
 
 function classroomGreeting(student: StudentSessionRecord | null, joinedClass: string | null): string {
@@ -23,7 +24,7 @@ export default function ProductionClassroomPage() {
   const [joined, setJoined] = useState<string | null>(null);
   const [alsoIn, setAlsoIn] = useState<string[]>([]);
   const [error, setError] = useState("");
-  // Kept apart from `error`: the 5-second assignment refresh clears that one, and a join error must stay visible.
+  // Kept apart from `error`: the assignment refresh clears that one, and a join error must stay visible.
   const [joinError, setJoinError] = useState("");
   const [student, setStudent] = useState<StudentSessionRecord | null>(null);
 
@@ -48,11 +49,15 @@ export default function ProductionClassroomPage() {
     }
   }
 
+  // The teacher launching a check shows up at once over live updates; the slow re-read only catches misses.
+  const live = useEventStream(student?.token && !isFixtureStudentSession(student) ? liveUpdates.studentUrl() : null, liveUpdates.studentHeaders, (event) => {
+    if (event.type === "work" || event.type === "nudge" || event.type === "ready") void refresh();
+  });
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 5000);
+    const timer = window.setInterval(() => void refresh(), live ? 60_000 : 5000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [live]);
 
   async function join(event: React.FormEvent) {
     event.preventDefault();
@@ -68,6 +73,7 @@ export default function ProductionClassroomPage() {
   }
 
   const signedIn = Boolean(student?.token) && !isFixtureStudentSession(student);
+  const notice = assignments[0] ? classNotice(assignments[0], Date.now()) : null;
 
   return (
     <main className={styles.stage}>
@@ -129,9 +135,12 @@ export default function ProductionClassroomPage() {
                     <h2>{stepFor(assignments[0]).title}</h2>
                     <p>{stepFor(assignments[0]).note}</p>
                     <p className={styles.progress}>{assignments[0].run.classroom.name}</p>
-                    <Link className={styles.button} style={{ display: "flex", textDecoration: "none" }} href={classroomAssignmentHref(assignments[0])}>
-                      {assignments[0].status === "IN_PROGRESS" ? "Carry on" : stepFor(assignments[0]).cta} →
-                    </Link>
+                    {notice && <p role="status" data-testid="class-notice" style={{ fontWeight: 700, color: "var(--caution)" }}>{notice.text}</p>}
+                    {notice?.paused ? null : (
+                      <Link className={styles.button} style={{ display: "flex", textDecoration: "none" }} href={classroomAssignmentHref(assignments[0])}>
+                        {assignments[0].status === "IN_PROGRESS" ? "Carry on" : stepFor(assignments[0]).cta} →
+                      </Link>
+                    )}
                   </>
                 ) : (
                   <>

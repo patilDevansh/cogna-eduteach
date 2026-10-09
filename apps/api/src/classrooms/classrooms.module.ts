@@ -3,6 +3,7 @@ import { PersonalizedVideosModule } from "../personalized-videos/personalized-vi
 import { ClassroomsController } from "./classrooms.controller";
 import { ClassTopicsService } from "./class-topics.service";
 import { ClassroomsService } from "./classrooms.service";
+import { ClassroomSettleWorker } from "./classroom-settle.worker";
 
-@Module({ imports: [PersonalizedVideosModule], controllers: [ClassroomsController], providers: [ClassroomsService, ClassTopicsService], exports: [ClassroomsService, ClassTopicsService] })
+@Module({ imports: [PersonalizedVideosModule], controllers: [ClassroomsController], providers: [ClassroomsService, ClassTopicsService, ClassroomSettleWorker], exports: [ClassroomsService, ClassTopicsService] })
 export class ClassroomsModule {}

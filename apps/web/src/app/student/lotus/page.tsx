@@ -361,6 +361,7 @@ function matchingProvenanceForQuestion(question: LotusQuestion, session: LotusSe
 
 function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
   const provenance = matchingProvenanceForQuestion(question, session);
+  if (provenance === "CODE_BUILT_GAME") return "Interactive question";
   if (provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
   if (provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
   if (provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
@@ -1079,12 +1080,16 @@ function LotusPage() {
   const [minimized, setMinimized] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
   const activeMathFieldRef = useRef<HTMLInputElement | null>(null);
+  const answerFieldRef = useRef<HTMLInputElement | null>(null);
+  const workingFieldRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const [activeWorkingIndex, setActiveWorkingIndex] = useState(0);
   const exponentModeRef = useRef(false);
   const suppressMathChangeRef = useRef(false);
 
-  function insertMathToken(token: string) {
-    const field = activeMathFieldRef.current;
-    if (!field || inputLocked) return;
+  function insertMathToken(token: string, field: HTMLInputElement | null) {
+    if (!field || field.disabled || inputLocked) return;
+    if (activeMathFieldRef.current !== field) exponentModeRef.current = false;
+    activeMathFieldRef.current = field;
     const start = field.selectionStart ?? field.value.length;
     const end = field.selectionEnd ?? start;
     const nextValue = formatTypedMath(`${field.value.slice(0, start)}${token}${field.value.slice(end)}`);
@@ -1103,6 +1108,25 @@ function LotusPage() {
       field.focus();
       field.setSelectionRange(nextCursor, nextCursor);
     });
+  }
+
+  function mathToolbox(target: "answer" | "working") {
+    const label = target === "answer" ? "Final answer math tools" : `Working step ${activeWorkingIndex + 1} math tools`;
+    return (
+      <div className={styles.mathToolbar} role="group" aria-label={label}>
+        <span className={styles.mathToolbarLabel}>Math tools · {target === "answer" ? "final answer" : `step ${activeWorkingIndex + 1}`}</span>
+        {[
+          ["+", "+"], ["−", "-"], ["×", "×"], ["÷", "÷"],
+          ["(", "("], [")", ")"], ["^", "^"], ["x²", "²"], ["x³", "³"],
+        ].map(([label, token]) => (
+          <button key={label} type="button" onMouseDown={(event) => event.preventDefault()}
+            onClick={() => insertMathToken(token, target === "answer" ? answerFieldRef.current : workingFieldRefs.current[activeWorkingIndex] ?? null)}
+            disabled={inputLocked || didNotKnow}>
+            {label}
+          </button>
+        ))}
+      </div>
+    );
   }
 
   useEffect(() => {
@@ -1325,6 +1349,9 @@ function LotusPage() {
   }
 
   function resetResponse() {
+    activeMathFieldRef.current = null;
+    exponentModeRef.current = false;
+    setActiveWorkingIndex(0);
     setAnswer("");
     setWorkingLines(["", "", ""]);
     setWorkingOpen(false);
@@ -1386,7 +1413,12 @@ function LotusPage() {
       const activeStudent = studentId.startsWith("demo_")
         ? await ensureDemoStudentSession(studentId, studentName, { forceRefresh: true })
         : { studentId };
+      // For a class assignment this may be the session already started for it (a refresh, another tab).
       const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined);
+      if (next.status === "COMPLETE" || next.reportPending) {
+        openReport(next.sessionId);
+        return;
+      }
       setPreviewQuestion(null);
       setPendingSubmission(null);
       setSession(next);
@@ -1781,7 +1813,7 @@ function LotusPage() {
                       <TileGame
                         key={question.id}
                         interaction={question.interaction}
-                        look={question.presentation === "GARDEN" ? "garden" : undefined}
+                        look={question.presentation === "GARDEN" ? "garden" : question.presentation === "WORKSHOP" ? "workshop" : question.presentation === "CONSTELLATION" ? "constellation" : undefined}
                         disabled={inputLocked || didNotKnow}
                         onChange={(state) => { setTiles(state); setDidNotKnow(false); }}
                       />
@@ -1818,7 +1850,7 @@ function LotusPage() {
                             id="lotus-answer"
                             className={styles.mathAnswer}
                             value={answer}
-                            ref={(field) => { activeMathFieldRef.current = field; }}
+                            ref={answerFieldRef}
                             onFocus={(event) => {
                               // Clicking the toolbox temporarily blurs and
                               // refocuses this same field; preserve exponent
@@ -1840,19 +1872,7 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && (
-                      <div className={styles.mathToolbar} aria-label="Math toolbox">
-                        <span className={styles.mathToolbarLabel}>Math tools</span>
-                        {[
-                          ["+", "+"], ["−", "-"], ["×", "×"], ["÷", "÷"],
-                          ["(", "("], [")", ")"], ["^", "^"], ["x²", "²"], ["x³", "³"],
-                        ].map(([label, token]) => (
-                          <button key={label} type="button" onClick={() => insertMathToken(token)} disabled={inputLocked}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && mathToolbox("answer")}
 
                     {question.asksForWorking && workingOptional && !workingOpen && (
                       <button type="button" className={styles.addStep} onClick={() => setWorkingOpen(true)} disabled={inputLocked || didNotKnow}>
@@ -1870,10 +1890,12 @@ function LotusPage() {
                               <input
                                 aria-label={`Working step ${index + 1}`}
                                 data-working-index={index}
+                                ref={(field) => { workingFieldRefs.current[index] = field; }}
                                 value={line}
                                 onFocus={(event) => {
                                   if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                                   activeMathFieldRef.current = event.currentTarget;
+                                  setActiveWorkingIndex(index);
                                 }}
                                 onKeyDown={(event) => handleMathKeyDown(event, (value) => {
                                   setWorkingLines((lines) => lines.map((current, lineIndex) => lineIndex === index ? value : current));
@@ -1890,6 +1912,7 @@ function LotusPage() {
                             </div>
                           ))}
                         </div>
+                        {mathToolbox("working")}
                         {workingLines.length < 6 && (
                           <button
                             type="button"

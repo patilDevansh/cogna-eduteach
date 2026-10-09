@@ -32,7 +32,31 @@ export interface StudentEvidence {
     practice?: { attempted: number; correct: number; total: number };
   } | null;
   exit?: { prompt?: string | null; correct?: boolean | null; items?: Array<{ prompt: string | null; correct: boolean | null }> } | null;
+  /** The student's last action in this check: an answer, a lesson step, or opening a step. */
+  lastActiveAt?: Date | null;
+  /** The Lotus test is finished, but its class step is not marked done yet. */
+  testFinished?: boolean;
+  /** Answers so far in a diagnostic still being taken. */
+  answeredSoFar?: number;
 }
+
+/**
+ * What the teacher sees about a student mid-step: working, gone quiet
+ * (no action for a while, maybe stuck or offline), or finished with the
+ * result still being filed.
+ */
+export interface Activity {
+  state: "WORKING" | "IDLE" | "FILING";
+  lastActiveAt: string | null;
+  /** Whole minutes since the last action. */
+  quietMinutes: number | null;
+  /** Minutes without an action before this step reads as gone quiet, so a page can keep the count current itself. */
+  quietAfterMinutes: number;
+  answeredSoFar?: number;
+}
+
+/** Minutes without an action before a student in a step reads as gone quiet. A lesson has a video to watch, so it gets longer. */
+export const QUIET_MINUTES: Record<"DIAGNOSTIC" | "LESSON" | "EXIT", number> = { DIAGNOSTIC: 3, LESSON: 8, EXIT: 4 };
 
 export interface StudentRow {
   studentId: string;
@@ -53,6 +77,8 @@ export interface StudentRow {
   progress: Progress;
   /** This student's skill states from the check (for growth between checks). */
   skills?: Array<{ skillId: string; name: string; state: string }>;
+  /** Only while a step is in progress, or a finished test is being filed. */
+  activity?: Activity;
 }
 
 export interface ClassReport {
@@ -89,6 +115,18 @@ function stageOf(s: StudentEvidence): { stage: Stage; status: string } {
   return { stage: "JOINED", status: "WAITING" };
 }
 
+function activityOf(s: StudentEvidence, stage: Stage, status: string, now: Date): Activity | undefined {
+  if (stage !== "DIAGNOSTIC" && stage !== "LESSON" && stage !== "EXIT") return undefined;
+  const lastActiveAt = s.lastActiveAt ? s.lastActiveAt.toISOString() : null;
+  const quietMinutes = s.lastActiveAt ? Math.max(0, Math.floor((now.getTime() - s.lastActiveAt.getTime()) / 60_000)) : null;
+  const answered = stage === "DIAGNOSTIC" && s.answeredSoFar !== undefined ? { answeredSoFar: s.answeredSoFar } : {};
+  const quietAfterMinutes = QUIET_MINUTES[stage];
+  if (stage === "DIAGNOSTIC" && status !== "COMPLETE" && s.testFinished) return { state: "FILING", lastActiveAt, quietMinutes, quietAfterMinutes, ...answered };
+  if (status !== "IN_PROGRESS") return undefined;
+  const quiet = quietMinutes !== null && quietMinutes >= quietAfterMinutes;
+  return { state: quiet ? "IDLE" : "WORKING", lastActiveAt, quietMinutes, quietAfterMinutes, ...answered };
+}
+
 function progressOf(s: StudentEvidence): Progress {
   const outcome = s.diagnostic?.outcome;
   if (!outcome) return "PENDING";
@@ -99,9 +137,10 @@ function progressOf(s: StudentEvidence): Progress {
   return "PENDING";
 }
 
-export function buildClassReport(students: StudentEvidence[]): ClassReport {
+export function buildClassReport(students: StudentEvidence[], now: Date = new Date()): ClassReport {
   const rows: StudentRow[] = students.map((s) => {
     const { stage, status } = stageOf(s);
+    const activity = activityOf(s, stage, status, now);
     const start = s.diagnostic?.startingSkillId
       ? { skillId: s.diagnostic.startingSkillId, name: s.diagnostic.skills.find((k) => k.skillId === s.diagnostic!.startingSkillId)?.name ?? s.diagnostic.startingSkillId }
       : undefined;
@@ -122,6 +161,7 @@ export function buildClassReport(students: StudentEvidence[]): ClassReport {
       ...(s.exit?.items?.length ? { exitScore: { right: s.exit.items.filter((i) => i.correct === true).length, total: s.exit.items.length } } : {}),
       progress: progressOf(s),
       skills: s.diagnostic?.skills ?? [],
+      ...(activity ? { activity } : {}),
     };
   });
 

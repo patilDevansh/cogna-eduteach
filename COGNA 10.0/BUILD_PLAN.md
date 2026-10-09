@@ -19,6 +19,8 @@
 
 ## Diagnostic-quality and adaptive-action repair
 
+- [x] MVP 10.0 UI maintenance (2026-10-08): math keys target final answers and selected working steps; workshop/constellation scenes and early Detective increase format variety; Garden instances pass the complete installation gate before selection.
+
 These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONTINUOUS_DIAGNOSTIC.md#8-repair-diagnostic-interpretation-and-the-action-loop-before-claiming-adaptivity), not completed functionality.
 
 - [ ] Persist pseudonymous standalone-demo and production response, analysis, timing, and plan-decision events so the previous 24 hours can be audited.
@@ -46,3 +48,14 @@ These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONT
 - [ ] AI Studio usability gate — Playwright desktop/mobile/accessibility coverage plus educator task review showing readers can identify evidence, decision, and actual outcome without opening raw model details.
 
 Before executing each phase's test gate, notify the product owner in the active Codex thread with the test scope, environment, live-model/cost impact, expected duration, and any test-data reset; wait for acknowledgment and report the results before starting the next phase.
+
+## Classroom connections (2026-10-08)
+
+- [x] One Lotus session per class assignment (refresh/second tab resumes, never restarts)
+- [x] Background filing of finished class steps; teacher roster shows last activity and who has gone quiet
+- [x] Live updates (server-sent events) for teacher class page and student pages; polling demoted to a slow fallback
+- [x] Parent link codes on school-made students (claim = consent) and in-app parent updates (check finished, catch-up set)
+- [x] Teacher controls: restart one student, pause/resume, time limit, remind students who haven't started; late joiners in teacher-advanced checks
+- [ ] Email delivery for parent updates (no email provider is wired; weekly reports are also stub-only)
+- [ ] Rate limit per signed-in user rather than per network address
+- [ ] Multi-instance live updates (in-process only today)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PracticeAnswer, PracticeCheckResult, PracticeItemView, PracticeSetView } from "@cogna/shared";
+import type { LessonThemeChoice, PracticeAnswer, PracticeCheckResult, PracticeItemView, PracticeSetView } from "@cogna/shared";
 import { prettyMath } from "@cogna/lesson-video/player";
 import { api } from "@/lib/api";
 import styles from "./practice.module.css";
@@ -14,20 +14,35 @@ import { BracketRush, MarkersDesk, RectangleGame } from "@/components/games/Prac
  * answers); this component only animates what the server says.
  */
 
-const WORLD = { unit: "stars", icon: "★", done: "Practice complete" };
+const WORLD: Record<LessonThemeChoice, { unit: string; icon: string; done: string }> = {
+  classic: { unit: "stars", icon: "★", done: "Practice complete" },
+  cricket: { unit: "runs", icon: "🏏", done: "Innings complete" },
+  space: { unit: "fuel cells", icon: "🚀", done: "Launch ready" },
+};
 
 type Outcome = { firstTry: boolean; correct: boolean };
+
+function readTheme(studentId: string): LessonThemeChoice {
+  try {
+    const value = localStorage.getItem(`cogna_lesson_theme_${studentId}`);
+    return value === "cricket" || value === "space" ? value : "classic";
+  } catch {
+    return "classic";
+  }
+}
 
 const num = (n: number) => (n < 0 ? `−${-n}` : `${n}`);
 const bracket = (p: number) => (p < 0 ? `(x − ${-p})` : `(x + ${p})`);
 
 export function PracticeArena({
   assignmentId,
+  studentId,
   firstName,
   devMode,
   onDone,
 }: {
   assignmentId: string;
+  studentId: string;
   firstName: string;
   devMode: boolean;
   onDone: (summary: { correct: number; total: number }) => void;
@@ -37,13 +52,15 @@ export function PracticeArena({
   const [index, setIndex] = useState(0);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [streak, setStreak] = useState(0);
+  const [theme, setTheme] = useState<LessonThemeChoice>("classic");
 
   useEffect(() => {
+    setTheme(readTheme(studentId));
     api
       .getPracticeSet(assignmentId)
       .then(setSet)
       .catch((err) => setError(err instanceof Error ? err.message : "Practice could not be loaded."));
-  }, [assignmentId]);
+  }, [assignmentId, studentId]);
 
   if (error) {
     return (
@@ -61,7 +78,7 @@ export function PracticeArena({
     );
   }
 
-  const world = WORLD;
+  const world = WORLD[theme];
   const total = set.items.length;
   const finished = index >= total;
   const earned = outcomes.filter((o) => o.correct).length;
@@ -72,7 +89,7 @@ export function PracticeArena({
   }
 
   return (
-    <section className={styles.arena}>
+    <section className={styles.arena} data-theme={theme}>
       <header className={styles.top}>
         <div>
           <p className={styles.eyebrow}>Practice on your own · {set.skillName}</p>
@@ -378,7 +395,7 @@ function Finale({
 }: {
   outcomes: Outcome[];
   firstName: string;
-  world: typeof WORLD;
+  world: (typeof WORLD)[LessonThemeChoice];
   onNext: () => void;
 }) {
   const correct = outcomes.filter((o) => o.correct).length;

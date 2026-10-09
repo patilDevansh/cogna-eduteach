@@ -6,7 +6,10 @@ import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
 
+/** Without live updates, the plan is re-read this often. */
 const REFRESH_MS = 5_000;
+/** With live updates the plan reloads when something changes; this slow re-read only catches misses. */
+const LIVE_REFRESH_MS = 60_000;
 
 const STATUS_LABEL: Record<TopicStudentStatus, string> = {
   UNDERSTOOD: "Understood",
@@ -47,7 +50,15 @@ function stepsDone(topic: Topic): Set<string> {
  * catch-up for whoever is still stuck, or move on). Checks it starts appear in
  * the live view below.
  */
-export function TopicPanel({ classroomId, sample, onCheckStarted }: { classroomId: string; sample: boolean; onCheckStarted: () => void }) {
+export function TopicPanel({ classroomId, sample, live = false, changeTick = 0, onCheckStarted }: {
+  classroomId: string;
+  sample: boolean;
+  /** The class page's live updates are connected. */
+  live?: boolean;
+  /** Goes up each time the class page hears a check changed. */
+  changeTick?: number;
+  onCheckStarted: () => void;
+}) {
   const [plan, setPlan] = useState<ClassTopicPlan | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -68,9 +79,17 @@ export function TopicPanel({ classroomId, sample, onCheckStarted }: { classroomI
     setError("");
     setShowPlan(false);
     load();
-    const timer = window.setInterval(load, REFRESH_MS);
-    return () => window.clearInterval(timer);
   }, [load]);
+  useEffect(() => {
+    const timer = window.setInterval(load, live ? LIVE_REFRESH_MS : REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [load, live]);
+  // A burst of changes reloads the plan once.
+  useEffect(() => {
+    if (!changeTick) return;
+    const timer = window.setTimeout(load, 3_000);
+    return () => window.clearTimeout(timer);
+  }, [changeTick, load]);
 
   const current = plan?.topics.find((t) => t.status === "TEACHING") ?? null;
   const readiness = plan?.current?.readiness;
