@@ -54,7 +54,13 @@
 .lines p { margin: 0; line-height: 1.45; }
 .lines strong { color: #10201a; font-weight: 600; }
 .growth { color: var(--accent); font-weight: 600; font-size: var(--text-sm); }
-.code { margin-top: var(--s-4); font-size: var(--text-sm); }
+.code { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s-1) var(--s-4); margin: 0 0 var(--s-5); padding: var(--s-4) var(--s-5); border-radius: 16px; background: var(--accent-wash); }
+.code span { grid-column: 1 / -1; font-size: var(--text-sm); color: var(--accent-deep); font-weight: 600; }
+.code strong { font: 700 1.6rem var(--font-math); letter-spacing: .12em; color: #10201a; }
+.code small { grid-column: 1 / -1; color: #56665e; }
+.confirm { margin: 0 0 var(--s-5); padding: var(--s-4) var(--s-5); border-radius: 16px; background: #f2f5f3; }
+.confirm p { margin: 0 0 var(--s-3); color: #10201a; }
+.confirm div { display: flex; align-items: center; gap: var(--s-4); }
 .cardActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-5); margin-top: auto; margin-bottom: 0; padding-top: var(--s-5); border-top: 1px solid #edf1ee; }
 .pushRight { margin-left: auto; color: #84928b; font-weight: 500; }
 .skills { margin-top: var(--s-5); }

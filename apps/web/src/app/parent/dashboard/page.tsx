@@ -19,6 +19,9 @@ export default function ParentDashboardPage() {
   const [error, setError] = useState("");
   const [codes, setCodes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Asked on the card itself: browser confirm() dialogs are silently refused by some
+  // embedded and kiosk-mode browsers (e.g. locked-down school tablets).
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   // One request per child per refresh: a minute is plenty for a parent's overview.
   const tick = useRefreshTick(60_000);
 
@@ -47,7 +50,7 @@ export default function ParentDashboardPage() {
   }, [isLoaded, isSignedIn, getAuth, router, tick]);
 
   async function newCode(child: Child) {
-    if (!window.confirm(`Make a new sign-in code for ${child.name}? Their current code will stop working.`)) return;
+    setConfirmId(null);
     setBusyId(child.id);
     setError("");
     try {
@@ -168,15 +171,32 @@ export default function ParentDashboardPage() {
                 )}
 
                 {codes[child.id] && (
-                  <p className={styles.code}>New sign-in code: <span className="access-code">{codes[child.id]}</span> Save it now; it won’t be shown again.</p>
+                  <div className={styles.code} role="status">
+                    <span>New sign-in code for {child.name.split(/\s+/)[0]}</span>
+                    <strong className="access-code">{codes[child.id]}</strong>
+                    <button type="button" className="btn-link" onClick={() => void navigator.clipboard?.writeText(codes[child.id]!).catch(() => undefined)}>Copy</button>
+                    <small>Save it now: it won’t be shown again, and the old code no longer works.</small>
+                  </div>
+                )}
+
+                {confirmId === child.id && (
+                  <div className={styles.confirm} role="alertdialog" aria-label={`Make a new sign-in code for ${child.name}`}>
+                    <p>Make a new sign-in code for {child.name.split(/\s+/)[0]}? Their current code will stop working.</p>
+                    <div>
+                      <button type="button" className="btn btn-primary btn-pill" disabled={busyId === child.id} onClick={() => void newCode(child)}>
+                        {busyId === child.id ? "Making a code…" : "Make a new code"}
+                      </button>
+                      <button type="button" className="btn-link" onClick={() => setConfirmId(null)}>Cancel</button>
+                    </div>
+                  </div>
                 )}
 
                 <div className={styles.cardActions}>
                   <Link href={`/parent/students/${child.id}`} className="btn btn-primary btn-pill">See progress</Link>
                   <Link href={`/parent/students/${child.id}/weekly`} className="btn-link">Weekly update</Link>
                   <Link href={`/parent/students/${child.id}/summary`} className="btn-link">Latest practice</Link>
-                  <button type="button" className={`btn-link ${styles.pushRight}`} disabled={busyId === child.id} onClick={() => void newCode(child)}>
-                    {busyId === child.id ? "Making a code…" : "Lost the sign-in code?"}
+                  <button type="button" className={`btn-link ${styles.pushRight}`} aria-expanded={confirmId === child.id} onClick={() => setConfirmId(confirmId === child.id ? null : child.id)}>
+                    Lost the sign-in code?
                   </button>
                 </div>
               </li>
