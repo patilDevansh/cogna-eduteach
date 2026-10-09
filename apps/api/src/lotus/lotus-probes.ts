@@ -1,8 +1,8 @@
 import type { LotusPredictedMistake, LotusQuestion } from "@cogna/shared";
 import { LOTUS_SELECT_SEPARATOR } from "@cogna/shared";
 import { algebraicallyEqual, classifyFactorisation, factorisationDefect, normalizeMathText } from "./lotus-algebra";
-import { assertFixedItemIsValid, skillName, type SlotSpec } from "./lotus-factorisation-catalogue";
-import type { WriteRequest } from "./lotus-question-factory";
+import { skillName, type SlotSpec } from "./lotus-factorisation-catalogue";
+import { checkWrittenItem, type WriteRequest } from "./lotus-question-factory";
 import { buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
 
 /**
@@ -205,6 +205,10 @@ function fishing(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | 
 /** Garden fences: a monic trinomial with only positive numbers, built as the garden's two sides. (FAC_MONIC_TRINOMIAL) */
 function garden(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | null {
   const { p, q } = freshPair(rand, true);
+  // A pair containing 1 can have no alternative positive product pair.
+  // Those instances lack the second required misconception and were being
+  // discarded at installation, making the garden unexpectedly rare.
+  if (p === 1 || q === 1) return null;
   const expr = trinomial(p + q, p * q);
   const answer = `(${lin(p)})(${lin(q)})`;
   const mistakes: LotusPredictedMistake[] = [];
@@ -243,7 +247,7 @@ const PROBES: Array<{ skillId: string; build: Builder; when: (req: WriteRequest)
   { skillId: "FAC_PAIR_PRODUCT_SUM", build: firefly, when: () => true },
   // The only direct evidence for checking by expanding (nobody writes the check out): the base question and every re-check.
   { skillId: "FAC_VERIFY_EXPAND", build: impostor, when: (req) => !req.targetMistake || req.targetMistake === "EXPAND_CHECK_FAIL" || req.targetMistake === "CHECKED_FIRST_TERM_ONLY" },
-  { skillId: "FAC_GCF_NEGATIVE", build: detective, when: (req) => req.purpose === "CHECK" && (!req.targetMistake || req.targetMistake === "KEPT_ORIGINAL_SIGNS") },
+  { skillId: "FAC_GCF_NEGATIVE", build: detective, when: (req) => (req.purpose === "BASE" || req.purpose === "CHECK") && (!req.targetMistake || req.targetMistake === "KEPT_ORIGINAL_SIGNS") },
   { skillId: "FAC_MEANING", build: fishing, when: (req) => req.spec.mistakes.includes("SUM_ACCEPTED_AS_FACTORISED") && (!req.targetMistake || req.targetMistake === "SUM_ACCEPTED_AS_FACTORISED") },
   { skillId: "FAC_FACTOR_FULLY", build: fishing, when: (req) => req.purpose === "CHECK" && (!req.targetMistake || req.targetMistake === "INCOMPLETE_FACTORISATION") },
   // An easy trinomial, or one rewritten to avoid a sign gap: positive numbers only.
@@ -263,11 +267,9 @@ export function codeProbeFor(req: WriteRequest, env: NodeJS.ProcessEnv = process
     const print = normalizeMathText(item.answerKey.diagnostics?.expression ?? item.prompt).toLowerCase();
     if (avoid.has(print)) continue;
     if (req.targetMistake && !item.answerKey.diagnostics!.predictedMistakes.some((m) => m.mistake === req.targetMistake)) continue;
-    try {
-      assertFixedItemIsValid(item, "probe");
-    } catch {
-      continue;
-    }
+    // Retry a different instance if it cannot pass the same gate the writer
+    // queue uses, including its minimum number of predicted mistakes.
+    if (checkWrittenItem(req, item).length) continue;
     return item;
   }
   return null;

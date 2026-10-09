@@ -44,22 +44,28 @@ export function TileGame({
   onChange,
 }: {
   interaction: TileBuildInteraction;
-  /** "garden": the two brackets are the fences of a planted garden (Lotus GARDEN presentation). */
-  look?: "garden";
+  /** Visual staging only; all looks submit the same server-issued tile picks. */
+  look?: "garden" | "workshop" | "constellation";
   disabled?: boolean;
   /** Set once the answer is submitted: the scene plays its finishing move (frog crosses, crystal splits, lanterns light). */
   sealed?: boolean;
   onChange: (state: TileGameState) => void;
 }) {
   const [picks, setPicks] = useState<Array<number | null>>(() => Array.from({ length: interaction.slots }, () => null));
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const changesRef = useRef(0);
   const spec = look === "garden"
     ? { title: "Garden fences", instruction: "Choose the fence for the top and the fence for the side." }
+    : look === "workshop"
+      ? { title: "Factor workshop", instruction: "Assemble the factors. Tap a box to change a part." }
+    : look === "constellation"
+      ? { title: "Factor constellation", instruction: "Choose the factors to connect your stars." }
     : INTERACTION_FORMATS[interaction.format];
 
   useEffect(() => {
     setPicks(Array.from({ length: interaction.slots }, () => null));
     changesRef.current = 0;
+    setActiveSlot(null);
   }, [interaction]);
 
   function update(next: Array<number | null>) {
@@ -69,15 +75,19 @@ export function TileGame({
 
   function place(tile: number) {
     if (disabled || picks.includes(tile)) return;
-    const box = picks.indexOf(null);
+    const box = activeSlot ?? picks.indexOf(null);
     if (box < 0) return;
     const next = [...picks];
+    if (next[box] !== null) changesRef.current += 1;
     next[box] = tile;
+    setActiveSlot(null);
     update(next);
   }
 
   function takeOut(box: number) {
-    if (disabled || picks[box] === null) return;
+    if (disabled) return;
+    setActiveSlot(box);
+    if (picks[box] === null) return;
     changesRef.current += 1;
     const next = [...picks];
     next[box] = null;
@@ -93,6 +103,18 @@ export function TileGame({
         <strong>{spec.title}</strong> · {spec.instruction}
       </p>
       <div className={styles.scene}>
+        {theme === "workshop" && (
+          <div className={styles.workshopTop} aria-hidden="true">
+            <span className={styles.gear} data-turning={filled > 0 || undefined}>⚙</span>
+            <span>ASSEMBLY BENCH</span>
+            <span className={styles.assemblyCount}>{filled} / {interaction.slots} parts placed</span>
+          </div>
+        )}
+        {theme === "constellation" && (
+          <div className={styles.stars} aria-hidden="true">
+            {picks.map((pick, index) => <span key={index} data-placed={pick !== null || undefined}>✦</span>)}
+          </div>
+        )}
         <div className={styles.sign}>{prettyAlgebra(interaction.expression)}</div>
         {theme === "bridge" && (
           <>
@@ -111,6 +133,8 @@ export function TileGame({
                 type="button"
                 className={styles.box}
                 data-filled={picks[part.slot] !== null || undefined}
+                data-active={activeSlot === part.slot || undefined}
+                aria-pressed={activeSlot === part.slot}
                 onClick={() => takeOut(part.slot)}
                 disabled={disabled}
                 aria-label={picks[part.slot] === null ? `Box ${part.slot + 1}, empty` : `Box ${part.slot + 1}: ${interaction.tiles[picks[part.slot]!]}. Tap to take it out.`}
@@ -133,6 +157,7 @@ export function TileGame({
           </div>
         )}
       </div>
+      <p className={styles.hint}>Tap a tile to place it. Tap a filled box to take it out.</p>
       <div className={styles.bank}>
         {interaction.tiles.map((tile, i) => (
           <button

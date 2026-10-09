@@ -2247,6 +2247,14 @@ Create one materially different question that adds new diagnostic evidence. Test
           queue = { pending: [], running: 0, activeTurns: new Set(), blockedTurns: new Map() };
           this.writeQueues.set(sessionId, queue);
         }
+      // The bank retains the original answer-entry scene. Recompute it for
+      // this session's turn so an old bridge/workshop cannot override the
+      // current variety policy or turn a typed coverage slot into tiles.
+      if (candidate.interaction) {
+        delete candidate.interaction;
+        delete candidate.presentation;
+        candidate.asksForWorking = true;
+      }
         const prior = queue.blockedTurns.get(job.turn);
         queue.blockedTurns.set(job.turn, {
           until: outage.at + PROVIDER_OUTAGE_PROBE_MS,

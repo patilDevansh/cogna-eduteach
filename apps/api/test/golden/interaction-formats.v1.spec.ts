@@ -112,14 +112,35 @@ describe("tile games: building tile sets", () => {
 });
 
 describe("tile games in the Lotus diagnostic", () => {
-  it("turns turn 1, repurposed turns and every third turn into tile games, and drops the working request", () => {
+  it("turns turn 1, repurposed turns and alternating coverage turns into tile games, and drops the working request", () => {
     assert.ok(chooseLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, {}));
     assert.ok(chooseLotusInteraction(factoriseItem(), { turn: 7, repurposed: true }, {}));
     assert.ok(chooseLotusInteraction(factoriseItem(), { turn: 6, repurposed: false }, {}));
-    assert.equal(chooseLotusInteraction(factoriseItem(), { turn: 2, repurposed: false }, {}), undefined, "plain coverage turns stay typed with working");
+    assert.ok(chooseLotusInteraction(factoriseItem(), { turn: 2, repurposed: false }, {}), "interactive coverage starts early");
+    assert.equal(chooseLotusInteraction(factoriseItem(), { turn: 3, repurposed: false }, {}), undefined, "alternate coverage turns stay typed with working");
     const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, {});
     assert.equal(q.asksForWorking, false);
     assert.equal(q.interaction?.format, "BRACKET_BRIDGE");
+  });
+
+  it("varies tile scenes without changing the verified question or its answer", () => {
+    const q = withLotusInteraction(factoriseItem(), { turn: 2, repurposed: false }, {});
+    assert.equal(q.presentation, "CONSTELLATION");
+    assert.equal(q.prompt, factoriseItem().prompt);
+    assert.deepEqual(q.answerKey, factoriseItem().answerKey);
+    const built = assembleTileAnswer(q.interaction!, rightPicks(q.interaction!, ["x + 5", "x - 3"]));
+    assert.equal(classifyFactorisation(built!, q.answerKey.diagnostics!.expression!), "CORRECT");
+    const preserved = withLotusInteraction({ ...factoriseItem(), presentation: "GARDEN" }, { turn: 2, repurposed: false }, {});
+    assert.equal(preserved.presentation, "GARDEN", "an authored game is preserved");
+    const workshop = factoriseItem();
+    workshop.answerKey = {
+      kind: "OPEN_RESPONSE", canonicalAnswer: "2x(x + 5)", workedSolution: ["2x(x + 5)"],
+      diagnostics: { ...workshop.answerKey.diagnostics!, expression: "2x^2 + 10x", predictedMistakes: [] },
+    };
+    withLotusInteraction(workshop, { turn: 4, repurposed: false }, {});
+    assert.equal(workshop.presentation, "WORKSHOP");
+    const answer = assembleTileAnswer(workshop.interaction!, rightPicks(workshop.interaction!, ["2x", "(x + 5)"]));
+    assert.equal(classifyFactorisation(answer!, "2x^2 + 10x"), "CORRECT");
   });
 
   it("has one kill switch", () => {
@@ -240,10 +261,22 @@ describe("game questions in the Lotus diagnostic (code-built probes)", async () 
     { name: "fireflies", slot: 12, purpose: "BASE" as const, presentation: "FIREFLY" },
     { name: "spot the impostor", slot: 18, purpose: "BASE" as const, presentation: "IMPOSTOR" },
     { name: "detective", slot: 5, purpose: "CHECK" as const, targetMistake: "KEPT_ORIGINAL_SIGNS", presentation: "DETECTIVE" },
+    { name: "detective in initial coverage", slot: 5, purpose: "BASE" as const, presentation: "DETECTIVE" },
     { name: "fishing (what factorised means)", slot: 6, purpose: "BASE" as const, presentation: "FISHING" },
     { name: "fishing (factorise fully)", slot: 20, purpose: "CHECK" as const, targetMistake: "INCOMPLETE_FACTORISATION", presentation: "FISHING" },
     { name: "garden fences", slot: 13, purpose: "BASE" as const, presentation: "GARDEN" },
   ];
+  it("reliably includes detective and fishing in early coverage, and keeps incompatible checks typed", () => {
+    for (let seed = 0; seed < 60; seed++) {
+      for (const n of [5, 6, 12, 13]) {
+        const req = { spec: slot(n), purpose: "BASE" as const, variation: `variety-${seed}`, avoid: [] };
+        const item = codeProbeFor(req, {});
+        assert.ok(item, `slot ${n}, seed ${seed}: game available before later rechecks`);
+        assert.deepEqual(checkWrittenItem(req, item), [], `slot ${n}: passes installation checks`);
+      }
+    }
+    assert.equal(codeProbeFor({ spec: slot(5), purpose: "CHECK", targetMistake: "FLIPPED_ONE_SIGN", variation: "other-sign", avoid: [] }, {}), null);
+  });
   for (const c of cases) {
     it(`${c.name}: passes the writer's own checks, marks right as SECURE and a predicted wrong pick as its mistake`, () => {
       const req = { spec: slot(c.slot), purpose: c.purpose, targetMistake: c.targetMistake, variation: `test-${c.slot}`, avoid: [] };

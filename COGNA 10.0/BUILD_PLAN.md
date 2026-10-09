@@ -19,6 +19,8 @@
 
 ## Diagnostic-quality and adaptive-action repair
 
+- [x] MVP 10.0 UI maintenance (2026-10-08): math keys target final answers and selected working steps; workshop/constellation scenes and early Detective increase format variety; Garden instances pass the complete installation gate before selection.
+
 These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONTINUOUS_DIAGNOSTIC.md#8-repair-diagnostic-interpretation-and-the-action-loop-before-claiming-adaptivity), not completed functionality.
 
 - [ ] Persist pseudonymous standalone-demo and production response, analysis, timing, and plan-decision events so the previous 24 hours can be audited.

@@ -1,5 +1,14 @@
 # Build care
 
+## MVP 10.0 UI maintenance — 2026-10-08
+
+- Stable answer and working refs prevent rerenders from redirecting math keys. Each toolbar names its target and preserves cursor/selection.
+- Workshop and constellation visuals use unchanged server-issued tile payloads; placement animations never indicate correctness. Tile boxes remain keyboard accessible and motion respects reduced-motion preferences.
+- Initial negative-factor coverage may use Detective. Incompatible targeted checks stay with the writer. Garden candidates retry when they lack the required misconception distractors.
+- Reused AI bank items recompute their answer-entry scene for the new turn instead of inheriting a previous session's layout.
+- Live fake-model browser checks verified workshop placement, Detective, fishing, fireflies and constellation, plus repeated math insertion and selection replacement across answer/working fields.
+- Shared, web and API TypeScript checks pass. All 1,304 golden tests pass, including 46 interaction-format tests and repeated-seed early-game installation checks.
+
 - Preserve all older demo and prototype routes.
 - Never fall back from a failed production request to mock data.
 - Do not merge assisted or gamified practice into independent exit evidence.

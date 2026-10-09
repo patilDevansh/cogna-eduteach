@@ -16,15 +16,17 @@ A game changes how a student **enters** an answer or how a question is **staged*
 
 | Game | Item | When | Server |
 |---|---|---|---|
-| Bracket bridge / Split it | FACTORISE item, answered with tiles | Turn 1, every repurposed turn (check, descent, widen), every 3rd turn | `lotus-interactions.ts`, `interaction-formats/tile-builder.ts` |
+| Bracket bridge / Split it / Factor workshop / Factor constellation | FACTORISE item, answered with tiles | Turn 1, every repurposed turn (check, descent, widen), alternating coverage turns | `lotus-interactions.ts`, `interaction-formats/tile-builder.ts` |
 | Garden fences | Positive x² + bx + c, tiles | Easy trinomial slot; trinomial rewritten to avoid a sign gap | `lotus-probes.ts` |
 | Firefly catch | CHOICE: the product–sum pair | Pair slot | `lotus-probes.ts` |
 | Spot the impostor | CHOICE: the form that isn't equal | Verify-by-expanding slot | `lotus-probes.ts` |
-| Detective | CHOICE over `lines`: the first wrong line | Re-check of taking out a negative factor | `lotus-probes.ts` |
+| Detective | CHOICE over `lines`: the first wrong line | Initial negative-factor coverage and compatible re-checks | `lotus-probes.ts` |
 | Fishing | SELECT (new item kind): net every fully factorised expression | "What factorised means" slot; re-check of factorising fully | `lotus-probes.ts`, `instantVerdict` |
 
 - **Where game questions come from.** They are installed through the same writer queue as AI questions (`codeProbeFor` runs before the bank and the AI writer). They must pass `checkWrittenItem`, including covering the suspected mistake on a CHECK. They carry `origin: "CODE"` and `provenance: "CODE_BUILT_GAME"`, so observers never see them labelled AI-written.
 - **Which questions stay typed.** Everything else keeps typed answers with working, which is the richest evidence.
+- **Earlier variety.** Workshop parts slide onto an assembly bench; constellation stars respond to tile placement. Both use the existing server-issued factor tiles and marking. The normal negative-factor slot now stages Detective, while incompatible targeted mistakes retain their original writer path. Garden instances retry if they lack the required predicted mistakes instead of being silently discarded at installation.
+- **Bank reuse.** AI questions reused from the bank receive the current turn's answer-entry format instead of inheriting their old session's scene. Adaptive skill selection still takes priority over the usual game slots.
 - **SELECT marking.** The exact set is correct. Netting a wrong option logs that option's named mistake. Leaving a right one out has no named mistake, so the review decides what it means.
 - **The pond and the bloom.** The page shows a pond progress map (a frog and a petal per answer) and "Your lotus bloomed" at the end. It never shows a score, and nothing in a game reveals right or wrong.
 - **Read it to me.** `GET /lotus/sessions/:id/read-aloud` reads the current question with the configured voice (Cartesia), using `spokenMath` for the maths. It is cached per text and voice, and only reads what is already on the student's screen.
@@ -34,6 +36,7 @@ A game changes how a student **enters** an answer or how a question is **staged*
 Code names most mistakes from the final answer alone: every question carries the wrong answers its typical mistakes produce. Written working was only read by the background AI review, and only for wrong answers that match none of those mistakes. So typed questions no longer ask for it.
 
 - **Working is optional.** A typed question shows the answer box and maths keys. Working sits behind "Add working (optional)", and anything written there still goes to the review. Switch: `LOTUS_WORKING_PROMPT` = `optional` (default), `lines` (the three working lines, shown) or `split` (each student gets one arm, fixed by a hash of their id, for the pilot comparison). The arm is stored on the session as `workingPrompt`.
+- **Math keys target their section.** Final-answer keys insert into the final answer; working keys insert into the last focused working step, named in the toolbar. Both preserve the selected text/cursor and restore focus after insertion, including after React rerenders.
 - **"How did you get it?"** A wrong typed answer that matches none of the question's known mistakes gets one follow-up before the next question (`lotus-reasons.ts`). The choices are up to two of the question's own mistakes in the student's words (or one and "I knew the method but slipped up"), then "I wasn't sure what to do" and "I guessed". The browser gets only the words and opaque ids; the server rebuilds what each choice means from the question.
   - A named mistake or a slip is one negative on the skill: suspected, and only confirmed by a later question, like any other single mistake.
   - "I wasn't sure" is a support need (the planner checks an easier prerequisite).
