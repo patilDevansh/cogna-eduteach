@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Patch, Post, Req, Res } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Min } from "class-validator";
 import { resolveActor } from "../access/cogna-access";
 import { ClassTopicsService } from "./class-topics.service";
 import { ClassroomsService, type RosterImportRow } from "./classrooms.service";
+import { ClassroomEventsService, openEventStream } from "./classroom-events";
 
 class CreateClassroomDto {
   @IsString() @Length(2, 100) name!: string;
@@ -33,6 +35,15 @@ class LaunchPhaseDto {
   phase!: "DIAGNOSTIC" | "TEACHING" | "INDEPENDENT_EXIT";
 }
 
+class PauseRunDto {
+  @IsBoolean() paused!: boolean;
+}
+
+class TimeLimitDto {
+  /** Minutes from now; null removes the limit. */
+  @IsOptional() @IsInt() @Min(1) minutes?: number | null;
+}
+
 class CompleteAssignmentDto {
   @IsOptional() @IsString() diagnosticSessionId?: string;
   @IsOptional() @IsString() videoAssignmentId?: string;
@@ -44,7 +55,23 @@ export class ClassroomsController {
   constructor(
     private readonly classrooms: ClassroomsService,
     private readonly topics: ClassTopicsService,
+    private readonly events: ClassroomEventsService,
   ) {}
+
+  /** Live updates for the signed-in student's home page. Declared before ":classroomId/events" so it is matched first. */
+  @Get("student/events")
+  studentEvents(@Headers() headers: Record<string, string | string[] | undefined>, @Req() req: Request, @Res() res: Response): void {
+    const actor = resolveActor(headers);
+    if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    openEventStream(req, res, (send) => this.events.subscribeStudent(actor.studentId, send));
+  }
+
+  /** Live updates for the teacher's class page: progress, roster and student activity. */
+  @Get(":classroomId/events")
+  async classEvents(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+    await this.classrooms.ownedClassroom(resolveActor(headers), classroomId);
+    openEventStream(req, res, (send) => this.events.subscribeClass(classroomId, send));
+  }
 
   @Get()
   list(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
@@ -112,6 +139,12 @@ export class ClassroomsController {
     return this.classrooms.resetAccessCode(resolveActor(headers), classroomId, studentId);
   }
 
+  /** A new one-time code for a parent to link this school-made student to their account. */
+  @Post(":classroomId/students/:studentId/parent-code")
+  issueParentCode(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string) {
+    return this.classrooms.issueParentCode(resolveActor(headers), classroomId, studentId);
+  }
+
   @Delete(":classroomId/students/:studentId")
   removeStudent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string): Promise<unknown> {
     return this.classrooms.removeStudent(resolveActor(headers), classroomId, studentId);
@@ -135,6 +168,28 @@ export class ClassroomsController {
   @Post("runs/:runId/end")
   end(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string): Promise<unknown> {
     return this.classrooms.endRun(resolveActor(headers), runId);
+  }
+
+  /** Starts one student's check again (their diagnostic reopens; lesson and final question are cleared). */
+  @Post("runs/:runId/students/:studentId/restart")
+  restartStudent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Param("studentId") studentId: string): Promise<unknown> {
+    return this.classrooms.restartStudent(resolveActor(headers), runId, studentId);
+  }
+
+  @Post("runs/:runId/pause")
+  pauseRun(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Body() body: PauseRunDto): Promise<unknown> {
+    return this.classrooms.setPaused(resolveActor(headers), runId, body.paused);
+  }
+
+  @Post("runs/:runId/time-limit")
+  setTimeLimit(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Body() body: TimeLimitDto): Promise<unknown> {
+    return this.classrooms.setTimeLimit(resolveActor(headers), runId, body.minutes ?? null);
+  }
+
+  /** Reminds every student who hasn't started their step yet. */
+  @Post("runs/:runId/nudge")
+  nudge(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string) {
+    return this.classrooms.nudgeNotStarted(resolveActor(headers), runId);
   }
 
   @Get("runs/:runId/report")

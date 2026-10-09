@@ -1,3 +1,4 @@
+import type { ClassroomEventsService } from "../classrooms/classroom-events";
 import {
   BadRequestException,
   ConflictException,
@@ -149,6 +150,8 @@ interface DeferredAnalysisQueue {
 interface LotusServiceOptions {
   /** Test seam for comparing the bounded worker pool against a serialized baseline. */
   deferredAnalysisConcurrency?: number;
+  /** Tells an open teacher page when a student taking a class diagnostic answers. */
+  classEvents?: Pick<ClassroomEventsService, "lotusSaved">;
 }
 
 const MAX_QUESTIONS = 16;
@@ -723,6 +726,8 @@ export class LotusService implements OnModuleDestroy {
   /** Sessions whose in-memory state is not confirmed durable yet — set before every persist attempt, cleared only on success. The sweep must never evict one of these: doing so on a failed write would silently roll a session back to its last successfully saved turn. */
   private readonly dirty = new Set<string>();
   private readonly inFlightAnswers = new Map<string, Promise<LotusSessionView>>();
+  /** Session starts still running, per class assignment (see start()). */
+  private readonly startingForAssignment = new Map<string, Promise<LotusSessionView>>();
   /** Bounded review queues: avoid serialising Q2 behind a slow Q1 analysis. */
   private readonly analysisQueues = new Map<string, DeferredAnalysisQueue>();
   private readonly deferredAnalysisConcurrency: number;
@@ -741,6 +746,7 @@ export class LotusService implements OnModuleDestroy {
   private readonly factorisationOpeningPrints = new Set<string>();
   private readonly factory: LotusQuestionFactory;
   private readonly sweepTimer: NodeJS.Timeout;
+  private readonly classEvents?: Pick<ClassroomEventsService, "lotusSaved">;
 
   constructor(
     private readonly models: LotusModelService,
@@ -752,6 +758,7 @@ export class LotusService implements OnModuleDestroy {
       && options.deferredAnalysisConcurrency! <= 4
       ? options.deferredAnalysisConcurrency!
       : DEFERRED_ANALYSIS_CONCURRENCY;
+    this.classEvents = options.classEvents;
     this.factory = new LotusQuestionFactory({
       writeQuestion: (prompt) => this.models.writeQuestion(prompt),
       solveBlind: (prompt) => this.models.solveBlind(prompt),
@@ -815,9 +822,33 @@ export class LotusService implements OnModuleDestroy {
     };
   }
 
+  /**
+   * A class assignment has one Lotus session. Starting it again (a refresh, a
+   * second tab, a new phone) returns that session where it was left, finished
+   * or not, instead of opening a fresh test from question one.
+   */
   async start(studentId: string, topic: LotusTopic = "BRACKETS", classroomAssignmentId?: string): Promise<LotusSessionView> {
     this.models.assertReady();
-    const assignmentId = await this.ownAssignment(studentId, classroomAssignmentId);
+    const owned = await this.ownAssignment(studentId, classroomAssignmentId);
+    if (!owned) return this.startNew(studentId, topic);
+    const assignmentId = owned.id;
+    // Two tabs opening at once must not both miss the lookup and each start a session.
+    const starting = this.startingForAssignment.get(assignmentId);
+    if (starting) return starting;
+    const task = (async () => {
+      const existing = await this.prisma!.lotusSessionRecord.findFirst({
+        // A session from before the teacher restarted this student is not resumed.
+        where: { studentId, payload: { path: ["classroomAssignmentId"], equals: assignmentId }, ...(owned.availableAt ? { startedAt: { gte: owned.availableAt } } : {}) },
+        orderBy: { startedAt: "desc" },
+        select: { sessionId: true },
+      });
+      return existing ? this.get(existing.sessionId) : this.startNew(studentId, topic, assignmentId);
+    })().finally(() => this.startingForAssignment.delete(assignmentId));
+    this.startingForAssignment.set(assignmentId, task);
+    return task;
+  }
+
+  private async startNew(studentId: string, topic: LotusTopic, assignmentId?: string): Promise<LotusSessionView> {
     if (isPlannedLotusTopic(topic)) return this.startFactorisation(studentId, topic, await this.catchUpFocus(studentId, assignmentId), assignmentId);
     const startedAt = new Date().toISOString();
     const coveragePlan = buildLotusCoveragePlan(studentId).map(withQuestionId);
@@ -974,6 +1005,7 @@ export class LotusService implements OnModuleDestroy {
     if (session.status !== "ACTIVE" || !session.currentQuestion) {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
     }
+    await this.assertClassOpen(session);
 
     // A tile-game answer is rebuilt from the picks against the interaction this server issued.
     let resolved: LotusStudentResponse;
@@ -1911,10 +1943,24 @@ Create one materially different question that adds new diagnostic evidence. Test
    * normal diagnostic.
    */
   /** The assignment id, only when it really is this student's class assignment. */
-  private async ownAssignment(studentId: string, classroomAssignmentId?: string): Promise<string | undefined> {
+  private async ownAssignment(studentId: string, classroomAssignmentId?: string): Promise<{ id: string; availableAt: Date | null } | undefined> {
     if (!classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return undefined;
-    const row = await this.prisma.classroomAssignment.findFirst({ where: { id: classroomAssignmentId, enrollment: { studentId } }, select: { id: true } });
-    return row?.id;
+    const row = await this.prisma.classroomAssignment.findFirst({ where: { id: classroomAssignmentId, enrollment: { studentId } }, select: { id: true, availableAt: true } });
+    return row ?? undefined;
+  }
+
+  /**
+   * A class diagnostic takes no answers while the teacher has paused the class, or after the
+   * check has ended. The page keeps the typed answer, so the student submits it on resume.
+   */
+  private async assertClassOpen(session: LotusSessionState): Promise<void> {
+    if (!session.classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return;
+    const step = await this.prisma.classroomAssignment.findUnique({ where: { id: session.classroomAssignmentId }, select: { availableAt: true, run: { select: { status: true, config: true } } } });
+    if (!step) return;
+    if (step.availableAt && new Date(session.startedAt) < step.availableAt) throw new ConflictException("Your teacher restarted this check for you. Go back to your class page to start it again.");
+    if (step.run.status === "COMPLETE" || step.run.status === "CANCELLED") throw new ConflictException("Your teacher has ended this check.");
+    const pausedAt = (step.run.config as { pausedAt?: unknown } | null)?.pausedAt;
+    if (typeof pausedAt === "string" && pausedAt) throw new ConflictException("Your teacher has paused the class. Your answer is still here: submit it when they resume.");
   }
 
   private async catchUpFocus(studentId: string, classroomAssignmentId?: string): Promise<string[] | undefined> {
@@ -2201,6 +2247,14 @@ Create one materially different question that adds new diagnostic evidence. Test
       // must still satisfy the current slot/mistake constraints before use.
       if (checkWrittenItem({ ...job.request, avoid: this.testPrints(session, job.turn) }, candidate).length) continue;
       diagnostics.provenance = "AI_REUSED_FROM_BANK";
+      // The bank retains the original answer-entry scene. Recompute it for
+      // this session's turn so an old bridge/workshop cannot override the
+      // current variety policy or turn a typed coverage slot into tiles.
+      if (candidate.interaction) {
+        delete candidate.interaction;
+        delete candidate.presentation;
+        candidate.asksForWorking = true;
+      }
       await this.prisma.lotusQuestionBankItem.update({
         where: { id: row.id },
         data: { reuseCount: { increment: 1 }, lastReusedAt: new Date() },
@@ -2247,14 +2301,6 @@ Create one materially different question that adds new diagnostic evidence. Test
           queue = { pending: [], running: 0, activeTurns: new Set(), blockedTurns: new Map() };
           this.writeQueues.set(sessionId, queue);
         }
-      // The bank retains the original answer-entry scene. Recompute it for
-      // this session's turn so an old bridge/workshop cannot override the
-      // current variety policy or turn a typed coverage slot into tiles.
-      if (candidate.interaction) {
-        delete candidate.interaction;
-        delete candidate.presentation;
-        candidate.asksForWorking = true;
-      }
         const prior = queue.blockedTurns.get(job.turn);
         queue.blockedTurns.set(job.turn, {
           until: outage.at + PROVIDER_OUTAGE_PROBE_MS,
@@ -3027,6 +3073,15 @@ Create one materially different question that tests a competing explanation or a
         // without the evidence that justified it.
         await persistLotusSession(prisma, snapshot, outboxJobs, finalizedAudit);
         succeeded = true;
+        if (snapshot.classroomAssignmentId && this.classEvents) {
+          void this.classEvents.lotusSaved({
+            classroomAssignmentId: snapshot.classroomAssignmentId,
+            studentId: snapshot.studentId,
+            answeredSoFar: snapshot.audits.length,
+            lastActiveAt: snapshot.audits.at(-1)?.createdAt ?? snapshot.startedAt,
+            finished: snapshot.status === "COMPLETE",
+          }).catch(() => undefined);
+        }
       } catch (err) {
         this.logger.error(
           `Failed to persist Lotus session ${sessionId}: ${err instanceof Error ? err.message : String(err)}`,

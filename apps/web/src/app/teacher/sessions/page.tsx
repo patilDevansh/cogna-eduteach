@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError, type ClassRosterStudent, type ClassroomAssignmentKind, type ClassroomRunReport, type IssuedStudentCode, type PilotClassReport } from "@/lib/api";
+import { api, ApiError, liveUpdates, type ClassActivityEvent, type ClassRosterStudent, type ClassroomAssignmentKind, type ClassroomRunReport, type IssuedStudentCode, type PilotClassReport } from "@/lib/api";
+import { activityLine, applyActivity } from "@/lib/class-live";
+import { useEventStream } from "@/lib/event-stream";
 import { useTeacherClasses } from "@/lib/teacher-classes";
 import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
@@ -18,7 +20,10 @@ import styles from "./pilot.module.css";
  * (apps/api/src/classrooms/pilot-flow.ts), and this page shows it live.
  */
 
+/** Without live updates (sample mode, or the stream is down) the page re-reads this often. */
 const REFRESH_MS = 3000;
+/** With live updates, a slow re-read only catches anything the stream missed. */
+const LIVE_REFRESH_MS = 30_000;
 
 type Row = PilotClassReport["students"][number];
 
@@ -56,6 +61,7 @@ export default function PilotConsolePage() {
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState<string | null>(null);
 
   const [roster, setRoster] = useState<ClassRosterStudent[]>([]);
   const [issued, setIssued] = useState<IssuedStudentCode[] | null>(null);
@@ -77,21 +83,67 @@ export default function PilotConsolePage() {
     teacherData(sample).getClassRoster(classroomId).then((r) => rosterFor.current === key && setRoster(r)).catch(() => undefined);
   }, [classroomId, sample]);
 
+  // Only the latest report request may land: a slower, outdated load must not overwrite a newer one.
+  const reportSeq = useRef(0);
+  const refreshReport = useCallback(() => {
+    if (!runId) return;
+    const seq = ++reportSeq.current;
+    teacherData(sample).getClassroomRunReport(runId).then((r) => seq === reportSeq.current && setReport(r)).catch(() => undefined);
+  }, [runId, sample]);
+
+  // Live updates: a changed step reloads the report (a burst of them, once), a new answer patches its row.
+  const reportTimer = useRef<number | undefined>(undefined);
+  const soonRefreshReport = useCallback(() => {
+    window.clearTimeout(reportTimer.current);
+    reportTimer.current = window.setTimeout(refreshReport, 250);
+  }, [refreshReport]);
+  useEffect(() => () => window.clearTimeout(reportTimer.current), []);
+  const [topicTick, setTopicTick] = useState(0);
+  const live = useEventStream(classroomId && !sample ? liveUpdates.classUrl(classroomId) : null, liveUpdates.teacherHeaders, (event) => {
+    if (event.type === "ready") {
+      // (Re)connected: catch up on anything missed while the stream was down.
+      loadRoster();
+      soonRefreshReport();
+    } else if (event.type === "roster") {
+      loadRoster();
+    } else if (event.type === "progress") {
+      if (event.runId && event.runId !== runId && classroomId) void refreshClasses(classroomId);
+      else soonRefreshReport();
+      setTopicTick((n) => n + 1);
+    } else if (event.type === "activity") {
+      const update = event as unknown as ClassActivityEvent;
+      setReport((prev) => {
+        if (!prev) return prev;
+        const next = applyActivity(prev, update);
+        if (!next) soonRefreshReport();
+        return next ?? prev;
+      });
+    }
+  });
+  const refreshMs = live ? LIVE_REFRESH_MS : REFRESH_MS;
+
   useEffect(() => {
     setRoster([]);
     loadRoster();
-    const timer = window.setInterval(loadRoster, REFRESH_MS);
-    return () => window.clearInterval(timer);
   }, [loadRoster]);
+  useEffect(() => {
+    const timer = window.setInterval(loadRoster, refreshMs);
+    return () => window.clearInterval(timer);
+  }, [loadRoster, refreshMs]);
 
   useEffect(() => {
     if (!runId) return;
-    let current = true; // a slower, outdated load must not overwrite a newer one
-    const refresh = () => teacherData(sample).getClassroomRunReport(runId).then((r) => current && setReport(r)).catch(() => undefined);
-    void refresh();
-    const timer = window.setInterval(refresh, REFRESH_MS);
-    return () => { current = false; window.clearInterval(timer); };
-  }, [runId, sample]);
+    refreshReport();
+    const timer = window.setInterval(refreshReport, refreshMs);
+    return () => { reportSeq.current += 1; window.clearInterval(timer); };
+  }, [refreshReport, refreshMs]);
+
+  // "Active 2 min ago" keeps counting between reloads.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 20_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function createClass(event: React.FormEvent) {
     event.preventDefault();
@@ -144,6 +196,50 @@ export default function PilotConsolePage() {
       setConfirmEnd(false);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not end the check.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  /** Pause, time limit and restart all answer with the fresh report. */
+  async function runControl(key: string, action: () => Promise<ClassroomRunReport>, failure: string) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    setBusy(key);
+    setError("");
+    try {
+      setReport(await action());
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : failure);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  const [nudgeNote, setNudgeNote] = useState("");
+  async function nudge() {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    if (!runId) return;
+    setBusy("nudge");
+    setError("");
+    try {
+      const { nudged, alreadyReminded } = await api.nudgeClassroomRun(runId);
+      setNudgeNote(nudged ? `Reminded ${nudged} student${nudged === 1 ? "" : "s"}.` : alreadyReminded ? "Everyone waiting was reminded in the last minute." : "Everyone has started.");
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not send reminders.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function issueParentCode(student: ClassRosterStudent) {
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    setBusy(`parent:${student.studentId}`);
+    setError("");
+    try {
+      setIssued([await api.issueParentCode(classroomId, student.studentId)]);
+      loadRoster();
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not issue a parent code.");
     } finally {
       setBusy("");
     }
@@ -229,7 +325,7 @@ export default function PilotConsolePage() {
       )}
 
       {activeClass && !creating && (
-        <TopicPanel classroomId={activeClass.id} sample={sample} onCheckStarted={() => void refreshClasses(activeClass.id)} />
+        <TopicPanel classroomId={activeClass.id} sample={sample} live={live} changeTick={topicTick} onCheckStarted={() => void refreshClasses(activeClass.id)} />
       )}
 
       {creating || !runId ? (
@@ -282,6 +378,19 @@ export default function PilotConsolePage() {
             )}
           </section>
 
+          {report && !ended && runId && (
+            <CheckControls
+              controls={report.controls}
+              notStarted={(cr?.students ?? []).filter((row) => row.stage === "DIAGNOSTIC" && row.stageStatus === "READY").length}
+              now={now}
+              busy={busy}
+              note={nudgeNote}
+              onPause={(paused) => void runControl("pause", () => api.pauseClassroomRun(runId, paused), "Could not pause the check.")}
+              onTimeLimit={(minutes) => void runControl("limit", () => api.setClassroomRunTimeLimit(runId, minutes), "Could not set the time limit.")}
+              onNudge={() => void nudge()}
+            />
+          )}
+
           {t && (
             <section className={styles.totals} aria-label="Class totals">
               <Total label="Joined" value={t.enrolled} />
@@ -297,7 +406,7 @@ export default function PilotConsolePage() {
             <section className={styles.panel}>
               <div className={styles.panelHead}>
                 <h3>Students</h3>
-                <span className={styles.muted}>Updates every few seconds</span>
+                <span className={styles.muted} data-testid="live-status">{live ? "Live" : "Updates every few seconds"}</span>
               </div>
               <div className={styles.roster} role="table" aria-label="Student progress">
                 <div className={styles.rosterHead} role="row">
@@ -307,11 +416,16 @@ export default function PilotConsolePage() {
                   <span>Practice</span>
                   <span>Result</span>
                 </div>
-                {cr?.students.map((row) => (
-                  <div className={styles.rosterRow} role="row" key={row.studentId} data-testid="roster-row">
+                {cr?.students.map((row) => {
+                  const activity = activityLine(row, now);
+                  return (
+                  <div className={styles.rosterRow} role="row" key={row.studentId} data-testid="roster-row" data-quiet={activity?.quiet || undefined}>
                     <span className={styles.name}>
                       <i className={styles.avatar}>{row.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}</i>
-                      {row.name}
+                      <span className={styles.nameText}>
+                        {row.name}
+                        {activity && <small className={styles.activity} data-quiet={activity.quiet || undefined} data-testid="roster-activity">{activity.text}</small>}
+                      </span>
                     </span>
                     <span className={styles.steps}>
                       {STAGES.map((s) => (
@@ -331,9 +445,21 @@ export default function PilotConsolePage() {
                     <span>
                       <b className={styles.progress} data-progress={row.progress}>{PROGRESS_LABEL[row.progress]}</b>
                       {row.exitScore && <small className={styles.exitScore}>Alone, after the lesson: {row.exitScore.right} of {row.exitScore.total} right</small>}
+                      {!ended && row.stage !== "JOINED" && (
+                        confirmRestart === row.studentId ? (
+                          <span className={styles.rosterConfirm} role="group" aria-label={`Restart ${row.name}'s check`}>
+                            Start {row.name.split(" ")[0]}&apos;s check again? What they did is set aside.
+                            <button type="button" className={styles.removeYes} disabled={busy === `restart:${row.studentId}`} onClick={() => { setConfirmRestart(null); void runControl(`restart:${row.studentId}`, () => api.restartStudentCheck(runId, row.studentId), "Could not restart the check."); }}>Restart</button>
+                            <button type="button" className={styles.removeNo} onClick={() => setConfirmRestart(null)}>Cancel</button>
+                          </span>
+                        ) : (
+                          <button type="button" className={styles.rowAction} onClick={() => setConfirmRestart(row.studentId)} aria-label={`Restart ${row.name}'s check`}>Restart</button>
+                        )
+                      )}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
                 {!cr?.students.length && <p className={styles.muted}>No students yet. Share the join code.</p>}
               </div>
             </section>
@@ -404,6 +530,7 @@ export default function PilotConsolePage() {
           busy={busy}
           onRemove={(student) => void removeStudent(student)}
           onResetCode={(student) => void resetCode(student)}
+          onParentCode={(student) => void issueParentCode(student)}
           addStudents={sample ? <p className={styles.muted}>Adding students from a class list is turned off for sample data.</p> : <AddStudents classroomId={activeClass.id} onAdded={(codes) => { setIssued(codes); loadRoster(); }} />}
         />
       )}
@@ -411,9 +538,10 @@ export default function PilotConsolePage() {
   );
 }
 
-function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStudents }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void; onResetCode: (student: ClassRosterStudent) => void; addStudents: React.ReactNode }) {
+function RosterPanel({ roster, className, busy, onRemove, onResetCode, onParentCode, addStudents }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void; onResetCode: (student: ClassRosterStudent) => void; onParentCode: (student: ClassRosterStudent) => void; addStudents: React.ReactNode }) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
+  const [confirmingParent, setConfirmingParent] = useState<string | null>(null);
   const flagged = roster.filter((s) => s.alsoIn.length).length;
   return (
     <section className={styles.rosterPanel} aria-label={`Students in ${className}`}>
@@ -432,8 +560,15 @@ function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStuden
                 {s.name}
                 {s.rollNumber ? <small>Roll {s.rollNumber}</small> : null}
                 {s.alsoIn.length > 0 && <small className={styles.flag}>Also in {s.alsoIn.map((c) => c.name).join(", ")}</small>}
+                {s.schoolIssuedCode && <small data-testid="parent-status">{s.parentLinked ? "Parent linked" : s.parentCodeActive ? "Parent code sent home" : "No parent linked"}</small>}
               </span>
-              {confirmingCode === s.studentId ? (
+              {confirmingParent === s.studentId ? (
+                <span className={styles.rosterConfirm}>
+                  New parent code? Any earlier one stops working.
+                  <button type="button" className={styles.removeYes} onClick={() => { setConfirmingParent(null); onParentCode(s); }} disabled={busy === `parent:${s.studentId}`}>New parent code</button>
+                  <button type="button" className={styles.removeNo} onClick={() => setConfirmingParent(null)}>Cancel</button>
+                </span>
+              ) : confirmingCode === s.studentId ? (
                 <span className={styles.rosterConfirm}>
                   New code? The old one stops working.
                   <button type="button" className={styles.removeYes} onClick={() => { setConfirmingCode(null); onResetCode(s); }} disabled={busy === `code:${s.studentId}`}>New code</button>
@@ -448,6 +583,7 @@ function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStuden
               ) : (
                 <span className={styles.rosterActions}>
                   {s.schoolIssuedCode && <button type="button" className={styles.removeNo} onClick={() => setConfirmingCode(s.studentId)} aria-label={`New sign-in code for ${s.name}`}>New code</button>}
+                  {s.schoolIssuedCode && !s.parentLinked && <button type="button" className={styles.removeNo} onClick={() => setConfirmingParent(s.studentId)} aria-label={`New parent code for ${s.name}`}>Parent code</button>}
                   <button type="button" className={styles.removeNo} onClick={() => setConfirming(s.studentId)} aria-label={`Remove ${s.name} from ${className}`}>Remove</button>
                 </span>
               )}
@@ -455,6 +591,46 @@ function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStuden
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+const TIME_LIMITS = [10, 15, 20, 30, 45];
+
+/** The teacher's controls on a running check: pause, a time limit, and a reminder for anyone who hasn't started. */
+function CheckControls({ controls, notStarted, now, busy, note, onPause, onTimeLimit, onNudge }: {
+  controls?: ClassroomRunReport["controls"];
+  notStarted: number;
+  now: number;
+  busy: string;
+  note: string;
+  onPause: (paused: boolean) => void;
+  onTimeLimit: (minutes: number | null) => void;
+  onNudge: () => void;
+}) {
+  const paused = Boolean(controls?.pausedAt);
+  const endsAt = controls?.endsAt ? new Date(controls.endsAt) : null;
+  const left = endsAt ? Math.max(0, Math.ceil((endsAt.getTime() - now) / 60_000)) : null;
+  return (
+    <section className={styles.controls} aria-label="Check controls" data-paused={paused || undefined}>
+      <button type="button" className={paused ? styles.resumeButton : styles.pauseButton} disabled={busy === "pause"} onClick={() => onPause(!paused)}>
+        {paused ? "Resume" : "Pause"}
+      </button>
+      <span className={styles.controlText} data-testid="pause-status">
+        {paused ? "Paused: students can't start or answer until you resume." : "Running"}
+      </span>
+      <label className={styles.controlText}>
+        Time limit{" "}
+        <select value="" disabled={busy === "limit"} onChange={(e) => onTimeLimit(e.target.value === "none" ? null : Number(e.target.value))} aria-label="Set a time limit">
+          <option value="" disabled>{endsAt ? `Ends ${endsAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · ${left} min left` : "None"}</option>
+          {TIME_LIMITS.map((m) => <option key={m} value={m}>{m} minutes from now</option>)}
+          {endsAt && <option value="none">Remove the limit</option>}
+        </select>
+      </label>
+      <button type="button" className={styles.rowAction} disabled={busy === "nudge" || paused || notStarted === 0} onClick={onNudge}>
+        Remind {notStarted} who {notStarted === 1 ? "hasn't" : "haven't"} started
+      </button>
+      {note && <span className={styles.controlText} role="status">{note}</span>}
     </section>
   );
 }

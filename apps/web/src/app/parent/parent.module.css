@@ -42,3 +42,4 @@
 @media (max-width: 560px) {
   .stats { grid-template-columns: 1fr; }
 }
+.item[data-unread] { border-color: var(--accent); }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, classroomAssignmentHref, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
-import { stepFor } from "@/lib/class-steps";
+import { api, classroomAssignmentHref, liveUpdates, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
+import { useEventStream } from "@/lib/event-stream";
+import { classNotice, stepFor } from "@/lib/class-steps";
 import { getStudent, clearStudent } from "@/lib/session";
 import { conceptLabelStudent } from "@/lib/concept-labels";
 import styles from "@/components/dashboard.module.css";
@@ -80,30 +81,40 @@ export default function StudentHomePage() {
       .finally(() => setLoading(false));
   }, [router]);
 
-  // Class work: checked every 10 seconds and whenever the student comes back to this tab.
+  // Class work: reloaded the moment the teacher sends something (live updates), whenever the
+  // student comes back to this tab, and every 10 seconds if live updates aren't connected.
+  const [signedIn, setSignedIn] = useState(false);
+  const loadWork = useCallback(() => {
+    Promise.all([api.getStudentClasses(), api.getStudentClassroomAssignments()])
+      .then(([list, open]) => {
+        setClasses(list);
+        setWork(open);
+      })
+      .catch(() => setClasses((prev) => prev ?? []));
+  }, []);
+  const live = useEventStream(signedIn ? liveUpdates.studentUrl() : null, liveUpdates.studentHeaders, (event) => {
+    if (event.type === "work" || event.type === "nudge" || event.type === "ready") loadWork();
+  });
   useEffect(() => {
     if (!getStudent()?.token) {
       setClasses([]);
       return;
     }
-    const load = () => {
-      Promise.all([api.getStudentClasses(), api.getStudentClassroomAssignments()])
-        .then(([list, open]) => {
-          setClasses(list);
-          setWork(open);
-        })
-        .catch(() => setClasses((prev) => prev ?? []));
-    };
-    load();
+    setSignedIn(true);
+    loadWork();
     api.getStudentProgress().then(setProgress).catch(() => undefined);
-    const timer = window.setInterval(load, 10_000);
+  }, [loadWork]);
+  useEffect(() => {
+    if (!signedIn) return;
+    const load = loadWork;
+    const timer = window.setInterval(load, live ? 60_000 : 10_000);
     const onFocus = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onFocus);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, []);
+  }, [signedIn, live, loadWork]);
 
   function signOut() {
     clearStudent();
@@ -139,16 +150,22 @@ export default function StudentHomePage() {
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--s-5)" }}>
         {chrome}
         <div className={`${styles.phone} phase-in`}>
-          {work.map((item) => (
-            <div className={styles.heroCard} key={item.id}>
-              <span className={styles.kicker}>{item.run.classroom.name} · {item.run.title}</span>
-              <h2>{stepFor(item).title}</h2>
-              <p className={styles.meta}>{stepFor(item).note}</p>
-              <Link href={classroomAssignmentHref(item)} className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
-                {item.status === "IN_PROGRESS" ? "Carry on" : stepFor(item).cta} →
-              </Link>
-            </div>
-          ))}
+          {work.map((item) => {
+            const notice = classNotice(item, Date.now());
+            return (
+              <div className={styles.heroCard} key={item.id}>
+                <span className={styles.kicker}>{item.run.classroom.name} · {item.run.title}</span>
+                <h2>{stepFor(item).title}</h2>
+                <p className={styles.meta}>{stepFor(item).note}</p>
+                {notice && <p className={styles.meta} role="status" data-testid="class-notice" style={{ fontWeight: 700, color: "var(--caution)" }}>{notice.text}</p>}
+                {notice?.paused ? null : (
+                  <Link href={classroomAssignmentHref(item)} className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>
+                    {item.status === "IN_PROGRESS" ? "Carry on" : stepFor(item).cta} →
+                  </Link>
+                )}
+              </div>
+            );
+          })}
           {classes
             .filter((c) => !work.some((w) => w.run.classroom.id === c.classroomId))
             .map((c) => (

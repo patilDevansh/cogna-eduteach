@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { ClassroomAssignmentKind, ClassroomRunPhase, Prisma, UserRole } from "@cogna/database";
 import { AccessActor, assertTeacher } from "../access/cogna-access";
 import { hashAccessCode } from "../parents/access-code";
@@ -11,6 +11,8 @@ import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
 import { buildClassReport, type StudentEvidence } from "./class-report";
 import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
 import { checkKindOf, checkStudentIds, type CheckRows } from "./topic-flow";
+import { ClassroomEventsService } from "./classroom-events";
+import { catchUpSetUpdate, checkFinishedUpdate, newParentLinkCode, PARENT_LINK_DAYS, type ParentUpdate } from "./parent-updates";
 
 const PHASE_KIND = {
   DIAGNOSTIC: ClassroomAssignmentKind.DIAGNOSTIC,
@@ -33,11 +35,28 @@ const REMOVED_FROM_CLASS = "removedFromClass";
 @Injectable()
 export class ClassroomsService {
   private readonly logger = new Logger(ClassroomsService.name);
+  /** Diagnostic steps being settled right now (settleFinishedDiagnostics). */
+  private readonly settling = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly videos?: PersonalizedVideosService,
+    @Optional() private readonly events?: ClassroomEventsService,
   ) {}
+
+  /** Tells open pages what changed: the class's teacher page, and these students' home pages. */
+  private notify(classroomId: string, change: { runId?: string; roster?: boolean; studentIds?: string[] }): void {
+    if (!this.events) return;
+    if (change.roster) this.events.classChanged(classroomId, { type: "roster" });
+    this.events.classChanged(classroomId, { type: "progress", runId: change.runId });
+    if (change.studentIds?.length) this.events.studentsChanged(change.studentIds);
+  }
+
+  private async notifyRun(runId: string, studentIds?: string[]): Promise<void> {
+    if (!this.events) return;
+    const run = await this.prisma.classroomRun.findUnique({ where: { id: runId }, select: { classroomId: true } });
+    if (run) this.notify(run.classroomId, { runId, studentIds });
+  }
 
   /**
    * A class diagnostic the student finished but whose page never reported back
@@ -74,6 +93,23 @@ export class ClassroomsService {
     }
   }
 
+  /**
+   * Settles every running check's finished-but-unreported steps. Run in the
+   * background (ClassroomSettleWorker), so a closed tab is filed even when no
+   * one has a class page open.
+   */
+  async settleLiveChecks(): Promise<void> {
+    // Check by check: each pass looks at a bounded number of open steps, and one
+    // big check's unfinished steps must not crowd out another check's finished ones.
+    const live = await this.prisma.classroomRun.findMany({ where: { status: "LIVE" }, select: { id: true, classroomId: true, status: true, config: true } });
+    for (const run of live) {
+      await this.settleFinishedDiagnostics({ runId: run.id });
+      // A check whose time limit has passed ends, after its finished work is filed.
+      const endsAt = runEndsAt(run.config);
+      if (endsAt && Date.parse(endsAt) <= Date.now()) await this.closeRun(run);
+    }
+  }
+
   /** A live check whose every step is done or skipped is complete. */
   private async closeRunsWithNothingOpen(classroomId: string): Promise<void> {
     const live = await this.prisma.classroomRun.findMany({ where: { classroomId, status: "LIVE" }, select: { id: true } });
@@ -82,7 +118,10 @@ export class ClassroomsService {
         this.prisma.classroomAssignment.count({ where: { runId: run.id } }),
         this.prisma.classroomAssignment.count({ where: { runId: run.id, status: { in: ["READY", "IN_PROGRESS", "WAITING"] } } }),
       ]);
-      if (all > 0 && open === 0) await this.prisma.classroomRun.update({ where: { id: run.id }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } });
+      if (all > 0 && open === 0) {
+        await this.prisma.classroomRun.update({ where: { id: run.id }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } });
+        this.notify(classroomId, { runId: run.id });
+      }
     }
   }
 
@@ -91,23 +130,30 @@ export class ClassroomsService {
     await this.settleFinishedLessonSteps(where);
     const open = await this.prisma.classroomAssignment.findMany({
       where: { ...where, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: { in: ["READY", "IN_PROGRESS"] }, startedAt: { not: null } },
-      select: { id: true, enrollment: { select: { studentId: true } } },
+      select: { id: true, availableAt: true, enrollment: { select: { studentId: true } } },
       take: 60,
     });
     for (const assignment of open) {
+      // The background pass and a page load can reach the same step at once: one lesson per diagnostic.
+      if (this.settling.has(assignment.id)) continue;
+      // Claimed before the first await, so a second pass sees it taken.
+      this.settling.add(assignment.id);
       const studentId = assignment.enrollment.studentId;
-      const lotus = await this.prisma.lotusSessionRecord.findFirst({
-        where: { studentId, status: "COMPLETE", endedAt: { lt: new Date(Date.now() - 2 * 60_000) }, payload: { path: ["classroomAssignmentId"], equals: assignment.id } },
-        orderBy: { startedAt: "desc" },
-      });
-      if (!lotus) continue;
       const actor = { role: "student", studentId } as AccessActor;
       try {
+        const lotus = await this.prisma.lotusSessionRecord.findFirst({
+          // A session from before the teacher restarted this student doesn't count.
+          where: { studentId, status: "COMPLETE", endedAt: { lt: new Date(Date.now() - 2 * 60_000) }, payload: { path: ["classroomAssignmentId"], equals: assignment.id }, ...(assignment.availableAt ? { startedAt: { gte: assignment.availableAt } } : {}) },
+          orderBy: { startedAt: "desc" },
+        });
+        if (!lotus) continue;
         const lesson = await this.videos.createAssignment({ studentId, lotusSessionId: lotus.sessionId }, { actor });
         await this.completeAssignment(actor, assignment.id, { diagnosticSessionId: lotus.sessionId, videoAssignmentId: lesson.id, result: {} });
       } catch (error) {
-        // Retried on the next read; the student's own report page may still finish it first.
+        // Retried on the next pass; the student's own report page may still finish it first.
         this.logger.warn(`Could not settle class diagnostic ${assignment.id}: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        this.settling.delete(assignment.id);
       }
     }
   }
@@ -162,6 +208,7 @@ export class ClassroomsService {
             id: true,
             name: true,
             primaryParentId: true,
+            parentLinkCodeExpiresAt: true,
             classroomEnrollments: {
               where: { leftAt: null, classroomId: { not: classroomId }, classroom: { teacherId: classroom.teacherId, archivedAt: null } },
               select: { classroom: { select: { id: true, name: true } } },
@@ -178,6 +225,9 @@ export class ClassroomsService {
       joinedAt: row.joinedAt,
       alsoIn: row.student.classroomEnrollments.map((other) => other.classroom),
       schoolIssuedCode: Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id,
+      // A family account owns this student: either the parent made them, or claimed them with the code from school.
+      parentLinked: !(Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id),
+      parentCodeActive: Boolean(row.student.parentLinkCodeExpiresAt && row.student.parentLinkCodeExpiresAt > new Date()),
     }));
   }
 
@@ -195,6 +245,7 @@ export class ClassroomsService {
     ]);
     // If they were the last one a running check was waiting on, the check is finished.
     await this.closeRunsWithNothingOpen(classroomId);
+    this.notify(classroomId, { roster: true, studentIds: [studentId] });
     return { removed: true };
   }
 
@@ -215,19 +266,23 @@ export class ClassroomsService {
     if (bad >= 0) throw new BadRequestException(`Line ${bad + 1}: a name needs 2–80 characters and a roll number at most 40.`);
 
     const parentId = await this.rosterParentId(classroom.schoolId);
-    const created: Array<{ studentId: string; name: string; rollNumber?: string; accessCode: string }> = [];
+    const created: Array<{ studentId: string; name: string; rollNumber?: string; accessCode: string; parentCode: string; parentCodeExpiresAt: Date }> = [];
     const enrollmentIds: string[] = [];
     for (const row of cleaned) {
       const accessCode = await this.freshAccessCode();
+      // The parent's own code goes home on the same slip, so the family can link this child to their account.
+      const parentCode = newParentLinkCode();
+      const parentCodeExpiresAt = new Date(Date.now() + PARENT_LINK_DAYS * 86_400_000);
       const { student, enrollment } = await this.prisma.$transaction(async (tx) => {
-        const student = await tx.student.create({ data: { primaryParentId: parentId, name: row.name, grade: classroom.grade, accessCodeHash: hashAccessCode(accessCode) } });
+        const student = await tx.student.create({ data: { primaryParentId: parentId, name: row.name, grade: classroom.grade, accessCodeHash: hashAccessCode(accessCode), parentLinkCodeHash: hashAccessCode(parentCode), parentLinkCodeExpiresAt: parentCodeExpiresAt } });
         const enrollment = await tx.classroomEnrollment.create({ data: { classroomId, studentId: student.id, rollNumber: row.rollNumber } });
         return { student, enrollment };
       });
       enrollmentIds.push(enrollment.id);
-      created.push({ studentId: student.id, name: row.name, rollNumber: row.rollNumber, accessCode });
+      created.push({ studentId: student.id, name: row.name, rollNumber: row.rollNumber, accessCode, parentCode, parentCodeExpiresAt });
     }
     await this.giveRunningCheck(classroomId, enrollmentIds);
+    this.notify(classroomId, { roster: true });
     return { classroom: { id: classroom.id, name: classroom.name, joinCode: classroom.joinCode }, students: created };
   }
 
@@ -246,6 +301,63 @@ export class ClassroomsService {
     const accessCode = await this.freshAccessCode();
     await this.prisma.student.update({ where: { id: studentId }, data: { accessCodeHash: hashAccessCode(accessCode) } });
     return { studentId, name: enrollment.student.name, rollNumber: enrollment.rollNumber, accessCode };
+  }
+
+  /**
+   * A new parent link code for a school-made student (slip lost, or the first one expired). The old
+   * code stops working. Once a family has linked the child, the school can't hand them to anyone else.
+   */
+  async issueParentCode(actor: AccessActor, classroomId: string, studentId: string) {
+    const classroom = await this.ownedClassroom(actor, classroomId);
+    const enrollment = await this.prisma.classroomEnrollment.findUnique({
+      where: { classroomId_studentId: { classroomId, studentId } },
+      include: { student: { select: { name: true, primaryParentId: true } } },
+    });
+    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
+    if (enrollment.student.primaryParentId !== (await this.rosterParentId(classroom.schoolId))) {
+      throw new ForbiddenException("A parent has already linked this student to their account.");
+    }
+    const parentCode = newParentLinkCode();
+    const parentCodeExpiresAt = new Date(Date.now() + PARENT_LINK_DAYS * 86_400_000);
+    await this.prisma.student.update({ where: { id: studentId }, data: { parentLinkCodeHash: hashAccessCode(parentCode), parentLinkCodeExpiresAt: parentCodeExpiresAt } });
+    return { studentId, name: enrollment.student.name, rollNumber: enrollment.rollNumber, parentCode, parentCodeExpiresAt };
+  }
+
+  /**
+   * Adds updates to the dashboards of a student's parents. Never the school's placeholder
+   * account, never twice for the same event, and never a reason for the class action to fail.
+   */
+  private async tellParents(studentId: string, update: ParentUpdate): Promise<void> {
+    try {
+      const links = await this.prisma.parentStudentLink.findMany({
+        where: { studentId, canViewReports: true, parent: { user: { NOT: { clerkId: { startsWith: "school_roster:" } } } } },
+        select: { parentId: true },
+      });
+      if (!links.length) return;
+      await this.prisma.parentNotification.createMany({
+        data: links.map((link) => ({ parentId: link.parentId, studentId, kind: update.kind, title: update.title, body: update.body, dedupeKey: update.dedupeKey })),
+        skipDuplicates: true,
+      });
+    } catch (error) {
+      this.logger.warn(`Could not add a parent update for ${studentId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /** Once a student has nothing left to do in a check, their parents hear how it went. */
+  private async tellParentsIfFinished(runId: string, enrollmentId: string): Promise<void> {
+    try {
+      const open = await this.prisma.classroomAssignment.count({ where: { runId, enrollmentId, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } } });
+      if (open > 0) return;
+      const run = await this.prisma.classroomRun.findUnique({ where: { id: runId }, include: { classroom: { select: { id: true, name: true } } } });
+      const enrollment = await this.prisma.classroomEnrollment.findUnique({ where: { id: enrollmentId }, select: { studentId: true } });
+      if (!run || !enrollment) return;
+      const assignments = await this.prisma.classroomAssignment.findMany({ where: { runId, enrollmentId } });
+      const row = (await this.classReport(run.classroomId, [enrollment.studentId], assignments)).students[0];
+      if (row) await this.tellParents(enrollment.studentId, checkFinishedUpdate({ runId, className: run.classroom.name, checkTitle: run.title, row }));
+    } catch (error) {
+      // The student's step is already recorded; a missed parent update must not undo that.
+      this.logger.warn(`Could not prepare a parent update for run ${runId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private async rosterParentId(schoolId: string | null): Promise<string> {
@@ -281,6 +393,7 @@ export class ClassroomsService {
       data: { status: "READY", result: Prisma.DbNull, availableAt: new Date() },
     });
     await this.giveRunningCheck(classroom.id, [enrollment.id]);
+    this.notify(classroom.id, { roster: true, studentIds: [actor.studentId] });
     // A second section of the same teacher is usually a mistyped code: tell the student so they can say so.
     const alsoIn = await this.prisma.classroom.findMany({
       where: { id: { not: classroom.id }, teacherId: classroom.teacherId, archivedAt: null, enrollments: { some: { studentId: actor.studentId, leftAt: null } } },
@@ -293,7 +406,8 @@ export class ClassroomsService {
   private async giveRunningCheck(classroomId: string, enrollmentIds: string[]) {
     if (!enrollmentIds.length) return;
     const live = await this.prisma.classroomRun.findFirst({ where: { classroomId, status: "LIVE" }, orderBy: { createdAt: "desc" } });
-    if (!live || !autoAdvanceEnabled(live.config) || checkStudentIds(live.config)) return;
+    // A teacher-advanced check only takes newcomers while it is still on its diagnostic.
+    if (!live || checkStudentIds(live.config) || (!autoAdvanceEnabled(live.config) && live.phase !== "DIAGNOSTIC")) return;
     if (!(await this.prisma.classroomAssignment.count({ where: { runId: live.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } }))) return;
     await this.prisma.classroomAssignment.createMany({
       data: enrollmentIds.map((enrollmentId) => ({ runId: live.id, enrollmentId, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: "READY" as const, availableAt: new Date(), payload: live.config as Prisma.InputJsonValue })),
@@ -319,7 +433,8 @@ export class ClassroomsService {
     const run = await this.ownedRun(actor, runId);
     if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended. Start a new one.");
     const only = checkStudentIds(run.config);
-    const enrollmentIds = (await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null, ...(only ? { studentId: { in: only } } : {}) }, select: { id: true } })).map((row) => row.id);
+    const enrolled = await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null, ...(only ? { studentId: { in: only } } : {}) }, select: { id: true, studentId: true, student: { select: { name: true } } } });
+    const enrollmentIds = enrolled.map((row) => row.id);
     if (!enrollmentIds.length) throw new BadRequestException("Enroll at least one student before launching.");
     const kind = PHASE_KIND[phase];
     const prerequisites = phase === "TEACHING" ? ClassroomAssignmentKind.DIAGNOSTIC : phase === "INDEPENDENT_EXIT" ? ClassroomAssignmentKind.TEACHING : null;
@@ -337,19 +452,110 @@ export class ClassroomsService {
       this.prisma.classroomAssignment.createMany({ data: newAssignments, skipDuplicates: true }),
       this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: phase as ClassroomRunPhase, status: "LIVE", startedAt: run.startedAt ?? new Date() } }),
     ]);
+    this.notify(run.classroomId, { runId, studentIds: enrolled.map((row) => row.studentId) });
+    if (phase === "DIAGNOSTIC" && checkKindOf(run.config) === "CATCH_UP") {
+      const teacher = await this.teacher(actor);
+      for (const row of enrolled) {
+        await this.tellParents(row.studentId, catchUpSetUpdate({ runId, className: run.classroom.name, checkTitle: run.title, studentId: row.studentId, studentName: row.student.name, teacherName: teacher.name }));
+      }
+    }
     return this.report(actor, runId);
   }
 
   /** Teacher ends a check early: work already done stays in the results; every unfinished step is skipped. */
   async endRun(actor: AccessActor, runId: string) {
     const run = await this.ownedRun(actor, runId);
-    if (run.status !== "COMPLETE" && run.status !== "CANCELLED") {
-      await this.prisma.$transaction([
-        this.prisma.classroomAssignment.updateMany({ where: { runId, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED" } }),
-        this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } }),
-      ]);
-    }
+    await this.closeRun(run);
     return this.report(actor, runId);
+  }
+
+  /** Ends a check: by the teacher, or when its time limit runs out. */
+  private async closeRun(run: { id: string; classroomId: string; status: string }): Promise<void> {
+    if (run.status === "COMPLETE" || run.status === "CANCELLED") return;
+    await this.prisma.$transaction([
+      this.prisma.classroomAssignment.updateMany({ where: { runId: run.id, status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED" } }),
+      this.prisma.classroomRun.update({ where: { id: run.id }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } }),
+    ]);
+    const students = await this.prisma.classroomEnrollment.findMany({ where: { classroomId: run.classroomId, leftAt: null }, select: { studentId: true } });
+    this.notify(run.classroomId, { runId: run.id, studentIds: students.map((row) => row.studentId) });
+  }
+
+  /**
+   * Starts one student's check again: their diagnostic is reopened and their lesson and final
+   * question are cleared. Lotus ignores any session started before this (see LotusService.start).
+   */
+  async restartStudent(actor: AccessActor, runId: string, studentId: string) {
+    const run = await this.ownedRun(actor, runId);
+    if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended. Start a new one.");
+    const enrollment = await this.prisma.classroomEnrollment.findUnique({ where: { classroomId_studentId: { classroomId: run.classroomId, studentId } } });
+    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
+    const diagnostic = await this.prisma.classroomAssignment.findUnique({ where: { runId_enrollmentId_kind: { runId, enrollmentId: enrollment.id, kind: ClassroomAssignmentKind.DIAGNOSTIC } } });
+    if (!diagnostic) throw new BadRequestException("This student hasn't been sent this check.");
+    const restartedAt = new Date();
+    await this.prisma.$transaction([
+      this.prisma.classroomAssignment.deleteMany({ where: { runId, enrollmentId: enrollment.id, kind: { not: ClassroomAssignmentKind.DIAGNOSTIC } } }),
+      this.prisma.classroomAssignment.update({
+        where: { id: diagnostic.id },
+        data: {
+          status: "READY", startedAt: null, completedAt: null, diagnosticSessionId: null, videoAssignmentId: null, result: Prisma.DbNull, availableAt: restartedAt,
+          payload: { ...((diagnostic.payload ?? {}) as Record<string, unknown>), restartedAt: restartedAt.toISOString() } as Prisma.InputJsonValue,
+        },
+      }),
+    ]);
+    this.notify(run.classroomId, { runId, studentIds: [studentId] });
+    return this.report(actor, runId);
+  }
+
+  /** Pauses a running check: no step can be started and no Lotus answer is taken until it resumes. */
+  async setPaused(actor: AccessActor, runId: string, paused: boolean) {
+    const run = await this.ownedRun(actor, runId);
+    if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended.");
+    const config = { ...((run.config ?? {}) as Record<string, unknown>) };
+    if (paused) config.pausedAt = new Date().toISOString();
+    else delete config.pausedAt;
+    await this.prisma.classroomRun.update({ where: { id: runId }, data: { config: config as Prisma.InputJsonValue } });
+    await this.notifyEveryone(run.classroomId, runId);
+    return this.report(actor, runId);
+  }
+
+  /** Gives a running check an end time, minutes from now (or none). The background pass ends it then. */
+  async setTimeLimit(actor: AccessActor, runId: string, minutes: number | null) {
+    const run = await this.ownedRun(actor, runId);
+    if (run.status === "COMPLETE" || run.status === "CANCELLED") throw new BadRequestException("This check has ended.");
+    if (minutes !== null && (!Number.isInteger(minutes) || minutes < 1 || minutes > 180)) throw new BadRequestException("Choose a time limit between 1 and 180 minutes.");
+    const config = { ...((run.config ?? {}) as Record<string, unknown>) };
+    if (minutes === null) delete config.endsAt;
+    else config.endsAt = new Date(Date.now() + minutes * 60_000).toISOString();
+    await this.prisma.classroomRun.update({ where: { id: runId }, data: { config: config as Prisma.InputJsonValue } });
+    await this.notifyEveryone(run.classroomId, runId);
+    return this.report(actor, runId);
+  }
+
+  /**
+   * Reminds students who haven't started their step. Their open pages show it at once, and it
+   * stays on their home page for a while. A student reminded in the last minute is left alone.
+   */
+  async nudgeNotStarted(actor: AccessActor, runId: string) {
+    const run = await this.ownedRun(actor, runId);
+    if (run.status !== "LIVE") throw new BadRequestException("Only a running check can send reminders.");
+    if (runPausedAt(run.config)) throw new BadRequestException("Resume the check before sending reminders.");
+    const waiting = await this.prisma.classroomAssignment.findMany({ where: { runId, status: "READY", startedAt: null }, select: { id: true, payload: true, enrollment: { select: { studentId: true } } } });
+    const now = Date.now();
+    const due = waiting.filter((row) => {
+      const last = Date.parse(String((row.payload as { nudgedAt?: unknown } | null)?.nudgedAt ?? ""));
+      return !Number.isFinite(last) || now - last >= 60_000;
+    });
+    for (const row of due) {
+      await this.prisma.classroomAssignment.update({ where: { id: row.id }, data: { payload: { ...((row.payload ?? {}) as Record<string, unknown>), nudgedAt: new Date(now).toISOString() } as Prisma.InputJsonValue } });
+    }
+    const studentIds = [...new Set(due.map((row) => row.enrollment.studentId))];
+    this.events?.nudgeStudents(studentIds, { runId, title: run.title });
+    return { nudged: studentIds.length, alreadyReminded: waiting.length - due.length };
+  }
+
+  private async notifyEveryone(classroomId: string, runId: string): Promise<void> {
+    const students = await this.prisma.classroomEnrollment.findMany({ where: { classroomId, leftAt: null }, select: { studentId: true } });
+    this.notify(classroomId, { runId, studentIds: students.map((row) => row.studentId) });
   }
 
   async assignmentsForStudent(actor: AccessActor) {
@@ -375,7 +581,11 @@ export class ClassroomsService {
     const assignment = await this.ownedAssignment(actor, id);
     if (assignment.status === "COMPLETE") throw new BadRequestException("This assignment is already complete.");
     if (assignment.status !== "READY" && assignment.status !== "IN_PROGRESS") throw new BadRequestException("This assignment is not ready.");
-    return this.prisma.classroomAssignment.update({ where: { id }, data: { status: "IN_PROGRESS", startedAt: assignment.startedAt ?? new Date() } });
+    const run = await this.prisma.classroomRun.findUnique({ where: { id: assignment.runId }, select: { config: true } });
+    if (runPausedAt(run?.config)) throw new ConflictException(PAUSED_MESSAGE);
+    const started = await this.prisma.classroomAssignment.update({ where: { id }, data: { status: "IN_PROGRESS", startedAt: assignment.startedAt ?? new Date() } });
+    if (assignment.status !== "IN_PROGRESS") await this.notifyRun(assignment.runId);
+    return started;
   }
 
   async completeAssignment(actor: AccessActor, id: string, input: { diagnosticSessionId?: string; videoAssignmentId?: string; result: Record<string, unknown> }) {
@@ -393,6 +603,7 @@ export class ClassroomsService {
       const payload = lotus.payload as Record<string, unknown>;
       // The diagnostic must be the one taken for this check: same assignment when it says, and the check's topic.
       if (payload.classroomAssignmentId && payload.classroomAssignmentId !== assignment.id) throw new BadRequestException("That diagnostic was taken for a different check.");
+      if (assignment.availableAt && lotus.startedAt < assignment.availableAt) throw new BadRequestException("Your teacher restarted this check. Start it again from your class page.");
       const run = await this.prisma.classroomRun.findUnique({ where: { id: assignment.runId }, select: { topicId: true } });
       const wanted = run ? findTopic(run.topicId)?.lotus : undefined;
       if (wanted && (payload.topic ?? "BRACKETS") !== wanted) throw new BadRequestException("That diagnostic is on a different topic from this check.");
@@ -440,6 +651,8 @@ export class ClassroomsService {
     if (open === 0 && (assignment.kind === ClassroomAssignmentKind.INDEPENDENT_EXIT || (await this.isAutoRun(assignment.runId)))) {
       await this.prisma.classroomRun.update({ where: { id: assignment.runId }, data: { phase: "FINAL_REPORT", status: "COMPLETE", completedAt: new Date() } });
     }
+    await this.notifyRun(assignment.runId, [actor.studentId]);
+    await this.tellParentsIfFinished(assignment.runId, assignment.enrollmentId);
     return { ...completed, next };
   }
 
@@ -485,18 +698,32 @@ export class ClassroomsService {
   private async classReport(
     classroomId: string,
     studentIds: string[] | null,
-    assignments: Array<{ enrollmentId: string; kind: ClassroomAssignmentKind; status: string; startedAt: Date | null; completedAt: Date | null; diagnosticSessionId: string | null; videoAssignmentId: string | null }>,
+    assignments: Array<{ id: string; enrollmentId: string; kind: ClassroomAssignmentKind; status: string; availableAt?: Date | null; startedAt: Date | null; completedAt: Date | null; diagnosticSessionId: string | null; videoAssignmentId: string | null }>,
   ) {
     const enrollments = await this.prisma.classroomEnrollment.findMany({ where: { classroomId, leftAt: null, ...(studentIds ? { studentId: { in: studentIds } } : {}) }, include: { student: { select: { id: true, name: true } } }, orderBy: { joinedAt: "asc" } });
     const sessionIds = [...new Set(assignments.map((a) => a.diagnosticSessionId).filter((v): v is string => Boolean(v)))];
     const videoIds = [...new Set(assignments.map((a) => a.videoAssignmentId).filter((v): v is string => Boolean(v)))];
-    const [lotus, videos, exits] = await Promise.all([
+    // A diagnostic being taken is not linked to its step until it is done: find its session through the step id it carries.
+    const takingIds = assignments.filter((a) => a.kind === ClassroomAssignmentKind.DIAGNOSTIC && !a.diagnosticSessionId && (a.status === "READY" || a.status === "IN_PROGRESS")).map((a) => a.id);
+    const [lotus, videos, exits, taking, lastEvents] = await Promise.all([
       sessionIds.length ? this.prisma.lotusSessionRecord.findMany({ where: { sessionId: { in: sessionIds } } }) : [],
-      videoIds.length ? this.prisma.personalizedVideoAssignment.findMany({ where: { id: { in: videoIds } }, select: { id: true, status: true, script: true, scriptSource: true } }) : [],
+      videoIds.length ? this.prisma.personalizedVideoAssignment.findMany({ where: { id: { in: videoIds } }, select: { id: true, status: true, script: true, scriptSource: true, updatedAt: true } }) : [],
       videoIds.length ? this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId: { in: videoIds }, kind: "INDEPENDENT_EXIT" }, orderBy: { createdAt: "desc" } }) : [],
+      takingIds.length
+        ? this.prisma.lotusSessionRecord.findMany({ where: { OR: takingIds.map((id) => ({ payload: { path: ["classroomAssignmentId"], equals: id } })) }, select: { status: true, startedAt: true, payload: true }, orderBy: { startedAt: "asc" } })
+        : [],
+      videoIds.length ? this.prisma.personalizedVideoEvent.groupBy({ by: ["assignmentId"], where: { assignmentId: { in: videoIds } }, _max: { createdAt: true } }) : [],
     ]);
     const lotusBySession = new Map(lotus.map((r) => [r.sessionId, r]));
     const videoById = new Map(videos.map((v) => [v.id, v]));
+    // Oldest first, so the latest session for a step wins; one from before a restart doesn't count.
+    const availableAt = new Map(assignments.map((a) => [a.id, a.availableAt ?? null]));
+    const takingByAssignment = new Map(
+      taking
+        .map((r) => [String((r.payload as { classroomAssignmentId?: unknown }).classroomAssignmentId), r] as const)
+        .filter(([id, r]) => { const since = availableAt.get(id); return !since || r.startedAt >= since; }),
+    );
+    const lastEventByVideo = new Map(lastEvents.map((e) => [e.assignmentId, e._max.createdAt]));
     const evidence: StudentEvidence[] = enrollments.map((enrollment) => {
       const own = assignments.filter((a) => a.enrollmentId === enrollment.id);
       const sessionId = own.find((a) => a.diagnosticSessionId)?.diagnosticSessionId;
@@ -509,6 +736,14 @@ export class ClassroomsService {
       const tries = Object.values(script.practiceAttempts ?? {});
       const exit = videoId ? exits.find((e) => e.assignmentId === videoId) : undefined;
       const last = audits.at(-1)?.createdAt;
+      const takingStep = own.find((a) => a.kind === ClassroomAssignmentKind.DIAGNOSTIC && !a.diagnosticSessionId);
+      const live = takingStep ? takingByAssignment.get(takingStep.id) : undefined;
+      const liveAudits = ((live?.payload ?? {}) as { audits?: LotusQuestionAudit[] }).audits ?? [];
+      const lastActiveAt = latest([
+        ...own.flatMap((a) => [a.startedAt, a.completedAt]),
+        last, live?.startedAt, liveAudits.at(-1)?.createdAt,
+        video?.updatedAt, videoId ? lastEventByVideo.get(videoId) : undefined,
+      ]);
       return {
         studentId: enrollment.student.id,
         name: enrollment.student.name,
@@ -534,6 +769,8 @@ export class ClassroomsService {
             }
           : null,
         exit: exit ? (({ prompt, correct, items }) => ({ prompt, correct, items }))(exitResult(exits.filter((e) => e.assignmentId === videoId))) : null,
+        lastActiveAt,
+        ...(live ? { testFinished: live.status === "COMPLETE", answeredSoFar: liveAudits.length } : {}),
       };
     });
     return buildClassReport(evidence);
@@ -604,6 +841,7 @@ export class ClassroomsService {
     return {
       run,
       autoAdvance: autoAdvanceEnabled(run.config),
+      controls: { pausedAt: runPausedAt(run.config), endsAt: runEndsAt(run.config) },
       classReport: await this.classReport(run.classroomId, checkStudentIds(run.config), assignments),
       progress: byKind,
       summary: {
@@ -617,6 +855,31 @@ export class ClassroomsService {
       students: assignments.map((row) => ({ assignmentId: row.id, studentId: row.enrollment.student.id, studentName: row.enrollment.student.name, kind: row.kind, status: row.status, result: row.result })),
     };
   }
+}
+
+export const PAUSED_MESSAGE = "Your teacher has paused the class. You can carry on when they resume.";
+
+/** When the teacher paused this check, or null while it runs. */
+export function runPausedAt(config: unknown): string | null {
+  const value = (config as { pausedAt?: unknown } | null)?.pausedAt;
+  return typeof value === "string" && value ? value : null;
+}
+
+/** When this check ends by itself, or null without a time limit. */
+export function runEndsAt(config: unknown): string | null {
+  const value = (config as { endsAt?: unknown } | null)?.endsAt;
+  return typeof value === "string" && value ? value : null;
+}
+
+/** The most recent of some timestamps (Dates or ISO strings), or null when there are none. */
+function latest(values: Array<Date | string | null | undefined>): Date | null {
+  let best: Date | null = null;
+  for (const value of values) {
+    if (!value) continue;
+    const at = value instanceof Date ? value : new Date(value);
+    if (!Number.isNaN(at.getTime()) && (!best || at > best)) best = at;
+  }
+  return best;
 }
 
 /**

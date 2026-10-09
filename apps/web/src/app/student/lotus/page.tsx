@@ -1413,7 +1413,12 @@ function LotusPage() {
       const activeStudent = studentId.startsWith("demo_")
         ? await ensureDemoStudentSession(studentId, studentName, { forceRefresh: true })
         : { studentId };
+      // For a class assignment this may be the session already started for it (a refresh, another tab).
       const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined);
+      if (next.status === "COMPLETE" || next.reportPending) {
+        openReport(next.sessionId);
+        return;
+      }
       setPreviewQuestion(null);
       setPendingSubmission(null);
       setSession(next);
@@ -1885,17 +1890,17 @@ function LotusPage() {
                               <input
                                 aria-label={`Working step ${index + 1}`}
                                 data-working-index={index}
+                                ref={(field) => { workingFieldRefs.current[index] = field; }}
                                 value={line}
                                 onFocus={(event) => {
                                   if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                                   activeMathFieldRef.current = event.currentTarget;
+                                  setActiveWorkingIndex(index);
                                 }}
-                                ref={(field) => { workingFieldRefs.current[index] = field; }}
                                 onKeyDown={(event) => handleMathKeyDown(event, (value) => {
                                   setWorkingLines((lines) => lines.map((current, lineIndex) => lineIndex === index ? value : current));
                                 }, exponentModeRef, suppressMathChangeRef)}
                                 onChange={(event) => {
-                                  setActiveWorkingIndex(index);
                                   if (suppressMathChangeRef.current) { suppressMathChangeRef.current = false; return; }
                                   const next = [...workingLines];
                                   next[index] = formatTypedMath(event.target.value);
@@ -1907,12 +1912,12 @@ function LotusPage() {
                             </div>
                           ))}
                         </div>
+                        {mathToolbox("working")}
                         {workingLines.length < 6 && (
                           <button
                             type="button"
                             className={styles.addStep}
                             onClick={() => setWorkingLines((lines) => [...lines, ""])}
-                        {mathToolbox("working")}
                             disabled={inputLocked || didNotKnow}
                           >
                             + Add another step

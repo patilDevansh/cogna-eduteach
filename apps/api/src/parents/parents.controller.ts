@@ -50,6 +50,35 @@ export class ParentsController {
     return this.parents.listStudents(parentId);
   }
 
+  /** Links a school-made student with the one-time code on the slip from school. */
+  @Post("me/students/claim")
+  async claimStudent(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Body() body: { code?: string },
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.claimStudent(parentId, body?.code ?? "");
+  }
+
+  @Get("me/notifications")
+  async listNotifications(
+    @Headers("x-parent-id") parentIdHeader?: string,
+    @Headers("authorization") authHeader?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.listNotifications(parentId);
+  }
+
+  @Post("me/notifications/read")
+  async markNotificationsRead(
+    @Headers("x-parent-id") parentIdHeader?: string,
+    @Headers("authorization") authHeader?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.markNotificationsRead(parentId);
+  }
+
   @Post("me/students")
   async createStudent(
     @Headers("x-parent-id") parentIdHeader: string | undefined,

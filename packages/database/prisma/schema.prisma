@@ -330,8 +330,9 @@ model Parent {
   trialEndsAt        DateTime?
   subscriptionStatus String    @default("trial")
 
-  primaryStudents ParentStudentLink[] @relation("PrimaryParent")
-  createdAt       DateTime            @default(now())
+  primaryStudents ParentStudentLink[]  @relation("PrimaryParent")
+  notifications   ParentNotification[]
+  createdAt       DateTime             @default(now())
 }
 
 model Student {
@@ -344,6 +345,9 @@ model Student {
   curriculum      String    @default("CBSE")
   accessCodeHash  String
   deletedAt       DateTime?
+  /// One-time code a parent enters to link a school-made student to their own account. Hash only; cleared once used.
+  parentLinkCodeHash      String?   @unique
+  parentLinkCodeExpiresAt DateTime?
 
   /**
    * Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags.
@@ -351,6 +355,7 @@ model Student {
   aiAssistedPracticePaused Boolean @default(false)
 
   learnerProfile       LearnerProfile?
+  parentNotifications  ParentNotification[]
   sessions             LearningSession[]
   attempts             Attempt[]
   masteryScores        MasteryScore[]
@@ -1550,4 +1555,25 @@ model ApiSpendDay {
   updatedAt DateTime @updatedAt
 
   @@id([service, day])
+}
+
+/// An update from school for a parent, shown in their dashboard (a check finished, catch-up work set).
+model ParentNotification {
+  id        String    @id @default(cuid())
+  parentId  String
+  parent    Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  /// CHECK_FINISHED | CATCH_UP_SET
+  kind      String
+  title     String
+  body      String
+  /// The same event never notifies the same parent twice.
+  dedupeKey String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([parentId, dedupeKey])
+  @@index([parentId, createdAt])
+  @@index([studentId])
 }
