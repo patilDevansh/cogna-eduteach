@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { sessionSecretFromEnv, signPayload } from "@cogna/shared/dist/session";
+import { isProductionLike, sessionSecretFromEnv, signPayload } from "@cogna/shared/dist/session";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { NextResponse } from "next/server";
@@ -54,13 +54,15 @@ const DEMO_INVITATION: TeacherInvitation = {
 };
 
 function configuredInvitations(): TeacherInvitation[] {
+  // The demo invitation is public, so a deployed server never falls back to it.
+  const fallback = isProductionLike() ? [] : [DEMO_INVITATION];
   const configured = process.env.TEACHER_PILOT_INVITATIONS;
-  if (!configured) return [DEMO_INVITATION];
+  if (!configured) return fallback;
   try {
     const parsed = JSON.parse(configured) as TeacherInvitation[];
-    return Array.isArray(parsed) && parsed.length ? parsed : [DEMO_INVITATION];
+    return Array.isArray(parsed) && parsed.length ? parsed : fallback;
   } catch {
-    return [DEMO_INVITATION];
+    return fallback;
   }
 }
 

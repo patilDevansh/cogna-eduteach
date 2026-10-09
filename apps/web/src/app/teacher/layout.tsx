@@ -9,11 +9,11 @@ import { SampleModeProvider, useSampleMode } from "@/lib/teacher-mode";
 import styles from "./teacher.module.css";
 
 const links = [
-  ["Today", "/teacher/today", "◉"],
-  ["Class", "/teacher/sessions", "▶"],
-  ["Students", "/teacher/students", "◎"],
-  ["Reports", "/teacher/reports", "↗"],
-  ["Pilot story", "/teacher/pilot-story", "◇"],
+  ["Today", "/teacher/today"],
+  ["Class", "/teacher/sessions"],
+  ["Students", "/teacher/students"],
+  ["Reports", "/teacher/reports"],
+  ["Pilot story", "/teacher/pilot-story"],
 ];
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +29,7 @@ function TeacherShell({ pathname, children }: { pathname: string; children: Reac
   const { sample, setSample } = useSampleMode();
 
   return (
-    <div className={styles.teacherPage}>
+    <div className={`${styles.teacherPage} grain`}>
       <header className={styles.appHeader}>
         <div className={styles.appHeaderInner}>
           <Wordmark href="/teacher/today" size="1.35rem" />
@@ -47,10 +47,8 @@ function TeacherShell({ pathname, children }: { pathname: string; children: Reac
         <aside className={styles.sidebar}>
           <div className={styles.navLabel}>Workspace</div>
           <nav className={styles.nav} aria-label="Teacher navigation">
-            {links.map(([label, href, icon]) => (
-              <Link key={href} href={href} data-active={pathname === href}>
-                <span aria-hidden="true">{icon}</span>{label}
-              </Link>
+            {links.map(([label, href]) => (
+              <Link key={href} href={href} data-active={pathname === href}>{label}</Link>
             ))}
           </nav>
           <div className={styles.sampleSwitch}>
@@ -61,7 +59,7 @@ function TeacherShell({ pathname, children }: { pathname: string; children: Reac
             <p>{sample ? "Showing two sample classes. Your real classes are untouched." : "Show sample classes, e.g. for a demo."}</p>
           </div>
         </aside>
-        <main className={styles.main}>{children}</main>
+        <main id="main" className={styles.main}>{children}</main>
       </div>
     </div>
   );

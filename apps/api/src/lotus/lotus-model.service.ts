@@ -1,4 +1,5 @@
 import { ServiceUnavailableException } from "@nestjs/common";
+import { openAiStudentTextModerator, studentStrings } from "../ai/student-text-safety";
 import { ConfigService } from "@nestjs/config";
 import type {
   LotusDebateClosure,
@@ -274,7 +275,15 @@ export class LotusModelService {
       this.outage = null;
       const content = response.output_text;
       if (!content) throw new Error(`${agentLabel} returned an empty response.`);
-      return extractJson(content);
+      const value = extractJson(content);
+      // Anything but the blind solver's answer can reach a student, so it is
+      // safety-checked here, once, for every Lotus call. Fails closed: callers
+      // already treat a failed call as "use the fallback".
+      if (kind !== "blind-solve") {
+        const unsafe = await openAiStudentTextModerator(this.openai.getClient())(studentStrings(value));
+        if (unsafe) throw new Error(`${agentLabel}: ${unsafe}`);
+      }
+      return value;
     } catch (error) {
       const provider = classifyProviderError(error);
       if (provider) {

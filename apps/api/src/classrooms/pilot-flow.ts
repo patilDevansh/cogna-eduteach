@@ -31,7 +31,7 @@ export function nextStage(kind: StageKind): StageKind | null {
 export function stagesAfterDiagnostic(input: { outcome?: unknown; lessonStatus?: string | null }):
   | { kind: "CONTINUE" }
   | { kind: "SKIP_REST"; reason: string } {
-  if (input.outcome === "ADVANCEMENT") return { kind: "SKIP_REST", reason: "No gap found: factorisation looked secure across the skills tested." };
+  if (input.outcome === "ADVANCEMENT") return { kind: "SKIP_REST", reason: "No gap found: everything tested looked secure." };
   if (input.lessonStatus === "ABSTAINED") return { kind: "SKIP_REST", reason: "Lotus didn't find a clear enough starting point to teach from. The teacher decides the next step." };
   return { kind: "CONTINUE" };
 }

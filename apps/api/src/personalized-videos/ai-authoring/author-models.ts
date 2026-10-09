@@ -1,4 +1,5 @@
 import type { AuthoredCheckpoint, AuthoredLessonDraft, AuthoredScene } from "@cogna/shared";
+import { openAiStudentTextModerator, studentStrings } from "../../ai/student-text-safety";
 import type { OpenAIService } from "../../ai/openai.service";
 import { classifyProviderError } from "../../lotus/lotus-model.service";
 import { isReadable } from "../../lotus/lotus-algebra";
@@ -53,7 +54,12 @@ export class OpenAiLessonAuthor implements LessonAuthorModel {
       if (!content) throw new Error("The lesson author returned an empty response.");
       const start = content.indexOf("{");
       const end = content.lastIndexOf("}");
-      return JSON.parse(start >= 0 && end > start ? content.slice(start, end + 1) : content);
+      const draft: unknown = JSON.parse(start >= 0 && end > start ? content.slice(start, end + 1) : content);
+      // Narration, slides and practice all reach the student: safety-check them
+      // before the maths verifier even looks. A flagged draft is a failed attempt.
+      const unsafe = await openAiStudentTextModerator(this.openai.getClient())(studentStrings(draft));
+      if (unsafe) throw new Error(`The lesson draft was rejected: ${unsafe}`);
+      return draft;
     } catch (error) {
       const outage = classifyProviderError(error);
       if (outage) throw new AuthorUnavailableError(`The AI author is unavailable: ${outage.reason}`);

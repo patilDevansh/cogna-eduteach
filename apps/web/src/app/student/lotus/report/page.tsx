@@ -115,26 +115,19 @@ function ReportPage() {
           } catch {
             /* the lesson still exists server-side */
           }
-          if (classroomAssignmentId) {
-            void api
-              .completeClassroomAssignment(classroomAssignmentId, {
-                diagnosticSessionId: session.sessionId,
-                videoAssignmentId: created.id,
-                result: {
-                  outcome: session.finalReport?.outcome,
-                  startingPoint: session.finalReport?.startingPoint,
-                  observedStrengths: session.finalReport?.observedStrengths,
-                  uncertainties: session.finalReport?.uncertainAreas,
-                  audits: session.audits.length,
-                },
-              })
-              .then((done) => {
-                if (done.next?.kind === "TEACHING") setTeachingAssignmentId(done.next.id);
-              })
-              .catch(() => undefined);
-          }
           return created;
         });
+    // Tell the class the check is done, on a reload too (the server ignores repeats and works the
+    // result out from its own records). If the lesson couldn't be made, completing now would skip
+    // it, so the server finishes the step instead: it retries the lesson on the teacher's next poll.
+    if (classroomAssignmentId) {
+      start
+        .then((lesson) => api.completeClassroomAssignment(classroomAssignmentId, { diagnosticSessionId: session.sessionId, videoAssignmentId: lesson.id, result: {} }))
+        .then((done) => {
+          if (done.next?.kind === "TEACHING") setTeachingAssignmentId(done.next.id);
+        })
+        .catch(() => undefined);
+    }
     start.then(setLesson).catch((err) => setLessonError(err instanceof Error ? err.message : "Your lesson could not be started."));
   }, [complete, session, classroomAssignmentId]);
 

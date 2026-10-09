@@ -6,7 +6,7 @@ import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
 
-const REFRESH_MS = 10_000;
+const REFRESH_MS = 5_000;
 
 const STATUS_LABEL: Record<TopicStudentStatus, string> = {
   UNDERSTOOD: "Understood",
