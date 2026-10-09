@@ -3,6 +3,8 @@ import type {
   PracticeAnswer,
   PracticeCheckResult,
   PracticeSetView,
+  LessonThemeChoice,
+  PersonalizedLessonAnimationView,
   ConceptMasteryBand,
   ConfidenceCalibrationSummary,
   DiagnosticV2DebugView,
@@ -1072,3 +1074,7 @@ export function breakMinutesFromDecision(
   const n = params?.breakMinutes;
   return typeof n === "number" && n > 0 ? n : 3;
 }
+  /** The animated, voiced lesson in one world; the first open of a world narrates it (a few seconds). */
+  getLessonAnimation: (id: string, theme: LessonThemeChoice) =>
+    personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
+

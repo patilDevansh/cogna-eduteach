@@ -9,6 +9,7 @@ import type {
 import { api } from "@/lib/api";
 import { renderEquationSteps } from "./equation-highlight";
 import { SlideVisualView } from "./slide-visuals";
+import { LessonMotifBottom, LessonMotifTop, PipMascot, SceneBackdrop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 import S from "./slides.module.css";
 
@@ -366,6 +367,7 @@ export function InteractiveLessonPlayer({
   if (!started) {
     return (
       <>
+        <LessonMotifTop studentKey={assignment.studentKey} theme={assignment.lesson?.theme} />
         <div className={`${S.slide} ${accent}`}>
           <div className={S.top}>
             <span className={S.eyebrow}>{scene.eyebrow}</span>
@@ -386,13 +388,17 @@ export function InteractiveLessonPlayer({
           {progressBar}
         </div>
         {belowSlide}
+      <LessonMotifBottom studentKey={assignment.studentKey} theme={assignment.lesson?.theme} />
       </>
     );
   }
 
   return (
     <>
+      <LessonMotifTop studentKey={assignment.studentKey} theme={assignment.lesson?.theme} />
       <div className={`${S.slide} ${accent} ${paused ? S.paused : ""}`}>
+        <SceneBackdrop theme={assignment.lesson?.theme} sceneIndex={sceneIndex} />
+        <PipMascot theme={assignment.lesson?.theme} sceneIndex={sceneIndex} />
         <div className={S.top}>
           <span className={S.eyebrow}>{scene.eyebrow}</span>
           <span className={S.count}>{sceneIndex + 1} of {scenes.length}</span>
@@ -431,6 +437,7 @@ export function InteractiveLessonPlayer({
         {progressBar}
       </div>
       {belowSlide}
+      <LessonMotifBottom studentKey={assignment.studentKey} theme={assignment.lesson?.theme} />
       <div className={styles.controls}>
         <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={goPrevious}>
           ← Previous
