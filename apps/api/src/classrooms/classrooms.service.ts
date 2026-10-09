@@ -30,6 +30,9 @@ export interface RosterImportRow {
 /** Marks a step closed by removing the student, so rejoining can reopen exactly those steps. */
 const REMOVED_FROM_CLASS = "removedFromClass";
 
+/** How long a finished diagnostic waits for its lesson before it completes without one. */
+const LESSON_GRACE_MS = 2 * 60_000;
+
 @Injectable()
 export class ClassroomsService {
   private readonly logger = new Logger(ClassroomsService.name);
@@ -62,7 +65,9 @@ export class ClassroomsService {
       const studentId = assignment.enrollment.studentId;
       const video = await this.prisma.personalizedVideoAssignment.findFirst({ where: { id: assignment.videoAssignmentId!, studentId }, select: { id: true, script: true } });
       if (!video) continue;
-      const events = await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId: video.id, studentId, kind: assignment.kind === ClassroomAssignmentKind.TEACHING ? "COMPLETED" : "INDEPENDENT_EXIT", createdAt: { lt: new Date(Date.now() - (assignment.kind === ClassroomAssignmentKind.TEACHING ? 30 : 2) * 60_000) } }, select: { exitItem: true } });
+      // No grace period: the trusted result is read from the server's own records, so the
+      // browser has nothing to add, and the teacher should see the step done straight away.
+      const events = await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId: video.id, studentId, kind: assignment.kind === ClassroomAssignmentKind.TEACHING ? "COMPLETED" : "INDEPENDENT_EXIT" }, select: { exitItem: true } });
       const hasTransfer = Boolean((video.script as { transfer?: unknown } | null)?.transfer);
       const done = assignment.kind === ClassroomAssignmentKind.TEACHING ? events.length > 0 : events.some((e) => (e.exitItem ?? 0) === 0) && (!hasTransfer || events.some((e) => e.exitItem === 1));
       if (!done) continue;
@@ -86,30 +91,60 @@ export class ClassroomsService {
     }
   }
 
+  /**
+   * Completes every class diagnostic whose Lotus session has finished, on the next read by
+   * anyone (teacher poll, student home, parent), so no step waits on the student's browser.
+   * The lesson is created first, because a diagnostic completed without one skips the
+   * student's lesson; if creating it keeps failing, the step completes without it after
+   * LESSON_GRACE_MS so the teacher is never left waiting.
+   */
   private async settleFinishedDiagnostics(where: Prisma.ClassroomAssignmentWhereInput): Promise<void> {
     if (!this.videos) return;
     await this.settleFinishedLessonSteps(where);
     const open = await this.prisma.classroomAssignment.findMany({
-      where: { ...where, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: { in: ["READY", "IN_PROGRESS"] }, startedAt: { not: null } },
-      select: { id: true, enrollment: { select: { studentId: true } } },
+      where: { ...where, kind: ClassroomAssignmentKind.DIAGNOSTIC, status: { in: ["READY", "IN_PROGRESS"] } },
+      select: { id: true, status: true, enrollment: { select: { studentId: true } } },
       take: 60,
     });
     for (const assignment of open) {
       const studentId = assignment.enrollment.studentId;
+      // ponytail: one query per open diagnostic; only students mid-check are open, so this stays small. Batch it if classes grow past ~60.
       const lotus = await this.prisma.lotusSessionRecord.findFirst({
-        where: { studentId, status: "COMPLETE", endedAt: { lt: new Date(Date.now() - 2 * 60_000) }, payload: { path: ["classroomAssignmentId"], equals: assignment.id } },
+        where: { studentId, payload: { path: ["classroomAssignmentId"], equals: assignment.id } },
         orderBy: { startedAt: "desc" },
+        select: { sessionId: true, status: true, startedAt: true, endedAt: true },
       });
       if (!lotus) continue;
+      if (lotus.status !== "COMPLETE") {
+        // Started, even if the browser's "started" call never arrived: the teacher sees them as checking.
+        if (assignment.status === "READY") {
+          await this.prisma.classroomAssignment.updateMany({ where: { id: assignment.id, status: "READY" }, data: { status: "IN_PROGRESS", startedAt: lotus.startedAt } });
+        }
+        continue;
+      }
       const actor = { role: "student", studentId } as AccessActor;
+      let videoAssignmentId: string | undefined;
       try {
-        const lesson = await this.videos.createAssignment({ studentId, lotusSessionId: lotus.sessionId }, { actor });
-        await this.completeAssignment(actor, assignment.id, { diagnosticSessionId: lotus.sessionId, videoAssignmentId: lesson.id, result: {} });
+        videoAssignmentId = (await this.videos.createAssignment({ studentId, lotusSessionId: lotus.sessionId }, { actor })).id;
       } catch (error) {
-        // Retried on the next read; the student's own report page may still finish it first.
+        const ended = lotus.endedAt?.getTime() ?? 0;
+        const noGap = await this.lotusOutcome(lotus.sessionId) === "ADVANCEMENT";
+        if (!noGap && Date.now() - ended < LESSON_GRACE_MS) {
+          this.logger.warn(`Lesson for class diagnostic ${assignment.id} not ready yet, retrying: ${error instanceof Error ? error.message : String(error)}`);
+          continue;
+        }
+      }
+      try {
+        await this.completeAssignment(actor, assignment.id, { diagnosticSessionId: lotus.sessionId, videoAssignmentId, result: {} });
+      } catch (error) {
         this.logger.warn(`Could not settle class diagnostic ${assignment.id}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
+  }
+
+  private async lotusOutcome(sessionId: string): Promise<unknown> {
+    const record = await this.prisma.lotusSessionRecord.findUnique({ where: { sessionId }, select: { payload: true } });
+    return ((record?.payload as { finalReport?: { outcome?: unknown } } | null)?.finalReport ?? {}).outcome;
   }
 
   private async teacher(actor: AccessActor) {

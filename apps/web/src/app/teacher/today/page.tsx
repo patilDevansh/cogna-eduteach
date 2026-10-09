@@ -6,7 +6,7 @@ import { api, ApiError, type ClassTopicPlan, type ClassroomRunReport } from "@/l
 import { getTeacherInvitation } from "@/lib/session";
 import { useTeacherClasses } from "@/lib/teacher-classes";
 import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
-import { useRefreshTick } from "@/lib/use-refresh-tick";
+import { LIVE_MS, useRefreshTick } from "@/lib/use-refresh-tick";
 import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
 
@@ -146,7 +146,12 @@ export default function TeacherTodayPage() {
   useEffect(() => setTeacherName(getTeacherInvitation()?.teacherName?.split(/\s+/)[0] ?? ""), []);
 
   const runId = selected?.runs?.[0]?.id;
-  const tick = useRefreshTick();
+  // Live data: every 5s (and when the tab is shown again). The class list is re-read too,
+  // so a check started from another tab or the Class page shows up without a reload.
+  const tick = useRefreshTick(LIVE_MS);
+  useEffect(() => {
+    if (tick && selectedId) void refresh(selectedId);
+  }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useRef("");
   useEffect(() => {
     // Clear only when switching class or sample mode; a live refresh keeps the page on screen.
