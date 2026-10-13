@@ -220,6 +220,9 @@ function predictedWrong(service: LotusService, view: LotusSessionView): string {
   return internal(service, view.sessionId).currentQuestion.answerKey.diagnostics.predictedMistakes[0].answer;
 }
 
+/** A wrong answer that matches no predicted mistake: the one case code can't explain, so the AI review runs. */
+const UNEXPLAINED_WRONG = "5(x + 97)";
+
 let submissionCounter = 0;
 async function submit(
   service: LotusService,
@@ -333,7 +336,8 @@ describe("factorisation session — every Submit is instant", () => {
     assert.equal(answered, 25);
     assert.equal(view.finalReport!.outcome, "ADVANCEMENT");
     assert.deepEqual(view.finalReport!.notTested, []);
-    assert.ok(view.audits.every((audit) => audit.analysisStatus === "COMPLETE"));
+    // Every answer was settled by code, so none paid for the four-call AI review.
+    assert.ok(view.audits.every((audit) => audit.analysisStatus === "NOT_REQUIRED"));
   });
 
   for (const persona of ["demo_aarav", "demo_meena", "demo_rohan"]) {
@@ -602,7 +606,7 @@ describe("factorisation session — safety of the running test", () => {
     models.firstWrongStep = 2;
     let view = await startReady(service, "demo_aarav");
     // Q1's review is held open while the student races ahead to Q5.
-    view = await submit(service, view, "3(2x + 4)");
+    view = await submit(service, view, UNEXPLAINED_WRONG);
     for (let i = 0; i < 4; i += 1) {
       const predicted = predictedWrong(service, view);
       view = await submit(service, view, predicted);
@@ -619,7 +623,8 @@ describe("factorisation session — safety of the running test", () => {
     const skillsChecked = checks.map((t) => t.forSkill);
     assert.equal(skillsChecked.length, new Set(skillsChecked).size, "the same skill must never claim two targeted-check slots");
     for (let i = 1; i < 5; i += 1) {
-      assert.equal(session.audits[i].analysisStatus, "COMPLETE", `Q${i + 1}'s own instant/AI evidence is unaffected by Q1's delayed result`);
+      // Code named each of these mistakes, so they never queue a review; Q1's late one leaves them alone.
+      assert.equal(session.audits[i].analysisStatus, "NOT_REQUIRED", `Q${i + 1}'s own instant evidence is unaffected by Q1's delayed result`);
     }
   });
 
@@ -628,8 +633,8 @@ describe("factorisation session — safety of the running test", () => {
     let release!: () => void;
     models.closureGate = new Promise((resolve) => { release = resolve; });
     let view = await startReady(service, "demo_meera");
-    view = await submit(service, view, "3(2x + 4)");
-    view = await submit(service, view, predictedWrong(service, view));
+    view = await submit(service, view, UNEXPLAINED_WRONG);
+    view = await submit(service, view, UNEXPLAINED_WRONG);
     await flush();
     assert.equal(
       models.closures,
@@ -649,8 +654,8 @@ describe("factorisation session — safety of the running test", () => {
       const { models, service } = setup(concurrency);
       models.closureDelayMs = 45;
       let view = await startReady(service, `demo_latency_${concurrency}`);
-      view = await submit(service, view, "3(2x + 4)");
-      view = await submit(service, view, predictedWrong(service, view));
+      view = await submit(service, view, UNEXPLAINED_WRONG);
+      view = await submit(service, view, UNEXPLAINED_WRONG);
       await (service as unknown as { waitForSessionAnalyses: (sessionId: string) => Promise<void> })
         .waitForSessionAnalyses(view.sessionId);
       return internal(service, view.sessionId).audits as Array<{ analysisStartedAt?: string; analysisCompletedAt?: string }>;
@@ -665,7 +670,7 @@ describe("factorisation session — safety of the running test", () => {
     const { models, service } = setup();
     models.closureFailures = 1;
     let view = await startReady(service, "demo_retry_review");
-    view = await submit(service, view, predictedWrong(service, view));
+    view = await submit(service, view, UNEXPLAINED_WRONG);
     await (service as unknown as { waitForSessionAnalyses: (sessionId: string) => Promise<void> })
       .waitForSessionAnalyses(view.sessionId);
     const audit = internal(service, view.sessionId).audits[0];
@@ -683,8 +688,8 @@ describe("factorisation session — safety of the running test", () => {
       startReady(service, "demo_parallel_b"),
     ]);
     await Promise.all([
-      submit(service, first, predictedWrong(service, first)),
-      submit(service, second, predictedWrong(service, second)),
+      submit(service, first, UNEXPLAINED_WRONG),
+      submit(service, second, UNEXPLAINED_WRONG),
     ]);
     await flush();
     assert.equal(models.closures, 2, "independent sessions must both enter review while the closures are held");
