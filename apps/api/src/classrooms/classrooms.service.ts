@@ -456,7 +456,7 @@ export class ClassroomsService {
         const attempts = Object.values(script.practiceAttempts ?? {});
         trustedResult = {
           lessonStatus: video.status,
-          delivery: (video.renderResult as { interactive?: boolean } | null)?.interactive ? "SLIDES" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
+          delivery: (video.script as { format?: string } | null)?.format === "SHORT" ? "SHORT" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
           watched: true,
           practice: { total: script.practice?.items?.length ?? 0, attempted: attempts.length, correct: attempts.filter((a) => a.correct).length },
         };

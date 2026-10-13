@@ -28,7 +28,8 @@ export const PERSONALIZED_VIDEO_DELIVERIES = [
   "PREPARING",
   "UNDER_REVIEW",
   "VIDEO",
-  "SLIDES",
+  /** A small gap: only the 20-second lesson on the student's own answer. */
+  "SHORT",
   "HTML_FALLBACK",
   "UNAVAILABLE",
   "ABSTAINED",

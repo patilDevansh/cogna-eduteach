@@ -2489,17 +2489,20 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (!next) throw new BadRequestException("The next question was not authorized for this turn.");
     }
 
-    // Every answer with something written gets the AI review; a blank skip has nothing to read.
-    // An explicit support request is direct student evidence, not
-    // disengagement and not something a model has to invent a story about.
-    // Preserve the student's words and use a prerequisite check later, but
-    // do not render placeholder model text as a completed AI analysis.
-    const analyse = !instant.fastSkip && !response.didNotKnow;
+    // The four-call AI review runs only when code couldn't say what the answer shows (an
+    // unpredicted wrong answer, or one it can't read). When code has settled it, a right
+    // answer or a predicted mistake, the review can't change anything: its skill finding is
+    // used only when code found none (evidenceFromAnalysis), and the suspicion loop already
+    // re-checks a mistaken skill. A blank skip has nothing to read, and an explicit
+    // support request is direct student evidence, not something a model has to interpret.
+    const analyse = !instant.fastSkip && !response.didNotKnow && instant.needsAnalysis;
     const note = response.didNotKnow
       ? "The student said they do not know this yet. That is recorded as evidence of a support need; Lotus will check an easier prerequisite where possible."
       : analyse
         ? "Code marked this answer instantly. The AI review of the working runs in the background and can change later questions."
-        : "The answer was skipped without an explicit uncertainty signal.";
+        : instant.fastSkip
+          ? "The answer was skipped without an explicit uncertainty signal."
+          : "Code marked this answer and named the skill it shows, so no AI review was needed.";
     const asked = [...session.audits.map((audit) => audit.question), currentQuestion];
     const nextPlan = nextTurn !== null ? state.turns.find((turn) => turn.turn === nextTurn) : undefined;
     const audit: LotusQuestionAudit = {
@@ -2574,7 +2577,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     // staged continuation. Reserve only a later slot for any asynchronous
     // rewrite, so the writer has a real safe-placement window rather than
     // racing the student for the next turn.
-    const adjustments = this.adaptFactorisationPlan(session, true);
+    // When code has named the mistake itself, ask now for the dedicated, mistake-targeted
+    // check the AI review's "ask again" would have requested, so the gap can be confirmed
+    // without paying for a review that can't add anything.
+    const codeNamedMistakes = analyse ? [] : [...new Set((instant.evidence ?? [])
+      .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED")
+      .map((e) => e.skillId))];
+    const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes);
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();

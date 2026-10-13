@@ -4,6 +4,8 @@ import { LessonVideo } from "./LessonVideo";
 import { ProductLoop } from "./ProductLoop";
 import { DistributionLesson } from "./distribution/DistributionLesson";
 import { TrinomialLesson } from "./trinomial/TrinomialLesson";
+import { AuthoredLesson } from "./authored/AuthoredLesson";
+import { authoredDurationInFrames, type AuthoredLessonProps } from "./authored/build";
 import {
   AARAV_TRINOMIAL_EXAMPLE,
   buildTrinomialLesson,
@@ -36,6 +38,8 @@ const meenaPreview: DistributionLessonProps = buildDistributionLesson(MEENA_EXAM
 const aaravTrinomialPreview: TrinomialLessonProps = buildTrinomialLesson(AARAV_TRINOMIAL_EXAMPLE);
 
 const emptyProps: LessonVideoProps = { title: "Approved lesson", scenes: [] };
+
+const emptyAuthored: AuthoredLessonProps = { studentName: "", topic: "", variable: "x", scenes: [], checkpoints: [] };
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -74,6 +78,18 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={aaravTrinomialPreview}
         calculateMetadata={({ props }) => ({
           durationInFrames: trinomialDurationInFrames(props, lessonFps()),
+        })}
+      />
+      <Composition
+        id="AuthoredLesson"
+        component={AuthoredLesson}
+        durationInFrames={1}
+        fps={lessonFps()}
+        width={LESSON_VIDEO_WIDTH}
+        height={LESSON_VIDEO_HEIGHT}
+        defaultProps={emptyAuthored}
+        calculateMetadata={({ props }) => ({
+          durationInFrames: authoredDurationInFrames(props, lessonFps()),
         })}
       />
       <Composition

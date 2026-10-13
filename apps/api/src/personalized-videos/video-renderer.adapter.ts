@@ -103,7 +103,7 @@ export class VideoRendererAdapter {
    * Evidence-built animations (DistributionLesson) render only on the local
    * Remotion queue; a remote endpoint has no such composition.
    */
-  async submitAnimated(input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" }): Promise<{ providerJobId: string }> {
+  async submitAnimated(input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" | "authored" }): Promise<{ providerJobId: string }> {
     if (this.config.localRenderer && !this.config.endpoint && this.localQueue?.submitAnimated) {
       return this.localQueue.submitAnimated(input);
     }
