@@ -926,7 +926,7 @@ describe("Personalized video interactive equations", () => {
     }
   });
 
-  it("skips Remotion and delivers SLIDES with per-scene audio for a transformation lesson", async () => {
+  it("renders the lesson as a narrated video: there is no slides route", async () => {
     const restore = await isolateMediaRoot();
     try {
       const { renderer, manifests } = localMockRenderer();
@@ -935,77 +935,8 @@ describe("Personalized video interactive equations", () => {
 
       const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" });
 
-      assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked");
-      assert.equal(view.status, "READY");
-      assert.equal(view.delivery, "SLIDES");
-      assert.ok(view.lesson);
-      const narratedScenes = view.lesson!.scenes.filter((scene) => scene.narration);
-      assert.ok(
-        narratedScenes.some((scene) => scene.audioUrl),
-        "at least one scene should carry a signed narration audio URL",
-      );
-    } finally {
-      restore();
-    }
-  });
-
-  it("skips Remotion and delivers SLIDES even for a lesson with no EQUATION_TRANSFORMATION claim", async () => {
-    const restore = await isolateMediaRoot();
-    try {
-      const { renderer, manifests } = localMockRenderer();
-      const { tts } = fakeTts({ enabled: true });
-      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
-
-      const view = await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
-
-      assert.equal(manifests.length, 0, "the baked-video renderer should never be invoked, even without a drag-eligible claim");
-      assert.equal(view.status, "READY");
-      assert.equal(view.delivery, "SLIDES");
-      assert.ok(view.lesson);
-      assert.ok(view.lesson!.scenes.some((scene) => scene.audioUrl));
-    } finally {
-      restore();
-    }
-  });
-
-  it("falls back to the baked-video path when COGNA_SLIDES_DELIVERY_ENABLED=false", async () => {
-    const restore = await isolateMediaRoot();
-    const previousFlag = process.env.COGNA_SLIDES_DELIVERY_ENABLED;
-    process.env.COGNA_SLIDES_DELIVERY_ENABLED = "false";
-    try {
-      const { renderer, manifests } = localMockRenderer();
-      const { tts } = fakeTts({ enabled: true });
-      const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
-
-      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" });
-
-      assert.equal(manifests.length, 1, "the revert flag should route back through the baked-video renderer");
+      assert.equal(manifests.length, 1, "the lesson goes through the video renderer");
       assert.equal(view.delivery, "VIDEO");
-    } finally {
-      if (previousFlag === undefined) delete process.env.COGNA_SLIDES_DELIVERY_ENABLED;
-      else process.env.COGNA_SLIDES_DELIVERY_ENABLED = previousFlag;
-      restore();
-    }
-  });
-
-  it("verifyStep accepts a correct both-sides operation and rejects an incorrect one, writing no evidence event", async () => {
-    const restore = await isolateMediaRoot();
-    try {
-      const { renderer } = localMockRenderer();
-      const { tts } = fakeTts({ enabled: true });
-      const { videos, db } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
-      const actor = studentActor("demo_divya");
-
-      const view = await createThenRead(videos, { studentId: "demo_divya", studentKey: "divya" }, actor);
-      assert.equal(view.delivery, "SLIDES");
-      // Divya's scene index 1 is "Cancel negative six with positive six" (from "2x-6=8", chip "+ 6").
-      const correct = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8+6" }, actor);
-      assert.equal(correct.valid, true);
-      const incorrect = await videos.verifyStep(view.id, { sceneIndex: 1, assembledLine: "2x-6+6=8-6" }, actor);
-      assert.equal(incorrect.valid, false);
-
-      const events = await db.personalizedVideoEvent.findMany({ where: { assignmentId: view.id } });
-      assert.equal(events.length, 0, "practice attempts must never write a diagnostic evidence event");
     } finally {
       restore();
     }

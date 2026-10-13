@@ -12,17 +12,6 @@ import {
   ValidateIf,
 } from "class-validator";
 
-export class PersonalizedVideoVerifyStepDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  sceneIndex!: number;
-
-  @IsString()
-  @IsNotEmpty()
-  assembledLine!: string;
-}
-
 export class CreatePersonalizedVideoAssignmentDto {
   @IsOptional()
   @IsString()
