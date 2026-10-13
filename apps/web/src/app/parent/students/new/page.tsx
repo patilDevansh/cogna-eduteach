@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useParentAuth } from "@/lib/parent-auth-context";
+import { forgetParentCode, pendingParentCode, rememberParentCodeFromUrl } from "@/lib/pending-parent-code";
 import styles from "@/components/login.module.css";
 
 export default function NewStudentPage() {
@@ -22,6 +23,13 @@ export default function NewStudentPage() {
 
   useEffect(() => {
     document.title = "Add student — Cogna";
+    // Arrived from the invite email: open the school-code form with the code filled in.
+    rememberParentCodeFromUrl();
+    const code = pendingParentCode();
+    if (code) {
+      setFromSchool(true);
+      setSchoolCode(code);
+    }
   }, []);
 
   useEffect(() => {
@@ -52,6 +60,7 @@ export default function NewStudentPage() {
     setError("");
     try {
       const result = await api.claimStudentWithCode(await getAuth(), schoolCode);
+      forgetParentCode();
       setLinked(result.name);
     } catch (err) {
       setError(err instanceof Error ? err.message : "That code didn't work.");
@@ -69,7 +78,7 @@ export default function NewStudentPage() {
           <div className={styles.parentCard}>
             <div className={styles.parentHead}>
               <h1>{linked} is linked</h1>
-              <p>You&apos;ll see how {linked.split(" ")[0]} does in class, and updates from school appear on your dashboard. They keep signing in with the code from their slip.</p>
+              <p>You&apos;ll see how {linked.split(" ")[0]} does in class, and updates from school appear on your dashboard. They keep signing in with their own code.</p>
             </div>
             <Link href="/parent/dashboard" className="btn btn-primary btn-lg">Back to your children</Link>
           </div>
@@ -85,7 +94,7 @@ export default function NewStudentPage() {
           <div className={styles.parentCard}>
             <div className={styles.parentHead}>
               <h1>Link a child from school</h1>
-              <p>Type the parent code from the slip your child brought home. It looks like ABCDE-23456 and works once.</p>
+              <p>Type the parent code from the email or the slip your child brought home. It looks like ABCDE-23456 and works once.</p>
             </div>
             <form onSubmit={handleClaim} className="stack-4">
               <div className="field">
@@ -95,7 +104,7 @@ export default function NewStudentPage() {
               <p className="muted">Linking your child means you agree to the practice they do with their class on Cogna.</p>
               {error && <p className="error">{error}</p>}
               <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>{loading ? "Linking…" : "Link my child"}</button>
-              <button type="button" className="btn btn-secondary" onClick={() => { setFromSchool(false); setError(""); }}>My child isn&apos;t with a school on Cogna</button>
+              <button type="button" className="btn btn-secondary" onClick={() => { forgetParentCode(); setFromSchool(false); setError(""); }}>My child isn&apos;t with a school on Cogna</button>
             </form>
           </div>
         </div>

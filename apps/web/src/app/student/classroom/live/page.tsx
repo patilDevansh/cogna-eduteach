@@ -2,12 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, ApiError, classroomAssignmentHref, liveUpdates, type ClassroomStudentAssignment } from "@/lib/api";
+import { api, ApiError, classroomAssignmentHref, liveUpdates, type ClassroomStudentAssignment, type ParentInviteResult } from "@/lib/api";
 import { useEventStream } from "@/lib/event-stream";
 import { clearStudent, getStudent, isFixtureStudentSession, type StudentSessionRecord } from "@/lib/session";
 import { Wordmark } from "@/components/ui";
 import { classNotice, stepFor } from "@/lib/class-steps";
 import styles from "../student-demo.module.css";
+
+/** What the student is told after asking Cogna to email their parent. Null: say nothing. */
+function inviteLine(result: ParentInviteResult | undefined): string | null {
+  switch (result?.status) {
+    case "SENT": return `We emailed your parent at ${result.invitedTo}. They can follow your progress once they link you.`;
+    case "NOT_CONFIGURED": return "Email isn't set up on Cogna yet, so nothing was sent. Ask your teacher for your parent's slip.";
+    case "FAILED": return "We couldn't send the email just now. Try again later.";
+    case "TOO_SOON": return "We just sent your parent an email. Wait a couple of minutes before sending another.";
+    case "DAILY_LIMIT": return "That's the most emails we can send today. Try again tomorrow.";
+    default: return null;
+  }
+}
 
 function classroomGreeting(student: StudentSessionRecord | null, joinedClass: string | null): string {
   if (joinedClass) return "You're in.";
@@ -27,6 +39,10 @@ export default function ProductionClassroomPage() {
   // Kept apart from `error`: the assignment refresh clears that one, and a join error must stay visible.
   const [joinError, setJoinError] = useState("");
   const [student, setStudent] = useState<StudentSessionRecord | null>(null);
+  // Asked only while no family has linked this student: then Cogna emails the parent a link code.
+  const [parentEmail, setParentEmail] = useState("");
+  const [parentStatus, setParentStatus] = useState<{ linked: boolean; invitedTo: string | null } | null>(null);
+  const [inviteNote, setInviteNote] = useState<string | null>(null);
 
   useEffect(() => {
     const existing = getStudent();
@@ -36,6 +52,7 @@ export default function ProductionClassroomPage() {
       return;
     }
     setStudent(existing);
+    if (existing?.token) api.getParentInviteStatus().then(setParentStatus).catch(() => undefined);
   }, []);
 
   async function refresh() {
@@ -63,9 +80,14 @@ export default function ProductionClassroomPage() {
     event.preventDefault();
     setJoinError("");
     try {
-      const result = await api.joinClassroom({ joinCode: code.trim(), rollNumber: rollNumber.trim() || undefined });
+      const result = await api.joinClassroom({ joinCode: code.trim(), rollNumber: rollNumber.trim() || undefined, parentEmail: parentEmail.trim() || undefined });
       setJoined(result.classroom.name);
       setAlsoIn(result.alsoIn?.map((c) => c.name) ?? []);
+      setInviteNote(inviteLine(result.parentInvite));
+      if (result.parentInvite?.status === "SENT") {
+        setParentStatus({ linked: false, invitedTo: result.parentInvite.invitedTo ?? null });
+        setParentEmail("");
+      }
       await refresh();
     } catch (cause) {
       setJoinError(cause instanceof ApiError ? cause.message : "Could not join the class.");
@@ -115,6 +137,22 @@ export default function ProductionClassroomPage() {
                   <label>Roll number</label>
                   <input className={styles.input} value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} />
                 </div>
+                {parentStatus && !parentStatus.linked && (
+                  <div className={styles.field}>
+                    <label htmlFor="parent-email">Parent&apos;s email <span style={{ fontWeight: 400 }}>(optional)</span></label>
+                    <input
+                      id="parent-email"
+                      className={styles.input}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="off"
+                      placeholder={parentStatus.invitedTo ? `Already sent to ${parentStatus.invitedTo}` : "parent@example.com"}
+                      value={parentEmail}
+                      onChange={(e) => setParentEmail(e.target.value)}
+                    />
+                    <small style={{ color: "var(--ink-soft)" }}>We&apos;ll email them a link so they can see your class work and progress.</small>
+                  </div>
+                )}
                 {(joinError || error) && <div className={styles.error}>{joinError || error}</div>}
                 <button className={styles.button}>Join class →</button>
                 {joined && (
@@ -122,6 +160,7 @@ export default function ProductionClassroomPage() {
                     <strong>Joined:</strong> {joined}
                   </div>
                 )}
+                {inviteNote && <div className={styles.hint} role="status" data-testid="parent-invite-note">{inviteNote}</div>}
                 {joined && alsoIn.length > 0 && (
                   <div className={styles.error} role="status">
                     You&apos;re also in {alsoIn.join(" and ")}. If you&apos;re only meant to be in one class, tell your teacher.

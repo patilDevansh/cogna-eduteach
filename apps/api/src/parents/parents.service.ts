@@ -296,7 +296,7 @@ export class ParentsService {
       throw new UnauthorizedException("Parent cannot view reports for this student.");
     }
 
-    const [classes, lessons, checksDone, lastCheck, growth] = await Promise.all([
+    const [classes, lessons, checksDone, lastCheck, growth, work] = await Promise.all([
       this.classrooms.forStudent(studentId),
       this.prisma.personalizedVideoAssignment.findMany({
         where: { studentId, status: { in: ["READY", "FALLBACK"] } },
@@ -313,6 +313,7 @@ export class ParentsService {
       this.prisma.lotusSessionRecord.count({ where: { studentId, status: "COMPLETE" } }),
       this.prisma.lotusSessionRecord.findFirst({ where: { studentId }, orderBy: { startedAt: "desc" }, select: { startedAt: true } }),
       this.topics.growthForStudent(studentId),
+      this.classrooms.workForStudent(studentId),
     ]);
 
     const lessonRows = lessons.map((l) => {
@@ -336,6 +337,7 @@ export class ParentsService {
       totals: { checksDone, lessonsFinished: lessonRows.filter((l) => l.finished).length },
       lastActive,
       growth,
+      work,
     };
   }
 

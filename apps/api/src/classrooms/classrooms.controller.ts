@@ -22,6 +22,13 @@ class JoinClassroomDto {
   @IsString() @Length(6, 12) joinCode!: string;
   @IsOptional() @IsString() @Length(1, 40) rollNumber?: string;
   @IsOptional() @IsString() @Length(1, 80) admissionNumber?: string;
+  /** Optional: Cogna emails this parent a link code (checked in the service). */
+  @IsOptional() @IsString() @Length(0, 254) parentEmail?: string;
+}
+
+class ParentInviteDto {
+  @IsString() @Length(3, 254) email!: string;
+  @IsOptional() @IsString() classroomId?: string;
 }
 
 class CreateRunDto {
@@ -112,13 +119,13 @@ export class ClassroomsController {
     return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "done");
   }
 
-  /** Body: { kind: DIAGNOSTIC | TOPIC_CHECK | CATCH_UP, studentIds? (catch-up only) } (validated in the service). */
+  /** Body: { kind: DIAGNOSTIC | TOPIC_CHECK | CATCH_UP, studentIds? (catch-up only), dueDays? (1–30, default 2) } (validated in the service). */
   @Post(":classroomId/topics/:topicId/checks")
   startTopicCheck(
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("classroomId") classroomId: string,
     @Param("topicId") topicId: string,
-    @Body() body: { kind?: string; studentIds?: string[] },
+    @Body() body: { kind?: string; studentIds?: string[]; dueDays?: number },
   ): Promise<unknown> {
     return this.topics.startCheck(resolveActor(headers), classroomId, topicId, body ?? {});
   }
@@ -148,6 +155,16 @@ export class ClassroomsController {
   @Delete(":classroomId/students/:studentId")
   removeStudent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string): Promise<unknown> {
     return this.classrooms.removeStudent(resolveActor(headers), classroomId, studentId);
+  }
+
+  @Get("student/parent-invite")
+  parentInviteStatus(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.classrooms.parentInviteStatus(resolveActor(headers));
+  }
+
+  @Post("student/parent-invite")
+  inviteParent(@Headers() headers: Record<string, string | string[] | undefined>, @Body() body: ParentInviteDto): Promise<unknown> {
+    return this.classrooms.inviteParent(resolveActor(headers), body);
   }
 
   @Post("join")

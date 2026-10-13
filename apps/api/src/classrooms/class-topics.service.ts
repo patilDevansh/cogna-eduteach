@@ -113,9 +113,10 @@ export class ClassTopicsService {
     return this.plan(actor, classroomId);
   }
 
-  async startCheck(actor: AccessActor, classroomId: string, topicId: string, input: { kind?: string; studentIds?: string[] }) {
+  async startCheck(actor: AccessActor, classroomId: string, topicId: string, input: { kind?: string; studentIds?: string[]; dueDays?: number }) {
     const classroom = await this.classrooms.ownedClassroom(actor, classroomId);
     await this.topicRow(classroom, topicId);
+    if (input.dueDays !== undefined && !(Number.isInteger(input.dueDays) && input.dueDays >= 1 && input.dueDays <= 30)) throw new BadRequestException("Set the due date 1 to 30 days ahead.");
     const kind = input.kind as CheckKind;
     if (!CHECK_KINDS.includes(kind)) throw new BadRequestException("Choose a diagnostic, topic check or catch-up.");
     const topic = findTopic(topicId);
@@ -137,7 +138,7 @@ export class ClassTopicsService {
     const run = await this.classrooms.createRun(actor, classroomId, {
       title: `${topic.name} · ${CHECK_LABEL[kind]}`,
       topicId,
-      config: { kind, diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true, ...(studentIds ? { studentIds } : {}), ...(focus ? { focus } : {}) },
+      config: { kind, diagnostic: "LOTUS", teaching: ["AI_VERIFIED_LESSON", "ANIMATED_PRACTICE"], exit: "PERSONALIZED_INDEPENDENT", autoAdvance: true, ...(studentIds ? { studentIds } : {}), ...(focus ? { focus } : {}), ...(input.dueDays ? { dueDays: input.dueDays } : {}) },
     });
     await this.classrooms.launchPhase(actor, run.id, "DIAGNOSTIC");
     return this.plan(actor, classroomId);
