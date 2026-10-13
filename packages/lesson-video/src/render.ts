@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildLessonVtt } from "./transcript";
+import { authoredDurationInFrames as authoredFrames, type AuthoredLessonProps as AuthoredProps } from "./authored/build";
 import {
   LESSON_VIDEO_FPS,
   PRODUCT_LOOP_FPS,
@@ -311,4 +312,9 @@ export async function renderDistributionLesson(lesson: DistributionLessonProps, 
 export async function renderTrinomialLesson(lesson: TrinomialLessonProps, outputPath: string): Promise<RenderDistributionLessonResult> {
   verifyTrinomialLesson(lesson);
   return renderBeatLesson("TrinomialLesson", lesson, trinomialDurationInFrames(lesson, lessonFps()), outputPath);
+}
+
+/** Renders an AI-written lesson. Its maths was verified before the lesson was accepted. */
+export async function renderAuthoredLesson(lesson: AuthoredProps, outputPath: string): Promise<RenderDistributionLessonResult> {
+  return renderBeatLesson("AuthoredLesson", lesson as unknown as BeatLesson, authoredFrames(lesson, lessonFps()), outputPath);
 }

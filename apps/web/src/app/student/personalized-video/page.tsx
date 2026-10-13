@@ -9,11 +9,9 @@ import { api, ApiError } from "@/lib/api";
 import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
 import { renderEquationSteps } from "./equation-highlight";
-import { InteractiveLessonPlayer } from "./InteractiveEquationStep";
-import { LessonMotifBottom, LessonMotifTop, PipMascot, SceneBackdrop } from "./lesson-motifs";
 import styles from "./personalized-video.module.css";
 import L from "./lesson.module.css";
-import { AnimatedLessonPlayer } from "./AnimatedLessonPlayer";
+import { LessonMotifBottom, LessonMotifTop, PipMascot, SceneBackdrop } from "./lesson-motifs";
 import { PracticeArena } from "./PracticeArena";
 import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { MicroLessonCard } from "@/components/games/MicroLessonCard";
@@ -190,7 +188,6 @@ function PersonalizedVideoPage() {
   };
 
   const togglePlay = () => {
-    if (assignment?.delivery === "SLIDES") return;
     void markWatched();
     if (assignment?.delivery === "VIDEO") {
       const node = videoRef.current;
@@ -226,7 +223,7 @@ function PersonalizedVideoPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (stage !== "lesson" || assignment?.delivery === "SLIDES") return;
+      if (stage !== "lesson" || assignment?.delivery === "SHORT") return;
       if (event.key === " " || event.key === "k") {
         event.preventDefault();
         togglePlay();
@@ -248,7 +245,7 @@ function PersonalizedVideoPage() {
       ["Math verified", math],
       [
         "Lesson ready",
-        delivery === "VIDEO" || delivery === "HTML_FALLBACK" || delivery === "SLIDES"
+        delivery === "VIDEO" || delivery === "HTML_FALLBACK" || delivery === "SHORT"
           ? "complete"
           : (delivery ?? "pending"),
       ],
@@ -377,17 +374,19 @@ function PersonalizedVideoPage() {
               {assignment?.learningObjective && <p className={L.objective}>{assignment.learningObjective}</p>}
               {lessonReady && (
                 <div className={L.meta}>
-                  {lesson?.duration && <span>{lesson.duration}</span>}
+                  {assignment?.delivery === "SHORT" ? <span>About 20 seconds</span> : lesson?.duration && <span>{lesson.duration}</span>}
                   <span className={L.metaGood}>✓ Every step checked</span>
                   <span>Narrated · captions</span>
                 </div>
               )}
             </section>
 
-            {micro && (
+            {/* One lesson per gap: a small gap gets this short lesson; a bigger one gets the video below instead. */}
+            {assignment?.delivery === "SHORT" && micro && (
               <section className={L.microSlot} aria-label="Your 20-second lesson">
-                <p className={L.eyebrow}>First, 20 seconds on your own answer</p>
+                <p className={L.eyebrow}>20 seconds on your own answer</p>
                 <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment!.id, option)} />
+                {watchedCta}
               </section>
             )}
 
@@ -433,26 +432,10 @@ function PersonalizedVideoPage() {
               </section>
             )}
 
-            {!error && lessonReady && assignment && (
-              <div data-theme={lesson?.theme}>
-                {assignment.delivery === "ANIMATED" ? (
-                  <AnimatedLessonPlayer
-                    assignmentId={assignment.id}
-                    studentId={assignment.studentId}
-                    devMode={devMode}
-                    onStart={() => void markWatched()}
-                    onFinish={() => void finishLesson()}
-                  />
-                ) : (
+            {!error && lessonReady && assignment && assignment.delivery !== "SHORT" && (
+              <div>
                 <div className={L.player}>
-                  {assignment.delivery === "SLIDES" ? (
-                    <InteractiveLessonPlayer
-                      assignment={assignment}
-                      onStart={() => void markWatched()}
-                      onFinish={() => void finishLesson()}
-                      belowSlide={null}
-                    />
-                  ) : assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
+                  {assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
                     <video
                       ref={videoRef}
                       className={L.video}
@@ -505,7 +488,6 @@ function PersonalizedVideoPage() {
                     </div>
                   ) : null}
                 </div>
-                )}
                 <p className={styles.srOnly}>Keyboard: space to play or pause, left and right arrows to move between scenes.</p>
 
                 {watchedCta}

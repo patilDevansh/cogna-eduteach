@@ -4,6 +4,7 @@ import path from "node:path";
 import { writeFileSync } from "node:fs";
 import {
   renderApprovedLesson,
+  renderAuthoredLesson,
   renderDistributionLesson,
   renderProductLoop,
   renderTrinomialLesson,
@@ -11,6 +12,7 @@ import {
 } from "./render";
 import type { DistributionLessonProps } from "./distribution/lesson";
 import type { TrinomialLessonProps } from "./trinomial/trinomial";
+import type { AuthoredLessonProps } from "./authored/build";
 
 function vttTime(seconds: number): string {
   const ms = Math.round(seconds * 1000);
@@ -21,7 +23,7 @@ function vttTime(seconds: number): string {
 }
 
 /** One caption cue per narrated beat, on the same frame grid the composition uses. */
-function distributionVtt(lesson: { scenes: DistributionLessonProps["scenes"] | TrinomialLessonProps["scenes"] }, fps: number): string {
+function distributionVtt(lesson: { scenes: Array<{ beats: Array<{ text: string; seconds: number }> }> }, fps: number): string {
   let t = 0;
   const cues: string[] = [];
   for (const scene of lesson.scenes) {
@@ -41,6 +43,18 @@ async function main(): Promise<void> {
       path.resolve(__dirname, "../../../artifacts/cogna-student-teacher-interactivity.mp4");
     const result = await renderProductLoop(outputPath);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    return;
+  }
+
+  if (process.argv[2] === "--authored") {
+    const inputPath = process.argv[3];
+    if (!inputPath) throw new Error("Usage: node dist/cli.js --authored <input.json>");
+    const input = JSON.parse(readFileSync(inputPath, "utf8")) as { lesson: AuthoredLessonProps; outputDir: string };
+    const mp4Path = path.join(input.outputDir, "lesson.mp4");
+    const vttPath = path.join(input.outputDir, "lesson.vtt");
+    const result = await renderAuthoredLesson(input.lesson, mp4Path);
+    writeFileSync(vttPath, distributionVtt(input.lesson, 30), "utf8");
+    process.stdout.write(`${JSON.stringify({ ...result, vttPath })}\n`);
     return;
   }
 
