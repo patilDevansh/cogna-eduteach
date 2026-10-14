@@ -12,7 +12,9 @@ import { buildClassReport, type StudentEvidence } from "./class-report";
 import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
 import { checkKindOf, checkStudentIds, type CheckRows } from "./topic-flow";
 import { ClassroomEventsService } from "./classroom-events";
-import { catchUpSetUpdate, checkFinishedUpdate, newParentLinkCode, PARENT_LINK_DAYS, type ParentUpdate } from "./parent-updates";
+import { catchUpSetUpdate, checkFinishedUpdate, type ParentUpdate } from "./parent-updates";
+import { normalizePhone } from "../parents/phone";
+import { setConsent } from "../parents/consent";
 
 const PHASE_KIND = {
   DIAGNOSTIC: ClassroomAssignmentKind.DIAGNOSTIC,
@@ -27,6 +29,25 @@ const MAX_IMPORT = 300;
 export interface RosterImportRow {
   name: string;
   rollNumber?: string;
+  /** Parents' or guardians' mobiles from the school's records. */
+  phones?: string[];
+}
+
+/** Phones the school can list for one student: mother, father, and a couple of guardians. */
+const MAX_GUARDIAN_PHONES = 4;
+
+const RELATIONSHIPS = new Set(["mother", "father", "guardian"]);
+
+/** Normalised, de-duplicated phones, or a teacher-readable error naming the bad one. */
+function guardianPhonesOrThrow(raw: string[], where: string): string[] {
+  const phones: string[] = [];
+  for (const value of raw.filter((v) => v.trim())) {
+    const phone = normalizePhone(value);
+    if (!phone) throw new BadRequestException(`${where}: "${value}" isn't a mobile number. Use the 10-digit number, or include the country code.`);
+    if (!phones.includes(phone)) phones.push(phone);
+  }
+  if (phones.length > MAX_GUARDIAN_PHONES) throw new BadRequestException(`${where}: at most ${MAX_GUARDIAN_PHONES} phone numbers per student.`);
+  return phones;
 }
 
 /** Marks a step closed by removing the student, so rejoining can reopen exactly those steps. */
@@ -236,7 +257,8 @@ export class ClassroomsService {
             id: true,
             name: true,
             primaryParentId: true,
-            parentLinkCodeExpiresAt: true,
+            guardianPhones: { orderBy: { createdAt: "asc" }, select: { phone: true, relationship: true } },
+            parentLinks: { select: { source: true, parent: { select: { id: true, name: true, phone: true, phoneVerifiedAt: true } } } },
             classroomEnrollments: {
               where: { leftAt: null, classroomId: { not: classroomId }, classroom: { teacherId: classroom.teacherId, archivedAt: null } },
               select: { classroom: { select: { id: true, name: true } } },
@@ -246,17 +268,34 @@ export class ClassroomsService {
       },
       orderBy: { joinedAt: "asc" },
     });
-    return enrollments.map((row) => ({
-      studentId: row.student.id,
-      name: row.student.name,
-      rollNumber: row.rollNumber,
-      joinedAt: row.joinedAt,
-      alsoIn: row.student.classroomEnrollments.map((other) => other.classroom),
-      schoolIssuedCode: Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id,
-      // A family account owns this student: either the parent made them, or claimed them with the code from school.
-      parentLinked: !(Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id),
-      parentCodeActive: Boolean(row.student.parentLinkCodeExpiresAt && row.student.parentLinkCodeExpiresAt > new Date()),
-    }));
+    const studentIds = enrollments.map((row) => row.student.id);
+    const declines = await this.prisma.consent.findMany({ where: { studentId: { in: studentIds }, consentType: "PRACTICE_DECLINED", revokedAt: null }, select: { studentId: true, parentId: true } });
+    const holders = await this.prisma.parent.findMany({
+      where: { phone: { in: enrollments.flatMap((row) => row.student.guardianPhones.map((g) => g.phone)) }, phoneVerifiedAt: { not: null } },
+      select: { id: true, phone: true },
+    });
+    const holderOf = new Map(holders.map((h) => [h.phone, h.id]));
+    return enrollments.map((row) => {
+      const parents = row.student.parentLinks.filter((link) => link.parent.id !== rosterParent?.id);
+      return {
+        studentId: row.student.id,
+        name: row.student.name,
+        rollNumber: row.rollNumber,
+        joinedAt: row.joinedAt,
+        alsoIn: row.student.classroomEnrollments.map((other) => other.classroom),
+        // Made by the school: the school manages sign-in codes and who the parents are.
+        schoolIssuedCode: Boolean(rosterParent) && row.student.primaryParentId === rosterParent?.id,
+        parentLinked: parents.length > 0,
+        guardians: row.student.guardianPhones.map((g) => {
+          const holder = holderOf.get(g.phone);
+          const status = holder && parents.some((p) => p.parent.id === holder) ? "LINKED"
+            : holder && declines.some((d) => d.studentId === row.student.id && d.parentId === holder) ? "DECLINED"
+              : "WAITING";
+          return { phone: g.phone, relationship: g.relationship, status };
+        }),
+        parents: parents.map((p) => ({ parentId: p.parent.id, name: p.parent.name, phone: p.parent.phoneVerifiedAt ? p.parent.phone : null, source: p.source })),
+      };
+    });
   }
 
   /**
@@ -282,32 +321,35 @@ export class ClassroomsService {
    * (only its hash is stored), so the teacher can print or download them. School-made students
    * belong to one "school roster" parent account until a real parent is linked.
    */
-  async importStudents(actor: AccessActor, classroomId: string, rows: RosterImportRow[]) {
+  async importStudents(actor: AccessActor, classroomId: string, rows: RosterImportRow[], schoolConsent = false) {
     const classroom = await this.ownedClassroom(actor, classroomId);
+    if (!schoolConsent) throw new BadRequestException("Confirm the school has consent to use Cogna for these students.");
     const cleaned = (Array.isArray(rows) ? rows : []).map((row) => ({
       name: String(row?.name ?? "").replace(/\s+/g, " ").trim(),
       rollNumber: String(row?.rollNumber ?? "").trim() || undefined,
+      rawPhones: (Array.isArray(row?.phones) ? row.phones : []).map((phone) => String(phone ?? "").trim()).filter(Boolean),
     }));
     if (!cleaned.length) throw new BadRequestException("Add at least one student.");
     if (cleaned.length > MAX_IMPORT) throw new BadRequestException(`Add at most ${MAX_IMPORT} students at a time.`);
     const bad = cleaned.findIndex((row) => row.name.length < 2 || row.name.length > 80 || (row.rollNumber?.length ?? 0) > 40);
     if (bad >= 0) throw new BadRequestException(`Line ${bad + 1}: a name needs 2–80 characters and a roll number at most 40.`);
+    const withPhones = cleaned.map((row, index) => ({ ...row, phones: guardianPhonesOrThrow(row.rawPhones, `Line ${index + 1}`) }));
 
     const parentId = await this.rosterParentId(classroom.schoolId);
-    const created: Array<{ studentId: string; name: string; rollNumber?: string; accessCode: string; parentCode: string; parentCodeExpiresAt: Date }> = [];
+    const created: Array<{ studentId: string; name: string; rollNumber?: string; accessCode: string; phones: number }> = [];
     const enrollmentIds: string[] = [];
-    for (const row of cleaned) {
+    for (const row of withPhones) {
       const accessCode = await this.freshAccessCode();
-      // The parent's own code goes home on the same slip, so the family can link this child to their account.
-      const parentCode = newParentLinkCode();
-      const parentCodeExpiresAt = new Date(Date.now() + PARENT_LINK_DAYS * 86_400_000);
       const { student, enrollment } = await this.prisma.$transaction(async (tx) => {
-        const student = await tx.student.create({ data: { primaryParentId: parentId, name: row.name, grade: classroom.grade, accessCodeHash: hashAccessCode(accessCode), parentLinkCodeHash: hashAccessCode(parentCode), parentLinkCodeExpiresAt: parentCodeExpiresAt } });
+        const student = await tx.student.create({ data: { primaryParentId: parentId, name: row.name, grade: classroom.grade, accessCodeHash: hashAccessCode(accessCode) } });
         const enrollment = await tx.classroomEnrollment.create({ data: { classroomId, studentId: student.id, rollNumber: row.rollNumber } });
+        if (row.phones.length) await tx.studentGuardianPhone.createMany({ data: row.phones.map((phone) => ({ studentId: student.id, phone })) });
+        // The school's consent covers class use until a parent answers for themselves.
+        await tx.consent.create({ data: { parentId, studentId: student.id, consentType: "SCHOOL_CONSENT" } });
         return { student, enrollment };
       });
       enrollmentIds.push(enrollment.id);
-      created.push({ studentId: student.id, name: row.name, rollNumber: row.rollNumber, accessCode, parentCode, parentCodeExpiresAt });
+      created.push({ studentId: student.id, name: row.name, rollNumber: row.rollNumber, accessCode, phones: row.phones.length });
     }
     await this.giveRunningCheck(classroomId, enrollmentIds);
     this.notify(classroomId, { roster: true });
@@ -316,39 +358,134 @@ export class ClassroomsService {
 
   /** A new sign-in code for a school-made student in this class (lost slip). The old code stops working. */
   async resetAccessCode(actor: AccessActor, classroomId: string, studentId: string) {
-    const classroom = await this.ownedClassroom(actor, classroomId);
-    const enrollment = await this.prisma.classroomEnrollment.findUnique({
-      where: { classroomId_studentId: { classroomId, studentId } },
-      include: { student: { select: { name: true, primaryParentId: true } } },
-    });
-    if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
-    // Never take over a family's own account: only codes the school issued can be reset here.
-    if (enrollment.student.primaryParentId !== (await this.rosterParentId(classroom.schoolId))) {
-      throw new ForbiddenException("This student signs in with their family's code. Ask the parent to reset it.");
-    }
+    const enrollment = await this.schoolHeldEnrollment(actor, classroomId, studentId, "This student signs in with their family's code. Ask the parent to reset it.");
     const accessCode = await this.freshAccessCode();
     await this.prisma.student.update({ where: { id: studentId }, data: { accessCodeHash: hashAccessCode(accessCode) } });
     return { studentId, name: enrollment.student.name, rollNumber: enrollment.rollNumber, accessCode };
   }
 
   /**
-   * A new parent link code for a school-made student (slip lost, or the first one expired). The old
-   * code stops working. Once a family has linked the child, the school can't hand them to anyone else.
+   * A student in this class whom the school made (so the school manages their sign-in and parents).
+   * Never a family's own account: the family decides those.
    */
-  async issueParentCode(actor: AccessActor, classroomId: string, studentId: string) {
+  private async schoolHeldEnrollment(actor: AccessActor, classroomId: string, studentId: string, familyMessage = "This student was added by their family, who manage who can see them.") {
     const classroom = await this.ownedClassroom(actor, classroomId);
     const enrollment = await this.prisma.classroomEnrollment.findUnique({
       where: { classroomId_studentId: { classroomId, studentId } },
       include: { student: { select: { name: true, primaryParentId: true } } },
     });
     if (!enrollment || enrollment.leftAt) throw new NotFoundException("That student is not in this class.");
-    if (enrollment.student.primaryParentId !== (await this.rosterParentId(classroom.schoolId))) {
-      throw new ForbiddenException("A parent has already linked this student to their account.");
-    }
-    const parentCode = newParentLinkCode();
-    const parentCodeExpiresAt = new Date(Date.now() + PARENT_LINK_DAYS * 86_400_000);
-    await this.prisma.student.update({ where: { id: studentId }, data: { parentLinkCodeHash: hashAccessCode(parentCode), parentLinkCodeExpiresAt: parentCodeExpiresAt } });
-    return { studentId, name: enrollment.student.name, rollNumber: enrollment.rollNumber, parentCode, parentCodeExpiresAt };
+    const rosterParentId = await this.rosterParentId(classroom.schoolId);
+    if (enrollment.student.primaryParentId !== rosterParentId) throw new ForbiddenException(familyMessage);
+    return { ...enrollment, classroom, rosterParentId };
+  }
+
+  /**
+   * The parents' phones on the school's record for a student. A parent who verifies a listed number
+   * sees the child; taking a number off unlinks whoever linked through it.
+   */
+  async setGuardianPhones(actor: AccessActor, classroomId: string, studentId: string, input: Array<{ phone?: string; relationship?: string }>) {
+    await this.schoolHeldEnrollment(actor, classroomId, studentId);
+    const rows = Array.isArray(input) ? input : [];
+    const phones = guardianPhonesOrThrow(rows.map((r) => String(r?.phone ?? "")), "That list");
+    const relationshipOf = new Map(rows.map((r) => [normalizePhone(String(r?.phone ?? "")), RELATIONSHIPS.has(String(r?.relationship)) ? String(r?.relationship) : "guardian"]));
+    await this.prisma.$transaction(async (tx) => {
+      const before = await tx.studentGuardianPhone.findMany({ where: { studentId }, select: { phone: true } });
+      const removed = before.map((b) => b.phone).filter((phone) => !phones.includes(phone));
+      if (removed.length) {
+        const gone = await tx.parent.findMany({ where: { phone: { in: removed } }, select: { id: true } });
+        await this.unlinkParents(tx, studentId, gone.map((g) => g.id), "PHONE");
+      }
+      await tx.studentGuardianPhone.deleteMany({ where: { studentId } });
+      if (phones.length) await tx.studentGuardianPhone.createMany({ data: phones.map((phone) => ({ studentId, phone, relationship: relationshipOf.get(phone) ?? "guardian" })) });
+    });
+    this.notify(classroomId, { roster: true });
+    return (await this.roster(actor, classroomId)).find((row) => row.studentId === studentId);
+  }
+
+  /**
+   * Unlinks a parent from a school-made student (a wrong link, or a family change). Their number
+   * comes off the record too, so they can't link straight back; the teacher can add it again.
+   */
+  async unlinkParent(actor: AccessActor, classroomId: string, studentId: string, parentId: string) {
+    await this.schoolHeldEnrollment(actor, classroomId, studentId);
+    await this.prisma.$transaction(async (tx) => {
+      await this.unlinkParents(tx, studentId, [parentId]);
+      const parent = await tx.parent.findUnique({ where: { id: parentId }, select: { phone: true } });
+      if (parent?.phone) await tx.studentGuardianPhone.deleteMany({ where: { studentId, phone: parent.phone } });
+    });
+    this.notify(classroomId, { roster: true });
+    return (await this.roster(actor, classroomId)).find((row) => row.studentId === studentId);
+  }
+
+  private async unlinkParents(tx: Prisma.TransactionClient, studentId: string, parentIds: string[], source?: string) {
+    if (!parentIds.length) return;
+    await tx.parentStudentLink.deleteMany({ where: { studentId, parentId: { in: parentIds }, ...(source ? { source } : {}) } });
+    await tx.consent.updateMany({ where: { studentId, parentId: { in: parentIds }, revokedAt: null }, data: { revokedAt: new Date() } });
+  }
+
+  /** Parents waiting for this teacher to link their child, with the likeliest students first. */
+  async linkRequests(actor: AccessActor, classroomId: string) {
+    await this.ownedClassroom(actor, classroomId);
+    const requests = await this.prisma.parentLinkRequest.findMany({
+      where: { classroomId, status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      include: { parent: { select: { name: true, phone: true, phoneVerifiedAt: true } } },
+    });
+    if (!requests.length) return [];
+    const roster = await this.roster(actor, classroomId);
+    const words = (name: string) => new Set(name.toLowerCase().split(/\s+/).filter(Boolean));
+    return requests.map((r) => {
+      const asked = words(r.childName);
+      const suggestions = roster
+        .filter((row) => row.schoolIssuedCode)
+        .map((row) => ({ row, score: (r.rollNumber && row.rollNumber === r.rollNumber ? 10 : 0) + [...words(row.name)].filter((w) => asked.has(w)).length }))
+        .filter((m) => m.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((m) => ({ studentId: m.row.studentId, name: m.row.name, rollNumber: m.row.rollNumber }));
+      return {
+        id: r.id,
+        parentName: r.parent.name,
+        parentPhone: r.parent.phoneVerifiedAt ? r.parent.phone : null,
+        childName: r.childName,
+        rollNumber: r.rollNumber,
+        createdAt: r.createdAt,
+        suggestions,
+      };
+    });
+  }
+
+  /**
+   * Links the parent to the student the teacher chose. The parent consented when they asked; their
+   * verified number joins the school's record, so the record stays the source of truth.
+   */
+  async approveLinkRequest(actor: AccessActor, classroomId: string, requestId: string, studentId: string) {
+    const request = await this.prisma.parentLinkRequest.findFirst({ where: { id: requestId, classroomId, status: "PENDING" }, include: { parent: { select: { phone: true, phoneVerifiedAt: true } } } });
+    if (!request) throw new NotFoundException("That request has already been answered.");
+    await this.schoolHeldEnrollment(actor, classroomId, studentId);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.parentStudentLink.upsert({
+        where: { parentId_studentId: { parentId: request.parentId, studentId } },
+        create: { parentId: request.parentId, studentId, relationship: "parent", canViewReports: true, source: "TEACHER_APPROVED" },
+        update: { canViewReports: true },
+      });
+      await tx.learnerProfile.upsert({ where: { studentId }, create: { studentId }, update: {} });
+      await setConsent(tx, request.parentId, studentId, "PRACTICE_CONSENT");
+      if (request.parent.phone && request.parent.phoneVerifiedAt) {
+        await tx.studentGuardianPhone.upsert({ where: { studentId_phone: { studentId, phone: request.parent.phone } }, create: { studentId, phone: request.parent.phone }, update: {} });
+      }
+      await tx.parentLinkRequest.update({ where: { id: request.id }, data: { status: "APPROVED", studentId, decidedAt: new Date() } });
+    });
+    this.notify(classroomId, { roster: true });
+    return this.linkRequests(actor, classroomId);
+  }
+
+  async declineLinkRequest(actor: AccessActor, classroomId: string, requestId: string) {
+    await this.ownedClassroom(actor, classroomId);
+    const { count } = await this.prisma.parentLinkRequest.updateMany({ where: { id: requestId, classroomId, status: "PENDING" }, data: { status: "DECLINED", decidedAt: new Date() } });
+    if (!count) throw new NotFoundException("That request has already been answered.");
+    return this.linkRequests(actor, classroomId);
   }
 
   /**

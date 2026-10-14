@@ -205,3 +205,28 @@
 .rowAction { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-soft); border-radius: 8px; padding: 4px 10px; font: 600 var(--text-xs) var(--font-body); cursor: pointer; justify-self: start; }
 .rowAction:disabled, .pauseButton:disabled, .resumeButton:disabled { opacity: 0.55; cursor: default; }
 .pauseButton:focus-visible, .resumeButton:focus-visible, .rowAction:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Parents: the school's numbers for each student, and parents asking to be linked. */
+.consentLine { display: flex !important; gap: var(--s-2); align-items: flex-start; font-size: var(--text-sm); color: var(--ink-soft); }
+.consentLine input { margin-top: 3px; flex: none; }
+.parentsEditor, .linkRequests { margin: var(--s-3) 0; padding: var(--s-4); border: 1px solid var(--line); border-radius: 12px; background: var(--bg); display: grid; gap: var(--s-2); }
+.parentsEditor > p { margin: 0; font-size: var(--text-sm); }
+.guardianRows { display: grid; gap: var(--s-2); justify-items: start; }
+.guardianRow { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
+.guardianRow input, .guardianRow select, .linkRequest select { font: 500 var(--text-sm) var(--font-body); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.guardianRow input { width: 19ch; font-family: var(--font-math); }
+.guardianRow small { font-size: var(--text-xs); color: var(--ink-faint); min-width: 12ch; }
+.guardianRow small[data-status="LINKED"] { color: var(--accent-deep); font-weight: 700; }
+.guardianRow small[data-status="DECLINED"] { color: var(--caution); font-weight: 700; }
+.linkedParents { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.linkedParents li { display: flex; justify-content: space-between; gap: var(--s-2); align-items: center; font-size: var(--text-sm); }
+.linkedParents small { color: var(--ink-faint); margin-left: 4px; }
+.linkRequests { border-color: var(--accent); }
+.linkRequests h4 { margin: 0; font-size: var(--text-sm); }
+.linkRequest { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; font-size: var(--text-sm); }
+.linkRequest > span { flex: 1 1 260px; }
+.linkRequest small { color: var(--ink-faint); }
+@media (max-width: 640px) { .guardianRow input { width: 100%; } }
+/* Three actions on a card: let them drop under the name instead of squeezing it. */
+.rosterList li { flex-wrap: wrap; }
+.rosterList .rosterName { flex: 1 1 120px; }

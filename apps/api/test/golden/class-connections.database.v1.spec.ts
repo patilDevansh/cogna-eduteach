@@ -1,8 +1,9 @@
 /**
  * Parent ↔ school connections and the teacher's controls during a check,
  * against the real local Postgres (same local-only gate as the other
- * database specs): a parent claims a school-made student with the code from
- * school, hears when a check finishes or catch-up is set, and the teacher can
+ * database specs): a parent links a school-made student through the phone on
+ * the school's record (or the teacher's approval), hears when a check finishes
+ * or catch-up is set, and the teacher can
  * restart one student, pause, set a time limit, and remind latecomers.
  */
 import { after, before, describe, it } from "node:test";
@@ -50,13 +51,11 @@ const parents = new ParentsService(prisma as never, {} as never, classrooms, {} 
 const lotusServices: LotusService[] = [];
 let classroomId = "";
 let parentId = "";
-let secondParentId = "";
 
 before(async () => {
   const teacherUser = await prisma.user.create({ data: { clerkId: `${tag}_teacher`, role: UserRole.TEACHER, teacher: { create: { identityKey: `${tag}:${teacherEmail}`, schoolId: tag, name: "Ms Rao" } } }, include: { teacher: true } });
   classroomId = (await prisma.classroom.create({ data: { teacherId: teacherUser.teacher!.id, schoolId: tag, name: "8A", grade: 8, subjectId: "math", joinCode: tag.slice(-10).toUpperCase() } })).id;
   parentId = (await prisma.user.create({ data: { clerkId: `${tag}_parent`, role: UserRole.PARENT, parent: { create: { name: "Asha's parent" } } }, include: { parent: true } })).parent!.id;
-  secondParentId = (await prisma.user.create({ data: { clerkId: `${tag}_parent2`, role: UserRole.PARENT, parent: { create: { name: "Someone else" } } }, include: { parent: true } })).parent!.id;
 });
 
 after(async () => {
@@ -70,8 +69,8 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-async function importOne(name: string) {
-  const { students } = await classrooms.importStudents(teacher, classroomId, [{ name }]);
+async function importOne(name: string, phones: string[] = []) {
+  const { students } = await classrooms.importStudents(teacher, classroomId, [{ name, phones }], true);
   return students[0]!;
 }
 
@@ -94,48 +93,137 @@ async function stepFor(runId: string, studentId: string) {
   return prisma.classroomAssignment.findFirstOrThrow({ where: { runId, kind: "DIAGNOSTIC", enrollment: { studentId } } });
 }
 
-describe("a parent claims a school-made student", () => {
-  it("with the code from the slip, however it is typed, once", async () => {
-    const issued = await importOne("Asha Verma");
-    assert.match(issued.parentCode, /^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
-    const claimed = await parents.claimStudent(parentId, ` ${issued.parentCode.replace("-", "").toLowerCase()} `);
-    assert.equal(claimed.id, issued.studentId);
+let phoneSeq = 0;
+/** A fresh Indian mobile per call, unique to this run. */
+const newPhone = () => `98${String(Date.now()).slice(-6)}${String(phoneSeq++).padStart(2, "0")}`;
 
-    const student = await prisma.student.findUniqueOrThrow({ where: { id: issued.studentId } });
-    assert.equal(student.primaryParentId, parentId);
-    assert.equal(student.parentLinkCodeHash, null, "the code is spent");
-    assert.ok(await prisma.parentStudentLink.findUnique({ where: { parentId_studentId: { parentId, studentId: issued.studentId } } }));
-    assert.equal(await prisma.consent.count({ where: { parentId, studentId: issued.studentId, consentType: "PRACTICE_CONSENT" } }), 1, "claiming is the parent's consent");
-    assert.ok((await parents.listStudents(parentId)).some((s) => s.id === issued.studentId));
+async function newParent(label: string) {
+  return (await prisma.user.create({ data: { clerkId: `${tag}_${label}_${phoneSeq++}`, role: UserRole.PARENT, parent: { create: { name: label } } }, include: { parent: true } })).parent!.id;
+}
 
-    await assert.rejects(parents.claimStudent(secondParentId, issued.parentCode), NotFoundException, "a used code never works again");
-    const row = (await classrooms.roster(teacher, classroomId)).find((r) => r.studentId === issued.studentId);
-    assert.equal(row?.parentLinked, true);
-    await assert.rejects(classrooms.issueParentCode(teacher, classroomId, issued.studentId), ForbiddenException, "the school can't hand a linked child to anyone else");
+/** The parent proves they hold the phone with the texted code (handed back outside production). */
+async function verify(parent: string, phone: string) {
+  const sent = await parents.sendPhoneCode(parent, phone);
+  assert.match(sent.devCode ?? "", /^\d{6}$/);
+  return parents.verifyPhone(parent, phone, sent.devCode!);
+}
+
+/** A school-made student listed with this phone, linked by a parent who verified it and said yes. */
+async function linkedByPhone(parent: string, name: string) {
+  const phone = newPhone();
+  const issued = await importOne(name, [phone]);
+  await verify(parent, phone);
+  await parents.answerSchoolChild(parent, issued.studentId, true);
+  return issued;
+}
+
+describe("a parent links a school-made student through the phone on the school's record", () => {
+  it("the school lists the number; the parent proves it, says yes, and the school still runs sign-in", async () => {
+    const parent = await newParent("Asha's mother");
+    const phone = newPhone();
+    await assert.rejects(classrooms.importStudents(teacher, classroomId, [{ name: "No Consent" }]), /consent/, "the school confirms its own consent first");
+    const issued = await importOne("Asha Verma", [`${phone.slice(0, 5)} ${phone.slice(5)}`]);
+    assert.equal(await prisma.consent.count({ where: { studentId: issued.studentId, consentType: "SCHOOL_CONSENT" } }), 1);
+
+    assert.deepEqual(await parents.schoolChildren(parent), [], "nothing shows before the phone is proved");
+    const sent = await parents.sendPhoneCode(parent, `0${phone}`);
+    assert.equal(sent.phone, `+91${phone}`);
+    await assert.rejects(parents.verifyPhone(parent, phone, sent.devCode === "000000" ? "111111" : "000000"), /didn't match/);
+    const { children } = await parents.verifyPhone(parent, `+91 ${phone}`, sent.devCode!);
+    assert.deepEqual(children.map((c) => [c.name, c.status, c.className, c.teacherName]), [["Asha Verma", "WAITING", "8A", "Ms Rao"]]);
+
+    const answered = await parents.answerSchoolChild(parent, issued.studentId, true);
+    assert.equal(answered[0]!.status, "LINKED");
+    assert.equal((await prisma.parentStudentLink.findUniqueOrThrow({ where: { parentId_studentId: { parentId: parent, studentId: issued.studentId } } })).source, "PHONE");
+    assert.equal(await prisma.consent.count({ where: { parentId: parent, studentId: issued.studentId, consentType: "PRACTICE_CONSENT", revokedAt: null } }), 1);
+    assert.deepEqual((await parents.listStudents(parent)).map((s) => [s.id, s.fromSchool]), [[issued.studentId, true]]);
+
+    // The school keeps the student: the teacher can still issue a code, the parent can't take over sign-in.
+    assert.ok((await classrooms.resetAccessCode(teacher, classroomId, issued.studentId)).accessCode);
+    await assert.rejects(parents.regenerateAccessCode(parent, issued.studentId), ForbiddenException);
+    const row = (await classrooms.roster(teacher, classroomId)).find((r) => r.studentId === issued.studentId)!;
+    assert.deepEqual(row.guardians.map((g) => g.status), ["LINKED"]);
+    assert.deepEqual(row.parents.map((p) => [p.parentId, p.source]), [[parent, "PHONE"]]);
   });
 
-  it("an expired code fails; a new one from the teacher works and replaces the old", async () => {
-    const issued = await importOne("Ben Thomas");
-    await prisma.student.update({ where: { id: issued.studentId }, data: { parentLinkCodeExpiresAt: new Date(Date.now() - 1000) } });
-    await assert.rejects(parents.claimStudent(parentId, issued.parentCode), NotFoundException);
-    assert.equal((await classrooms.roster(teacher, classroomId)).find((r) => r.studentId === issued.studentId)?.parentCodeActive, false);
+  it("both parents link with their own numbers; whoever proves a number later takes it over", async () => {
+    const [mother, father, newAccount] = [await newParent("mother"), await newParent("father"), await newParent("new account")];
+    const [a, b] = [newPhone(), newPhone()];
+    const issued = await importOne("Ben Thomas", [a, b]);
+    await verify(mother, a);
+    await verify(father, b);
+    await parents.answerSchoolChild(mother, issued.studentId, true);
+    await parents.answerSchoolChild(father, issued.studentId, true);
+    assert.equal((await classrooms.roster(teacher, classroomId)).find((r) => r.studentId === issued.studentId)!.parents.length, 2);
 
-    const fresh = await classrooms.issueParentCode(teacher, classroomId, issued.studentId);
-    assert.notEqual(fresh.parentCode, issued.parentCode);
-    await prisma.student.update({ where: { id: issued.studentId }, data: { parentLinkCodeExpiresAt: new Date(Date.now() + 86_400_000) } });
-    await assert.rejects(parents.claimStudent(parentId, issued.parentCode), NotFoundException, "the old code stopped working");
-    assert.equal((await parents.claimStudent(secondParentId, fresh.parentCode)).id, issued.studentId);
+    await verify(newAccount, a);
+    assert.deepEqual(await parents.listStudents(mother), [], "the old account lost the number and the child it found");
+    assert.equal((await parents.getPhone(mother)).phone, null);
+    assert.equal((await parents.schoolChildren(newAccount))[0]!.status, "WAITING", "the new holder still answers for themselves");
   });
 
-  it("a wrong code gets the same answer as any other failure", async () => {
-    await assert.rejects(parents.claimStudent(parentId, "AAAAA-BBBBB"), /didn't work/);
+  it("the teacher fixes the record: removing a number unlinks; unlinking takes the number off", async () => {
+    const parent = await newParent("wrong link");
+    const issued = await linkedByPhone(parent, "Chitra Rao");
+    await classrooms.setGuardianPhones(teacher, classroomId, issued.studentId, []);
+    assert.deepEqual(await parents.listStudents(parent), []);
+    assert.equal(await prisma.consent.count({ where: { parentId: parent, studentId: issued.studentId, revokedAt: null } }), 0);
+
+    const other = await newParent("unlinked");
+    const second = await linkedByPhone(other, "Divya Rao");
+    const row = await classrooms.unlinkParent(teacher, classroomId, second.studentId, other);
+    assert.deepEqual(row?.parents, []);
+    assert.deepEqual(row?.guardians, [], "they can't link straight back");
+    await assert.rejects(classrooms.setGuardianPhones(teacher, classroomId, second.studentId, [{ phone: "12345" }]), /isn't a mobile number/);
+  });
+
+  it("a parent who says no is recorded, and the teacher sees it", async () => {
+    const parent = await newParent("declines");
+    const phone = newPhone();
+    const issued = await importOne("Esha Pillai", [phone]);
+    await verify(parent, phone);
+    assert.equal((await parents.answerSchoolChild(parent, issued.studentId, false))[0]!.status, "DECLINED");
+    assert.deepEqual((await classrooms.roster(teacher, classroomId)).find((r) => r.studentId === issued.studentId)!.guardians.map((g) => g.status), ["DECLINED"]);
+    assert.equal((await parents.answerSchoolChild(parent, issued.studentId, true))[0]!.status, "LINKED", "they can change their mind");
+    assert.equal(await prisma.consent.count({ where: { parentId: parent, studentId: issued.studentId, revokedAt: null } }), 1);
+  });
+
+  it("a parent the school has no number for asks; the teacher picks the student and approves", async () => {
+    const parent = await newParent("not on record");
+    const phone = newPhone();
+    await verify(parent, phone);
+    const issued = await importOne("Farhan Ali");
+    const joinCode = (await prisma.classroom.findUniqueOrThrow({ where: { id: classroomId } })).joinCode;
+    await assert.rejects(parents.requestLink(parent, { joinCode: "NOPE-000", childName: "Farhan Ali" }), NotFoundException);
+    await parents.requestLink(parent, { joinCode: joinCode.toLowerCase(), childName: "farhan ali" });
+    assert.equal((await parents.requestLink(parent, { joinCode, childName: "Farhan Ali" })).length, 1, "asking twice is one request");
+
+    const [request] = await classrooms.linkRequests(teacher, classroomId);
+    assert.equal(request!.suggestions[0]!.studentId, issued.studentId);
+    assert.deepEqual(await classrooms.approveLinkRequest(teacher, classroomId, request!.id, issued.studentId), []);
+    assert.equal((await prisma.parentStudentLink.findUniqueOrThrow({ where: { parentId_studentId: { parentId: parent, studentId: issued.studentId } } })).source, "TEACHER_APPROVED");
+    assert.equal(await prisma.consent.count({ where: { parentId: parent, studentId: issued.studentId, consentType: "PRACTICE_CONSENT" } }), 1);
+    assert.deepEqual((await classrooms.roster(teacher, classroomId)).find((r) => r.studentId === issued.studentId)!.guardians.map((g) => [g.phone, g.status]), [[`+91${phone}`, "LINKED"]], "their number joins the record");
+    assert.equal((await parents.listLinkRequests(parent))[0]!.status, "APPROVED");
+  });
+
+  it("codes are limited: a few per window, a few tries each, and only the latest one counts", async () => {
+    const parent = await newParent("rate limited");
+    const phone = newPhone();
+    await parents.sendPhoneCode(parent, phone);
+    await parents.sendPhoneCode(parent, phone);
+    const last = await parents.sendPhoneCode(parent, phone);
+    await assert.rejects(parents.sendPhoneCode(parent, phone), /Too many codes/);
+    const wrong = last.devCode === "000000" ? "111111" : "000000";
+    for (let i = 0; i < 5; i++) await assert.rejects(parents.verifyPhone(parent, phone, wrong), /didn't match/);
+    await assert.rejects(parents.verifyPhone(parent, phone, last.devCode!), /Too many tries/);
+    await assert.rejects(parents.sendPhoneCode(parent, "12345"), /doesn't look like a mobile/);
   });
 });
 
 describe("parents hear from school", () => {
   it("when their child finishes a check, once, and never the school's placeholder account", async () => {
-    const issued = await importOne("Chitra Nair");
-    await parents.claimStudent(parentId, issued.parentCode);
+    const issued = await linkedByPhone(parentId, "Chitra Nair");
     const runId = await liveCheck();
     const step = await stepFor(runId, issued.studentId);
     const sessionId = await finishedDiagnostic(issued.studentId, step.id, "ADVANCEMENT");
@@ -155,8 +243,7 @@ describe("parents hear from school", () => {
   });
 
   it("when the teacher sets their child a catch-up", async () => {
-    const issued = await importOne("Dev Shah");
-    await parents.claimStudent(parentId, issued.parentCode);
+    const issued = await linkedByPhone(parentId, "Dev Shah");
     await liveCheck({ kind: "CATCH_UP", studentIds: [issued.studentId] });
     const note = await prisma.parentNotification.findFirstOrThrow({ where: { studentId: issued.studentId, kind: "CATCH_UP_SET" } });
     assert.match(note.body, /Ms Rao set Dev a short catch-up on linear equations in one variable/);

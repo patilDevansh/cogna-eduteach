@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { hashAccessCode } from "./access-code";
-import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
-import { ReportAudience, UserRole } from "@cogna/database";
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { Prisma, ReportAudience, UserRole } from "@cogna/database";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReportGeneratorService } from "../engines/report-generator/report-generator.service";
 import { ClerkAuthService } from "./clerk-auth.service";
@@ -13,13 +13,26 @@ import {
 import { issueStudentToken } from "../access/cogna-access";
 import { ClassTopicsService } from "../classrooms/class-topics.service";
 import { ClassroomsService } from "../classrooms/classrooms.service";
-import { normalizeParentLinkCode } from "../classrooms/parent-updates";
+import {
+  hashPhoneCode,
+  maskPhone,
+  newPhoneCode,
+  normalizePhone,
+  PHONE_CODE_MAX_ATTEMPTS,
+  PHONE_CODE_MAX_SENDS,
+  PHONE_CODE_MINUTES,
+  PHONE_CODE_WINDOW_MINUTES,
+  sendPhoneCode as textPhoneCode,
+} from "./phone";
+import { setConsent } from "./consent";
 
 export { hashAccessCode };
 
 function generateAccessCode(): string {
   return randomBytes(3).toString("hex").toUpperCase();
 }
+
+const MAX_PENDING_REQUESTS = 5;
 
 function tryIssueStudentToken(studentId: string): string | undefined {
   try {
@@ -96,40 +109,172 @@ export class ParentsService {
       name: l.student.name,
       grade: l.student.grade,
       curriculum: l.student.curriculum,
+      fromSchool: l.source !== "FAMILY",
     }));
   }
 
+  /** The parent's phone, if they've proved they hold it. */
+  async getPhone(parentId: string) {
+    const parent = await this.prisma.parent.findUniqueOrThrow({ where: { id: parentId }, select: { phone: true, phoneVerifiedAt: true } });
+    return { phone: parent.phoneVerifiedAt ? parent.phone : null };
+  }
+
+  /** Texts a one-time code to the number, rate-limited per parent and per number. */
+  async sendPhoneCode(parentId: string, input: string) {
+    const phone = normalizePhone(input);
+    if (!phone) throw new BadRequestException("That doesn't look like a mobile number. Type the 10-digit number, or include the country code.");
+    const since = new Date(Date.now() - PHONE_CODE_WINDOW_MINUTES * 60_000);
+    const [mine, forNumber] = await Promise.all([
+      this.prisma.phoneVerificationCode.count({ where: { parentId, createdAt: { gte: since } } }),
+      this.prisma.phoneVerificationCode.count({ where: { phone, createdAt: { gte: since } } }),
+    ]);
+    if (mine >= PHONE_CODE_MAX_SENDS || forNumber >= PHONE_CODE_MAX_SENDS) {
+      throw new HttpException(`Too many codes asked for. Wait ${PHONE_CODE_WINDOW_MINUTES} minutes and try again.`, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const code = newPhoneCode();
+    await this.prisma.phoneVerificationCode.create({
+      data: { parentId, phone, codeHash: hashPhoneCode(parentId, phone, code), expiresAt: new Date(Date.now() + PHONE_CODE_MINUTES * 60_000) },
+    });
+    const sent = await textPhoneCode(phone, code);
+    return { phone, masked: maskPhone(phone), expiresInMinutes: PHONE_CODE_MINUTES, ...sent };
+  }
+
   /**
-   * Links a school-made student to this parent with the one-time code from school. Claiming is
-   * the parent's consent for the practice their child does in class. The code works once, until
-   * it expires, and only while the school still holds the student.
+   * Checks the texted code and gives this account the number. A number belongs to one account: if
+   * another account held it, that account loses it and the children it found through it, because
+   * whoever proves they hold the phone now is who the school's record points to.
    */
-  async claimStudent(parentId: string, code: string) {
-    const hash = hashAccessCode(normalizeParentLinkCode(String(code ?? "")));
-    const student = await this.prisma.student.findUnique({ where: { parentLinkCodeHash: hash } });
-    const holder = student ? await this.prisma.parent.findUnique({ where: { id: student.primaryParentId }, select: { user: { select: { clerkId: true } } } }) : null;
-    const schoolHeld = Boolean(holder?.user.clerkId?.startsWith("school_roster:"));
-    if (!student || student.deletedAt || !schoolHeld || !student.parentLinkCodeExpiresAt || student.parentLinkCodeExpiresAt < new Date()) {
-      // One answer for every failure, so the code can't be probed.
-      throw new NotFoundException("That code didn't work. Check it against the slip from school, or ask the teacher for a new one.");
+  async verifyPhone(parentId: string, input: string, code: string) {
+    const phone = normalizePhone(input);
+    if (!phone) throw new BadRequestException("That doesn't look like a mobile number.");
+    const pending = await this.prisma.phoneVerificationCode.findFirst({
+      where: { parentId, phone, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!pending) throw new BadRequestException("That code has expired. Ask for a new one.");
+    if (pending.attempts >= PHONE_CODE_MAX_ATTEMPTS) throw new BadRequestException("Too many tries. Ask for a new code.");
+    if (pending.codeHash !== hashPhoneCode(parentId, phone, String(code ?? ""))) {
+      await this.prisma.phoneVerificationCode.update({ where: { id: pending.id }, data: { attempts: { increment: 1 } } });
+      throw new BadRequestException("That code didn't match. Check the text and try again.");
     }
     await this.prisma.$transaction(async (tx) => {
-      // Two parents racing with one code: only the first update matches it.
-      const taken = await tx.student.updateMany({
-        where: { id: student.id, parentLinkCodeHash: hash },
-        data: { primaryParentId: parentId, parentLinkCodeHash: null, parentLinkCodeExpiresAt: null },
-      });
-      if (taken.count !== 1) throw new NotFoundException("That code has just been used.");
-      await tx.parentStudentLink.deleteMany({ where: { studentId: student.id, parentId: student.primaryParentId } });
-      await tx.parentStudentLink.upsert({
-        where: { parentId_studentId: { parentId, studentId: student.id } },
-        create: { parentId, studentId: student.id, relationship: "parent", canViewReports: true },
-        update: { canViewReports: true },
-      });
-      await tx.learnerProfile.upsert({ where: { studentId: student.id }, create: { studentId: student.id }, update: {} });
-      await tx.consent.create({ data: { parentId, studentId: student.id, consentType: "PRACTICE_CONSENT", grantedAt: new Date() } });
+      await tx.phoneVerificationCode.update({ where: { id: pending.id }, data: { usedAt: new Date() } });
+      const previous = await tx.parent.findFirst({ where: { phone, id: { not: parentId } }, select: { id: true } });
+      if (previous) {
+        const links = await tx.parentStudentLink.findMany({ where: { parentId: previous.id, source: "PHONE" }, select: { studentId: true } });
+        await tx.parentStudentLink.deleteMany({ where: { parentId: previous.id, source: "PHONE" } });
+        await tx.consent.updateMany({ where: { parentId: previous.id, studentId: { in: links.map((l) => l.studentId) }, revokedAt: null }, data: { revokedAt: new Date() } });
+        await tx.parent.update({ where: { id: previous.id }, data: { phone: null, phoneVerifiedAt: null } });
+      }
+      // A new number: links made through the old one no longer apply.
+      const current = await tx.parent.findUniqueOrThrow({ where: { id: parentId }, select: { phone: true } });
+      if (current.phone && current.phone !== phone) await this.dropPhoneLinks(tx, parentId, current.phone);
+      await tx.parent.update({ where: { id: parentId }, data: { phone, phoneVerifiedAt: new Date() } });
     });
-    return { id: student.id, name: student.name, grade: student.grade, curriculum: student.curriculum };
+    return { phone, children: await this.schoolChildren(parentId) };
+  }
+
+  /** Every child whose school record lists this parent's verified phone, and whether they've said yes. */
+  async schoolChildren(parentId: string) {
+    const { phone } = await this.getPhone(parentId);
+    if (!phone) return [];
+    const [matches, declined] = await Promise.all([
+      this.prisma.studentGuardianPhone.findMany({
+        where: { phone, student: { deletedAt: null } },
+        orderBy: { createdAt: "asc" },
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              parentLinks: { where: { parentId }, select: { parentId: true } },
+              classroomEnrollments: { where: { leftAt: null }, take: 1, orderBy: { joinedAt: "desc" }, select: { classroom: { select: { name: true, teacher: { select: { name: true } } } } } },
+            },
+          },
+        },
+      }),
+      this.prisma.consent.findMany({ where: { parentId, consentType: "PRACTICE_DECLINED", revokedAt: null }, select: { studentId: true } }),
+    ]);
+    const no = new Set(declined.map((d) => d.studentId));
+    return matches.map((m) => {
+      const classroom = m.student.classroomEnrollments[0]?.classroom;
+      return {
+        studentId: m.student.id,
+        name: m.student.name,
+        relationship: m.relationship,
+        className: classroom?.name ?? null,
+        teacherName: classroom?.teacher.name ?? null,
+        status: m.student.parentLinks.length ? ("LINKED" as const) : no.has(m.student.id) ? ("DECLINED" as const) : ("WAITING" as const),
+      };
+    });
+  }
+
+  /**
+   * The parent's answer for a child the school listed with their phone. Yes links the child and
+   * records consent for the practice they do in class; no records that, so the teacher can follow up.
+   */
+  async answerSchoolChild(parentId: string, studentId: string, agree: boolean) {
+    const { phone } = await this.getPhone(parentId);
+    if (!phone) throw new ForbiddenException("Confirm your phone number first.");
+    const match = await this.prisma.studentGuardianPhone.findUnique({
+      where: { studentId_phone: { studentId, phone } },
+      include: { student: { select: { deletedAt: true } } },
+    });
+    if (!match || match.student.deletedAt) throw new NotFoundException("This child isn't listed with your phone number.");
+    await this.prisma.$transaction(async (tx) => {
+      if (agree) {
+        await tx.parentStudentLink.upsert({
+          where: { parentId_studentId: { parentId, studentId } },
+          create: { parentId, studentId, relationship: match.relationship, canViewReports: true, source: "PHONE" },
+          update: { canViewReports: true },
+        });
+        await tx.learnerProfile.upsert({ where: { studentId }, create: { studentId }, update: {} });
+        await setConsent(tx, parentId, studentId, "PRACTICE_CONSENT");
+      } else {
+        await tx.parentStudentLink.deleteMany({ where: { parentId, studentId, source: "PHONE" } });
+        await setConsent(tx, parentId, studentId, "PRACTICE_DECLINED");
+      }
+    });
+    return this.schoolChildren(parentId);
+  }
+
+  /**
+   * For a parent whose phone isn't on the school's record: asks the class teacher to link their
+   * child. Sending it is the parent's consent; the teacher picks the student and approves.
+   */
+  async requestLink(parentId: string, input: { joinCode?: string; childName?: string; rollNumber?: string }) {
+    const childName = String(input.childName ?? "").replace(/\s+/g, " ").trim();
+    const rollNumber = String(input.rollNumber ?? "").trim() || null;
+    if (childName.length < 2 || childName.length > 80 || (rollNumber?.length ?? 0) > 40) {
+      throw new BadRequestException("Type your child's name as the school has it (2–80 characters).");
+    }
+    const classroom = await this.prisma.classroom.findUnique({ where: { joinCode: String(input.joinCode ?? "").trim().toUpperCase() } });
+    if (!classroom || classroom.archivedAt) throw new NotFoundException("That class code wasn't found. Check it with your child or the teacher.");
+    const pending = await this.prisma.parentLinkRequest.findMany({ where: { parentId, status: "PENDING" }, select: { classroomId: true, childName: true } });
+    const same = pending.some((r) => r.classroomId === classroom.id && r.childName.toLowerCase() === childName.toLowerCase());
+    if (!same) {
+      if (pending.length >= MAX_PENDING_REQUESTS) throw new BadRequestException("You have several requests waiting already. The teacher will answer them soon.");
+      await this.prisma.parentLinkRequest.create({ data: { parentId, classroomId: classroom.id, childName, rollNumber } });
+    }
+    return this.listLinkRequests(parentId);
+  }
+
+  async listLinkRequests(parentId: string) {
+    const rows = await this.prisma.parentLinkRequest.findMany({
+      where: { parentId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: { classroom: { select: { name: true } } },
+    });
+    return rows.map((r) => ({ id: r.id, childName: r.childName, rollNumber: r.rollNumber, className: r.classroom.name, status: r.status, createdAt: r.createdAt }));
+  }
+
+  /** Links found through a phone this parent no longer holds. */
+  private async dropPhoneLinks(tx: Prisma.TransactionClient, parentId: string, oldPhone: string) {
+    const listed = await tx.studentGuardianPhone.findMany({ where: { phone: oldPhone }, select: { studentId: true } });
+    const ids = listed.map((l) => l.studentId);
+    await tx.parentStudentLink.deleteMany({ where: { parentId, source: "PHONE", studentId: { in: ids } } });
+    await tx.consent.updateMany({ where: { parentId, studentId: { in: ids }, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 
   /** Updates from school, newest first, across all of this parent's children. */
@@ -208,6 +353,10 @@ export class ParentsService {
     });
     if (!link) {
       throw new UnauthorizedException("Student not linked to this parent.");
+    }
+    // A child the school added signs in with the school's code; only their teacher resets it.
+    if (link.source !== "FAMILY") {
+      throw new ForbiddenException("Your child's sign-in code comes from school. Ask their teacher for a new one.");
     }
 
     const accessCode = generateAccessCode();

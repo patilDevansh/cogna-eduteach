@@ -8,8 +8,9 @@ import { useParentAuth } from "@/lib/parent-auth-context";
 import { classCheckLine, shortDate } from "@/lib/parent-status";
 import { useRefreshTick } from "@/lib/use-refresh-tick";
 import styles from "../parent.module.css";
+import { SchoolLink } from "./school-link";
 
-type Child = { id: string; name: string; grade: number };
+type Child = { id: string; name: string; grade: number; fromSchool?: boolean };
 
 export default function ParentDashboardPage() {
   const router = useRouter();
@@ -25,6 +26,8 @@ export default function ParentDashboardPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   // One request per child per refresh: a minute is plenty for a parent's overview.
   const tick = useRefreshTick(60_000);
+  // Bumped when a child from school is linked, so their card appears at once.
+  const [linkedTick, setLinkedTick] = useState(0);
 
   useEffect(() => {
     document.title = "Your children — Cogna";
@@ -49,7 +52,7 @@ export default function ParentDashboardPage() {
         }
       })
       .catch(() => setError("We couldn’t load your children. Please refresh the page."));
-  }, [isLoaded, isSignedIn, getAuth, router, tick]);
+  }, [isLoaded, isSignedIn, getAuth, router, tick, linkedTick]);
 
   async function newCode(child: Child) {
     setConfirmId(null);
@@ -101,6 +104,7 @@ export default function ParentDashboardPage() {
 
 
         {error && <p className="error">{error}</p>}
+        <SchoolLink getAuth={getAuth} onLinked={() => setLinkedTick((n) => n + 1)} />
         {children === null && !error && (
           <ul className={styles.cards} aria-busy="true" aria-label="Loading your children">
             {[0, 1].map((k) => (
@@ -122,7 +126,7 @@ export default function ParentDashboardPage() {
         {children?.length === 0 && (
           <div className="dash-card rise">
             <h2 className="dash-section-title">Add your first child</h2>
-            <p className="dash-sub" style={{ marginBottom: "var(--s-5)" }}>You’ll get a sign-in code they use to start practising.</p>
+            <p className="dash-sub" style={{ marginBottom: "var(--s-5)" }}>If their school uses Cogna, confirm your number above. Otherwise, add them here and you’ll get a sign-in code they use to start practising.</p>
             <Link href="/parent/students/new" className="btn btn-primary btn-pill">Add a child</Link>
           </div>
         )}
@@ -224,9 +228,13 @@ export default function ParentDashboardPage() {
                   <Link href={`/parent/students/${child.id}`} className="btn btn-primary btn-pill">See progress</Link>
                   <Link href={`/parent/students/${child.id}/weekly`} className="btn-link">Weekly update</Link>
                   <Link href={`/parent/students/${child.id}/summary`} className="btn-link">Latest practice</Link>
-                  <button type="button" className={`btn-link ${styles.pushRight}`} aria-expanded={confirmId === child.id} onClick={() => setConfirmId(confirmId === child.id ? null : child.id)}>
-                    Lost the sign-in code?
-                  </button>
+                  {child.fromSchool ? (
+                    <span className={`${styles.pushRight} ${styles.schoolNote}`}>Lost the sign-in code? Their teacher can give a new one.</span>
+                  ) : (
+                    <button type="button" className={`btn-link ${styles.pushRight}`} aria-expanded={confirmId === child.id} onClick={() => setConfirmId(confirmId === child.id ? null : child.id)}>
+                      Lost the sign-in code?
+                    </button>
+                  )}
                 </div>
               </li>
             );

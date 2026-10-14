@@ -12,4 +12,12 @@ describe("pasted class list", () => {
       { name: "Das, Kabir", rollNumber: "24" },
     ]);
   });
+
+  it("picks out parents' phones, typed or pasted, in any column after the name", () => {
+    assert.deepEqual(parseClassList("Name, Roll, Mother, Father\nAarav Sharma, 8A-01, 98765 43210, +91 91234 56789\nMeena K\t\t9876500000\nSharma, Aarav, 9876511111"), [
+      { name: "Aarav Sharma", rollNumber: "8A-01", phones: ["98765 43210", "+91 91234 56789"] },
+      { name: "Meena K", phones: ["9876500000"] },
+      { name: "Sharma, Aarav", phones: ["9876511111"] },
+    ]);
+  });
 });

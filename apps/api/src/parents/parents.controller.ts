@@ -58,15 +58,42 @@ export class ParentsController {
     return this.parents.listStudents(parentId);
   }
 
-  /** Links a school-made student with the one-time code on the slip from school. */
-  @Post("me/students/claim")
-  async claimStudent(
-    @Headers("x-parent-id") parentIdHeader: string | undefined,
-    @Headers("authorization") authHeader: string | undefined,
-    @Body() body: { code?: string },
-  ) {
-    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
-    return this.parents.claimStudent(parentId, body?.code ?? "");
+  @Get("me/phone")
+  async getPhone(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {
+    return this.parents.getPhone(await this.auth.resolveParentId(parentIdHeader, authHeader));
+  }
+
+  /** Texts a one-time code to prove the parent holds this number. */
+  @Post("me/phone/code")
+  async sendPhoneCode(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { phone?: string }) {
+    return this.parents.sendPhoneCode(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.phone ?? "");
+  }
+
+  @Post("me/phone/verify")
+  async verifyPhone(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { phone?: string; code?: string }) {
+    return this.parents.verifyPhone(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.phone ?? "", body?.code ?? "");
+  }
+
+  /** Children whose school record lists this parent's verified phone. */
+  @Get("me/school-children")
+  async schoolChildren(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {
+    return this.parents.schoolChildren(await this.auth.resolveParentId(parentIdHeader, authHeader));
+  }
+
+  @Post("me/school-children/:studentId")
+  async answerSchoolChild(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Param("studentId") studentId: string, @Body() body: { agree?: boolean }) {
+    return this.parents.answerSchoolChild(await this.auth.resolveParentId(parentIdHeader, authHeader), studentId, body?.agree === true);
+  }
+
+  /** The fallback when the school doesn't have this parent's number: ask the teacher. */
+  @Post("me/link-requests")
+  async requestLink(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { joinCode?: string; childName?: string; rollNumber?: string }) {
+    return this.parents.requestLink(await this.auth.resolveParentId(parentIdHeader, authHeader), body ?? {});
+  }
+
+  @Get("me/link-requests")
+  async listLinkRequests(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {
+    return this.parents.listLinkRequests(await this.auth.resolveParentId(parentIdHeader, authHeader));
   }
 
   @Get("me/notifications")

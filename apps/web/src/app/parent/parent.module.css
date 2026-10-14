@@ -79,3 +79,18 @@
 .update strong { color: #10201a; }
 .update p { margin: var(--s-2) 0 0; color: #56665e; line-height: 1.45; }
 .update span { color: #84928b; font-size: var(--text-sm); }
+
+/* Finding a child the school added: confirm the phone, agree per child, or ask the teacher. */
+.schoolLink { display: grid; gap: var(--s-3); margin-bottom: var(--s-5); }
+.schoolNote { margin: 0; color: #56665e; font-size: var(--text-sm); line-height: 1.5; }
+.schoolForm { display: grid; gap: var(--s-2); max-width: 520px; }
+.schoolForm label { font-weight: 600; font-size: var(--text-sm); color: #10201a; }
+.schoolForm > div { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; }
+.schoolForm > div .input { flex: 1 1 200px; }
+.devCode { color: var(--accent-deep); font-weight: 600; }
+.schoolKids { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-4); }
+.schoolKids li { display: grid; gap: var(--s-2); padding: var(--s-4); border-radius: 16px; background: var(--accent-wash); }
+.schoolKids p { margin: 0; }
+.schoolActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); }
+.schoolRequests { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--text-sm); color: #56665e; }
+.schoolAsk { justify-self: start; }

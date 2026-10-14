@@ -9,6 +9,7 @@ import { useTeacherClasses } from "@/lib/teacher-classes";
 import { SAMPLE_ACTION_NOTE, teacherData } from "@/lib/teacher-mode";
 import { ClassTabs } from "../class-tabs";
 import { AddStudents, CodesSheet } from "./add-students";
+import { LinkRequests, ParentsEditor, parentStatus } from "./parents-panel";
 import { TopicPanel } from "./topic-panel";
 import shared from "../teacher.module.css";
 import styles from "./pilot.module.css";
@@ -232,20 +233,6 @@ export default function PilotConsolePage() {
       setNudgeNote(nudged ? `Reminded ${nudged} student${nudged === 1 ? "" : "s"}.` : alreadyReminded ? "Everyone waiting was reminded in the last minute." : "Everyone has started.");
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not send reminders.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function issueParentCode(student: ClassRosterStudent) {
-    if (sample) return setError(SAMPLE_ACTION_NOTE);
-    setBusy(`parent:${student.studentId}`);
-    setError("");
-    try {
-      setIssued([await api.issueParentCode(classroomId, student.studentId)]);
-      loadRoster();
-    } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Could not issue a parent code.");
     } finally {
       setBusy("");
     }
@@ -536,7 +523,10 @@ export default function PilotConsolePage() {
           busy={busy}
           onRemove={(student) => void removeStudent(student)}
           onResetCode={(student) => void resetCode(student)}
-          onParentCode={(student) => void issueParentCode(student)}
+          classroomId={activeClass.id}
+          readOnly={sample}
+          onRosterChanged={loadRoster}
+          onStudentChanged={(row) => setRoster((prev) => prev.map((s) => (s.studentId === row.studentId ? row : s)))}
           addStudents={sample ? <p className={styles.muted}>Adding students from a class list is turned off for sample data.</p> : <AddStudents classroomId={activeClass.id} onAdded={(codes) => { setIssued(codes); loadRoster(); }} />}
         />
       )}
@@ -544,10 +534,11 @@ export default function PilotConsolePage() {
   );
 }
 
-function RosterPanel({ roster, className, busy, onRemove, onResetCode, onParentCode, addStudents }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void; onResetCode: (student: ClassRosterStudent) => void; onParentCode: (student: ClassRosterStudent) => void; addStudents: React.ReactNode }) {
+function RosterPanel({ roster, className, busy, onRemove, onResetCode, addStudents, classroomId, readOnly, onRosterChanged, onStudentChanged }: { roster: ClassRosterStudent[]; className: string; busy: string; onRemove: (student: ClassRosterStudent) => void; onResetCode: (student: ClassRosterStudent) => void; addStudents: React.ReactNode; classroomId: string; readOnly: boolean; onRosterChanged: () => void; onStudentChanged: (row: ClassRosterStudent) => void }) {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
-  const [confirmingParent, setConfirmingParent] = useState<string | null>(null);
+  const [editingParents, setEditingParents] = useState<string | null>(null);
+  const editing = roster.find((s) => s.studentId === editingParents);
   const flagged = roster.filter((s) => s.alsoIn.length).length;
   return (
     <section className={styles.rosterPanel} aria-label={`Students in ${className}`}>
@@ -556,6 +547,8 @@ function RosterPanel({ roster, className, busy, onRemove, onResetCode, onParentC
         {flagged > 0 && <span className={styles.flagNote}>{flagged} also in another of your classes</span>}
       </div>
       <div className={styles.rosterAdd}>{addStudents}</div>
+      {!readOnly && <LinkRequests classroomId={classroomId} roster={roster} onChanged={onRosterChanged} />}
+      {editing && <ParentsEditor key={editing.studentId} classroomId={classroomId} student={editing} onSaved={onStudentChanged} onClose={() => setEditingParents(null)} />}
       {!roster.length ? (
         <p className={styles.muted}>No one yet. Add your class list above, or students appear here as soon as they enter the join code.</p>
       ) : (
@@ -566,15 +559,9 @@ function RosterPanel({ roster, className, busy, onRemove, onResetCode, onParentC
                 {s.name}
                 {s.rollNumber ? <small>Roll {s.rollNumber}</small> : null}
                 {s.alsoIn.length > 0 && <small className={styles.flag}>Also in {s.alsoIn.map((c) => c.name).join(", ")}</small>}
-                {s.schoolIssuedCode && <small data-testid="parent-status">{s.parentLinked ? "Parent linked" : s.parentCodeActive ? "Parent code sent home" : "No parent linked"}</small>}
+                {s.schoolIssuedCode && <small data-testid="parent-status">{parentStatus(s)}</small>}
               </span>
-              {confirmingParent === s.studentId ? (
-                <span className={styles.rosterConfirm}>
-                  New parent code? Any earlier one stops working.
-                  <button type="button" className={styles.removeYes} onClick={() => { setConfirmingParent(null); onParentCode(s); }} disabled={busy === `parent:${s.studentId}`}>New parent code</button>
-                  <button type="button" className={styles.removeNo} onClick={() => setConfirmingParent(null)}>Cancel</button>
-                </span>
-              ) : confirmingCode === s.studentId ? (
+              {confirmingCode === s.studentId ? (
                 <span className={styles.rosterConfirm}>
                   New code? The old one stops working.
                   <button type="button" className={styles.removeYes} onClick={() => { setConfirmingCode(null); onResetCode(s); }} disabled={busy === `code:${s.studentId}`}>New code</button>
@@ -589,7 +576,7 @@ function RosterPanel({ roster, className, busy, onRemove, onResetCode, onParentC
               ) : (
                 <span className={styles.rosterActions}>
                   {s.schoolIssuedCode && <button type="button" className={styles.removeNo} onClick={() => setConfirmingCode(s.studentId)} aria-label={`New sign-in code for ${s.name}`}>New code</button>}
-                  {s.schoolIssuedCode && !s.parentLinked && <button type="button" className={styles.removeNo} onClick={() => setConfirmingParent(s.studentId)} aria-label={`New parent code for ${s.name}`}>Parent code</button>}
+                  {s.schoolIssuedCode && !readOnly && <button type="button" className={styles.removeNo} onClick={() => setEditingParents(s.studentId)} aria-label={`Parents of ${s.name}`}>Parents</button>}
                   <button type="button" className={styles.removeNo} onClick={() => setConfirming(s.studentId)} aria-label={`Remove ${s.name} from ${className}`}>Remove</button>
                 </span>
               )}

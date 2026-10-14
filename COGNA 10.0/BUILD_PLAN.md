@@ -55,6 +55,10 @@ Before executing each phase's test gate, notify the product owner in the active 
 - [x] Background filing of finished class steps; teacher roster shows last activity and who has gone quiet
 - [x] Live updates (server-sent events) for teacher class page and student pages; polling demoted to a slow fallback
 - [x] Parent link codes on school-made students (claim = consent) and in-app parent updates (check finished, catch-up set)
+- [x] Parents link through the phone on the school's record, replacing the slip code (2026-10-14): the class list takes parents' mobiles and the school's consent; a parent confirms their number with a texted code and agrees per child; any number of guardians; the school keeps the student (teacher still resets sign-in); teachers edit numbers, unlink, and approve parents who aren't on record
+- [ ] Send texts in production: Twilio env (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM) plus a DLT-registered sender and template for India
+- [ ] Parent updates by WhatsApp/SMS to the same verified number (today in-app only)
+- [ ] Merge a family-made child with the same child the school adds later
 - [x] Teacher controls: restart one student, pause/resume, time limit, remind students who haven't started; late joiners in teacher-advanced checks
 - [ ] Email delivery for parent updates (no email provider is wired; weekly reports are also stub-only)
 - [ ] Rate limit per signed-in user rather than per network address

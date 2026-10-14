@@ -497,12 +497,43 @@ export interface ClassRosterStudent {
   joinedAt: string;
   /** The same teacher's other classes this student is also in — usually a mistyped code. */
   alsoIn: Array<{ id: string; name: string }>;
-  /** Created from the class list (not by a family), so the teacher can issue a new code. */
+  /** Created from the class list (not by a family), so the school manages sign-in codes and parents. */
   schoolIssuedCode: boolean;
-  /** A family account owns this student (made them, or claimed them with the code from school). */
+  /** At least one parent account can see this student. */
   parentLinked?: boolean;
-  /** An unused parent link code is still valid. */
-  parentCodeActive?: boolean;
+  /** Parents' phones on the school's record, and whether the parent with each one has linked. */
+  guardians?: Array<{ phone: string; relationship: string; status: "LINKED" | "DECLINED" | "WAITING" }>;
+  parents?: Array<{ parentId: string; name: string; phone: string | null; source: string }>;
+}
+
+/** A parent asking the teacher to link their child, with the likeliest students in the class. */
+export interface ParentLinkRequestForTeacher {
+  id: string;
+  parentName: string;
+  parentPhone: string | null;
+  childName: string;
+  rollNumber: string | null;
+  createdAt: string;
+  suggestions: Array<{ studentId: string; name: string; rollNumber?: string | null }>;
+}
+
+/** A child whose school record lists the parent's verified phone. */
+export interface SchoolChild {
+  studentId: string;
+  name: string;
+  relationship: string;
+  className: string | null;
+  teacherName: string | null;
+  status: "LINKED" | "DECLINED" | "WAITING";
+}
+
+export interface ParentLinkRequest {
+  id: string;
+  childName: string;
+  rollNumber: string | null;
+  className: string;
+  status: "PENDING" | "APPROVED" | "DECLINED";
+  createdAt: string;
 }
 
 /** A sign-in code, shown once: only its hash is stored. */
@@ -510,11 +541,9 @@ export interface IssuedStudentCode {
   studentId: string;
   name: string;
   rollNumber?: string | null;
-  /** The student's sign-in code; absent when only a parent code was issued. */
   accessCode?: string;
-  /** The one-time code a parent enters to link this student to their account. */
-  parentCode?: string;
-  parentCodeExpiresAt?: string;
+  /** How many parent phones the school listed for this student. */
+  phones?: number;
 }
 
 /** An update from school on a parent's dashboard. */
@@ -611,14 +640,26 @@ export const api = {
   getClassRoster: (classroomId: string) =>
     classroomFetch<ClassRosterStudent[]>(`/classrooms/${classroomId}/students`, { headers: teacherAuthHeaders() }),
 
-  importStudents: (classroomId: string, students: Array<{ name: string; rollNumber?: string }>) =>
-    classroomFetch<{ classroom: { id: string; name: string; joinCode: string }; students: IssuedStudentCode[] }>(`/classrooms/${classroomId}/students/import`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ students }) }),
+  importStudents: (classroomId: string, students: Array<{ name: string; rollNumber?: string; phones?: string[] }>, schoolConsent: boolean) =>
+    classroomFetch<{ classroom: { id: string; name: string; joinCode: string }; students: IssuedStudentCode[] }>(`/classrooms/${classroomId}/students/import`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ students, schoolConsent }) }),
 
   resetStudentAccessCode: (classroomId: string, studentId: string) =>
     classroomFetch<IssuedStudentCode>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/access-code`, { method: "POST", headers: teacherAuthHeaders() }),
 
-  issueParentCode: (classroomId: string, studentId: string) =>
-    classroomFetch<IssuedStudentCode>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/parent-code`, { method: "POST", headers: teacherAuthHeaders() }),
+  setGuardianPhones: (classroomId: string, studentId: string, guardians: Array<{ phone: string; relationship?: string }>) =>
+    classroomFetch<ClassRosterStudent>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/guardians`, { method: "PUT", headers: teacherAuthHeaders(), body: JSON.stringify({ guardians }) }),
+
+  unlinkParent: (classroomId: string, studentId: string, parentId: string) =>
+    classroomFetch<ClassRosterStudent>(`/classrooms/${classroomId}/students/${encodeURIComponent(studentId)}/parents/${encodeURIComponent(parentId)}`, { method: "DELETE", headers: teacherAuthHeaders() }),
+
+  getLinkRequests: (classroomId: string) =>
+    classroomFetch<ParentLinkRequestForTeacher[]>(`/classrooms/${classroomId}/link-requests`, { headers: teacherAuthHeaders() }),
+
+  approveLinkRequest: (classroomId: string, requestId: string, studentId: string) =>
+    classroomFetch<ParentLinkRequestForTeacher[]>(`/classrooms/${classroomId}/link-requests/${encodeURIComponent(requestId)}/approve`, { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify({ studentId }) }),
+
+  declineLinkRequest: (classroomId: string, requestId: string) =>
+    classroomFetch<ParentLinkRequestForTeacher[]>(`/classrooms/${classroomId}/link-requests/${encodeURIComponent(requestId)}/decline`, { method: "POST", headers: teacherAuthHeaders() }),
 
   restartStudentCheck: (runId: string, studentId: string) =>
     classroomFetch<ClassroomRunReport>(`/classrooms/runs/${runId}/students/${encodeURIComponent(studentId)}/restart`, { method: "POST", headers: teacherAuthHeaders() }),
@@ -680,7 +721,7 @@ export const api = {
     apiFetch<ParentSession>("/parents/dev/demo-login", { method: "POST" }),
 
   listStudents: (auth?: string | ParentAuthInput) =>
-    apiFetch<Array<{ id: string; name: string; grade: number }>>(
+    apiFetch<Array<{ id: string; name: string; grade: number; fromSchool?: boolean }>>(
       "/parents/me/students",
       { headers: buildParentAuthHeaders(auth) },
     ),
@@ -699,13 +740,27 @@ export const api = {
       },
     ),
 
-  /** Links a school-made student with the one-time code from school. */
-  claimStudentWithCode: (auth: string | ParentAuthInput | undefined, code: string) =>
-    apiFetch<{ id: string; name: string; grade: number }>("/parents/me/students/claim", {
-      method: "POST",
-      headers: buildParentAuthHeaders(auth),
-      body: JSON.stringify({ code }),
-    }),
+  getParentPhone: (auth?: string | ParentAuthInput) =>
+    apiFetch<{ phone: string | null }>("/parents/me/phone", { headers: buildParentAuthHeaders(auth) }),
+
+  /** Texts a one-time code. Outside production `devCode` comes back, as no SMS is sent. */
+  sendParentPhoneCode: (auth: string | ParentAuthInput | undefined, phone: string) =>
+    apiFetch<{ phone: string; masked: string; expiresInMinutes: number; devCode?: string }>("/parents/me/phone/code", { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify({ phone }) }),
+
+  verifyParentPhone: (auth: string | ParentAuthInput | undefined, phone: string, code: string) =>
+    apiFetch<{ phone: string; children: SchoolChild[] }>("/parents/me/phone/verify", { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify({ phone, code }) }),
+
+  getSchoolChildren: (auth?: string | ParentAuthInput) =>
+    apiFetch<SchoolChild[]>("/parents/me/school-children", { headers: buildParentAuthHeaders(auth) }),
+
+  answerSchoolChild: (auth: string | ParentAuthInput | undefined, studentId: string, agree: boolean) =>
+    apiFetch<SchoolChild[]>(`/parents/me/school-children/${encodeURIComponent(studentId)}`, { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify({ agree }) }),
+
+  requestParentLink: (auth: string | ParentAuthInput | undefined, input: { joinCode: string; childName: string; rollNumber?: string }) =>
+    apiFetch<ParentLinkRequest[]>("/parents/me/link-requests", { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify(input) }),
+
+  getParentLinkRequests: (auth?: string | ParentAuthInput) =>
+    apiFetch<ParentLinkRequest[]>("/parents/me/link-requests", { headers: buildParentAuthHeaders(auth) }),
 
   getParentNotifications: (auth?: string | ParentAuthInput) =>
     apiFetch<{ unread: number; items: ParentNotificationItem[] }>("/parents/me/notifications", { headers: buildParentAuthHeaders(auth) }),
