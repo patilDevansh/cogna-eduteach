@@ -434,7 +434,33 @@ export interface ParentChildOverview {
   totals: { checksDone: number; lessonsFinished: number };
   lastActive: string | null;
   growth: TopicGrowthEntry[];
+  work: ParentWork;
 }
+
+/** One open class check for the child, as the parent sees it (api parent-work.ts). */
+export interface ParentOpenTask {
+  runId: string;
+  title: string;
+  kind: "DIAGNOSTIC" | "TOPIC_CHECK" | "CATCH_UP";
+  state: "NOT_STARTED" | "STARTED" | "OVERDUE" | "WITH_TEACHER";
+  dueAt: string | null;
+  setAt: string;
+  minutesLeft: number;
+}
+
+/** Has the child done their class checks: last `windowDays` days, plus everything still open. */
+export interface ParentWork {
+  windowDays: number;
+  total: number;
+  onTime: number;
+  late: number;
+  missed: number;
+  open: number;
+  next: ParentOpenTask | null;
+  openTasks: ParentOpenTask[];
+}
+
+export type ParentInviteResult = { status: "SENT" | "NOT_CONFIGURED" | "FAILED" | "ALREADY_LINKED" | "TOO_SOON" | "DAILY_LIMIT"; invitedTo?: string };
 
 export interface ParentWeeklySummary {
   studentId: string;
@@ -634,8 +660,14 @@ export const api = {
   createClassroom: (input: { name: string; grade: number; subjectId: string; joinCode?: string; isDemo?: boolean }) =>
     classroomFetch<ProductionClassroom>("/classrooms", { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
 
-  joinClassroom: (input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) =>
-    classroomFetch<{ id: string; classroom: ProductionClassroom; alsoIn: Array<{ id: string; name: string }> }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+  joinClassroom: (input: { joinCode: string; rollNumber?: string; admissionNumber?: string; parentEmail?: string }) =>
+    classroomFetch<{ id: string; classroom: ProductionClassroom; alsoIn: Array<{ id: string; name: string }>; parentInvite?: ParentInviteResult }>("/classrooms/join", { method: "POST", body: JSON.stringify(input) }),
+
+  /** Whether the signed-in student's family is linked yet, and where an invite last went (masked). */
+  getParentInviteStatus: () => classroomFetch<{ linked: boolean; invitedTo: string | null; sentAt: string | null }>("/classrooms/student/parent-invite"),
+
+  inviteParent: (email: string, classroomId?: string) =>
+    classroomFetch<ParentInviteResult>("/classrooms/student/parent-invite", { method: "POST", body: JSON.stringify({ email, classroomId }) }),
 
   getClassRoster: (classroomId: string) =>
     classroomFetch<ClassRosterStudent[]>(`/classrooms/${classroomId}/students`, { headers: teacherAuthHeaders() }),
@@ -1177,12 +1209,6 @@ export const api = {
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/exit`, {
       method: "POST",
       body: JSON.stringify({ answer, working, item, ...(interaction ? { interaction } : {}) }),
-    }),
-
-  verifyPersonalizedVideoStep: (id: string, sceneIndex: number, assembledLine: string) =>
-    personalizedVideoFetch<{ valid: boolean }>(`/assignments/${id}/verify-step`, {
-      method: "POST",
-      body: JSON.stringify({ sceneIndex, assembledLine }),
     }),
 
   getPersonalizedVideoTeacherReport: (demo = false) =>

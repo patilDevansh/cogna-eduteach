@@ -350,6 +350,11 @@ model Student {
   curriculum      String    @default("CBSE")
   accessCodeHash  String
   deletedAt       DateTime?
+  /// Where the student asked Cogna to email a sign-up invite (typed when joining a class). Shown masked to the student and teacher.
+  parentInviteEmail       String?
+  parentInviteSentAt      DateTime?
+  /// Invites sent in the 24 hours since the last one; caps how many emails a student can trigger.
+  parentInviteCount       Int       @default(0)
 
   /**
    * Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags.
@@ -459,6 +464,8 @@ model ClassroomRun {
   status      ClassroomRunStatus @default(DRAFT)
   config      Json               @default("{}")
   startedAt   DateTime?
+  /// When each student should have finished the whole check (set at launch). Parents see it; null means no deadline.
+  dueAt       DateTime?
   completedAt DateTime?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt

@@ -45,7 +45,7 @@ export class LocalRenderQueue {
   }
 
   /** Queues an evidence-built DistributionLesson (already narrated) behind any running render. */
-  submitAnimated(input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" }): { providerJobId: string } {
+  submitAnimated(input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" | "authored" }): { providerJobId: string } {
     const providerJobId = randomUUID();
     this.writeJob(providerJobId, { status: "RUNNING" });
     this.chain = this.chain.then(() => this.renderAnimated(providerJobId, input)).catch(() => undefined);
@@ -144,13 +144,13 @@ export class LocalRenderQueue {
     }
   }
 
-  private async renderAnimated(providerJobId: string, input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" }): Promise<void> {
+  private async renderAnimated(providerJobId: string, input: { assignmentId: string; lesson: unknown; kind: "distribution" | "trinomial" | "authored" }): Promise<void> {
     const workDir = path.join(os.tmpdir(), "cogna-lesson-video", providerJobId);
     try {
       await mkdir(workDir, { recursive: true });
       const inputPath = path.join(workDir, "input.json");
       await writeFile(inputPath, JSON.stringify({ lesson: input.lesson, outputDir: workDir }));
-      const rendered = await runLessonVideoCli(inputPath, input.kind === "trinomial" ? "--trinomial" : "--distribution");
+      const rendered = await runLessonVideoCli(inputPath, `--${input.kind}`);
       const prefix = `lessons/${input.assignmentId}`;
       const video = await this.storage.put({ key: `${prefix}/lesson.mp4`, body: await readFile(rendered.mp4Path), contentType: "video/mp4" });
       const transcript = await this.storage.put({ key: `${prefix}/lesson.vtt`, body: await readFile(rendered.vttPath), contentType: "text/vtt" });
@@ -160,7 +160,7 @@ export class LocalRenderQueue {
           storageRef: video.publicUrl,
           transcriptRef: transcript.publicUrl,
           durationMs: rendered.durationMs,
-          integrity: { sha256: rendered.sha256, provider: rendered.provider, providerJobId, sceneCount: 3 },
+          integrity: { sha256: rendered.sha256, provider: rendered.provider, providerJobId, sceneCount: (input.lesson as { scenes?: unknown[] }).scenes?.length ?? 0 },
         },
       });
     } catch (error) {
@@ -172,7 +172,7 @@ export class LocalRenderQueue {
   }
 }
 
-function runLessonVideoCli(inputPath: string, mode?: "--distribution" | "--trinomial"): Promise<{
+function runLessonVideoCli(inputPath: string, mode?: "--distribution" | "--trinomial" | "--authored"): Promise<{
   mp4Path: string;
   vttPath: string;
   durationMs: number;

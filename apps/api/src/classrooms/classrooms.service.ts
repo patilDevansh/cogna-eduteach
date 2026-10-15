@@ -15,6 +15,11 @@ import { ClassroomEventsService } from "./classroom-events";
 import { catchUpSetUpdate, checkFinishedUpdate, type ParentUpdate } from "./parent-updates";
 import { normalizePhone } from "../parents/phone";
 import { setConsent } from "../parents/consent";
+import { dueAtFor, parentWork, type StepKind, type StepStatus, type WorkTask } from "./parent-work";
+import { INVITE_COOLDOWN_MINUTES, INVITE_DAILY_LIMIT, maskEmail, normalizeEmail, parentInviteEmail } from "./parent-invite";
+import { MailService } from "../mail/mail.service";
+import { allowedWebOrigins } from "../web-origins";
+import { isProductionLike } from "../access/cogna-access";
 
 const PHASE_KIND = {
   DIAGNOSTIC: ClassroomAssignmentKind.DIAGNOSTIC,
@@ -66,6 +71,7 @@ export class ClassroomsService {
     private readonly prisma: PrismaService,
     @Optional() private readonly videos?: PersonalizedVideosService,
     @Optional() private readonly events?: ClassroomEventsService,
+    @Optional() private readonly mail?: MailService,
   ) {}
 
   /** Tells open pages what changed: the class's teacher page, and these students' home pages. */
@@ -541,8 +547,10 @@ export class ClassroomsService {
     throw new Error("Could not generate a unique sign-in code.");
   }
 
-  async join(actor: AccessActor, input: { joinCode: string; rollNumber?: string; admissionNumber?: string }) {
+  async join(actor: AccessActor, input: { joinCode: string; rollNumber?: string; admissionNumber?: string; parentEmail?: string }) {
     if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    const parentEmail = input.parentEmail?.trim() ? normalizeEmail(input.parentEmail) : null;
+    if (input.parentEmail?.trim() && !parentEmail) throw new BadRequestException("That parent email doesn't look right. Check it, or leave it empty.");
     const classroom = await this.prisma.classroom.findUnique({ where: { joinCode: input.joinCode.trim().toUpperCase() } });
     if (!classroom || classroom.archivedAt) throw new NotFoundException("That class code was not found.");
     const enrollment = await this.prisma.classroomEnrollment.upsert({
@@ -564,7 +572,71 @@ export class ClassroomsService {
       where: { id: { not: classroom.id }, teacherId: classroom.teacherId, archivedAt: null, enrollments: { some: { studentId: actor.studentId, leftAt: null } } },
       select: { id: true, name: true },
     });
-    return { ...enrollment, alsoIn };
+    const parentInvite = parentEmail ? await this.sendParentInvite(actor.studentId, parentEmail, classroom.id) : undefined;
+    return { ...enrollment, alsoIn, parentInvite };
+  }
+
+  /** Whether this student's family is linked, and where an invite last went (masked), so the join page knows whether to ask. */
+  async parentInviteStatus(actor: AccessActor) {
+    if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    const student = await this.prisma.student.findUnique({ where: { id: actor.studentId }, select: { parentInviteEmail: true, parentInviteSentAt: true } });
+    if (!student) throw new NotFoundException("Student not found.");
+    const linked = await this.familyLinked(actor.studentId);
+    return { linked, invitedTo: !linked && student.parentInviteEmail ? maskEmail(student.parentInviteEmail) : null, sentAt: linked ? null : student.parentInviteSentAt };
+  }
+
+  /** True once any parent or guardian (not the school's placeholder account) can see this student. */
+  private async familyLinked(studentId: string): Promise<boolean> {
+    const links = await this.prisma.parentStudentLink.count({
+      where: { studentId, canViewReports: true, parent: { user: { NOT: { clerkId: { startsWith: "school_roster:" } } } } },
+    });
+    return links > 0;
+  }
+
+  /** A student asks Cogna to email their parent an invite (on its own, after joining). */
+  async inviteParent(actor: AccessActor, input: { email?: string; classroomId?: string }) {
+    if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    const email = normalizeEmail(input.email);
+    if (!email) throw new BadRequestException("That email doesn't look right.");
+    return this.sendParentInvite(actor.studentId, email, input.classroomId);
+  }
+
+  /**
+   * Emails the parent an invite to sign in to Cogna. It carries no code and links nothing by itself:
+   * the parent links by confirming the phone the school has on record, or by asking the teacher to
+   * approve them. Only until a family has linked; rate-limited so no one can use Cogna to flood an
+   * inbox. Never fails the caller.
+   */
+  private async sendParentInvite(studentId: string, email: string, classroomId?: string): Promise<{ status: "SENT" | "NOT_CONFIGURED" | "FAILED" | "ALREADY_LINKED" | "TOO_SOON" | "DAILY_LIMIT"; invitedTo?: string }> {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId }, select: { name: true, parentInviteSentAt: true, parentInviteCount: true } });
+    if (!student) throw new NotFoundException("Student not found.");
+    if (await this.familyLinked(studentId)) return { status: "ALREADY_LINKED" };
+    const now = new Date();
+    const since = student.parentInviteSentAt ? now.getTime() - student.parentInviteSentAt.getTime() : Infinity;
+    if (since < INVITE_COOLDOWN_MINUTES * 60_000) return { status: "TOO_SOON" };
+    const count = since < 86_400_000 ? student.parentInviteCount : 0;
+    if (count >= INVITE_DAILY_LIMIT) return { status: "DAILY_LIMIT" };
+    // In production with no mailbox set up, say so rather than record an invite nobody receives.
+    if (!this.mail?.configured() && isProductionLike()) return { status: "NOT_CONFIGURED" };
+
+    const enrollment = await this.prisma.classroomEnrollment.findFirst({
+      where: { studentId, leftAt: null, ...(classroomId ? { classroomId } : {}) },
+      orderBy: { joinedAt: "desc" },
+      select: { classroom: { select: { name: true, teacher: { select: { name: true } } } } },
+    });
+    await this.prisma.student.update({
+      where: { id: studentId },
+      data: { parentInviteEmail: email, parentInviteSentAt: now, parentInviteCount: count + 1 },
+    });
+    const message = parentInviteEmail({
+      to: email,
+      studentName: student.name,
+      className: enrollment?.classroom.name ?? "their class",
+      teacherName: enrollment?.classroom.teacher.name ?? "their teacher",
+      webUrl: allowedWebOrigins()[0] ?? "http://localhost:3000",
+    });
+    const status = this.mail ? await this.mail.send(message) : "NOT_CONFIGURED";
+    return { status, invitedTo: maskEmail(email) };
   }
 
   /** Pilot: anyone who arrives while a quick check is running (joined late, or added from the class list) gets it straight away. */
@@ -615,7 +687,7 @@ export class ClassroomsService {
       });
     await this.prisma.$transaction([
       this.prisma.classroomAssignment.createMany({ data: newAssignments, skipDuplicates: true }),
-      this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: phase as ClassroomRunPhase, status: "LIVE", startedAt: run.startedAt ?? new Date() } }),
+      this.prisma.classroomRun.update({ where: { id: runId }, data: { phase: phase as ClassroomRunPhase, status: "LIVE", startedAt: run.startedAt ?? new Date(), dueAt: run.startedAt ? run.dueAt : dueAtFor(run.config, new Date()) } }),
     ]);
     this.notify(run.classroomId, { runId, studentIds: enrolled.map((row) => row.studentId) });
     if (phase === "DIAGNOSTIC" && checkKindOf(run.config) === "CATCH_UP") {
@@ -797,7 +869,7 @@ export class ClassroomsService {
         const attempts = Object.values(script.practiceAttempts ?? {});
         trustedResult = {
           lessonStatus: video.status,
-          delivery: (video.renderResult as { interactive?: boolean } | null)?.interactive ? "SLIDES" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
+          delivery: (video.script as { format?: string } | null)?.format === "SHORT" ? "SHORT" : video.assetId ? "VIDEO" : "HTML_FALLBACK",
           watched: true,
           practice: { total: script.practice?.items?.length ?? 0, attempted: attempts.length, correct: attempts.filter((a) => a.correct).length },
         };
@@ -977,6 +1049,22 @@ export class ClassroomsService {
           : null,
       };
     }));
+  }
+
+  /** The child's class checks as parent tasks: done on time, late, or still open and when it's due (parent-work.ts). */
+  async workForStudent(studentId: string, now = new Date()) {
+    const steps = await this.prisma.classroomAssignment.findMany({
+      where: { enrollment: { studentId }, run: { status: { in: ["LIVE", "PAUSED", "COMPLETE"] }, startedAt: { not: null } } },
+      select: { kind: true, status: true, startedAt: true, completedAt: true, run: { select: { id: true, title: true, config: true, status: true, startedAt: true, dueAt: true } } },
+    });
+    const byRun = new Map<string, WorkTask>();
+    for (const step of steps) {
+      const run = step.run;
+      const task = byRun.get(run.id) ?? { runId: run.id, title: run.title, kind: checkKindOf(run.config), runStatus: run.status, launchedAt: run.startedAt!, dueAt: run.dueAt, steps: [] };
+      task.steps.push({ kind: step.kind as StepKind, status: step.status as StepStatus, startedAt: step.startedAt, completedAt: step.completedAt });
+      byRun.set(run.id, task);
+    }
+    return parentWork([...byRun.values()], now);
   }
 
   /** Every started check on a topic in this class, oldest first, with each student's row (catch-ups: their students only). */

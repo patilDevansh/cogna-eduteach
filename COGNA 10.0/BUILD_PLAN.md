@@ -63,3 +63,16 @@ Before executing each phase's test gate, notify the product owner in the active 
 - [ ] Email delivery for parent updates (no email provider is wired; weekly reports are also stub-only)
 - [ ] Rate limit per signed-in user rather than per network address
 - [ ] Multi-instance live updates (in-process only today)
+
+## Parent dashboard (2026-10-12, [spec](../docs/mvp-10.0/PARENT_DASHBOARD.md))
+
+- [x] Parent value and home order agreed: work done → what's next (time, due date) → where they struggle
+- [x] `dueAt` on class checks (the whole check is one parent task), set at launch: 2 days by default, `dueDays` 1–30 accepted by the API
+- [ ] Teacher picks the due date when starting a check (UI), and a roster overdue filter
+- [x] Parent-facing task states (done on time / late / not finished / to do / overdue / with the teacher), last-30-days counts and time estimates (`parent-work.ts`, tested)
+- [x] Home page rebuilt in the agreed order, phone and laptop (ring, next task with deadline bar, found → lesson → fixed tracker, topic bars)
+- [x] Student enters a parent email when joining a class; Cogna emails the parent a link code (rate-limited; link carries the code in the URL fragment); claim page prefills it across sign-in
+- [ ] Set `SMTP_USER` / `SMTP_PASS` (cogna.eduteach@gmail.com app password) in each environment
+- [ ] Student due-soon banner (24 h before), then parent due-day message, at most one each per assignment
+- [x] Email sending (SMTP via nodemailer; Gmail for the pilot)
+- [ ] WhatsApp Business provider, approved templates, parent phone number and recorded opt-in
