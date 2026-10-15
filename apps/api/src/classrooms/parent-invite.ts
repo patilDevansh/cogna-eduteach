@@ -28,10 +28,10 @@ export function maskEmail(email: string): string {
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export function parentInviteEmail(input: { to: string; studentName: string; className: string; teacherName: string; code: string; webUrl: string; days: number }): MailMessage {
+export function parentInviteEmail(input: { to: string; studentName: string; className: string; teacherName: string; webUrl: string }): MailMessage {
   const child = input.studentName.trim().split(/\s+/)[0] || input.studentName;
-  // The code rides in the fragment, which browsers never send to a server or write to its logs.
-  const link = `${input.webUrl.replace(/\/+$/, "")}/parent/students/new#code=${encodeURIComponent(input.code)}`;
+  // No code rides in the link: linking happens on Cogna, through the phone on the school's record.
+  const link = `${input.webUrl.replace(/\/+$/, "")}/parent/dashboard`;
   const subject = `${child} added you on Cogna`;
   const text = [
     `Hello,`,
@@ -40,12 +40,11 @@ export function parentInviteEmail(input: { to: string; studentName: string; clas
     ``,
     `You'll see whether ${child} has done their class work, what's due next, and exactly where they're stuck.`,
     ``,
-    `Link ${child} to your account: ${link}`,
-    `Or enter this code on Cogna: ${input.code}`,
+    `Sign in to Cogna: ${link}`,
     ``,
-    `The code works once and expires in ${input.days} days. Linking means you agree to ${child} practising with Cogna in class.`,
+    `Then confirm your mobile number. If it's the number ${child}'s school has for you, ${child} appears straight away. If it isn't, you can ask ${input.teacherName} to add you from the same page.`,
     ``,
-    `If you're not ${child}'s parent or guardian, please ignore this email.`,
+    `Linking means you agree to ${child} practising with Cogna in class. If you're not ${child}'s parent or guardian, please ignore this email.`,
     ``,
     `Cogna`,
   ].join("\n");
@@ -56,10 +55,9 @@ export function parentInviteEmail(input: { to: string; studentName: string; clas
 <h1 style="font-size:22px;line-height:1.25;margin:0 0 12px">${escapeHtml(child)} added you on Cogna</h1>
 <p style="font-size:16px;line-height:1.5;margin:0 0 12px">${escapeHtml(child)} joined <strong>${escapeHtml(input.className)}</strong> with ${escapeHtml(input.teacherName)}, and asked us to send you this so you can follow their maths.</p>
 <p style="font-size:16px;line-height:1.5;margin:0 0 24px">You'll see whether ${escapeHtml(child)} has done their class work, what's due next, and exactly where they're stuck.</p>
-<p style="margin:0 0 24px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#0e6b54;color:#ffffff;text-decoration:none;font-weight:600;padding:14px 24px;border-radius:999px">Link ${escapeHtml(child)} to your account</a></p>
-<p style="font-size:14px;color:#51635a;margin:0 0 6px">Or enter this code on Cogna:</p>
-<p style="font-family:Menlo,Consolas,monospace;font-size:22px;letter-spacing:0.12em;margin:0 0 24px">${escapeHtml(input.code)}</p>
-<p style="font-size:13px;line-height:1.5;color:#51635a;margin:0">The code works once and expires in ${input.days} days. Linking means you agree to ${escapeHtml(child)} practising with Cogna in class. If you're not ${escapeHtml(child)}'s parent or guardian, please ignore this email.</p>
+<p style="margin:0 0 24px"><a href="${escapeHtml(link)}" style="display:inline-block;background:#0e6b54;color:#ffffff;text-decoration:none;font-weight:600;padding:14px 24px;border-radius:999px">Sign in to Cogna</a></p>
+<p style="font-size:15px;line-height:1.5;margin:0 0 24px">Then confirm your mobile number. If it's the number ${escapeHtml(child)}'s school has for you, ${escapeHtml(child)} appears straight away. If it isn't, you can ask ${escapeHtml(input.teacherName)} to add you from the same page.</p>
+<p style="font-size:13px;line-height:1.5;color:#51635a;margin:0">Linking means you agree to ${escapeHtml(child)} practising with Cogna in class. If you're not ${escapeHtml(child)}'s parent or guardian, please ignore this email.</p>
 </div></div></body></html>`;
   return { to: input.to, subject, text, html };
 }

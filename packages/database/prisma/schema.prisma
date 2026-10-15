@@ -310,12 +310,12 @@ model User {
 model Teacher {
   id          String   @id @default(cuid())
   identityKey String   @unique
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  schoolId  String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId    String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   classrooms Classroom[]
 
@@ -329,10 +329,15 @@ model Parent {
   name               String
   trialEndsAt        DateTime?
   subscriptionStatus String    @default("trial")
+  /// Verified mobile in E.164 (+919876543210). One account per number: the latest to verify it holds it.
+  phone              String?   @unique
+  phoneVerifiedAt    DateTime?
 
-  primaryStudents ParentStudentLink[]  @relation("PrimaryParent")
+  primaryStudents ParentStudentLink[]     @relation("PrimaryParent")
   notifications   ParentNotification[]
-  createdAt       DateTime             @default(now())
+  phoneCodes      PhoneVerificationCode[]
+  linkRequests    ParentLinkRequest[]
+  createdAt       DateTime                @default(now())
 }
 
 model Student {
@@ -345,10 +350,7 @@ model Student {
   curriculum      String    @default("CBSE")
   accessCodeHash  String
   deletedAt       DateTime?
-  /// One-time code a parent enters to link a school-made student to their own account. Hash only; cleared once used.
-  parentLinkCodeHash      String?   @unique
-  parentLinkCodeExpiresAt DateTime?
-  /// Where the student asked Cogna to email that code (typed when joining a class). Shown masked to the student and teacher.
+  /// Where the student asked Cogna to email a sign-up invite (typed when joining a class). Shown masked to the student and teacher.
   parentInviteEmail       String?
   parentInviteSentAt      DateTime?
   /// Invites sent in the 24 hours since the last one; caps how many emails a student can trigger.
@@ -361,6 +363,7 @@ model Student {
 
   learnerProfile       LearnerProfile?
   parentNotifications  ParentNotification[]
+  guardianPhones       StudentGuardianPhone[]
   sessions             LearningSession[]
   attempts             Attempt[]
   masteryScores        MasteryScore[]
@@ -403,9 +406,10 @@ model Classroom {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  enrollments ClassroomEnrollment[]
-  runs        ClassroomRun[]
-  topics      ClassroomTopic[]
+  enrollments  ClassroomEnrollment[]
+  runs         ClassroomRun[]
+  topics       ClassroomTopic[]
+  linkRequests ParentLinkRequest[]
 
   @@index([teacherId, archivedAt])
   @@index([schoolId])
@@ -502,6 +506,8 @@ model ParentStudentLink {
   student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   relationship   String  @default("parent")
   canViewReports Boolean @default(true)
+  /// FAMILY (the parent made the child) | PHONE (their verified phone is on the school's record) | TEACHER_APPROVED
+  source         String  @default("FAMILY")
 
   @@id([parentId, studentId])
 }
@@ -1411,20 +1417,24 @@ model DiagnosticV2EvidenceRecord {
 // as demo_aarav are not Student rows, so studentId is stored as a string.
 
 model LotusSessionRecord {
-  id        String    @id @default(cuid())
-  sessionId String    @unique
-  studentId String
-  /** Deterministic HMAC of studentId. Lets an observer/export identify a learner across sessions without the raw ID. */
-  pseudonymId String?
-  /** When this session's durable data is eligible for deletion under the classroom retention policy. */
+  id             String    @id @default(cuid())
+  sessionId      String    @unique
+  studentId      String
+  /**
+   * Deterministic HMAC of studentId. Lets an observer/export identify a learner across sessions without the raw ID.
+   */
+  pseudonymId    String?
+  /**
+   * When this session's durable data is eligible for deletion under the classroom retention policy.
+   */
   retentionUntil DateTime?
-  status    String
-  phase     String
-  startedAt DateTime
-  endedAt   DateTime?
-  payload   Json
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  status         String
+  phase          String
+  startedAt      DateTime
+  endedAt        DateTime?
+  payload        Json
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   evidence         LotusEvidenceRecord[]
   videoAssignments PersonalizedVideoAssignment[]
@@ -1435,41 +1445,57 @@ model LotusSessionRecord {
 }
 
 model LotusEvidenceRecord {
-  id                 String             @id @default(cuid())
-  sessionRecordId    String
-  session            LotusSessionRecord @relation(fields: [sessionRecordId], references: [id], onDelete: Cascade)
-  eventType          String
-  outcome            String
-  questionText       String?
-  submittedText      String?
-  verificationStatus String?
-  verbatimText       String             @db.Text
-  metadata           Json?
-  /** The question this event concerns. Present on ANSWER events, null on whole-session SESSION_STATE snapshots. */
-  questionId         String?
-  /** Client-supplied submission id. Paired with questionId, this is the DB-level duplicate-submit guard. */
-  submissionId       String?
-  /** When downstream review work for this turn was enqueued (outbox). */
-  queuedAt           DateTime?
-  /** When a worker actually started deep analysis for this turn. */
-  analysisStartedAt  DateTime?
-  /** When deep analysis for this turn finished (success or terminal failure). */
+  id                  String             @id @default(cuid())
+  sessionRecordId     String
+  session             LotusSessionRecord @relation(fields: [sessionRecordId], references: [id], onDelete: Cascade)
+  eventType           String
+  outcome             String
+  questionText        String?
+  submittedText       String?
+  verificationStatus  String?
+  verbatimText        String             @db.Text
+  metadata            Json?
+  /**
+   * The question this event concerns. Present on ANSWER events, null on whole-session SESSION_STATE snapshots.
+   */
+  questionId          String?
+  /**
+   * Client-supplied submission id. Paired with questionId, this is the DB-level duplicate-submit guard.
+   */
+  submissionId        String?
+  /**
+   * When downstream review work for this turn was enqueued (outbox).
+   */
+  queuedAt            DateTime?
+  /**
+   * When a worker actually started deep analysis for this turn.
+   */
+  analysisStartedAt   DateTime?
+  /**
+   * When deep analysis for this turn finished (success or terminal failure).
+   */
   analysisCompletedAt DateTime?
-  /** The plan slot this turn's question was installed into, if it came from an adaptive decision. */
-  installedSlot      Int?
-  /** When the browser acknowledged actually displaying this question. */
-  shownAckAt         DateTime?
-  /** Model spend for this turn's review, in integer cents. Null until a cost source exists upstream. */
-  costCents          Int?
-  promptVersion      String?
-  modelVersion       String?
-  policyVersion      String?
-  skillMapVersion    String?
-  createdAt          DateTime           @default(now())
+  /**
+   * The plan slot this turn's question was installed into, if it came from an adaptive decision.
+   */
+  installedSlot       Int?
+  /**
+   * When the browser acknowledged actually displaying this question.
+   */
+  shownAckAt          DateTime?
+  /**
+   * Model spend for this turn's review, in integer cents. Null until a cost source exists upstream.
+   */
+  costCents           Int?
+  promptVersion       String?
+  modelVersion        String?
+  policyVersion       String?
+  skillMapVersion     String?
+  createdAt           DateTime           @default(now())
 
+  @@unique([sessionRecordId, questionId, submissionId])
   @@index([sessionRecordId, createdAt])
   @@index([sessionRecordId, eventType])
-  @@unique([sessionRecordId, questionId, submissionId])
 }
 
 /// An AI-authored, code-validated Lotus item that a learner actually
@@ -1477,21 +1503,21 @@ model LotusEvidenceRecord {
 /// no response, working, learner identifier, or answer-analysis outcome.
 /// An item can only enter here from a durable accepted ANSWER event.
 model LotusQuestionBankItem {
-  id                String   @id @default(cuid())
-  topic             String
-  question          Json
-  questionPrint     String
-  skillId           String
-  itemKind          String
-  level             String?
-  sourceSessionId   String
-  sourceQuestionId  String
-  firstAnsweredAt   DateTime
-  reuseCount        Int      @default(0)
-  lastReusedAt      DateTime?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String    @id @default(cuid())
+  topic            String
+  question         Json
+  questionPrint    String
+  skillId          String
+  itemKind         String
+  level            String?
+  sourceSessionId  String
+  sourceQuestionId String
+  firstAnsweredAt  DateTime
+  reuseCount       Int       @default(0)
+  lastReusedAt     DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([sourceSessionId, sourceQuestionId])
   @@index([topic, skillId, isActive])
@@ -1583,4 +1609,56 @@ model ParentNotification {
   @@unique([parentId, dedupeKey])
   @@index([parentId, createdAt])
   @@index([studentId])
+}
+
+/// A parent's or guardian's mobile on the school's record for a student. A parent whose verified
+/// phone matches sees the child and can link them; changing the record moves PHONE links with it.
+model StudentGuardianPhone {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  /// E.164, e.g. +919876543210
+  phone        String
+  /// mother | father | guardian
+  relationship String   @default("guardian")
+  createdAt    DateTime @default(now())
+
+  @@unique([studentId, phone])
+  @@index([phone])
+}
+
+/// A one-time code texted to a parent to prove they hold a phone. Hash only.
+model PhoneVerificationCode {
+  id        String    @id @default(cuid())
+  parentId  String
+  parent    Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([parentId, createdAt])
+  @@index([phone, createdAt])
+}
+
+/// A parent whose phone isn't on the school's record asks the teacher to link their child.
+model ParentLinkRequest {
+  id          String    @id @default(cuid())
+  parentId    String
+  parent      Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  childName   String
+  rollNumber  String?
+  /// PENDING | APPROVED | DECLINED
+  status      String    @default("PENDING")
+  /// The student the teacher linked, once approved.
+  studentId   String?
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId, status])
+  @@index([parentId, createdAt])
 }

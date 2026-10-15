@@ -13,7 +13,7 @@ import styles from "../student-demo.module.css";
 function inviteLine(result: ParentInviteResult | undefined): string | null {
   switch (result?.status) {
     case "SENT": return `We emailed your parent at ${result.invitedTo}. They can follow your progress once they link you.`;
-    case "NOT_CONFIGURED": return "Email isn't set up on Cogna yet, so nothing was sent. Ask your teacher for your parent's slip.";
+    case "NOT_CONFIGURED": return "Email isn't set up on Cogna yet, so nothing was sent. Ask your teacher to add your parent's mobile number.";
     case "FAILED": return "We couldn't send the email just now. Try again later.";
     case "TOO_SOON": return "We just sent your parent an email. Wait a couple of minutes before sending another.";
     case "DAILY_LIMIT": return "That's the most emails we can send today. Try again tomorrow.";
@@ -39,7 +39,7 @@ export default function ProductionClassroomPage() {
   // Kept apart from `error`: the assignment refresh clears that one, and a join error must stay visible.
   const [joinError, setJoinError] = useState("");
   const [student, setStudent] = useState<StudentSessionRecord | null>(null);
-  // Asked only while no family has linked this student: then Cogna emails the parent a link code.
+  // Asked only while no family has linked this student: then Cogna emails the parent an invite to sign in.
   const [parentEmail, setParentEmail] = useState("");
   const [parentStatus, setParentStatus] = useState<{ linked: boolean; invitedTo: string | null } | null>(null);
   const [inviteNote, setInviteNote] = useState<string | null>(null);

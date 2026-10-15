@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Patch, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Patch, Post, Put, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Min } from "class-validator";
 import { resolveActor } from "../access/cogna-access";
@@ -22,7 +22,7 @@ class JoinClassroomDto {
   @IsString() @Length(6, 12) joinCode!: string;
   @IsOptional() @IsString() @Length(1, 40) rollNumber?: string;
   @IsOptional() @IsString() @Length(1, 80) admissionNumber?: string;
-  /** Optional: Cogna emails this parent a link code (checked in the service). */
+  /** Optional: Cogna emails this parent an invite to sign in (checked in the service). */
   @IsOptional() @IsString() @Length(0, 254) parentEmail?: string;
 }
 
@@ -135,10 +135,13 @@ export class ClassroomsController {
     return this.classrooms.roster(resolveActor(headers), classroomId);
   }
 
-  /** Body: { students: [{ name, rollNumber? }] } (validated in the service). Returns each new sign-in code once. */
+  /**
+   * Body: { students: [{ name, rollNumber?, phones? }], schoolConsent: true } (validated in the service).
+   * Returns each new sign-in code once.
+   */
   @Post(":classroomId/students/import")
-  importStudents(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: { students?: RosterImportRow[] }): Promise<unknown> {
-    return this.classrooms.importStudents(resolveActor(headers), classroomId, body?.students ?? []);
+  importStudents(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: { students?: RosterImportRow[]; schoolConsent?: boolean }): Promise<unknown> {
+    return this.classrooms.importStudents(resolveActor(headers), classroomId, body?.students ?? [], body?.schoolConsent === true);
   }
 
   @Post(":classroomId/students/:studentId/access-code")
@@ -146,10 +149,30 @@ export class ClassroomsController {
     return this.classrooms.resetAccessCode(resolveActor(headers), classroomId, studentId);
   }
 
-  /** A new one-time code for a parent to link this school-made student to their account. */
-  @Post(":classroomId/students/:studentId/parent-code")
-  issueParentCode(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string) {
-    return this.classrooms.issueParentCode(resolveActor(headers), classroomId, studentId);
+  /** Body: { guardians: [{ phone, relationship? }] }: the parents' phones on the school's record. */
+  @Put(":classroomId/students/:studentId/guardians")
+  setGuardianPhones(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string, @Body() body: { guardians?: Array<{ phone?: string; relationship?: string }> }) {
+    return this.classrooms.setGuardianPhones(resolveActor(headers), classroomId, studentId, body?.guardians ?? []);
+  }
+
+  @Delete(":classroomId/students/:studentId/parents/:parentId")
+  unlinkParent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string, @Param("parentId") parentId: string) {
+    return this.classrooms.unlinkParent(resolveActor(headers), classroomId, studentId, parentId);
+  }
+
+  @Get(":classroomId/link-requests")
+  linkRequests(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string) {
+    return this.classrooms.linkRequests(resolveActor(headers), classroomId);
+  }
+
+  @Post(":classroomId/link-requests/:requestId/approve")
+  approveLinkRequest(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("requestId") requestId: string, @Body() body: { studentId?: string }) {
+    return this.classrooms.approveLinkRequest(resolveActor(headers), classroomId, requestId, String(body?.studentId ?? ""));
+  }
+
+  @Post(":classroomId/link-requests/:requestId/decline")
+  declineLinkRequest(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("requestId") requestId: string) {
+    return this.classrooms.declineLinkRequest(resolveActor(headers), classroomId, requestId);
   }
 
   @Delete(":classroomId/students/:studentId")

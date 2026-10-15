@@ -7,12 +7,12 @@ import { api, type ParentChildOverview, type ParentNotificationItem, type Parent
 import { useParentAuth } from "@/lib/parent-auth-context";
 import { shortDate } from "@/lib/parent-status";
 import { deadlineShare, dueLabel, growthFor, latestCheck, shortDay, stuckView, taskName, topicSkills, type DueTone, type StepLook } from "@/lib/parent-home";
-import { pendingParentCode } from "@/lib/pending-parent-code";
 import { useRefreshTick } from "@/lib/use-refresh-tick";
 import parentStyles from "../parent.module.css";
 import styles from "./home.module.css";
+import { SchoolLink } from "./school-link";
 
-type Child = { id: string; name: string; grade: number };
+type Child = { id: string; name: string; grade: number; fromSchool?: boolean };
 
 const COLORS = { onTime: "#0e6b54", late: "#a2660d", missed: "#7d8c84", track: "#e6ece7" };
 const DUE_FILL: Record<DueTone, string> = { calm: "#0e6b54", soon: "#a2660d", over: "#8a4a0c", grey: "#9aa8a0" };
@@ -35,13 +35,13 @@ export default function ParentDashboardPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   // One request per child per refresh: a minute is plenty for a parent's overview.
   const tick = useRefreshTick(60_000);
+  // Bumped when a child from school is linked, so their card appears at once.
+  const [linkedTick, setLinkedTick] = useState(0);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     document.title = "Your children — Cogna";
-    // Signed in from an invite email's link: finish linking the child first.
-    if (pendingParentCode()) router.replace("/parent/students/new");
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -64,7 +64,7 @@ export default function ParentDashboardPage() {
         }
       })
       .catch(() => setError("We couldn’t load your children. Please refresh the page."));
-  }, [isLoaded, isSignedIn, getAuth, router, tick]);
+  }, [isLoaded, isSignedIn, getAuth, router, tick, linkedTick]);
 
   async function newCode(child: Child) {
     setConfirmId(null);
@@ -112,6 +112,7 @@ export default function ParentDashboardPage() {
         </header>
 
         {error && <p className="error">{error}</p>}
+        <SchoolLink getAuth={getAuth} onLinked={() => setLinkedTick((n) => n + 1)} />
 
         {children === null && !error && (
           <div className={styles.grid} aria-busy="true" aria-label="Loading">
@@ -122,7 +123,7 @@ export default function ParentDashboardPage() {
         {children?.length === 0 && (
           <div className="dash-card rise">
             <h2 className="dash-section-title">Add your first child</h2>
-            <p className="dash-sub" style={{ marginBottom: "var(--s-5)" }}>Make a sign-in code for them, or link a child the school already added with the code from the email or slip.</p>
+            <p className="dash-sub" style={{ marginBottom: "var(--s-5)" }}>If their school uses Cogna, confirm your number above. Otherwise, add them here and you’ll get a sign-in code they use to start practising.</p>
             <Link href="/parent/students/new" className="btn btn-primary btn-pill">Add a child</Link>
           </div>
         )}
@@ -207,9 +208,13 @@ export default function ParentDashboardPage() {
               <Link href={`/parent/students/${child.id}`} className={`btn btn-primary btn-pill ${styles.primary}`}>See all of {first}’s maths</Link>
               <Link href={`/parent/students/${child.id}/weekly`} className="btn-link">Weekly update</Link>
               <Link href={`/parent/students/${child.id}/summary`} className="btn-link">Latest practice</Link>
-              <button type="button" className={`btn-link ${styles.push}`} aria-expanded={confirmId === child.id} onClick={() => setConfirmId(confirmId === child.id ? null : child.id)}>
-                Lost the sign-in code?
-              </button>
+              {child.fromSchool ? (
+                <span className={`${styles.push} ${parentStyles.schoolNote}`}>Lost the sign-in code? Their teacher can give a new one.</span>
+              ) : (
+                <button type="button" className={`btn-link ${styles.push}`} aria-expanded={confirmId === child.id} onClick={() => setConfirmId(confirmId === child.id ? null : child.id)}>
+                  Lost the sign-in code?
+                </button>
+              )}
             </div>
           </>
         )}

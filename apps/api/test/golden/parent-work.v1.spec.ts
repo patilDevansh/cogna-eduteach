@@ -92,17 +92,18 @@ describe("parent invite email", () => {
     assert.equal(maskEmail("ab@x.in"), "a•••@x.in");
   });
 
-  it("carries the child's first name, class, teacher and code, never what they struggle with; the code stays out of the server-visible URL", () => {
-    const mail = parentInviteEmail({ to: "p@x.in", studentName: "Aarav Kumar", className: "Grade 8 B", teacherName: "Ms Sharma", code: "ABCDE-FGHJK", webUrl: "https://cogna.in/", days: 30 });
+  it("carries the child's first name, class and teacher, never what they struggle with, and no link code", () => {
+    const mail = parentInviteEmail({ to: "p@x.in", studentName: "Aarav Kumar", className: "Grade 8 B", teacherName: "Ms Sharma", webUrl: "https://cogna.in/" });
     assert.equal(mail.subject, "Aarav added you on Cogna");
-    assert.match(mail.text, /https:\/\/cogna\.in\/parent\/students\/new#code=ABCDE-FGHJK/);
+    assert.match(mail.text, /https:\/\/cogna\.in\/parent\/dashboard/);
     assert.match(mail.text, /Grade 8 B with Ms Sharma/);
+    assert.match(mail.text, /confirm your mobile number/);
     assert.doesNotMatch(mail.text, /Kumar/);
-    assert.match(mail.html, /ABCDE-FGHJK/);
+    assert.doesNotMatch(mail.text + mail.html, /code=|enter this code/i);
   });
 
   it("escapes names in the HTML", () => {
-    const mail = parentInviteEmail({ to: "p@x.in", studentName: "<b>Aarav</b>", className: "8 & B", teacherName: "Ms Sharma", code: "ABCDE-FGHJK", webUrl: "http://localhost:3000", days: 30 });
+    const mail = parentInviteEmail({ to: "p@x.in", studentName: "<b>Aarav</b>", className: "8 & B", teacherName: "Ms Sharma", webUrl: "http://localhost:3000" });
     assert.doesNotMatch(mail.html, /<b>Aarav/);
     assert.match(mail.html, /8 &amp; B/);
   });

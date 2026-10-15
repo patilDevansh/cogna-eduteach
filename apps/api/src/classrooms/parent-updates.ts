@@ -3,7 +3,6 @@
  * Pure: the service decides when, this decides the words. Only the child's
  * own row goes in, never a classmate's.
  */
-import { randomInt } from "node:crypto";
 import type { StudentRow } from "./class-report";
 
 export type ParentUpdateKind = "CHECK_FINISHED" | "CATCH_UP_SET";
@@ -48,19 +47,4 @@ export function catchUpSetUpdate(input: { runId: string; className: string; chec
     body: `${input.teacherName} set ${firstName(input.studentName)} a short catch-up on ${topic.toLowerCase()}, aimed at what they still found tricky.`,
     dedupeKey: `CATCH_UP_SET:${input.runId}:${input.studentId}`,
   };
-}
-
-/** Parent link codes: no look-alike characters, 10 long, shown as two groups of five. */
-const LINK_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-export const PARENT_LINK_DAYS = 30;
-
-export function newParentLinkCode(): string {
-  const raw = Array.from({ length: 10 }, () => LINK_ALPHABET[randomInt(LINK_ALPHABET.length)]).join("");
-  return `${raw.slice(0, 5)}-${raw.slice(5)}`;
-}
-
-/** What a parent typed, in the form that was hashed: spaces and dashes don't matter, nor does case. */
-export function normalizeParentLinkCode(input: string): string {
-  const raw = input.replace(/[\s-]/g, "").toUpperCase();
-  return raw.length === 10 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw;
 }

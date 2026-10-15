@@ -206,11 +206,12 @@ describe("teacher class management", () => {
     let otherWhere: Record<string, unknown> | undefined;
     const classrooms = service({
       classroom: ownedClass,
-      parent: { findFirst: async () => null },
+      parent: { findFirst: async () => null, findMany: async () => [] },
+      consent: { findMany: async () => [] },
       classroomEnrollment: {
         findMany: async (args: { include: { student: { select: { classroomEnrollments: { where: Record<string, unknown> } } } } }) => {
           otherWhere = args.include.student.select.classroomEnrollments.where;
-          return [{ rollNumber: "8A-03", joinedAt: new Date(0), student: { id: "s3", name: "Rohan", classroomEnrollments: [{ classroom: { id: "class-2", name: "Section B" } }] } }];
+          return [{ rollNumber: "8A-03", joinedAt: new Date(0), student: { id: "s3", name: "Rohan", guardianPhones: [], parentLinks: [], classroomEnrollments: [{ classroom: { id: "class-2", name: "Section B" } }] } }];
         },
       },
     });
@@ -268,9 +269,11 @@ describe("class list import and sign-in codes", () => {
   it("creates each student with a unique 8-character code, stores only its hash, and enrols them", async () => {
     const students: Array<Record<string, unknown>> = [];
     const enrolments: Array<Record<string, unknown>> = [];
+    const consents: Array<Record<string, unknown>> = [];
     const tx = {
       student: { create: async ({ data }: { data: Record<string, unknown> }) => { students.push(data); return { id: `s${students.length}` }; } },
       classroomEnrollment: { create: async ({ data }: { data: Record<string, unknown> }) => { enrolments.push(data); return data; } },
+      consent: { create: async ({ data }: { data: Record<string, unknown> }) => { consents.push(data); return data; } },
     };
     const classrooms = service({
       classroom: ownedClass,
@@ -278,8 +281,9 @@ describe("class list import and sign-in codes", () => {
       student: { count: async () => 0 },
       $transaction: async (run: (t: typeof tx) => Promise<unknown>) => run(tx),
     });
-    const result = await classrooms.importStudents(teacherActor, "class-1", [{ name: "  Aarav   Sharma ", rollNumber: "8A-01" }, { name: "Meena K" }]) as { students: Array<{ name: string; accessCode: string; rollNumber?: string }> };
+    const result = await classrooms.importStudents(teacherActor, "class-1", [{ name: "  Aarav   Sharma ", rollNumber: "8A-01" }, { name: "Meena K" }], true) as { students: Array<{ name: string; accessCode: string; rollNumber?: string }> };
     assert.deepEqual(result.students.map((s) => s.name), ["Aarav Sharma", "Meena K"]);
+    assert.deepEqual(consents.map((c) => c.consentType), ["SCHOOL_CONSENT", "SCHOOL_CONSENT"], "the school's consent is recorded per student");
     for (const s of result.students) assert.match(s.accessCode, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/);
     assert.notEqual(result.students[0]!.accessCode, result.students[1]!.accessCode);
     assert.equal(students[0]!.primaryParentId, "roster-parent");
@@ -292,14 +296,16 @@ describe("class list import and sign-in codes", () => {
   it("rejects an empty list, a too-long list, or a bad line before creating anyone", async () => {
     let created = 0;
     const classrooms = service({ classroom: ownedClass, ...rosterParent, student: { count: async () => 0, create: async () => { created++; } } });
-    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", []), BadRequestException);
-    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", Array.from({ length: 301 }, () => ({ name: "Kid A" }))), BadRequestException);
-    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name" }, { name: "X" }]), /Line 2/);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [], true), BadRequestException);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", Array.from({ length: 301 }, () => ({ name: "Kid A" })), true), BadRequestException);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name" }, { name: "X" }], true), /Line 2/);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name", phones: ["12345"] }], true), /Line 1: "12345" isn't a mobile number/);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name" }]), /consent/);
     assert.equal(created, 0);
   });
 
   it("another teacher's class cannot be imported into", async () => {
-    await assert.rejects(() => service({ classroom: { findFirst: async () => null } }).importStudents(teacherActor, "class-9", [{ name: "Kid A" }]), NotFoundException);
+    await assert.rejects(() => service({ classroom: { findFirst: async () => null } }).importStudents(teacherActor, "class-9", [{ name: "Kid A" }], true), NotFoundException);
   });
 
   it("a new code only for school-issued accounts, never a family's", async () => {
