@@ -69,6 +69,9 @@ describe("Lotus factorisation AI question-bank reuse", () => {
     const bankRows = [...prisma._store.lotusQuestionBank.values()];
     assert.ok(bankRows.some((row) => row.sourceSessionId === first.sessionId), "answered AI items should be admitted to the durable bank");
     assert.ok(bankRows.some((row) => (row.question as { answerKey?: { diagnostics?: { skillId?: string } } }).answerKey?.diagnostics?.skillId === "FAC_GCF_VARIABLE"), "the reusable skill item must be present");
+    const storedTileQuestion = bankRows.find((row) => (row.question as LotusQuestion).answerKey.diagnostics?.skillId === "FAC_GCF_VARIABLE")!.question as LotusQuestion;
+    assert.ok(storedTileQuestion.interaction);
+    storedTileQuestion.presentation = "WORKSHOP"; // An older session's scene must not lock future sessions into that look.
 
     const second = await service.start("demo_bank_reuser", "FACTORISATION");
     const secondReady = await waitReady(service, second.sessionId);
@@ -76,6 +79,9 @@ describe("Lotus factorisation AI question-bank reuse", () => {
     const q2 = secondPrivate.factorisation?.versions["2"]?.find((item) => item.id === secondPrivate.factorisation?.preferred["2"]);
     assert.ok(q2, "the second planned item should be installed");
     assert.equal(q2!.answerKey.diagnostics?.provenance, "AI_REUSED_FROM_BANK");
+    assert.equal(q2!.answerKey.diagnostics?.skillId, "FAC_GCF_VARIABLE", "the bank query preserves the requested skill");
+    assert.equal(q2!.presentation, "BRIDGE", "reused AI items receive the current turn's scene rather than the stored workshop");
+    assert.ok(q2!.interaction, "the current policy rebuilds verified tiles for this turn");
     assert.equal(secondReady.currentQuestion?.answerKey?.diagnostics, undefined, "the public student view must not expose answer-key diagnostics");
 
     const reusedRow = [...prisma._store.lotusQuestionBank.values()].find((row) => row.sourceSessionId === first.sessionId && (row.question as { answerKey?: { diagnostics?: { skillId?: string } } }).answerKey?.diagnostics?.skillId === "FAC_GCF_VARIABLE");

@@ -117,7 +117,7 @@ export interface LotusQuestion {
   lines?: string[];
 }
 
-export type LotusPresentation = "BRIDGE" | "GARDEN" | "FIREFLY" | "IMPOSTOR" | "DETECTIVE" | "FISHING";
+export type LotusPresentation = "BRIDGE" | "GARDEN" | "WORKSHOP" | "CONSTELLATION" | "FIREFLY" | "IMPOSTOR" | "DETECTIVE" | "FISHING";
 
 /** SELECT answers travel as the chosen options joined with this separator. */
 export const LOTUS_SELECT_SEPARATOR = " | ";

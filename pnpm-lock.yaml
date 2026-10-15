@@ -68,6 +68,9 @@ importers:
       music-metadata:
         specifier: ^11.15.0
         version: 11.15.0
+      nodemailer:
+        specifier: 6.9.16
+        version: 6.9.16
       openai:
         specifier: ^5.8.2
         version: 5.23.2
@@ -90,6 +93,9 @@ importers:
       '@types/node':
         specifier: ^22.15.32
         version: 22.20.1
+      '@types/nodemailer':
+        specifier: 6.4.17
+        version: 6.4.17
       tsx:
         specifier: ^4.20.3
         version: 4.23.0
@@ -386,6 +392,7 @@ packages:
   '@clerk/clerk-react@5.61.8':
     resolution: {integrity: sha512-n+k3q3xeyDkIPGTVA1J4Pd0+6MbS9Ia04qNlecOztTHwFfcirO5hy4TpOXrpGnO+GzYBuUMp7pYc3//ybMdEfg==}
     engines: {node: '>=18.17.0'}
+    deprecated: 'This package is no longer supported. Please use @clerk/react instead. See the upgrade guide for more info: https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3'
     peerDependencies:
       react: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
       react-dom: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
@@ -413,6 +420,7 @@ packages:
   '@clerk/types@4.101.25':
     resolution: {integrity: sha512-gPxm3hlBkP7B9EfKyp3/UDonNOjg7Z0UvqfrMj5u8gA8nyzvC1UFYtSTTmTfgSY82+5Yo38YV0DYu9vNf6t9CQ==}
     engines: {node: '>=18.17.0'}
+    deprecated: 'This package is no longer supported. Please import types from @clerk/shared/types instead. See the upgrade guide for more info: https://clerk.com/docs/guides/development/upgrading/upgrade-guides/core-3'
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -1551,6 +1559,9 @@ packages:
   '@types/node@22.20.1':
     resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
 
+  '@types/nodemailer@6.4.17':
+    resolution: {integrity: sha512-I9CCaIp6DTldEg7vyUTZi8+9Vo0hi1/T8gv3C89yk1rSAAzoKQ8H8ki/jBYJSFoH/BisgLP8tkZMlQ91CIquww==}
+
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
 
@@ -2524,6 +2535,10 @@ packages:
   node-releases@2.0.51:
     resolution: {integrity: sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==}
     engines: {node: '>=18'}
+
+  nodemailer@6.9.16:
+    resolution: {integrity: sha512-psAuZdTIRN08HKVd/E8ObdV6NO7NTBY3KsC30F7M4H1OnmLCUNaS56FpYxyb26zWLSyYF9Ozch9KYHhHegsiOQ==}
+    engines: {node: '>=6.0.0'}
 
   npm-run-path@4.0.1:
     resolution: {integrity: sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==}
@@ -4241,14 +4256,14 @@ snapshots:
     dependencies:
       '@remotion/studio': 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@remotion/studio-shared': 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      css-loader: 5.2.7(webpack@5.96.1(postcss@8.4.31))
+      css-loader: 5.2.7(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31))
       esbuild: 0.24.0
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-refresh: 0.9.0
       remotion: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       source-map: 0.7.3
-      style-loader: 2.0.0(webpack@5.96.1(postcss@8.4.31))
+      style-loader: 2.0.0(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31))
       webpack: 5.96.1(esbuild@0.24.0)(postcss@8.4.31)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -4532,6 +4547,10 @@ snapshots:
   '@types/node@22.20.1':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/nodemailer@6.4.17':
+    dependencies:
+      '@types/node': 22.20.1
 
   '@types/prop-types@15.7.15': {}
 
@@ -4917,7 +4936,7 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  css-loader@5.2.7(webpack@5.96.1(postcss@8.4.31)):
+  css-loader@5.2.7(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.31)
       loader-utils: 2.0.4
@@ -5540,6 +5559,8 @@ snapshots:
 
   node-releases@2.0.51: {}
 
+  nodemailer@6.9.16: {}
+
   npm-run-path@4.0.1:
     dependencies:
       path-key: 3.1.1
@@ -5992,7 +6013,7 @@ snapshots:
     dependencies:
       '@tokenizer/token': 0.3.0
 
-  style-loader@2.0.0(webpack@5.96.1(postcss@8.4.31)):
+  style-loader@2.0.0(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31)):
     dependencies:
       loader-utils: 2.0.4
       schema-utils: 3.3.0

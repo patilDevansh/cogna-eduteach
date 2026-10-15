@@ -58,9 +58,17 @@ export function AddStudents({ classroomId, onAdded }: { classroomId: string; onA
   );
 }
 
-/** New codes, shown once. Print gives one cut-out slip per student; CSV keeps a copy for the school office. */
+/**
+ * New codes, shown once. Print gives one cut-out slip per student, with the student's sign-in code
+ * and their parent's one-time link code; CSV keeps a copy for the school office.
+ */
 export function CodesSheet({ codes, className, onDone }: { codes: IssuedStudentCode[]; className: string; onDone: () => void }) {
-  const signInUrl = typeof window === "undefined" ? "/student/login" : `${window.location.origin}/student/login`;
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const signInUrl = `${origin}/student/login`;
+  const parentUrl = `${origin}/parent/students/new`;
+  const hasSignIn = codes.some((c) => c.accessCode);
+  const hasParent = codes.some((c) => c.parentCode);
+  const until = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "");
 
   function printSlips() {
     document.body.classList.add("printing-slips");
@@ -70,7 +78,7 @@ export function CodesSheet({ codes, className, onDone }: { codes: IssuedStudentC
 
   function downloadCsv() {
     const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
-    const lines = [["Name", "Roll number", "Class", "Sign-in code"], ...codes.map((c) => [c.name, c.rollNumber ?? "", className, c.accessCode])];
+    const lines = [["Name", "Roll number", "Class", "Sign-in code", "Parent code", "Parent code valid until"], ...codes.map((c) => [c.name, c.rollNumber ?? "", className, c.accessCode ?? "", c.parentCode ?? "", until(c.parentCodeExpiresAt)])];
     const blob = new Blob([lines.map((line) => line.map(quote).join(",")).join("\n")], { type: "text/csv" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -83,8 +91,11 @@ export function CodesSheet({ codes, className, onDone }: { codes: IssuedStudentC
     <section className={styles.codesSheet} aria-label="New sign-in codes">
       <div className={styles.codesHead}>
         <div>
-          <h3>{codes.length} new sign-in code{codes.length === 1 ? "" : "s"}</h3>
-          <p>Print or download them now. To keep them safe they are not shown again; you can issue a new code later if one is lost.</p>
+          <h3>{hasSignIn ? `${codes.length} new sign-in code${codes.length === 1 ? "" : "s"}` : `New parent code${codes.length === 1 ? "" : "s"}`}</h3>
+          <p>
+            Print or download them now. To keep them safe they are not shown again; you can issue a new code later if one is lost.
+            {hasParent && " Each slip also has a one-time code for the parent to link their child to their own account."}
+          </p>
         </div>
         <div className={styles.addActions}>
           <button type="button" className={shared.primary} onClick={printSlips}>Print slips</button>
@@ -94,10 +105,14 @@ export function CodesSheet({ codes, className, onDone }: { codes: IssuedStudentC
       </div>
       <div className={shared.tableWrap}>
         <table className={shared.table} style={{ minWidth: 420 }}>
-          <thead><tr><th>Student</th><th>Roll</th><th>Sign-in code</th></tr></thead>
+          <thead><tr><th>Student</th><th>Roll</th>{hasSignIn && <th>Sign-in code</th>}{hasParent && <th>Parent code</th>}</tr></thead>
           <tbody>
             {codes.map((c) => (
-              <tr key={c.studentId}><td>{c.name}</td><td>{c.rollNumber ?? "—"}</td><td><code className={styles.code}>{c.accessCode}</code></td></tr>
+              <tr key={c.studentId}>
+                <td>{c.name}</td><td>{c.rollNumber ?? "—"}</td>
+                {hasSignIn && <td>{c.accessCode ? <code className={styles.code}>{c.accessCode}</code> : "—"}</td>}
+                {hasParent && <td>{c.parentCode ? <><code className={styles.code}>{c.parentCode}</code> <small>until {until(c.parentCodeExpiresAt)}</small></> : "—"}</td>}
+              </tr>
             ))}
           </tbody>
         </table>
@@ -107,9 +122,20 @@ export function CodesSheet({ codes, className, onDone }: { codes: IssuedStudentC
           <div className={styles.slip} key={c.studentId}>
             <strong>{c.name}</strong>
             <span>{className}{c.rollNumber ? ` · Roll ${c.rollNumber}` : ""}</span>
-            <span>Your sign-in code</span>
-            <code>{c.accessCode}</code>
-            <small>Go to {signInUrl} and type this code.</small>
+            {c.accessCode && (
+              <>
+                <span>Your sign-in code</span>
+                <code>{c.accessCode}</code>
+                <small>Go to {signInUrl} and type this code.</small>
+              </>
+            )}
+            {c.parentCode && (
+              <>
+                <span>For your parent</span>
+                <code>{c.parentCode}</code>
+                <small>Parents: to follow {c.name.split(" ")[0]}&apos;s progress, sign in at {parentUrl} and enter this code by {until(c.parentCodeExpiresAt)}. It works once.</small>
+              </>
+            )}
           </div>
         ))}
       </div>

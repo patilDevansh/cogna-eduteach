@@ -13,6 +13,7 @@ import {
 import { issueStudentToken } from "../access/cogna-access";
 import { ClassTopicsService } from "../classrooms/class-topics.service";
 import { ClassroomsService } from "../classrooms/classrooms.service";
+import { normalizeParentLinkCode } from "../classrooms/parent-updates";
 
 export { hashAccessCode };
 
@@ -96,6 +97,61 @@ export class ParentsService {
       grade: l.student.grade,
       curriculum: l.student.curriculum,
     }));
+  }
+
+  /**
+   * Links a school-made student to this parent with the one-time code from school. Claiming is
+   * the parent's consent for the practice their child does in class. The code works once, until
+   * it expires, and only while the school still holds the student.
+   */
+  async claimStudent(parentId: string, code: string) {
+    const hash = hashAccessCode(normalizeParentLinkCode(String(code ?? "")));
+    const student = await this.prisma.student.findUnique({ where: { parentLinkCodeHash: hash } });
+    const holder = student ? await this.prisma.parent.findUnique({ where: { id: student.primaryParentId }, select: { user: { select: { clerkId: true } } } }) : null;
+    const schoolHeld = Boolean(holder?.user.clerkId?.startsWith("school_roster:"));
+    if (!student || student.deletedAt || !schoolHeld || !student.parentLinkCodeExpiresAt || student.parentLinkCodeExpiresAt < new Date()) {
+      // One answer for every failure, so the code can't be probed.
+      throw new NotFoundException("That code didn't work. Check it against the slip from school, or ask the teacher for a new one.");
+    }
+    await this.prisma.$transaction(async (tx) => {
+      // Two parents racing with one code: only the first update matches it.
+      const taken = await tx.student.updateMany({
+        where: { id: student.id, parentLinkCodeHash: hash },
+        data: { primaryParentId: parentId, parentLinkCodeHash: null, parentLinkCodeExpiresAt: null },
+      });
+      if (taken.count !== 1) throw new NotFoundException("That code has just been used.");
+      await tx.parentStudentLink.deleteMany({ where: { studentId: student.id, parentId: student.primaryParentId } });
+      await tx.parentStudentLink.upsert({
+        where: { parentId_studentId: { parentId, studentId: student.id } },
+        create: { parentId, studentId: student.id, relationship: "parent", canViewReports: true },
+        update: { canViewReports: true },
+      });
+      await tx.learnerProfile.upsert({ where: { studentId: student.id }, create: { studentId: student.id }, update: {} });
+      await tx.consent.create({ data: { parentId, studentId: student.id, consentType: "PRACTICE_CONSENT", grantedAt: new Date() } });
+    });
+    return { id: student.id, name: student.name, grade: student.grade, curriculum: student.curriculum };
+  }
+
+  /** Updates from school, newest first, across all of this parent's children. */
+  async listNotifications(parentId: string) {
+    const [items, unread] = await Promise.all([
+      this.prisma.parentNotification.findMany({
+        where: { parentId, student: { deletedAt: null } },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+        include: { student: { select: { name: true } } },
+      }),
+      this.prisma.parentNotification.count({ where: { parentId, readAt: null, student: { deletedAt: null } } }),
+    ]);
+    return {
+      unread,
+      items: items.map((n) => ({ id: n.id, studentId: n.studentId, studentName: n.student.name, kind: n.kind, title: n.title, body: n.body, createdAt: n.createdAt, read: Boolean(n.readAt) })),
+    };
+  }
+
+  async markNotificationsRead(parentId: string) {
+    const { count } = await this.prisma.parentNotification.updateMany({ where: { parentId, readAt: null }, data: { readAt: new Date() } });
+    return { marked: count };
   }
 
   async createStudent(
@@ -240,7 +296,7 @@ export class ParentsService {
       throw new UnauthorizedException("Parent cannot view reports for this student.");
     }
 
-    const [classes, lessons, checksDone, lastCheck, growth] = await Promise.all([
+    const [classes, lessons, checksDone, lastCheck, growth, work] = await Promise.all([
       this.classrooms.forStudent(studentId),
       this.prisma.personalizedVideoAssignment.findMany({
         where: { studentId, status: { in: ["READY", "FALLBACK"] } },
@@ -257,6 +313,7 @@ export class ParentsService {
       this.prisma.lotusSessionRecord.count({ where: { studentId, status: "COMPLETE" } }),
       this.prisma.lotusSessionRecord.findFirst({ where: { studentId }, orderBy: { startedAt: "desc" }, select: { startedAt: true } }),
       this.topics.growthForStudent(studentId),
+      this.classrooms.workForStudent(studentId),
     ]);
 
     const lessonRows = lessons.map((l) => {
@@ -280,6 +337,7 @@ export class ParentsService {
       totals: { checksDone, lessonsFinished: lessonRows.filter((l) => l.finished).length },
       lastActive,
       growth,
+      work,
     };
   }
 

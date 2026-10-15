@@ -10,7 +10,7 @@ import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../in
  *  - every turn the plan repurposed (a check, a step down, a widening), so a
  *    suspected gap is confirmed in a different format from the one that
  *    raised it — wrong in two formats means the format isn't the cause;
- *  - every third coverage turn, for variety.
+ *  - every second coverage turn, for variety from the start.
  * Everything else stays typed with working, which is the richest evidence
  * Lotus gets. A tile game drops the working request (there is nothing to write).
  */
@@ -22,7 +22,7 @@ export function chooseLotusInteraction(
   if (!gameFormatsEnabled(env)) return undefined;
   const d = question.answerKey.diagnostics;
   if (!d || d.itemKind !== "FACTORISE" || !d.expression) return undefined;
-  if (!(context.turn === 1 || context.repurposed || context.turn % 3 === 0)) return undefined;
+  if (!(context.turn === 1 || context.repurposed || context.turn % 2 === 0)) return undefined;
   return buildTileInteraction({
     stage: "DIAGNOSTIC",
     task: "factorise",
@@ -43,7 +43,9 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
   const interaction = chooseLotusInteraction(question, context, env);
   if (interaction) {
     question.interaction = interaction;
-    question.presentation ??= "BRIDGE";
+    question.presentation ??= interaction.format === "BRACKET_BRIDGE"
+      ? (context.turn % 4 === 2 ? "CONSTELLATION" : "BRIDGE")
+      : (context.turn === 1 || context.turn % 4 === 0 ? "WORKSHOP" : "BRIDGE");
     question.asksForWorking = false;
   }
   return question;

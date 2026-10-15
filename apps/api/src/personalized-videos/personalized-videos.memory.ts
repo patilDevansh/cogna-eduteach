@@ -299,7 +299,17 @@ export function createPersonalizedVideoMemoryDb() {
         lotusQuestionBank.set(key, row);
         return row;
       },
-      findMany: async () => [...lotusQuestionBank.values()],
+      findMany: async ({ where, take }: { where?: { topic?: string; skillId?: string; isActive?: boolean; sourceSessionId?: { not?: string } }; take?: number } = {}) => {
+        // Mirror the production bank query so tests cannot reuse another
+        // skill's item simply because it was the first row inserted.
+        const rows = [...lotusQuestionBank.values()].filter((row) =>
+          (!where?.topic || row.topic === where.topic) &&
+          (!where?.skillId || row.skillId === where.skillId) &&
+          (where?.isActive === undefined || (row.isActive ?? true) === where.isActive) &&
+          (!where?.sourceSessionId?.not || row.sourceSessionId !== where.sourceSessionId.not),
+        ).sort((a, b) => Number(a.reuseCount ?? 0) - Number(b.reuseCount ?? 0) || new Date(a.createdAt as Date).getTime() - new Date(b.createdAt as Date).getTime());
+        return take === undefined ? rows : rows.slice(0, take);
+      },
       update: async ({ where, data }: { where: { id: string }; data: Row & { reuseCount?: { increment: number } } }) => {
         const entry = [...lotusQuestionBank.entries()].find(([, row]) => row.id === where.id);
         if (!entry) throw new Error("Question-bank item not found");

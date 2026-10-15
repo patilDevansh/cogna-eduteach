@@ -13,7 +13,7 @@ function service(overrides: Record<string, unknown> = {}) {
     classroomEnrollment: { findMany: async () => [{ id: "enrol-1", rollNumber: null, student: { id: "s1", name: "A" } }], upsert: async (args: unknown) => args },
     classroomRun: { findFirst: async () => ({ id: "run-1", classroomId: "class-1", classroom: { id: "class-1" } }), update: async (args: unknown) => args },
     classroomAssignment: { findMany: async () => [], createMany: async (args: unknown) => args, findFirst: async () => null, update: async (args: unknown) => args, updateMany: async (args: unknown) => args, count: async () => 0 },
-    lotusSessionRecord: { findUnique: async () => null },
+    lotusSessionRecord: { findUnique: async () => null, findMany: async () => [] },
     personalizedVideoAssignment: { findFirst: async () => null },
     personalizedVideoEvent: { findFirst: async () => null },
     $transaction: async (actions: Array<Promise<unknown>>) => Promise.all(actions),

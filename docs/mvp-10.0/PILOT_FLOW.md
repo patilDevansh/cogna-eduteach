@@ -68,7 +68,7 @@ Built only from stored evidence: Lotus records, lessons and their practice attem
 
 ## Not in the pilot (full Cogna, later)
 
-Whole curriculum, teacher input by web or WhatsApp, retention and forgetting curves, next-day reports, peer and parent nudges, teacher chatbots. See the product memory and `COGNA/` vision docs. None of these is built here.
+Whole curriculum, teacher input by web or WhatsApp, retention and forgetting curves, next-day reports, peer nudges, teacher chatbots. (Parent deadline reminders are now specified in [PARENT_DASHBOARD.md](./PARENT_DASHBOARD.md).) See the product memory and `COGNA/` vision docs. None of these is built here.
 
 ## Open decisions
 

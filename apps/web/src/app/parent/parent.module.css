@@ -70,3 +70,12 @@
 .bar i { flex: 1; border-radius: 2px; background: #e2e9e5; }
 .bar i.on { background: var(--accent-deep); }
 .bar i.gained { background: #3fae84; }
+
+/* Updates from school */
+.updates { margin-bottom: var(--s-6); }
+.updatesHead { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; margin-bottom: var(--s-3); }
+.updatesHead h2 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; color: #10201a; }
+.update[data-unread] { box-shadow: inset 3px 0 0 var(--accent); }
+.update strong { color: #10201a; }
+.update p { margin: var(--s-2) 0 0; color: #56665e; line-height: 1.45; }
+.update span { color: #84928b; font-size: var(--text-sm); }

@@ -17,7 +17,7 @@
 .game[data-sealed][data-theme="garden"] .garden span { animation: shine 0.8s ease-out; }
 .game[data-theme="lantern"] .scene { background: linear-gradient(180deg, #1b2b45, #2d4566); }
 
-.sign { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(1.25rem, 4vw, 1.6rem); background: #fffdf6; color: #2b2a26; border: 2px solid #b88b4a; border-radius: 8px; padding: 2px 12px; white-space: nowrap; }
+.sign { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(1.25rem, 4vw, 1.6rem); background: #fffdf6; color: #2b2a26; border: 2px solid #b88b4a; border-radius: 8px; padding: 2px 12px; max-width: 100%; overflow-wrap: anywhere; text-align: center; }
 .game[data-theme="crystal"] .sign { border-color: #b9a6f0; }
 .game[data-theme="lantern"] .sign { border-color: #e9a23b; }
 
@@ -31,6 +31,29 @@
 .game[data-theme="lantern"] .box { border-color: #e9a23b; background: #2c3a52; color: #fff3c4; }
 .game[data-theme="lantern"] .box[data-filled] { background: #4a5a74; }
 .box:disabled { cursor: default; }
+.box[data-active], .box:focus-visible, .tile:focus-visible { outline: 3px solid #0e6b54; outline-offset: 3px; }
+
+/* Two alternative scenes for the same verified factor tiles. All motion tracks placement, never correctness. */
+.game[data-theme="workshop"] .scene { background: linear-gradient(145deg, #f4ece0, #e4f0eb); border: 1px solid #d8ded3; padding-bottom: 26px; }
+.workshopTop { display: flex; align-items: center; gap: 8px; width: 100%; color: #53655a; font: 700 .65rem system-ui, sans-serif; letter-spacing: .08em; flex-wrap: wrap; }
+.gear { font-size: 24px; line-height: 1; color: #967347; }
+.gear[data-turning] { animation: turnGear .65s ease-out; }
+.assemblyCount { margin-left: auto; letter-spacing: 0; font-weight: 500; }
+.game[data-theme="workshop"] .boxes { padding: 14px 10px; width: 100%; border-radius: 12px; background: repeating-linear-gradient(90deg, #ced9d0 0 10px, #e2e9e1 10px 24px); box-shadow: inset 0 -5px 0 #b5c4b8; }
+.game[data-theme="workshop"] .box { background: #fffdf6; border-color: #8e7756; }
+.game[data-theme="workshop"] .box[data-filled] { background: #f4e3bc; animation: slidePart .35s ease-out; }
+.game[data-theme="constellation"] .scene { background: radial-gradient(circle at 12% 20%, #4e526f, #1f2943 75%); }
+.game[data-theme="constellation"] .sign { background: #f5f2ff; border-color: #a9a4d5; }
+.game[data-theme="constellation"] .boxes { color: #e2e4ff; }
+.game[data-theme="constellation"] .box { background: #303956; border-color: #b7b3e4; color: #f5f2ff; }
+.game[data-theme="constellation"] .box[data-filled] { background: #4f5576; }
+.stars { display: flex; align-items: center; justify-content: center; width: min(260px, 100%); gap: 16px; color: #8591b3; }
+.stars span { display: grid; place-items: center; font-size: 30px; transition: color .3s, transform .3s; }
+.stars span + span::before { content: ""; position: absolute; height: 1px; width: 16px; background: #8591b3; transform: translateX(-23px); }
+.stars span[data-placed] { color: #dfdbff; transform: scale(1.15); animation: starPlaced .4s ease-out; }
+@keyframes turnGear { to { transform: rotate(90deg); } }
+@keyframes slidePart { from { transform: translateY(-12px); opacity: .5; } to { transform: translateY(0); opacity: 1; } }
+@keyframes starPlaced { 50% { filter: drop-shadow(0 0 8px #c5bcff); } }
 
 .bankLeft, .bankRight { position: absolute; bottom: 0; width: 15%; height: 50%; background: #7cc08f; }
 .bankLeft { left: 0; border-radius: 0 30px 0 0; }
