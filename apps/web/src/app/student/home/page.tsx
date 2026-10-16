@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, type HomeSummary } from "@/lib/api";
+import { api, classroomAssignmentHref, liveUpdates, type ClassroomStudentAssignment, type HomeSummary, type ParentChildOverview, type TopicGrowthEntry } from "@/lib/api";
+import { useEventStream } from "@/lib/event-stream";
+import { classNotice, stepFor } from "@/lib/class-steps";
 import { getStudent, clearStudent } from "@/lib/session";
 import { conceptLabelStudent } from "@/lib/concept-labels";
 import styles from "@/components/dashboard.module.css";
@@ -29,6 +31,19 @@ const JOURNEY_POINTS = [
 
 const DEMO_STUDENT_ID = "dev_student_001";
 
+type ClassStatus = ParentChildOverview["classes"][number];
+
+/** Where a student stands in a class when there's nothing to start right now. */
+function classDoneLine(c: ClassStatus): string {
+  const check = c.check;
+  if (!check) return "No work from your teacher yet. It will appear here.";
+  if (check.progress === "IMPROVED") return "All done. You got the last question right on your own.";
+  if (check.progress === "NOT_YET") return "All done. Your teacher will help with the tricky part.";
+  if (check.progress === "NO_GAP" || check.progress === "UNCLEAR") return "Quick check done. Nothing else to do right now.";
+  if (check.stage === "DONE") return "This check is closed.";
+  return "Your next step is being prepared. It will appear here.";
+}
+
 function formatRecapWhen(iso: string): string {
   const hours = (Date.now() - new Date(iso).getTime()) / 3_600_000;
   if (hours < 20) return "Earlier today";
@@ -43,6 +58,9 @@ export default function StudentHomePage() {
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<ClassStatus[] | null>(null);
+  const [work, setWork] = useState<ClassroomStudentAssignment[]>([]);
+  const [progress, setProgress] = useState<TopicGrowthEntry[]>([]);
 
   useEffect(() => {
     document.title = "Home — Cogna";
@@ -63,6 +81,41 @@ export default function StudentHomePage() {
       .finally(() => setLoading(false));
   }, [router]);
 
+  // Class work: reloaded the moment the teacher sends something (live updates), whenever the
+  // student comes back to this tab, and every 10 seconds if live updates aren't connected.
+  const [signedIn, setSignedIn] = useState(false);
+  const loadWork = useCallback(() => {
+    Promise.all([api.getStudentClasses(), api.getStudentClassroomAssignments()])
+      .then(([list, open]) => {
+        setClasses(list);
+        setWork(open);
+      })
+      .catch(() => setClasses((prev) => prev ?? []));
+  }, []);
+  const live = useEventStream(signedIn ? liveUpdates.studentUrl() : null, liveUpdates.studentHeaders, (event) => {
+    if (event.type === "work" || event.type === "nudge" || event.type === "ready") loadWork();
+  });
+  useEffect(() => {
+    if (!getStudent()?.token) {
+      setClasses([]);
+      return;
+    }
+    setSignedIn(true);
+    loadWork();
+    api.getStudentProgress().then(setProgress).catch(() => undefined);
+  }, [loadWork]);
+  useEffect(() => {
+    if (!signedIn) return;
+    const load = loadWork;
+    const timer = window.setInterval(load, live ? 60_000 : 10_000);
+    const onFocus = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [signedIn, live, loadWork]);
+
   function signOut() {
     clearStudent();
     router.push("/");
@@ -71,45 +124,151 @@ export default function StudentHomePage() {
   const isDemoStudent =
     studentId === DEMO_STUDENT_ID || studentName.trim().toLowerCase() === "demo student";
 
-  const chrome = (
-    <div className={styles.dashHead} style={{ maxWidth: 420, width: "100%", margin: "0 auto var(--s-5)" }}>
-      <Link href="/" className="wordmark">
-        Cogna<span className="dot">.</span>
-      </Link>
-      <span className="faint" style={{ fontSize: "var(--text-sm)" }}>Good to see you, {studentName || "there"}</span>
-    </div>
+  const firstName = studentName.trim().split(/\s+/)[0] || "there";
+  const nav = (
+    <nav className="dash-nav">
+      <Link href="/" className="wordmark">Cogna<span className="dot">.</span></Link>
+      <button type="button" className="btn btn-quiet" onClick={signOut}>Sign out</button>
+    </nav>
   );
 
-  if (loading) {
+  if (loading || classes === null) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--s-5)" }}>
-        {chrome}
-        <p className="muted">Getting things ready…</p>
+      <div className="dash">
+        <main id="main" className={`dash-wrap ${styles.student}`} aria-busy="true">
+          {nav}
+          <div className="skeleton" style={{ height: 56, width: "45%" }} />
+          <div className="skeleton" style={{ height: 18, width: "35%", marginTop: 16 }} />
+          <div className="skeleton" style={{ height: 220, marginTop: 48, borderRadius: 28 }} />
+        </main>
       </div>
     );
   }
 
   const hasHistory = Boolean(summary?.nextAction || summary?.recap);
 
+  // In a class, home is the class to-do list only, so everything the student does counts for their teacher.
+  if (classes.length) {
+    const [first, ...rest] = work;
+    const firstNotice = first ? classNotice(first, Date.now()) : null;
+    const idle = classes.filter((c) => !work.some((w) => w.run.classroom.id === c.classroomId));
+    return (
+      <div className="dash">
+        <main id="main" className={`dash-wrap ${styles.student}`}>
+          {nav}
+          <header className={`${styles.hello} rise`}>
+            <h1 className="dash-title">Hi, {firstName}.</h1>
+            <p className="dash-sub">
+              {work.length
+                ? `You have ${work.length === 1 ? "one thing" : `${work.length} things`} to do for your class.`
+                : "You’re all caught up. New work from your teacher shows up here."}
+            </p>
+          </header>
+
+          {first && (
+            <section className={`${styles.nowCard} rise`} style={{ ["--i" as string]: 1 }}>
+              <span className={styles.nowClass}>{first.run.classroom.name}</span>
+              <h2>{stepFor(first).title}</h2>
+              <p>{stepFor(first).note}</p>
+              {firstNotice && <p className={styles.notice} role="status" data-testid="class-notice">{firstNotice.text}</p>}
+              {firstNotice?.paused ? null : (
+                <Link href={classroomAssignmentHref(first)} className={`btn btn-lg ${styles.nowButton}`}>
+                  {first.status === "IN_PROGRESS" ? "Carry on" : stepFor(first).cta} →
+                </Link>
+              )}
+            </section>
+          )}
+
+          {(rest.length > 0 || idle.length > 0) && (
+            <div className={styles.queue}>
+              {rest.map((item, k) => {
+                const notice = classNotice(item, Date.now());
+                return (
+                  <article className="dash-card rise" key={item.id} style={{ ["--i" as string]: k + 2 }}>
+                    <span className={styles.cardClass}>{item.run.classroom.name}</span>
+                    <h3>{stepFor(item).title}</h3>
+                    <p className={styles.cardNote}>{stepFor(item).note}</p>
+                    {notice && <p className={styles.notice} role="status" data-testid="class-notice">{notice.text}</p>}
+                    {notice?.paused ? null : (
+                      <Link href={classroomAssignmentHref(item)} className="btn btn-primary btn-pill">
+                        {item.status === "IN_PROGRESS" ? "Carry on" : stepFor(item).cta} →
+                      </Link>
+                    )}
+                  </article>
+                );
+              })}
+              {idle.map((c, k) => (
+                <article className="dash-card rise" key={c.classroomId} style={{ ["--i" as string]: rest.length + k + 2 }}>
+                  <span className={styles.cardClass}>{c.name}</span>
+                  <p className={styles.cardDone}>{classDoneLine(c)}</p>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {progress.length > 0 && (
+            <section className={styles.progress}>
+              <h2 className="dash-section-title">Your progress</h2>
+              <div className={styles.queue}>
+                {progress.map((t) => {
+                  const total = t.growth.latestSecure + t.growth.stillWorking.length;
+                  return (
+                    <article className="dash-card" key={t.topicId}>
+                      <div className={styles.skillsHead}>
+                        <h3>{t.name}</h3>
+                        <span><strong>{t.growth.latestSecure}</strong> of {total} skills</span>
+                      </div>
+                      {total > 0 && (
+                        <div className={styles.bar} role="img" aria-label={`${t.growth.latestSecure} of ${total} skills you’re sure of`}>
+                          {Array.from({ length: total }, (_, k) => (
+                            <i key={k} className={k < t.growth.latestSecure ? (k >= t.growth.firstSecure && t.growth.checks > 1 ? styles.gained : styles.on) : ""} />
+                          ))}
+                        </div>
+                      )}
+                      {t.growth.checks > 1 ? (
+                        t.growth.fixed.length > 0 && <p className={styles.fixed}>You fixed {t.growth.fixed.join(", ")}.</p>
+                      ) : (
+                        <p className={styles.cardNote}>Your next check will show how much you’ve grown.</p>
+                      )}
+                      {t.growth.stillWorking.length > 0 && <p className={styles.cardNote}>Still working on {t.growth.stillWorking.join(", ")}.</p>}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <footer className={styles.footer}>
+            <Link href="/student/classroom/live" className="btn-link">Join another class</Link>
+          </footer>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--s-5)" }}>
-      {chrome}
-      <div className={`${styles.phone} phase-in`}>
+    <div className="dash">
+      <main id="main" className={`dash-wrap ${styles.student}`}>
+      {nav}
+      <header className={`${styles.hello} rise`}>
+        <h1 className="dash-title">Hi, {firstName}.</h1>
+        <p className="dash-sub">Join your teacher’s class, or practise on your own.</p>
+      </header>
+      <div className={`${styles.solo} phase-in`}>
         {error && <p className="error">{error}</p>}
 
         <div className={styles.heroCard}>
-          <span className={styles.kicker}>Live classroom</span>
+          <span className={styles.kicker}>Your class</span>
           <h2>Join your teacher&apos;s class</h2>
           <p className={styles.meta}>
-            Enter the class code from your teacher and receive diagnostics, teaching activities,
-            and independent exit checks automatically.
+            Type the code your teacher shows the class. Their checks and your lessons then appear here.
           </p>
           <Link
             href="/student/classroom/live"
             className="btn btn-primary"
             style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}
           >
-            Open production classroom →
+            Join a class →
           </Link>
         </div>
 
@@ -238,13 +397,11 @@ export default function StudentHomePage() {
           </>
         )}
 
-        <div className="topbar-links" style={{ justifyContent: "center", borderTop: "1px solid var(--line)", paddingTop: "var(--s-3)" }}>
-          <Link href="/student/revision">Plan</Link>
-          <button type="button" className="btn-quiet" onClick={signOut} style={{ padding: 0 }}>
-            Sign out
-          </button>
-        </div>
+        <footer className={styles.footer}>
+          <Link href="/student/revision" className="btn-link">Plan</Link>
+        </footer>
       </div>
+      </main>
     </div>
   );
 }

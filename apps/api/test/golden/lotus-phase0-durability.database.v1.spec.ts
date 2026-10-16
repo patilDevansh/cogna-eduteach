@@ -22,6 +22,8 @@ import { LotusService } from "../../src/lotus/lotus.service";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
 
 function configuredLocalDatabaseUrl(): string {
+  // CI sets DATABASE_URL (a throwaway local Postgres); on a dev machine it lives in packages/database/.env.
+  if (process.env.DATABASE_URL) return localOnly(process.env.DATABASE_URL.trim());
   const candidatePaths = [
     resolve(process.cwd(), "packages/database/.env"),
     resolve(process.cwd(), "../../packages/database/.env"),
@@ -37,6 +39,10 @@ function configuredLocalDatabaseUrl(): string {
   const line = readFileSync(path, "utf8").split(/\r?\n/).find((value) => value.startsWith("DATABASE_URL="));
   const value = line?.slice("DATABASE_URL=".length).trim().replace(/^['\"]|['\"]$/g, "");
   if (!value) throw new Error("DATABASE_URL is blank in the local Lotus persistence configuration.");
+  return localOnly(value);
+}
+
+function localOnly(value: string): string {
   const host = new URL(value).hostname;
   if (host !== "localhost" && host !== "127.0.0.1" && host !== "::1") {
     throw new Error("The Lotus persistence gate only runs against a local development database.");

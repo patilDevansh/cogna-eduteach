@@ -2,6 +2,12 @@ import { Body, Controller, Get, Headers, NotFoundException, Param, Patch, Post, 
 import { AuthService, ParentsService } from "./parents.service";
 import { ParentAnalyticsService } from "./parent-analytics.service";
 import { clampWeeks } from "./parent-analytics.formulas";
+import { isProductionLike } from "../access/cogna-access";
+
+/** Dev account shortcuts skip Clerk, so a deployed server answers 404. */
+function devOnly(): void {
+  if (isProductionLike()) throw new NotFoundException();
+}
 
 @Controller("auth")
 export class AuthController {
@@ -23,12 +29,14 @@ export class ParentsController {
 
   @Post("dev/signup")
   devSignup(@Body() body: { email: string; name: string }) {
+    devOnly();
     return this.parents.devSignup(body);
   }
 
   /** Returns seeded Demo Parent + Demo Student link (dev only). */
   @Post("dev/demo-login")
   async demoLogin() {
+    devOnly();
     const parent = await this.parents.getSeededDemoParent();
     if (!parent) {
       throw new NotFoundException("Seeded demo parent missing — run pnpm db:seed");
@@ -48,6 +56,80 @@ export class ParentsController {
   ) {
     const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
     return this.parents.listStudents(parentId);
+  }
+
+  @Get("me/phone")
+  async getPhone(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {
+    return this.parents.getPhone(await this.auth.resolveParentId(parentIdHeader, authHeader));
+  }
+
+  /** Texts a one-time code to prove the parent holds this number. */
+  @Post("me/phone/code")
+  async sendPhoneCode(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { phone?: string }) {
+    return this.parents.sendPhoneCode(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.phone ?? "");
+  }
+
+  @Post("me/phone/verify")
+  async verifyPhone(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { phone?: string; code?: string }) {
+    return this.parents.verifyPhone(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.phone ?? "", body?.code ?? "");
+  }
+
+  /** Body: { on: boolean }: short texts to the verified phone when something happens in class. */
+  @Post("me/phone/texts")
+  async setTextUpdates(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { on?: boolean }) {
+    return this.parents.setTextUpdates(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.on === true);
+  }
+
+  /** The parent stops following a child linked through school (withdraws consent). */
+  @Post("me/students/:studentId/leave")
+  async leaveSchoolChild(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Param("studentId") studentId: string) {
+    return this.parents.leaveSchoolChild(await this.auth.resolveParentId(parentIdHeader, authHeader), studentId);
+  }
+
+  /** Body: { same: boolean, schoolChildId? }: whether a child added at home is the same as one from school. */
+  @Post("me/students/:studentId/duplicate")
+  async resolveDuplicate(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Param("studentId") studentId: string, @Body() body: { same?: boolean; schoolChildId?: string }) {
+    return this.parents.resolveDuplicate(await this.auth.resolveParentId(parentIdHeader, authHeader), studentId, { same: body?.same === true, schoolChildId: body?.schoolChildId });
+  }
+
+  /** Children whose school record lists this parent's verified phone. */
+  @Get("me/school-children")
+  async schoolChildren(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {
+    return this.parents.schoolChildren(await this.auth.resolveParentId(parentIdHeader, authHeader));
+  }
+
+  @Post("me/school-children/:studentId")
+  async answerSchoolChild(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Param("studentId") studentId: string, @Body() body: { agree?: boolean }) {
+    return this.parents.answerSchoolChild(await this.auth.resolveParentId(parentIdHeader, authHeader), studentId, body?.agree === true);
+  }
+
+  /** The fallback when the school doesn't have this parent's number: ask the teacher. */
+  @Post("me/link-requests")
+  async requestLink(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { joinCode?: string; childName?: string; rollNumber?: string }) {
+    return this.parents.requestLink(await this.auth.resolveParentId(parentIdHeader, authHeader), body ?? {});
+  }
+
+  @Get("me/link-requests")
+  async listLinkRequests(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {
+    return this.parents.listLinkRequests(await this.auth.resolveParentId(parentIdHeader, authHeader));
+  }
+
+  @Get("me/notifications")
+  async listNotifications(
+    @Headers("x-parent-id") parentIdHeader?: string,
+    @Headers("authorization") authHeader?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.listNotifications(parentId);
+  }
+
+  @Post("me/notifications/read")
+  async markNotificationsRead(
+    @Headers("x-parent-id") parentIdHeader?: string,
+    @Headers("authorization") authHeader?: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.markNotificationsRead(parentId);
   }
 
   @Post("me/students")
@@ -104,6 +186,16 @@ export class ParentsController {
   }> {
     const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
     return this.parents.getStudentSummary(parentId, studentId);
+  }
+
+  @Get("me/students/:studentId/overview")
+  async getOverview(
+    @Headers("x-parent-id") parentIdHeader: string | undefined,
+    @Headers("authorization") authHeader: string | undefined,
+    @Param("studentId") studentId: string,
+  ) {
+    const parentId = await this.auth.resolveParentId(parentIdHeader, authHeader);
+    return this.parents.getOverview(parentId, studentId);
   }
 
   @Get("me/students/:studentId/weekly-summary")

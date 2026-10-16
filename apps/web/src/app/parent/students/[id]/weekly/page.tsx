@@ -148,13 +148,13 @@ export default function ParentWeeklySummaryPage() {
     setRequestNote("");
     try {
       const period = defaultPeriod();
-      const result = await api.requestWeeklyReport(studentId, period);
+      const auth = await getAuth();
+      const result = await api.requestWeeklyReport(studentId, period, auth);
       setRequestNote(
         result.status === "PENDING"
           ? "Weekly report is being prepared. Refresh in a minute."
           : "Weekly report ready — refreshing…",
       );
-      const auth = await getAuth();
       const refreshed = await api.getParentWeeklySummary(auth, studentId);
       if (refreshed.renderedText || refreshed.structuredSummary) {
         setState({ kind: "ready", data: refreshed });

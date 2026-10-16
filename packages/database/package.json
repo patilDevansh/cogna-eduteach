@@ -10,6 +10,8 @@
     "push": "prisma db push",
     "studio": "prisma studio",
     "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:check": "prisma migrate diff --from-url \"$DATABASE_URL\" --to-schema-datamodel prisma/schema.prisma --exit-code",
     "seed": "tsx prisma/seed.ts"
   },
   "prisma": {

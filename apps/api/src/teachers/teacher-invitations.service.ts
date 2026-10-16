@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { isProductionLike } from "../access/cogna-access";
 
 type TeacherInvitation = {
   email: string;
@@ -51,12 +52,15 @@ export class TeacherInvitationsService {
   }
 
   private parseInvitations(value?: string): TeacherInvitation[] {
-    if (!value) return [DEMO_INVITATION];
+    // The demo invitation is public (it is in this file), so a deployed
+    // server never falls back to it: no valid list means no teacher can claim.
+    const fallback = isProductionLike() ? [] : [DEMO_INVITATION];
+    if (!value) return fallback;
     try {
       const parsed = JSON.parse(value) as TeacherInvitation[];
-      return Array.isArray(parsed) && parsed.length ? parsed : [DEMO_INVITATION];
+      return Array.isArray(parsed) && parsed.length ? parsed : fallback;
     } catch {
-      return [DEMO_INVITATION];
+      return fallback;
     }
   }
 

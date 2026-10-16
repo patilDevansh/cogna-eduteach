@@ -273,7 +273,7 @@ export function findFirstInvalidFractionAction(
     if (expected && missingConstantRelativeTo(expected, next)) {
       return {
         firstInvalidActionCode: "DROPPED_TERM_WHEN_CLEARING",
-        firstInvalidActionDescription: `multiplying every term by ${lcd} should give ${formatEquation(expected)}, but the student wrote ${formatEquation(next)}; the constant part should be ${ratToString(expected.rhs!.b)}, not ${ratToString(next.rhs.b)}`,
+        firstInvalidActionDescription: `a constant term was dropped when clearing — multiplying every term by ${lcd} should give ${formatEquation(expected)}, but the student wrote ${formatEquation(next)}; the constant part should be ${ratToString(expected.rhs!.b)}, not ${ratToString(next.rhs.b)}`,
       };
     }
 

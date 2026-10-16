@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
+import { openAiStudentTextModerator, studentStrings } from "./student-text-safety";
 import { Prisma } from "@cogna/database";
 import { PrismaService } from "../prisma/prisma.service";
 import { OpenAIService } from "./openai.service";
@@ -69,6 +70,9 @@ export class AiOrchestratorService {
       );
       rawResponse = raw;
       aiOutput = input.parse(raw);
+      // AI text can reach a student; a flagged or unchecked reply falls back to the rule output.
+      const unsafe = await openAiStudentTextModerator(this.openai!.getClient())(studentStrings(aiOutput));
+      if (unsafe) throw new Error(unsafe);
       passed = true;
     } catch (err) {
       failureReason = err instanceof Error ? err.message : String(err);

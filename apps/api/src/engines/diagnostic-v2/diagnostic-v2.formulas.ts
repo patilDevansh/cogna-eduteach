@@ -191,6 +191,20 @@ export function computeMicroSkillStatus(counts: MicroSkillCounts): MicroSkillSta
   return "UNKNOWN";
 }
 
+/**
+ * Whether the student has made the skill's error often enough to be taught
+ * the rule. Deliberately looser than LIKELY_GAP: the same error on two
+ * problems with no more successes than failures warrants teaching, even
+ * before there are enough trials to put a gap label on the report.
+ */
+export function errorPatternRepeated(counts: MicroSkillCounts): boolean {
+  const trials = counts.independentSuccessCount + counts.independentFailureCount;
+  return (
+    counts.independentFailureCount >= LIKELY_GAP_MIN_INDEPENDENT_FAILURES &&
+    counts.independentFailureCount / trials > LIKELY_GAP_FAILURE_RATE_THRESHOLD
+  );
+}
+
 export interface MicroSkillStateUpdate {
   counts: MicroSkillCounts;
   status: MicroSkillStatus;

@@ -1,6 +1,8 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, UseGuards } from "@nestjs/common";
+import { WorkerGuard } from "../access/worker.guard";
 import { ObservabilityService } from "./observability.service";
 
+@UseGuards(WorkerGuard)
 @Controller("observability")
 export class ObservabilityController {
   constructor(private readonly observability: ObservabilityService) {}

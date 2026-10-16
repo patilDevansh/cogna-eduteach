@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
-import { AiModule } from "../ai/ai.module";
-import { TtsService } from "../ai/tts.service";
+import { AiModule, TTS_PROVIDER } from "../ai/ai.module";
+import { OpenAIService } from "../ai/openai.service";
+import type { TtsProvider } from "../ai/tts.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PersonalizedVideosController } from "./personalized-videos.controller";
 import { PersonalizedVideosService } from "./personalized-videos.service";
@@ -18,9 +19,9 @@ import { VideoRendererAdapter } from "./video-renderer.adapter";
     },
     {
       provide: PersonalizedVideosService,
-      inject: [PrismaService, VideoRendererAdapter, TtsService],
-      useFactory: (prisma: PrismaService, renderer: VideoRendererAdapter, tts: TtsService) =>
-        new PersonalizedVideosService(prisma, renderer, tts),
+      inject: [PrismaService, VideoRendererAdapter, TTS_PROVIDER, OpenAIService],
+      useFactory: (prisma: PrismaService, renderer: VideoRendererAdapter, tts: TtsProvider, openai: OpenAIService) =>
+        new PersonalizedVideosService(prisma, renderer, tts, openai),
     },
     VideoRenderWorker,
   ],

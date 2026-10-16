@@ -8,4 +8,11 @@ The [factorisation problems log](./FACTORISATION_PROBLEMS.md) separates browser-
 
 The [continuous diagnostic architecture](./LOTUS_CONTINUOUS_DIAGNOSTIC.md) is the proposed next design for prompt-only question staging on the student's device, a durable rolling pool, curriculum-balanced selection, and background analysis. It follows the live browser finding that the first reserve implementation is fast for arithmetic but still waits on symbolic and algebraic work. It is not yet implemented.
 
+The [content generation engine plan](./CONTENT_GENERATION_ENGINE_PLAN.md) proposes a governed intervention planner, reusable animation library, verified lesson recipes, scalable media delivery, and phase gates. It is a design proposal, not shipped behavior or a change to the canonical classroom contract.
+
 Current state: classroom implementation exists and Lotus has a limited arithmetic fast path. Syllabus ingestion, durable rolling readiness, and fast symbolic/algebraic transitions remain proposed and require implementation and evaluation.
+
+
+[Interaction formats](../docs/mvp-10.0/INTERACTION_FORMATS.md) are implemented: tile-game answers (bracket bridge, split it, term builder, factor safe) in the Lotus diagnostic, the one-attempt independent exit and practice. They are marked by the unchanged algebra marking, and `COGNA_GAME_FORMATS=off` turns them off.
+
+MVP 10.0 UI maintenance (2026-10-08): Lotus now includes workshop and constellation tile scenes, alternating interactive coverage, early Detective, more reliable Garden generation, and separate math toolbars for final answers and working steps.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ClassroomsService } from "../../src/classrooms/classrooms.service";
 
 const teacherActor = { role: "teacher", teacherEmail: "teacher@school.test", schoolId: "school-1" } as const;
@@ -10,10 +10,10 @@ function service(overrides: Record<string, unknown> = {}) {
   const prisma = {
     teacher: { findUnique: async () => ({ id: "teacher-1", schoolId: "school-1" }) },
     classroom: { findUnique: async () => ({ id: "class-1", joinCode: "MATH-8A", archivedAt: null }), findMany: async () => [] },
-    classroomEnrollment: { findMany: async () => [{ id: "enrol-1" }], upsert: async (args: unknown) => args },
+    classroomEnrollment: { findMany: async () => [{ id: "enrol-1", rollNumber: null, student: { id: "s1", name: "A" } }], upsert: async (args: unknown) => args },
     classroomRun: { findFirst: async () => ({ id: "run-1", classroomId: "class-1", classroom: { id: "class-1" } }), update: async (args: unknown) => args },
-    classroomAssignment: { findMany: async () => [], createMany: async (args: unknown) => args, findFirst: async () => null, update: async (args: unknown) => args, count: async () => 0 },
-    lotusSessionRecord: { findUnique: async () => null },
+    classroomAssignment: { findMany: async () => [], createMany: async (args: unknown) => args, findFirst: async () => null, update: async (args: unknown) => args, updateMany: async (args: unknown) => args, count: async () => 0 },
+    lotusSessionRecord: { findUnique: async () => null, findMany: async () => [] },
     personalizedVideoAssignment: { findFirst: async () => null },
     personalizedVideoEvent: { findFirst: async () => null },
     $transaction: async (actions: Array<Promise<unknown>>) => Promise.all(actions),
@@ -27,13 +27,33 @@ describe("production classroom orchestration", () => {
     await assert.rejects(() => service().join(teacherActor, { joinCode: "MATH-8A" }), ForbiddenException);
   });
 
-  it("requires every diagnostic before teaching is released", async () => {
+  it("in teacher-gated mode, requires every diagnostic before teaching is released", async () => {
     const classrooms = service({
+      classroomRun: { findFirst: async () => ({ id: "run-1", classroomId: "class-1", config: { autoAdvance: false }, classroom: { id: "class-1" } }) },
       classroomAssignment: {
         findMany: async () => [{ id: "diagnostic-1", enrollmentId: "enrol-1", status: "IN_PROGRESS" }],
       },
     });
     await assert.rejects(() => classrooms.launchPhase(teacherActor, "run-1", "TEACHING"), BadRequestException);
+  });
+
+  it("in pilot mode (the default), a student's next stage opens as soon as they finish one", async () => {
+    const created: Array<Record<string, unknown>> = [];
+    const classrooms = service({
+      classroomRun: { findUnique: async () => ({ id: "run-1", config: {} }), findFirst: async () => null, update: async (args: unknown) => args },
+      classroomAssignment: {
+        findFirst: async () => ({ id: "t1", runId: "run-1", enrollmentId: "enrol-1", kind: "TEACHING", status: "IN_PROGRESS", diagnosticSessionId: "lotus-1", videoAssignmentId: "video-1" }),
+        update: async (args: { data: Record<string, unknown> }) => ({ id: "t1", runId: "run-1", enrollmentId: "enrol-1", kind: "TEACHING", diagnosticSessionId: "lotus-1", videoAssignmentId: "video-1", ...args.data }),
+        upsert: async (args: { create: Record<string, unknown> }) => { created.push(args.create); return { id: "x1", ...args.create }; },
+        count: async () => 1,
+      },
+      personalizedVideoAssignment: { findFirst: async () => ({ id: "video-1", status: "READY", script: { practice: { items: [1, 2, 3, 4] }, practiceAttempts: { p1: { tries: 1, correct: true } } } }) },
+      personalizedVideoEvent: { findFirst: async () => ({ id: "ev-1" }) },
+    });
+    const done = await classrooms.completeAssignment(studentActor, "t1", { result: {} }) as { next: { kind: string } | null; result: { practice: { correct: number } } };
+    assert.equal(done.next?.kind, "INDEPENDENT_EXIT");
+    assert.equal(created[0]?.status, "READY");
+    assert.equal(done.result.practice.correct, 1, "practice is read from the server record");
   });
 
   it("lets a signed student join by code without exposing another student's enrollment", async () => {
@@ -78,10 +98,10 @@ describe("production classroom orchestration", () => {
       findMany: async (args: { where: unknown }) => { where = args.where; return []; },
     } });
     await classrooms.assignmentsForStudent(studentActor);
-    assert.deepEqual((where as { enrollment: unknown }).enrollment, { studentId: "student-1", leftAt: null });
+    assert.deepEqual((where as { enrollment: unknown }).enrollment, { studentId: "student-1", leftAt: null, classroom: { archivedAt: null } });
   });
 
-  it("moves the run to a class report after the last diagnostic completes", async () => {
+  it("in teacher-gated mode, moves the run to a class report after the last diagnostic completes", async () => {
     let runUpdate: unknown;
     const classrooms = service({
       classroomAssignment: {
@@ -90,7 +110,7 @@ describe("production classroom orchestration", () => {
         count: async () => 0,
       },
       lotusSessionRecord: { findUnique: async () => ({ id: "lotus-row", studentId: "student-1", status: "COMPLETE", payload: { finalReport: { outcome: "ADVANCEMENT", observedStrengths: [], uncertainAreas: [] }, audits: [] } }) },
-      classroomRun: { update: async (args: unknown) => { runUpdate = args; return args; } },
+      classroomRun: { findUnique: async () => ({ id: "run-1", config: { autoAdvance: false } }), update: async (args: unknown) => { runUpdate = args; return args; } },
     });
     await classrooms.completeAssignment(studentActor, "a1", { diagnosticSessionId: "lotus-1", result: { outcome: "ADVANCEMENT" } });
     assert.deepEqual(runUpdate, { where: { id: "run-1" }, data: { phase: "CLASS_REPORT", status: "PAUSED" } });
@@ -105,8 +125,11 @@ describe("production classroom orchestration", () => {
         count: async () => 0,
       },
       personalizedVideoAssignment: { findFirst: async () => ({ id: "video-1", studentId: "student-1" }) },
-      personalizedVideoEvent: { findFirst: async () => ({ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true }) },
-      classroomRun: { update: async (args: { data: Record<string, unknown> }) => { runUpdate = args; return args; } },
+      personalizedVideoEvent: {
+        findFirst: async () => ({ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true }),
+        findMany: async () => [{ exitPrompt: "Solve x", exitAnswer: "2", exitWorking: "x=2", exitCorrect: true, exitItem: 0, createdAt: new Date() }],
+      },
+      classroomRun: { findUnique: async () => ({ id: "run-1", config: {} }), update: async (args: { data: Record<string, unknown> }) => { runUpdate = args; return args; } },
     });
     await classrooms.completeAssignment(studentActor, "a3", { result: { correct: true } });
     assert.equal(runUpdate?.data?.phase, "FINAL_REPORT");
@@ -138,5 +161,191 @@ describe("production classroom orchestration", () => {
       personalizedVideoEvent: { findFirst: async () => null },
     });
     await assert.rejects(() => classrooms.completeAssignment(studentActor, "a3", { videoAssignmentId: "video-1", result: { correct: true, independent: true } }), BadRequestException);
+  });
+});
+
+describe("teacher class management", () => {
+  const ownedClass = { findFirst: async () => ({ id: "class-1", teacherId: "teacher-1", archivedAt: null }) };
+
+  it("renames only the teacher's own class, trimming the name", async () => {
+    let data: unknown;
+    const classrooms = service({ classroom: { count: async () => 1, update: async (args: { data: unknown }) => { data = args.data; return args; } } });
+    await classrooms.rename(teacherActor, "class-1", "  Grade 8 · Section B  ");
+    assert.deepEqual(data, { name: "Grade 8 · Section B" });
+    await assert.rejects(() => service({ classroom: { count: async () => 0 } }).rename(teacherActor, "class-9", "X class"), NotFoundException);
+  });
+
+  it("ending a check skips every unfinished step and marks the check complete", async () => {
+    const calls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+    const classrooms = service({
+      classroomRun: {
+        findFirst: async () => ({ id: "run-1", classroomId: "class-1", status: "LIVE", config: {}, classroom: { id: "class-1" } }),
+        update: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { calls.push(args); return args; },
+      },
+      classroomAssignment: { findMany: async () => [], updateMany: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { calls.push(args); return args; } },
+    });
+    await classrooms.endRun(teacherActor, "run-1");
+    assert.deepEqual(calls[0], { where: { runId: "run-1", status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED" } });
+    assert.equal(calls[1]?.data.status, "COMPLETE");
+  });
+
+  it("an ended check stays ended: no second close, no relaunch", async () => {
+    let touched = false;
+    const ended = { findFirst: async () => ({ id: "run-1", classroomId: "class-1", status: "COMPLETE", config: {}, classroom: { id: "class-1" } }), update: async () => { touched = true; } };
+    await service({ classroomRun: ended }).endRun(teacherActor, "run-1");
+    assert.equal(touched, false);
+    await assert.rejects(() => service({ classroomRun: ended }).launchPhase(teacherActor, "run-1", "DIAGNOSTIC"), BadRequestException);
+  });
+
+  it("a student cannot finish a step that was closed", async () => {
+    const classrooms = service({ classroomAssignment: { findFirst: async () => ({ id: "a1", runId: "run-1", kind: "DIAGNOSTIC", status: "SKIPPED" }) } });
+    await assert.rejects(() => classrooms.completeAssignment(studentActor, "a1", { result: {} }), BadRequestException);
+  });
+
+  it("the roster flags students who are also in another of the same teacher's classes", async () => {
+    let otherWhere: Record<string, unknown> | undefined;
+    const classrooms = service({
+      classroom: ownedClass,
+      parent: { findFirst: async () => null, findMany: async () => [] },
+      consent: { findMany: async () => [] },
+      classroomEnrollment: {
+        findMany: async (args: { include: { student: { select: { classroomEnrollments: { where: Record<string, unknown> } } } } }) => {
+          otherWhere = args.include.student.select.classroomEnrollments.where;
+          return [{ rollNumber: "8A-03", joinedAt: new Date(0), student: { id: "s3", name: "Rohan", guardianPhones: [], parentLinks: [], classroomEnrollments: [{ classroom: { id: "class-2", name: "Section B" } }] } }];
+        },
+      },
+    });
+    const roster = await classrooms.roster(teacherActor, "class-1");
+    assert.deepEqual(roster[0]?.alsoIn, [{ id: "class-2", name: "Section B" }]);
+    assert.deepEqual(otherWhere, { leftAt: null, classroomId: { not: "class-1" }, classroom: { teacherId: "teacher-1", archivedAt: null } });
+  });
+
+  it("another teacher's class has no roster and no remove", async () => {
+    const notMine = service({ classroom: { findFirst: async () => null } });
+    await assert.rejects(() => notMine.roster(teacherActor, "class-9"), NotFoundException);
+    await assert.rejects(() => notMine.removeStudent(teacherActor, "class-9", "s1"), NotFoundException);
+  });
+
+  it("removing a student tags their open steps so a rejoin can reopen them", async () => {
+    const calls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
+    const record = async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { calls.push(args); return args; };
+    const classrooms = service({
+      classroom: ownedClass,
+      classroomEnrollment: { findUnique: async () => ({ id: "enrol-3", leftAt: null }), update: record },
+      classroomAssignment: { updateMany: record, count: async (args: { where: { status?: unknown } }) => (args.where.status ? 0 : 2) },
+      classroomRun: { findMany: async () => [{ id: "run-live" }], update: record },
+    });
+    await classrooms.removeStudent(teacherActor, "class-1", "s3");
+    const closed = calls.find((c) => (c.where as { id?: string }).id === "run-live");
+    assert.equal(closed?.data.status, "COMPLETE", "the last open student's removal finishes the check");
+    assert.deepEqual(calls[0], { where: { enrollmentId: "enrol-3", status: { in: ["WAITING", "READY", "IN_PROGRESS"] } }, data: { status: "SKIPPED", result: { removedFromClass: true } } });
+    assert.ok(calls[1]?.data.leftAt instanceof Date);
+    const gone = service({ classroom: ownedClass, classroomEnrollment: { findUnique: async () => ({ id: "enrol-3", leftAt: new Date() }) } });
+    await assert.rejects(() => gone.removeStudent(teacherActor, "class-1", "s3"), NotFoundException);
+  });
+
+  it("rejoining reopens only removal-closed steps in running checks, and names the other classes", async () => {
+    let reopen: { where: Record<string, unknown>; data: Record<string, unknown> } | undefined;
+    const classrooms = service({
+      classroom: {
+        findUnique: async () => ({ id: "class-1", teacherId: "teacher-1", joinCode: "MATH-8A", archivedAt: null }),
+        findMany: async () => [{ id: "class-2", name: "Section B" }],
+      },
+      classroomEnrollment: { upsert: async () => ({ id: "enrol-3" }) },
+      classroomAssignment: { updateMany: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => { reopen = args; return args; } },
+      classroomRun: { findFirst: async () => null },
+    });
+    const joined = await classrooms.join(studentActor, { joinCode: "MATH-8A" }) as { alsoIn: unknown };
+    assert.deepEqual(reopen?.where, { enrollmentId: "enrol-3", status: "SKIPPED", run: { status: "LIVE" }, result: { path: ["removedFromClass"], equals: true } });
+    assert.equal(reopen?.data.status, "READY");
+    assert.deepEqual(joined.alsoIn, [{ id: "class-2", name: "Section B" }]);
+  });
+});
+
+describe("class list import and sign-in codes", () => {
+  const ownedClass = { findFirst: async () => ({ id: "class-1", teacherId: "teacher-1", schoolId: "school-1", grade: 8, name: "8A", joinCode: "CG-1", archivedAt: null }) };
+  const rosterParent = { user: { upsert: async () => ({ id: "user-r" }) }, parent: { upsert: async () => ({ id: "roster-parent" }) } };
+
+  it("creates each student with a unique 8-character code, stores only its hash, and enrols them", async () => {
+    const students: Array<Record<string, unknown>> = [];
+    const enrolments: Array<Record<string, unknown>> = [];
+    const consents: Array<Record<string, unknown>> = [];
+    const tx = {
+      student: { create: async ({ data }: { data: Record<string, unknown> }) => { students.push(data); return { id: `s${students.length}` }; } },
+      classroomEnrollment: { create: async ({ data }: { data: Record<string, unknown> }) => { enrolments.push(data); return data; } },
+      consent: { create: async ({ data }: { data: Record<string, unknown> }) => { consents.push(data); return data; } },
+    };
+    const classrooms = service({
+      classroom: ownedClass,
+      ...rosterParent,
+      student: { count: async () => 0 },
+      $transaction: async (run: (t: typeof tx) => Promise<unknown>) => run(tx),
+    });
+    const result = await classrooms.importStudents(teacherActor, "class-1", [{ name: "  Aarav   Sharma ", rollNumber: "8A-01" }, { name: "Meena K" }], true) as { students: Array<{ name: string; accessCode: string; rollNumber?: string }> };
+    assert.deepEqual(result.students.map((s) => s.name), ["Aarav Sharma", "Meena K"]);
+    assert.deepEqual(consents.map((c) => c.consentType), ["SCHOOL_CONSENT", "SCHOOL_CONSENT"], "the school's consent is recorded per student");
+    for (const s of result.students) assert.match(s.accessCode, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/);
+    assert.notEqual(result.students[0]!.accessCode, result.students[1]!.accessCode);
+    assert.equal(students[0]!.primaryParentId, "roster-parent");
+    assert.equal(students[0]!.grade, 8);
+    assert.match(String(students[0]!.accessCodeHash), /^[a-f0-9]{64}$/, "only a hash is stored");
+    assert.ok(!JSON.stringify(students).includes(result.students[0]!.accessCode), "the plain code is never stored");
+    assert.deepEqual(enrolments[0], { classroomId: "class-1", studentId: "s1", rollNumber: "8A-01" });
+  });
+
+  it("rejects an empty list, a too-long list, or a bad line before creating anyone", async () => {
+    let created = 0;
+    const classrooms = service({ classroom: ownedClass, ...rosterParent, student: { count: async () => 0, create: async () => { created++; } } });
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [], true), BadRequestException);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", Array.from({ length: 301 }, () => ({ name: "Kid A" })), true), BadRequestException);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name" }, { name: "X" }], true), /Line 2/);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name", phones: ["12345"] }], true), /Line 1: "12345" isn't a mobile number/);
+    await assert.rejects(() => classrooms.importStudents(teacherActor, "class-1", [{ name: "Ok Name" }]), /consent/);
+    assert.equal(created, 0);
+  });
+
+  it("another teacher's class cannot be imported into", async () => {
+    await assert.rejects(() => service({ classroom: { findFirst: async () => null } }).importStudents(teacherActor, "class-9", [{ name: "Kid A" }], true), NotFoundException);
+  });
+
+  it("a new code only for school-issued accounts, never a family's", async () => {
+    let updated: Record<string, unknown> | undefined;
+    const base = { classroom: ownedClass, ...rosterParent, student: { count: async () => 0, update: async (args: { data: Record<string, unknown> }) => { updated = args.data; return args; } } };
+    const school = service({ ...base, classroomEnrollment: { findUnique: async () => ({ leftAt: null, rollNumber: "8A-01", student: { name: "Aarav", primaryParentId: "roster-parent" } }) } });
+    const fresh = await school.resetAccessCode(teacherActor, "class-1", "s1");
+    assert.match(fresh.accessCode, /^[A-Z2-9]{8}$/);
+    assert.match(String(updated?.accessCodeHash), /^[a-f0-9]{64}$/);
+    const family = service({ ...base, classroomEnrollment: { findUnique: async () => ({ leftAt: null, student: { name: "Rohan", primaryParentId: "a-real-parent" } }) } });
+    await assert.rejects(() => family.resetAccessCode(teacherActor, "class-1", "s3"), ForbiddenException);
+  });
+
+  it("a parent's view of a class carries only their own child's row, never classmates'", async () => {
+    const classrooms = service({
+      classroomEnrollment: {
+        findMany: async (args: { where: { studentId?: string } }) =>
+          args.where.studentId
+            ? [{ classroom: { id: "class-1", name: "Section A", grade: 8, teacher: { name: "Ms Rao" } } }]
+            : [
+                { id: "enrol-1", rollNumber: null, student: { id: "s1", name: "Aarav" } },
+                { id: "enrol-2", rollNumber: null, student: { id: "s2", name: "Meena" } },
+              ],
+      },
+      classroomRun: { findFirst: async () => ({ id: "run-1", title: "Quick check", status: "LIVE", startedAt: null, createdAt: new Date(0) }) },
+      classroomAssignment: {
+        findMany: async () => [
+          { enrollmentId: "enrol-1", kind: "DIAGNOSTIC", status: "COMPLETE", startedAt: null, completedAt: null, diagnosticSessionId: null, videoAssignmentId: null },
+          { enrollmentId: "enrol-2", kind: "DIAGNOSTIC", status: "READY", startedAt: null, completedAt: null, diagnosticSessionId: null, videoAssignmentId: null },
+        ],
+      },
+    });
+    const [section] = await classrooms.forStudent("s1");
+    assert.equal(section?.name, "Section A");
+    assert.equal(section?.teacherName, "Ms Rao");
+    assert.equal(section?.check?.stageStatus, "COMPLETE");
+    assert.ok(!JSON.stringify(section).includes("Meena"), "no classmate data");
+  });
+
+  it("only a signed-in student can list their own classes", async () => {
+    await assert.rejects(() => service().classesForStudent(teacherActor), ForbiddenException);
   });
 });

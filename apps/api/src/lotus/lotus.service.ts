@@ -1,5 +1,7 @@
+import type { ClassroomEventsService } from "../classrooms/classroom-events";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Logger,
   NotFoundException,
@@ -27,8 +29,10 @@ import type {
   LotusStudentResponse,
   LotusUnseenPlanEntry,
   LotusTopic,
+  LotusWorkingPrompt,
 } from "@cogna/shared";
-import { randomUUID } from "crypto";
+import { isLotusDemoGap, isPlannedLotusTopic, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
+import { createHash, randomUUID } from "crypto";
 import { isDemoStudentId } from "../access/cogna-access";
 import {
   challengerClosurePrompt,
@@ -37,7 +41,7 @@ import {
   reserveCandidatesPrompt,
 } from "./lotus-prompts";
 import type { PrismaClient } from "@cogna/database";
-import { LotusModelService } from "./lotus-model.service";
+import { LotusModelService, PROVIDER_OUTAGE_PROBE_MS } from "./lotus-model.service";
 import { pickOpener } from "./lotus-openers";
 import { buildLotusCoveragePlan } from "./lotus-coverage-plan";
 import {
@@ -49,15 +53,20 @@ import {
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
+import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
+import { codeProbeFor } from "./lotus-probes";
 import {
-  FACTORISATION_SLOTS,
+  curriculumFor,
   skillName,
 } from "./lotus-factorisation-catalogue";
 import {
   type FactorisationState,
   type PlanAction,
   buildFactorisationReport,
+  catchUpSlots,
   evidenceFromAnalysis,
+  factorisationStopReason,
   foldLedger,
   instantVerdict,
   nextOpenTurn,
@@ -141,6 +150,8 @@ interface DeferredAnalysisQueue {
 interface LotusServiceOptions {
   /** Test seam for comparing the bounded worker pool against a serialized baseline. */
   deferredAnalysisConcurrency?: number;
+  /** Tells an open teacher page when a student taking a class diagnostic answers. */
+  classEvents?: Pick<ClassroomEventsService, "lotusSaved">;
 }
 
 const MAX_QUESTIONS = 16;
@@ -194,6 +205,10 @@ const WRITE_BACKOFF_MS = 20_000;
 const WRITE_LIFETIME_ATTEMPT_CAP = 12;
 /** Factorisation never serves a fixed question. The student starts once the first 15 slots have accepted AI items; later slots continue in the background. */
 const FACTORISATION_PREPARATION_TARGET = 15;
+/** Questions ready before the student starts: 15, or the whole test when it's shorter (a catch-up). */
+function preparationTarget(f: FactorisationSession): number {
+  return Math.min(FACTORISATION_PREPARATION_TARGET, f.state.turns.length);
+}
 /** On the last answer, how long to wait for outstanding AI reviews before writing the report anyway. Later reviews still update it. */
 const FINAL_REPORT_WAIT_MS = 20_000;
 /** How long after last activity a finished session stays hot in memory before falling back to a DB reload on next access. */
@@ -371,7 +386,7 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
     .filter((turn) => turn.turn > factorisation.state.planTurn)
     .slice(0, 10)
     .map((turn) => {
-      const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
+      const spec = slotSpec(factorisation, turn.slot);
       return {
         turn: turn.turn,
         skill: spec?.skillId,
@@ -417,8 +432,15 @@ function adaptationTagFor(turn: { status: string; purpose?: string; forSkill?: s
   }
 }
 
+/** An item a student may see: checked AI writing, or a game question built and checked by code. */
+function isAcceptedItem(item: Omit<LotusQuestion, "id"> | undefined | null): boolean {
+  const origin = item?.answerKey.diagnostics?.origin;
+  return origin === "AI" || origin === "CODE";
+}
+
 function questionProvenance(question: LotusQuestion | Omit<LotusQuestion, "id">): LotusQuestionSelection["provenance"] {
   const diagnostics = question.answerKey.diagnostics;
+  if (diagnostics?.origin === "CODE") return "CODE_BUILT_GAME";
   if (diagnostics?.origin !== "AI") return "HARDCODED_SYSTEM";
   return diagnostics.provenance ?? "AI_GENERATED_FOR_SESSION";
 }
@@ -447,17 +469,34 @@ function factorisationOpeningExpression(sessionId: string, alreadyUsed: Readonly
   return null;
 }
 
+/** The plan slot a turn came from, in the session's own topic. */
+function slotSpec(f: FactorisationSession, slot: number) {
+  return curriculumFor(f.state.topic).slots.find((candidate) => candidate.slot === slot);
+}
+
+/** Factorisation opens on a fresh common-factor expression per session; other topics open on slot 1 as written. */
+function needsOpeningExpression(f: FactorisationSession, turn: number): boolean {
+  return turn === 1 && (f.state.topic ?? "FACTORISATION") === "FACTORISATION" && !f.state.focusSkills?.length;
+}
+
 function preferredItem(f: FactorisationSession, turn: number): LotusQuestion | undefined {
   const list = f.versions[String(turn)] ?? [];
   return list.find((item) => item.id === f.preferred[String(turn)]) ?? list[0];
 }
 
-/** Which predicted mistakes each demo persona makes in the factorisation test. Personas not listed answer correctly. */
-const DEMO_FACTORISATION_WEAKNESS: Record<string, RegExp> = {
-  aarav: /SIGN|FLIP/,
-  meena: /GROUP|PAIRS|SUM_ACCEPTED|BRACKET_NOT_SEEN|LEFTOVERS/,
-  rohan: /INCOMPLETE|COMMON_NOT_HIGHEST|PARTIAL_GCF|SKIPPED_COMMON/,
+/** Which predicted mistakes each demo gap makes in the factorisation test. "none" answers everything correctly. */
+const DEMO_FACTORISATION_WEAKNESS: Record<LotusDemoGap, RegExp | undefined> = {
+  signs: /SIGN|FLIP/,
+  grouping: /GROUP|PAIRS|SUM_ACCEPTED|BRACKET_NOT_SEEN|LEFTOVERS/,
+  "common-factor": /INCOMPLETE|COMMON_NOT_HIGHEST|PARTIAL_GCF|SKIPPED_COMMON/,
+  none: undefined,
 };
+
+/** The named demo student whose wrong answers a gap borrows in the (non-factorisation) brackets test. */
+const DEMO_GAP_PERSONA: Record<LotusDemoGap, string> = { signs: "aarav", grouping: "meena", "common-factor": "rohan", none: "aadya" };
+
+/** Each named demo student's usual gap, used when the caller doesn't pick one. */
+const DEMO_PERSONA_GAP: Record<string, LotusDemoGap> = { aarav: "signs", meena: "grouping", rohan: "common-factor" };
 
 const REFLECTION_PROMPTS = [
   "While the AIs review your last answer — how sure are you about it, looking back?",
@@ -597,28 +636,41 @@ function observerCopy(session: LotusSessionState): LotusSessionView {
  * back to them can be gamed. Once the diagnostic is COMPLETE the full trail
  * is released — that's what "Show AI Lab" and the final report use.
  */
+/**
+ * How this student's typed questions ask for working, fixed for the whole
+ * session. LOTUS_WORKING_PROMPT: "optional" (default) shows the final answer
+ * only, "lines" the three working lines, "split" gives each student one arm
+ * by a stable hash of their id, so the pilot can compare the two.
+ */
+export function workingPromptFor(studentId: string, env: NodeJS.ProcessEnv = process.env): LotusWorkingPrompt {
+  const mode = env.LOTUS_WORKING_PROMPT?.trim().toLowerCase();
+  if (mode === "lines") return "LINES";
+  if (mode === "split") return createHash("sha1").update(studentId).digest()[0]! % 2 === 0 ? "OPTIONAL" : "LINES";
+  return "OPTIONAL";
+}
+
 function publicCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
   const upcoming: LotusQuestion[] = [];
   if (clone.status === "ACTIVE" && clone.factorisation) {
     const f = clone.factorisation;
     const readyQuestions = Object.entries(f.preferred)
-      .filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && item.answerKey.diagnostics?.origin === "AI"))
+      .filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item)))
       .length;
     clone.preparation = {
       readyQuestions,
-      targetQuestions: FACTORISATION_PREPARATION_TARGET,
-      totalQuestions: 25,
-      ready: readyQuestions >= FACTORISATION_PREPARATION_TARGET,
+      targetQuestions: preparationTarget(f),
+      totalQuestions: f.state.turns.length,
+      ready: readyQuestions >= preparationTarget(f),
     };
     // Never expose a legacy/pre-change non-AI item from an old persisted
     // session. Such a session returns to the preparation screen and must be
     // rebuilt with accepted AI items rather than leaking a retired question.
-    if (clone.currentQuestion?.answerKey.diagnostics?.origin !== "AI") clone.currentQuestion = null;
+    if (clone.currentQuestion && !isAcceptedItem(clone.currentQuestion)) clone.currentQuestion = null;
     for (const turn of f.state.turns) {
       if (turn.turn <= f.state.planTurn || turn.status === "SKIPPED") continue;
       const item = preferredItem(f, turn.turn);
-      if (item?.answerKey.diagnostics?.origin === "AI") upcoming.push(redactQuestion(item));
+      if (item && isAcceptedItem(item)) upcoming.push(redactQuestion(item));
     }
   }
   delete clone.factorisation;
@@ -647,7 +699,7 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     question: openingQuestionIsLive ? redactQuestion(clone.openingAudit.question) : clone.openingAudit.question,
   });
   clone.audits = clone.audits.map(redactAudit);
-  if (clone.topic === "FACTORISATION") {
+  if (isPlannedLotusTopic(clone.topic)) {
     // A turn's selection reason names the gap a coming question is checking ("re-checks a suspected sign gap").
     clone.audits = clone.audits.map((audit) => ({ ...audit, questionSelection: { ...audit.questionSelection, reason: "" } }));
   }
@@ -674,6 +726,8 @@ export class LotusService implements OnModuleDestroy {
   /** Sessions whose in-memory state is not confirmed durable yet — set before every persist attempt, cleared only on success. The sweep must never evict one of these: doing so on a failed write would silently roll a session back to its last successfully saved turn. */
   private readonly dirty = new Set<string>();
   private readonly inFlightAnswers = new Map<string, Promise<LotusSessionView>>();
+  /** Session starts still running, per class assignment (see start()). */
+  private readonly startingForAssignment = new Map<string, Promise<LotusSessionView>>();
   /** Bounded review queues: avoid serialising Q2 behind a slow Q1 analysis. */
   private readonly analysisQueues = new Map<string, DeferredAnalysisQueue>();
   private readonly deferredAnalysisConcurrency: number;
@@ -692,6 +746,7 @@ export class LotusService implements OnModuleDestroy {
   private readonly factorisationOpeningPrints = new Set<string>();
   private readonly factory: LotusQuestionFactory;
   private readonly sweepTimer: NodeJS.Timeout;
+  private readonly classEvents?: Pick<ClassroomEventsService, "lotusSaved">;
 
   constructor(
     private readonly models: LotusModelService,
@@ -703,6 +758,7 @@ export class LotusService implements OnModuleDestroy {
       && options.deferredAnalysisConcurrency! <= 4
       ? options.deferredAnalysisConcurrency!
       : DEFERRED_ANALYSIS_CONCURRENCY;
+    this.classEvents = options.classEvents;
     this.factory = new LotusQuestionFactory({
       writeQuestion: (prompt) => this.models.writeQuestion(prompt),
       solveBlind: (prompt) => this.models.solveBlind(prompt),
@@ -766,9 +822,34 @@ export class LotusService implements OnModuleDestroy {
     };
   }
 
-  async start(studentId: string, topic: LotusTopic = "BRACKETS"): Promise<LotusSessionView> {
+  /**
+   * A class assignment has one Lotus session. Starting it again (a refresh, a
+   * second tab, a new phone) returns that session where it was left, finished
+   * or not, instead of opening a fresh test from question one.
+   */
+  async start(studentId: string, topic: LotusTopic = "BRACKETS", classroomAssignmentId?: string): Promise<LotusSessionView> {
     this.models.assertReady();
-    if (topic === "FACTORISATION") return this.startFactorisation(studentId);
+    const owned = await this.ownAssignment(studentId, classroomAssignmentId);
+    if (!owned) return this.startNew(studentId, topic);
+    const assignmentId = owned.id;
+    // Two tabs opening at once must not both miss the lookup and each start a session.
+    const starting = this.startingForAssignment.get(assignmentId);
+    if (starting) return starting;
+    const task = (async () => {
+      const existing = await this.prisma!.lotusSessionRecord.findFirst({
+        // A session from before the teacher restarted this student is not resumed.
+        where: { studentId, payload: { path: ["classroomAssignmentId"], equals: assignmentId }, ...(owned.availableAt ? { startedAt: { gte: owned.availableAt } } : {}) },
+        orderBy: { startedAt: "desc" },
+        select: { sessionId: true },
+      });
+      return existing ? this.get(existing.sessionId) : this.startNew(studentId, topic, assignmentId);
+    })().finally(() => this.startingForAssignment.delete(assignmentId));
+    this.startingForAssignment.set(assignmentId, task);
+    return task;
+  }
+
+  private async startNew(studentId: string, topic: LotusTopic, assignmentId?: string): Promise<LotusSessionView> {
+    if (isPlannedLotusTopic(topic)) return this.startFactorisation(studentId, topic, await this.catchUpFocus(studentId, assignmentId), assignmentId);
     const startedAt = new Date().toISOString();
     const coveragePlan = buildLotusCoveragePlan(studentId).map(withQuestionId);
     const question = coveragePlan[0]!;
@@ -801,10 +882,12 @@ export class LotusService implements OnModuleDestroy {
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
+      ...(assignmentId ? { classroomAssignmentId: assignmentId } : {}),
       grade: 8,
       board: "CBSE",
       status: "ACTIVE",
       experimental: true,
+      workingPrompt: workingPromptFor(studentId),
       phase: question.phase,
       startedAt,
       currentQuestion: question,
@@ -830,7 +913,21 @@ export class LotusService implements OnModuleDestroy {
   async get(sessionId: string): Promise<LotusSessionView> {
     const session = await this.requireSession(sessionId);
     this.ensureFactorisationWrites(session);
-    return publicCopy(session);
+    return this.withPreparationBlock(publicCopy(session));
+  }
+
+  /**
+   * A student waiting on question preparation must see *why* it isn't moving
+   * when the cause is the AI account, not a spinner. Uses the last outage
+   * (not just the fail-fast window) so the message holds between probes;
+   * any successful call clears it.
+   */
+  private withPreparationBlock(view: LotusSessionView): LotusSessionView {
+    const outage = this.models.lastOutage;
+    if (outage && view.preparation && !view.preparation.ready) {
+      view.preparation.blockedReason = `The AI that writes your questions is unavailable: ${outage.reason}.`;
+    }
+    return view;
   }
 
   /**
@@ -844,6 +941,22 @@ export class LotusService implements OnModuleDestroy {
     const session = await this.requireSession(sessionId);
     this.ensureFactorisationWrites(session);
     return session.currentQuestion ? structuredClone(session.currentQuestion) : null;
+  }
+
+  /**
+   * The words "Read it to me" speaks for the question this student is on:
+   * the prompt, plus the choices, fish or working lines a game shows. Only
+   * what is already on the student's screen — never the key or purpose.
+   */
+  async readAloudText(sessionId: string, studentId: string): Promise<string> {
+    const session = await this.requireSession(sessionId);
+    if (session.studentId !== studentId) throw new BadRequestException("This Lotus session belongs to a different student.");
+    const question = session.status === "ACTIVE" ? session.currentQuestion : null;
+    if (!question) throw new BadRequestException("There is no question to read right now.");
+    const parts = [question.prompt];
+    if (question.lines?.length) parts.push(...question.lines.map((line, i) => (i === 0 ? `The working starts with ${line}.` : `Line ${i}: ${line}.`)));
+    if (question.options?.length && question.presentation !== "DETECTIVE") parts.push(`The choices are: ${question.options.join("; ")}.`);
+    return parts.join(" ");
   }
 
   async answer(
@@ -892,9 +1005,19 @@ export class LotusService implements OnModuleDestroy {
     if (session.status !== "ACTIVE" || !session.currentQuestion) {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
     }
+    await this.assertClassOpen(session);
+
+    // A tile-game answer is rebuilt from the picks against the interaction this server issued.
+    let resolved: LotusStudentResponse;
+    try {
+      resolved = resolveLotusResponse(session.currentQuestion, response);
+    } catch (err) {
+      if (err instanceof TileAnswerError) throw new BadRequestException(err.message);
+      throw err;
+    }
 
     try {
-      return await this.answerInner(session, response);
+      return await this.answerInner(session, resolved);
     } catch (err) {
       session.liveProgress = null;
       throw err;
@@ -910,6 +1033,7 @@ export class LotusService implements OnModuleDestroy {
   async demoFill(
     sessionId: string,
     studentId: string,
+    gapChoice?: string,
   ): Promise<{ answer: string; working: string; confidence: number }> {
     // Disposable browser-test identities can use the same server-side fill
     // path only under the deterministic fake-model harness. In every normal
@@ -917,7 +1041,13 @@ export class LotusService implements OnModuleDestroy {
     // production students can never ask the server to fill an answer.
     const e2eDemoFill = process.env.LOTUS_E2E_FAKE_MODEL === "true"
       && /^demo_e2e[a-z0-9_]+$/.test(studentId);
-    if (!isDemoStudentId(studentId) && !e2eDemoFill) {
+    // Recorded pilot walkthroughs use real classroom accounts named walk_*; their
+    // answers are scripted, everything Cogna does in response is live. Dev only.
+    const walkthroughFill = process.env.NODE_ENV !== "production"
+      && process.env.COGNA_WALKTHROUGH_FILL === "true"
+      && /^walk_[a-z]+$/.test(studentId)
+      && isLotusDemoGap(gapChoice);
+    if (!isDemoStudentId(studentId) && !e2eDemoFill && !walkthroughFill) {
       throw new ForbiddenException("Demo response filling is only available for demo student accounts.");
     }
     const session = await this.requireSession(sessionId);
@@ -928,12 +1058,15 @@ export class LotusService implements OnModuleDestroy {
     if (!question) {
       throw new BadRequestException("There is no active question to fill a demo response for.");
     }
-    const key = studentId.replace(/^demo_/, "");
+    const persona = studentId.replace(/^demo_/, "");
+    // An explicit gap overrides the student's own: any demo student can be walked through any gap.
+    const gap: LotusDemoGap | undefined = isLotusDemoGap(gapChoice) ? gapChoice : DEMO_PERSONA_GAP[persona];
+    const key = gap ? DEMO_GAP_PERSONA[gap] : persona;
     const canonical = question.answerKey.canonicalAnswer;
     const diagnostics = question.answerKey.diagnostics;
     if (diagnostics) {
       // Factorisation: each persona makes one family of predicted mistakes, so a gap shows up twice and gets confirmed.
-      const weakness = DEMO_FACTORISATION_WEAKNESS[key];
+      const weakness = gap ? DEMO_FACTORISATION_WEAKNESS[gap] : undefined;
       const predicted = weakness ? diagnostics.predictedMistakes.find((mistake) => weakness.test(mistake.mistake)) : undefined;
       if (predicted) return { answer: predicted.answer, working: predicted.answer, confidence: 60 };
       const worked = question.answerKey.workedSolution ?? [];
@@ -982,6 +1115,7 @@ export class LotusService implements OnModuleDestroy {
       );
     }
     if (session.coveragePlan && atHardLimit) {
+      session.reportPending = true;
       // The final report needs the earlier answers' actual deep evidence, not
       // the placeholder audits that made their next questions appear quickly.
       await this.waitForSessionAnalyses(session.sessionId);
@@ -1281,6 +1415,7 @@ export class LotusService implements OnModuleDestroy {
 
     if (conclusion.exitDiagnostic) {
       session.status = "COMPLETE";
+      session.reportPending = false;
       session.currentQuestion = null;
       session.finalReport = conclusion.report ?? null;
       session.phase = conclusion.phase;
@@ -1682,6 +1817,42 @@ export class LotusService implements OnModuleDestroy {
     this.reserves.set(sessionId, current);
   }
 
+  /**
+   * The student's one tap on "How did you get it?". Queued with answers so it
+   * never races the next one. The meaning of the choice is rebuilt from the
+   * question here; it counts as evidence only if nothing (code or AI review)
+   * has explained that answer yet, and like any single mistake it is only a
+   * suspicion until a later question confirms it.
+   */
+  async recordReason(sessionId: string, studentId: string, questionId: string, optionId: string): Promise<LotusSessionView> {
+    const existing = this.inFlightAnswers.get(sessionId);
+    if (existing) await existing.catch(() => undefined);
+    const task = (async () => {
+      const session = await this.requireSession(sessionId);
+      if (session.studentId !== studentId) throw new BadRequestException("This Lotus session belongs to a different student.");
+      const audit = session.audits.find((a) => a.question.id === questionId);
+      if (!audit?.reasonCheck) throw new BadRequestException("That question has no follow-up to answer.");
+      if (audit.reasonCheck.chosenId) {
+        if (audit.reasonCheck.chosenId === optionId) return publicCopy(session);
+        throw new ConflictException("That follow-up has already been answered.");
+      }
+      if (!audit.reasonCheck.options.some((o) => o.id === optionId)) throw new BadRequestException("That isn't one of the choices.");
+      const { valid, evidence } = reasonEvidence(audit.question, optionId);
+      if (!valid) throw new BadRequestException("That isn't one of the choices.");
+      audit.reasonCheck = { ...audit.reasonCheck, chosenId: optionId, chosenAt: new Date().toISOString() };
+      const explained = (audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE");
+      if (evidence && !explained) audit.skillEvidence = [...(audit.skillEvidence ?? []), evidence];
+      await this.persist(session, audit, true);
+      return publicCopy(session);
+    })();
+    this.inFlightAnswers.set(sessionId, task);
+    try {
+      return await task;
+    } finally {
+      if (this.inFlightAnswers.get(sessionId) === task) this.inFlightAnswers.delete(sessionId);
+    }
+  }
+
   async override(
     sessionId: string,
     studentId: string,
@@ -1718,6 +1889,7 @@ export class LotusService implements OnModuleDestroy {
       latestAudit.conclusion = conclusion;
       latestAudit.questionSelection = this.exitSelection(conclusion);
       session.status = "COMPLETE";
+      session.reportPending = false;
       session.currentQuestion = null;
       session.finalReport = conclusion.report ?? null;
       await this.persist(session);
@@ -1765,7 +1937,48 @@ Create one materially different question that adds new diagnostic evidence. Test
   // answer on the spot; the AI review runs in the background and can replan
   // only questions the student has not reached.
 
-  private async startFactorisation(studentId: string): Promise<LotusSessionView> {
+  /**
+   * The skills a teacher's catch-up asks this student about, read from the
+   * class assignment itself (never from the browser), or undefined for a
+   * normal diagnostic.
+   */
+  /** The assignment id, only when it really is this student's class assignment. */
+  private async ownAssignment(studentId: string, classroomAssignmentId?: string): Promise<{ id: string; availableAt: Date | null } | undefined> {
+    if (!classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return undefined;
+    const row = await this.prisma.classroomAssignment.findFirst({ where: { id: classroomAssignmentId, enrollment: { studentId } }, select: { id: true, availableAt: true } });
+    return row ?? undefined;
+  }
+
+  /**
+   * A class diagnostic takes no answers while the teacher has paused the class, or after the
+   * check has ended. The page keeps the typed answer, so the student submits it on resume.
+   */
+  private async assertClassOpen(session: LotusSessionState): Promise<void> {
+    if (!session.classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return;
+    const step = await this.prisma.classroomAssignment.findUnique({ where: { id: session.classroomAssignmentId }, select: { availableAt: true, run: { select: { status: true, config: true } } } });
+    if (!step) return;
+    if (step.availableAt && new Date(session.startedAt) < step.availableAt) throw new ConflictException("Your teacher restarted this check for you. Go back to your class page to start it again.");
+    if (step.run.status === "COMPLETE" || step.run.status === "CANCELLED") throw new ConflictException("Your teacher has ended this check.");
+    const pausedAt = (step.run.config as { pausedAt?: unknown } | null)?.pausedAt;
+    if (typeof pausedAt === "string" && pausedAt) throw new ConflictException("Your teacher has paused the class. Your answer is still here: submit it when they resume.");
+  }
+
+  private async catchUpFocus(studentId: string, classroomAssignmentId?: string): Promise<string[] | undefined> {
+    if (!classroomAssignmentId || !lotusPersistenceEnabled(this.prisma)) return undefined;
+    const assignment = await this.prisma.classroomAssignment.findFirst({
+      where: { id: classroomAssignmentId, enrollment: { studentId } },
+      select: { payload: true },
+    });
+    const payload = (assignment?.payload ?? {}) as { kind?: unknown; focus?: Record<string, unknown> };
+    if (payload.kind !== "CATCH_UP") return undefined;
+    const skills = payload.focus?.[studentId];
+    return Array.isArray(skills) && skills.every((s) => typeof s === "string") && skills.length ? skills as string[] : undefined;
+  }
+
+  private async startFactorisation(studentId: string, topic: LotusPlannedTopic = "FACTORISATION", focusSkills?: string[], classroomAssignmentId?: string): Promise<LotusSessionView> {
+    const catchUp = focusSkills ? catchUpSlots(topic, focusSkills) : [];
+    const plan = catchUp.length ? catchUp : curriculumFor(topic).slots;
+    const focus = catchUp.length ? [...new Set(focusSkills)].filter((id) => catchUp.some((s) => s.skillId === id)) : undefined;
     const startedAt = new Date().toISOString();
     // There is deliberately no question in the session yet. The opening audit
     // below is a preparation placeholder, not a student-facing item. Q1 is
@@ -1806,11 +2019,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
+      ...(classroomAssignmentId ? { classroomAssignmentId } : {}),
       grade: 8,
       board: "CBSE",
-      topic: "FACTORISATION",
+      topic,
+      ...(focus ? { catchUp: { skills: focus.map(skillName) } } : {}),
       status: "ACTIVE",
       experimental: true,
+      workingPrompt: workingPromptFor(studentId),
       phase: preparationQuestion.phase,
       startedAt,
       currentQuestion: null,
@@ -1824,8 +2040,10 @@ Create one materially different question that adds new diagnostic evidence. Test
       liveProgress: null,
       factorisation: {
         state: {
+          topic,
+          ...(focus ? { focusSkills: focus } : {}),
           planTurn: 1,
-          turns: FACTORISATION_SLOTS.map((spec) => ({ turn: spec.slot, slot: spec.slot, status: "PLANNED" as const, version: 0 })),
+          turns: plan.map((spec, i) => ({ turn: i + 1, slot: spec.slot, status: "PLANNED" as const, version: 0 })),
           answeredTurns: [],
           handledConfirmed: [],
           handledBroadened: [],
@@ -1847,15 +2065,15 @@ Create one materially different question that adds new diagnostic evidence. Test
   private buildSkeleton(session: LotusSessionState): void {
     const f = session.factorisation!;
     for (const turn of f.state.turns) {
-      if (turn.turn > FACTORISATION_PREPARATION_TARGET) continue;
+      if (turn.turn > preparationTarget(f)) continue;
       const unansweredOpener = turn.turn === 1 && f.state.planTurn === 1 && session.audits.length === 0;
       if ((!unansweredOpener && turn.turn <= f.state.planTurn) || turn.status !== "PLANNED") continue;
-      if (preferredItem(f, turn.turn)?.answerKey.diagnostics?.origin === "AI") continue;
-      const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
-      const requiredExpression = turn.turn === 1
+      if (isAcceptedItem(preferredItem(f, turn.turn))) continue;
+      const spec = slotSpec(f, turn.slot);
+      const requiredExpression = needsOpeningExpression(f, turn.turn)
         ? factorisationOpeningExpression(session.sessionId, this.factorisationOpeningPrints)
         : undefined;
-      if (spec && (turn.turn !== 1 || requiredExpression)) this.enqueueWrite(session.sessionId, {
+      if (spec && (!needsOpeningExpression(f, turn.turn) || requiredExpression)) this.enqueueWrite(session.sessionId, {
         turn: turn.turn,
         version: turn.version,
         request: {
@@ -1875,20 +2093,20 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (session.status !== "ACTIVE" || !f) return;
     const queue = this.writeQueues.get(session.sessionId);
     const queued = new Set([...(queue?.activeTurns ?? []), ...(queue?.pending ?? []).map((job) => job.turn)]);
-    const readyCount = Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && item.answerKey.diagnostics?.origin === "AI")).length;
-    const highestTurnToStage = readyCount >= FACTORISATION_PREPARATION_TARGET ? f.state.turns.length : FACTORISATION_PREPARATION_TARGET;
+    const readyCount = Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length;
+    const highestTurnToStage = readyCount >= preparationTarget(f) ? f.state.turns.length : preparationTarget(f);
     for (const turn of f.state.turns) {
       if (turn.turn > highestTurnToStage) continue;
       const isOpeningTurn = turn.turn === 1 && f.state.planTurn === 1 && f.state.answeredTurns.length === 0;
       if (turn.status === "SKIPPED" || (!isOpeningTurn && turn.turn <= f.state.planTurn)) continue;
-      if (preferredItem(f, turn.turn)?.answerKey.diagnostics?.origin === "AI" || queued.has(turn.turn)) continue;
+      if (isAcceptedItem(preferredItem(f, turn.turn)) || queued.has(turn.turn)) continue;
       const blocked = queue?.blockedTurns.get(turn.turn);
       if (blocked && Date.now() < blocked.until) continue;
-      const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
-      const requiredExpression = turn.turn === 1
+      const spec = slotSpec(f, turn.slot);
+      const requiredExpression = needsOpeningExpression(f, turn.turn)
         ? factorisationOpeningExpression(session.sessionId, this.factorisationOpeningPrints)
         : undefined;
-      if (spec && (turn.turn !== 1 || requiredExpression)) this.enqueueWrite(session.sessionId, {
+      if (spec && (!needsOpeningExpression(f, turn.turn) || requiredExpression)) this.enqueueWrite(session.sessionId, {
         turn: turn.turn,
         version: turn.version,
         request: {
@@ -1954,6 +2172,10 @@ Create one materially different question that adds new diagnostic evidence. Test
     const f = session?.factorisation;
     // Checked before spending a model call, and again when the result lands.
     if (!session || !f || session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) return;
+    // The provider is refusing this account (no credits / bad key): writing
+    // now can only fail. Leave the turn unqueued — the next poll's
+    // ensureFactorisationWrites re-arms it once the outage window passes.
+    if (this.models.activeOutage) return;
     // Q1 has a session-specific required expression, so it intentionally
     // misses the bank and is freshly authored. Other slots may reuse only an
     // item that was generated by AI, independently checked, and actually
@@ -1963,6 +2185,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     // lacks the specific scripted misconception its synthetic learner must
     // demonstrate. This test-only switch leaves normal AI-bank reuse wholly
     // unchanged while making fake-model persona runs reproducible.
+    // Some slots are staged as games (fireflies, impostor, detective, fishing,
+    // garden): built and checked by code, no model call. See lotus-probes.ts.
+    const gameRequest = { ...job.request, variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`, avoid: this.testPrints(session, job.turn) };
+    const game = codeProbeFor(gameRequest);
+    if (game && !checkWrittenItem(gameRequest, game).length) {
+      await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
+      return;
+    }
     if (!job.retryCount && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
       const reused = await this.takeFactorisationBankItem(session, job);
       if (reused) {
@@ -1999,7 +2229,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const existingPrints = new Set(this.testPrints(session, job.turn).map((print) => normalizeMathText(print).toLowerCase()));
     const rows = await this.prisma.lotusQuestionBankItem.findMany({
       where: {
-        topic: "FACTORISATION",
+        topic: session.topic ?? "FACTORISATION",
         skillId: job.request.spec.skillId,
         isActive: true,
         sourceSessionId: { not: session.sessionId },
@@ -2017,6 +2247,14 @@ Create one materially different question that adds new diagnostic evidence. Test
       // must still satisfy the current slot/mistake constraints before use.
       if (checkWrittenItem({ ...job.request, avoid: this.testPrints(session, job.turn) }, candidate).length) continue;
       diagnostics.provenance = "AI_REUSED_FROM_BANK";
+      // The bank retains the original answer-entry scene. Recompute it for
+      // this session's turn so an old bridge/workshop cannot override the
+      // current variety policy or turn a typed coverage slot into tiles.
+      if (candidate.interaction) {
+        delete candidate.interaction;
+        delete candidate.presentation;
+        candidate.asksForWorking = true;
+      }
       await this.prisma.lotusQuestionBankItem.update({
         where: { id: row.id },
         data: { reuseCount: { increment: 1 }, lastReusedAt: new Date() },
@@ -2037,7 +2275,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (!session || !f) return;
     const record = (outcome: FactorisationWriteLog["outcome"]) => {
       f.writes.push({ turn: job.turn, purpose: job.request.purpose, ms: result.ms, attempts: result.attempts, outcome, rejections: result.rejections, at: new Date().toISOString() });
-      this.logger.log(`Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
+      this.logger.log(`Question write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
     };
     const markNotApplied = (detail: string, outcome: "DEFERRED" | "REJECTED" | "STALE") => {
       for (const audit of session.audits) {
@@ -2052,6 +2290,26 @@ Create one materially different question that adds new diagnostic evidence. Test
     const retryOrRecord = async (outcome: FactorisationWriteLog["outcome"]): Promise<void> => {
       const retryCount = job.retryCount ?? 0;
       record(outcome);
+      const outage = this.models.activeOutage;
+      if (outage) {
+        // Account-level failure: retrying is pointless and the item was never
+        // judged. Pause this turn until a probe is allowed, without counting
+        // toward WRITE_LIFETIME_ATTEMPT_CAP (which is for content that can't
+        // be written, not for an unpaid bill).
+        let queue = this.writeQueues.get(sessionId);
+        if (!queue) {
+          queue = { pending: [], running: 0, activeTurns: new Set(), blockedTurns: new Map() };
+          this.writeQueues.set(sessionId, queue);
+        }
+        const prior = queue.blockedTurns.get(job.turn);
+        queue.blockedTurns.set(job.turn, {
+          until: outage.at + PROVIDER_OUTAGE_PROBE_MS,
+          totalAttempts: prior?.totalAttempts ?? 0,
+          episodeCount: prior?.episodeCount ?? 0,
+        });
+        this.logger.error(`Question write ${sessionId.slice(0, 8)} turn ${job.turn} paused: ${outage.reason}. It resumes automatically when the provider accepts calls again.`);
+        return;
+      }
       if (retryCount >= FACTORY_MAX_RETRIES) {
         markNotApplied(
           `Question ${job.turn} was kept out of the diagnostic because a checked AI replacement could not be prepared in time.`,
@@ -2077,7 +2335,7 @@ Create one materially different question that adds new diagnostic evidence. Test
           episodeCount,
         });
         this.logger.error(
-          `Factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds ` +
+          `Question write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds ` +
           `(${totalAttempts}/${WRITE_LIFETIME_ATTEMPT_CAP} lifetime attempts); ` +
           (exhaustedLifetime
             ? "permanently blocked — this catalogue shape has no remaining distinct expression; needs a content or uniqueness-rule fix, not another retry."
@@ -2086,7 +2344,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         return;
       }
       await this.persist(session, undefined, true);
-      this.logger.warn(`Retrying factorisation write ${sessionId.slice(0, 8)} turn ${job.turn} (${retryCount + 1}/${FACTORY_MAX_RETRIES}) after ${outcome}.`);
+      this.logger.warn(`Retrying question write ${sessionId.slice(0, 8)} turn ${job.turn} (${retryCount + 1}/${FACTORY_MAX_RETRIES}) after ${outcome}.`);
       this.enqueueWrite(sessionId, { ...job, retryCount: retryCount + 1, urgent: true });
     };
     if (session.status !== "ACTIVE" || !this.writeStillWanted(f, job)) {
@@ -2120,6 +2378,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     // leaves this unset so the student isn't asked every time.
     const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
     question.requiresConfidenceProbe = !!planTurn?.purpose;
+    // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
+    withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose });
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
@@ -2203,7 +2463,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (!turn) return;
     turn.version += 1;
     turn.reason = action.reason;
-    this.logger.log(`Factorisation plan ${session.sessionId.slice(0, 8)} turn ${action.turn}: ${action.kind}${action.kind === "REPURPOSE" ? ` ${action.purpose} ${action.forSkill}` : ""} — ${action.reason}`);
+    this.logger.log(`Plan ${session.sessionId.slice(0, 8)} turn ${action.turn}: ${action.kind}${action.kind === "REPURPOSE" ? ` ${action.purpose} ${action.forSkill}` : ""} — ${action.reason}`);
     if (action.kind === "SKIP") {
       turn.status = "SKIPPED";
       delete turn.purpose;
@@ -2257,8 +2517,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     const instant = instantVerdict(currentQuestion, response);
     if (instant.fastSkip) state.fastSkips += 1;
 
+    // Time box or a found starting point ends the test here, even if the browser has the next question staged.
+    const stop = factorisationStopReason(
+      [...session.audits, { skillEvidence: instant.evidence } as LotusQuestionAudit],
+      elapsedSeconds,
+    );
+    if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
-    const nextTurn = nextOpenTurn(state, state.planTurn);
+    const nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
     let next: LotusQuestion | undefined;
     if (nextTurn !== null) {
       const versions = f.versions[String(nextTurn)] ?? [];
@@ -2277,17 +2543,20 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (!next) throw new BadRequestException("The next question was not authorized for this turn.");
     }
 
-    // Every answer with something written gets the AI review; a blank skip has nothing to read.
-    // An explicit support request is direct student evidence, not
-    // disengagement and not something a model has to invent a story about.
-    // Preserve the student's words and use a prerequisite check later, but
-    // do not render placeholder model text as a completed AI analysis.
-    const analyse = !instant.fastSkip && !response.didNotKnow;
+    // The four-call AI review runs only when code couldn't say what the answer shows (an
+    // unpredicted wrong answer, or one it can't read). When code has settled it, a right
+    // answer or a predicted mistake, the review can't change anything: its skill finding is
+    // used only when code found none (evidenceFromAnalysis), and the suspicion loop already
+    // re-checks a mistaken skill. A blank skip has nothing to read, and an explicit
+    // support request is direct student evidence, not something a model has to interpret.
+    const analyse = !instant.fastSkip && !response.didNotKnow && instant.needsAnalysis;
     const note = response.didNotKnow
       ? "The student said they do not know this yet. That is recorded as evidence of a support need; Lotus will check an easier prerequisite where possible."
       : analyse
         ? "Code marked this answer instantly. The AI review of the working runs in the background and can change later questions."
-        : "The answer was skipped without an explicit uncertainty signal.";
+        : instant.fastSkip
+          ? "The answer was skipped without an explicit uncertainty signal."
+          : "Code marked this answer and named the skill it shows, so no AI review was needed.";
     const asked = [...session.audits.map((audit) => audit.question), currentQuestion];
     const nextPlan = nextTurn !== null ? state.turns.find((turn) => turn.turn === nextTurn) : undefined;
     const audit: LotusQuestionAudit = {
@@ -2313,6 +2582,8 @@ Create one materially different question that adds new diagnostic evidence. Test
         analysisDeadlineAt: new Date(Date.now() + deferredAnalysisUsefulAgeMs()).toISOString(),
       } : {}),
       skillEvidence: instant.evidence,
+      // A wrong answer code can't explain gets one "How did you get it?" tap instead of written working.
+      ...(needsReasonCheck(currentQuestion, instant.verification?.status, instant.evidence, response.didNotKnow) ? { reasonCheck: buildReasonCheck(currentQuestion) } : {}),
       stageAgreement: null,
       timingMs: null,
       createdAt: new Date().toISOString(),
@@ -2328,8 +2599,10 @@ Create one materially different question that adds new diagnostic evidence. Test
         observedError: audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
           ?? audit.verification?.explanation
           ?? "The planned diagnostic reached its end.",
-        alternatives: ["A further question could add evidence, but there is no authorized remaining slot."],
-        rationale: "The 25-slot plan has no further safe question to install.",
+        alternatives: stop
+          ? ["Continue the plan, but the stopping rule says more questions wouldn't change the result or the time is up."]
+          : ["A further question could add evidence, but there is no authorized remaining slot."],
+        rationale: stop?.note ?? "The 25-slot plan has no further safe question to install.",
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
         implementation: "APPLIED",
         outcome: "NO_CHANGE",
@@ -2338,6 +2611,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         source: "RULE_VALIDATED_PLAN",
       };
       session.currentQuestion = null;
+      session.reportPending = true;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
       // The report is better with the last reviews in it, but the student shouldn't wait long for them.
       await settleWithin(this.waitForSessionAnalyses(session.sessionId), FINAL_REPORT_WAIT_MS);
@@ -2357,7 +2631,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     // staged continuation. Reserve only a later slot for any asynchronous
     // rewrite, so the writer has a real safe-placement window rather than
     // racing the student for the next turn.
-    const adjustments = this.adaptFactorisationPlan(session, true);
+    // When code has named the mistake itself, ask now for the dedicated, mistake-targeted
+    // check the AI review's "ask again" would have requested, so the gap can be confirmed
+    // without paying for a review that can't add anything.
+    const codeNamedMistakes = analyse ? [] : [...new Set((instant.evidence ?? [])
+      .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED")
+      .map((e) => e.skillId))];
+    const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes);
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
@@ -2418,6 +2698,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       informationGain: { passed: true, explanation: "No next question — the test ended." },
     };
     session.status = "COMPLETE";
+    session.reportPending = false;
     session.currentQuestion = null;
     session.finalReport = report;
     session.liveProgress = null;
@@ -2801,6 +3082,15 @@ Create one materially different question that tests a competing explanation or a
         // without the evidence that justified it.
         await persistLotusSession(prisma, snapshot, outboxJobs, finalizedAudit);
         succeeded = true;
+        if (snapshot.classroomAssignmentId && this.classEvents) {
+          void this.classEvents.lotusSaved({
+            classroomAssignmentId: snapshot.classroomAssignmentId,
+            studentId: snapshot.studentId,
+            answeredSoFar: snapshot.audits.length,
+            lastActiveAt: snapshot.audits.at(-1)?.createdAt ?? snapshot.startedAt,
+            finished: snapshot.status === "COMPLETE",
+          }).catch(() => undefined);
+        }
       } catch (err) {
         this.logger.error(
           `Failed to persist Lotus session ${sessionId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -2955,10 +3245,10 @@ Create one materially different question that tests a competing explanation or a
       .filter((turn) => turn.turn > f.state.planTurn && turn.status !== "SKIPPED")
       .slice(0, count)
       .map((turn) => {
-        const spec = FACTORISATION_SLOTS.find((candidate) => candidate.slot === turn.slot);
+        const spec = slotSpec(f, turn.slot);
         const skillId = turn.forSkill ?? spec?.skillId ?? "";
         const item = preferredItem(f, turn.turn);
-        const ready = item?.answerKey.diagnostics?.origin === "AI";
+        const ready = isAcceptedItem(item);
         const purpose: LotusUnseenPlanEntry["purpose"] = turn.purpose === "CHECK"
           ? "TARGETED_CHECK"
           : turn.purpose === "DESCENT"

@@ -59,9 +59,16 @@ export async function writeTtsCache(
  * serve), not just when this function runs. A dynamic import defers
  * loading to call time, which Node's CJS runtime supports for ESM targets.
  */
+// Written through Function so TypeScript can't rewrite it: under CommonJS
+// output `await import(x)` compiles to `require(x)`, which throws for this
+// ESM-only package on Node 20 — so the probe used to return null every time.
+const importEsm = new Function("specifier", "return import(specifier)") as (
+  specifier: string,
+) => Promise<typeof import("music-metadata")>;
+
 export async function probeAudioDurationSeconds(bytes: Buffer): Promise<number | null> {
   try {
-    const { parseBuffer } = await import("music-metadata");
+    const { parseBuffer } = await importEsm("music-metadata");
     const metadata = await parseBuffer(bytes, "audio/mpeg");
     return metadata.format.duration ?? null;
   } catch {

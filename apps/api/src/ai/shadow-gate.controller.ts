@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { WorkerGuard } from "../access/worker.guard";
 import { ShadowGateEvaluatorService } from "./shadow-gate-evaluator.service";
 
 /**
@@ -11,6 +12,7 @@ import { ShadowGateEvaluatorService } from "./shadow-gate-evaluator.service";
  * flagged on /policy (see COGNA 5.0/SKIPPED.md). Fine for local/pilot use;
  * needs a real auth guard before this is ever exposed outside the team.
  */
+@UseGuards(WorkerGuard)
 @Controller("ai/shadow-gates")
 export class ShadowGateController {
   constructor(private readonly evaluator: ShadowGateEvaluatorService) {}

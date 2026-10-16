@@ -12,3 +12,7 @@ coverage
 /generated-media/
 apps/web/public/generated-videos/*.mp4
 apps/web/public/generated-videos/*.mov
+/artifacts/
+/brag-output/
+/brag-output-*/
+/scripts/pilot-walkthrough/out/

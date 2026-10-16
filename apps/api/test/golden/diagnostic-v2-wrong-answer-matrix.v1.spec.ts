@@ -803,7 +803,11 @@ describe("T2 error then recovery — a later success does not erase a confirmed 
       submittedLine: "-3y - 12",
     });
     const afterTwo = await snapshotSkills(h.service, h.sessionId);
-    assert.equal(afterTwo.LIN_DISTRIBUTE_NEG!.status, "LIKELY_GAP", "the second failure confirms the pattern");
+    assert.equal(
+      afterTwo.LIN_DISTRIBUTE_NEG!.status,
+      "EMERGING",
+      "two tries are too few to label a gap, but the repeat is enough to teach the rule",
+    );
     assert.equal(second.assistanceOffered, "RULE_PROMPT", "only now is the rule taught");
     assert.equal(second.nextAttempt?.itemKey, "TRANSFER_NEG_DIST");
 
