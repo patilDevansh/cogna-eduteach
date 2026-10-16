@@ -88,15 +88,12 @@ export function LinkRequests({ classroomId, roster, onChanged }: { classroomId: 
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const rosterSize = roster.length;
 
+  // A new request (or any change in who follows a student) reaches the page as a roster event,
+  // which reloads the roster; the requests reload with it.
   useEffect(() => {
-    const load = () => api.getLinkRequests(classroomId).then(setRequests).catch(() => undefined);
-    void load();
-    // ponytail: a slow poll; push it over the class event stream if teachers wait on these.
-    const timer = window.setInterval(load, 30_000);
-    return () => window.clearInterval(timer);
-  }, [classroomId, rosterSize]);
+    api.getLinkRequests(classroomId).then(setRequests).catch(() => undefined);
+  }, [classroomId, roster]);
 
   async function answer(request: ParentLinkRequestForTeacher, approve: boolean) {
     const studentId = chosen[request.id] ?? request.suggestions[0]?.studentId ?? "";

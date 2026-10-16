@@ -101,22 +101,84 @@ export class ParentsService {
   async listStudents(parentId: string) {
     const links = await this.prisma.parentStudentLink.findMany({
       where: { parentId, student: { deletedAt: null } },
-      include: { student: true },
+      include: { student: { include: { _count: { select: { classroomEnrollments: { where: { leftAt: null } } } } } } },
     });
+    const first = (name: string) => name.trim().split(/\s+/)[0]!.toLowerCase();
+    const fromSchool = links.filter((l) => l.source !== "FAMILY");
 
-    return links.map((l) => ({
-      id: l.student.id,
-      name: l.student.name,
-      grade: l.student.grade,
-      curriculum: l.student.curriculum,
-      fromSchool: l.source !== "FAMILY",
-    }));
+    return links.map((l) => {
+      // A child this parent added at home, with the same first name as a child linked from school
+      // and not in any class themselves, is probably the same child added twice.
+      const twin = l.source === "FAMILY" && !l.student.duplicateDismissedAt && !l.student._count.classroomEnrollments
+        ? fromSchool.find((s) => first(s.student.name) === first(l.student.name))
+        : undefined;
+      return {
+        id: l.student.id,
+        name: l.student.name,
+        grade: l.student.grade,
+        curriculum: l.student.curriculum,
+        fromSchool: l.source !== "FAMILY",
+        ...(twin ? { sameAsSchoolChild: { id: twin.student.id, name: twin.student.name } } : {}),
+      };
+    });
   }
 
-  /** The parent's phone, if they've proved they hold it. */
+  /**
+   * The parent's answer to "is this the same child as the one from school?". Same: the copy they
+   * added at home is hidden (kept, not erased) so the child has one record and signs in with the
+   * school's code. Different: we stop asking.
+   */
+  async resolveDuplicate(parentId: string, studentId: string, input: { same?: boolean; schoolChildId?: string }) {
+    const [home, school] = await Promise.all([
+      this.prisma.parentStudentLink.findUnique({ where: { parentId_studentId: { parentId, studentId } }, include: { student: { select: { primaryParentId: true, deletedAt: true } } } }),
+      input.schoolChildId ? this.prisma.parentStudentLink.findUnique({ where: { parentId_studentId: { parentId, studentId: input.schoolChildId } } }) : null,
+    ]);
+    if (!home || home.source !== "FAMILY" || home.student.primaryParentId !== parentId || home.student.deletedAt) {
+      throw new NotFoundException("That isn't a child you added yourself.");
+    }
+    if (input.same) {
+      if (!school || school.source === "FAMILY") throw new BadRequestException("Choose the child from school to keep.");
+      if (await this.prisma.classroomEnrollment.count({ where: { studentId, leftAt: null } })) {
+        throw new BadRequestException("The child you added is in a class too. Ask the teacher which record to keep.");
+      }
+      await this.prisma.student.update({ where: { id: studentId }, data: { deletedAt: new Date() } });
+    } else {
+      await this.prisma.student.update({ where: { id: studentId }, data: { duplicateDismissedAt: new Date() } });
+    }
+    return this.listStudents(parentId);
+  }
+
+  /**
+   * A parent stops following a child they were linked to through school. That withdraws their
+   * consent; the school still decides about class use. They can agree again from the same page.
+   */
+  async leaveSchoolChild(parentId: string, studentId: string) {
+    const link = await this.prisma.parentStudentLink.findUnique({ where: { parentId_studentId: { parentId, studentId } } });
+    if (!link) throw new NotFoundException("That child isn't linked to you.");
+    if (link.source === "FAMILY") throw new BadRequestException("You added this child yourself, so there's no school link to remove.");
+    await this.prisma.$transaction(async (tx) => {
+      await tx.parentStudentLink.delete({ where: { parentId_studentId: { parentId, studentId } } });
+      await setConsent(tx, parentId, studentId, "PRACTICE_DECLINED");
+    });
+    await this.pingClasses(studentId);
+    return this.listStudents(parentId);
+  }
+
+  /** The parent's phone, if they've proved they hold it, and whether they get texts. */
   async getPhone(parentId: string) {
-    const parent = await this.prisma.parent.findUniqueOrThrow({ where: { id: parentId }, select: { phone: true, phoneVerifiedAt: true } });
-    return { phone: parent.phoneVerifiedAt ? parent.phone : null };
+    const parent = await this.prisma.parent.findUniqueOrThrow({ where: { id: parentId }, select: { phone: true, phoneVerifiedAt: true, textUpdates: true } });
+    return { phone: parent.phoneVerifiedAt ? parent.phone : null, textUpdates: parent.textUpdates };
+  }
+
+  async setTextUpdates(parentId: string, on: boolean) {
+    await this.prisma.parent.update({ where: { id: parentId }, data: { textUpdates: on } });
+    return this.getPhone(parentId);
+  }
+
+  /** Tells the teacher pages of this student's classes that who follows them has changed. */
+  private async pingClasses(studentId: string) {
+    const enrolments = await this.prisma.classroomEnrollment.findMany({ where: { studentId, leftAt: null }, select: { classroomId: true } });
+    this.classrooms.parentsChanged(enrolments.map((e) => e.classroomId));
   }
 
   /** Texts a one-time code to the number, rate-limited per parent and per number. */
@@ -235,6 +297,7 @@ export class ParentsService {
         await setConsent(tx, parentId, studentId, "PRACTICE_DECLINED");
       }
     });
+    await this.pingClasses(studentId);
     return this.schoolChildren(parentId);
   }
 
@@ -255,6 +318,7 @@ export class ParentsService {
     if (!same) {
       if (pending.length >= MAX_PENDING_REQUESTS) throw new BadRequestException("You have several requests waiting already. The teacher will answer them soon.");
       await this.prisma.parentLinkRequest.create({ data: { parentId, classroomId: classroom.id, childName, rollNumber } });
+      this.classrooms.parentsChanged([classroom.id]);
     }
     return this.listLinkRequests(parentId);
   }

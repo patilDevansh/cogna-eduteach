@@ -543,6 +543,17 @@ export interface ParentLinkRequestForTeacher {
   suggestions: Array<{ studentId: string; name: string; rollNumber?: string | null }>;
 }
 
+/** A child on the parent's dashboard. */
+export interface ParentChild {
+  id: string;
+  name: string;
+  grade: number;
+  /** Linked through school (phone or teacher), so the school runs their sign-in. */
+  fromSchool?: boolean;
+  /** Added at home with the same first name as this child from school: probably the same child twice. */
+  sameAsSchoolChild?: { id: string; name: string };
+}
+
 /** A child whose school record lists the parent's verified phone. */
 export interface SchoolChild {
   studentId: string;
@@ -753,7 +764,7 @@ export const api = {
     apiFetch<ParentSession>("/parents/dev/demo-login", { method: "POST" }),
 
   listStudents: (auth?: string | ParentAuthInput) =>
-    apiFetch<Array<{ id: string; name: string; grade: number; fromSchool?: boolean }>>(
+    apiFetch<ParentChild[]>(
       "/parents/me/students",
       { headers: buildParentAuthHeaders(auth) },
     ),
@@ -773,7 +784,17 @@ export const api = {
     ),
 
   getParentPhone: (auth?: string | ParentAuthInput) =>
-    apiFetch<{ phone: string | null }>("/parents/me/phone", { headers: buildParentAuthHeaders(auth) }),
+    apiFetch<{ phone: string | null; textUpdates: boolean }>("/parents/me/phone", { headers: buildParentAuthHeaders(auth) }),
+
+  setParentTextUpdates: (auth: string | ParentAuthInput | undefined, on: boolean) =>
+    apiFetch<{ phone: string | null; textUpdates: boolean }>("/parents/me/phone/texts", { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify({ on }) }),
+
+  /** Stop following a child linked through school (withdraws the parent's consent). */
+  leaveSchoolChild: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<ParentChild[]>(`/parents/me/students/${encodeURIComponent(studentId)}/leave`, { method: "POST", headers: buildParentAuthHeaders(auth) }),
+
+  resolveDuplicateChild: (auth: string | ParentAuthInput | undefined, studentId: string, input: { same: boolean; schoolChildId?: string }) =>
+    apiFetch<ParentChild[]>(`/parents/me/students/${encodeURIComponent(studentId)}/duplicate`, { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify(input) }),
 
   /** Texts a one-time code. Outside production `devCode` comes back, as no SMS is sent. */
   sendParentPhoneCode: (auth: string | ParentAuthInput | undefined, phone: string) =>
