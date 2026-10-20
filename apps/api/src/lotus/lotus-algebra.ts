@@ -26,7 +26,7 @@ export function normalizeMathText(text: string): string {
     .replace(/[−–—]/g, "-")
     .replace(/[×·∙]/g, "*")
     .replace(/÷/g, "/")
-    .replace(/²/g, "^2").replace(/³/g, "^3").replace(/⁴/g, "^4").replace(/⁵/g, "^5")
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (sup) => `^${[...sup].map((c) => "⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(c)).join("")}`)
     .replace(/\s+/g, "");
 }
 
@@ -404,4 +404,74 @@ export function sameFactorisation(a: string, b: string): boolean {
 /** Safe wrapper: true only when the text parses. */
 export function isReadable(text: string): boolean {
   try { toFrac(parseExpression(text)); return true; } catch { return false; }
+}
+
+// ---------- expanding and numeric answers ----------
+
+function additiveTerms(node: Node): number {
+  if (node.kind === "bin" && (node.op === "+" || node.op === "-")) return additiveTerms(node.left) + additiveTerms(node.right);
+  if (node.kind === "neg") return additiveTerms(node.arg);
+  return 1;
+}
+
+/**
+ * For "expand" and "simplify" items: CORRECT = equal, no brackets or letter
+ * divisions left, and like terms collected (one written term per term of the
+ * result); UNFINISHED = equal but not there yet.
+ */
+export function classifyExpansion(studentAnswer: string, expression: string): FactorisationVerdict {
+  let equal: boolean;
+  try { equal = algebraicallyEqual(studentAnswer, expression); } catch { return "UNREADABLE"; }
+  if (!equal) return "INCORRECT";
+  if (normalizeMathText(studentAnswer).includes("(")) return "UNFINISHED";
+  const root = parseExpression(studentAnswer);
+  const { num, den } = toFrac(root);
+  if (den.size !== 1 || !den.has("")) return "UNFINISHED";
+  return additiveTerms(root) === Math.max(1, num.size) ? "CORRECT" : "UNFINISHED";
+}
+
+/** "4.2" → "(42/10)", so decimals compare exactly. */
+export function exactDecimals(text: string): string {
+  return text.replace(/(\d+)\.(\d+)/g, (_, a: string, b: string) => `(${a}${b}/1${"0".repeat(b.length)})`);
+}
+
+/**
+ * A written number answer: drops "x =", units, ₹, %, ° and Indian digit
+ * grouping (3,40,00,000). Null unless what's left is one number or fraction,
+ * so unfinished working like "2*18*4" isn't read as a number.
+ * ponytail: mixed numbers ("3 1/16") aren't read; add when students write them.
+ */
+export function readNumberAnswer(text: string): string | null {
+  const stripped = String(text)
+    .replace(/^\s*[a-zA-Z]\s*=\s*/, "")
+    .replace(/[−–—]/g, "-")
+    .replace(/[²³]|[a-zA-Z]+|[₹%°,]/g, "")
+    .trim();
+  const m = stripped.match(/^([+-]?)\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?$/);
+  if (!m) return null;
+  return `${m[1] === "-" ? "-" : ""}${m[2]}${m[3] ? `/${m[3]}` : ""}`;
+}
+
+/** Exact numeric equality of two written answers; false when either can't be read. */
+export function sameNumber(a: string, b: string): boolean {
+  const x = readNumberAnswer(a); const y = readNumberAnswer(b);
+  if (x === null || y === null) return false;
+  try { return algebraicallyEqual(exactDecimals(x), exactDecimals(y)); } catch { return false; }
+}
+
+/**
+ * Whether `check` proves `answer`: an expression equal to it, or an equation
+ * in x that the answer solves.
+ */
+export function checkProves(check: string, answer: string): boolean {
+  const value = readNumberAnswer(answer) ?? answer;
+  const sides = check.split("=");
+  try {
+    if (sides.length === 1) return algebraicallyEqual(exactDecimals(check), exactDecimals(value));
+    if (sides.length !== 2) return false;
+    const put = (side: string) => exactDecimals(side).replace(/x/g, `(${exactDecimals(value)})`);
+    return algebraicallyEqual(put(sides[0]!), put(sides[1]!));
+  } catch {
+    return false;
+  }
 }

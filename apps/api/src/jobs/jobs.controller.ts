@@ -1,8 +1,9 @@
-import { Controller, Headers, Post } from "@nestjs/common";
-import { assertWorker, resolveActor } from "../access/cogna-access";
+import { Controller, Post, UseGuards } from "@nestjs/common";
+import { WorkerGuard } from "../access/worker.guard";
 import { PersonalizedVideosService } from "../personalized-videos/personalized-videos.service";
 import { ScheduledJobsService } from "./scheduled-jobs.service";
 
+@UseGuards(WorkerGuard)
 @Controller("jobs")
 export class JobsController {
   constructor(
@@ -34,12 +35,9 @@ export class JobsController {
     return this.jobs.refreshItemStatistics();
   }
 
-  /** Advance queued personalized-video render jobs. Requires the worker token. */
+  /** Advance queued personalized-video render jobs. */
   @Post("personalized-video-render/run")
-  runPersonalizedVideoRender(
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    assertWorker(resolveActor(headers));
+  runPersonalizedVideoRender() {
     return this.videos.processPendingRenderJobs();
   }
 }

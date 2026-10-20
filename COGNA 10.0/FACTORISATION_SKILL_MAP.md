@@ -340,7 +340,7 @@ The skeleton is a menu, not a script. Most students should see 12–18 of these,
 | `FAC_CHOOSE_METHOD` (19) | 20, 21 |
 | `FAC_GROUP_TERMS` (8) | 25 |
 
-Two gaps, stated honestly: `FAC_PERFECT_SQUARE_PLUS` (11) and `FAC_GROUP_SIGN` (17) have no later question in the base 25 that uses them. If either is suspected, the planner has to pull a confirming question from the bank or generate one. `FAC_VERIFY_EXPAND` (18) is only confirmed by behaviour — whether the student checks their own answers in later working.
+Two gaps, stated honestly: `FAC_PERFECT_SQUARE_PLUS` (11) and `FAC_GROUP_SIGN` (17) have no later question in the base 25 that uses them. If either is suspected, the planner has to pull a confirming question from the bank or generate one. `FAC_VERIFY_EXPAND` (18) has no later question in the base 25 either; a suspicion is checked by a fresh Spot the impostor question (see docs/mvp-10.0/INTERACTION_FORMATS.md), not by reading later working.
 
 ---
 

@@ -6,6 +6,12 @@
  * independent exit is stored separately from completion.
  */
 
+import type { AuthoredVisual } from "./authored-lessons";
+import type { TileBuildInteraction } from "./interaction-formats";
+
+/** What a slide can draw for one narrated beat (maths already formatted for reading). */
+export type SlideVisual = Extract<AuthoredVisual, { type: "expression" | "steps" | "mistake" | "rule" | "shape" | "chart" | "grid" }>;
+
 export const PERSONALIZED_VIDEO_ASSIGNMENT_STATUSES = [
   "PREPARING",
   "UNDER_REVIEW",
@@ -22,7 +28,8 @@ export const PERSONALIZED_VIDEO_DELIVERIES = [
   "PREPARING",
   "UNDER_REVIEW",
   "VIDEO",
-  "SLIDES",
+  /** A small gap: only the 20-second lesson on the student's own answer. */
+  "SHORT",
   "HTML_FALLBACK",
   "UNAVAILABLE",
   "ABSTAINED",
@@ -91,6 +98,8 @@ export interface PersonalizedVideoLessonScene {
    * the authored template.
    */
   audioUrl?: string;
+  /** AI-written lessons: each narrated beat, `at` seconds into the scene, with its picture (null: the headline is enough). */
+  visuals?: Array<{ at: number; seconds: number; say: string; visual: SlideVisual | null }>;
 }
 
 /** Story "world" a lesson is dressed in. Presentation only — never changes the math. */
@@ -109,8 +118,17 @@ export interface PersonalizedVideoLesson {
 
 export interface PersonalizedVideoExitItem {
   prompt: string;
+  /** Blank in a student's view until the exit has been answered: the answer never reaches the browser first. */
   expected: string;
   evidencePurpose: string;
+  /** When set, the exit is answered by building from tiles (one attempt). Carries no answer. */
+  interaction?: TileBuildInteraction;
+  /**
+   * The second exit question (the "lantern gate"): same skill, different
+   * form, to check the idea carries over. One attempt. Results for both
+   * questions open only after both are sealed.
+   */
+  transfer?: { prompt: string; interaction?: TileBuildInteraction };
 }
 
 export interface PersonalizedVideoEvidenceObservation {
@@ -180,6 +198,8 @@ export interface PersonalizedVideoAssignmentView {
   completed: boolean;
   dwellMs: number;
   exitAttempt: PersonalizedVideoExitAttemptView | null;
+  /** The transfer question's attempt. While either exit question is unsealed, neither shows `correct`. */
+  exitTransferAttempt?: PersonalizedVideoExitAttemptView | null;
   limitations: string[];
 }
 
@@ -221,3 +241,28 @@ export const PERSONALIZED_VIDEO_LIMITATIONS = [
   "Guided success is not independent success.",
   "One exit item is not broad mastery, transfer, or retention.",
 ] as const;
+
+
+export type LessonThemeChoice = "classic" | "cricket" | "space";
+
+/**
+ * Everything the interactive player needs for one theme: the composition's
+ * props (every beat carrying a signed Cartesia narration URL and its real
+ * length), plus narrated checkpoint prompts and per-option feedback.
+ */
+export interface PersonalizedLessonAnimationView {
+  assignmentId: string;
+  /** "authored": written by the AI author and passed the maths verifier (see authored-lessons.ts). */
+  kind: "distribution" | "trinomial" | "authored";
+  theme: LessonThemeChoice;
+  voice: { id: string; name: string };
+  /** For AI-written lessons: which model wrote it, how many drafts it took, and how many maths claims the verifier checked. */
+  authoredBy?: { model: string; attempts: number; claimsChecked: number };
+  /** Which TTS service and API key (last 4 characters only) narrated this lesson; shown in dev mode. */
+  tts?: { provider: string; keyHint?: string };
+  /** DistributionLessonProps | TrinomialLessonProps from @cogna/lesson-video, with beat.audioSrc set. */
+  props: Record<string, unknown>;
+  checkpointAudio: Record<string, { prompt?: string; options: Array<string | undefined> }>;
+  /** Beats that could not be narrated (TTS off or failed) — they play silent at estimated pace. */
+  silentBeats: number;
+}

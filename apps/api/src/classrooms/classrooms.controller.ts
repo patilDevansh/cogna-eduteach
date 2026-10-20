@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Patch, Post, Put, Req, Res } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Length, Min } from "class-validator";
 import { resolveActor } from "../access/cogna-access";
-import { ClassroomsService } from "./classrooms.service";
+import { ClassTopicsService } from "./class-topics.service";
+import { ClassroomsService, type RosterImportRow } from "./classrooms.service";
+import { ClassroomEventsService, openEventStream } from "./classroom-events";
 
 class CreateClassroomDto {
   @IsString() @Length(2, 100) name!: string;
@@ -11,10 +14,21 @@ class CreateClassroomDto {
   @IsOptional() @IsBoolean() isDemo?: boolean;
 }
 
+class RenameClassroomDto {
+  @IsString() @Length(2, 100) name!: string;
+}
+
 class JoinClassroomDto {
   @IsString() @Length(6, 12) joinCode!: string;
   @IsOptional() @IsString() @Length(1, 40) rollNumber?: string;
   @IsOptional() @IsString() @Length(1, 80) admissionNumber?: string;
+  /** Optional: Cogna emails this parent an invite to sign in (checked in the service). */
+  @IsOptional() @IsString() @Length(0, 254) parentEmail?: string;
+}
+
+class ParentInviteDto {
+  @IsString() @Length(3, 254) email!: string;
+  @IsOptional() @IsString() classroomId?: string;
 }
 
 class CreateRunDto {
@@ -28,6 +42,15 @@ class LaunchPhaseDto {
   phase!: "DIAGNOSTIC" | "TEACHING" | "INDEPENDENT_EXIT";
 }
 
+class PauseRunDto {
+  @IsBoolean() paused!: boolean;
+}
+
+class TimeLimitDto {
+  /** Minutes from now; null removes the limit. */
+  @IsOptional() @IsInt() @Min(1) minutes?: number | null;
+}
+
 class CompleteAssignmentDto {
   @IsOptional() @IsString() diagnosticSessionId?: string;
   @IsOptional() @IsString() videoAssignmentId?: string;
@@ -36,7 +59,26 @@ class CompleteAssignmentDto {
 
 @Controller("classrooms")
 export class ClassroomsController {
-  constructor(private readonly classrooms: ClassroomsService) {}
+  constructor(
+    private readonly classrooms: ClassroomsService,
+    private readonly topics: ClassTopicsService,
+    private readonly events: ClassroomEventsService,
+  ) {}
+
+  /** Live updates for the signed-in student's home page. Declared before ":classroomId/events" so it is matched first. */
+  @Get("student/events")
+  studentEvents(@Headers() headers: Record<string, string | string[] | undefined>, @Req() req: Request, @Res() res: Response): void {
+    const actor = resolveActor(headers);
+    if (actor.role !== "student") throw new ForbiddenException("A signed-in student is required.");
+    openEventStream(req, res, (send) => this.events.subscribeStudent(actor.studentId, send));
+  }
+
+  /** Live updates for the teacher's class page: progress, roster and student activity. */
+  @Get(":classroomId/events")
+  async classEvents(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Req() req: Request, @Res() res: Response): Promise<void> {
+    await this.classrooms.ownedClassroom(resolveActor(headers), classroomId);
+    openEventStream(req, res, (send) => this.events.subscribeClass(classroomId, send));
+  }
 
   @Get()
   list(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
@@ -46,6 +88,106 @@ export class ClassroomsController {
   @Post()
   create(@Headers() headers: Record<string, string | string[] | undefined>, @Body() body: CreateClassroomDto): Promise<unknown> {
     return this.classrooms.create(resolveActor(headers), body);
+  }
+
+  @Patch(":classroomId")
+  rename(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: RenameClassroomDto): Promise<unknown> {
+    return this.classrooms.rename(resolveActor(headers), classroomId, body.name);
+  }
+
+  /** The class's topic plan, the topic being taught, where every student stands on it and what to do next. */
+  @Get(":classroomId/topics")
+  topicPlan(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string): Promise<unknown> {
+    return this.topics.plan(resolveActor(headers), classroomId);
+  }
+
+  /** Teach this topic now (any other topic being taught goes back in the plan). */
+  @Post(":classroomId/topics/:topicId/start")
+  startTopic(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("topicId") topicId: string): Promise<unknown> {
+    return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "start");
+  }
+
+  /** "Still on it today." */
+  @Post(":classroomId/topics/:topicId/confirm")
+  confirmTopic(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("topicId") topicId: string): Promise<unknown> {
+    return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "confirm");
+  }
+
+  /** Move on: the topic is done. */
+  @Post(":classroomId/topics/:topicId/done")
+  finishTopic(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("topicId") topicId: string): Promise<unknown> {
+    return this.topics.setStatus(resolveActor(headers), classroomId, topicId, "done");
+  }
+
+  /** Body: { kind: DIAGNOSTIC | TOPIC_CHECK | CATCH_UP, studentIds? (catch-up only), dueDays? (1–30, default 2) } (validated in the service). */
+  @Post(":classroomId/topics/:topicId/checks")
+  startTopicCheck(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("classroomId") classroomId: string,
+    @Param("topicId") topicId: string,
+    @Body() body: { kind?: string; studentIds?: string[]; dueDays?: number },
+  ): Promise<unknown> {
+    return this.topics.startCheck(resolveActor(headers), classroomId, topicId, body ?? {});
+  }
+
+  @Get(":classroomId/students")
+  roster(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string): Promise<unknown> {
+    return this.classrooms.roster(resolveActor(headers), classroomId);
+  }
+
+  /**
+   * Body: { students: [{ name, rollNumber?, phones? }], schoolConsent: true } (validated in the service).
+   * Returns each new sign-in code once.
+   */
+  @Post(":classroomId/students/import")
+  importStudents(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: { students?: RosterImportRow[]; schoolConsent?: boolean }): Promise<unknown> {
+    return this.classrooms.importStudents(resolveActor(headers), classroomId, body?.students ?? [], body?.schoolConsent === true);
+  }
+
+  @Post(":classroomId/students/:studentId/access-code")
+  resetAccessCode(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string): Promise<unknown> {
+    return this.classrooms.resetAccessCode(resolveActor(headers), classroomId, studentId);
+  }
+
+  /** Body: { guardians: [{ phone, relationship? }] }: the parents' phones on the school's record. */
+  @Put(":classroomId/students/:studentId/guardians")
+  setGuardianPhones(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string, @Body() body: { guardians?: Array<{ phone?: string; relationship?: string }> }) {
+    return this.classrooms.setGuardianPhones(resolveActor(headers), classroomId, studentId, body?.guardians ?? []);
+  }
+
+  @Delete(":classroomId/students/:studentId/parents/:parentId")
+  unlinkParent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string, @Param("parentId") parentId: string) {
+    return this.classrooms.unlinkParent(resolveActor(headers), classroomId, studentId, parentId);
+  }
+
+  @Get(":classroomId/link-requests")
+  linkRequests(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string) {
+    return this.classrooms.linkRequests(resolveActor(headers), classroomId);
+  }
+
+  @Post(":classroomId/link-requests/:requestId/approve")
+  approveLinkRequest(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("requestId") requestId: string, @Body() body: { studentId?: string }) {
+    return this.classrooms.approveLinkRequest(resolveActor(headers), classroomId, requestId, String(body?.studentId ?? ""));
+  }
+
+  @Post(":classroomId/link-requests/:requestId/decline")
+  declineLinkRequest(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("requestId") requestId: string) {
+    return this.classrooms.declineLinkRequest(resolveActor(headers), classroomId, requestId);
+  }
+
+  @Delete(":classroomId/students/:studentId")
+  removeStudent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Param("studentId") studentId: string): Promise<unknown> {
+    return this.classrooms.removeStudent(resolveActor(headers), classroomId, studentId);
+  }
+
+  @Get("student/parent-invite")
+  parentInviteStatus(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.classrooms.parentInviteStatus(resolveActor(headers));
+  }
+
+  @Post("student/parent-invite")
+  inviteParent(@Headers() headers: Record<string, string | string[] | undefined>, @Body() body: ParentInviteDto): Promise<unknown> {
+    return this.classrooms.inviteParent(resolveActor(headers), body);
   }
 
   @Post("join")
@@ -63,9 +205,46 @@ export class ClassroomsController {
     return this.classrooms.launchPhase(resolveActor(headers), runId, body.phase);
   }
 
+  @Post("runs/:runId/end")
+  end(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string): Promise<unknown> {
+    return this.classrooms.endRun(resolveActor(headers), runId);
+  }
+
+  /** Starts one student's check again (their diagnostic reopens; lesson and final question are cleared). */
+  @Post("runs/:runId/students/:studentId/restart")
+  restartStudent(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Param("studentId") studentId: string): Promise<unknown> {
+    return this.classrooms.restartStudent(resolveActor(headers), runId, studentId);
+  }
+
+  @Post("runs/:runId/pause")
+  pauseRun(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Body() body: PauseRunDto): Promise<unknown> {
+    return this.classrooms.setPaused(resolveActor(headers), runId, body.paused);
+  }
+
+  @Post("runs/:runId/time-limit")
+  setTimeLimit(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string, @Body() body: TimeLimitDto): Promise<unknown> {
+    return this.classrooms.setTimeLimit(resolveActor(headers), runId, body.minutes ?? null);
+  }
+
+  /** Reminds every student who hasn't started their step yet. */
+  @Post("runs/:runId/nudge")
+  nudge(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string) {
+    return this.classrooms.nudgeNotStarted(resolveActor(headers), runId);
+  }
+
   @Get("runs/:runId/report")
   report(@Headers() headers: Record<string, string | string[] | undefined>, @Param("runId") runId: string): Promise<unknown> {
     return this.classrooms.report(resolveActor(headers), runId);
+  }
+
+  @Get("student/classes")
+  studentClasses(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.classrooms.classesForStudent(resolveActor(headers));
+  }
+
+  @Get("student/progress")
+  studentProgress(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.topics.growthForSignedStudent(resolveActor(headers));
   }
 
   @Get("student/assignments")

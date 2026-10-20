@@ -1,10 +1,5 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from "@nestjs/common";
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from "@nestjs/common";
+import { WorkerGuard } from "../access/worker.guard";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { PolicyEngineService } from "../engines/policy-engine/policy-engine.service";
 
@@ -43,6 +38,7 @@ class RollbackPolicyDto {
  * - rollback: policy_ops role (emergency: single actor; routine: dual review)
  */
 @ApiTags("policy")
+@UseGuards(WorkerGuard)
 @Controller("policy")
 export class PolicyController {
   constructor(private readonly policyEngine: PolicyEngineService) {}

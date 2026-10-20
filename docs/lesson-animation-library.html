@@ -1,0 +1,537 @@
+<title>Lesson Animation Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of wide "template" rows — live stage on the left, the AI's picking rules on the right. Cogna's own palette and type. */
+:root {
+  --bg: #f4f7f3; --surface: #ffffff; --surface-2: #f8faf7;
+  --ink: #16241d; --ink-soft: #51635a; --ink-faint: #7d8c84;
+  --accent: #0e6b54; --accent-wash: #e3efe9; --on-accent: #ffffff;
+  --caution: #a2660d; --caution-wash: #f7eedd;
+  --line: #dce4dd; --line-strong: #b9c6bc; --grid: rgba(14,107,84,.06);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-math: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --ease: cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1612; --surface: #15201b; --surface-2: #1a2721;
+  --ink: #e4ede7; --ink-soft: #a3b5ab; --ink-faint: #7c8f85;
+  --accent: #52c39c; --accent-wash: #1d3a30; --on-accent: #0b1a14;
+  --caution: #e4ab52; --caution-wash: #3a2c14;
+  --line: #26352e; --line-strong: #3a4b43; --grid: rgba(82,195,156,.06); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1612; --surface: #15201b; --surface-2: #1a2721;
+  --ink: #e4ede7; --ink-soft: #a3b5ab; --ink-faint: #7c8f85;
+  --accent: #52c39c; --accent-wash: #1d3a30; --on-accent: #0b1a14;
+  --caution: #e4ab52; --caution-wash: #3a2c14;
+  --line: #26352e; --line-strong: #3a4b43; --grid: rgba(82,195,156,.06); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body); padding-inline: 20px; padding-block: 0 64px; }
+.wrap { max-width: 1120px; margin: 0 auto; }
+header { padding-block: 56px 28px; display: grid; gap: 14px; }
+.eyebrow { font: 600 12px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(2.1rem, 5vw, 3.4rem)/1.02 var(--font-display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.lede { max-width: 64ch; color: var(--ink-soft); font-size: 1.06rem; margin: 0; }
+.draft { justify-self: start; font-size: 13px; color: var(--caution); background: var(--caution-wash); padding: 4px 10px; border-radius: 99px; }
+
+.how { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-block: 8px 40px; }
+.how div { background: var(--surface); padding: 16px 18px; display: grid; gap: 4px; align-content: start; }
+.how b { font: 600 12px/1.2 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+.how span { font-size: 14.5px; }
+@media (max-width: 760px) { .how { grid-template-columns: 1fr 1fr; } }
+
+.tpl { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 28px; padding-block: 34px; border-top: 1px solid var(--line); }
+@media (max-width: 880px) { .tpl { grid-template-columns: 1fr; gap: 18px; } }
+.stagewrap { display: grid; gap: 10px; min-width: 0; }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 22px 22px; }
+.stage svg { display: block; width: 100%; height: auto; }
+.say { min-height: 3.2em; font-size: 15px; color: var(--ink); padding-inline: 2px; display: flex; gap: 10px; align-items: flex-start; }
+.say::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: .55em; border-radius: 50%; background: var(--accent); }
+.ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ctrl button { font: 500 13px var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.ctrl button:hover { border-color: var(--accent); }
+.dots { display: flex; gap: 6px; margin-left: auto; }
+.dots button { width: 26px; height: 26px; padding: 0; border-radius: 50%; font: 600 11px var(--font-math); color: var(--ink-faint); }
+.dots button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.meta { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.meta h2 { font: 700 1.6rem/1.1 var(--font-display); margin: 0; letter-spacing: -.01em; }
+.meta .num { font: 500 13px var(--font-math); color: var(--ink-faint); }
+.meta p { margin: 0; color: var(--ink-soft); }
+.meta dl { margin: 0; display: grid; gap: 12px; }
+.meta dt { font: 600 11.5px/1 var(--font-body); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+.meta dd { margin: 0; font-size: 14.5px; }
+.codes { display: flex; flex-wrap: wrap; gap: 6px; }
+.codes code, .slots code { font: 500 12.5px var(--font-math); background: var(--accent-wash); color: var(--accent); padding: 2px 7px; border-radius: 5px; }
+.slots { display: grid; gap: 5px; padding: 0; margin: 0; list-style: none; }
+.slots li { display: grid; grid-template-columns: max-content 1fr; gap: 10px; align-items: baseline; }
+.slots span { color: var(--ink-soft); font-size: 14px; }
+.pilot { font-size: 13.5px; color: var(--ink-faint); }
+
+.pick { border-top: 1px solid var(--line); padding-block: 40px 0; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 28px; }
+@media (max-width: 880px) { .pick { grid-template-columns: 1fr; } }
+.pick h2 { font: 700 1.6rem/1.1 var(--font-display); margin: 0 0 10px; }
+.pick p, .pick li { color: var(--ink-soft); }
+.pick ul { padding-left: 1.1em; margin: 0; display: grid; gap: 6px; }
+pre { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; font: 13px/1.6 var(--font-math); color: var(--ink); }
+pre .k { color: var(--accent); } pre .c { color: var(--ink-faint); }
+
+/* SVG stage vocabulary */
+.t { font-family: var(--font-math); fill: var(--ink); }
+.big { font-size: 34px; font-weight: 500; } .mid { font-size: 25px; font-weight: 500; } .sm { font-size: 15px; font-weight: 500; font-family: var(--font-body); } .lbl { font: 600 12px var(--font-body); letter-spacing: .09em; fill: var(--ink-faint); }
+.t-acc { fill: var(--accent); } .t-cau { fill: var(--caution); } .t-soft { fill: var(--ink-faint); } .t-on { fill: var(--on-accent); }
+.stroke-ink { stroke: var(--ink); fill: none; } .stroke-soft { stroke: var(--line-strong); stroke-width: 2; fill: none; }
+.fill-line { fill: var(--line-strong); } .fill-acc { fill: var(--accent); }
+.box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.hl { fill: var(--accent-wash); } .warn { fill: var(--caution-wash); stroke: var(--caution); stroke-width: 2; }
+.chip-cau { fill: var(--caution-wash); stroke: var(--caution); stroke-width: 1.5; } .chip-acc { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.5; }
+.dash { fill: none; stroke: var(--caution); stroke-width: 2; stroke-dasharray: 5 4; }
+.arc { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.row { fill: var(--surface-2); stroke: var(--line); stroke-width: 1; transition: fill .5s, stroke .5s; }
+.row.bad { fill: var(--caution-wash); stroke: var(--caution); stroke-width: 2; }
+.row.rip { fill: var(--caution-wash); }
+.opt { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; transition: fill .4s, stroke .4s; }
+.opt.pick { fill: var(--accent); stroke: var(--accent); }
+.optt { transition: fill .4s; } .optt.lit { fill: var(--on-accent); }
+
+.anim { transition: opacity .5s var(--ease), transform .8s var(--ease); }
+.off { opacity: 0; }
+.pop { transform-box: fill-box; transform-origin: center; }
+.pop.off { transform: scale(.6); }
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s var(--ease); }
+.draw.on { stroke-dashoffset: 0; }
+.tick { fill: none; stroke: var(--accent); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.balance .beam { transform-box: view-box; transform-origin: 320px 120px; }
+.balance .beam.tilt { transform: rotate(6deg); }
+.balance .pl.up { transform: translateY(-16px); }
+.balance .pr.down { transform: translateY(16px); }
+.carrier.p1 { transform: translate(54px, 0); }
+.carrier.p3 { transform: translate(98px, 0); }
+
+@media (prefers-reduced-motion: reduce) { .anim, .draw, .row, .opt, .optt { transition: none; } }
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Cogna · personalized lessons</span>
+  <h1>Lesson Animation Library</h1>
+  <p class="lede">Six animation templates the lesson-writing AI can choose from. The AI doesn't draw anything itself. It picks the template that matches where a student's working broke, then fills in the student's own numbers. The existing lesson checker verifies every value before anything is rendered.</p>
+  <span class="draft">Proposal: previews only, not built into the app yet</span>
+</header>
+
+<div class="how" aria-label="How a template gets picked">
+  <div><b>1 · Diagnose</b><span>The diagnostic finds the first line where the student's algebra broke.</span></div>
+  <div><b>2 · Pick</b><span>The AI matches the mistake to one template below.</span></div>
+  <div><b>3 · Fill</b><span>It fills the template's slots with the student's own equation and steps.</span></div>
+  <div><b>4 · Verify</b><span>Code re-checks every number. If anything fails, the lesson isn't shown.</span></div>
+</div>
+
+<!-- 1 · Balance scale -->
+<section class="tpl demo" data-id="balance">
+  <div class="stagewrap">
+    <div class="stage balance">
+      <svg viewBox="0 0 640 300" role="img" aria-label="A balance scale with 5x + 3 on the left and 2x + 12 on the right. Taking 3 from the left only tips it; taking 3 from both sides levels it.">
+        <text class="t sm t-cau anim" x="320" y="46" text-anchor="middle" data-show="1" data-hide="2">Only the left side changed</text>
+        <text class="t sm t-acc anim" x="320" y="46" text-anchor="middle" data-show="2" data-hide="3">Same change on both sides</text>
+        <text class="t mid t-acc anim" x="320" y="50" text-anchor="middle" data-show="3">5x = 2x + 9 ✓</text>
+        <line class="stroke-soft" x1="320" y1="120" x2="320" y2="262" stroke-width="4"/>
+        <rect class="fill-line" x="270" y="262" width="100" height="8" rx="4"/>
+        <g class="beam anim" data-cls="1:tilt 2:-tilt"><line class="stroke-ink" x1="140" y1="120" x2="500" y2="120" stroke-width="6" stroke-linecap="round"/></g>
+        <circle cx="320" cy="120" r="7" class="fill-acc"/>
+        <g class="pl anim" data-cls="1:up 2:-up">
+          <path class="stroke-soft" d="M170 120 L108 232 M170 120 L232 232"/>
+          <line class="stroke-ink" x1="100" y1="232" x2="240" y2="232" stroke-width="5" stroke-linecap="round"/>
+          <rect class="box" x="112" y="194" width="116" height="34" rx="7"/>
+          <text class="t mid anim" x="170" y="219" text-anchor="middle" data-hide="1">5x + 3</text>
+          <text class="t mid anim" x="170" y="219" text-anchor="middle" data-show="1">5x</text>
+          <g class="anim" data-show="1" data-hide="3"><rect class="chip-cau" x="148" y="148" width="44" height="26" rx="13"/><text class="t sm t-cau" x="170" y="166" text-anchor="middle">−3</text></g>
+        </g>
+        <g class="pr anim" data-cls="1:down 2:-down">
+          <path class="stroke-soft" d="M470 120 L408 232 M470 120 L532 232"/>
+          <line class="stroke-ink" x1="400" y1="232" x2="540" y2="232" stroke-width="5" stroke-linecap="round"/>
+          <rect class="box" x="406" y="194" width="128" height="34" rx="7"/>
+          <text class="t mid anim" x="470" y="219" text-anchor="middle" data-hide="2">2x + 12</text>
+          <text class="t mid anim" x="470" y="219" text-anchor="middle" data-show="2">2x + 9</text>
+          <g class="anim" data-show="2" data-hide="3"><rect class="chip-acc" x="448" y="148" width="44" height="26" rx="13"/><text class="t sm t-acc" x="470" y="166" text-anchor="middle">−3</text></g>
+        </g>
+      </svg>
+    </div>
+    <p class="say" aria-live="polite"></p>
+    <div class="ctrl"><button class="pp">Pause</button><button class="rp">Replay</button><div class="dots"></div></div>
+  </div>
+  <div class="meta">
+    <span class="num">Template 1</span>
+    <h2>Balance Scale</h2>
+    <p>The equation sits on a scale. A change made to only one side tips it, and making the same change on the other side levels it again.</p>
+    <dl>
+      <dt>Picked when</dt><dd>The student did something to one side of the equation and not the other.<div class="codes" style="margin-top:6px"><code>P5_EQUALITY_BALANCE</code><code>ADD/SUBTRACT_BOTH_SIDES</code></div></dd>
+      <dt>AI fills in</dt>
+      <dd><ul class="slots">
+        <li><code>left, right</code><span>the two sides before the step</span></li>
+        <li><code>operation</code><span>e.g. −3, ÷2</span></li>
+        <li><code>skippedSide</code><span>which side the student forgot</span></li>
+      </ul></dd>
+    </dl>
+    <span class="pilot">Pilot fit: Divya</span>
+  </div>
+</section>
+
+<!-- 2 · Sign carrier -->
+<section class="tpl demo" data-id="sign">
+  <div class="stagewrap">
+    <div class="stage">
+      <svg viewBox="0 0 640 300" role="img" aria-label="The −2 outside the bracket travels to each term inside. The student's −10 flips to +10.">
+        <rect class="hl anim" x="232" y="88" width="24" height="44" rx="6" data-show="1" data-hide="2"/>
+        <rect class="hl anim" x="262" y="88" width="52" height="44" rx="6" data-show="3"/>
+        <text class="t big" x="190" y="120" text-anchor="middle">−2</text>
+        <text class="t big" x="222" y="120" text-anchor="middle">(</text>
+        <text class="t big" x="244" y="120" text-anchor="middle">y</text>
+        <text class="t big" x="274" y="120" text-anchor="middle">−</text>
+        <text class="t big" x="302" y="120" text-anchor="middle">5</text>
+        <text class="t big" x="324" y="120" text-anchor="middle">)</text>
+        <text class="t big" x="370" y="120" text-anchor="middle">=</text>
+        <text class="t big" x="412" y="120" text-anchor="middle">16</text>
+        <g class="carrier anim" data-cls="1:p1 3:-p1 3:p3"><circle cx="190" cy="56" r="20" class="fill-acc"/><text class="t sm t-on" x="190" y="61" text-anchor="middle">−2</text></g>
+        <text class="t sm t-acc anim" x="460" y="62" data-show="3">−2 × −5 = +10</text>
+        <rect class="warn anim" x="266" y="190" width="60" height="42" rx="7" data-show="2" data-hide="4"/>
+        <text class="t big anim" x="214" y="222" text-anchor="middle" data-show="1">−2y</text>
+        <text class="t big t-cau anim" x="296" y="222" text-anchor="middle" data-show="2" data-hide="4">−10</text>
+        <text class="t big t-acc anim pop" x="296" y="222" text-anchor="middle" data-show="4">+10</text>
+        <text class="t big anim" x="382" y="222" text-anchor="middle" data-show="2">= 16</text>
+        <text class="t sm t-cau anim" x="296" y="270" text-anchor="middle" data-show="2" data-hide="4">Second sign dropped</text>
+        <text class="t sm t-acc anim" x="296" y="270" text-anchor="middle" data-show="4">Both signs kept ✓</text>
+      </svg>
+    </div>
+    <p class="say" aria-live="polite"></p>
+    <div class="ctrl"><button class="pp">Pause</button><button class="rp">Replay</button><div class="dots"></div></div>
+  </div>
+  <div class="meta">
+    <span class="num">Template 2</span>
+    <h2>Sign Carrier</h2>
+    <p>The factor outside the bracket becomes a token that visits each term inside, carrying its sign. The term where the sign was lost flips over to the right value.</p>
+    <dl>
+      <dt>Picked when</dt><dd>A negative factor was multiplied in, but a sign inside the bracket came out wrong.<div class="codes" style="margin-top:6px"><code>LIN_DISTRIBUTE_NEG</code><code>NEGATIVE_DISTRIBUTION</code><code>FND_SIGN_MUL_DIV</code></div></dd>
+      <dt>AI fills in</dt>
+      <dd><ul class="slots">
+        <li><code>factor</code><span>the number outside, with its sign</span></li>
+        <li><code>terms</code><span>each term inside the bracket</span></li>
+        <li><code>wrongTerm</code><span>the student's value and the correct one</span></li>
+      </ul></dd>
+    </dl>
+    <span class="pilot">Pilot fit: Aarav</span>
+  </div>
+</section>
+
+<!-- 3 · Multiplier sweep -->
+<section class="tpl demo" data-id="sweep">
+  <div class="stagewrap">
+    <div class="stage">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Arcs from the 3 reach each term in the bracket. The 4 the student skipped becomes 12.">
+        <rect class="hl anim" x="234" y="78" width="24" height="44" rx="6" data-show="1"/>
+        <rect class="hl anim" x="294" y="78" width="24" height="44" rx="6" data-show="3"/>
+        <path class="arc draw" pathLength="1" d="M200 80 Q223 34 246 76" data-cls="1:on"/>
+        <path class="arc draw" pathLength="1" d="M200 80 Q253 -4 306 76" data-cls="3:on"/>
+        <text class="t big" x="200" y="110" text-anchor="middle">3</text>
+        <text class="t big" x="224" y="110" text-anchor="middle">(</text>
+        <text class="t big" x="246" y="110" text-anchor="middle">x</text>
+        <text class="t big" x="276" y="110" text-anchor="middle">+</text>
+        <text class="t big" x="306" y="110" text-anchor="middle">4</text>
+        <text class="t big" x="330" y="110" text-anchor="middle">)</text>
+        <text class="t big" x="374" y="110" text-anchor="middle">=</text>
+        <text class="t big" x="416" y="110" text-anchor="middle">21</text>
+        <text class="t big anim" x="226" y="200" text-anchor="middle" data-show="1">3x</text>
+        <text class="t big anim" x="270" y="200" text-anchor="middle" data-show="2">+</text>
+        <rect class="dash anim" x="286" y="168" width="40" height="44" rx="6" data-show="2" data-hide="4"/>
+        <text class="t big t-soft anim" x="306" y="200" text-anchor="middle" data-show="2" data-hide="4">4</text>
+        <text class="t big t-acc anim pop" x="312" y="200" text-anchor="middle" data-show="4">12</text>
+        <text class="t big anim" x="386" y="200" text-anchor="middle" data-show="2">= 21</text>
+        <text class="t sm t-cau anim" x="306" y="244" text-anchor="middle" data-show="2" data-hide="4">Not multiplied yet</text>
+        <text class="t sm t-soft anim" x="320" y="284" text-anchor="middle" data-show="1" data-hide="4">1 of 2 terms multiplied</text>
+        <text class="t sm t-acc anim" x="320" y="284" text-anchor="middle" data-show="4">2 of 2 terms multiplied ✓</text>
+      </svg>
+    </div>
+    <p class="say" aria-live="polite"></p>
+    <div class="ctrl"><button class="pp">Pause</button><button class="rp">Replay</button><div class="dots"></div></div>
+  </div>
+  <div class="meta">
+    <span class="num">Template 3</span>
+    <h2>Multiplier Sweep</h2>
+    <p>An arc draws from the outside factor to each term it multiplies. A term the student skipped stays grey in a dashed box until its arc arrives, and a counter shows how many terms are done.</p>
+    <dl>
+      <dt>Picked when</dt><dd>The student multiplied some terms in a bracket but not all of them.<div class="codes" style="margin-top:6px"><code>LIN_DISTRIBUTE_POS</code></div></dd>
+      <dt>AI fills in</dt>
+      <dd><ul class="slots">
+        <li><code>factor</code><span>the number outside the bracket</span></li>
+        <li><code>terms</code><span>each term inside</span></li>
+        <li><code>skipped</code><span>which terms the student left alone</span></li>
+      </ul></dd>
+    </dl>
+    <span class="pilot">Pilot fit: Meena</span>
+  </div>
+</section>
+
+<!-- 4 · Plug it back -->
+<section class="tpl demo" data-id="plug">
+  <div class="stagewrap">
+    <div class="stage">
+      <svg viewBox="0 0 640 300" role="img" aria-label="The student's answer x = 8 is put back into 4x − 7 = 21 and gives 25. The fix x = 7 gives 21.">
+        <text class="lbl" x="44" y="40">YOUR WORKING</text>
+        <line class="stroke-soft" x1="320" y1="26" x2="320" y2="282"/>
+        <rect class="hl anim" x="38" y="178" width="98" height="38" rx="7" data-show="1" data-hide="4"/>
+        <rect class="warn anim" x="38" y="178" width="98" height="38" rx="7" data-show="4" data-hide="5"/>
+        <text class="t mid" x="50" y="96">4x − 7 = 21</text>
+        <text class="t mid" x="50" y="150">4x = 28</text>
+        <text class="t mid anim" x="50" y="205" data-hide="5">x = 8</text>
+        <text class="t mid t-acc anim" x="50" y="205" data-show="5">x = 7</text>
+        <text class="t sm t-acc anim" x="150" y="204" data-show="5">28 ÷ 4 = 7</text>
+        <path class="tick draw" pathLength="1" d="M244 88 l7 7 l14 -15" data-cls="1:on"/>
+        <path class="tick draw" pathLength="1" d="M244 142 l7 7 l14 -15" data-cls="1:on"/>
+        <g class="anim" data-show="2" data-hide="5">
+          <text class="lbl" x="350" y="40">PUT x = 8 BACK IN</text>
+          <text class="t mid" x="350" y="96">4(8) − 7</text>
+          <text class="t mid anim" x="350" y="150" data-show="3">= 32 − 7</text>
+          <text class="t mid anim" x="350" y="205" data-show="3">= 25</text>
+          <rect class="warn anim" x="340" y="232" width="134" height="38" rx="7" data-show="4"/>
+          <text class="t mid t-cau anim" x="352" y="259" data-show="4">25 ≠ 21</text>
+        </g>
+        <g class="anim" data-show="5">
+          <text class="lbl" x="350" y="40">PUT x = 7 BACK IN</text>
+          <text class="t mid" x="350" y="96">4(7) − 7</text>
+          <text class="t mid" x="350" y="150">= 28 − 7</text>
+          <text class="t mid t-acc" x="350" y="205">= 21 ✓</text>
+        </g>
+      </svg>
+    </div>
+    <p class="say" aria-live="polite"></p>
+    <div class="ctrl"><button class="pp">Pause</button><button class="rp">Replay</button><div class="dots"></div></div>
+  </div>
+  <div class="meta">
+    <span class="num">Template 4</span>
+    <h2>Plug It Back</h2>
+    <p>The student's correct steps get ticks first. Then their answer goes back into the original equation, the two sides don't match, and the one arithmetic slip gets fixed.</p>
+    <dl>
+      <dt>Picked when</dt><dd>The method was right, but the final arithmetic gave the wrong number.<div class="codes" style="margin-top:6px"><code>SUBSTITUTE_CHECK</code><code>DETERMINISTIC_ARITHMETIC</code></div></dd>
+      <dt>AI fills in</dt>
+      <dd><ul class="slots">
+        <li><code>original</code><span>the starting equation</span></li>
+        <li><code>studentLines</code><span>their working, line by line</span></li>
+        <li><code>studentAnswer, answer</code><span>wrong and correct values</span></li>
+      </ul></dd>
+    </dl>
+    <span class="pilot">Pilot fit: Rohan</span>
+  </div>
+</section>
+
+<!-- 5 · Error ripple -->
+<section class="tpl demo" data-id="ripple">
+  <div class="stagewrap">
+    <div class="stage">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Four lines of working. Line 2 is flagged, lines 3 and 4 are tinted as following from it, and a corrected path branches from line 1.">
+        <text class="lbl" x="40" y="36">YOUR WORKING</text>
+        <text class="lbl anim" x="420" y="36" data-show="3">REDONE FROM LINE 1</text>
+        <rect class="row" x="30" y="56" width="250" height="42" rx="8"/>
+        <rect class="row" x="30" y="111" width="250" height="42" rx="8" data-cls="1:bad"/>
+        <rect class="row" x="30" y="166" width="250" height="42" rx="8" data-cls="2:rip"/>
+        <rect class="row" x="30" y="221" width="250" height="42" rx="8" data-cls="2:rip" style="transition-delay:.35s"/>
+        <text class="t mid" x="44" y="85">3(x + 4) = 21</text>
+        <text class="t mid" x="44" y="140">3x + 4 = 21</text>
+        <text class="t mid" x="44" y="195">3x = 17</text>
+        <text class="t mid" x="44" y="250">x = 17/3</text>
+        <text class="t sm t-cau anim" x="292" y="137" data-show="1">breaks here</text>
+        <text class="t sm t-cau anim" x="292" y="192" data-show="2">follows line 2</text>
+        <text class="t sm t-cau anim" x="292" y="247" data-show="2" style="transition-delay:.35s">follows line 2</text>
+        <path class="arc draw" pathLength="1" d="M282 77 C350 77 350 132 412 132" data-cls="3:on"/>
+        <text class="t mid anim" x="420" y="140" data-show="3">3x + 12 = 21</text>
+        <text class="t mid anim" x="420" y="195" data-show="4">3x = 9</text>
+        <text class="t mid t-acc anim" x="420" y="250" data-show="4" style="transition-delay:.4s">x = 3 ✓</text>
+      </svg>
+    </div>
+    <p class="say" aria-live="polite"></p>
+    <div class="ctrl"><button class="pp">Pause</button><button class="rp">Replay</button><div class="dots"></div></div>
+  </div>
+  <div class="meta">
+    <span class="num">Template 5</span>
+    <h2>Error Ripple</h2>
+    <p>Shows the student's whole working, flags the first line that broke, and tints every later line that followed from it. A corrected path then branches off the last good line.</p>
+    <dl>
+      <dt>Picked when</dt><dd>One early mistake carried through otherwise correct steps. This is also the fallback for any single break that the other templates don't cover.<div class="codes" style="margin-top:6px"><code>COMBINED_ALGEBRA</code><code>any first break</code></div></dd>
+      <dt>AI fills in</dt>
+      <dd><ul class="slots">
+        <li><code>studentLines</code><span>their working</span></li>
+        <li><code>breakLine</code><span>index of the first wrong line</span></li>
+        <li><code>fixedLines</code><span>the corrected continuation</span></li>
+      </ul></dd>
+    </dl>
+    <span class="pilot">Works for any student</span>
+  </div>
+</section>
+
+<!-- 6 · Step builder with checkpoint -->
+<section class="tpl demo" data-id="build">
+  <div class="stagewrap">
+    <div class="stage">
+      <svg viewBox="0 0 640 300" role="img" aria-label="2x + 5 = 17 is solved one change per line, with a pause where the student picks the next line.">
+        <text class="t mid" x="110" y="70">2x + 5 = 17</text>
+        <g class="anim" data-show="1" data-hide="2"><rect class="chip-acc" x="176" y="84" width="40" height="24" rx="12"/><text class="t sm t-acc" x="196" y="101" text-anchor="middle">−5</text></g>
+        <g class="anim" data-show="1" data-hide="2"><rect class="chip-acc" x="246" y="84" width="40" height="24" rx="12"/><text class="t sm t-acc" x="266" y="101" text-anchor="middle">−5</text></g>
+        <text class="t mid anim" x="110" y="135" data-show="2">2x = 12</text>
+        <text class="t sm t-acc anim" x="330" y="133" data-show="2">−5 on both sides</text>
+        <text class="t mid t-soft anim" x="110" y="200" data-show="3" data-hide="5">x = ?</text>
+        <text class="t mid t-acc anim pop" x="110" y="200" data-show="5">x = 6</text>
+        <text class="t sm t-acc anim" x="330" y="198" data-show="5">÷2 on both sides</text>
+        <g class="anim" data-show="3" data-hide="5">
+          <rect class="box" x="330" y="158" width="272" height="122" rx="12"/>
+          <text class="lbl" x="348" y="186">YOUR TURN · NEXT LINE?</text>
+          <rect class="opt" x="348" y="206" width="76" height="40" rx="8" data-cls="4:pick"/>
+          <rect class="opt" x="432" y="206" width="76" height="40" rx="8"/>
+          <rect class="opt" x="516" y="206" width="76" height="40" rx="8"/>
+          <text class="t sm optt" x="386" y="231" text-anchor="middle" data-cls="4:lit">x = 6</text>
+          <text class="t sm" x="470" y="231" text-anchor="middle">x = 24</text>
+          <text class="t sm" x="554" y="231" text-anchor="middle">x = 10</text>
+          <text class="t sm t-acc anim" x="348" y="268" data-show="4">Right: 12 ÷ 2 = 6</text>
+        </g>
+      </svg>
+    </div>
+    <p class="say" aria-live="polite"></p>
+    <div class="ctrl"><button class="pp">Pause</button><button class="rp">Replay</button><div class="dots"></div></div>
+  </div>
+  <div class="meta">
+    <span class="num">Template 6</span>
+    <h2>Step Builder</h2>
+    <p>Solves the equation one change per line and labels each change. Partway through, it pauses for the student to choose the next line. Wrong options come from common mistakes, and a wrong pick replays that step.</p>
+    <dl>
+      <dt>Picked when</dt><dd>There isn't enough evidence to name a mistake, or the student needs a calm restart. The checkpoint pause can also be added to any other template.<div class="codes" style="margin-top:6px"><code>INSUFFICIENT_EVIDENCE</code><code>INSUFFICIENT_OR_CONFLICTING</code></div></dd>
+      <dt>AI fills in</dt>
+      <dd><ul class="slots">
+        <li><code>equation</code><span>the problem to solve</span></li>
+        <li><code>steps</code><span>each line and the change it makes</span></li>
+        <li><code>checkpoint</code><span>which step pauses, plus 2 wrong options</span></li>
+      </ul></dd>
+    </dl>
+    <span class="pilot">Pilot fit: Kabir</span>
+  </div>
+</section>
+
+<section class="pick">
+  <div>
+    <h2>What the AI sends back</h2>
+    <p>Instead of writing a whole lesson freehand, the AI returns one small choice per scene: a template name plus its slots. The renderer draws the animation and the narration follows its beats. Before rendering, the lesson checker confirms that every number in the slots matches the student's real working and the correct math.</p>
+    <ul style="margin-top:14px">
+      <li>One template per lesson keeps it focused. Two at most, e.g. Error Ripple, then Plug It Back.</li>
+      <li>Every template ends on the corrected line, so no lesson ends on the mistake.</li>
+      <li>New templates can be added later without changing how the AI works.</li>
+    </ul>
+  </div>
+<pre><span class="c">// Rohan · final arithmetic slip</span>
+{
+  <span class="k">"template"</span>: "plug-it-back",
+  <span class="k">"slots"</span>: {
+    <span class="k">"original"</span>: "4x − 7 = 21",
+    <span class="k">"studentLines"</span>: ["4x − 7 = 21", "4x = 28", "x = 8"],
+    <span class="k">"studentAnswer"</span>: "8",
+    <span class="k">"answer"</span>: "7"
+  },
+  <span class="k">"checkpoint"</span>: null
+}</pre>
+</section>
+</div>
+
+<script>
+const DEMOS = {
+  balance: { times: [0, 2400, 4800, 7200], total: 9800, say: [
+    "Both sides weigh the same, so the equation is balanced.",
+    "Your step took 3 from the left side only. The scale tips.",
+    "Take 3 from the right side too, and it levels again.",
+    "5x = 2x + 9 is still a true equation." ] },
+  sign: { times: [0, 2200, 4400, 6600, 8800], total: 11600, say: [
+    "The −2 outside has to reach every term inside the bracket.",
+    "First stop: −2 times y gives −2y.",
+    "Your working wrote −10 here. The second sign got lost.",
+    "Carry the −2 to the −5 as well: a negative times a negative.",
+    "That makes +10, so the line reads −2y + 10 = 16." ] },
+  sweep: { times: [0, 2200, 4400, 6600, 8600], total: 11400, say: [
+    "The 3 outside multiplies everything inside the bracket.",
+    "3 times x gives 3x. That's one term done.",
+    "Your line kept the 4 as it was. It never met the 3.",
+    "Send the 3 to the 4 as well.",
+    "3 times 4 is 12, so the line is 3x + 12 = 21." ] },
+  plug: { times: [0, 1800, 3800, 5600, 7600, 9800], total: 13200, say: [
+    "Here is your working for 4x − 7 = 21.",
+    "Your first two lines are right. Let's test the answer.",
+    "Put x = 8 back into the original equation.",
+    "4 times 8 is 32, and 32 minus 7 is 25.",
+    "25 isn't 21, so x = 8 can't be right. The slip was the last step.",
+    "28 divided by 4 is 7. Put 7 back in and both sides match." ] },
+  ripple: { times: [0, 2000, 4200, 6400, 8400], total: 11400, say: [
+    "Here is your working, line by line.",
+    "Line 2 is where it breaks: the 4 was never multiplied by 3.",
+    "Lines 3 and 4 follow correctly from line 2, so they carry the error.",
+    "Go back to line 1 and multiply the whole bracket.",
+    "The same steps you used now lead to x = 3." ] },
+  build: { times: [0, 1800, 3600, 5600, 7400, 9000], total: 12000, say: [
+    "Start with the equation as it is.",
+    "One change at a time: take 5 from both sides.",
+    "That leaves 2x = 12. One change, one new line.",
+    "Your turn. What should the next line be?",
+    "x = 6 is right, because 12 divided by 2 is 6.",
+    "Each line made exactly one change, so each one is easy to check." ] },
+};
+
+const parseOps = (s) => (s || "").split(/\s+/).filter(Boolean).map((op) => {
+  const [k, c] = op.split(":");
+  return { k: +k, cls: c.replace(/^-/, ""), add: !c.startsWith("-") };
+});
+
+document.querySelectorAll(".demo").forEach((card) => {
+  const cfg = DEMOS[card.dataset.id];
+  const svg = card.querySelector("svg");
+  const say = card.querySelector(".say");
+  const pp = card.querySelector(".pp");
+  const dots = card.querySelector(".dots");
+  const els = [...svg.querySelectorAll("[data-show],[data-hide],[data-cls]")].map((el) => ({
+    el, show: el.dataset.show == null ? null : +el.dataset.show, hide: el.dataset.hide == null ? null : +el.dataset.hide, ops: parseOps(el.dataset.cls),
+  }));
+  els.forEach(({ el }) => el.classList.add("anim-ready"));
+  const dotBtns = cfg.times.map((_, i) => {
+    const b = document.createElement("button");
+    b.textContent = i + 1;
+    b.setAttribute("aria-label", `Jump to beat ${i + 1}`);
+    b.addEventListener("click", () => { setPaused(true); go(i); });
+    dots.appendChild(b);
+    return b;
+  });
+
+  let beat = 0, timer = null, paused = false, visible = false;
+
+  function apply(n) {
+    for (const { el, show, hide, ops } of els) {
+      const on = (show == null || n >= show) && (hide == null || n < hide);
+      if (show != null || hide != null) el.classList.toggle("off", !on);
+      const state = {};
+      for (const op of ops) { if (!(op.cls in state)) state[op.cls] = false; if (op.k <= n) state[op.cls] = op.add; }
+      for (const c in state) el.classList.toggle(c, state[c]);
+    }
+    say.textContent = cfg.say[n];
+    dotBtns.forEach((b, i) => b.setAttribute("aria-current", i === n ? "true" : "false"));
+  }
+  function go(n) { beat = n; apply(n); }
+  function schedule() {
+    clearTimeout(timer);
+    if (paused || !visible) return;
+    const next = beat + 1;
+    const wait = next < cfg.times.length ? cfg.times[next] - cfg.times[beat] : cfg.total - cfg.times[beat];
+    timer = setTimeout(() => { go(next < cfg.times.length ? next : 0); schedule(); }, wait);
+  }
+  function setPaused(p) { paused = p; pp.textContent = p ? "Play" : "Pause"; schedule(); }
+
+  pp.addEventListener("click", () => setPaused(!paused));
+  card.querySelector(".rp").addEventListener("click", () => { go(0); setPaused(false); });
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; schedule(); }, { threshold: 0.35 }).observe(svg);
+  go(0);
+});
+</script>

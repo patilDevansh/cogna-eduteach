@@ -19,6 +19,9 @@ import { adaptiveDecisionFor, LotusService } from "../../src/lotus/lotus.service
 import type { PlanAction } from "../../src/lotus/lotus-factorisation";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
 import { FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalogue";
+
+// These tests pin the AI writer's behaviour slot by slot; game probes (code-built) are covered in interaction-formats.v1.spec.ts.
+process.env.COGNA_GAME_FORMATS = "off";
 import { LotusQuestionFactory, prettyPowers } from "../../src/lotus/lotus-question-factory";
 
 const ASSESSMENT: LotusModelAssessment = {
@@ -217,6 +220,9 @@ function predictedWrong(service: LotusService, view: LotusSessionView): string {
   return internal(service, view.sessionId).currentQuestion.answerKey.diagnostics.predictedMistakes[0].answer;
 }
 
+/** A wrong answer that matches no predicted mistake: the one case code can't explain, so the AI review runs. */
+const UNEXPLAINED_WRONG = "5(x + 97)";
+
 let submissionCounter = 0;
 async function submit(
   service: LotusService,
@@ -330,7 +336,8 @@ describe("factorisation session — every Submit is instant", () => {
     assert.equal(answered, 25);
     assert.equal(view.finalReport!.outcome, "ADVANCEMENT");
     assert.deepEqual(view.finalReport!.notTested, []);
-    assert.ok(view.audits.every((audit) => audit.analysisStatus === "COMPLETE"));
+    // Every answer was settled by code, so none paid for the four-call AI review.
+    assert.ok(view.audits.every((audit) => audit.analysisStatus === "NOT_REQUIRED"));
   });
 
   for (const persona of ["demo_aarav", "demo_meena", "demo_rohan"]) {
@@ -599,7 +606,7 @@ describe("factorisation session — safety of the running test", () => {
     models.firstWrongStep = 2;
     let view = await startReady(service, "demo_aarav");
     // Q1's review is held open while the student races ahead to Q5.
-    view = await submit(service, view, "3(2x + 4)");
+    view = await submit(service, view, UNEXPLAINED_WRONG);
     for (let i = 0; i < 4; i += 1) {
       const predicted = predictedWrong(service, view);
       view = await submit(service, view, predicted);
@@ -616,7 +623,8 @@ describe("factorisation session — safety of the running test", () => {
     const skillsChecked = checks.map((t) => t.forSkill);
     assert.equal(skillsChecked.length, new Set(skillsChecked).size, "the same skill must never claim two targeted-check slots");
     for (let i = 1; i < 5; i += 1) {
-      assert.equal(session.audits[i].analysisStatus, "COMPLETE", `Q${i + 1}'s own instant/AI evidence is unaffected by Q1's delayed result`);
+      // Code named each of these mistakes, so they never queue a review; Q1's late one leaves them alone.
+      assert.equal(session.audits[i].analysisStatus, "NOT_REQUIRED", `Q${i + 1}'s own instant evidence is unaffected by Q1's delayed result`);
     }
   });
 
@@ -625,8 +633,8 @@ describe("factorisation session — safety of the running test", () => {
     let release!: () => void;
     models.closureGate = new Promise((resolve) => { release = resolve; });
     let view = await startReady(service, "demo_meera");
-    view = await submit(service, view, "3(2x + 4)");
-    view = await submit(service, view, predictedWrong(service, view));
+    view = await submit(service, view, UNEXPLAINED_WRONG);
+    view = await submit(service, view, UNEXPLAINED_WRONG);
     await flush();
     assert.equal(
       models.closures,
@@ -646,8 +654,8 @@ describe("factorisation session — safety of the running test", () => {
       const { models, service } = setup(concurrency);
       models.closureDelayMs = 45;
       let view = await startReady(service, `demo_latency_${concurrency}`);
-      view = await submit(service, view, "3(2x + 4)");
-      view = await submit(service, view, predictedWrong(service, view));
+      view = await submit(service, view, UNEXPLAINED_WRONG);
+      view = await submit(service, view, UNEXPLAINED_WRONG);
       await (service as unknown as { waitForSessionAnalyses: (sessionId: string) => Promise<void> })
         .waitForSessionAnalyses(view.sessionId);
       return internal(service, view.sessionId).audits as Array<{ analysisStartedAt?: string; analysisCompletedAt?: string }>;
@@ -662,7 +670,7 @@ describe("factorisation session — safety of the running test", () => {
     const { models, service } = setup();
     models.closureFailures = 1;
     let view = await startReady(service, "demo_retry_review");
-    view = await submit(service, view, predictedWrong(service, view));
+    view = await submit(service, view, UNEXPLAINED_WRONG);
     await (service as unknown as { waitForSessionAnalyses: (sessionId: string) => Promise<void> })
       .waitForSessionAnalyses(view.sessionId);
     const audit = internal(service, view.sessionId).audits[0];
@@ -680,8 +688,8 @@ describe("factorisation session — safety of the running test", () => {
       startReady(service, "demo_parallel_b"),
     ]);
     await Promise.all([
-      submit(service, first, predictedWrong(service, first)),
-      submit(service, second, predictedWrong(service, second)),
+      submit(service, first, UNEXPLAINED_WRONG),
+      submit(service, second, UNEXPLAINED_WRONG),
     ]);
     await flush();
     assert.equal(models.closures, 2, "independent sessions must both enter review while the closures are held");
@@ -839,5 +847,57 @@ describe("question factory — AI writes, code checks", () => {
     const result = await factory.write({ spec: spec9, purpose: "BASE", avoid: ["x² − 25"] });
     assert.equal(result.item, null);
     assert.match(result.rejections.join(" "), /repeats a question/);
+  });
+});
+
+describe("factorisation session — how did you get it?", () => {
+  it("only a wrong answer code can't explain earns the follow-up; a predicted mistake, a right answer and I-don't-know do not", async () => {
+    const { service } = setup();
+    let view = await startReady(service, "demo_reason_gate");
+    view = await submit(service, view, predictedWrong(service, view));
+    assert.equal(view.audits.at(-1)?.reasonCheck, undefined, "a known mistake is already named from the final answer");
+    view = await submit(service, view, "", { didNotKnow: true });
+    assert.equal(view.audits.at(-1)?.reasonCheck, undefined);
+    const right = internal(service, view.sessionId).currentQuestion.answerKey.canonicalAnswer;
+    view = await submit(service, view, right);
+    assert.equal(view.audits.at(-1)?.reasonCheck, undefined);
+    view = await submit(service, view, "(x + 1000)(x - 999)");
+    const check = view.audits.at(-1)?.reasonCheck;
+    assert.ok(check, "an unexplained wrong answer gets one follow-up");
+    assert.equal(check.prompt, "How did you get it?");
+    assert.ok(check.options.length >= 3 && check.options.length <= 4);
+    assert.deepEqual(check.options.slice(-2).map((o) => o.id), ["unsure", "guessed"]);
+    assert.ok(!JSON.stringify(check).match(/[A-Z]{3,}_[A-Z_]+/), "no mistake codes or meanings reach the browser");
+  });
+
+  it("a tap records the student's own reason as evidence once, and a second, different tap is refused", async () => {
+    const { service } = setup();
+    let view = await startReady(service, "demo_reason_tap");
+    view = await submit(service, view, "(x + 1000)(x - 999)");
+    const audit = view.audits.at(-1)!;
+    const first = audit.reasonCheck!.options[0]!;
+    view = await service.recordReason(view.sessionId, view.studentId, audit.question.id, first.id);
+    const saved = internal(service, view.sessionId).audits.at(-1);
+    assert.equal(saved.reasonCheck.chosenId, first.id);
+    const fromReason = saved.skillEvidence.filter((e: { source: string }) => e.source === "REASON");
+    assert.equal(fromReason.length, first.id === "guessed" ? 0 : 1);
+    // The same tap again (a retry) is harmless; a different one is a conflict.
+    await service.recordReason(view.sessionId, view.studentId, audit.question.id, first.id);
+    const other = audit.reasonCheck!.options.find((o) => o.id !== first.id)!;
+    await assert.rejects(service.recordReason(view.sessionId, view.studentId, audit.question.id, other.id), (err: { status?: number }) => err.status === 409);
+    await assert.rejects(service.recordReason(view.sessionId, view.studentId, audit.question.id, "made-up"), (err: { status?: number }) => err.status === 409 || err.status === 400);
+  });
+
+  it("'I wasn't sure what to do' is a support need, and 'I guessed' pins nothing on any skill", async () => {
+    for (const [optionId, kind] of [["unsure", "DID_NOT_KNOW"], ["guessed", null]] as const) {
+      const { service } = setup();
+      let view = await startReady(service, `demo_reason_${optionId}`);
+      view = await submit(service, view, "(x + 1000)(x - 999)");
+      const audit = view.audits.at(-1)!;
+      await service.recordReason(view.sessionId, view.studentId, audit.question.id, optionId);
+      const saved = internal(service, view.sessionId).audits.at(-1);
+      const reason = saved.skillEvidence.filter((e: { source: string }) => e.source === "REASON");
+      assert.deepEqual(reason.map((e: { kind: string }) => e.kind), kind ? [kind] : []);
+    }
   });
 });

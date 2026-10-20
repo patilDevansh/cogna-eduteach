@@ -19,6 +19,8 @@
 
 ## Diagnostic-quality and adaptive-action repair
 
+- [x] MVP 10.0 UI maintenance (2026-10-08): math keys target final answers and selected working steps; workshop/constellation scenes and early Detective increase format variety; Garden instances pass the complete installation gate before selection.
+
 These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONTINUOUS_DIAGNOSTIC.md#8-repair-diagnostic-interpretation-and-the-action-loop-before-claiming-adaptivity), not completed functionality.
 
 - [ ] Persist pseudonymous standalone-demo and production response, analysis, timing, and plan-decision events so the previous 24 hours can be audited.
@@ -46,3 +48,32 @@ These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONT
 - [ ] AI Studio usability gate — Playwright desktop/mobile/accessibility coverage plus educator task review showing readers can identify evidence, decision, and actual outcome without opening raw model details.
 
 Before executing each phase's test gate, notify the product owner in the active Codex thread with the test scope, environment, live-model/cost impact, expected duration, and any test-data reset; wait for acknowledgment and report the results before starting the next phase.
+
+## Classroom connections (2026-10-08)
+
+- [x] One Lotus session per class assignment (refresh/second tab resumes, never restarts)
+- [x] Background filing of finished class steps; teacher roster shows last activity and who has gone quiet
+- [x] Live updates (server-sent events) for teacher class page and student pages; polling demoted to a slow fallback
+- [x] Parent link codes on school-made students (claim = consent) and in-app parent updates (check finished, catch-up set)
+- [x] Parents link through the phone on the school's record, replacing the slip code (2026-10-14): the class list takes parents' mobiles and the school's consent; a parent confirms their number with a texted code and agrees per child; any number of guardians; the school keeps the student (teacher still resets sign-in); teachers edit numbers, unlink, and approve parents who aren't on record
+- [ ] Send texts in production: Twilio env (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM) plus a DLT-registered sender and template for India
+- [x] Parent updates by text to the verified number (check finished, catch-up set, teacher approved the link), with an opt-out; WhatsApp not built
+- [x] A child added at home with the same first name as one from school is flagged; "same child" hides the home copy (kept, not erased), "different" stops asking. Learning histories are not merged
+- [x] Parents can stop following a school child (withdraws consent) and change their confirmed number; teachers see new link requests live
+- [x] Teacher controls: restart one student, pause/resume, time limit, remind students who haven't started; late joiners in teacher-advanced checks
+- [ ] Email delivery for parent updates (no email provider is wired; weekly reports are also stub-only)
+- [ ] Rate limit per signed-in user rather than per network address
+- [ ] Multi-instance live updates (in-process only today)
+
+## Parent dashboard (2026-10-12, [spec](../docs/mvp-10.0/PARENT_DASHBOARD.md))
+
+- [x] Parent value and home order agreed: work done → what's next (time, due date) → where they struggle
+- [x] `dueAt` on class checks (the whole check is one parent task), set at launch: 2 days by default, `dueDays` 1–30 accepted by the API
+- [ ] Teacher picks the due date when starting a check (UI), and a roster overdue filter
+- [x] Parent-facing task states (done on time / late / not finished / to do / overdue / with the teacher), last-30-days counts and time estimates (`parent-work.ts`, tested)
+- [x] Home page rebuilt in the agreed order, phone and laptop (ring, next task with deadline bar, found → lesson → fixed tracker, topic bars)
+- [x] Student enters a parent email when joining a class; Cogna emails the parent a link code (rate-limited; link carries the code in the URL fragment); claim page prefills it across sign-in
+- [ ] Set `SMTP_USER` / `SMTP_PASS` (cogna.eduteach@gmail.com app password) in each environment
+- [ ] Student due-soon banner (24 h before), then parent due-day message, at most one each per assignment
+- [x] Email sending (SMTP via nodemailer; Gmail for the pilot)
+- [ ] WhatsApp Business provider, approved templates, parent phone number and recorded opt-in

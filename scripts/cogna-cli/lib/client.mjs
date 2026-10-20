@@ -26,10 +26,20 @@ function httpError(method, path, status, body) {
 export function createClient(apiUrl = process.env.API_URL ?? DEFAULT_API_URL) {
   const base = apiUrl.replace(/\/$/, "");
 
+  /**
+   * Sent with every get/post: the worker token (ops routes such as /content and /jobs) when
+   * COGNA_JOB_WORKER_TOKEN is set, and the session of the last student signed in via loginStudent.
+   */
+  let student = null;
+  const authHeaders = () => ({
+    ...(process.env.COGNA_JOB_WORKER_TOKEN ? { Authorization: `Bearer ${process.env.COGNA_JOB_WORKER_TOKEN}` } : {}),
+    ...(student?.token ? { "X-Cogna-Student-Id": student.studentId, "X-Cogna-Student-Token": student.token } : {}),
+  });
+
   async function get(path) {
     let res;
     try {
-      res = await fetch(`${base}${path}`);
+      res = await fetch(`${base}${path}`, { headers: authHeaders() });
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       throw new Error(
@@ -55,7 +65,7 @@ export function createClient(apiUrl = process.env.API_URL ?? DEFAULT_API_URL) {
     try {
       res = await fetch(`${base}${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(payload),
       });
     } catch (err) {
@@ -94,6 +104,7 @@ export function createClient(apiUrl = process.env.API_URL ?? DEFAULT_API_URL) {
     if (!res.body?.studentId) {
       throw new Error("loginStudent: response missing studentId");
     }
+    student = { studentId: res.body.studentId, token: res.body.sessionToken };
     return { studentId: res.body.studentId, name: res.body.name };
   }
 

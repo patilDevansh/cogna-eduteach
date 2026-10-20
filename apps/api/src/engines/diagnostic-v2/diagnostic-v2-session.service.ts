@@ -89,6 +89,7 @@ import {
   ASSISTANCE_RANK,
   computeMicroSkillStateUpdate,
   EMPTY_COUNTS,
+  errorPatternRepeated,
   evidenceKindForStep,
   evidenceWeight,
   isAssisted,
@@ -1161,8 +1162,10 @@ export class DiagnosticV2SessionService {
     // to errors/pattern changes, which left correct questions blank in the
     // question-by-question learning picture and left reliable skills without
     // an AI explanation in micro-skill management.
+    // A decline ("I don't know") says nothing about the skill, so it gets no
+    // explanation — otherwise the rule fallback calls the skill "working well".
     const interpretation =
-      stepEvidence
+      stepEvidence && stepEvidence.kind !== "SKIPPED"
         ? await this.interpreter.interpret({
             studentId: session.studentId,
             sessionId,
@@ -2091,11 +2094,11 @@ export class DiagnosticV2SessionService {
     microSkillId: MicroSkillId,
     pending: EvidencePlan | null,
   ): Promise<boolean> {
-    if (pending?.microSkillId === microSkillId) return pending.update.status === "LIKELY_GAP";
+    if (pending?.microSkillId === microSkillId) return errorPatternRepeated(pending.update.counts);
     const state = await this.prisma.microSkillStateV2.findUnique({
       where: { studentId_microSkillId: { studentId, microSkillId } },
     });
-    return state?.status === "LIKELY_GAP";
+    return state ? errorPatternRepeated(state) : false;
   }
 
   /** How many times the student has already said "I don't know" on this item. Counted from the evidence log, which is the only record a decline leaves. */

@@ -7,6 +7,7 @@ import { LotusController } from "./lotus.controller";
 import { LotusModelService } from "./lotus-model.service";
 import { FakeLotusModelService } from "./lotus-fake-model.service";
 import { LotusService } from "./lotus.service";
+import { ClassroomEventsService } from "../classrooms/classroom-events";
 
 @Module({
   imports: [AiModule],
@@ -26,9 +27,9 @@ import { LotusService } from "./lotus.service";
     },
     {
       provide: LotusService,
-      inject: [LotusModelService, PrismaService],
-      useFactory: (models: LotusModelService, prisma: PrismaService) =>
-        new LotusService(models, prisma),
+      inject: [LotusModelService, PrismaService, { token: ClassroomEventsService, optional: true }],
+      useFactory: (models: LotusModelService, prisma: PrismaService, classEvents?: ClassroomEventsService) =>
+        new LotusService(models, prisma, { classEvents }),
     },
   ],
 })

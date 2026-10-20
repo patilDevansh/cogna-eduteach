@@ -19,11 +19,20 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { api, getLotusDevModelMode, setLotusDevModelMode } from "@/lib/api";
+import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusDemoGap } from "@cogna/shared";
+import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
+import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
+import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
+
+/** The pilot student each skip-through gap signs in as. */
+const GAP_STUDENT: Record<LotusDemoGap, PilotStudentKey> = { signs: "aarav", grouping: "meena", "common-factor": "rohan", none: "divya" };
 import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classroom";
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
+import { TileGame, type TileGameState } from "@/components/games/TileGame";
+import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice, LotusBloom, PondMap } from "@/components/games/LotusGames";
+import gameStyles from "@/components/games/lotus-games.module.css";
 
 const CONFIDENCE_CHOICES = [
   { value: 25, label: "Not sure" },
@@ -352,6 +361,7 @@ function matchingProvenanceForQuestion(question: LotusQuestion, session: LotusSe
 
 function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
   const provenance = matchingProvenanceForQuestion(question, session);
+  if (provenance === "CODE_BUILT_GAME") return "Interactive question";
   if (provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
   if (provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
   if (provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
@@ -637,6 +647,9 @@ function AuditCard({
                   </span>
                 )}
               </div>
+              {audit.response.interaction && (
+                <p><strong>Answered with:</strong> {INTERACTION_FORMATS[audit.response.interaction.format].title} (tiles; took a tile back out {audit.response.interaction.changes ?? 0}×)</p>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
                 <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
@@ -994,6 +1007,22 @@ function FinalReport({
   );
 }
 
+/**
+ * Saves one answer, retrying once on a timeout or a dropped connection. Safe
+ * because the API treats a repeated submissionId as the same answer: a reply
+ * that was lost on the way back is simply returned again, never recorded twice.
+ */
+async function submitWithRetry(sessionId: string, studentId: string, submission: LotusStudentResponse): Promise<LotusSessionView> {
+  try {
+    return await api.submitLotusAnswer(sessionId, studentId, submission);
+  } catch (err) {
+    const status = err instanceof ApiError ? err.status : 0;
+    if (status !== 0 && status !== 502 && status !== 503 && status !== 504) throw err;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return api.submitLotusAnswer(sessionId, studentId, submission);
+  }
+}
+
 export default function LotusRoute() {
   return <Suspense fallback={<p>Loading diagnostic…</p>}><LotusPage /></Suspense>;
 }
@@ -1003,7 +1032,9 @@ function LotusPage() {
   const searchParams = useSearchParams();
   const demoPersona = searchParams.get("demo");
   const classroomAssignmentId = searchParams.get("assignment");
-  const topic: LotusTopic = searchParams.get("topic")?.toLowerCase().startsWith("factori") ? "FACTORISATION" : "BRACKETS";
+  const topic: LotusTopic = lotusTopicForClassTopic(searchParams.get("topic") ?? "");
+  const planned = isPlannedLotusTopic(topic);
+  const catchUp = planned && searchParams.get("check") === "catch-up";
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
   const [classEnrollment, setClassEnrollment] = useState<MockStudentEnrollment | null>(null);
@@ -1023,20 +1054,16 @@ function LotusPage() {
   const [confidenceNudge, setConfidenceNudge] = useState(0);
   const confidenceRef = useRef<HTMLDivElement | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
-  // Dev-only: lets a developer point this browser tab at the free, instant
-  // fake-model API instead of the live one while iterating on UI, without an
-  // engineer manually restarting the API process. Never rendered in
-  // production (see the isDevBuild check below); persisted for this tab only
-  // so it survives the Start click and every later Lotus API call.
-  const [devFakeModel, setDevFakeModel] = useState(false);
-  useEffect(() => {
-    setDevFakeModel(getLotusDevModelMode() === "fake");
-  }, []);
-  function toggleDevFakeModel() {
-    const next = !devFakeModel;
-    setDevFakeModel(next);
-    setLotusDevModelMode(next ? "fake" : "real");
-  }
+  /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
+  const [tiles, setTiles] = useState<TileGameState | null>(null);
+  const [readingAloud, setReadingAloud] = useState(false);
+  // Working is optional by default: the final answer is the evidence (see LotusWorkingPrompt).
+  const [workingOpen, setWorkingOpen] = useState(false);
+  const [reasonBusy, setReasonBusy] = useState("");
+  const [readAloudError, setReadAloudError] = useState("");
+  // Dev tools (demo fill, AI Lab, fake-model badge) follow the global Dev
+  // panel; the fake-model switch itself lives there too (lib/dev-mode.ts).
+  const { devMode, fakeModel: devFakeModel } = useDevState();
   const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -1046,17 +1073,23 @@ function LotusPage() {
   const [advancing, setAdvancing] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<LotusStudentResponse | null>(null);
   const [error, setError] = useState("");
+  const [skipping, setSkipping] = useState<LotusDemoGap | null>(null);
   const [liveProgress, setLiveProgress] = useState<LotusLiveProgress | null>(null);
-  const [teachingHref, setTeachingHref] = useState<string | null>(null);
+  const reportOpenedRef = useRef(false);
+  const reportWatchRef = useRef<number | null>(null);
   const [minimized, setMinimized] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
   const activeMathFieldRef = useRef<HTMLInputElement | null>(null);
+  const answerFieldRef = useRef<HTMLInputElement | null>(null);
+  const workingFieldRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const [activeWorkingIndex, setActiveWorkingIndex] = useState(0);
   const exponentModeRef = useRef(false);
   const suppressMathChangeRef = useRef(false);
 
-  function insertMathToken(token: string) {
-    const field = activeMathFieldRef.current;
-    if (!field || inputLocked) return;
+  function insertMathToken(token: string, field: HTMLInputElement | null) {
+    if (!field || field.disabled || inputLocked) return;
+    if (activeMathFieldRef.current !== field) exponentModeRef.current = false;
+    activeMathFieldRef.current = field;
     const start = field.selectionStart ?? field.value.length;
     const end = field.selectionEnd ?? start;
     const nextValue = formatTypedMath(`${field.value.slice(0, start)}${token}${field.value.slice(end)}`);
@@ -1075,6 +1108,25 @@ function LotusPage() {
       field.focus();
       field.setSelectionRange(nextCursor, nextCursor);
     });
+  }
+
+  function mathToolbox(target: "answer" | "working") {
+    const label = target === "answer" ? "Final answer math tools" : `Working step ${activeWorkingIndex + 1} math tools`;
+    return (
+      <div className={styles.mathToolbar} role="group" aria-label={label}>
+        <span className={styles.mathToolbarLabel}>Math tools · {target === "answer" ? "final answer" : `step ${activeWorkingIndex + 1}`}</span>
+        {[
+          ["+", "+"], ["−", "-"], ["×", "×"], ["÷", "÷"],
+          ["(", "("], [")", ")"], ["^", "^"], ["x²", "²"], ["x³", "³"],
+        ].map(([label, token]) => (
+          <button key={label} type="button" onMouseDown={(event) => event.preventDefault()}
+            onClick={() => insertMathToken(token, target === "answer" ? answerFieldRef.current : workingFieldRefs.current[activeWorkingIndex] ?? null)}
+            disabled={inputLocked || didNotKnow}>
+            {label}
+          </button>
+        ))}
+      </div>
+    );
   }
 
   useEffect(() => {
@@ -1194,7 +1246,21 @@ function LotusPage() {
     }, 1500);
   }
 
-  useEffect(() => stopPolling, []);
+  useEffect(() => () => {
+    stopPolling();
+    stopReportWatch();
+  }, []);
+
+  // Turning dev mode off returns to exactly what a student sees.
+  useEffect(() => {
+    if (!devMode) setObserver(false);
+  }, [devMode]);
+
+  // The fake and live APIs hold separate sessions, so the model can't change mid-diagnostic.
+  useEffect(() => {
+    setFakeModelLocked(session?.status === "ACTIVE");
+    return () => setFakeModelLocked(false);
+  }, [session?.status]);
 
   // Deep review can improve a later flexible slot while the child is working.
   // Refresh only unseen items and audits; never replace the question on screen.
@@ -1217,7 +1283,7 @@ function LotusPage() {
   // items are ready. Poll only the safe preparation counter; answer keys remain
   // redacted by the API while the session is active.
   useEffect(() => {
-    if (!preparing || !session || session.topic !== "FACTORISATION" || session.status !== "ACTIVE") return;
+    if (!preparing || !session || !isPlannedLotusTopic(session.topic) || session.status !== "ACTIVE") return;
     const timer = window.setInterval(() => {
       void api.getLotusSession(session.sessionId).then((fresh) => {
         setSession(fresh);
@@ -1246,12 +1312,53 @@ function LotusPage() {
     if (!preparing && session?.currentQuestion) setMinimized(false);
   }, [preparing]);
 
+  /** "Read it to me": the server speaks the question on screen (Cartesia), so reading isn't what's being measured. */
+  async function readAloud() {
+    if (!session) return;
+    setReadingAloud(true);
+    setReadAloudError("");
+    try {
+      const spoken = await api.readLotusAloud(session.sessionId, studentId);
+      const audio = new Audio(`data:audio/mpeg;base64,${spoken.audio}`);
+      const done = () => setReadingAloud(false);
+      audio.onended = done;
+      audio.onerror = done;
+      // A clip that never reports its end must not leave the button stuck on "Reading…".
+      audio.onloadedmetadata = () => {
+        const seconds = Number.isFinite(audio.duration) ? audio.duration : 20;
+        window.setTimeout(done, seconds * 1000 + 3000);
+      };
+      await audio.play();
+    } catch {
+      setReadingAloud(false);
+      setReadAloudError("Reading aloud isn't available right now. Ask your teacher to read it with you.");
+    }
+  }
+
+  async function answerReason(optionId: string) {
+    if (!session || !reasonFollowUp || reasonBusy) return;
+    setReasonBusy(optionId);
+    setError("");
+    try {
+      setSession(await api.answerLotusReason(session.sessionId, studentId, reasonFollowUp.question.id, optionId));
+    } catch (err) {
+      setError(err instanceof Error ? `That didn't save: ${err.message}. Tap your choice again.` : "That didn't save. Tap your choice again.");
+    } finally {
+      setReasonBusy("");
+    }
+  }
+
   function resetResponse() {
+    activeMathFieldRef.current = null;
+    exponentModeRef.current = false;
+    setActiveWorkingIndex(0);
     setAnswer("");
     setWorkingLines(["", "", ""]);
+    setWorkingOpen(false);
     setConfidence(null);
     setConfidenceNudge(0);
     setDidNotKnow(false);
+    setTiles(null);
     setQuestionStartedAt(Date.now());
   }
 
@@ -1261,32 +1368,39 @@ function LotusPage() {
     setSession(next);
     saveStoredLotusSession({ session: next, studentName, enrollment: classEnrollment, savedAt: new Date().toISOString() });
     resetResponse();
-    if (next.status === "COMPLETE") {
-      void api
-        .createPersonalizedVideoAssignment({
-          studentId,
-          lotusSessionId: next.sessionId,
-        })
-        .then(async (video) => {
-          if (classroomAssignmentId) {
-            await api.completeClassroomAssignment(classroomAssignmentId, {
-              diagnosticSessionId: next.sessionId,
-              videoAssignmentId: video.id,
-              result: {
-                outcome: next.finalReport?.outcome,
-                startingPoint: next.finalReport?.startingPoint,
-                observedStrengths: next.finalReport?.observedStrengths,
-                uncertainties: next.finalReport?.uncertainAreas,
-                audits: next.audits.length,
-              },
-            });
-          }
-          const href = `/student/personalized-video?studentId=${encodeURIComponent(studentId)}&video=${encodeURIComponent(video.id)}`;
-          setTeachingHref(href);
-          router.push(href);
+    if (next.status === "COMPLETE" || next.reportPending) openReport(next.sessionId);
+  }
+
+  /**
+   * The report (and the lesson built from it) live on their own page. Called
+   * as soon as the server says the final answer is in: the student never
+   * waits on the question screen for the last AI review.
+   */
+  function openReport(sessionId: string) {
+    if (reportOpenedRef.current) return;
+    reportOpenedRef.current = true;
+    stopReportWatch();
+    const params = new URLSearchParams({ session: sessionId });
+    if (classroomAssignmentId) params.set("assignment", classroomAssignmentId);
+    router.push(`/student/lotus/report?${params.toString()}`);
+  }
+
+  /** While an unstaged answer is saving, check whether it was the final one. */
+  function watchForReport(sessionId: string) {
+    stopReportWatch();
+    reportWatchRef.current = window.setInterval(() => {
+      api
+        .getLotusSession(sessionId)
+        .then((polled) => {
+          if (polled.reportPending || polled.status === "COMPLETE") openReport(sessionId);
         })
         .catch(() => undefined);
-    }
+    }, 700);
+  }
+
+  function stopReportWatch() {
+    if (reportWatchRef.current) window.clearInterval(reportWatchRef.current);
+    reportWatchRef.current = null;
   }
 
   async function start() {
@@ -1299,11 +1413,16 @@ function LotusPage() {
       const activeStudent = studentId.startsWith("demo_")
         ? await ensureDemoStudentSession(studentId, studentName, { forceRefresh: true })
         : { studentId };
-      const next = await api.startLotusSession(activeStudent.studentId, topic);
+      // For a class assignment this may be the session already started for it (a refresh, another tab).
+      const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined);
+      if (next.status === "COMPLETE" || next.reportPending) {
+        openReport(next.sessionId);
+        return;
+      }
       setPreviewQuestion(null);
       setPendingSubmission(null);
       setSession(next);
-      setPreparing(topic === "FACTORISATION" && !next.preparation?.ready);
+      setPreparing(planned && !next.preparation?.ready);
       setMinimized(false);
       setPreparationTimedOut(false);
       saveStoredLotusSession({ session: next, studentName, enrollment: classEnrollment, savedAt: new Date().toISOString() });
@@ -1316,8 +1435,10 @@ function LotusPage() {
   }
 
   async function submit() {
-    if (!session || (!pendingSubmission && !didNotKnow && !answer.trim())) {
-      setError("Enter an answer or choose “I don’t know”.");
+    const tileGame = question?.interaction;
+    const typedOrBuilt = tileGame ? tiles?.answer ?? "" : answer.trim();
+    if (!session || (!pendingSubmission && !didNotKnow && !typedOrBuilt)) {
+      setError(tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
       return;
     }
     // Confidence has no honest default: forcing a real tap (rather than a
@@ -1333,11 +1454,11 @@ function LotusPage() {
       return;
     }
     // The brackets test ends at 20 minutes, so its staged question would be refused after that. The factorisation test has no time limit.
-    const staged = session.topic === "FACTORISATION" || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
+    const staged = isPlannedLotusTopic(session.topic) || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
       ? session.upcomingQuestions?.[0]
       : undefined;
     const submission: LotusStudentResponse = pendingSubmission ?? {
-      answer: didNotKnow ? "I don't know" : answer.trim(),
+      answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
       confidence: confidence ?? 60,
       responseTimeMs: Date.now() - questionStartedAt,
@@ -1345,6 +1466,7 @@ function LotusPage() {
       submissionId: crypto.randomUUID(),
       questionId: session.currentQuestion?.id,
       nextQuestionId: staged?.id,
+      ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
     };
     if (!pendingSubmission) {
       setPendingSubmission(submission);
@@ -1357,9 +1479,12 @@ function LotusPage() {
     }
     setBusy(true);
     setError("");
-    if (!staged) startPolling(session.sessionId, audits.length);
+    if (!staged) {
+      startPolling(session.sessionId, audits.length);
+      watchForReport(session.sessionId);
+    }
     try {
-      const next = await api.submitLotusAnswer(session.sessionId, studentId, submission);
+      const next = await submitWithRetry(session.sessionId, studentId, submission);
       rememberSession(next);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
@@ -1371,6 +1496,7 @@ function LotusPage() {
           : "Your last answer was not confirmed. Retry saving it.");
     } finally {
       stopPolling();
+      stopReportWatch();
       setBusy(false);
     }
   }
@@ -1396,13 +1522,15 @@ function LotusPage() {
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
   const question = previewQuestion ?? session?.currentQuestion;
+  // A wrong answer code couldn't explain gets one "How did you get it?" tap before the next question.
+  const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
+  const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
+  const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
   // Factorisation always has a 25-question diagnostic. Some later questions
   // may still be generating, so don't derive the total from the currently
   // exposed/prefetched list.
-  const totalQuestions = session?.topic === "FACTORISATION"
-    ? 25
-    : 16;
+  const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
   const inputLocked = busy || Boolean(pendingSubmission);
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
@@ -1424,6 +1552,62 @@ function LotusPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not fill the demo response.");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Dev only: answer the whole test as a learner with the chosen gap (signs, grouping, ...), through the
+   * same submit path a student uses, then land on the report and lesson. Demo students only.
+   */
+  async function skipThrough(gap: LotusDemoGap) {
+    if (skipping) return;
+    setSkipping(gap);
+    setBusy(true);
+    setError("");
+    try {
+      // Each gap is a named pilot student (the server only fills answers for those accounts).
+      const story = PILOT_STUDENT_STORIES[GAP_STUDENT[gap]];
+      const sid = `demo_${story.key}`;
+      let view = session && studentId === sid ? session : null;
+      if (!view) {
+        const activeStudent = await ensureDemoStudentSession(sid, story.name, { forceRefresh: true });
+        setStudentId(activeStudent.studentId);
+        setStudentName(story.name);
+        reportOpenedRef.current = false;
+        view = await api.startLotusSession(activeStudent.studentId, topic);
+        setPreviewQuestion(null);
+        setPendingSubmission(null);
+        setSession(view);
+        setPreparing(planned && !view.preparation?.ready);
+        setMinimized(false);
+      }
+      for (let turn = 0; turn < 40; turn++) {
+        // Factorisation questions are written on demand: wait for the next one.
+        const deadline = Date.now() + 180_000;
+        while (view.status === "ACTIVE" && !view.reportPending && !view.currentQuestion && Date.now() < deadline) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1000));
+          view = await api.getLotusSession(view.sessionId);
+        }
+        if (view.status !== "ACTIVE" || view.reportPending || !view.currentQuestion) break;
+        const filled = await api.demoFillLotusResponse(view.sessionId, sid, gap);
+        view = await api.submitLotusAnswer(view.sessionId, sid, {
+          answer: filled.answer,
+          working: filled.working,
+          confidence: filled.confidence,
+          responseTimeMs: 4000,
+          didNotKnow: false,
+          submissionId: crypto.randomUUID(),
+          questionId: view.currentQuestion.id,
+        });
+        setSession(view);
+      }
+      rememberSession(view);
+      if (view.status !== "COMPLETE" && !view.reportPending) watchForReport(view.sessionId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not skip through the test.");
+    } finally {
+      setSkipping(null);
       setBusy(false);
     }
   }
@@ -1452,15 +1636,31 @@ function LotusPage() {
           <div className={styles.statusRow}>
             {observer && <span className={styles.observerBadge}>Observer view</span>}
             {session?.status === "ACTIVE" && (
-              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")} · Q{shownQuestionNumber}</span>
+              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{planned ? " of 15:00" : ""} · Q{shownQuestionNumber}</span>
             )}
-            <button
-              type="button"
-              className="btn btn-quiet"
-              onClick={() => setObserver((value) => !value)}
-            >
-              {observer ? "Student view" : "Show AI Lab"}
-            </button>
+            {devMode && (
+              <select
+                className="btn btn-quiet"
+                value=""
+                disabled={Boolean(skipping)}
+                onChange={(event) => void skipThrough(event.target.value as LotusDemoGap)}
+                aria-label="Skip through the test with a learning gap"
+              >
+                <option value="">{skipping ? "Skipping the test…" : "Skip test as…"}</option>
+                {LOTUS_DEMO_GAPS.map((gap) => (
+                  <option key={gap.id} value={gap.id}>{gap.label}</option>
+                ))}
+              </select>
+            )}
+            {devMode && (
+              <button
+                type="button"
+                className="btn btn-quiet"
+                onClick={() => setObserver((value) => !value)}
+              >
+                {observer ? "Student view" : "Show AI Lab"}
+              </button>
+            )}
           </div>
         </header>
 
@@ -1470,13 +1670,15 @@ function LotusPage() {
               <div className={styles.phaseRow}>
                 <span className={styles.phaseBadge}>Grade 8 · CBSE</span>
                 {classEnrollment && <span className={styles.phaseBadge}>{classEnrollment.className} · Roll {classEnrollment.rollNumber}</span>}
-                <span className={styles.phaseBadge}>{topic === "FACTORISATION" ? "Factorisation · up to 25 questions" : "Up to 20 minutes"}</span>
+                <span className={styles.phaseBadge}>{catchUp ? `${LOTUS_TOPIC_NAMES[topic]} · catch-up · up to 8 questions` : planned ? `${LOTUS_TOPIC_NAMES[topic]} · up to 25 questions` : "Up to 20 minutes"}</span>
               </div>
               <h1 style={{ marginTop: "1rem" }}>
-                {topic === "FACTORISATION" ? "Find where factorisation breaks down." : "Let Cogna Lotus find the right starting point."}
+                {catchUp ? `A quick catch-up on ${LOTUS_TOPIC_NAMES[topic].toLowerCase()}.` : planned ? `Find where ${LOTUS_TOPIC_NAMES[topic].toLowerCase()} breaks down.` : "Let Cogna Lotus find the right starting point."}
               </h1>
               <p style={{ marginTop: "0.75rem" }}>
-                {topic === "FACTORISATION"
+                {catchUp
+                  ? "A few questions on just the skills you were still working on. AI is preparing them now."
+                  : planned
                   ? "AI is preparing your personalised diagnostic."
                   : "Cogna has a checked, curriculum-balanced question path ready before you begin. When you submit, the next question appears immediately while two AI reviewers examine your answer and can shape later questions. Conclusions remain experimental research evidence."}
               </p>
@@ -1488,14 +1690,10 @@ function LotusPage() {
               {error && <div className={styles.error} style={{ marginTop: "1rem" }}>{error}</div>}
               {status && !status.ready && (
                 <div className={styles.error} style={{ marginTop: "1rem" }}>
-                  Lotus is not ready. Missing: {status.missingConfiguration.join(", ")}.
+                  {status.unavailableReason
+                    ? `${status.unavailableReason} Please try again in a little while.`
+                    : `Lotus is not ready. Missing: ${status.missingConfiguration.join(", ")}.`}
                 </div>
-              )}
-              {process.env.NODE_ENV !== "production" && (
-                <label className={styles.devModelToggle}>
-                  <input type="checkbox" checked={devFakeModel} onChange={toggleDevFakeModel} />
-                  Dev: use free fake model instead of live (no cost, instant, for UI-only changes)
-                </label>
               )}
               <div className={styles.actions} style={{ marginTop: "1.5rem" }}>
                 <button className="btn btn-primary" type="button" onClick={start} disabled={busy || !studentId || !status?.ready}>
@@ -1509,7 +1707,18 @@ function LotusPage() {
           <div className={observer ? styles.layout : styles.layoutStudent}>
             <div className={styles.studentPane}>
             {session.status === "COMPLETE" ? (
-              <FinalReport session={session} teachingHref={teachingHref} />
+              observer ? (
+                <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
+              ) : (
+                <section className={styles.introCard}>
+                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1rem" }}><LotusBloom answered={session.audits.length} /></div>}
+                  <h1>Your diagnostic is complete</h1>
+                  <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
+                  <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
+                    See your report →
+                  </Link>
+                </section>
+              )
             ) : preparing ? (
               <section className={styles.introCard} aria-live="polite">
                 <div className={styles.preparationSpinner} aria-hidden="true"><span /></div>
@@ -1522,13 +1731,46 @@ function LotusPage() {
                   <span style={{ width: `${Math.min(100, ((session.preparation?.readyQuestions ?? 0) / (session.preparation?.targetQuestions ?? 15)) * 100)}%` }} />
                 </div>
                 <p className={styles.muted} style={{ marginTop: "0.75rem" }}>
-                  {session.preparation?.readyQuestions ?? 0} of {session.preparation?.targetQuestions ?? 15} questions ready · usually takes 3 minutes
+                  {session.preparation?.readyQuestions ?? 0} of {session.preparation?.targetQuestions ?? 15} questions ready
+                  {session.preparation?.blockedReason ? "" : " · usually takes 3 minutes"}
                 </p>
-                {preparationTimedOut && (
+                {session.preparation?.blockedReason ? (
+                  <div className={styles.error} style={{ marginTop: "1rem" }} role="alert">
+                    <strong>We can&apos;t finish making your questions right now.</strong>{" "}
+                    The AI that writes them isn&apos;t available. This page carries on by itself as soon as it&apos;s back, or you can
+                    come back later.
+                    {devMode && (
+                      <span style={{ display: "block", marginTop: "0.5rem", fontSize: "0.85rem" }}>
+                        Dev · {session.preparation.blockedReason} To keep testing: leave this page, switch on Fake model in the Dev
+                        panel, then start again.
+                      </span>
+                    )}
+                  </div>
+                ) : preparationTimedOut && (
                   <p className={styles.muted} style={{ marginTop: "0.5rem" }}>
                     Still preparing—no hardcoded questions will be shown. AI is continuing to write and verify the remaining questions.
                   </p>
                 )}
+              </section>
+            ) : reasonFollowUp?.reasonCheck ? (
+              <section className={`${styles.questionCard} ${styles.reasonCard}`} aria-labelledby="reason-heading">
+                <div className={styles.cardBody}>
+                  <p className={styles.muted}>About your last answer</p>
+                  <p className={styles.reasonEcho}>
+                    <span className={styles.reasonPrompt}>{reasonFollowUp.question.prompt}</span>
+                    <span>You wrote <b>{reasonFollowUp.response?.answer}</b></span>
+                  </p>
+                  <h2 id="reason-heading">{reasonFollowUp.reasonCheck.prompt}</h2>
+                  <p className={styles.muted}>Pick the closest. There&apos;s no wrong choice here.</p>
+                  <div className={styles.reasonOptions} role="group" aria-labelledby="reason-heading">
+                    {reasonFollowUp.reasonCheck.options.map((option) => (
+                      <button key={option.id} type="button" className={styles.reasonOption} onClick={() => void answerReason(option.id)} disabled={Boolean(reasonBusy)} aria-busy={reasonBusy === option.id}>
+                        {option.text}
+                      </button>
+                    ))}
+                  </div>
+                  {error && <div className={styles.error} role="alert">{error}</div>}
+                </div>
               </section>
             ) : question ? (
               <section className={`${styles.questionCard} ${advancing ? styles.questionAdvancing : ""}`}>
@@ -1552,13 +1794,38 @@ function LotusPage() {
                     <strong className={styles.questionNumber}>Question {shownQuestionNumber} of {totalQuestions}</strong>
                   </div>
                   <div className={styles.cardBody}>
+                    {isPlannedLotusTopic(session.topic) && (
+                      <PondMap answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} />
+                    )}
                     <div className={styles.question}>
                       {promptLines.map((line, index) => (
                         <span key={`${line}-${index}`}>{line}</span>
                       ))}
                     </div>
+                    {isPlannedLotusTopic(session.topic) && !previewQuestion && (
+                      <button type="button" className={gameStyles.readAloud} onClick={() => void readAloud()} disabled={readingAloud || busy}>
+                        {readingAloud ? "Reading…" : "🔈 Read it to me"}
+                      </button>
+                    )}
+                    {readAloudError && <p className={styles.muted} role="status">{readAloudError}</p>}
 
-                    {question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
+                    {question.interaction ? (
+                      <TileGame
+                        key={question.id}
+                        interaction={question.interaction}
+                        look={question.presentation === "GARDEN" ? "garden" : question.presentation === "WORKSHOP" ? "workshop" : question.presentation === "CONSTELLATION" ? "constellation" : undefined}
+                        disabled={inputLocked || didNotKnow}
+                        onChange={(state) => { setTiles(state); setDidNotKnow(false); }}
+                      />
+                    ) : question.presentation === "FIREFLY" && question.options?.length ? (
+                      <FireflyChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.presentation === "IMPOSTOR" && question.options?.length ? (
+                      <ImpostorChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.presentation === "DETECTIVE" && question.lines?.length && question.options?.length ? (
+                      <DetectiveLines key={question.id} lines={question.lines} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.presentation === "FISHING" && question.options?.length ? (
+                      <FishingSelect key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                    ) : question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
                       <div className={styles.options}>
                         {question.options.map((option) => (
                           <label className={styles.option} key={option}>
@@ -1583,7 +1850,7 @@ function LotusPage() {
                             id="lotus-answer"
                             className={styles.mathAnswer}
                             value={answer}
-                            ref={(field) => { activeMathFieldRef.current = field; }}
+                            ref={answerFieldRef}
                             onFocus={(event) => {
                               // Clicking the toolbox temporarily blurs and
                               // refocuses this same field; preserve exponent
@@ -1605,23 +1872,17 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.type !== "MULTIPLE_CHOICE" && (
-                      <div className={styles.mathToolbar} aria-label="Math toolbox">
-                        <span className={styles.mathToolbarLabel}>Math tools</span>
-                        {[
-                          ["+", "+"], ["−", "-"], ["×", "×"], ["÷", "÷"],
-                          ["(", "("], [")", ")"], ["^", "^"], ["x²", "²"], ["x³", "³"],
-                        ].map(([label, token]) => (
-                          <button key={label} type="button" onClick={() => insertMathToken(token)} disabled={inputLocked}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && mathToolbox("answer")}
+
+                    {question.asksForWorking && workingOptional && !workingOpen && (
+                      <button type="button" className={styles.addStep} onClick={() => setWorkingOpen(true)} disabled={inputLocked || didNotKnow}>
+                        + Add working (optional)
+                      </button>
                     )}
 
-                    {question.asksForWorking && (
+                    {question.asksForWorking && (!workingOptional || workingOpen) && (
                       <div className="field">
-                        <label>Show your working, one step at a time</label>
+                        <label>{workingOptional ? "Your working (optional)" : "Show your working, one step at a time"}</label>
                         <div className={styles.workingLines}>
                           {workingLines.map((line, index) => (
                             <div className={styles.workingLine} key={index}>
@@ -1629,10 +1890,12 @@ function LotusPage() {
                               <input
                                 aria-label={`Working step ${index + 1}`}
                                 data-working-index={index}
+                                ref={(field) => { workingFieldRefs.current[index] = field; }}
                                 value={line}
                                 onFocus={(event) => {
                                   if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                                   activeMathFieldRef.current = event.currentTarget;
+                                  setActiveWorkingIndex(index);
                                 }}
                                 onKeyDown={(event) => handleMathKeyDown(event, (value) => {
                                   setWorkingLines((lines) => lines.map((current, lineIndex) => lineIndex === index ? value : current));
@@ -1649,6 +1912,7 @@ function LotusPage() {
                             </div>
                           ))}
                         </div>
+                        {mathToolbox("working")}
                         {workingLines.length < 6 && (
                           <button
                             type="button"
@@ -1697,14 +1961,14 @@ function LotusPage() {
                     </label>
 
                     {error && <div className={styles.error}>{error}</div>}
-                    {demoPersona && (
+                    {demoPersona && devMode && (
                       <button className="btn btn-ghost" type="button" onClick={fillDemoResponse} disabled={inputLocked}>
                         Fill {studentName.split(" ")[0]}’s demo response
                       </button>
                     )}
                     <button className="btn btn-primary" type="button" onClick={submit} disabled={busy}>
                       {busy ? (
-                        <span className={styles.loading}><span className={styles.pulse} />{previewQuestion ? "Saving your answer…" : "Preparing your report…"}</span>
+                        <span className={styles.loading}><span className={styles.pulse} />{previewQuestion ? "Saving your answer…" : "Checking your answer…"}</span>
                       ) : pendingSubmission ? "Retry saving previous answer" : "Submit answer"}
                     </button>
                     {busy && liveProgress?.reflectionPrompt && (
@@ -1753,7 +2017,7 @@ function LotusPage() {
                     </div>
                     <SessionOverview audits={observerAudits} />
                     <ReportEvidenceTrace session={observerSession} audits={observerAudits} />
-                    {observerSession.topic === "FACTORISATION" && observerSession.status === "ACTIVE" && (
+                    {isPlannedLotusTopic(observerSession.topic) && observerSession.status === "ACTIVE" && (
                       <UnseenPlanPanel sessionId={observerSession.sessionId} answeredCount={observerAudits.length} />
                     )}
                     <div className={styles.actionStatusFilters} role="group" aria-label="Decision status">

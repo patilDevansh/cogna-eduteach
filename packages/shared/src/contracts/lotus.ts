@@ -6,6 +6,8 @@
  * every screen and payload must therefore retain the EXPERIMENTAL label.
  */
 
+import type { TileBuildInteraction, TileBuildResponse } from "./interaction-formats";
+
 export type LotusPhase = "EXPLORE" | "DIAGNOSE" | "CONFIRM";
 
 export type LotusQuestionType =
@@ -16,7 +18,33 @@ export type LotusQuestionType =
   | "ERROR_ANALYSIS";
 
 /** Which diagnostic a session runs. BRACKETS is the original Grade 8 signed-bracket unit. */
-export type LotusTopic = "BRACKETS" | "FACTORISATION";
+/** Topics run as a planned test on a skill map: AI writes each question, code checks it and marks the answer. */
+export const LOTUS_PLANNED_TOPICS = [
+  "FACTORISATION", "RATIONAL_NUMBERS", "QUADRILATERALS", "DATA_HANDLING", "SQUARES_ROOTS", "CUBES_ROOTS",
+  "COMPARING_QUANTITIES", "ALGEBRAIC_EXPRESSIONS", "MENSURATION", "EXPONENTS_POWERS", "PROPORTIONS", "GRAPHS",
+] as const;
+export type LotusPlannedTopic = (typeof LOTUS_PLANNED_TOPICS)[number];
+/** BRACKETS is the original adaptive test (fixed opening bank, AI picks each next question). */
+export type LotusTopic = "BRACKETS" | LotusPlannedTopic;
+export const LOTUS_TOPICS: LotusTopic[] = ["BRACKETS", ...LOTUS_PLANNED_TOPICS];
+export const LOTUS_TOPIC_NAMES: Record<LotusTopic, string> = {
+  BRACKETS: "Brackets and linear equations",
+  FACTORISATION: "Factorisation",
+  RATIONAL_NUMBERS: "Rational numbers",
+  QUADRILATERALS: "Understanding quadrilaterals",
+  DATA_HANDLING: "Data handling",
+  SQUARES_ROOTS: "Squares and square roots",
+  CUBES_ROOTS: "Cubes and cube roots",
+  COMPARING_QUANTITIES: "Comparing quantities",
+  ALGEBRAIC_EXPRESSIONS: "Algebraic expressions and identities",
+  MENSURATION: "Mensuration",
+  EXPONENTS_POWERS: "Exponents and powers",
+  PROPORTIONS: "Direct and inverse proportions",
+  GRAPHS: "Introduction to graphs",
+};
+export function isPlannedLotusTopic(topic: LotusTopic | undefined | null): topic is LotusPlannedTopic {
+  return !!topic && topic !== "BRACKETS";
+}
 
 /** What a student making one specific mistake writes — used to recognise that mistake instantly, with no AI call. */
 export interface LotusPredictedMistake {
@@ -31,9 +59,13 @@ export interface LotusPredictedMistake {
  * browser before the student answers.
  */
 export interface LotusItemDiagnostics {
-  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE";
-  /** The expression the student works on (for FACTORISE and SIMPLIFY items). */
+  /** SELECT: choose every option that fits (e.g. "net every fully factorised expression"); built by code only. */
+  /** EXPAND: expand or simplify to collected terms. NUMBER: the answer is a number or fraction. */
+  itemKind: "FACTORISE" | "SIMPLIFY" | "CHOICE" | "SELECT" | "EXPAND" | "NUMBER";
+  /** The expression the student works on (for FACTORISE, SIMPLIFY and EXPAND items). */
   expression?: string;
+  /** NUMBER only: arithmetic (or an equation in x) that code re-evaluates to prove the answer. */
+  check?: string;
   skillId: string;
   /** Other skills this item genuinely uses, from the skill map. */
   taggedSkills: string[];
@@ -42,9 +74,10 @@ export interface LotusItemDiagnostics {
   predictedMistakes: LotusPredictedMistake[];
   slot?: number;
   level?: "easy" | "medium" | "hard";
-  origin: "FALLBACK" | "AI";
-  /** AI-only source shown to observers; omitted on older session records. */
-  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK";
+  /** CODE: a game question built and checked by code (see lotus-probes.ts), accepted like a checked AI item. */
+  origin: "FALLBACK" | "AI" | "CODE";
+  /** Source shown to observers; omitted on older session records. */
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME";
 }
 
 export interface LotusQuestion {
@@ -68,7 +101,26 @@ export interface LotusQuestion {
    * nothing about which skill or hypothesis is being tested.
    */
   requiresConfidenceProbe?: boolean;
+  /**
+   * When set, the student answers by building from tiles instead of typing
+   * (see interaction-formats.ts). Built on the server from the verified
+   * answer key; carries no answer. The picks are re-assembled server-side.
+   */
+  interaction?: TileBuildInteraction;
+  /**
+   * How the question is staged as a game. A skin only: marking follows the
+   * item kind. FIREFLY and IMPOSTOR stage a CHOICE item, DETECTIVE a CHOICE
+   * over `lines`, FISHING a SELECT item, GARDEN and BRIDGE a tile question.
+   */
+  presentation?: LotusPresentation;
+  /** DETECTIVE: the worked solution the student inspects (line 0 is the question). Contains no answer. */
+  lines?: string[];
 }
+
+export type LotusPresentation = "BRIDGE" | "GARDEN" | "WORKSHOP" | "CONSTELLATION" | "FIREFLY" | "IMPOSTOR" | "DETECTIVE" | "FISHING";
+
+/** SELECT answers travel as the chosen options joined with this separator. */
+export const LOTUS_SELECT_SEPARATOR = " | ";
 
 export interface LotusAnswerKey {
   kind: "NUMERIC" | "MULTIPLE_CHOICE" | "OPEN_RESPONSE";
@@ -88,6 +140,20 @@ export interface LotusAnswerKey {
   diagnostics?: LotusItemDiagnostics;
 }
 
+/** Dev/demo only: the learning gap a skipped-through test should show (see LotusService.demoFill). */
+export const LOTUS_DEMO_GAPS = [
+  { id: "signs", label: "Sign errors (like Aarav)" },
+  { id: "grouping", label: "Grouping and pair sums (like Meena)" },
+  { id: "common-factor", label: "Common factors (like Rohan)" },
+  { id: "none", label: "No gap: all correct" },
+] as const;
+
+export type LotusDemoGap = (typeof LOTUS_DEMO_GAPS)[number]["id"];
+
+export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
+  return LOTUS_DEMO_GAPS.some((gap) => gap.id === value);
+}
+
 export interface LotusStudentResponse {
   answer: string;
   working: string;
@@ -99,6 +165,8 @@ export interface LotusStudentResponse {
   questionId?: string;
   /** The prompt-only item that the browser painted immediately on Submit. */
   nextQuestionId?: string;
+  /** Tile picks when the question was shown as a tile game; the server rebuilds `answer` from them. */
+  interaction?: TileBuildResponse;
 }
 
 export interface LotusMathVerification {
@@ -219,8 +287,32 @@ export interface LotusSkillEvidence {
   kind: "SECURE" | "MISTAKE" | "UNFINISHED" | "DID_NOT_KNOW";
   mistake?: string;
   description?: string;
-  source: "INSTANT" | "ANALYSIS";
+  /** REASON: the student's own one-tap answer to "How did you get it?". */
+  source: "INSTANT" | "ANALYSIS" | "REASON";
 }
+
+/** One choice in a "How did you get it?" follow-up. What it means is kept on the server. */
+export interface LotusReasonOption {
+  id: string;
+  text: string;
+}
+
+/**
+ * Asked once, right after a wrong typed answer that matches none of the
+ * question's known mistakes: one tap instead of written working.
+ */
+export interface LotusReasonCheck {
+  prompt: string;
+  options: LotusReasonOption[];
+  chosenId?: string;
+  chosenAt?: string;
+}
+
+/**
+ * How typed questions ask for working. OPTIONAL: final answer only, working
+ * behind "Add working (optional)". LINES: the three working lines, shown.
+ */
+export type LotusWorkingPrompt = "OPTIONAL" | "LINES";
 
 export interface LotusDebateClosure {
   verdict: LotusClosureVerdict;
@@ -284,6 +376,7 @@ export interface LotusQuestionSelection {
   provenance?:
     | "AI_GENERATED_FOR_SESSION"
     | "AI_REUSED_FROM_BANK"
+    | "CODE_BUILT_GAME"
     | "HARDCODED_SYSTEM";
   /**
    * Present only when THIS specific item was installed by an adaptive
@@ -415,6 +508,8 @@ export interface LotusAdaptiveDecision {
 export interface LotusQuestionAudit {
   question: LotusQuestion;
   response: LotusStudentResponse | null;
+  /** Present when this answer earned a "How did you get it?" follow-up. */
+  reasonCheck?: LotusReasonCheck;
   verification: LotusMathVerification | null;
   /** Instant deterministic read computed at submit time, independent of any AI call. */
   breakpoint?: LotusBreakpointDiagnosis | null;
@@ -488,7 +583,17 @@ export interface LotusSessionView {
   grade: 8;
   board: "CBSE";
   topic?: LotusTopic;
+  /** The class assignment this diagnostic was started for, so the class can be updated even if the browser never reports back. */
+  classroomAssignmentId?: string;
+  /** A teacher's catch-up: a short test on only these skills (by name), the ones this student still had open. */
+  catchUp?: { skills: string[] };
   status: "ACTIVE" | "COMPLETE";
+  /**
+   * True from the moment the final answer is accepted until the report is
+   * written (status COMPLETE). Lets the browser leave the question screen
+   * immediately instead of waiting on the final review.
+   */
+  reportPending?: boolean;
   experimental: true;
   phase: LotusPhase;
   startedAt: string;
@@ -503,12 +608,20 @@ export interface LotusSessionView {
     challenger: string;
   };
   liveProgress?: LotusLiveProgress | null;
+  /** How typed questions ask for working in this session (fixed when it starts; see LotusWorkingPrompt). */
+  workingPrompt?: LotusWorkingPrompt;
   /** Factorisation preparation is intentionally prompt-free while the student waits. */
   preparation?: {
     readyQuestions: number;
     targetQuestions: number;
     totalQuestions: number;
     ready: boolean;
+    /**
+     * Set while question writing can't progress because the AI provider is
+     * unavailable at the account level (no credits, bad key). Preparation
+     * resumes on its own once the provider answers again.
+     */
+    blockedReason?: string;
   };
 }
 
@@ -524,7 +637,7 @@ export interface LotusUnseenPlanEntry {
   skill: string;
   purpose: "COVERAGE" | "TARGETED_CHECK" | "EASIER_PREREQUISITE" | "BROADENED_EVIDENCE" | "COVERAGE_REPLACEMENT";
   readiness: "READY" | "AWAITING_GENERATION";
-  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK";
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME";
 }
 
 export interface LotusStatusResponse {
@@ -534,4 +647,6 @@ export interface LotusStatusResponse {
   models: { primary: string; challenger: string };
   /** When false, liveProgress is never populated — clients should not poll. */
   progressiveStreamingEnabled: boolean;
+  /** Present when the AI provider recently refused calls at the account level (no credits, bad key). */
+  unavailableReason?: string;
 }

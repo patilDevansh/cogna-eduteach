@@ -78,6 +78,13 @@ function submitted(response: StepResponse) {
   return response as Extract<StepResponse, { outcome: "SUBMITTED" }>;
 }
 
+/** Like the real model, quote the step and say what it shows — otherwise the interpreter rejects the reply. */
+function groundedReasoning(userPrompt: string): string {
+  const change = /Exact submitted change: (.*)/.exec(userPrompt)?.[1] ?? "";
+  const wrong = /What went wrong most recently: (.*)/.exec(userPrompt)?.[1];
+  return wrong ? `${change}: an error, ${wrong}` : `${change}: worked correctly.`;
+}
+
 async function runScenario(aiEnabled: boolean): Promise<RunResult> {
   const { prisma, db } = createFakePrisma([STUDENT_ID]);
 
@@ -98,9 +105,10 @@ async function runScenario(aiEnabled: boolean): Promise<RunResult> {
     generate: aiEnabled,
     raw: (call) =>
       JSON.stringify({
+        microSkillId: (call.ruleOutput as { microSkillId: string }).microSkillId,
         hypothesisLabel: (call.ruleOutput as { hypothesisLabel: string }).hypothesisLabel,
         confidence: 0.91,
-        reasoning: "The same sign slip shows up whenever a minus sits directly outside a bracket.",
+        reasoning: groundedReasoning(call.userPrompt),
         childFacingSummary: "Let's look at what a minus sign just outside a bracket does to the numbers inside.",
       }),
   });
@@ -550,7 +558,11 @@ describe("\"I don't know\" is an action, not a wrong answer", () => {
     assert.equal(state.independentSuccessCount, 0);
     assert.equal(state.status, "UNKNOWN");
     assert.deepEqual(state.observedContextGaps, []);
-    assert.equal(debug.hypotheses.length, 0, "no gap was diagnosed, so no hypothesis was written");
+    assert.equal(
+      debug.hypotheses.filter((h) => h.microSkillId === "LIN_DISTRIBUTE_NEG").length,
+      0,
+      "a decline says nothing about the skill, so no explanation is written for it",
+    );
   });
 
   it("climbs the assistance ladder: hand over the rule, then explain and move on", async () => {

@@ -7,6 +7,7 @@
     "lint": "turbo lint",
     "db:generate": "pnpm --filter @cogna/database generate",
     "db:push": "pnpm --filter @cogna/database push",
+    "db:migrate:deploy": "pnpm --filter @cogna/database migrate:deploy",
     "db:seed": "pnpm --filter @cogna/database seed",
     "db:studio": "pnpm --filter @cogna/database studio",
     "test:golden": "pnpm --filter @cogna/api test",

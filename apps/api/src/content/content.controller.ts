@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { WorkerGuard } from "../access/worker.guard";
 import { QuestionGeneratorService } from "../engines/question-generator/question-generator.service";
 import { ContentReviewInput, ContentService } from "./content.service";
 import {
@@ -8,6 +9,7 @@ import {
 } from "./content-draft.service";
 import type { ContentDraft, DraftStatus, DraftSource } from "@cogna/shared";
 
+@UseGuards(WorkerGuard)
 @Controller("content")
 export class ContentController {
   constructor(

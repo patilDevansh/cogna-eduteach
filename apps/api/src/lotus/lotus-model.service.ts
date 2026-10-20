@@ -1,4 +1,5 @@
 import { ServiceUnavailableException } from "@nestjs/common";
+import { openAiStudentTextModerator, studentStrings } from "../ai/student-text-safety";
 import { ConfigService } from "@nestjs/config";
 import type {
   LotusDebateClosure,
@@ -8,6 +9,7 @@ import type {
   LotusReserveIntent,
 } from "@cogna/shared";
 import { OpenAIService } from "../ai/openai.service";
+import { SPEND_CAP_ERROR_CODE } from "../ai/openai-metering";
 import { LotusLatencyPolicy, type LotusCallKind } from "./lotus-latency-policy";
 import { LotusCostTracker, type LotusCostSnapshot } from "./lotus-cost-tracker";
 
@@ -31,11 +33,54 @@ function assertStringField(value: Record<string, unknown>, field: string, label:
   }
 }
 
+/**
+ * How long an account-level provider failure (no credits, bad key) makes
+ * calls fail fast before one probe call is allowed through again.
+ */
+export const PROVIDER_OUTAGE_PROBE_MS = 60_000;
+
+export interface LotusProviderOutage {
+  kind: "NO_CREDITS" | "AUTH" | "SPEND_CAP";
+  /** Plain-English, safe to show a teacher or developer. */
+  reason: string;
+  /** The provider's own message, for logs and dev views. */
+  detail: string;
+  at: number;
+}
+
+/** Thrown instead of calling the provider while an account-level outage is fresh. */
+export class LotusProviderUnavailableError extends ServiceUnavailableException {
+  constructor(readonly outage: LotusProviderOutage) {
+    super(`AI provider unavailable: ${outage.reason}`);
+  }
+}
+
+/**
+ * Account-level failures that retrying cannot fix. A plain 429 rate limit is
+ * transient and deliberately NOT treated as an outage.
+ */
+export function classifyProviderError(error: unknown): Omit<LotusProviderOutage, "at"> | null {
+  const status = (error as { status?: number })?.status;
+  const code = (error as { code?: string })?.code;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (status === 429 && code === SPEND_CAP_ERROR_CODE) {
+    return { kind: "SPEND_CAP", reason: "Cogna's daily AI spending limit has been reached (it resets at midnight UTC)", detail: message };
+  }
+  if (status === 429 && (code === "insufficient_quota" || code === "credit_balance_exhausted" || /credits? remaining|insufficient[_ ]quota|billing/i.test(message))) {
+    return { kind: "NO_CREDITS", reason: "the AI provider account has no credits left", detail: message };
+  }
+  if (status === 401 || status === 403 || code === "invalid_api_key") {
+    return { kind: "AUTH", reason: "the AI provider rejected the API key", detail: message };
+  }
+  return null;
+}
+
 export class LotusModelService {
   readonly primaryModel: string;
   readonly challengerModel: string;
   private readonly latency: LotusLatencyPolicy;
   private readonly costTracker = new LotusCostTracker();
+  private outage: LotusProviderOutage | null = null;
 
   constructor(
     private readonly openai: OpenAIService,
@@ -56,16 +101,30 @@ export class LotusModelService {
     ready: boolean;
     missingConfiguration: string[];
     progressiveStreamingEnabled: boolean;
+    unavailableReason?: string;
   } {
     const enabled = this.config.get<string>("LOTUS_EXPERIMENTAL_ENABLED") !== "false";
     const missingConfiguration: string[] = [];
     if (!this.openai.isConfigured) missingConfiguration.push("OPENAI_API_KEY");
+    const outage = this.activeOutage;
     return {
       enabled,
-      ready: enabled && missingConfiguration.length === 0,
+      ready: enabled && missingConfiguration.length === 0 && !outage,
       missingConfiguration,
       progressiveStreamingEnabled: this.progressiveStreamingEnabled,
+      ...(outage ? { unavailableReason: `Lotus can't reach its AI right now: ${outage.reason}.` } : {}),
     };
+  }
+
+  /** The current account-level outage, if it's fresh enough that another call would just fail again. */
+  get activeOutage(): LotusProviderOutage | null {
+    if (!this.outage) return null;
+    return Date.now() - this.outage.at < PROVIDER_OUTAGE_PROBE_MS ? this.outage : null;
+  }
+
+  /** The last account-level outage, even if a probe is now allowed. Cleared by any successful call. */
+  get lastOutage(): LotusProviderOutage | null {
+    return this.outage;
   }
 
   /**
@@ -90,7 +149,7 @@ export class LotusModelService {
     }
     if (!status.ready) {
       throw new ServiceUnavailableException(
-        `Cogna Lotus needs: ${status.missingConfiguration.join(", ")}.`,
+        status.unavailableReason ?? `Cogna Lotus needs: ${status.missingConfiguration.join(", ")}.`,
       );
     }
   }
@@ -192,6 +251,10 @@ export class LotusModelService {
     agentLabel: string,
     kind: LotusCallKind,
   ): Promise<unknown> {
+    // While the account is refusing calls, fail fast instead of spending
+    // another request (and another retry round) on a guaranteed 429/401.
+    const outage = this.activeOutage;
+    if (outage) throw new LotusProviderUnavailableError(outage);
     try {
       const tuning = this.latency.tuning(kind, model);
       const response = await this.openai.getClient().responses.create({
@@ -209,10 +272,24 @@ export class LotusModelService {
           totalTokens: response.usage.total_tokens,
         });
       }
+      this.outage = null;
       const content = response.output_text;
       if (!content) throw new Error(`${agentLabel} returned an empty response.`);
-      return extractJson(content);
+      const value = extractJson(content);
+      // Anything but the blind solver's answer can reach a student, so it is
+      // safety-checked here, once, for every Lotus call. Fails closed: callers
+      // already treat a failed call as "use the fallback".
+      if (kind !== "blind-solve") {
+        const unsafe = await openAiStudentTextModerator(this.openai.getClient())(studentStrings(value));
+        if (unsafe) throw new Error(`${agentLabel}: ${unsafe}`);
+      }
+      return value;
     } catch (error) {
+      const provider = classifyProviderError(error);
+      if (provider) {
+        this.outage = { ...provider, at: Date.now() };
+        throw new LotusProviderUnavailableError(this.outage);
+      }
       throw new ServiceUnavailableException(
         `${agentLabel} Lotus call failed: ${error instanceof Error ? error.message : "unknown error"}`,
       );

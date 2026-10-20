@@ -310,12 +310,12 @@ model User {
 model Teacher {
   id          String   @id @default(cuid())
   identityKey String   @unique
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  schoolId  String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId    String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   classrooms Classroom[]
 
@@ -329,21 +329,36 @@ model Parent {
   name               String
   trialEndsAt        DateTime?
   subscriptionStatus String    @default("trial")
+  /// Verified mobile in E.164 (+919876543210). One account per number: the latest to verify it holds it.
+  phone              String?   @unique
+  phoneVerifiedAt    DateTime?
+  /// Short texts to the verified phone when something happens in class (on until the parent turns them off).
+  textUpdates        Boolean   @default(true)
 
-  primaryStudents ParentStudentLink[] @relation("PrimaryParent")
-  createdAt       DateTime            @default(now())
+  primaryStudents ParentStudentLink[]     @relation("PrimaryParent")
+  notifications   ParentNotification[]
+  phoneCodes      PhoneVerificationCode[]
+  linkRequests    ParentLinkRequest[]
+  createdAt       DateTime                @default(now())
 }
 
 model Student {
-  id              String    @id @default(cuid())
-  userId          String?   @unique
-  user            User?     @relation(fields: [userId], references: [id])
-  primaryParentId String
-  name            String
-  grade           Int       @default(8)
-  curriculum      String    @default("CBSE")
-  accessCodeHash  String
-  deletedAt       DateTime?
+  id                   String    @id @default(cuid())
+  userId               String?   @unique
+  user                 User?     @relation(fields: [userId], references: [id])
+  primaryParentId      String
+  name                 String
+  grade                Int       @default(8)
+  curriculum           String    @default("CBSE")
+  accessCodeHash       String
+  deletedAt            DateTime?
+  /// A child the family added that the parent said is not the same as a child from school with the same first name.
+  duplicateDismissedAt DateTime?
+  /// Where the student asked Cogna to email a sign-up invite (typed when joining a class). Shown masked to the student and teacher.
+  parentInviteEmail    String?
+  parentInviteSentAt   DateTime?
+  /// Invites sent in the 24 hours since the last one; caps how many emails a student can trigger.
+  parentInviteCount    Int       @default(0)
 
   /**
    * Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags.
@@ -351,6 +366,8 @@ model Student {
   aiAssistedPracticePaused Boolean @default(false)
 
   learnerProfile       LearnerProfile?
+  parentNotifications  ParentNotification[]
+  guardianPhones       StudentGuardianPhone[]
   sessions             LearningSession[]
   attempts             Attempt[]
   masteryScores        MasteryScore[]
@@ -393,11 +410,34 @@ model Classroom {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  enrollments ClassroomEnrollment[]
-  runs        ClassroomRun[]
+  enrollments  ClassroomEnrollment[]
+  runs         ClassroomRun[]
+  topics       ClassroomTopic[]
+  linkRequests ParentLinkRequest[]
 
   @@index([teacherId, archivedAt])
   @@index([schoolId])
+}
+
+/// A class's topic plan: one row per syllabus topic, in teaching order.
+model ClassroomTopic {
+  id          String    @id @default(cuid())
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  /// Catalogue id (apps/api/src/classrooms/topic-catalogue.ts), also ClassroomRun.topicId.
+  topicId     String
+  position    Int
+  /// UPCOMING | TEACHING | DONE
+  status      String    @default("UPCOMING")
+  startedAt   DateTime?
+  doneAt      DateTime?
+  /// Last time the teacher said the class is still on this topic.
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([classroomId, topicId])
+  @@index([classroomId, position])
 }
 
 model ClassroomEnrollment {
@@ -428,6 +468,8 @@ model ClassroomRun {
   status      ClassroomRunStatus @default(DRAFT)
   config      Json               @default("{}")
   startedAt   DateTime?
+  /// When each student should have finished the whole check (set at launch). Parents see it; null means no deadline.
+  dueAt       DateTime?
   completedAt DateTime?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
@@ -468,6 +510,8 @@ model ParentStudentLink {
   student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   relationship   String  @default("parent")
   canViewReports Boolean @default(true)
+  /// FAMILY (the parent made the child) | PHONE (their verified phone is on the school's record) | TEACHER_APPROVED
+  source         String  @default("FAMILY")
 
   @@id([parentId, studentId])
 }
@@ -497,6 +541,8 @@ model ConceptPrerequisite {
   prerequisite   Concept @relation("Prerequisite", fields: [prerequisiteId], references: [id], onDelete: Cascade)
 
   @@id([conceptId, prerequisiteId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([conceptId], map: "idx_concept_prerequisite_concept")
 }
 
 model Misconception {
@@ -541,6 +587,8 @@ model Question {
   @@id([id, version])
   @@index([conceptId, difficulty, reviewStatus])
   @@index([unitId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([conceptId, difficulty, questionIntent, reviewStatus], map: "idx_question_concept_difficulty_intent")
 }
 
 model Explanation {
@@ -625,6 +673,9 @@ model Attempt {
 
   @@index([studentId, createdAt])
   @@index([sessionId, createdAt])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, createdAt(sort: Desc)], map: "idx_attempt_student_recent")
+  @@index([sessionId, createdAt(sort: Desc)], map: "idx_attempt_session_recent")
 }
 
 // ─── Learner state ─────────────────────────────────────────────────────────
@@ -675,6 +726,8 @@ model DiagnosticFactor {
   createdAt               DateTime  @default(now())
 
   @@index([studentId, createdAt])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, conceptId, factorType, createdAt(sort: Desc)], map: "idx_diagnostic_factor_student_concept_type")
 }
 
 model MisconceptionRemediationState {
@@ -689,6 +742,8 @@ model MisconceptionRemediationState {
   updatedAt             DateTime         @updatedAt
 
   @@id([studentId, misconceptionId, conceptId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, conceptId, updatedAt(sort: Desc)], map: "idx_misconception_remediation_student_concept")
 }
 
 /**
@@ -778,6 +833,8 @@ model RevisionQueueItem {
 
   @@unique([studentId, dedupeKey])
   @@index([studentId, status, dueAt])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, status, dueAt(sort: Desc), priority(sort: Desc)], map: "idx_revision_queue_due")
 }
 
 model Report {
@@ -846,6 +903,8 @@ model RetentionEstimate {
 
   @@unique([studentId, conceptId, modelVersion, validUntil])
   @@index([studentId, conceptId])
+  // Hot query path (from migration 20260912120600_add_performance_indexes)
+  @@index([studentId, conceptId, validUntil, createdAt(sort: Desc)], map: "idx_retention_estimate_valid")
 }
 
 model ExplanationOutcome {
@@ -1362,20 +1421,24 @@ model DiagnosticV2EvidenceRecord {
 // as demo_aarav are not Student rows, so studentId is stored as a string.
 
 model LotusSessionRecord {
-  id        String    @id @default(cuid())
-  sessionId String    @unique
-  studentId String
-  /** Deterministic HMAC of studentId. Lets an observer/export identify a learner across sessions without the raw ID. */
-  pseudonymId String?
-  /** When this session's durable data is eligible for deletion under the classroom retention policy. */
+  id             String    @id @default(cuid())
+  sessionId      String    @unique
+  studentId      String
+  /**
+   * Deterministic HMAC of studentId. Lets an observer/export identify a learner across sessions without the raw ID.
+   */
+  pseudonymId    String?
+  /**
+   * When this session's durable data is eligible for deletion under the classroom retention policy.
+   */
   retentionUntil DateTime?
-  status    String
-  phase     String
-  startedAt DateTime
-  endedAt   DateTime?
-  payload   Json
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  status         String
+  phase          String
+  startedAt      DateTime
+  endedAt        DateTime?
+  payload        Json
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   evidence         LotusEvidenceRecord[]
   videoAssignments PersonalizedVideoAssignment[]
@@ -1386,41 +1449,57 @@ model LotusSessionRecord {
 }
 
 model LotusEvidenceRecord {
-  id                 String             @id @default(cuid())
-  sessionRecordId    String
-  session            LotusSessionRecord @relation(fields: [sessionRecordId], references: [id], onDelete: Cascade)
-  eventType          String
-  outcome            String
-  questionText       String?
-  submittedText      String?
-  verificationStatus String?
-  verbatimText       String             @db.Text
-  metadata           Json?
-  /** The question this event concerns. Present on ANSWER events, null on whole-session SESSION_STATE snapshots. */
-  questionId         String?
-  /** Client-supplied submission id. Paired with questionId, this is the DB-level duplicate-submit guard. */
-  submissionId       String?
-  /** When downstream review work for this turn was enqueued (outbox). */
-  queuedAt           DateTime?
-  /** When a worker actually started deep analysis for this turn. */
-  analysisStartedAt  DateTime?
-  /** When deep analysis for this turn finished (success or terminal failure). */
+  id                  String             @id @default(cuid())
+  sessionRecordId     String
+  session             LotusSessionRecord @relation(fields: [sessionRecordId], references: [id], onDelete: Cascade)
+  eventType           String
+  outcome             String
+  questionText        String?
+  submittedText       String?
+  verificationStatus  String?
+  verbatimText        String             @db.Text
+  metadata            Json?
+  /**
+   * The question this event concerns. Present on ANSWER events, null on whole-session SESSION_STATE snapshots.
+   */
+  questionId          String?
+  /**
+   * Client-supplied submission id. Paired with questionId, this is the DB-level duplicate-submit guard.
+   */
+  submissionId        String?
+  /**
+   * When downstream review work for this turn was enqueued (outbox).
+   */
+  queuedAt            DateTime?
+  /**
+   * When a worker actually started deep analysis for this turn.
+   */
+  analysisStartedAt   DateTime?
+  /**
+   * When deep analysis for this turn finished (success or terminal failure).
+   */
   analysisCompletedAt DateTime?
-  /** The plan slot this turn's question was installed into, if it came from an adaptive decision. */
-  installedSlot      Int?
-  /** When the browser acknowledged actually displaying this question. */
-  shownAckAt         DateTime?
-  /** Model spend for this turn's review, in integer cents. Null until a cost source exists upstream. */
-  costCents          Int?
-  promptVersion      String?
-  modelVersion       String?
-  policyVersion      String?
-  skillMapVersion    String?
-  createdAt          DateTime           @default(now())
+  /**
+   * The plan slot this turn's question was installed into, if it came from an adaptive decision.
+   */
+  installedSlot       Int?
+  /**
+   * When the browser acknowledged actually displaying this question.
+   */
+  shownAckAt          DateTime?
+  /**
+   * Model spend for this turn's review, in integer cents. Null until a cost source exists upstream.
+   */
+  costCents           Int?
+  promptVersion       String?
+  modelVersion        String?
+  policyVersion       String?
+  skillMapVersion     String?
+  createdAt           DateTime           @default(now())
 
+  @@unique([sessionRecordId, questionId, submissionId])
   @@index([sessionRecordId, createdAt])
   @@index([sessionRecordId, eventType])
-  @@unique([sessionRecordId, questionId, submissionId])
 }
 
 /// An AI-authored, code-validated Lotus item that a learner actually
@@ -1428,21 +1507,21 @@ model LotusEvidenceRecord {
 /// no response, working, learner identifier, or answer-analysis outcome.
 /// An item can only enter here from a durable accepted ANSWER event.
 model LotusQuestionBankItem {
-  id                String   @id @default(cuid())
-  topic             String
-  question          Json
-  questionPrint     String
-  skillId           String
-  itemKind          String
-  level             String?
-  sourceSessionId   String
-  sourceQuestionId  String
-  firstAnsweredAt   DateTime
-  reuseCount        Int      @default(0)
-  lastReusedAt      DateTime?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String    @id @default(cuid())
+  topic            String
+  question         Json
+  questionPrint    String
+  skillId          String
+  itemKind         String
+  level            String?
+  sourceSessionId  String
+  sourceQuestionId String
+  firstAnsweredAt  DateTime
+  reuseCount       Int       @default(0)
+  lastReusedAt     DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([sourceSessionId, sourceQuestionId])
   @@index([topic, skillId, isActive])
@@ -1493,8 +1572,99 @@ model PersonalizedVideoEvent {
   exitAnswer   String?
   exitWorking  String?
   exitCorrect  Boolean?
+  /// Which exit question this answers: 0 = the main item, 1 = the transfer item. Null on older rows means 0.
+  exitItem     Int?
   createdAt    DateTime                      @default(now())
 
   @@index([assignmentId, createdAt])
   @@index([studentId, kind])
+}
+
+/// Daily ledger of billed third-party API use (OpenAI, ElevenLabs), shared by every API replica.
+/// Written by apps/api/src/ai/spend-cap.ts to enforce the daily call and dollar caps.
+model ApiSpendDay {
+  service   String
+  /// UTC calendar day, yyyy-mm-dd.
+  day       String
+  calls     Int      @default(0)
+  /// Reserved worst-case cost of in-flight calls plus the real cost of finished ones.
+  costUsd   Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@id([service, day])
+}
+
+/// An update from school for a parent, shown in their dashboard (a check finished, catch-up work set).
+model ParentNotification {
+  id        String    @id @default(cuid())
+  parentId  String
+  parent    Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  /// CHECK_FINISHED | CATCH_UP_SET
+  kind      String
+  title     String
+  body      String
+  /// The same event never notifies the same parent twice.
+  dedupeKey String
+  readAt    DateTime?
+  /// When the short text for this update went to the parent's phone (or was skipped as unconfigured).
+  textedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([parentId, dedupeKey])
+  @@index([parentId, createdAt])
+  @@index([studentId])
+}
+
+/// A parent's or guardian's mobile on the school's record for a student. A parent whose verified
+/// phone matches sees the child and can link them; changing the record moves PHONE links with it.
+model StudentGuardianPhone {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  /// E.164, e.g. +919876543210
+  phone        String
+  /// mother | father | guardian
+  relationship String   @default("guardian")
+  createdAt    DateTime @default(now())
+
+  @@unique([studentId, phone])
+  @@index([phone])
+}
+
+/// A one-time code texted to a parent to prove they hold a phone. Hash only.
+model PhoneVerificationCode {
+  id        String    @id @default(cuid())
+  parentId  String
+  parent    Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([parentId, createdAt])
+  @@index([phone, createdAt])
+}
+
+/// A parent whose phone isn't on the school's record asks the teacher to link their child.
+model ParentLinkRequest {
+  id          String    @id @default(cuid())
+  parentId    String
+  parent      Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  childName   String
+  rollNumber  String?
+  /// PENDING | APPROVED | DECLINED
+  status      String    @default("PENDING")
+  /// The student the teacher linked, once approved.
+  studentId   String?
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([classroomId, status])
+  @@index([parentId, createdAt])
 }
