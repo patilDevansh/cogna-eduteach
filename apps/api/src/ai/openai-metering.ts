@@ -1,5 +1,5 @@
 import { tokenCostUsd, type ModelPricingTable } from "./model-pricing";
-import { reserveBudget, SpendCapExceededError, spendCapsFromEnv, type SpendReservation } from "./spend-cap";
+import { hasUsdCap, reserveBudget, SpendCapExceededError, type SpendReservation } from "./spend-cap";
 
 /**
  * A `fetch` for the OpenAI client that books every HTTP attempt — the SDK's
@@ -13,6 +13,13 @@ import { reserveBudget, SpendCapExceededError, spendCapsFromEnv, type SpendReser
 
 /** Used when a chat request sets no output limit; deliberately generous so the reservation errs high. */
 const DEFAULT_OUTPUT_TOKEN_ESTIMATE = 4000;
+
+/**
+ * Speech returns audio, not a usage block, so its booking is never trued up:
+ * audio output tokens are estimated from the text length, deliberately high
+ * (several tokens a character, well above a normal speaking rate).
+ */
+const SPEECH_OUTPUT_TOKENS_PER_CHARACTER = 5;
 
 export const SPEND_CAP_ERROR_CODE = "cogna_spend_cap";
 
@@ -36,13 +43,23 @@ function requestPath(input: Parameters<Fetch>[0]): string {
 }
 
 export function parseRequest(path: string, body: unknown): ParsedRequest {
-  const tokenPriced = /\/(responses|chat\/completions)$/.test(path);
+  const speech = /\/audio\/speech$/.test(path);
+  const tokenPriced = speech || /\/(responses|chat\/completions)$/.test(path);
   if (typeof body !== "string") return { maxOutputTokens: 0, inputTokenEstimate: 0, tokenPriced };
   let json: Record<string, unknown> = {};
   try {
     json = JSON.parse(body) as Record<string, unknown>;
   } catch {
     // Not JSON: nothing to price from.
+  }
+  if (speech) {
+    const text = typeof json.input === "string" ? json.input : "";
+    return {
+      model: typeof json.model === "string" ? json.model : undefined,
+      maxOutputTokens: Math.ceil(text.length * SPEECH_OUTPUT_TOKENS_PER_CHARACTER),
+      inputTokenEstimate: Math.ceil(body.length / 3),
+      tokenPriced,
+    };
   }
   const limit = [json.max_output_tokens, json.max_completion_tokens, json.max_tokens].find((v) => typeof v === "number");
   return {
@@ -89,9 +106,9 @@ export function createMeteredFetch(options: {
     if (request.tokenPriced && !price) {
       const label = request.model ?? "(unknown model)";
       // With a dollar cap set, an unpriced model would silently escape it — refuse instead.
-      if (Number.isFinite(spendCapsFromEnv("OPENAI", env).usd)) {
+      if (hasUsdCap("OPENAI", env)) {
         return refusal(
-          `OPENAI_DAILY_USD_CAP is set but ${label} has no price in OPENAI_MODEL_PRICING_JSON, so its cost can't be capped.`,
+          `An OpenAI dollar cap is set but ${label} has no price in OPENAI_MODEL_PRICING_JSON, so its cost can't be capped.`,
         );
       }
       if (!warnedUnpriced.has(label)) {

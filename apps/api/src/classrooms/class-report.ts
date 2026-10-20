@@ -19,6 +19,8 @@ export interface StudentEvidence {
   diagnostic?: {
     outcome?: string;
     startingSkillId?: string;
+    /** The start was found because the student said "I don't know" there, not by mistakes: teach from the basics. */
+    startingNotLearned?: boolean;
     skills: Array<{ skillId: string; name: string; state: string }>;
     answered: number;
     correct: number;
@@ -65,7 +67,7 @@ export interface StudentRow {
   stage: Stage;
   stageStatus: string;
   outcome?: string;
-  startingPoint?: { skillId: string; name: string };
+  startingPoint?: { skillId: string; name: string; notLearnedYet?: boolean };
   answered?: number;
   correct?: number;
   minutes?: number | null;
@@ -142,7 +144,11 @@ export function buildClassReport(students: StudentEvidence[], now: Date = new Da
     const { stage, status } = stageOf(s);
     const activity = activityOf(s, stage, status, now);
     const start = s.diagnostic?.startingSkillId
-      ? { skillId: s.diagnostic.startingSkillId, name: s.diagnostic.skills.find((k) => k.skillId === s.diagnostic!.startingSkillId)?.name ?? s.diagnostic.startingSkillId }
+      ? {
+          skillId: s.diagnostic.startingSkillId,
+          name: s.diagnostic.skills.find((k) => k.skillId === s.diagnostic!.startingSkillId)?.name ?? s.diagnostic.startingSkillId,
+          ...(s.diagnostic.startingNotLearned ? { notLearnedYet: true } : {}),
+        }
       : undefined;
     return {
       studentId: s.studentId,

@@ -20,7 +20,8 @@ function isVerifiedObservation(observation: PersonalizedVideoEvidenceObservation
   return (
     observation.independent &&
     Boolean(observation.questionText?.trim()) &&
-    ["VERIFIED_CORRECT", "VERIFIED_INCORRECT"].includes(observation.verificationStatus)
+    // SAID_NOT_KNOWN: the student said "I don't know this yet" on the question (see lotus-evidence.ts).
+    ["VERIFIED_CORRECT", "VERIFIED_INCORRECT", "SAID_NOT_KNOWN"].includes(observation.verificationStatus)
   );
 }
 

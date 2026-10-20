@@ -41,6 +41,8 @@ function classDoneLine(c: ClassStatus): string {
   if (check.progress === "NOT_YET") return "All done. Your teacher will help with the tricky part.";
   if (check.progress === "NO_GAP" || check.progress === "UNCLEAR") return "Quick check done. Nothing else to do right now.";
   if (check.stage === "DONE") return "This check is closed.";
+  // Added after the class check was sent: nothing is coming until the teacher sends the next one.
+  if (check.stage === "JOINED") return "You joined after this check. Your teacher will send you the next one.";
   return "Your next step is being prepared. It will appear here.";
 }
 

@@ -317,6 +317,18 @@ describe("Personalized video evidence gate", () => {
     assert.equal(result.eligible, false);
     assert.equal(result.diagnosticState, "developing");
   });
+
+  it("teaches a student whose gap is a skill they said they don't know yet", () => {
+    const result = evaluateRemediationEligibility({
+      diagnosticState: "supported-gap",
+      lotusOutcome: "SOLID_GAP",
+      observedEvidence: ["What factorised means — not learned yet. Q6: said they don't know this yet · Q19: said they don't know this yet"],
+      verifiedObservations: [
+        { questionText: "Is 4y(x + 2) + 5(x + 2) fully factorised?", submittedText: "I don't know this yet", verificationStatus: "SAID_NOT_KNOWN", independent: true },
+      ],
+    });
+    assert.equal(result.eligible, true);
+  });
 });
 
 describe("Personalized video math validation", () => {
@@ -847,8 +859,9 @@ describe("Personalized video narration synthesis", () => {
       const { tts, calls } = fakeTts({ enabled: true });
       const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
 
-      await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+      const narratedView = await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
       await createThenRead(videos, { studentId: "demo_aarav_2", studentKey: "aarav" });
+      assert.equal(narratedView.asset?.narrated, true, "a voiced video is reported as narrated");
 
       assert.equal(manifests.length, 2);
       const firstAudioPaths = manifests[0]!.scenes.map((scene) => scene.audioPath);
@@ -875,7 +888,7 @@ describe("Personalized video narration synthesis", () => {
       const { tts, calls } = fakeTts({ enabled: false });
       const { videos } = serviceWith(renderer, createPersonalizedVideoMemoryDb(), tts);
 
-      await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
+      const view = await createThenRead(videos, { studentId: "demo_aarav", studentKey: "aarav" });
 
       assert.equal(calls.length, 0);
       assert.equal(manifests.length, 1);
@@ -883,6 +896,7 @@ describe("Personalized video narration synthesis", () => {
         manifests[0]!.scenes.every((scene) => !scene.audioPath),
         "no scene should get an audioPath when TTS is disabled",
       );
+      assert.equal(view.asset?.narrated, false, "the lesson page is told the video is silent, so it won't say Narrated");
     } finally {
       restore();
     }

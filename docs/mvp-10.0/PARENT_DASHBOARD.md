@@ -1,6 +1,6 @@
 # MVP 10.0 amendment: the parent dashboard
 
-**Status:** Draft. Product owner decisions of 2026-10-12. Built: due dates, work summary, home page, parent email invite. Not built: reminders, WhatsApp, teacher due-date picker.
+**Status:** Draft. Product owner decisions of 2026-10-12. Built: due dates, work summary, home page, parent email invite, phone-verified parent linking (PR #20). Not built: reminders, WhatsApp, teacher due-date picker.
 **Why:** a parent's first question is "has my child done the work?", and only then "where are they stuck?". The dashboard answers those, in that order, and warns before a deadline is missed — first to the child, then to the parent.
 
 ## What a parent gets, in order
@@ -59,12 +59,13 @@ One task is one class check for one student (first check → lesson → final ch
 
 ## How a parent gets connected
 
-1. When a student joins a class with the class code, they can type a parent's email (optional; asked only while no family has linked them).
-2. Cogna emails that parent from cogna.eduteach@gmail.com: the child's first name, the class and teacher, a link and a one-time code (30 days). The link carries the code after `#`, so it never reaches a server log. This replaces any earlier code, including the one on a school slip.
-3. The parent opens the link, signs in or signs up, and lands on the claim form with the code filled in. Claiming is consent, as before.
-4. Limits: one invite per 2 minutes and 3 a day per student. The student sees the address masked (`pr•••@gmail.com`). If mail isn't configured in production, the slip's code is left working and nothing is sent.
+1. The school's class list carries parents' mobile numbers, and the teacher confirms the school's consent when adding students (PR #20).
+2. A parent signs in and confirms their mobile number with a texted 6-digit code. Every child listed with that number appears; the parent agrees or declines for each one. Any number of guardians can link this way.
+3. A parent the school has no number for asks from the same page, and the teacher approves them.
+4. When a student joins a class, they can type a parent's email (optional; asked only while no family has linked them). Cogna emails that parent a link to sign in. The email carries no code and links nothing by itself: the parent still confirms their phone, or asks the teacher.
+5. Limits: one invite per 2 minutes and 3 a day per student. The student sees the address masked (`pr•••@gmail.com`). If mail isn't configured in production, nothing is sent and the student is told to ask the teacher to add the parent's number.
 
-Risk: a mistyped address sends the code to a stranger, who could link the child. The masked address helps the student spot typos; the teacher roster should also show it (not built).
+The verified phone from step 2 is the number WhatsApp messages would go to.
 
 ## Channels
 
@@ -72,7 +73,7 @@ Risk: a mistyped address sends the code to a stranger, who could link the child.
 |---|---|---|
 | In-app | `ParentNotification` exists (check finished, catch-up set) | New kinds: `DUE_SOON`, `OVERDUE` |
 | Email | SMTP via nodemailer (`apps/api/src/mail/mail.service.ts`); pilot uses Gmail | `SMTP_USER` / `SMTP_PASS` set per environment |
-| WhatsApp | Nothing | WhatsApp Business API provider, pre-approved message templates, a parent phone number (`Parent` has no phone field today) and explicit opt-in recorded with the parent link (DPDP consent for minors' data) |
+| WhatsApp | Nothing | WhatsApp Business API provider, pre-approved message templates and explicit WhatsApp opt-in. The verified parent phone now exists (`Parent.phone`, PR #20). |
 
 ## Home page, top to bottom
 

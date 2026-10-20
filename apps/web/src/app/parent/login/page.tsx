@@ -40,7 +40,7 @@ function TrustLine() {
     <div className={styles.trustLine}>
       <ShieldIcon />
       <p>
-        Your child never sees this login. Everything shown here is checked
+        Your child never sees this page. Every lesson and question is checked
         before it reaches them.
       </p>
     </div>
@@ -110,7 +110,7 @@ export default function ParentLoginPage() {
       <div className={`${styles.parentWrap} phase-in`}>
         <div className={styles.parentCard}>
           <div className={styles.parentHead}>
-            <h1>Welcome back</h1>
+            <h1>Your parent account</h1>
             <p>
               Create an account to add students and see their progress.
               {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY

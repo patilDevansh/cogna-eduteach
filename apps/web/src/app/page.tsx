@@ -57,27 +57,27 @@ export default function Landing() {
         {/* The Core Learning Loop */}
         <section className={styles.band}>
           <div className="shell-letter">
-            <h2 className={styles.bandTitle}>The 10-Minute Proof Loop</h2>
+            <h2 className={styles.bandTitle}>How a class works with Cogna</h2>
             <div className={styles.steps}>
               <div>
-                <p className="eyebrow">1. Inspect</p>
+                <p className="eyebrow">1. Quick check</p>
                 <p>
-                  Line-by-line deterministic verification finds the exact operation that changed
-                  the answer — never an IQ or personality label.
+                  The teacher picks the topic and each student takes a short check. Code marks every
+                  answer and finds exactly where each one starts to go wrong.
                 </p>
               </div>
               <div>
-                <p className="eyebrow">2. Contrast</p>
+                <p className="eyebrow">2. A lesson for each student</p>
                 <p>
-                  The Mistake Microscope shows side-by-side what happened vs the correct balance,
-                  with one active check question.
+                  Each student gets a short lesson built from their own answers, then practice games
+                  that show the working when they get stuck.
                 </p>
               </div>
               <div>
-                <p className="eyebrow">3. Independent Proof</p>
+                <p className="eyebrow">3. On their own</p>
                 <p>
-                  A structurally different transfer problem confirms whether the fix worked unaided,
-                  followed by a calm Day 4 retention check.
+                  A fresh question with no help shows whether it stuck. Teachers see who is ready to
+                  move on, and parents see what their child did and what&apos;s next.
                 </p>
               </div>
             </div>

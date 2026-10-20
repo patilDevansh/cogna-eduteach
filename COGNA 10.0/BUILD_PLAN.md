@@ -49,6 +49,14 @@ These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONT
 
 Before executing each phase's test gate, notify the product owner in the active Codex thread with the test scope, environment, live-model/cost impact, expected duration, and any test-data reset; wait for acknowledgment and report the results before starting the next phase.
 
+## Lotus diagnostic puzzle integration (2026-10-09)
+
+- [x] Add Factor crossword on compatible medium monic-trinomial coverage; verify every crossing and record one observation.
+- [x] Add Cut-and-build studio on compatible numeric difference-of-squares coverage; mark submitted side lengths with existing algebra.
+- [x] Preserve adaptive checks, existing probes, kill switch, key redaction and diagnostic-only stage restrictions.
+- [x] Shared/API/web TypeScript and 56 focused interaction/puzzle tests.
+- [ ] Complete full database regression and browser acceptance after local-network/approval access is restored.
+
 ## Classroom connections (2026-10-08)
 
 - [x] One Lotus session per class assignment (refresh/second tab resumes, never restarts)

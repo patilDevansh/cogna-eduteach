@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<TopicStudentStatus, string> = {
 };
 
 const STEPS: Array<{ key: string; label: string }> = [
-  { key: "DIAGNOSTIC", label: "Diagnostic" },
+  { key: "DIAGNOSTIC", label: "Quick check" },
   { key: "TEACH", label: "Teach" },
   { key: "TOPIC_CHECK", label: "Topic check" },
   { key: "CATCH_UP", label: "Catch-up" },
@@ -216,7 +216,7 @@ export function TopicPanel({ classroomId, sample, live = false, changeTick = 0, 
               <div className={styles.topicActions}>
                 {action === "DIAGNOSTIC" && (
                   <>
-                    <button type="button" className={shared.primary} disabled={Boolean(busy)} onClick={() => void sendCheck(current.topicId, "DIAGNOSTIC")}>{busy === "DIAGNOSTIC" ? "Sending…" : "Send the diagnostic"}</button>
+                    <button type="button" className={shared.primary} disabled={Boolean(busy)} onClick={() => void sendCheck(current.topicId, "DIAGNOSTIC")}>{busy === "DIAGNOSTIC" ? "Sending…" : "Send the quick check"}</button>
                     <button type="button" className={shared.secondary} disabled={Boolean(busy)} onClick={() => void sendCheck(current.topicId, "TOPIC_CHECK")}>Already taught it: send the topic check</button>
                   </>
                 )}
@@ -254,7 +254,7 @@ export function TopicPanel({ classroomId, sample, live = false, changeTick = 0, 
                 </small>
               </span>
               {t.status !== "TEACHING" && (
-                <button type="button" className={styles.planButton} disabled={Boolean(busy)} onClick={() => void startTopic(t.topicId)}>
+                <button type="button" className={styles.planButton} disabled={Boolean(busy)} onClick={() => void startTopic(t.topicId)} aria-label={`${t.status === "DONE" ? "Teach again" : "Teach now"}: ${t.name}`}>
                   {busy === `start:${t.topicId}` ? "Starting…" : t.status === "DONE" ? "Teach again" : "Teach this now"}
                 </button>
               )}

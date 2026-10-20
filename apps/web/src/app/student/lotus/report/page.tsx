@@ -304,7 +304,7 @@ function Report({
       ? { title: `We found where to start${name}.`, lede: "One idea is worth sharpening before anything else, and your lesson is built for exactly that." }
       : report.outcome === "ADVANCEMENT"
         ? { title: `You're ready for the next step${name}.`, lede: session.catchUp ? "Everything you were working on is secure now." : `Everything we tested looks secure. Your next practice can move on to harder ${(session.topic ? LOTUS_TOPIC_NAMES[session.topic] : "questions").toLowerCase()}.` }
-        : { title: `Thanks${name}. We need a little more to go on.`, lede: "Your answers didn't point clearly to one thing to work on, so we won't guess. A short check will help." };
+        : { title: `Thanks${name}. We need a little more to go on.`, lede: "Your answers didn't point clearly to one thing to work on, so we won't guess. Your teacher will check again with you." };
 
   const lessonState = lessonError
     ? "error"
@@ -356,7 +356,7 @@ function Report({
                 <p className={styles.lessonNote}>
                   {report.outcome === "SOLID_GAP"
                     ? "We don't have a video lesson for this one yet. Your teacher can see exactly what to work on and will pick your next step."
-                    : "No lesson is needed for this result."}
+                    : report.outcome === "ADVANCEMENT" ? "No lesson is needed: everything we tested is secure." : "Your teacher will pick your next step."}
                 </p>
                 {devMode && lesson?.abstainReason && <p className={styles.lessonNote}>Dev · {lesson.abstainReason}</p>}
                 {devMode && report.outcome === "SOLID_GAP" && PILOT_LESSON_STUDENTS.includes(studentId) && (

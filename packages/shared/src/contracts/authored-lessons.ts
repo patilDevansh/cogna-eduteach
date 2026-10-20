@@ -244,7 +244,9 @@ export type PracticeAnswer =
   | { text: string }
   | { picks: Array<number | null> }
   | { paper: number; mark: "right" | "wrong"; reason?: MarkReason }
-  | { round: number; option: number };
+  | { round: number; option: number }
+  /** "Show me how": the student is stuck and wants the worked answer now. */
+  | { stuck: true };
 
 export interface PracticeCheckResult {
   itemId: string;

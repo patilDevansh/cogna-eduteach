@@ -232,6 +232,19 @@ function toItem(req: WriteRequest, raw: Record<string, unknown>): Item | string 
 }
 
 /** Deterministic checks applied to every AI-written item. Empty = accepted. */
+/**
+ * A question's identity for repeat checks: the same maths with its letters
+ * renamed (4r^2 - 9s^2 and 4p^2 - 9q^2) is the same question to a student.
+ * Letters are renamed in order of first appearance.
+ */
+export function repeatPrint(text: string): string {
+  const renamed = new Map<string, string>();
+  return normalizeMathText(text).toLowerCase().replace(/[a-z]/g, (letter) => {
+    if (!renamed.has(letter)) renamed.set(letter, String.fromCharCode(97 + renamed.size));
+    return renamed.get(letter)!;
+  });
+}
+
 export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   const reasons: string[] = [];
   try { assertFixedItemIsValid(item, "item"); } catch (e) { reasons.push(e instanceof Error ? e.message.replace(/^item: /, "") : String(e)); }
@@ -241,11 +254,19 @@ export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   for (const p of d.predictedMistakes) {
     if (!/^[A-Z][A-Z0-9_]+$/.test(p.mistake)) reasons.push(`mistake "${p.mistake}" is not a code`);
   }
+  // The slot exists to catch particular mistakes: an item whose wrong answers
+  // are all labelled with other codes passes the count above yet recognises
+  // none of them (a "what to do first" question once tagged a sign-pair error).
+  // One is enough: games are built around a single misconception on purpose.
+  if (req.spec.mistakes.length && !d.predictedMistakes.some((p) => req.spec.mistakes.includes(p.mistake))) {
+    reasons.push(`none of its wrong answers is a mistake this slot tests (${req.spec.mistakes.join(", ")})`);
+  }
   const print = normalizeMathText(d.expression ?? item.prompt).toLowerCase();
   if (req.requiredExpression && print !== normalizeMathText(req.requiredExpression).toLowerCase()) {
     reasons.push(`uses ${d.expression ?? item.prompt} instead of the required fresh opener ${req.requiredExpression}`);
   }
-  if (req.avoid.some((a) => normalizeMathText(a).toLowerCase() === print)) reasons.push("repeats a question already in this test");
+  const repeat = repeatPrint(d.expression ?? item.prompt);
+  if (req.avoid.some((a) => repeatPrint(a) === repeat)) reasons.push("repeats a question already in this test");
   if (req.avoidSkill && d.stepSkills.some((s) => dependsOnTransitively(s, req.avoidSkill!))) {
     reasons.push(`still needs ${req.avoidSkill}`);
   }

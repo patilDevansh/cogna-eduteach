@@ -123,6 +123,8 @@ export type LotusPresentation = "BRIDGE" | "GARDEN" | "WORKSHOP" | "CONSTELLATIO
 export const LOTUS_SELECT_SEPARATOR = " | ";
 
 export interface LotusAnswerKey {
+  /** Server-only solutions for the four crossings; the whole key is redacted from live questions. */
+  crosswordAnswers?: string[];
   kind: "NUMERIC" | "MULTIPLE_CHOICE" | "OPEN_RESPONSE";
   canonicalAnswer: string;
   /** Plain arithmetic expression for deterministic evaluation when applicable. */
@@ -649,4 +651,24 @@ export interface LotusStatusResponse {
   progressiveStreamingEnabled: boolean;
   /** Present when the AI provider recently refused calls at the account level (no credits, bad key). */
   unavailableReason?: string;
+}
+
+/** At most this much of one question's time counts toward the check's time limit. */
+export const LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION = 180;
+
+/**
+ * Seconds the student has actually spent on the check: the gaps between
+ * answers (and from the start to the first answer, and from the last answer
+ * to now), each capped, so time away from the page doesn't use up the limit.
+ * Shared so the server's limit and the student's clock always agree.
+ */
+export function lotusActiveSeconds(startedAt: string, answeredAt: string[], now: number = Date.now()): number {
+  const cap = LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION * 1000;
+  let previous = new Date(startedAt).getTime();
+  let total = 0;
+  for (const at of [...answeredAt.map((t) => new Date(t).getTime()), now]) {
+    total += Math.min(Math.max(0, at - previous), cap);
+    previous = at;
+  }
+  return Math.floor(total / 1000);
 }

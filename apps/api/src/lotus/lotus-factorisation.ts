@@ -25,7 +25,7 @@ import type {
   LotusSkillSummary,
   LotusStudentResponse,
 } from "@cogna/shared";
-import { LOTUS_SELECT_SEPARATOR } from "@cogna/shared";
+import { LOTUS_SELECT_SEPARATOR, assembleTileAnswer } from "@cogna/shared";
 import {
   algebraicallyEqual,
   classifyExpansion,
@@ -126,6 +126,21 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
   }
 
   const answer = response.answer;
+  if (question.interaction?.format === "FACTOR_CROSSWORD") {
+    // Rebuild again at this boundary: caller-supplied text cannot override tile picks.
+    const built = response.interaction ? assembleTileAnswer(question.interaction, response.interaction.picks) : answer;
+    const answers = built?.split(" | ") ?? [];
+    const clues = question.interaction.crossword ?? [];
+    const correct = clues.length === 4 && answers.length === 4
+      && clues.every((clue, i) => classifyFactorisation(answers[i]!, clue.expression) === "CORRECT");
+    return {
+      verification: { ...verification(correct ? "VERIFIED_CORRECT" : "VERIFIED_INCORRECT",
+        correct ? "All four crossings verified by expansion. This is one diagnostic item, not four independent observations."
+          : "At least one crossing does not match. Review the four submitted products; a particular misconception is not inferred from puzzle activity."),
+        correctAnswer: question.answerKey.crosswordAnswers?.join(" | ") ?? key },
+      evidence: correct ? secureAll(d) : [], fastSkip: false, needsAnalysis: !correct,
+    };
+  }
   if (d.itemKind === "SELECT") {
     // "Net every one that fits": the chosen options, in any order.
     const chosen = new Set(answer.split(LOTUS_SELECT_SEPARATOR).map((part) => normalizeMathText(part).toLowerCase()).filter(Boolean));
@@ -236,6 +251,10 @@ export interface SkillLedgerEntry {
   notes: string[];
   /** The learner explicitly needed help; use a lower prerequisite probe where possible. */
   needsSupport?: boolean;
+  /** How many different questions on this skill got "I don't know this yet". */
+  supportCount?: number;
+  /** Confirmed because the student said they don't know it (twice, or once plus a mistake), not by two mistakes. */
+  confirmedBySupport?: boolean;
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
@@ -258,10 +277,19 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         const label = negative.mistake ?? (negative.kind === "DID_NOT_KNOW" ? "DID_NOT_KNOW" : "MISTAKE");
         e.notes.push(`Q${q}: ${negative.description ?? label}${negative.mistake ? ` (${negative.mistake})` : ""}`);
         if (negative.kind === "DID_NOT_KNOW") {
-          // Support is an instructional signal, not mathematical failure.
-          // Preserve an existing suspicion, but never create or confirm a
-          // gap from repeated "I don't know" responses alone.
+          // One "I don't know" is a support signal, not a gap: it earns an
+          // easier prerequisite question. A second one on another question,
+          // or one alongside a mistake, means the skill isn't learned yet.
+          // Treat it as a gap so the student is taught from the foundations
+          // instead of getting "no lesson needed".
           e.needsSupport = true;
+          e.supportCount = (e.supportCount ?? 0) + 1;
+          // A skill already answered right stays secure: one shown success outweighs saying "not sure".
+          if ((e.state === "UNTESTED" || e.state === "SUSPECTED") && (e.supportCount >= 2 || e.mistakes.length > 0)) {
+            e.state = "CONFIRMED";
+            e.confirmedAt = q;
+            e.confirmedBySupport = true;
+          }
           continue;
         }
         // Captured before this mistake is pushed: does this skill already
@@ -269,10 +297,12 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         // this is a second independent negative on the skill, not a fresh
         // first-time slip — it should confirm outright rather than restart
         // the SUSPECTED/SECURE cycle and let a repeatable misconception hide
-        // behind alternating right/wrong turns indefinitely.
-        const hadPriorMistake = e.mistakes.length > 0;
+        // behind alternating right/wrong turns indefinitely. An earlier
+        // "I don't know" on the skill counts as that first negative too.
+        const hadPriorMistake = e.mistakes.length > 0 || (e.supportCount ?? 0) > 0;
         if (negative.mistake) e.mistakes.push(negative.mistake);
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) { e.state = "CONFIRMED"; e.confirmedAt = q; }
+        else if (e.state === "UNTESTED" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; e.confirmedBySupport = true; }
         else if (e.state === "SECURE" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
       } else {
@@ -664,11 +694,13 @@ export function buildFactorisationReport(args: {
       ? focus?.length
         ? `Caught up: ${focus.map((id) => skillName(id).toLowerCase()).join(", ")} ${focus.length === 1 ? "is" : "are"} now secure.`
         : `${curriculum.name} looks secure across the skills tested. Move on to harder questions or the next topic.`
-      : "No gap was confirmed. Review the suspected areas below before deciding where to start.";
+      : suspected.length
+        ? "No gap was confirmed. Review the suspected areas below before deciding where to start."
+        : "Not enough answers to show where to start yet. Check again with a few fresh questions.";
 
   const limitations = [
     "Experimental: questions were written and checked by AI and code, without human review.",
-    "A gap is only confirmed when the same skill goes wrong on two different questions.",
+    "A gap is only confirmed when the same skill goes wrong on two different questions, or the student says they don't know it yet on two.",
   ];
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
@@ -686,7 +718,7 @@ export function buildFactorisationReport(args: {
     startingPoint,
     observedStrengths: secure.map((e) => skillName(e.skillId) + (e.clearedAfterSlip ? " (an earlier mistake looked like a slip)" : "")),
     uncertainAreas: suspected.map((e) => `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
-    evidenceSummary: confirmed.map((e) => `${skillName(e.skillId)} — confirmed gap. ${e.notes.join(" · ")}`),
+    evidenceSummary: confirmed.map((e) => `${skillName(e.skillId)} — ${e.confirmedBySupport ? "not learned yet" : "confirmed gap"}. ${e.notes.join(" · ")}`),
     recommendedNextStep: start
       ? `Teach ${skillName(start.skillId).toLowerCase()} directly, then re-check it with a fresh question.`
       : suspected[0]

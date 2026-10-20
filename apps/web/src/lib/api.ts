@@ -502,13 +502,15 @@ export function lotusTopicForClassTopic(topicId: string): LotusTopic {
 }
 
 /** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
-export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; videoAssignmentId?: string | null; payload?: Record<string, unknown>; run: { id: string; topicId: string } }): string {
+export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; status?: string; videoAssignmentId?: string | null; payload?: Record<string, unknown>; run: { id: string; topicId: string } }): string {
   const params = new URLSearchParams({ assignment: item.id, run: item.run.id });
   if (item.videoAssignmentId) params.set("video", item.videoAssignmentId);
   if (item.kind === "DIAGNOSTIC") {
     const topic = lotusTopicForClassTopic(item.run.topicId);
     if (topic !== "BRACKETS") params.set("topic", topic.toLowerCase());
     if (item.payload?.kind === "CATCH_UP") params.set("check", "catch-up");
+    // Already started: open straight at the current question, not the start screen.
+    if (item.status === "IN_PROGRESS") params.set("resume", "1");
     return `/student/lotus?${params.toString()}`;
   }
   // Lesson, practice and the independent exit share one page; the exit opens straight at its step.
@@ -606,7 +608,7 @@ export interface PilotClassReport {
     stage: "JOINED" | "DIAGNOSTIC" | "LESSON" | "EXIT" | "DONE";
     stageStatus: string;
     outcome?: string;
-    startingPoint?: { skillId: string; name: string };
+    startingPoint?: { skillId: string; name: string; notLearnedYet?: boolean };
     answered?: number;
     correct?: number;
     minutes?: number | null;

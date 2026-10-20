@@ -328,6 +328,9 @@ export default function PilotConsolePage() {
             <p className={styles.eyebrow}>Step 1 · name your class</p>
             <h2>What do you call this class?</h2>
             <label className={shared.formLabel}>Class name<input className={shared.formInput} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Grade 8 · Section B" autoFocus={creating} required /></label>
+            {classes.some((c) => c.name.trim().toLowerCase() === newName.trim().toLowerCase()) && (
+              <p className={styles.muted} role="status">You already have a class called {newName.trim()}. Add the section or year so you can tell them apart.</p>
+            )}
             <button className={styles.releaseButton} disabled={Boolean(busy) || !newName.trim()}>{busy === "create" ? "Creating…" : "Create class and get a code →"}</button>
           </form>
           ) : (
@@ -335,12 +338,12 @@ export default function PilotConsolePage() {
             <p className={styles.eyebrow}>Step 1 · students join</p>
             <h2>Students open Cogna and enter this code</h2>
             <div className={styles.joinCode} data-testid="join-code">{activeClass?.joinCode ?? "—"}</div>
-            <p className={styles.muted}>{roster.length} joined so far. Names appear below as students join.</p>
+            <p className={styles.muted}>{roster.length} in class so far. Names appear below as students join or are added.</p>
           </div>
           )}
           <div className={styles.releaseSide}>
             <p className={styles.eyebrow}>Step 2 · pick your topic</p>
-            <h2>Then send its diagnostic</h2>
+            <h2>Then send its quick check</h2>
             <ul className={styles.ruleList}>
               <li>Up to 15 minutes. It ends early once Cogna knows where each student should start.</li>
               <li>Each student then gets a short lesson made from their own answers, practice games, and final questions to try on their own.</li>
@@ -386,9 +389,9 @@ export default function PilotConsolePage() {
 
           {t && (
             <section className={styles.totals} aria-label="Class totals">
-              <Total label="Joined" value={t.enrolled} />
+              <Total label="In class" value={t.enrolled} />
               <Total label="Check done" value={t.diagnosticDone} of={t.enrolled} />
-              <Total label="Need a fix" value={t.gapFound} of={t.diagnosticDone} />
+              <Total label="Gap found" value={t.gapFound} of={t.diagnosticDone} />
               <Total label="Lesson done" value={t.lessonDone} of={t.gapFound} />
               <Total label="Final question done" value={t.exitDone} of={t.gapFound} />
               <Total label="Fixed it" value={t.improved} of={t.exitDone} accent />
@@ -429,6 +432,7 @@ export default function PilotConsolePage() {
                     </span>
                     <span className={styles.start}>
                       {row.startingPoint?.name ?? (row.outcome === "ADVANCEMENT" ? "Nothing to fix" : row.outcome ? "Not sure yet" : row.stage === "DIAGNOSTIC" ? (row.stageStatus === "IN_PROGRESS" ? "Checking…" : "Not started") : "—")}
+                      {row.startingPoint?.notLearnedYet && <small>Said &ldquo;I don&apos;t know&rdquo;: teach from the basics</small>}
                       {row.answered ? <small>{row.answered} questions{row.minutes ? ` · ${row.minutes} min` : ""}{row.endedNote ? " · ended early" : ""}</small> : null}
                     </span>
                     <span className={styles.practice}>

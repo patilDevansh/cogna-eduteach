@@ -108,7 +108,7 @@ export function DevPanel() {
                 {!devMode
                   ? "Needs dev mode."
                   : fakeModelLocked
-                    ? "Locked while a diagnostic is running: finish it or start a new one to switch."
+                    ? "Locked while a quick check is running: finish it or start a new one to switch."
                     : fakeModel
                       ? "Free and instant. Lotus uses the fake-model API."
                       : "Off: Lotus uses the live AI models."}

@@ -136,6 +136,11 @@ async function addAnsweredAiQuestionToBank(
   // let their controlled fake-model items become candidates for real or later
   // test sessions. Normal AI question-bank admission is unaffected.
   if (process.env.LOTUS_E2E_DISABLE_QUESTION_BANK === "true") return;
+  // The fake model's items carry made-up mistake labels and "(Version N.)" or
+  // "+ N - N" padding. Keyed on the model switch itself, not only the bank
+  // switch above: a fake run started without that flag once leaked 12 of them
+  // into the shared bank, where real diagnostics served them to students.
+  if (process.env.LOTUS_E2E_FAKE_MODEL === "true") return;
   if (!isPlannedLotusTopic(session.topic) || !audit.response || audit.question.answerKey.diagnostics?.origin !== "AI") return;
   // A bank item remains the original generation; re-answering a reused item
   // must update its usage, not recursively create a new item.

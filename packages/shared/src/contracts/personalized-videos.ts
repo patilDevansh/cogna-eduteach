@@ -156,6 +156,8 @@ export interface PersonalizedVideoAssetView {
   transcriptRef?: string;
   durationMs?: number;
   integrity?: Record<string, unknown>;
+  /** False when the voice service made no narration, so the video is silent; absent when unknown. */
+  narrated?: boolean;
 }
 
 export interface PersonalizedVideoJobView {

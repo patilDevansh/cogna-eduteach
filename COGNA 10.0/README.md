@@ -16,3 +16,5 @@ Current state: classroom implementation exists and Lotus has a limited arithmeti
 [Interaction formats](../docs/mvp-10.0/INTERACTION_FORMATS.md) are implemented: tile-game answers (bracket bridge, split it, term builder, factor safe) in the Lotus diagnostic, the one-attempt independent exit and practice. They are marked by the unchanged algebra marking, and `COGNA_GAME_FORMATS=off` turns them off.
 
 MVP 10.0 UI maintenance (2026-10-08): Lotus now includes workshop and constellation tile scenes, alternating interactive coverage, early Detective, more reliable Garden generation, and separate math toolbars for final answers and working steps.
+
+MVP 10.0 UI maintenance (2026-10-09): Factor crossword and Cut-and-build studio are integrated into compatible diagnostic coverage. Both retain server-side algebra checks and withhold correctness feedback. Focused tests and TypeScript pass; full database/browser acceptance remains pending.

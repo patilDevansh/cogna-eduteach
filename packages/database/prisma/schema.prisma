@@ -1580,7 +1580,7 @@ model PersonalizedVideoEvent {
 /// Written by apps/api/src/ai/spend-cap.ts to enforce the daily call and dollar caps.
 model ApiSpendDay {
   service   String
-  /// UTC calendar day, yyyy-mm-dd.
+  /// UTC calendar day (yyyy-mm-dd), or UTC month (yyyy-mm) for the monthly cap.
   day       String
   calls     Int      @default(0)
   /// Reserved worst-case cost of in-flight calls plus the real cost of finished ones.
