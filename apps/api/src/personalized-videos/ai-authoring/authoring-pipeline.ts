@@ -187,6 +187,20 @@ export function practiceItemView(item: PracticeItem): PracticeItemView {
 
 const fmt = (n: number) => (n < 0 ? `−${-n}` : `${n}`);
 
+/** The worked answer for a single-answer practice item; the games with rounds (mark-it, rush) have none. */
+export function practiceReveal(item: PracticeItem): { answer: string; steps: string[] } | null {
+  switch (item.format) {
+    case "pair-hunt": return { answer: `${fmt(item.answer[0])} and ${fmt(item.answer[1])}`, steps: [`${fmt(item.answer[0])} × ${fmt(item.answer[1])} = ${fmt(item.product)}`, `${fmt(item.answer[0])} + ${fmt(item.answer[1])} = ${fmt(item.sum)}`] };
+    case "spot-mistake": return { answer: item.fix, steps: [item.explanation] };
+    case "choose": return { answer: item.options[item.answerIndex]!, steps: [] };
+    case "type-answer": return { answer: item.answer, steps: item.workedSteps };
+    case "factor-safe": return { answer: `(${linear(item.answer[0])})(${linear(item.answer[1])})`, steps: [`${fmt(item.answer[0])} × ${fmt(item.answer[1])} = ${fmt(item.product)}`, `${fmt(item.answer[0])} + ${fmt(item.answer[1])} = ${fmt(item.sum)}`] };
+    case "rectangle": return { answer: `(x + ${item.answer[0]})(x + ${item.answer[1]})`, steps: [`${item.answer[0]} + ${item.answer[1]} = ${item.strips} strips`, `${item.answer[0]} × ${item.answer[1]} = ${item.units} small squares`] };
+    case "build": return { answer: item.answer, steps: item.workedSteps };
+    default: return null;
+  }
+}
+
 /** Checks one practice answer. `attempt` counts this try (1-based); the answer is revealed on success or after two misses. */
 export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, attempt: number): PracticeCheckResult {
   const result = (verdict: PracticeCheckResult["verdict"], feedback: string, reveal?: PracticeCheckResult["reveal"]): PracticeCheckResult => ({
@@ -197,25 +211,33 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
     ...(reveal && (verdict === "CORRECT" || attempt >= 2) ? { reveal } : {}),
   });
 
+  // "Show me how": a stuck student sees the worked answer now, as two misses would.
+  if ("stuck" in answer && answer.stuck) {
+    const reveal = practiceReveal(item);
+    return reveal
+      ? { itemId: item.id, verdict: "INCORRECT", feedback: "Here's how it goes. Have a look, then try the next one.", attempt, reveal }
+      : result("UNREADABLE", "This one is a game: play a round to see how it goes.");
+  }
+
   switch (item.format) {
     case "pair-hunt": {
       if (!("pair" in answer) || !Array.isArray(answer.pair)) return result("UNREADABLE", "Pick one of the pairs.");
       const [a, b] = answer.pair;
-      const reveal = { answer: `${fmt(item.answer[0])} and ${fmt(item.answer[1])}`, steps: [`${fmt(item.answer[0])} × ${fmt(item.answer[1])} = ${fmt(item.product)}`, `${fmt(item.answer[0])} + ${fmt(item.answer[1])} = ${fmt(item.sum)}`] };
+      const reveal = practiceReveal(item)!;
       if (a * b === item.product && a + b === item.sum) return result("CORRECT", `Yes: they multiply to ${fmt(item.product)} and add to ${fmt(item.sum)}.`, reveal);
       if (a * b === item.product) return result("INCORRECT", `They multiply to ${fmt(item.product)}, but add to ${fmt(a + b)}, not ${fmt(item.sum)}. Check the signs.`, reveal);
       return result("INCORRECT", `Those multiply to ${fmt(a * b)}, not ${fmt(item.product)}.`, reveal);
     }
     case "spot-mistake": {
       if (!("line" in answer) || !Number.isInteger(answer.line)) return result("UNREADABLE", "Tap the line that goes wrong.");
-      const reveal = { answer: item.fix, steps: [item.explanation] };
+      const reveal = practiceReveal(item)!;
       if (answer.line === item.wrongLine) return result("CORRECT", item.explanation, reveal);
       if (answer.line < item.wrongLine) return result("INCORRECT", "That line is still right. Look further down.", reveal);
       return result("INCORRECT", "The mistake happens earlier than that.", reveal);
     }
     case "choose": {
       if (!("option" in answer) || !item.options[answer.option]) return result("UNREADABLE", "Pick one of the answers.");
-      const reveal = { answer: item.options[item.answerIndex]!, steps: [] };
+      const reveal = practiceReveal(item)!;
       if (answer.option === item.answerIndex) return result("CORRECT", item.feedback[answer.option] ?? "", reveal);
       // Equal-but-unfinished picks are told apart from wrong ones, by algebra rather than by the option's feedback text.
       const verdict = taskVerdict(item.task, item.options[answer.option]!, item.expression);
@@ -224,7 +246,7 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
     case "type-answer": {
       if (!("text" in answer) || !answer.text.trim()) return result("UNREADABLE", "Type your answer first.");
       const verdict = taskVerdict(item.task, answer.text, item.expression);
-      const reveal = { answer: item.answer, steps: item.workedSteps };
+      const reveal = practiceReveal(item)!;
       if (verdict === "CORRECT") return result("CORRECT", "Correct, and it multiplies back to the original.", reveal);
       if (verdict === "UNFINISHED") return result("UNFINISHED", item.task === "factorise" ? "That's equal, but it isn't finished: something common is still inside a bracket." : "That's equal, but finish it off.", reveal);
       if (verdict === "UNREADABLE") return result("UNREADABLE", "I couldn't read that. Write it like (x - 3)(x - 4).");
@@ -233,7 +255,7 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
     case "factor-safe": {
       if (!("pair" in answer) || !Array.isArray(answer.pair) || !answer.pair.every(Number.isInteger)) return result("UNREADABLE", "Set both dials first.");
       const [a, b] = answer.pair;
-      const reveal = { answer: `(${linear(item.answer[0])})(${linear(item.answer[1])})`, steps: [`${fmt(item.answer[0])} × ${fmt(item.answer[1])} = ${fmt(item.product)}`, `${fmt(item.answer[0])} + ${fmt(item.answer[1])} = ${fmt(item.sum)}`] };
+      const reveal = practiceReveal(item)!;
       if (a * b === item.product && a + b === item.sum) return result("CORRECT", `Unlocked: ${fmt(a)} and ${fmt(b)} multiply to ${fmt(item.product)} and add to ${fmt(item.sum)}.`, reveal);
       if (a * b === item.product && a + b === -item.sum) return result("INCORRECT", `So close: the product is right, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}. Flip both signs.`, reveal);
       if (a * b === item.product) return result("INCORRECT", `The product lamp is on, but they add to ${fmt(a + b)}, not ${fmt(item.sum)}.`, reveal);
@@ -243,7 +265,7 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
       if (!("pair" in answer) || !Array.isArray(answer.pair) || !answer.pair.every(Number.isInteger)) return result("UNREADABLE", "Move the strips first.");
       const [side, bottom] = answer.pair;
       const spaces = side * bottom;
-      const reveal = { answer: `(x + ${item.answer[0]})(x + ${item.answer[1]})`, steps: [`${item.answer[0]} + ${item.answer[1]} = ${item.strips} strips`, `${item.answer[0]} × ${item.answer[1]} = ${item.units} small squares`] };
+      const reveal = practiceReveal(item)!;
       if (side + bottom !== item.strips) return result("UNREADABLE", `Use all ${item.strips} strips.`);
       if (spaces === item.units) return result("CORRECT", `It fits: ${side} × ${bottom} = ${item.units}. The sides are x + ${side} and x + ${bottom}.`, reveal);
       if (bottom === 0 || side === 0) return result("INCORRECT", `Move some strips to the other side to make a corner for the ${item.units} small squares.`, reveal);
@@ -277,7 +299,7 @@ export function checkPracticeAnswer(item: PracticeItem, answer: PracticeAnswer, 
       const built = answerFromPicks(item.interaction, { format: item.interaction.format, picks: answer.picks });
       if (!built) return result("UNREADABLE", "Fill every box with a tile first.");
       const verdict = taskVerdict(item.task, built, item.expression);
-      const reveal = { answer: item.answer, steps: item.workedSteps };
+      const reveal = practiceReveal(item)!;
       if (verdict === "CORRECT") return result("CORRECT", "Built it. It multiplies back to the original.", reveal);
       if (verdict === "UNFINISHED") return result("UNFINISHED", "That's equal, but it isn't finished: one part still splits.", reveal);
       return result("INCORRECT", "Multiply it back out: it doesn't give the original. Check each sign.", reveal);

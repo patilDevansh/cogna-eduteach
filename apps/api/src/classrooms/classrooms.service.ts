@@ -1016,7 +1016,10 @@ export class ClassroomsService {
         diagnostic: record?.status === "COMPLETE" && payload?.finalReport
           ? {
               outcome: payload.finalReport.outcome,
-              startingSkillId: payload.finalReport.outcome === "SOLID_GAP" ? confirmedByDepth(foldLedger(audits))[0]?.skillId : undefined,
+              ...(() => {
+                const start = payload.finalReport.outcome === "SOLID_GAP" ? confirmedByDepth(foldLedger(audits))[0] : undefined;
+                return { startingSkillId: start?.skillId, startingNotLearned: Boolean(start?.confirmedBySupport) };
+              })(),
               skills: payload.finalReport.skills ?? [],
               answered: audits.length,
               correct: audits.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length,

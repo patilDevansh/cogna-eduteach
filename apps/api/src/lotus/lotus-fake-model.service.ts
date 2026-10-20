@@ -145,11 +145,13 @@ function controlledWrite(prompt: string): Record<string, unknown> {
   const shape = prompt.match(/Follow this shape, but write a NEW question with DIFFERENT numbers: ([^\n]+)/)?.[1]?.trim();
   const token = prompt.match(/Session variation token: ([^\n]+)/)?.[1] ?? "test";
   const variant = [...token].reduce((sum, character) => (sum * 31 + character.charCodeAt(0)) >>> 0, 7) % 10_000 + 1;
+  // Label stand-in wrong answers with the mistakes this slot tests (listed in the prompt), as a real writer must.
+  const slotMistakes = [...prompt.matchAll(/^- ([A-Z][A-Z0-9_]+)/gm)].map((m) => m[1]!);
   const factor = (expression: string, answer: string, skill: string, wrong?: Array<{ answer: string; mistake: string }>) => ({
     prompt: `Factorise completely: (${expression}) + ${variant} - ${variant}`,
     expression: `(${expression}) + ${variant} - ${variant}`,
     answer,
-    wrongAnswers: wrong ?? (skill === "FAC_GROUP_TERMS"
+    wrongAnswers: wrong ?? (slotMistakes.length ? slotMistakes.slice(0, 2).map((mistake, index) => ({ answer: String(index + 1), mistake })) : skill === "FAC_GROUP_TERMS"
       ? [{ answer: "1", mistake: "PAIRS_SHARE_NOTHING" }, { answer: "2", mistake: "SUM_ACCEPTED_AS_FACTORISED" }]
       : skill === "FAC_COMMON_BINOMIAL"
         ? [{ answer: "1", mistake: "BRACKET_NOT_SEEN_AS_FACTOR" }, { answer: "2", mistake: "LEFTOVERS_MULTIPLIED" }]
@@ -160,7 +162,7 @@ function controlledWrite(prompt: string): Record<string, unknown> {
     prompt: `${question} (Version ${variant}.)`,
     options,
     correctOption: correct,
-    wrongOptionMistakes: options.filter((option) => option !== correct).slice(0, 2).map((option, index) => ({ option, mistake: index ? "WRONG_FACTOR_PAIR_SUM" : "SIGN_PAIR_ERROR" })),
+    wrongOptionMistakes: options.filter((option) => option !== correct).slice(0, 2).map((option, index) => ({ option, mistake: slotMistakes[index % Math.max(slotMistakes.length, 1)] ?? (index ? "WRONG_FACTOR_PAIR_SUM" : "SIGN_PAIR_ERROR") })),
     steps: [{ line: "Check the condition carefully.", skill }],
   });
   const drafted = shape ? DRAFTED_SLOTS.get(shape) : undefined;

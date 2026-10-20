@@ -8,10 +8,8 @@ import { Wordmark } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { PILOT_STUDENT_STORIES } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
-import { renderEquationSteps } from "./equation-highlight";
 import styles from "./personalized-video.module.css";
 import L from "./lesson.module.css";
-import { LessonMotifBottom, LessonMotifTop, PipMascot, SceneBackdrop } from "./lesson-motifs";
 import { PracticeArena } from "./PracticeArena";
 import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { MicroLessonCard } from "@/components/games/MicroLessonCard";
@@ -35,9 +33,7 @@ function PersonalizedVideoPage() {
   const studentId = search.get("studentId") ?? signedStudentId ?? (isProductionClassroom ? "" : `demo_${key}`);
   const [assignment, setAssignment] = useState<PersonalizedVideoAssignmentView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sceneIndex, setSceneIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [voice, setVoice] = useState(true);
   // A classroom exit link opens straight at the independent check.
   const [stage, setStage] = useState<Stage>(search.get("stage") === "exit" ? "exit" : "lesson");
   /** Pilot: the exit assignment the server opened when this student finished teaching. */
@@ -50,7 +46,6 @@ function PersonalizedVideoPage() {
   const [exitTiles, setExitTiles] = useState<TileGameState | null>(null);
   const [sealing, setSealing] = useState(false);
   const [correct, setCorrect] = useState<boolean | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const watchedRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -102,17 +97,8 @@ function PersonalizedVideoPage() {
 
   const lesson = assignment?.lesson;
   const scenes = lesson?.scenes ?? [];
-  const scene = scenes[sceneIndex];
-  const progress = scenes.length ? ((sceneIndex + 1) / scenes.length) * 100 : 0;
-
-  const speak = (text: string) => {
-    if (!voice || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.94;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
-  };
+  /** No video to play (it failed or was never rendered): show the short lesson instead, never slides. */
+  const noVideo = assignment?.delivery !== "VIDEO" || !assignment.asset?.storageRef;
 
   const markWatched = async () => {
     if (!assignment || watchedRef.current) return;
@@ -132,8 +118,6 @@ function PersonalizedVideoPage() {
 
   const finishLesson = async () => {
     setPlaying(false);
-    if (timer.current) clearTimeout(timer.current);
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     if (assignment) {
       try {
         setAssignment(await api.recordPersonalizedVideoCompleted(assignment.id, 0));
@@ -174,62 +158,26 @@ function PersonalizedVideoPage() {
   }
 
 
-  const goToScene = (index: number, shouldPlay = playing) => {
-    if (timer.current) clearTimeout(timer.current);
-    setSceneIndex(index);
-    const next = scenes[index];
-    if (shouldPlay && next) {
-      speak(next.narration);
-      timer.current = setTimeout(() => {
-        if (index === scenes.length - 1) void finishLesson();
-        else goToScene(index + 1, true);
-      }, next.durationSeconds * 1000);
-    }
-  };
-
   const togglePlay = () => {
     void markWatched();
-    if (assignment?.delivery === "VIDEO") {
-      const node = videoRef.current;
-      if (!node) return;
-      if (playing) {
-        node.pause();
-        setPlaying(false);
-        return;
-      }
-      void node.play();
-      setPlaying(true);
-      return;
-    }
+    const node = videoRef.current;
+    if (!node) return;
     if (playing) {
+      node.pause();
       setPlaying(false);
-      if (timer.current) clearTimeout(timer.current);
-      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
       return;
     }
-    if (!scene) return;
+    void node.play();
     setPlaying(true);
-    speak(scene.narration);
-    timer.current = setTimeout(() => {
-      if (sceneIndex === scenes.length - 1) void finishLesson();
-      else goToScene(sceneIndex + 1, true);
-    }, scene.durationSeconds * 1000);
   };
-
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (stage !== "lesson" || assignment?.delivery === "SHORT") return;
+      if (stage !== "lesson" || noVideo) return;
       if (event.key === " " || event.key === "k") {
         event.preventDefault();
         togglePlay();
       }
-      if (event.key === "ArrowRight" && sceneIndex < scenes.length - 1) goToScene(sceneIndex + 1, false);
-      if (event.key === "ArrowLeft" && sceneIndex > 0) goToScene(sceneIndex - 1, false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -374,9 +322,9 @@ function PersonalizedVideoPage() {
               {assignment?.learningObjective && <p className={L.objective}>{assignment.learningObjective}</p>}
               {lessonReady && (
                 <div className={L.meta}>
-                  {assignment?.delivery === "SHORT" ? <span>About 20 seconds</span> : lesson?.duration && <span>{lesson.duration}</span>}
+                  {assignment?.delivery === "SHORT" || (noVideo && micro) ? <span>About 20 seconds</span> : !noVideo && lesson?.duration && <span>{lesson.duration}</span>}
                   <span className={L.metaGood}>✓ Every step checked</span>
-                  <span>Narrated · captions</span>
+                  {!noVideo && <span>{assignment?.asset?.narrated === false ? "Captions" : "Narrated · captions"}</span>}
                 </div>
               )}
             </section>
@@ -432,63 +380,52 @@ function PersonalizedVideoPage() {
               </section>
             )}
 
-            {!error && lessonReady && assignment && assignment.delivery !== "SHORT" && (
+            {/* A bigger gap whose video couldn't be made: fall back to the short lesson, or straight on to practice. */}
+            {!error && lessonReady && assignment && assignment.delivery !== "SHORT" && noVideo && (
+              micro ? (
+                <section className={L.microSlot} aria-label="Your 20-second lesson">
+                  <p className={L.eyebrow}>20 seconds on your own answer</p>
+                  <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment.id, option)} />
+                  {watchedCta}
+                </section>
+              ) : (
+                <section className={L.panel}>
+                  <h2>Your video isn&apos;t ready</h2>
+                  <p>We couldn&apos;t make the video for this lesson, so let&apos;s go straight to some practice on it.</p>
+                  <button className={L.primary} onClick={() => void finishLesson()}>Start practice →</button>
+                </section>
+              )
+            )}
+
+            {!error && lessonReady && assignment && assignment.delivery === "VIDEO" && assignment.asset?.storageRef && (
               <div>
                 <div className={L.player}>
-                  {assignment.delivery === "VIDEO" && assignment.asset?.storageRef ? (
-                    <video
-                      ref={videoRef}
-                      className={L.video}
-                      // "#t=0.1" makes the browser paint the first frame as a poster instead of a black box.
-                      src={`${assignment.asset.storageRef}#t=0.1`}
-                      preload="metadata"
-                      controls
-                      playsInline
-                      onLoadedMetadata={(event) => {
-                        // Captions are already drawn into the frames; keep the track available (CC) but hidden by default.
-                        for (const track of Array.from(event.currentTarget.textTracks)) track.mode = "hidden";
-                      }}
-                      onPlay={() => {
-                        setPlaying(true);
-                        void markWatched();
-                      }}
-                      onPause={() => setPlaying(false)}
-                      onEnded={() => void finishLesson()}
-                    >
-                      {/* Captions are drawn into the video; this track is the accessible copy, off unless the viewer turns CC on. */}
-                      {assignment.asset.transcriptRef ? (
-                        <track kind="captions" src={assignment.asset.transcriptRef} srcLang="en" label="Captions" />
-                      ) : null}
-                    </video>
-                  ) : scene ? (
-                    <div className={L.slideShell}>
-                      <LessonMotifTop studentKey={assignment.studentKey ?? key} theme={lesson?.theme} />
-                      <div className={`${styles.videoStage} ${styles[scene.accent]}`}>
-                        <SceneBackdrop theme={lesson?.theme} sceneIndex={sceneIndex} />
-                        <PipMascot theme={lesson?.theme} sceneIndex={sceneIndex} />
-                        <div className={styles.sceneNumber}>0{sceneIndex + 1}</div>
-                        <div className={styles.sceneCopy} key={`${assignment.id}-${sceneIndex}`}>
-                          <span>{scene.eyebrow}</span>
-                          <h2>{scene.headline}</h2>
-                          <div className={styles.equation}>{renderEquationSteps(scene.equation)}</div>
-                          <p>{scene.narration}</p>
-                        </div>
-                      </div>
-                      <LessonMotifBottom studentKey={assignment.studentKey ?? key} theme={lesson?.theme} />
-                      <div className={styles.progress}><span style={{ width: `${progress}%` }} /></div>
-                      <div className={styles.controls}>
-                        <button className={styles.smallButton} disabled={sceneIndex === 0} onClick={() => goToScene(sceneIndex - 1, false)}>← Previous</button>
-                        <button className={styles.playButton} onClick={togglePlay}>{playing ? "Pause" : "▶ Play lesson"}</button>
-                        {sceneIndex < scenes.length - 1 ? (
-                          <button className={styles.smallButton} onClick={() => goToScene(sceneIndex + 1, false)}>Next →</button>
-                        ) : (
-                          <button className={styles.smallButton} onClick={() => void finishLesson()}>Start check →</button>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
+                  <video
+                    ref={videoRef}
+                    className={L.video}
+                    // "#t=0.1" makes the browser paint the first frame as a poster instead of a black box.
+                    src={`${assignment.asset.storageRef}#t=0.1`}
+                    preload="metadata"
+                    controls
+                    playsInline
+                    onLoadedMetadata={(event) => {
+                      // Captions are already drawn into the frames; keep the track available (CC) but hidden by default.
+                      for (const track of Array.from(event.currentTarget.textTracks)) track.mode = "hidden";
+                    }}
+                    onPlay={() => {
+                      setPlaying(true);
+                      void markWatched();
+                    }}
+                    onPause={() => setPlaying(false)}
+                    onEnded={() => void finishLesson()}
+                  >
+                    {/* Captions are drawn into the video; this track is the accessible copy, off unless the viewer turns CC on. */}
+                    {assignment.asset.transcriptRef ? (
+                      <track kind="captions" src={assignment.asset.transcriptRef} srcLang="en" label="Captions" />
+                    ) : null}
+                  </video>
                 </div>
-                <p className={styles.srOnly}>Keyboard: space to play or pause, left and right arrows to move between scenes.</p>
+                <p className={styles.srOnly}>Keyboard: space or K to play or pause.</p>
 
                 {watchedCta}
 
@@ -629,7 +566,6 @@ function PersonalizedVideoPage() {
                 className={L.ghost}
                 onClick={() => {
                   setStage("lesson");
-                  setSceneIndex(0);
                   setPlaying(false);
                 }}
               >

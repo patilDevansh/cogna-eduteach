@@ -10,7 +10,8 @@ import type { StudentRow } from "./class-report";
 
 export type CheckKind = "DIAGNOSTIC" | "TOPIC_CHECK" | "CATCH_UP";
 export const CHECK_KINDS: CheckKind[] = ["DIAGNOSTIC", "TOPIC_CHECK", "CATCH_UP"];
-export const CHECK_LABEL: Record<CheckKind, string> = { DIAGNOSTIC: "Diagnostic", TOPIC_CHECK: "Topic check", CATCH_UP: "Catch-up" };
+/** Teachers, students and parents all see the first check as the "quick check". */
+export const CHECK_LABEL: Record<CheckKind, string> = { DIAGNOSTIC: "Quick check", TOPIC_CHECK: "Topic check", CATCH_UP: "Catch-up" };
 
 /** "Most of the class understood": the share that lets the teacher move on. */
 export const MOVE_ON_SHARE = 0.8;
@@ -81,7 +82,7 @@ export function topicReadiness(checks: CheckRows[], enrolled: Array<{ studentId:
         text: `The ${CHECK_LABEL[live.kind].toLowerCase()} is running: ${answered} of ${given.length} finished the questions${learning ? `, ${learning} on their lesson now` : ""}.`,
       };
     }
-    if (!checks.length) return { action: "DIAGNOSTIC", text: `Start with a diagnostic to see what everyone already knows about ${lower}.` };
+    if (!checks.length) return { action: "DIAGNOSTIC", text: `Start with a quick check to see what everyone already knows about ${lower}.` };
     const stuck = students.filter((s) => s.status === "STUCK" || s.status === "UNCLEAR");
     if (counts.UNDERSTOOD >= Math.ceil(MOVE_ON_SHARE * n)) {
       return {

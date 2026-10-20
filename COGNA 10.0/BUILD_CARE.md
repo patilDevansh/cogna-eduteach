@@ -1,5 +1,16 @@
 # Build care
 
+## MVP 10.0 workflow review fixes — 2026-10-15
+
+- A student who says "I don't know this yet" on two questions about a skill (or once alongside a mistake) now has that skill confirmed as "not learned yet". Lotus drops to its foundations, ends early, names a starting point, and makes a lesson; the teacher roster says "teach from the basics". One "I don't know" alone still only earns an easier question. "I don't know" answers count as lesson evidence (`SAID_NOT_KNOWN`).
+- The check's 15-minute limit counts active time (each question at most 3 minutes, `lotusActiveSeconds` in shared), so time away doesn't use it up; the student's clock uses the same rule. "Carry on" reopens the current question.
+- Students no longer see lab internals (Experimental AI Lab, model names, phase and provenance labels); the dev "Skip test as…" shortcut is hidden on class assignments because it signs in as a demo student.
+- Fake-model items can't enter the shared question bank; 12 leaked items were deactivated locally. A written question must carry at least one mistake its slot tests, and repeats are compared with letters renamed.
+- "Quick check" is the one name for the first check (teacher, student, parent); practice is "Practice". Teacher counters read "In class" and "Gap found". Class switcher: 5 recent classes plus "More classes", same names told apart by join code, a warning on a reused name. Today has one start path. The home page describes the current class flow.
+- Lesson videos say "Narrated" only when narration audio was made. Practice items offer "Show me how" (the worked answer, as after two misses). The crossword formats powers. The report says "You finished the check", and an unclear result no longer promises a check or "no lesson needed".
+- Golden tests: 1,392 pass. Browser walkthrough on the fake model: teacher class and class list, student check, report, lesson, practice, parent dashboard.
+- Still open: a student added after a check has finished can't be sent it (their home now says so); Cartesia credit for narration; wrong-answer labels are not yet checked against the maths.
+
 ## MVP 10.0 UI maintenance — 2026-10-08
 
 - Stable answer and working refs prevent rerenders from redirecting math keys. Each toolbar names its target and preserves cursor/selection.
@@ -15,6 +26,14 @@
 - Preserve user changes already present in the worktree.
 - Every schema change requires a checked-in migration and Prisma validation.
 - Complete browser acceptance before marking this era shipped.
+
+## Lotus puzzle maintenance — 2026-10-09
+
+- Crossword grades all four crossings but contributes only one skill observation. No partial result grants secure evidence; unknown causes remain for background review.
+- Studio geometry is a neutral scratchpad. Only selected side lengths are submitted; moving, rotating or resetting pieces never marks an answer correct.
+- New games are limited to compatible coverage, preserve adaptive checks and stay outside independent exit/practice. Correctness and ordered solutions are never added to public interaction metadata.
+- Shared/API/web TypeScript and 56 focused tests pass. Full golden run was blocked from localhost PostgreSQL by the sandbox; its unsandboxed retry was not executed because automatic approval review hit a usage limit. Browser preview navigation timed out. Full regression and browser acceptance remain unverified.
+- Temporary component-check route removed; no changes to the user's existing browser diagnostic session.
 
 ## Verification — 2026-09-11
 

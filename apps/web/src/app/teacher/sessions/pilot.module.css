@@ -112,6 +112,8 @@
 .classTabs button { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: 600 var(--text-sm) var(--font-body); cursor: pointer; }
 .classTabs button[aria-current="true"] { background: var(--accent-deep); border-color: var(--accent-deep); color: white; }
 .classTabs .newClass { border-style: dashed; color: var(--accent); }
+.classTabs .moreClasses { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 14px; font: 600 var(--text-sm) var(--font-body); cursor: pointer; max-width: 100%; }
+.classTabs .moreClasses:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .classTabs button:focus-visible, .renameButton:focus-visible, .endButton:focus-visible, .keepButton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .endConfirm { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; font-size: var(--text-sm); }
 .keepButton { border: 1px solid rgba(255,255,255,0.45); background: transparent; color: white; border-radius: 8px; padding: 6px 12px; font: 600 var(--text-sm) var(--font-body); cursor: pointer; }

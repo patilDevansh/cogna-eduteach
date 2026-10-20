@@ -1,5 +1,7 @@
 import type { LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
+import { buildLotusPuzzle } from "./lotus-puzzles";
+import { prettyPowers } from "./lotus-question-factory";
 
 /**
  * Which Lotus questions are shown as tile games.
@@ -38,6 +40,21 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
   // A game probe (e.g. garden fences) already carries its own checked tiles.
   if (question.interaction) {
     question.asksForWorking = false;
+    return question;
+  }
+  const puzzle = gameFormatsEnabled(env) && !context.repurposed ? buildLotusPuzzle(question) : undefined;
+  if (puzzle) {
+    question.interaction = puzzle.interaction;
+    question.asksForWorking = false;
+    if (puzzle.answers) {
+      question.answerKey.crosswordAnswers = puzzle.answers;
+      question.prompt = `Factor crossword: start with ${prettyPowers(puzzle.interaction.expression)}. Complete all four crossings using the shared factors.`;
+      question.answerKey.workedSolution = puzzle.interaction.crossword!.map((clue, i) => `${clue.expression} = ${puzzle.answers![i]}`);
+      const d = question.answerKey.diagnostics!;
+      d.stepSkills = puzzle.answers.map(() => d.skillId);
+      d.origin = "CODE";
+      d.provenance = "CODE_BUILT_GAME";
+    }
     return question;
   }
   const interaction = chooseLotusInteraction(question, context, env);

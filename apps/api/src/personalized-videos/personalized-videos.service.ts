@@ -112,6 +112,8 @@ type JobPayload = {
   forcePendingReview?: boolean;
   scriptSource?: string;
   providerJobId?: string;
+  /** Whether any narration audio went into the render (false: the voice service failed, the video is silent). */
+  narrated?: boolean;
 };
 
 export function normalizeAlgebraAnswer(value: string): string {
@@ -610,11 +612,17 @@ export class PersonalizedVideosService {
         const narratedScenes = this.renderer.usesLocalRenderer() && !animated
           ? await this.synthesizeNarration(lesson.scenes)
           : lesson.scenes;
-        const submitted = animated
+        const narratedBeats = animated ? await this.narrateBeats(script!.animation as BeatAnimation) : null;
+        const narrated = narratedBeats
+          ? narratedBeats.scenes.some((scene) => scene.beats.some((beat) => Boolean((beat as { audioPath?: string }).audioPath)))
+          : narratedScenes.some((scene) => Boolean((scene as { audioPath?: string }).audioPath));
+        // Kept on the payload itself: every later write of this job spreads it.
+        payload.narrated = narrated;
+        const submitted = narratedBeats
           ? await this.renderer.submitAnimated({
               assignmentId,
               kind: script!.animationKind!,
-              lesson: await this.narrateBeats(script!.animation as BeatAnimation),
+              lesson: narratedBeats,
             })
           : await this.renderer.submit({
           assignmentId,
@@ -634,7 +642,7 @@ export class PersonalizedVideosService {
         await this.prisma.job.update({
           where: { id: jobId },
           data: {
-            payload: { ...payload, providerJobId } as object,
+            payload: { ...payload, providerJobId, narrated } as object,
           },
         });
       }
@@ -710,6 +718,8 @@ export class PersonalizedVideosService {
         if (silentBeats && this.tts?.enabled) {
           console.warn(`[personalized-videos] ${silentBeats} animated beat(s) for ${assignmentId} have no narration; rendering them silent.`);
         }
+        // Kept on the payload itself: every later write of this job spreads it, and the lesson page reads it.
+        payload.narrated = scenes.some((sc) => sc.beats.some((b) => Boolean(b.audioPath)));
         const narrated = { ...animation, scenes };
         const submitted = await this.renderer.submitAnimated({ assignmentId, lesson: narrated, kind });
         providerJobId = submitted.providerJobId;
@@ -1511,7 +1521,8 @@ export class PersonalizedVideosService {
       where: { id: assignmentId },
       data: {
         assetId: asset.assetId,
-        renderResult: rendered as object,
+        // narrated is read back by the lesson page, which only says "Narrated" when there is a voice.
+        renderResult: (payload.narrated === undefined ? rendered : { ...rendered, narrated: payload.narrated }) as object,
         status: pending
           ? PersonalizedVideoAssignmentStatus.UNDER_REVIEW
           : PersonalizedVideoAssignmentStatus.READY,
@@ -1659,6 +1670,9 @@ export class PersonalizedVideosService {
               storageRef: attachMediaAccess(asset.storageRef, mediaClaims) ?? asset.storageRef,
               transcriptRef: attachMediaAccess(asset.transcriptRef ?? undefined, mediaClaims),
               durationMs: asset.durationMs ?? undefined,
+              ...(typeof (row.renderResult as { narrated?: unknown } | null)?.narrated === "boolean"
+                ? { narrated: (row.renderResult as { narrated: boolean }).narrated }
+                : {}),
             }
           : null,
       job: job

@@ -144,7 +144,9 @@ function assertNoHardcodedFallback(service: LotusService, view: LotusSessionView
     // AI-written, or a game question built and checked by code (lotus-probes.ts). Never a hardcoded fallback.
     const origin = question.answerKey.diagnostics?.origin;
     assert.ok(origin === "AI" || origin === "CODE", "every factorisation item must be AI-generated or a checked code-built game — a hardcoded fallback is never eligible for display");
-    if (origin === "CODE") assert.ok((question as { presentation?: string }).presentation, "a code-built item is always a staged game");
+    // Staged as a game: a presentation (fireflies, detective…) or a puzzle interaction (crossword, cut-and-build).
+    const staged = question as { presentation?: string; interaction?: unknown };
+    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction, "a code-built item is always a staged game");
   }
   for (const audit of view.audits) {
     assert.notEqual(audit.questionSelection.provenance, "HARDCODED_SYSTEM", "no observer-visible provenance may ever claim a hardcoded question for factorisation");
@@ -285,7 +287,7 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
     }
   });
 
-  it("P08 explicit support need: every support turn is a SUPPORT_SIGNAL with no fabricated model review, and no skill is ever confirmed from a support signal alone", async () => {
+  it("P08 explicit support need: every support turn is a SUPPORT_SIGNAL with no fabricated model review, and a skill is confirmed from support only after two signals (or one plus a mistake)", async () => {
     const { service } = setup();
     const persona = PERSONA_CATALOGUE.find((p) => p.id === "P08_EXPLICIT_SUPPORT_NEED")!;
     const { view, transcript } = await playPersona(service, persona, "demo_persona_p08_check");
@@ -304,15 +306,17 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
       supportTurnsChecked += 1;
     });
     assert.ok(supportTurnsChecked > 0, "the persona must actually have exercised at least one support-signal turn for this assertion to mean anything");
-    // Support signals are never mathematical proof. A skill may only be
-    // CONFIRMED when its evidence includes a demonstrated mistake or an
-    // unfinished method; "I don't know" can request support but cannot
-    // advance the ledger on its own.
+    // One "I don't know" is a support signal, not proof. A skill may be
+    // CONFIRMED by a demonstrated mistake or unfinished method, or, so a
+    // student who doesn't know it yet is still taught, by "I don't know" on
+    // two different questions (or one alongside a mistake). One alone never.
     const report = view.finalReport!;
     for (const skill of report.skills ?? []) {
       if (skill.state !== "CONFIRMED") continue;
       const evidence = session.audits.flatMap((a: LotusQuestionAudit) => a.skillEvidence ?? []).filter((e: { skillId: string }) => e.skillId === skill.skillId);
-      assert.ok(evidence.some((e: { kind: string }) => e.kind === "MISTAKE" || e.kind === "UNFINISHED"), `${skill.skillId} is CONFIRMED but has no actual maths mistake evidence — a support signal alone must never promote to a confirmed gap`);
+      const maths = evidence.filter((e: { kind: string }) => e.kind === "MISTAKE" || e.kind === "UNFINISHED").length;
+      const support = evidence.filter((e: { kind: string }) => e.kind === "DID_NOT_KNOW").length;
+      assert.ok(maths >= 1 || support >= 2, `${skill.skillId} is CONFIRMED on one support signal alone`);
     }
   });
 

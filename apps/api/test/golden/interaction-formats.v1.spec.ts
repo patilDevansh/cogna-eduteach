@@ -193,6 +193,19 @@ describe("tile games in practice", () => {
     });
   }
 
+  it("shows a stuck student the worked answer on the first try, for every single-answer item", () => {
+    const set = generatePractice("FAC_MONIC_TRINOMIAL", "stuck");
+    const single = set.items.filter((i) => i.format !== "mark-it" && i.format !== "rush");
+    assert.ok(single.length > 0);
+    for (const item of single) {
+      const help = checkPracticeAnswer(item, { stuck: true }, 1);
+      assert.equal(help.verdict, "INCORRECT", `${item.format}: help is not counted as right`);
+      assert.ok(help.reveal?.answer, `${item.format}: the worked answer is shown`);
+    }
+    const game = set.items.find((i) => i.format === "rush");
+    if (game) assert.equal(checkPracticeAnswer(game, { stuck: true }, 1).reveal, undefined, "a game has no single answer to reveal");
+  });
+
   it("opens the factor safe only with the right pair, and names the swapped-sign mistake", () => {
     const set = generatePractice("FAC_MONIC_TRINOMIAL", "safe");
     const safe = set.items.find((i) => i.format === "factor-safe");

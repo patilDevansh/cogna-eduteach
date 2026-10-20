@@ -83,11 +83,11 @@ export default function StudentLoginPage() {
 
         <div className={styles.loginHead}>
           <h1>Let&apos;s pick up where you left off</h1>
-          <p>Enter your practice code to continue.</p>
+          <p>Enter your sign-in code to continue.</p>
         </div>
 
         <form onSubmit={handleLogin} className={styles.codeField}>
-          <label htmlFor="code">Practice code</label>
+          <label htmlFor="code">Sign-in code</label>
           <input
             id="code"
             className={`input ${styles.codeInput}`}
@@ -95,7 +95,7 @@ export default function StudentLoginPage() {
             value={accessCode}
             onChange={(e) => setAccessCode(e.target.value)}
             required
-            placeholder="AB12CD"
+            placeholder="AB12CD34"
             autoComplete="off"
           />
 
@@ -116,7 +116,7 @@ export default function StudentLoginPage() {
         </button>
 
         <p className={styles.helperLine}>
-          Don&apos;t have a code? Ask the grown-up who set up your account.
+          Don&apos;t have a code? Ask your teacher, or the grown-up who set up your account.
         </p>
 
         <div className={styles.classJoin}>

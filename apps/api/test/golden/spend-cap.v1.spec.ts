@@ -62,6 +62,35 @@ describe("spend cap — dollars", () => {
   });
 });
 
+describe("spend cap — monthly dollars", () => {
+  beforeEach(resetBudgetForTests);
+  const env = { OPENAI_MONTHLY_USD_CAP: "1", OPENAI_DAILY_USD_CAP: "0.7" };
+
+  it("adds days up across the month, so daily caps can't jointly overrun the balance", async () => {
+    await reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.6, now: new Date("2026-03-01T10:00:00Z") });
+    await reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.3, now: new Date("2026-03-02T10:00:00Z") });
+    await assert.rejects(
+      reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.3, now: new Date("2026-03-03T10:00:00Z") }),
+      /monthly spend cap/,
+    );
+    await reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.3, now: new Date("2026-04-01T00:01:00Z") });
+  });
+
+  it("does not charge the month for a call the daily cap refused", async () => {
+    const now = new Date("2026-03-01T10:00:00Z");
+    await reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.6, now });
+    await assert.rejects(reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.2, now }), /daily spend cap/);
+    await reserveBudget("openai", "OPENAI", { env, estimateUsd: 0.4, now: new Date("2026-03-02T10:00:00Z") });
+  });
+
+  it("settles both the day and the month to the real cost", async () => {
+    const now = new Date("2026-03-01T10:00:00Z");
+    const first = await reserveBudget("openai", "OPENAI", { env: { OPENAI_MONTHLY_USD_CAP: "1" }, estimateUsd: 0.9, now });
+    await first.settle(0.1);
+    await reserveBudget("openai", "OPENAI", { env: { OPENAI_MONTHLY_USD_CAP: "1" }, estimateUsd: 0.8, now });
+  });
+});
+
 describe("metered OpenAI fetch", () => {
   beforeEach(resetBudgetForTests);
   const pricing = { "gpt-test": { input: 1, output: 10 } }; // $/million tokens
@@ -112,6 +141,38 @@ describe("metered OpenAI fetch", () => {
       fetch: createMeteredFetch({ pricing, env: { OPENAI_DAILY_USD_CAP: "5" }, baseFetch: stubFetch({}, calls) }),
     });
     const error = await client.responses.create({ model: "gpt-unpriced", input: "hi" }).catch((e: unknown) => e);
+    assert.equal(calls.n, 0);
+    assert.match(String((error as Error).message), /no price/);
+  });
+
+  it("books text-to-speech against the dollar caps instead of letting it through free", async () => {
+    const calls = { n: 0 };
+    const audio = (async () => {
+      calls.n += 1;
+      return new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { "content-type": "audio/mpeg" } });
+    }) as typeof fetch;
+    // 200 characters → 1000 estimated audio tokens × $10/M = $0.01 each, never trued down (no usage block).
+    const client = new OpenAI({
+      apiKey: "test",
+      maxRetries: 0,
+      fetch: createMeteredFetch({ pricing, env: { OPENAI_MONTHLY_USD_CAP: "0.025" }, baseFetch: audio }),
+    });
+    const say = () => client.audio.speech.create({ model: "gpt-test", voice: "coral", input: "x".repeat(200) });
+    await say();
+    await say();
+    const error = await say().catch((e: unknown) => e);
+    assert.equal(calls.n, 2);
+    assert.equal((error as { code?: string }).code, SPEND_CAP_ERROR_CODE);
+  });
+
+  it("refuses an unpriced speech model when only a monthly cap is set", async () => {
+    const calls = { n: 0 };
+    const client = new OpenAI({
+      apiKey: "test",
+      maxRetries: 0,
+      fetch: createMeteredFetch({ pricing, env: { OPENAI_MONTHLY_USD_CAP: "5" }, baseFetch: stubFetch({}, calls) }),
+    });
+    const error = await client.audio.speech.create({ model: "tts-unpriced", voice: "coral", input: "hi" }).catch((e: unknown) => e);
     assert.equal(calls.n, 0);
     assert.match(String((error as Error).message), /no price/);
   });

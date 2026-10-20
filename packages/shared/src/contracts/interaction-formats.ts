@@ -21,7 +21,7 @@ export type InteractionStage = "DIAGNOSTIC" | "EXIT" | "PRACTICE";
  * FACTOR_BUILDER — a full factorisation built from factor tiles ("2", "(x - 3)", "(x^2 - 9)"); boxes may stay empty.
  * TERM_BUILDER   — an expansion built from signed term tiles ("-6x", "+ 12").
  */
-export type TileBuildFormat = "BRACKET_BRIDGE" | "FACTOR_BUILDER" | "TERM_BUILDER";
+export type TileBuildFormat = "BRACKET_BRIDGE" | "FACTOR_BUILDER" | "TERM_BUILDER" | "FACTOR_CROSSWORD" | "CUT_BUILD_STUDIO";
 
 export interface InteractionFormatSpec {
   id: TileBuildFormat;
@@ -35,6 +35,16 @@ export interface InteractionFormatSpec {
 }
 
 export const INTERACTION_FORMATS: Record<TileBuildFormat, InteractionFormatSpec> = {
+  FACTOR_CROSSWORD: {
+    id: "FACTOR_CROSSWORD", title: "Factor crossword",
+    instruction: "Place four factors so each crossing makes the expression inside it.",
+    stages: ["DIAGNOSTIC"], constructed: true,
+  },
+  CUT_BUILD_STUDIO: {
+    id: "CUT_BUILD_STUDIO", title: "Cut-and-build studio",
+    instruction: "Rearrange the remaining area into a rectangle, then choose its two side lengths.",
+    stages: ["DIAGNOSTIC"], constructed: true,
+  },
   BRACKET_BRIDGE: {
     id: "BRACKET_BRIDGE",
     title: "Bracket bridge",
@@ -75,6 +85,10 @@ export interface TileBuildInteraction {
   tiles: string[];
   /** When true a box may be left empty (FACTOR_BUILDER: fewer parts than boxes). */
   allowEmpty: boolean;
+  /** Public crossword clues. Slots 0/1 are rows; slots 2/3 are columns. No solutions. */
+  crossword?: Array<{ row: number; column: number; expression: string }>;
+  /** Dimensions of the given square and removed corner, not the completed rectangle. */
+  cutBuild?: { variable: string; removedSide: number };
 }
 
 /** What the browser sends back: the tile index chosen for each box (null = left empty). */
@@ -111,7 +125,14 @@ export function assembleTileAnswer(interaction: TileBuildInteraction, picks: Rea
   if (parts.length === 0) return null;
   switch (interaction.format) {
     case "BRACKET_BRIDGE":
+    case "CUT_BUILD_STUDIO":
       return parts.length === 2 ? `(${tidy(parts[0]!)})(${tidy(parts[1]!)})` : null;
+    case "FACTOR_CROSSWORD":
+      return parts.length === 4 && interaction.crossword?.length === 4
+        && interaction.crossword.every(({ row, column }) => (row === 0 || row === 1) && (column === 2 || column === 3))
+        && new Set(interaction.crossword.map(({ row, column }) => `${row}:${column}`)).size === 4
+        ? interaction.crossword.map(({ row, column }) => `(${tidy(parts[row]!)})(${tidy(parts[column]!)})`).join(" | ")
+        : null;
     case "FACTOR_BUILDER":
       return parts.map(tidy).join("");
     case "TERM_BUILDER":
