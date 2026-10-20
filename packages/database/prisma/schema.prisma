@@ -332,6 +332,8 @@ model Parent {
   /// Verified mobile in E.164 (+919876543210). One account per number: the latest to verify it holds it.
   phone              String?   @unique
   phoneVerifiedAt    DateTime?
+  /// Short texts to the verified phone when something happens in class (on until the parent turns them off).
+  textUpdates        Boolean   @default(true)
 
   primaryStudents ParentStudentLink[]     @relation("PrimaryParent")
   notifications   ParentNotification[]
@@ -341,20 +343,22 @@ model Parent {
 }
 
 model Student {
-  id              String    @id @default(cuid())
-  userId          String?   @unique
-  user            User?     @relation(fields: [userId], references: [id])
-  primaryParentId String
-  name            String
-  grade           Int       @default(8)
-  curriculum      String    @default("CBSE")
-  accessCodeHash  String
-  deletedAt       DateTime?
+  id                   String    @id @default(cuid())
+  userId               String?   @unique
+  user                 User?     @relation(fields: [userId], references: [id])
+  primaryParentId      String
+  name                 String
+  grade                Int       @default(8)
+  curriculum           String    @default("CBSE")
+  accessCodeHash       String
+  deletedAt            DateTime?
+  /// A child the family added that the parent said is not the same as a child from school with the same first name.
+  duplicateDismissedAt DateTime?
   /// Where the student asked Cogna to email a sign-up invite (typed when joining a class). Shown masked to the student and teacher.
-  parentInviteEmail       String?
-  parentInviteSentAt      DateTime?
+  parentInviteEmail    String?
+  parentInviteSentAt   DateTime?
   /// Invites sent in the 24 hours since the last one; caps how many emails a student can trigger.
-  parentInviteCount       Int       @default(0)
+  parentInviteCount    Int       @default(0)
 
   /**
    * Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags.
@@ -1604,6 +1608,8 @@ model ParentNotification {
   /// The same event never notifies the same parent twice.
   dedupeKey String
   readAt    DateTime?
+  /// When the short text for this update went to the parent's phone (or was skipped as unconfigured).
+  textedAt  DateTime?
   createdAt DateTime  @default(now())
 
   @@unique([parentId, dedupeKey])

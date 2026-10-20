@@ -13,8 +13,10 @@ const firstName = (name: string) => name.split(/\s+/)[0] ?? name;
  * texted code), then agree for each child listed with it. Without a number on record, they ask
  * the class teacher instead.
  */
-export function SchoolLink({ getAuth, onLinked }: { getAuth: () => Promise<ParentAuthInput>; onLinked: () => void }) {
+export function SchoolLink({ getAuth, onLinked, refresh = 0 }: { getAuth: () => Promise<ParentAuthInput>; onLinked: () => void; refresh?: number }) {
   const [phone, setPhone] = useState<string | null | undefined>(undefined);
+  const [texts, setTexts] = useState(true);
+  const [changing, setChanging] = useState(false);
   const [schoolChildren, setSchoolChildren] = useState<SchoolChild[]>([]);
   const [requests, setRequests] = useState<ParentLinkRequest[]>([]);
   const [typed, setTyped] = useState("");
@@ -29,13 +31,14 @@ export function SchoolLink({ getAuth, onLinked }: { getAuth: () => Promise<Paren
     const auth = await getAuth();
     const [p, kids, reqs] = await Promise.all([api.getParentPhone(auth), api.getSchoolChildren(auth), api.getParentLinkRequests(auth)]);
     setPhone(p.phone);
+    setTexts(p.textUpdates);
     setSchoolChildren(kids);
     setRequests(reqs);
   }, [getAuth]);
 
   useEffect(() => {
     load().catch(() => setPhone(null));
-  }, [load]);
+  }, [load, refresh]);
 
   async function run(key: string, action: () => Promise<void>) {
     setBusy(key);
@@ -59,12 +62,17 @@ export function SchoolLink({ getAuth, onLinked }: { getAuth: () => Promise<Paren
     setPhone(result.phone);
     setSchoolChildren(result.children);
     setSent(null);
+    setChanging(false);
     onLinked();
   });
 
   const answer = (child: SchoolChild, agree: boolean) => run(child.studentId, async () => {
     setSchoolChildren(await api.answerSchoolChild(await getAuth(), child.studentId, agree));
     if (agree) onLinked();
+  });
+
+  const toggleTexts = () => run("texts", async () => {
+    setTexts((await api.setParentTextUpdates(await getAuth(), !texts)).textUpdates);
   });
 
   const sendRequest = () => run("ask", async () => {
@@ -79,16 +87,21 @@ export function SchoolLink({ getAuth, onLinked }: { getAuth: () => Promise<Paren
 
   return (
     <section className={`dash-card rise ${styles.schoolLink}`} id="school" aria-label="Children from school">
-      {!phone ? (
+      {!phone || changing ? (
         <>
-          <h2 className="dash-section-title">Is your child&apos;s school on Cogna?</h2>
-          <p className={styles.schoolNote}>Confirm the mobile number you gave the school, and your child appears here. No code from school needed.</p>
+          <h2 className="dash-section-title">{changing ? "Change your number" : "Is your child\u2019s school on Cogna?"}</h2>
+          <p className={styles.schoolNote}>
+            {changing
+              ? "Confirm your new number with a texted code. Children you found through your old number are unlinked, unless the school has your new number for them too."
+              : "Confirm the mobile number you gave the school, and your child appears here. No code from school needed."}
+          </p>
           {!sent ? (
             <form className={styles.schoolForm} onSubmit={(e) => { e.preventDefault(); void sendCode(); }}>
               <label htmlFor="parent-phone">Your mobile number</label>
               <div>
                 <input id="parent-phone" className="input" type="tel" inputMode="tel" autoComplete="tel" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="98765 43210" required />
                 <button type="submit" className="btn btn-primary btn-pill" disabled={busy === "send"}>{busy === "send" ? "Sending…" : "Text me a code"}</button>
+                {changing && <button type="button" className="btn-link" onClick={() => { setChanging(false); setError(""); }}>Keep {showPhone(phone!)}</button>}
               </div>
             </form>
           ) : (
@@ -116,7 +129,7 @@ export function SchoolLink({ getAuth, onLinked }: { getAuth: () => Promise<Paren
                       {child.className && <> · {child.className}{child.teacherName ? ` with ${child.teacherName}` : ""}</>}
                     </p>
                     {child.status === "DECLINED" ? (
-                      <p className={styles.schoolNote}>You said no, so you don&apos;t see {firstName(child.name)}&apos;s progress. The school still decides about class use.</p>
+                      <p className={styles.schoolNote}>You&apos;re not following {firstName(child.name)}, so you don&apos;t see their progress. The school still decides about class use.</p>
                     ) : (
                       <p className={styles.schoolNote}>
                         The school listed your number for {firstName(child.name)}. Do you agree to {firstName(child.name)} practising maths on Cogna with their class, and to seeing their progress here?
@@ -133,10 +146,16 @@ export function SchoolLink({ getAuth, onLinked }: { getAuth: () => Promise<Paren
               </ul>
             </>
           ) : (
-            <p className={styles.schoolNote}>
-              Signed in with {showPhone(phone)}. Children the school lists with this number appear here.
-            </p>
+            <p className={styles.schoolNote}>Children the school lists with your number appear here.</p>
           )}
+          <div className={styles.phoneLine}>
+            <span>Your number: <strong>{showPhone(phone)}</strong></span>
+            <button type="button" className="btn-link" onClick={() => { setChanging(true); setTyped(""); setSent(null); setError(""); }}>Change number</button>
+            <label className={styles.textToggle}>
+              <input id="parent-texts" type="checkbox" checked={texts} disabled={busy === "texts"} onChange={() => void toggleTexts()} />
+              Text me when something happens in class
+            </label>
+          </div>
         </>
       )}
 

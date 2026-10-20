@@ -74,6 +74,24 @@ export class ParentsController {
     return this.parents.verifyPhone(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.phone ?? "", body?.code ?? "");
   }
 
+  /** Body: { on: boolean }: short texts to the verified phone when something happens in class. */
+  @Post("me/phone/texts")
+  async setTextUpdates(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Body() body: { on?: boolean }) {
+    return this.parents.setTextUpdates(await this.auth.resolveParentId(parentIdHeader, authHeader), body?.on === true);
+  }
+
+  /** The parent stops following a child linked through school (withdraws consent). */
+  @Post("me/students/:studentId/leave")
+  async leaveSchoolChild(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Param("studentId") studentId: string) {
+    return this.parents.leaveSchoolChild(await this.auth.resolveParentId(parentIdHeader, authHeader), studentId);
+  }
+
+  /** Body: { same: boolean, schoolChildId? }: whether a child added at home is the same as one from school. */
+  @Post("me/students/:studentId/duplicate")
+  async resolveDuplicate(@Headers("x-parent-id") parentIdHeader: string | undefined, @Headers("authorization") authHeader: string | undefined, @Param("studentId") studentId: string, @Body() body: { same?: boolean; schoolChildId?: string }) {
+    return this.parents.resolveDuplicate(await this.auth.resolveParentId(parentIdHeader, authHeader), studentId, { same: body?.same === true, schoolChildId: body?.schoolChildId });
+  }
+
   /** Children whose school record lists this parent's verified phone. */
   @Get("me/school-children")
   async schoolChildren(@Headers("x-parent-id") parentIdHeader?: string, @Headers("authorization") authHeader?: string) {

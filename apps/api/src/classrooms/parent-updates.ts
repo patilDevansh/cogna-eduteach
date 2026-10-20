@@ -5,7 +5,14 @@
  */
 import type { StudentRow } from "./class-report";
 
-export type ParentUpdateKind = "CHECK_FINISHED" | "CATCH_UP_SET";
+export type ParentUpdateKind = "CHECK_FINISHED" | "CATCH_UP_SET" | "LINK_APPROVED";
+
+/** The short text for each update (see updateText): under 30 characters, nothing about what the child found hard. */
+export const UPDATE_TEXT: Record<ParentUpdateKind, string> = {
+  CHECK_FINISHED: "class check finished",
+  CATCH_UP_SET: "catch-up work set",
+  LINK_APPROVED: "linked to your account",
+};
 
 export interface ParentUpdate {
   kind: ParentUpdateKind;
@@ -46,5 +53,16 @@ export function catchUpSetUpdate(input: { runId: string; className: string; chec
     title: `${input.className}: catch-up set`,
     body: `${input.teacherName} set ${firstName(input.studentName)} a short catch-up on ${topic.toLowerCase()}, aimed at what they still found tricky.`,
     dedupeKey: `CATCH_UP_SET:${input.runId}:${input.studentId}`,
+  };
+}
+
+/** Sent when a teacher approves a parent's request to be linked to their child. */
+export function linkApprovedUpdate(input: { requestId: string; className: string; studentName: string; teacherName: string }): ParentUpdate {
+  const name = firstName(input.studentName);
+  return {
+    kind: "LINK_APPROVED",
+    title: `${input.className}: ${name} is linked`,
+    body: `${input.teacherName} linked ${name} to your account. You'll see their class work and progress here.`,
+    dedupeKey: `LINK_APPROVED:${input.requestId}`,
   };
 }
