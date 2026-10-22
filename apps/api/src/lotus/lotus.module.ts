@@ -32,5 +32,6 @@ import { ClassroomEventsService } from "../classrooms/classroom-events";
         new LotusService(models, prisma, { classEvents }),
     },
   ],
+  exports: [LotusService],
 })
 export class LotusModule {}

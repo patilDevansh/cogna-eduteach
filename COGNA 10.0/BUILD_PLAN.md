@@ -49,6 +49,16 @@ These are **open** requirements in the [continuous diagnostic plan](./LOTUS_CONT
 
 Before executing each phase's test gate, notify the product owner in the active Codex thread with the test scope, environment, live-model/cost impact, expected duration, and any test-data reset; wait for acknowledgment and report the results before starting the next phase.
 
+## Public sample test (2026-10-22)
+
+- [x] `/try`: parent's email, child's first name and consent, then Cogna's factorisation check, free, with no account
+- [x] Free summary at the end (answered, right, skills secure / need work, counts only); full report and personal lesson unlocked by payment
+- [x] Report locked on the server for unpaid samples (every Lotus response and lesson creation), not just hidden in the page
+- [x] Razorpay orders, signature-checked payment callback and webhook; local test payments when no keys are set
+- [x] Parent emails: their link at the start, results ready, report unlocked; limits per email, per network and per day
+- [x] No payment offered when there weren't enough answers to make a report (free retake instead)
+- [ ] Go live with Razorpay (KYC, live keys, webhook), privacy and refund pages, retention for unpaid samples
+
 ## Classroom connections (2026-10-08)
 
 - [x] One Lotus session per class assignment (refresh/second tab resumes, never restarts)

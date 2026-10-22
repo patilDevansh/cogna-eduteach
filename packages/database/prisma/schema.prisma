@@ -341,20 +341,20 @@ model Parent {
 }
 
 model Student {
-  id              String    @id @default(cuid())
-  userId          String?   @unique
-  user            User?     @relation(fields: [userId], references: [id])
-  primaryParentId String
-  name            String
-  grade           Int       @default(8)
-  curriculum      String    @default("CBSE")
-  accessCodeHash  String
-  deletedAt       DateTime?
+  id                 String    @id @default(cuid())
+  userId             String?   @unique
+  user               User?     @relation(fields: [userId], references: [id])
+  primaryParentId    String
+  name               String
+  grade              Int       @default(8)
+  curriculum         String    @default("CBSE")
+  accessCodeHash     String
+  deletedAt          DateTime?
   /// Where the student asked Cogna to email a sign-up invite (typed when joining a class). Shown masked to the student and teacher.
-  parentInviteEmail       String?
-  parentInviteSentAt      DateTime?
+  parentInviteEmail  String?
+  parentInviteSentAt DateTime?
   /// Invites sent in the 24 hours since the last one; caps how many emails a student can trigger.
-  parentInviteCount       Int       @default(0)
+  parentInviteCount  Int       @default(0)
 
   /**
    * Parent-controlled safety toggle: when true, live-agentic generation is never served to this student regardless of global flags.
@@ -364,6 +364,7 @@ model Student {
   learnerProfile       LearnerProfile?
   parentNotifications  ParentNotification[]
   guardianPhones       StudentGuardianPhone[]
+  sampleAttempt        SampleAttempt?
   sessions             LearningSession[]
   attempts             Attempt[]
   masteryScores        MasteryScore[]
@@ -1661,4 +1662,32 @@ model ParentLinkRequest {
 
   @@index([classroomId, status])
   @@index([parentId, createdAt])
+}
+
+/// A sample diagnostic started from a public link (marketing). The parent's email and consent come
+/// first; the test is free; the full report unlocks once the parent pays.
+model SampleAttempt {
+  id              String    @id @default(cuid())
+  /// The private link token in the parent's link (/try/result?t=…). It opens this child's result.
+  token           String    @unique
+  studentId       String    @unique
+  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parentEmail     String
+  childName       String
+  consentAt       DateTime
+  /// sha256 of the requester's network address, for rate limits only.
+  ipHash          String
+  /// The price on the order, in paise.
+  amountPaise     Int?
+  orderId         String?   @unique
+  paymentId       String?
+  paidAt          DateTime?
+  /// When the parent was emailed that the results are ready (once).
+  resultEmailedAt DateTime?
+  reportEmailedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([parentEmail, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
 }
