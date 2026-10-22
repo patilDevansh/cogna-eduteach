@@ -1,10 +1,12 @@
 import { isProductionLike } from "../access/cogna-access";
 
 /**
- * Hard daily ceilings on a billed third-party API, in calls and in US dollars.
- * Fails closed: once a cap is hit, every further call is refused until the next
- * UTC day, and callers' existing failure paths (silent scene, bank content,
- * "try again later") take over.
+ * Hard ceilings on a billed third-party API: per UTC day in calls and US
+ * dollars, and per UTC month in US dollars. Fails closed: once a cap is hit,
+ * every further call is refused until the next day (or month), and callers'
+ * existing failure paths (silent scene, bank content, "try again later") take
+ * over. The monthly cap is the one that keeps a prepaid balance from going
+ * negative: daily caps alone still add up across a month.
  *
  * The dollar cap is enforced by reservation: each call books its worst-case
  * cost (full prompt + max output tokens) before it is sent, and is trued up to
@@ -14,13 +16,14 @@ import { isProductionLike } from "../access/cogna-access";
  * Env, per service prefix:
  *   <PREFIX>_DAILY_CALL_CAP  Unset → 5000 in production-like envs, unlimited in dev. 0 → block all.
  *   <PREFIX>_DAILY_USD_CAP   Unset → no dollar cap. Needs model prices (see model-pricing.ts).
+ *   <PREFIX>_MONTHLY_USD_CAP Unset → no monthly cap. Same prices; set it below the account's prepaid balance.
  *
  * The running API stores the ledger in Postgres (PrismaSpendStore), shared by
  * every replica and surviving restarts. Tests and scripts fall back to memory.
  */
 export class SpendCapExceededError extends Error {
   constructor(readonly service: string, readonly detail: string) {
-    super(`${service} daily ${detail} reached; refusing further billed calls until tomorrow (UTC).`);
+    super(`${service} ${detail} reached; refusing further billed calls until ${detail.startsWith("monthly") ? "next month" : "tomorrow"} (UTC).`);
     this.name = "SpendCapExceededError";
   }
 }
@@ -28,6 +31,20 @@ export class SpendCapExceededError extends Error {
 export interface SpendCaps {
   calls: number;
   usd: number;
+}
+
+/** The dollar-only caps a monthly ledger row is held to. */
+function monthlyCaps(usd: number): SpendCaps {
+  return { calls: Infinity, usd };
+}
+
+/** True when any dollar cap (daily or monthly) is set, so every call needs a price. */
+export function hasUsdCap(envPrefix: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  return Number.isFinite(spendCapsFromEnv(envPrefix, env).usd) || Number.isFinite(monthlyUsdCapFromEnv(envPrefix, env));
+}
+
+export function monthlyUsdCapFromEnv(envPrefix: string, env: NodeJS.ProcessEnv = process.env): number {
+  return parseCap(env[`${envPrefix}_MONTHLY_USD_CAP`], Infinity) ?? Infinity;
 }
 
 /** Atomic per-(service, UTC day) ledger. */
@@ -98,28 +115,49 @@ export async function reserveBudget(
   options: { estimateUsd?: number; env?: NodeJS.ProcessEnv; now?: Date } = {},
 ): Promise<SpendReservation> {
   const caps = spendCapsFromEnv(envPrefix, options.env);
+  const monthCap = monthlyUsdCapFromEnv(envPrefix, options.env);
   const estimate = Math.max(0, options.estimateUsd ?? 0);
-  const day = (options.now ?? new Date()).toISOString().slice(0, 10);
+  const iso = (options.now ?? new Date()).toISOString();
+  const day = iso.slice(0, 10);
+  // The month shares the ledger table: its row's "day" is the yyyy-mm.
+  const month = Number.isFinite(monthCap) ? iso.slice(0, 7) : null;
+
+  const reserve = async (ledger: SpendStore): Promise<"ok" | "month" | "day"> => {
+    if (month && !(await ledger.tryReserve(service, month, estimate, monthlyCaps(monthCap)))) return "month";
+    if (await ledger.tryReserve(service, day, estimate, caps)) return "ok";
+    if (month) await ledger.adjust(service, month, -estimate); // give back the month's share of a refused call
+    return "day";
+  };
+
   let ledger = store;
-  let reserved: boolean;
+  let outcome: "ok" | "month" | "day";
   try {
-    reserved = await ledger.tryReserve(service, day, estimate, caps);
+    outcome = await reserve(ledger);
   } catch (error) {
     console.warn(`[spend-cap] shared ledger unavailable, using this process's own: ${error instanceof Error ? error.message : String(error)}`);
     ledger = fallback;
-    reserved = await ledger.tryReserve(service, day, estimate, caps);
+    outcome = await reserve(ledger);
   }
-  if (!reserved) {
+  if (outcome === "month") {
+    const { usd } = await ledger.today(service, month!).catch(() => ({ usd: NaN }));
+    throw new SpendCapExceededError(
+      service,
+      `monthly spend cap ($${monthCap}; $${usd.toFixed(2)} used, next call could cost up to $${estimate.toFixed(2)})`,
+    );
+  }
+  if (outcome === "day") {
     const { calls, usd } = await ledger.today(service, day).catch(() => ({ calls: NaN, usd: NaN }));
     throw new SpendCapExceededError(
       service,
-      calls >= caps.calls ? `call cap (${caps.calls})` : `spend cap ($${caps.usd}; $${usd.toFixed(2)} used, next call could cost up to $${estimate.toFixed(2)})`,
+      calls >= caps.calls ? `daily call cap (${caps.calls})` : `daily spend cap ($${caps.usd}; $${usd.toFixed(2)} used, next call could cost up to $${estimate.toFixed(2)})`,
     );
   }
   return {
     settle: async (actualUsd) => {
       const delta = Math.max(0, actualUsd) - estimate;
-      if (delta !== 0) await ledger.adjust(service, day, delta).catch(() => undefined);
+      if (delta === 0) return;
+      await ledger.adjust(service, day, delta).catch(() => undefined);
+      if (month) await ledger.adjust(service, month, delta).catch(() => undefined);
     },
   };
 }

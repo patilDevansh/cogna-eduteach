@@ -7,7 +7,7 @@ Everything that must be done before Cogna is used at a school with real students
 - [ ] Get a legal review against India's DPDP Act, 2023 (verifiable parental consent for under-18s)
 - [ ] Write a privacy policy and terms, and add both pages to the web app
 - [ ] Add a parental consent step before a child's data is stored (started: the school confirms consent when it adds a class, and each parent agrees after confirming their phone; still needs the legal review above)
-- [ ] Turn on texts for parent phone codes: Twilio keys (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`) and a DLT-registered sender and template for India. Without them, parents can't confirm their number in production
+- [ ] Turn on texts for parent phone codes: Twilio keys (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`) and a DLT-registered sender for India, with two templates registered word for word: `{#var#} is your Cogna code. It works for 10 minutes. Don't share it.` and `Cogna: {#var#} - {#var#}. See details in the Cogna app.` Without them, parents can't confirm their number in production and get no texted updates (in-app updates still work)
 - [ ] Prepare a data agreement for schools to sign
 - [ ] Make "delete my data" remove all of a student's data (today only Lotus data and class removal exist)
 

@@ -19,7 +19,7 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusDemoGap } from "@cogna/shared";
+import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { sampleTokenFor } from "@/lib/sample";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
@@ -32,6 +32,7 @@ import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classr
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
 import { TileGame, type TileGameState } from "@/components/games/TileGame";
+import { DiagnosticPuzzle } from "@/components/games/DiagnosticPuzzle";
 import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice, LotusBloom, PondMap } from "@/components/games/LotusGames";
 import gameStyles from "@/components/games/lotus-games.module.css";
 
@@ -1131,7 +1132,7 @@ function LotusPage() {
   }
 
   useEffect(() => {
-    document.title = "Cogna Lotus — Experimental AI Lab";
+    document.title = "Your quick check — Cogna";
     const student = getStudent();
     if (!student) {
       router.replace("/student/login");
@@ -1147,10 +1148,21 @@ function LotusPage() {
     if (classroomAssignmentId) void api.startClassroomAssignment(classroomAssignmentId).catch(() => undefined);
   }, [router, classroomAssignmentId]);
 
+  // "Carry on" from the class page: rejoin the session already started for this assignment.
+  const resumeRef = useRef(false);
+  useEffect(() => {
+    if (resumeRef.current || !classroomAssignmentId || searchParams.get("resume") !== "1" || !studentId || session) return;
+    resumeRef.current = true;
+    void start();
+    // start() reads the current student and topic; it only needs to run once here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroomAssignmentId, studentId, session]);
+
   useEffect(() => {
     if (!session || session.status !== "ACTIVE") return;
     const timer = window.setInterval(() => {
-      setElapsed(Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000));
+      // The same active-time rule the server uses for the limit, so the clock never jumps ahead.
+      setElapsed(lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt)));
     }, 1000);
     return () => window.clearInterval(timer);
   }, [session]);
@@ -1528,9 +1540,9 @@ function LotusPage() {
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
-  // Factorisation always has a 25-question diagnostic. Some later questions
-  // may still be generating, so don't derive the total from the currently
-  // exposed/prefetched list.
+  // Only sizes the pond map. The plan's length changes as Lotus adapts, so it
+  // is never shown to the student as "of N". Don't derive it from the
+  // currently exposed/prefetched list: later questions may still be generating.
   const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
   const inputLocked = busy || Boolean(pendingSubmission);
   const promptLines = question
@@ -1631,7 +1643,8 @@ function LotusPage() {
               <Link href="/student/home" className="wordmark">Cogna<span className="dot">.</span></Link>
             )}
             <span className={styles.lotusName}>Lotus</span>
-            <span className={styles.experimental}>Experimental AI Lab</span>
+            {/* Lab labels are for the team; a student sees a plain quick check. */}
+            {devMode && <span className={styles.experimental}>Experimental AI Lab</span>}
             {devFakeModel && <span className={styles.devModelBadge}>Dev · fake model</span>}
           </div>
           <div className={styles.statusRow}>
@@ -1639,7 +1652,8 @@ function LotusPage() {
             {session?.status === "ACTIVE" && (
               <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{planned ? " of 15:00" : ""} · Q{shownQuestionNumber}</span>
             )}
-            {devMode && (
+            {/* Skipping signs in as a demo student, so it would abandon a real classroom assignment. */}
+            {devMode && !classroomAssignmentId && (
               <select
                 className="btn btn-quiet"
                 value=""
@@ -1683,7 +1697,7 @@ function LotusPage() {
                   ? "AI is preparing your personalised diagnostic."
                   : "Cogna has a checked, curriculum-balanced question path ready before you begin. When you submit, the next question appears immediately while two AI reviewers examine your answer and can shape later questions. Conclusions remain experimental research evidence."}
               </p>
-              {status && (
+              {status && devMode && (
                 <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
                   Models: {status.models.primary} + {status.models.challenger}
                 </p>
@@ -1793,17 +1807,21 @@ function LotusPage() {
                     </div>
                   )}
                   <div className={styles.cardTop}>
-                    <div className={styles.phaseRow}>
-                      <span className={styles.phaseBadge}>{question.phase}</span>
-                      <span className={styles.muted}>{question.subtopic}</span>
-                      <span
-                        className={`${styles.questionProvenance} ${isReusedFromBank(question, session) ? styles.questionProvenanceReused : ""}`}
-                        role="status"
-                      >
-                        {provenanceLabelForQuestion(question, session)}
-                      </span>
-                    </div>
-                    <strong className={styles.questionNumber}>Question {shownQuestionNumber} of {totalQuestions}</strong>
+                    {/* Phase, skill and where the question came from are the team's view, not the student's. */}
+                    {(devMode || observer) && (
+                      <div className={styles.phaseRow}>
+                        <span className={styles.phaseBadge}>{question.phase}</span>
+                        <span className={styles.muted}>{question.subtopic}</span>
+                        <span
+                          className={`${styles.questionProvenance} ${isReusedFromBank(question, session) ? styles.questionProvenanceReused : ""}`}
+                          role="status"
+                        >
+                          {provenanceLabelForQuestion(question, session)}
+                        </span>
+                      </div>
+                    )}
+                    {/* No "of N": the plan grows and shrinks with the answers, so a total would change mid-test. */}
+                    <strong className={styles.questionNumber}>Question {shownQuestionNumber}</strong>
                   </div>
                   <div className={styles.cardBody}>
                     {isPlannedLotusTopic(session.topic) && (
@@ -1822,6 +1840,10 @@ function LotusPage() {
                     {readAloudError && <p className={styles.muted} role="status">{readAloudError}</p>}
 
                     {question.interaction ? (
+                      question.interaction.format === "FACTOR_CROSSWORD" || question.interaction.format === "CUT_BUILD_STUDIO" ? (
+                        <DiagnosticPuzzle key={question.id} interaction={question.interaction} disabled={inputLocked || didNotKnow}
+                          onChange={(state) => { setTiles(state); setDidNotKnow(false); }} />
+                      ) : (
                       <TileGame
                         key={question.id}
                         interaction={question.interaction}
@@ -1829,6 +1851,7 @@ function LotusPage() {
                         disabled={inputLocked || didNotKnow}
                         onChange={(state) => { setTiles(state); setDidNotKnow(false); }}
                       />
+                      )
                     ) : question.presentation === "FIREFLY" && question.options?.length ? (
                       <FireflyChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
                     ) : question.presentation === "IMPOSTOR" && question.options?.length ? (
@@ -2077,7 +2100,7 @@ function LotusPage() {
           <div className={styles.miniPlayer} role="status" aria-live="polite">
             <div>
               <strong>Cogna Lotus diagnostic</strong>
-              <span>{preparing ? "Preparing your questions…" : `Question ${shownQuestionNumber} of ${totalQuestions}`}</span>
+              <span>{preparing ? "Preparing your questions…" : `Question ${shownQuestionNumber}`}</span>
             </div>
             <button type="button" className="btn btn-primary" onClick={() => setMinimized(false)}>Close mini-player</button>
           </div>

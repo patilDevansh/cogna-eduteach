@@ -95,11 +95,13 @@ function controlledWrite(prompt: string): Record<string, unknown> {
   const shape = prompt.match(/Follow this shape, but write a NEW question with DIFFERENT numbers: ([^\n]+)/)?.[1]?.trim();
   const token = prompt.match(/Session variation token: ([^\n]+)/)?.[1] ?? "test";
   const variant = [...token].reduce((sum, character) => (sum * 31 + character.charCodeAt(0)) >>> 0, 7) % 10_000 + 1;
+  // Label stand-in wrong answers with the mistakes this slot tests (listed in the prompt), as a real writer must.
+  const slotMistakes = [...prompt.matchAll(/^- ([A-Z][A-Z0-9_]+)/gm)].map((m) => m[1]!);
   const factor = (expression: string, answer: string, skill: string, wrong?: Array<{ answer: string; mistake: string }>) => ({
     prompt: `Factorise completely: (${expression}) + ${variant} - ${variant}`,
     expression: `(${expression}) + ${variant} - ${variant}`,
     answer,
-    wrongAnswers: wrong ?? (skill === "FAC_GROUP_TERMS"
+    wrongAnswers: wrong ?? (slotMistakes.length ? slotMistakes.slice(0, 2).map((mistake, index) => ({ answer: String(index + 1), mistake })) : skill === "FAC_GROUP_TERMS"
       ? [{ answer: "1", mistake: "PAIRS_SHARE_NOTHING" }, { answer: "2", mistake: "SUM_ACCEPTED_AS_FACTORISED" }]
       : skill === "FAC_COMMON_BINOMIAL"
         ? [{ answer: "1", mistake: "BRACKET_NOT_SEEN_AS_FACTOR" }, { answer: "2", mistake: "LEFTOVERS_MULTIPLIED" }]
@@ -110,7 +112,7 @@ function controlledWrite(prompt: string): Record<string, unknown> {
     prompt: `${question} (Version ${variant}.)`,
     options,
     correctOption: correct,
-    wrongOptionMistakes: options.filter((option) => option !== correct).slice(0, 2).map((option, index) => ({ option, mistake: index ? "WRONG_FACTOR_PAIR_SUM" : "SIGN_PAIR_ERROR" })),
+    wrongOptionMistakes: options.filter((option) => option !== correct).slice(0, 2).map((option, index) => ({ option, mistake: slotMistakes[index % Math.max(slotMistakes.length, 1)] ?? (index ? "WRONG_FACTOR_PAIR_SUM" : "SIGN_PAIR_ERROR") })),
     steps: [{ line: "Check the condition carefully.", skill }],
   });
   switch (shape) {
@@ -401,6 +403,23 @@ describe("factorisation session — safety of the running test", () => {
     assert.equal(view.audits[0]!.questionSelection.reason, "");
     assert.equal(view.audits[0]!.verification!.status, "VERIFIED_INCORRECT");
     assert.ok(internal(service, view.sessionId).audits[0].skillEvidence.length > 0, "the server still has it");
+  });
+
+  it("a student who says I don't know to everything is taught from the foundations, not told no lesson is needed", async () => {
+    const { service } = setup();
+    let view = await startReady(service, "demo_divya");
+    let answered = 0;
+    while (view.status === "ACTIVE" && view.currentQuestion && answered < 30) {
+      view = await submit(service, view, "", { didNotKnow: true, working: "", responseTimeMs: 3_000 });
+      answered += 1;
+      await flush();
+      view = await service.get(view.sessionId);
+    }
+    const report = view.finalReport!;
+    assert.equal(report.outcome, "SOLID_GAP", "not knowing a skill on two questions is a gap to teach");
+    assert.ok(report.evidenceSummary.some((line) => line.includes("not learned yet")), "the report says why: not learned yet, not a mistake");
+    assert.match(report.startingPoint, /^Start with /);
+    assert.ok(answered < 25, `the check should end early once the foundations are found (answered ${answered})`);
   });
 
   it("an explicit I-don't-know response is recorded as a support signal", async () => {

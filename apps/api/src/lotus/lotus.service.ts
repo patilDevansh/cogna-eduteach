@@ -31,7 +31,7 @@ import type {
   LotusTopic,
   LotusWorkingPrompt,
 } from "@cogna/shared";
-import { isLotusDemoGap, isPlannedLotusTopic, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
+import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
 import { isDemoStudentId } from "../access/cogna-access";
 import {
@@ -1093,13 +1093,17 @@ export class LotusService implements OnModuleDestroy {
     // An explicit gap overrides the student's own: any demo student can be walked through any gap.
     const gap: LotusDemoGap | undefined = isLotusDemoGap(gapChoice) ? gapChoice : DEMO_PERSONA_GAP[persona];
     const key = gap ? DEMO_GAP_PERSONA[gap] : persona;
-    const canonical = question.answerKey.canonicalAnswer;
+    const canonical = question.answerKey.crosswordAnswers?.join(" | ") ?? question.answerKey.canonicalAnswer;
     const diagnostics = question.answerKey.diagnostics;
     if (diagnostics) {
       // Factorisation: each persona makes one family of predicted mistakes, so a gap shows up twice and gets confirmed.
       const weakness = gap ? DEMO_FACTORISATION_WEAKNESS[gap] : undefined;
       const predicted = weakness ? diagnostics.predictedMistakes.find((mistake) => weakness.test(mistake.mistake)) : undefined;
-      if (predicted) return { answer: predicted.answer, working: predicted.answer, confidence: 60 };
+      if (predicted) {
+        const answer = question.answerKey.crosswordAnswers
+          ? [predicted.answer, ...question.answerKey.crosswordAnswers.slice(1)].join(" | ") : predicted.answer;
+        return { answer, working: answer, confidence: 60 };
+      }
       const worked = question.answerKey.workedSolution ?? [];
       return { answer: canonical, working: worked.slice(0, 6).join("\n") || canonical, confidence: 85 };
     }
@@ -1132,7 +1136,9 @@ export class LotusService implements OnModuleDestroy {
     );
     const answeredCount = session.audits.length + 1;
     if (session.factorisation) {
-      return this.resolveFactorisationTurn(session, currentQuestion, response, elapsedSeconds, answeredCount);
+      // Active time, not wall-clock: a student who steps away doesn't lose check time.
+      const activeSeconds = lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt));
+      return this.resolveFactorisationTurn(session, currentQuestion, response, activeSeconds, answeredCount);
     }
     const verification = verifyLotusResponse(currentQuestion, response);
     const breakpoint = diagnoseBreakpoint(currentQuestion, response);

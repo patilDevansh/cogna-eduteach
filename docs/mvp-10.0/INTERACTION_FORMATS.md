@@ -14,6 +14,14 @@ A game changes how a student **enters** an answer or how a question is **staged*
 
 ## Diagnostic (Lotus)
 
+### Crossword and cut-and-build (2026-10-09)
+
+- **Factor crossword** adapts compatible medium monic-trinomial coverage into four shared row/column factors and four crossing expressions. All four products are independently checked by the algebra engine before installation and at submission. The puzzle contributes one diagnostic observation, not four independent confirmations. A partial solution is not a correct item; unclassified errors go to review without an invented misconception.
+- **Cut-and-build studio** adapts compatible numeric difference-of-squares coverage into a square with a removed corner. Students remove, cut, rotate and move the remaining pieces, then select two rectangle side lengths. The diagram is explicitly not to scale and assumes the variable exceeds the removed side. Piece manipulation is a scratchpad, not evidence of correctness; only the chosen factors are algebraically marked.
+- Both formats are diagnostic-only and remain behind `COGNA_GAME_FORMATS`. They do not replace targeted adaptive checks, existing game probes, incompatible expressions or independent exit tasks. Existing in-flight questions are not rewritten.
+- Both support click/tap and keyboard operation; crossword tiles also support dragging and the studio piece supports pointer dragging and arrow-key movement. There are no correctness lamps, answer reveals, fit validation or hints before submission. Ordered crossword solutions stay inside the redacted server answer key.
+- Verification: shared/API/web TypeScript and 56 focused interaction/puzzle tests passed. Full database regression and browser acceptance remain pending due local-network/approval-tool limitations; this is not a completed browser acceptance gate.
+
 | Game | Item | When | Server |
 |---|---|---|---|
 | Bracket bridge / Split it / Factor workshop / Factor constellation | FACTORISE item, answered with tiles | Turn 1, every repurposed turn (check, descent, widen), alternating coverage turns | `lotus-interactions.ts`, `interaction-formats/tile-builder.ts` |

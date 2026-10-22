@@ -92,7 +92,7 @@ export function PracticeArena({
     <section className={styles.arena} data-theme={theme}>
       <header className={styles.top}>
         <div>
-          <p className={styles.eyebrow}>Practice on your own · {set.skillName}</p>
+          <p className={styles.eyebrow}>Practice · {set.skillName}</p>
           <h2 className={styles.title}>{finished ? world.done : `Question ${index + 1} of ${total}`}</h2>
         </div>
         <div className={styles.meter} aria-label={`${earned} of ${total} ${world.unit}`}>
@@ -373,10 +373,27 @@ function ItemCard({
         </div>
       )}
 
-      {done && (
+      {result?.reveal && result.verdict !== "CORRECT" && (item.format === "choose" || item.format === "spot-mistake") && (
+        <div className={styles.worked}>
+          <p className={styles.workedLabel}>Here&apos;s how it goes</p>
+          <div className={styles.workedStep}>{prettyText(result.reveal.answer)}</div>
+          {result.reveal.steps.map((step, i) => (
+            <div key={i} className={styles.workedStep} style={{ animationDelay: `${(i + 1) * 450}ms` }}>{prettyText(step)}</div>
+          ))}
+        </div>
+      )}
+
+      {done ? (
         <div className={styles.nextRow}>
           <button className={styles.primary} onClick={onNext}>
             Next <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      ) : item.format !== "mark-it" && item.format !== "rush" && (
+        <div className={styles.nextRow}>
+          {/* Stuck: show the worked answer now, the same as after two misses. */}
+          <button type="button" className={styles.stuck} disabled={busy} onClick={() => void submit({ stuck: true }, null)}>
+            Show me how
           </button>
         </div>
       )}

@@ -283,7 +283,7 @@ export function sampleTopics(classroomId: string): ClassTopicPlan {
         students,
         counts,
         recommendation: fac.live
-          ? { action: "WAIT", text: `The diagnostic is running: ${counts.enrolled - counts.IN_PROGRESS} of ${counts.enrolled} finished.` }
+          ? { action: "WAIT", text: `The quick check is running: ${counts.enrolled - counts.IN_PROGRESS} of ${counts.enrolled} finished.` }
           // The demo story: the diagnostic is done, the class is being taught, the topic check comes next.
           : { action: "TOPIC_CHECK", text: `${counts.UNDERSTOOD} of ${counts.enrolled} already know factorisation. Teach it, then send the topic check to see who has understood.` },
       },

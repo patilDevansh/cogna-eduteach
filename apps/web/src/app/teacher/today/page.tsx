@@ -174,7 +174,7 @@ export default function TeacherTodayPage() {
         </div>
         <div className={styles.headerActions}>
           {selected && <Link className={styles.secondary} href="/teacher/sessions">Class code: {selected.joinCode}</Link>}
-          <Link className={styles.primary} href="/teacher/sessions">Start class</Link>
+          <Link className={styles.secondary} href="/teacher/sessions">Open class page</Link>
         </div>
       </div>
 
@@ -185,7 +185,7 @@ export default function TeacherTodayPage() {
       {loaded && !classes.length ? (
         <section className={styles.emptyCard}><h2>Create your first class</h2><p>Name it, share the code, and start a quick check. Your next moves show up here.</p><Link className={styles.primary} href="/teacher/sessions">Create a class →</Link></section>
       ) : selected && !runId ? (
-        <section className={styles.emptyCard}><h2>No quick check in {selected.name} yet</h2><p>Start one to see who needs help with what, by name.</p><Link className={styles.primary} href="/teacher/sessions">Start the quick check →</Link></section>
+        <section className={styles.emptyCard}><h2>No quick check in {selected.name} yet</h2><p>Start the topic above and its quick check shows who needs help with what, by name.</p></section>
       ) : plan && t ? (
         <>
           <section className={styles.decisionCard}>

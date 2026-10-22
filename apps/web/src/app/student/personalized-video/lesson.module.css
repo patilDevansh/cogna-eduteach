@@ -142,11 +142,6 @@ li[data-state="done"] .journeyDot { border-color: var(--accent); background: var
   border-radius: 18px;
   background: #0a2a22;
 }
-.slideShell {
-  padding: 12px;
-  border-radius: 18px;
-  background: var(--surface);
-}
 
 .cta {
   display: flex;

@@ -163,7 +163,7 @@ export function FishingSelect({ options, value, disabled, onChange }: { options:
 export function LotusBloom({ answered }: { answered: number }) {
   const stones = Math.min(answered, 24);
   return (
-    <div className={styles.bloomStrip} role="img" aria-label={`Your lotus bloomed: ${answered} stones crossed`}>
+    <div className={styles.bloomStrip} role="img" aria-label={`You finished the check: ${answered} stones crossed`}>
       <div className={styles.trail} aria-hidden="true">
         {Array.from({ length: stones }, (_, i) => (
           <i key={i} style={{ animationDelay: `${i * 40}ms` }} />
@@ -171,7 +171,7 @@ export function LotusBloom({ answered }: { answered: number }) {
       </div>
       <LotusFlower petals={8} size={64} bloom />
       <p className={styles.bloomText}>
-        <strong>Your lotus bloomed</strong>
+        <strong>You finished the check</strong>
         <span>{answered} stone{answered === 1 ? "" : "s"} crossed</span>
       </p>
     </div>

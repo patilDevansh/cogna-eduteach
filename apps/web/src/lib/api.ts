@@ -503,13 +503,15 @@ export function lotusTopicForClassTopic(topicId: string): LotusTopic {
 }
 
 /** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
-export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; videoAssignmentId?: string | null; payload?: Record<string, unknown>; run: { id: string; topicId: string } }): string {
+export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssignmentKind; status?: string; videoAssignmentId?: string | null; payload?: Record<string, unknown>; run: { id: string; topicId: string } }): string {
   const params = new URLSearchParams({ assignment: item.id, run: item.run.id });
   if (item.videoAssignmentId) params.set("video", item.videoAssignmentId);
   if (item.kind === "DIAGNOSTIC") {
     const topic = lotusTopicForClassTopic(item.run.topicId);
     if (topic !== "BRACKETS") params.set("topic", topic.toLowerCase());
     if (item.payload?.kind === "CATCH_UP") params.set("check", "catch-up");
+    // Already started: open straight at the current question, not the start screen.
+    if (item.status === "IN_PROGRESS") params.set("resume", "1");
     return `/student/lotus?${params.toString()}`;
   }
   // Lesson, practice and the independent exit share one page; the exit opens straight at its step.
@@ -558,6 +560,17 @@ export interface ParentLinkRequestForTeacher {
   rollNumber: string | null;
   createdAt: string;
   suggestions: Array<{ studentId: string; name: string; rollNumber?: string | null }>;
+}
+
+/** A child on the parent's dashboard. */
+export interface ParentChild {
+  id: string;
+  name: string;
+  grade: number;
+  /** Linked through school (phone or teacher), so the school runs their sign-in. */
+  fromSchool?: boolean;
+  /** Added at home with the same first name as this child from school: probably the same child twice. */
+  sameAsSchoolChild?: { id: string; name: string };
 }
 
 /** A child whose school record lists the parent's verified phone. */
@@ -623,7 +636,7 @@ export interface PilotClassReport {
     stage: "JOINED" | "DIAGNOSTIC" | "LESSON" | "EXIT" | "DONE";
     stageStatus: string;
     outcome?: string;
-    startingPoint?: { skillId: string; name: string };
+    startingPoint?: { skillId: string; name: string; notLearnedYet?: boolean };
     answered?: number;
     correct?: number;
     minutes?: number | null;
@@ -770,7 +783,7 @@ export const api = {
     apiFetch<ParentSession>("/parents/dev/demo-login", { method: "POST" }),
 
   listStudents: (auth?: string | ParentAuthInput) =>
-    apiFetch<Array<{ id: string; name: string; grade: number; fromSchool?: boolean }>>(
+    apiFetch<ParentChild[]>(
       "/parents/me/students",
       { headers: buildParentAuthHeaders(auth) },
     ),
@@ -790,7 +803,17 @@ export const api = {
     ),
 
   getParentPhone: (auth?: string | ParentAuthInput) =>
-    apiFetch<{ phone: string | null }>("/parents/me/phone", { headers: buildParentAuthHeaders(auth) }),
+    apiFetch<{ phone: string | null; textUpdates: boolean }>("/parents/me/phone", { headers: buildParentAuthHeaders(auth) }),
+
+  setParentTextUpdates: (auth: string | ParentAuthInput | undefined, on: boolean) =>
+    apiFetch<{ phone: string | null; textUpdates: boolean }>("/parents/me/phone/texts", { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify({ on }) }),
+
+  /** Stop following a child linked through school (withdraws the parent's consent). */
+  leaveSchoolChild: (auth: string | ParentAuthInput | undefined, studentId: string) =>
+    apiFetch<ParentChild[]>(`/parents/me/students/${encodeURIComponent(studentId)}/leave`, { method: "POST", headers: buildParentAuthHeaders(auth) }),
+
+  resolveDuplicateChild: (auth: string | ParentAuthInput | undefined, studentId: string, input: { same: boolean; schoolChildId?: string }) =>
+    apiFetch<ParentChild[]>(`/parents/me/students/${encodeURIComponent(studentId)}/duplicate`, { method: "POST", headers: buildParentAuthHeaders(auth), body: JSON.stringify(input) }),
 
   /** Texts a one-time code. Outside production `devCode` comes back, as no SMS is sent. */
   sendParentPhoneCode: (auth: string | ParentAuthInput | undefined, phone: string) =>

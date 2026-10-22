@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, type ParentChildOverview, type ParentNotificationItem, type ParentWork } from "@/lib/api";
+import { api, ApiError, type ParentChild, type ParentChildOverview, type ParentNotificationItem, type ParentWork } from "@/lib/api";
 import { useParentAuth } from "@/lib/parent-auth-context";
 import { shortDate } from "@/lib/parent-status";
 import { deadlineShare, dueLabel, growthFor, latestCheck, shortDay, stuckView, taskName, topicSkills, type DueTone, type StepLook } from "@/lib/parent-home";
@@ -12,7 +12,7 @@ import parentStyles from "../parent.module.css";
 import styles from "./home.module.css";
 import { SchoolLink } from "./school-link";
 
-type Child = { id: string; name: string; grade: number; fromSchool?: boolean };
+type Child = ParentChild;
 
 const COLORS = { onTime: "#0e6b54", late: "#a2660d", missed: "#7d8c84", track: "#e6ece7" };
 const DUE_FILL: Record<DueTone, string> = { calm: "#0e6b54", soon: "#a2660d", over: "#8a4a0c", grey: "#9aa8a0" };
@@ -33,6 +33,9 @@ export default function ParentDashboardPage() {
   // Asked on the page itself: browser confirm() dialogs are silently refused by some
   // embedded and kiosk-mode browsers (e.g. locked-down school tablets).
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
+  // Bumped when a school link changes here, so the school card re-reads who is linked.
+  const [schoolTick, setSchoolTick] = useState(0);
   // One request per child per refresh: a minute is plenty for a parent's overview.
   const tick = useRefreshTick(60_000);
   // Bumped when a child from school is linked, so their card appears at once.
@@ -80,6 +83,38 @@ export default function ParentDashboardPage() {
     }
   }
 
+  /** The parent stops following a child linked through school. */
+  async function leave(child: Child) {
+    setBusyId(child.id);
+    setError("");
+    try {
+      const list = await api.leaveSchoolChild(await getAuth(), child.id);
+      setChildren(list);
+      setSelected(list[0]?.id ?? null);
+      setLeavingId(null);
+      setSchoolTick((n) => n + 1);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Couldn’t remove the link. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  /** The answer to "is the child you added the same as the one from school?". */
+  async function sameChild(child: Child, same: boolean) {
+    setBusyId(child.id);
+    setError("");
+    try {
+      const list = await api.resolveDuplicateChild(await getAuth(), child.id, { same, schoolChildId: child.sameAsSchoolChild?.id });
+      setChildren(list);
+      if (same) setSelected(child.sameAsSchoolChild?.id ?? list[0]?.id ?? null);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Couldn’t save that. Please try again.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function markRead() {
     try {
       await api.markParentNotificationsRead(await getAuth());
@@ -94,6 +129,7 @@ export default function ParentDashboardPage() {
   const child = children?.find((c) => c.id === selected) ?? null;
   const overview = child ? overviews[child.id] : undefined;
   const first = child ? firstName(child.name) : "";
+  const twin = children?.find((c) => c.sameAsSchoolChild);
   const parentFirst = display?.name?.split(/\s+/)[0];
 
   return (
@@ -112,7 +148,7 @@ export default function ParentDashboardPage() {
         </header>
 
         {error && <p className="error">{error}</p>}
-        <SchoolLink getAuth={getAuth} onLinked={() => setLinkedTick((n) => n + 1)} />
+        <SchoolLink getAuth={getAuth} onLinked={() => setLinkedTick((n) => n + 1)} refresh={schoolTick} />
 
         {children === null && !error && (
           <div className={styles.grid} aria-busy="true" aria-label="Loading">
@@ -147,6 +183,19 @@ export default function ParentDashboardPage() {
         {child && !overview && (
           <div className={styles.grid} aria-busy="true" aria-label={`Loading ${first}`}>
             {[0, 1, 2, 3].map((k) => <div key={k} className="dash-card"><div className="skeleton" style={{ height: 180 }} /></div>)}
+          </div>
+        )}
+
+        {twin?.sameAsSchoolChild && (
+          <div className={`dash-card ${parentStyles.twin}`} role="region" aria-label={`Is ${twin.name} the same child as ${twin.sameAsSchoolChild.name}?`}>
+            <p>
+              You added <strong>{twin.name}</strong> yourself, and <strong>{twin.sameAsSchoolChild.name}</strong> is linked from school. Are they the same child?
+              {" "}If so, we keep the school&apos;s record: {firstName(twin.name)} signs in with the code from school, and the practice they did at home stays saved but isn&apos;t shown here.
+            </p>
+            <div>
+              <button type="button" className="btn btn-primary btn-pill" disabled={busyId === twin.id} onClick={() => void sameChild(twin, true)}>Same child: keep the school&apos;s</button>
+              <button type="button" className="btn-link" disabled={busyId === twin.id} onClick={() => void sameChild(twin, false)}>They&apos;re different children</button>
+            </div>
           </div>
         )}
 
@@ -204,12 +253,27 @@ export default function ParentDashboardPage() {
               </div>
             )}
 
+            {leavingId === child.id && (
+              <div className={parentStyles.confirm} role="alertdialog" aria-label={`Stop following ${child.name}`} style={{ marginTop: "var(--s-5)" }}>
+                <p>Stop seeing {first}&apos;s progress? This withdraws your consent; the school still decides about class use. You can agree again from the card at the top.</p>
+                <div>
+                  <button type="button" className="btn btn-primary btn-pill" disabled={busyId === child.id} onClick={() => void leave(child)}>
+                    {busyId === child.id ? "Removing…" : "Stop following"}
+                  </button>
+                  <button type="button" className="btn-link" onClick={() => setLeavingId(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
+
             <div className={styles.actions}>
               <Link href={`/parent/students/${child.id}`} className={`btn btn-primary btn-pill ${styles.primary}`}>See all of {first}’s maths</Link>
               <Link href={`/parent/students/${child.id}/weekly`} className="btn-link">Weekly update</Link>
               <Link href={`/parent/students/${child.id}/summary`} className="btn-link">Latest practice</Link>
               {child.fromSchool ? (
-                <span className={`${styles.push} ${parentStyles.schoolNote}`}>Lost the sign-in code? Their teacher can give a new one.</span>
+                <span className={`${styles.push} ${parentStyles.schoolNote}`}>
+                  Lost the sign-in code? Their teacher can give a new one.
+                  {" "}<button type="button" className="btn-link" aria-expanded={leavingId === child.id} onClick={() => setLeavingId(leavingId === child.id ? null : child.id)}>Stop following</button>
+                </span>
               ) : (
                 <button type="button" className={`btn-link ${styles.push}`} aria-expanded={confirmId === child.id} onClick={() => setConfirmId(confirmId === child.id ? null : child.id)}>
                   Lost the sign-in code?

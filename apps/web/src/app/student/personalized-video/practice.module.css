@@ -114,6 +114,10 @@
 }
 .primary:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.06); }
 .primary:disabled { opacity: 0.6; cursor: progress; }
+/* Quieter than Next: help is there, not pushed. */
+.stuck { border: 0; background: none; color: var(--ink-soft, #51635a); font: 600 0.95rem var(--font-body, inherit); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 8px 4px; }
+.stuck:disabled { opacity: 0.6; cursor: progress; }
+.stuck:focus-visible { outline: 2px solid var(--focus, #1b8a6d); outline-offset: 2px; border-radius: 4px; }
 
 .finale { position: relative; margin-top: 18px; padding: 34px 24px 26px; border-radius: 20px; background: var(--pa-paper); text-align: center; animation: rise 420ms var(--ease-settle); }
 .score { display: inline-flex; align-items: baseline; gap: 8px; animation: pop 520ms var(--ease-settle); }

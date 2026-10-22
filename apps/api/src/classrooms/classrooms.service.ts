@@ -12,8 +12,8 @@ import { buildClassReport, type StudentEvidence } from "./class-report";
 import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
 import { checkKindOf, checkStudentIds, type CheckRows } from "./topic-flow";
 import { ClassroomEventsService } from "./classroom-events";
-import { catchUpSetUpdate, checkFinishedUpdate, type ParentUpdate } from "./parent-updates";
-import { normalizePhone } from "../parents/phone";
+import { catchUpSetUpdate, checkFinishedUpdate, linkApprovedUpdate, UPDATE_TEXT, type ParentUpdate } from "./parent-updates";
+import { normalizePhone, sendSms, updateText } from "../parents/phone";
 import { setConsent } from "../parents/consent";
 import { dueAtFor, parentWork, type StepKind, type StepStatus, type WorkTask } from "./parent-work";
 import { INVITE_COOLDOWN_MINUTES, INVITE_DAILY_LIMIT, maskEmail, normalizeEmail, parentInviteEmail } from "./parent-invite";
@@ -469,7 +469,7 @@ export class ClassroomsService {
   async approveLinkRequest(actor: AccessActor, classroomId: string, requestId: string, studentId: string) {
     const request = await this.prisma.parentLinkRequest.findFirst({ where: { id: requestId, classroomId, status: "PENDING" }, include: { parent: { select: { phone: true, phoneVerifiedAt: true } } } });
     if (!request) throw new NotFoundException("That request has already been answered.");
-    await this.schoolHeldEnrollment(actor, classroomId, studentId);
+    const { classroom } = await this.schoolHeldEnrollment(actor, classroomId, studentId);
     await this.prisma.$transaction(async (tx) => {
       await tx.parentStudentLink.upsert({
         where: { parentId_studentId: { parentId: request.parentId, studentId } },
@@ -484,6 +484,11 @@ export class ClassroomsService {
       await tx.parentLinkRequest.update({ where: { id: request.id }, data: { status: "APPROVED", studentId, decidedAt: new Date() } });
     });
     this.notify(classroomId, { roster: true });
+    const [student, teacher] = await Promise.all([
+      this.prisma.student.findUnique({ where: { id: studentId }, select: { name: true } }),
+      this.prisma.teacher.findUnique({ where: { id: classroom.teacherId }, select: { name: true } }),
+    ]);
+    await this.tellParents(studentId, linkApprovedUpdate({ requestId: request.id, className: classroom.name, studentName: student?.name ?? request.childName, teacherName: teacher?.name ?? "The teacher" }), [request.parentId]);
     return this.linkRequests(actor, classroomId);
   }
 
@@ -498,10 +503,10 @@ export class ClassroomsService {
    * Adds updates to the dashboards of a student's parents. Never the school's placeholder
    * account, never twice for the same event, and never a reason for the class action to fail.
    */
-  private async tellParents(studentId: string, update: ParentUpdate): Promise<void> {
+  private async tellParents(studentId: string, update: ParentUpdate, onlyParentIds?: string[]): Promise<void> {
     try {
       const links = await this.prisma.parentStudentLink.findMany({
-        where: { studentId, canViewReports: true, parent: { user: { NOT: { clerkId: { startsWith: "school_roster:" } } } } },
+        where: { studentId, canViewReports: true, parent: { user: { NOT: { clerkId: { startsWith: "school_roster:" } } } }, ...(onlyParentIds ? { parentId: { in: onlyParentIds } } : {}) },
         select: { parentId: true },
       });
       if (!links.length) return;
@@ -509,9 +514,31 @@ export class ClassroomsService {
         data: links.map((link) => ({ parentId: link.parentId, studentId, kind: update.kind, title: update.title, body: update.body, dedupeKey: update.dedupeKey })),
         skipDuplicates: true,
       });
+      await this.textParents(studentId, update, links.map((l) => l.parentId));
     } catch (error) {
       this.logger.warn(`Could not add a parent update for ${studentId}: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * Texts the update to each parent with a verified phone who hasn't turned texts off. Each update is
+   * claimed before it is sent, so a repeated event never texts twice. The send isn't awaited: a slow
+   * SMS provider must not slow down the student's class step.
+   */
+  private async textParents(studentId: string, update: ParentUpdate, parentIds: string[]): Promise<void> {
+    const due = await this.prisma.parentNotification.findMany({
+      where: { studentId, dedupeKey: update.dedupeKey, textedAt: null, parentId: { in: parentIds }, parent: { textUpdates: true, phoneVerifiedAt: { not: null } } },
+      select: { id: true, parent: { select: { phone: true } }, student: { select: { name: true } } },
+    });
+    for (const n of due) {
+      const claimed = await this.prisma.parentNotification.updateMany({ where: { id: n.id, textedAt: null }, data: { textedAt: new Date() } });
+      if (claimed.count && n.parent.phone) void sendSms(n.parent.phone, updateText(n.student.name, UPDATE_TEXT[update.kind]));
+    }
+  }
+
+  /** Teacher pages showing these classes refresh their roster and parent requests. */
+  parentsChanged(classroomIds: string[]): void {
+    for (const classroomId of new Set(classroomIds)) this.notify(classroomId, { roster: true });
   }
 
   /** Once a student has nothing left to do in a check, their parents hear how it went. */
@@ -989,7 +1016,10 @@ export class ClassroomsService {
         diagnostic: record?.status === "COMPLETE" && payload?.finalReport
           ? {
               outcome: payload.finalReport.outcome,
-              startingSkillId: payload.finalReport.outcome === "SOLID_GAP" ? confirmedByDepth(foldLedger(audits))[0]?.skillId : undefined,
+              ...(() => {
+                const start = payload.finalReport.outcome === "SOLID_GAP" ? confirmedByDepth(foldLedger(audits))[0] : undefined;
+                return { startingSkillId: start?.skillId, startingNotLearned: Boolean(start?.confirmedBySupport) };
+              })(),
               skills: payload.finalReport.skills ?? [],
               answered: audits.length,
               correct: audits.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length,

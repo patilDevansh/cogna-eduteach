@@ -61,7 +61,9 @@ before(async () => {
 after(async () => {
   lotusServices.forEach((s) => s.onModuleDestroy());
   const students = await prisma.classroomEnrollment.findMany({ where: { classroomId }, select: { studentId: true } });
-  const ids = students.map((s) => s.studentId);
+  // Children the test parents added at home, plus everyone in the class.
+  const homeMade = await prisma.student.findMany({ where: { primaryParentId: { in: (await prisma.parent.findMany({ where: { user: { clerkId: { startsWith: tag } } }, select: { id: true } })).map((p) => p.id) } }, select: { id: true } });
+  const ids = [...students.map((s) => s.studentId), ...homeMade.map((s) => s.id)];
   await prisma.lotusSessionRecord.deleteMany({ where: { studentId: { in: ids } } });
   await prisma.consent.deleteMany({ where: { studentId: { in: ids } } });
   await prisma.student.deleteMany({ where: { id: { in: ids } } });
@@ -218,6 +220,80 @@ describe("a parent links a school-made student through the phone on the school's
     for (let i = 0; i < 5; i++) await assert.rejects(parents.verifyPhone(parent, phone, wrong), /didn't match/);
     await assert.rejects(parents.verifyPhone(parent, phone, last.devCode!), /Too many tries/);
     await assert.rejects(parents.sendPhoneCode(parent, "12345"), /doesn't look like a mobile/);
+  });
+});
+
+describe("after linking: texts, leaving, a changed number, and a child added twice", () => {
+  it("texts each update once to parents with a verified phone, never to those who turned texts off", async () => {
+    const [on, off] = [await newParent("texts on"), await newParent("texts off")];
+    const [a, b] = [newPhone(), newPhone()];
+    const issued = await importOne("Gita Bose", [a, b]);
+    await verify(on, a);
+    await verify(off, b);
+    await parents.answerSchoolChild(on, issued.studentId, true);
+    await parents.answerSchoolChild(off, issued.studentId, true);
+    assert.equal((await parents.setTextUpdates(off, false)).textUpdates, false);
+
+    await liveCheck({ kind: "CATCH_UP", studentIds: [issued.studentId] });
+    const notes = await prisma.parentNotification.findMany({ where: { studentId: issued.studentId, kind: "CATCH_UP_SET" } });
+    assert.equal(notes.length, 2, "both still see it in the app");
+    assert.ok(notes.find((n) => n.parentId === on)!.textedAt, "texted (logged here, as Twilio isn't set up)");
+    assert.equal(notes.find((n) => n.parentId === off)!.textedAt, null);
+  });
+
+  it("a parent the teacher approves hears about it", async () => {
+    const parent = await newParent("approved");
+    await verify(parent, newPhone());
+    const issued = await importOne("Hari Das");
+    const joinCode = (await prisma.classroom.findUniqueOrThrow({ where: { id: classroomId } })).joinCode;
+    const seen: string[] = [];
+    const original = events.classChanged.bind(events);
+    events.classChanged = (id: string, e: Parameters<typeof original>[1]) => { seen.push(`${id}:${e.type}`); original(id, e); };
+    await parents.requestLink(parent, { joinCode, childName: "Hari Das" });
+    events.classChanged = original;
+    assert.ok(seen.includes(`${classroomId}:roster`), "the teacher's page hears about the request at once");
+
+    const request = (await classrooms.linkRequests(teacher, classroomId)).find((r) => r.childName === "Hari Das")!;
+    await classrooms.approveLinkRequest(teacher, classroomId, request.id, issued.studentId);
+    const note = await prisma.parentNotification.findFirstOrThrow({ where: { parentId: parent, kind: "LINK_APPROVED" } });
+    assert.match(note.body, /Ms Rao linked Hari to your account/);
+    assert.ok(note.textedAt);
+  });
+
+  it("a parent can stop following a school child, and agree again later", async () => {
+    const parent = await newParent("leaves");
+    const issued = await linkedByPhone(parent, "Indu Rao");
+    await assert.rejects(parents.leaveSchoolChild(parent, "nobody"), NotFoundException);
+    assert.deepEqual(await parents.leaveSchoolChild(parent, issued.studentId), []);
+    assert.equal(await prisma.consent.count({ where: { parentId: parent, studentId: issued.studentId, consentType: "PRACTICE_DECLINED", revokedAt: null } }), 1);
+    assert.equal((await parents.schoolChildren(parent))[0]!.status, "DECLINED");
+    assert.equal((await parents.answerSchoolChild(parent, issued.studentId, true))[0]!.status, "LINKED");
+  });
+
+  it("changing number unlinks the children found through the old one", async () => {
+    const parent = await newParent("new number");
+    const issued = await linkedByPhone(parent, "Jai Sen");
+    await verify(parent, newPhone());
+    assert.deepEqual(await parents.listStudents(parent), []);
+    assert.deepEqual(await parents.schoolChildren(parent), []);
+    assert.equal(await prisma.parentStudentLink.count({ where: { studentId: issued.studentId, parentId: parent } }), 0);
+  });
+
+  it("a child added at home with the same first name as one from school is flagged once", async () => {
+    const parent = await newParent("twice");
+    const issued = await linkedByPhone(parent, "Kavya Iyer");
+    const home = await parents.createStudent(parent, { name: "Kavya" });
+    const flagged = (await parents.listStudents(parent)).find((s) => s.id === home.studentId)!;
+    assert.deepEqual(flagged.sameAsSchoolChild, { id: issued.studentId, name: "Kavya Iyer" });
+
+    const kept = await parents.resolveDuplicate(parent, home.studentId, { same: true, schoolChildId: issued.studentId });
+    assert.deepEqual(kept.map((s) => s.id), [issued.studentId], "only the school record is shown");
+    assert.ok((await prisma.student.findUniqueOrThrow({ where: { id: home.studentId } })).deletedAt, "the home copy is hidden, not erased");
+
+    const other = await parents.createStudent(parent, { name: "Kavya" });
+    const after = await parents.resolveDuplicate(parent, other.studentId, { same: false });
+    assert.equal(after.find((s) => s.id === other.studentId)!.sameAsSchoolChild, undefined, "different children stop being flagged");
+    await assert.rejects(parents.resolveDuplicate(parent, issued.studentId, { same: true }), NotFoundException, "only a child they added can be hidden");
   });
 });
 
