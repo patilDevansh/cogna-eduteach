@@ -334,7 +334,16 @@ export interface LotusDebateClosure {
   firstWrongStep?: number | null;
   /** The mistake in plain words, as the analyser sees it. Not limited to any list of codes. */
   mistakeDescription?: string;
+  /**
+   * What kind of mistake firstWrongStep points at. Only MISUNDERSTANDING is
+   * evidence toward a gap; a slip, a guess or an unreadable answer is kept as
+   * the analyser's note but never counted against the skill. Absent on older
+   * records and models, which are treated as before (counted).
+   */
+  mistakeKind?: LotusMistakeKind | null;
 }
+
+export type LotusMistakeKind = "MISUNDERSTANDING" | "SLIP" | "GUESS" | "UNREADABLE";
 
 /**
  * Whether a candidate's answerKey.expression was cross-checked against an

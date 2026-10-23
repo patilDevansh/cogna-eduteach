@@ -331,6 +331,7 @@ Return JSON only:
   },
   "firstWrongStep": "number of the FIRST step in the question's workedSolution where the student's work departs from it (1-based), or null if the work is correct",
   "mistakeDescription": "the mistake in plain words, as you see it — not limited to any list of codes; empty if none",
+  "mistakeKind": "MISUNDERSTANDING if the work shows the student doesn't know or misapplies the method (the same error would recur); SLIP if the method shown is right and a sign, digit or bracket was miscopied or mis-added at the end; GUESS if there is no method and the answer looks like a guess; UNREADABLE if the answer can't be read as maths but the work shows the right idea; null when firstWrongStep is null",
   "exitDiagnostic": false,
   "report": {
     "outcome": "SOLID_GAP|ADVANCEMENT|INSUFFICIENT_OR_CONFLICTING",

@@ -228,12 +228,17 @@ export function evidenceFromAnalysis(
   existing: LotusSkillEvidence[],
   firstWrongStep: unknown,
   description: string | undefined,
+  mistakeKind?: unknown,
 ): LotusSkillEvidence[] {
   const d = question.answerKey.diagnostics;
   // Models sometimes send the step as a string; anything that isn't a step number means "no wrong step".
   const step = typeof firstWrongStep === "string" ? Number(firstWrongStep) : firstWrongStep;
   if (!d || typeof step !== "number" || !Number.isInteger(step) || step < 1) return existing;
   if (existing.length > 0) return existing;
+  // A slip, a guess or an unreadable answer is not evidence the student lacks
+  // the skill: two careless copies must not confirm a gap. The analyser's note
+  // stays on the turn's analysis record. A missing kind is counted as before.
+  if (mistakeKind === "SLIP" || mistakeKind === "GUESS" || mistakeKind === "UNREADABLE") return existing;
   const skillId = d.stepSkills[step - 1] ?? d.skillId;
   return [{ skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
 }
