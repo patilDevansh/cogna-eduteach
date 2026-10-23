@@ -125,7 +125,8 @@ async function startFactorisation(page: any): Promise<string> {
     const button = page.getByRole("button", { name: /^Start for/ });
     await waitEnabled(button, 30_000);
     await button.click();
-    await page.getByText(/Question 1 of 25/).waitFor({ state: "visible", timeout: 300_000 });
+    // The card shows "Question 1" with no total: the plan can grow or shrink mid-test.
+    await page.getByText(/^Question 1$/).first().waitFor({ state: "visible", timeout: 300_000 });
     for (let attempt = 0; attempt < 20 && !sessionId; attempt += 1) await sleep(100);
     if (!sessionId) throw new Error("session-start response did not include sessionId");
     return sessionId;
@@ -179,6 +180,54 @@ function confidenceLabelForBand(band: readonly [number, number]): RegExp {
   return label;
 }
 
+/**
+ * LOTUS_AUTONOMOUS_EVAL_SUBMIT=api: post each answer to the same route the
+ * student page uses, from inside the logged-in page, instead of clicking the
+ * answer controls. The page now shows many game-style formats (tiles, puzzles,
+ * fireflies, detective…) this runner can't operate; API mode still measures
+ * Lotus's judgement and cost, but not that each game control works.
+ */
+const SUBMIT_VIA_API = process.env.LOTUS_AUTONOMOUS_EVAL_SUBMIT === "api";
+const API_ANSWER_PAUSE_MS = positiveInteger(process.env.LOTUS_AUTONOMOUS_EVAL_ANSWER_PAUSE_MS, MODEL_MODE === "live" ? 15_000 : 1);
+
+async function submitViaApi(
+  page: any,
+  sessionId: string,
+  question: Awaited<ReturnType<typeof privateQuestion>>,
+  plan: ReturnType<typeof chooseResponse>,
+  paceMs: number,
+  confidenceBand: readonly [number, number],
+): Promise<{ status?: string }> {
+  const body = {
+    answer: plan.didNotKnow ? "" : plan.answer,
+    working: plan.didNotKnow ? "" : plan.working,
+    confidence: Math.round((confidenceBand[0] + confidenceBand[1]) / 2),
+    responseTimeMs: paceMs,
+    didNotKnow: plan.didNotKnow,
+    submissionId: randomUUID(),
+    questionId: question.id,
+  };
+  // A real child takes tens of seconds per item, and the live writer needs a
+  // few seconds per staged question; answering in milliseconds outruns it.
+  await sleep(API_ANSWER_PAUSE_MS);
+  const result = await page.evaluate(async ({ id, payload }: { id: string; payload: Record<string, unknown> }) => {
+    const raw = localStorage.getItem("cogna_student");
+    const student = raw ? JSON.parse(raw) : null;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (student?.studentId && student?.token) {
+      headers["X-Cogna-Role"] = "student";
+      headers["X-Cogna-Student-Id"] = student.studentId;
+      headers["X-Cogna-Student-Token"] = student.token;
+    }
+    const response = await fetch(`/api/lotus/sessions/${id}/answers`, {
+      method: "POST", headers, body: JSON.stringify({ studentId: student?.studentId, ...payload }),
+    });
+    return { ok: response.ok, status: response.status, view: await response.json().catch(() => ({})) };
+  }, { id: sessionId, payload: body });
+  if (!result.ok) throw new Error(`answer commit failed: HTTP ${result.status} ${JSON.stringify(result.view).slice(0, 400)}`);
+  return { status: result.view?.status };
+}
+
 async function submitPersonaResponse(
   page: any,
   question: Awaited<ReturnType<typeof privateQuestion>>,
@@ -209,9 +258,15 @@ async function submitPersonaResponse(
 
   if (!plan.didNotKnow && question.asksForWorking) {
     const lines = plan.working.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6);
+    // Working can be optional and folded behind "+ Add working (optional)",
+    // and the page may start with fewer empty steps than the profile writes:
+    // open it and add steps only when the next field isn't there yet.
+    const openWorking = page.getByRole("button", { name: /Add working \(optional\)/ });
+    if (await openWorking.isVisible().catch(() => false)) await openWorking.click();
     for (let index = 0; index < lines.length; index += 1) {
-      if (index >= 3) await page.getByRole("button", { name: /Add another step/ }).click();
-      await page.getByLabel(`Working step ${index + 1}`).fill(lines[index]!);
+      const field = page.getByLabel(`Working step ${index + 1}`);
+      if (!await field.isVisible().catch(() => false)) await page.getByRole("button", { name: /Add another step/ }).click();
+      await field.fill(lines[index]!);
     }
   }
 
@@ -351,10 +406,12 @@ async function runPersona(page: any, persona: PersonaProfile, pace: "normal" | "
   let sessionStatus = "ACTIVE";
   while (answered < 25 && sessionStatus === "ACTIVE") {
     const question = await privateQuestion(sessionId);
-    await assertRenderedQuestionMatchesServer(page, question, answered + 1);
+    if (!SUBMIT_VIA_API) await assertRenderedQuestionMatchesServer(page, question, answered + 1);
     const plan = chooseResponse(persona, question, answered + 1);
     const paceMs = pace === "fast" ? Math.min(...persona.paceMsBand) : Math.max(...persona.paceMsBand);
-    const committed = await submitPersonaResponse(page, question, plan, paceMs, persona.confidenceBand);
+    const committed = SUBMIT_VIA_API
+      ? await submitViaApi(page, sessionId, question, plan, paceMs, persona.confidenceBand)
+      : await submitPersonaResponse(page, question, plan, paceMs, persona.confidenceBand);
     answered += 1;
     sessionStatus = committed.status ?? "ACTIVE";
   }
