@@ -21,6 +21,7 @@ import type {
 } from "@cogna/shared";
 import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
+import { sampleTokenFor } from "@/lib/sample";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
@@ -1727,10 +1728,21 @@ function LotusPage() {
                 <section className={styles.introCard}>
                   {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1rem" }}><LotusBloom answered={session.audits.length} /></div>}
                   <h1>Your diagnostic is complete</h1>
-                  <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
-                  <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
-                    See your report →
-                  </Link>
+                  {sampleTokenFor(session.studentId) ? (
+                    <>
+                      <p style={{ marginTop: "0.75rem" }}>Well done. Your result is ready for your parent.</p>
+                      <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/try/result?t=${encodeURIComponent(sampleTokenFor(session.studentId)!)}`}>
+                        See the result →
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
+                      <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
+                        See your report →
+                      </Link>
+                    </>
+                  )}
                 </section>
               )
             ) : preparing ? (
