@@ -34,11 +34,17 @@ describe("C9: only a real misunderstanding counts toward a gap", () => {
     assert.notEqual(state, "SUSPECTED", "a slip the AI called a slip still opened a possible gap");
   });
 
-  it("a guess or an unreadable answer gives no gap evidence", () => {
-    for (const kind of ["GUESS", "UNREADABLE"]) {
-      const evidence = (evidenceFromAnalysis as (...args: unknown[]) => unknown[])(trinomial, [], 1, "no method shown", kind);
-      assert.equal(evidence.length, 0, `${kind}: recorded as ${JSON.stringify(evidence)}`);
-    }
+  it("an unreadable answer gives no gap evidence", () => {
+    const evidence = (evidenceFromAnalysis as (...args: unknown[]) => unknown[])(trinomial, [], 1, "brackets not closed", "UNREADABLE");
+    assert.equal(evidence.length, 0, `recorded as ${JSON.stringify(evidence)}`);
+  });
+
+  // C12, decided Oct 25 (option A): a guess counts like "I don't know this yet".
+  it("a guess is a support signal on the question's skill, and two confirm it", () => {
+    const evidence = (evidenceFromAnalysis as (...args: unknown[]) => Array<{ skillId: string; kind: string }>)(trinomial, [], 1, "no method shown", "GUESS");
+    assert.deepEqual(evidence.map((e) => [e.skillId, e.kind]), [["FAC_MONIC_TRINOMIAL", "DID_NOT_KNOW"]]);
+    const ledger = foldLedger([reviewed("GUESS", "made-up answer"), reviewed("GUESS", "made-up answer again")]);
+    assert.equal(ledger.get("FAC_MONIC_TRINOMIAL")?.state, "CONFIRMED", "two guesses on a skill should confirm it so the child is taught");
   });
 
   it("two real misunderstandings still confirm the gap", () => {

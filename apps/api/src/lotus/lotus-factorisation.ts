@@ -206,12 +206,26 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
       needsAnalysis: false,
     };
   }
+  // A predicted wrong answer after working that already reached the right
+  // one is most likely a copying slip, not the misconception it resembles:
+  // leave it to the AI review (which labels slips) instead of counting it.
+  const countable = predicted && !workingReachesAnswer(response.working, key, d.itemKind);
   return {
     verification: verification("VERIFIED_INCORRECT", `Not equal to ${expression} — checked by expanding.`),
-    evidence: predicted ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
+    evidence: countable ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
     fastSkip: false,
-    needsAnalysis: !predicted,
+    needsAnalysis: !countable,
   };
+}
+
+/** Does any line of the working (or the part after its last "=") already equal the correct answer? */
+function workingReachesAnswer(working: string | undefined, key: string, itemKind: LotusItemDiagnostics["itemKind"]): boolean {
+  const same = itemKind === "FACTORISE" ? sameFactorisation : algebraicallyEqual;
+  for (const line of (working ?? "").split("\n")) {
+    const candidates = [line, line.split("=").at(-1) ?? ""].map((c) => c.replace(/^\s*(so|therefore|answer:?)\s+/i, "").trim()).filter(Boolean);
+    if (candidates.some((c) => safe(() => same(c, key)))) return true;
+  }
+  return false;
 }
 
 function safe(fn: () => boolean): boolean { try { return fn(); } catch { return false; } }
@@ -235,10 +249,16 @@ export function evidenceFromAnalysis(
   const step = typeof firstWrongStep === "string" ? Number(firstWrongStep) : firstWrongStep;
   if (!d || typeof step !== "number" || !Number.isInteger(step) || step < 1) return existing;
   if (existing.length > 0) return existing;
-  // A slip, a guess or an unreadable answer is not evidence the student lacks
-  // the skill: two careless copies must not confirm a gap. The analyser's note
+  // A slip or an unreadable answer is not evidence the student lacks the
+  // skill: two careless copies must not confirm a gap. The analyser's note
   // stays on the turn's analysis record. A missing kind is counted as before.
-  if (mistakeKind === "SLIP" || mistakeKind === "GUESS" || mistakeKind === "UNREADABLE") return existing;
+  if (mistakeKind === "SLIP" || mistakeKind === "UNREADABLE") return existing;
+  // A guess (no method) means the same as "I don't know this yet": a support
+  // signal on the question's own skill — the step it "went wrong" at means
+  // nothing without a method. Two on a skill confirm it, so the child is taught.
+  if (mistakeKind === "GUESS") {
+    return [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "ANALYSIS", description: description?.trim() || "Guessed with no method." }];
+  }
   const skillId = d.stepSkills[step - 1] ?? d.skillId;
   return [{ skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
 }
@@ -252,6 +272,8 @@ export interface SkillLedgerEntry {
   suspectedAt?: number;
   confirmedAt?: number;
   clearedAfterSlip?: number;
+  /** Answers (1-based) the student got right on this skill after it was confirmed: shown next to the gap, never silently dropped. */
+  rightSinceConfirmed?: number[];
   mistakes: string[];
   notes: string[];
   /** The learner explicitly needed help; use a lower prerequisite probe where possible. */
@@ -318,7 +340,12 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         } else if (e.state === "SECURE") {
           e.notes.push(`Q${q}: right`);
         }
-        // CONFIRMED stays confirmed: a later success doesn't erase a confirmed gap.
+        // CONFIRMED stays confirmed: a later success doesn't erase a confirmed
+        // gap, but it is kept so the report can show the conflicting evidence.
+        else if (e.state === "CONFIRMED" && e.confirmedAt !== undefined && q > e.confirmedAt) {
+          e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
+          e.notes.push(`Q${q}: right after the gap was confirmed`);
+        }
       }
     }
   });
@@ -722,7 +749,11 @@ export function buildFactorisationReport(args: {
     outcome,
     startingPoint,
     observedStrengths: secure.map((e) => skillName(e.skillId) + (e.clearedAfterSlip ? " (an earlier mistake looked like a slip)" : "")),
-    uncertainAreas: suspected.map((e) => `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
+    uncertainAreas: [
+      ...suspected.map((e) => `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
+      ...confirmed.filter((e) => e.rightSinceConfirmed?.length).map((e) =>
+        `${skillName(e.skillId)}: confirmed earlier, but answered right on ${e.rightSinceConfirmed!.map((q) => `Q${q}`).join(", ")} since — check again before teaching it.`),
+    ],
     evidenceSummary: confirmed.map((e) => `${skillName(e.skillId)} — ${e.confirmedBySupport ? "not learned yet" : "confirmed gap"}. ${e.notes.join(" · ")}`),
     recommendedNextStep: start
       ? `Teach ${skillName(start.skillId).toLowerCase()} directly, then re-check it with a fresh question.`
