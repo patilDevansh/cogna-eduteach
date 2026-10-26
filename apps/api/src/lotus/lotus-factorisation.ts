@@ -805,6 +805,30 @@ export function confirmedByDepth(ledger: Ledger): SkillLedgerEntry[] {
   return [...ledger.values()].filter((e) => e.state === "CONFIRMED").sort((a, b) => depth(a.skillId) - depth(b.skillId));
 }
 
+/** The foundation skill taught when one sign mistake runs through several gaps. */
+export const SIGN_ROOT_SKILL = "FND_SIGN_MUL_DIV";
+const isSignMistake = (code: string) => /SIGN/.test(code);
+
+/**
+ * Where teaching should start. Normally the most foundational confirmed gap;
+ * but when the same sign mistake confirms two or more gaps, they share one
+ * cause, so teaching starts with signed numbers and `rootOf` names the gaps
+ * it covers. The report, the class report and the lesson all use this, so
+ * they never disagree about where to start.
+ */
+export function teachingStart(ledger: Ledger): (SkillLedgerEntry & { rootOf?: string[] }) | undefined {
+  const confirmed = confirmedByDepth(ledger);
+  const signGaps = confirmed.filter((e) => e.mistakes.some(isSignMistake));
+  if (signGaps.length < 2) return confirmed[0];
+  return {
+    skillId: SIGN_ROOT_SKILL,
+    state: "CONFIRMED",
+    mistakes: signGaps.flatMap((e) => e.mistakes.filter(isSignMistake)),
+    notes: signGaps.flatMap((e) => e.notes.filter((n) => !n.includes(": right"))),
+    rootOf: signGaps.map((e) => e.skillId),
+  };
+}
+
 export function buildFactorisationReport(args: {
   ledger: Ledger;
   state: FactorisationState;
@@ -842,7 +866,8 @@ export function buildFactorisationReport(args: {
     : confirmed.length ? "SOLID_GAP" : caughtUp ? "ADVANCEMENT" : "INSUFFICIENT_OR_CONFLICTING";
   // One cause, many gaps: the same sign mistake confirming several gaps
   // points to signed numbers, which is where teaching should start.
-  const signGaps = confirmed.filter((e) => e.mistakes.some((m) => /SIGN/.test(m)));
+  const root = teachingStart(args.ledger);
+  const signGaps = root?.rootOf ? confirmed.filter((e) => root.rootOf!.includes(e.skillId)) : [];
   const signRoot = signGaps.length >= 2;
 
   const startingPoint = rushed

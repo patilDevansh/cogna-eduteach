@@ -1,5 +1,5 @@
 import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusSessionView } from "@cogna/shared";
-import { confirmedByDepth, foldLedger } from "../../lotus/lotus-factorisation";
+import { foldLedger, teachingStart } from "../../lotus/lotus-factorisation";
 import { findSkill, skillName } from "../../lotus/lotus-factorisation-catalogue";
 import { algebraicallyEqual, exactDecimals, isReadable } from "../../lotus/lotus-algebra";
 
@@ -81,7 +81,8 @@ export function isPairAnswer(answer: string): boolean {
 
 export function buildLessonBrief(session: LotusSessionView, studentFirstName: string): LessonBrief | null {
   if (!isPlannedLotusTopic(session.topic) || session.finalReport?.outcome !== "SOLID_GAP") return null;
-  const target = confirmedByDepth(foldLedger(session.audits))[0];
+  // The shared sign cause when there is one, so the lesson matches the report.
+  const target = teachingStart(foldLedger(session.audits));
   if (!target) return null;
 
   const studentItems: LessonBrief["studentItems"] = [];
@@ -89,7 +90,9 @@ export function buildLessonBrief(session: LotusSessionView, studentFirstName: st
     const d = audit.question.answerKey?.diagnostics;
     const answer = audit.response?.answer?.trim();
     if (!answer || audit.response?.didNotKnow) return;
-    const evidence = (audit.skillEvidence ?? []).find((ev) => ev.skillId === target.skillId && ev.kind !== "SECURE");
+    const evidence = (audit.skillEvidence ?? []).find((ev) => ev.kind !== "SECURE" && (target.rootOf
+      ? target.rootOf.includes(ev.skillId) && /SIGN/.test(ev.mistake ?? "")
+      : ev.skillId === target.skillId));
     if (!evidence) return;
     // A product-sum pair picked in a game: its trinomial and factorised form follow from the verified key.
     const picked = pairChoice(audit.question.answerKey?.canonicalAnswer, answer);

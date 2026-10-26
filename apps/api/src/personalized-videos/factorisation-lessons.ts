@@ -12,7 +12,7 @@ import {
 /** Secure skills worth opening a trinomial lesson with, most relevant first. */
 const OPENING_STRENGTHS = ["FAC_MONIC_TRINOMIAL", "EXP_EXPAND_BINOMIALS", "FND_FACTOR_PAIRS", "FND_SIGN_MUL_DIV", "FAC_DIFF_SQUARES"];
 import { skillName } from "../lotus/lotus-factorisation-catalogue";
-import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
+import { foldLedger, teachingStart } from "../lotus/lotus-factorisation";
 
 /**
  * Factorisation diagnostic → animated lesson.
@@ -46,9 +46,11 @@ export function planFactorisationLesson(session: LotusSessionView, studentName: 
   if (session.topic !== "FACTORISATION") return null;
   if (session.finalReport?.outcome !== "SOLID_GAP") return null;
 
-  const start = confirmedByDepth(foldLedger(session.audits))[0];
+  const start = teachingStart(foldLedger(session.audits));
   if (!start) return null;
-  if (!TRINOMIAL_SKILLS.has(start.skillId) || !start.mistakes.some((m) => TRINOMIAL_SIGN_MISTAKES.has(m))) {
+  // A shared sign cause still fits the trinomial-signs animation when a trinomial gap is part of it.
+  const fitsTrinomialSigns = (start.rootOf ?? [start.skillId]).some((id) => TRINOMIAL_SKILLS.has(id)) && start.mistakes.some((m) => TRINOMIAL_SIGN_MISTAKES.has(m));
+  if (!fitsTrinomialSigns) {
     return { kind: "abstain", reason: `No animated lesson exists yet for the starting gap: ${skillName(start.skillId)}.` };
   }
 
