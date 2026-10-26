@@ -27,7 +27,7 @@ import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
-import { PERSONA_CATALOGUE, chooseResponse, type PersonaProfile, type PersonaQuestionLike } from "../apps/api/test/fixtures/lotus-factorisation-personas";
+import { MESSY_PERSONA_CATALOGUE, PERSONA_CATALOGUE, chooseResponse, type PersonaProfile, type PersonaQuestionLike } from "../apps/api/test/fixtures/lotus-factorisation-personas";
 
 const REPO_ROOT = new URL("..", import.meta.url).pathname;
 // Fixed 3107/3108 ports caused an old Next process to be mistaken for the
@@ -188,6 +188,8 @@ function confidenceLabelForBand(band: readonly [number, number]): RegExp {
  * Lotus's judgement and cost, but not that each game control works.
  */
 const SUBMIT_VIA_API = process.env.LOTUS_AUTONOMOUS_EVAL_SUBMIT === "api";
+/** An 8 GB machine running the API, Next dev and a browser can take minutes to boot. */
+const SERVER_START_TIMEOUT_MS = positiveInteger(process.env.LOTUS_AUTONOMOUS_EVAL_START_TIMEOUT_MS, 300_000);
 const API_ANSWER_PAUSE_MS = positiveInteger(process.env.LOTUS_AUTONOMOUS_EVAL_ANSWER_PAUSE_MS, MODEL_MODE === "live" ? 15_000 : 1);
 
 async function submitViaApi(
@@ -380,8 +382,15 @@ function scoreTranscript(persona: PersonaProfile, view: any): { pass: boolean; f
 
   if (metrics.explicitDecisions !== audits.length) failures.push("not every answered turn has an explicit decision");
   if (persona.id === "P08_EXPLICIT_SUPPORT_NEED") {
-    const confirmed = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED");
-    if (confirmed.length) failures.push(`support persona falsely confirmed ${confirmed.map((skill: any) => skill.skillId).join(", ")}`);
+    // Current rule (lotus-factorisation.ts foldLedger): one "I don't know" is a
+    // support signal; two on a skill, or one alongside a mistake, confirm it so
+    // the child is taught from the foundations. Anything less is a false confirm.
+    const signals = new Map<string, number>();
+    for (const audit of audits) for (const ev of audit.skillEvidence ?? []) {
+      if (ev.kind !== "SECURE") signals.set(ev.skillId, (signals.get(ev.skillId) ?? 0) + 1);
+    }
+    const unsupported = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED" && (signals.get(skill.skillId) ?? 0) < 2);
+    if (unsupported.length) failures.push(`support persona confirmed on fewer than two signals: ${unsupported.map((skill: any) => skill.skillId).join(", ")}`);
   }
   if (persona.id === "P01_SECURE_ADVANCED" || persona.id === "P10_LOW_CONFIDENCE_CORRECT") {
     const unsupported = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED" || skill.state === "SUSPECTED");
@@ -390,6 +399,15 @@ function scoreTranscript(persona: PersonaProfile, view: any): { pass: boolean; f
   if (persona.id === "P09_ONE_OFF_SLIP") {
     const state = reportSkills.get(persona.misconception!.skillId)?.state;
     if (state === "CONFIRMED") failures.push(`one-off slip falsely confirmed ${persona.misconception!.skillId}`);
+  }
+  if (persona.messy) {
+    const states = [...reportSkills.values()] as any[];
+    if (persona.messy.mayConfirm) {
+      const extra = states.filter((skill) => skill.state === "CONFIRMED" && !persona.messy!.mayConfirm!.includes(skill.skillId));
+      if (extra.length) failures.push(`messy persona: confirmed a gap from slips or typing: ${extra.map((skill) => skill.skillId).join(", ")}`);
+    }
+    const guessedSecure = states.filter((skill) => skill.state === "SECURE" && persona.messy!.guessSkills?.includes(skill.skillId));
+    if (guessedSecure.length) failures.push(`guessing persona reported SECURE on guessed skills: ${guessedSecure.map((skill) => skill.skillId).join(", ")}`);
   }
   if (persona.misconception && persona.id !== "P09_ONE_OFF_SLIP") {
     const state = reportSkills.get(persona.misconception.skillId)?.state;
@@ -420,7 +438,9 @@ async function runPersona(page: any, persona: PersonaProfile, pace: "normal" | "
 }
 
 async function main(): Promise<void> {
-  const selected = PERSONA_CATALOGUE.filter((persona) => PERSONA_IDS.size === 0 || PERSONA_IDS.has(persona.id));
+  // Messy personas run only when named, so the default run stays the tidy ten.
+  const selected = [...PERSONA_CATALOGUE, ...MESSY_PERSONA_CATALOGUE].filter((persona) =>
+    PERSONA_IDS.size === 0 ? !persona.messy : PERSONA_IDS.has(persona.id));
   if (!selected.length) throw new Error("No requested persona IDs matched the catalogue");
   if (!PACES.length) throw new Error("LOTUS_AUTONOMOUS_EVAL_PACES must contain normal and/or fast");
 
@@ -444,8 +464,8 @@ async function main(): Promise<void> {
   });
   const results: any[] = [];
   try {
-    if (!await waitForReady(`${API_URL}/lotus/status`, 90_000)) throw new Error(`API did not start\n${api.output()}`);
-    if (!await waitForReady(WEB_URL, 90_000)) throw new Error(`Web did not start\n${web.output()}`);
+    if (!await waitForReady(`${API_URL}/lotus/status`, SERVER_START_TIMEOUT_MS)) throw new Error(`API did not start\n${api.output()}`);
+    if (!await waitForReady(WEB_URL, SERVER_START_TIMEOUT_MS)) throw new Error(`Web did not start\n${web.output()}`);
     const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
