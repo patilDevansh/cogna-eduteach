@@ -22,6 +22,7 @@ import type {
   LotusQuestionAudit,
   LotusQuestionSelection,
   LotusReserveIntent,
+  LotusOverallReview,
   LotusSessionView,
   LotusStageAgreement,
   LotusStageTimingMs,
@@ -38,6 +39,7 @@ import {
   challengerClosurePrompt,
   gptDebatePrompt,
   independentPrompt,
+  overallReviewPrompt,
   reserveCandidatesPrompt,
 } from "./lotus-prompts";
 import type { PrismaClient } from "@cogna/database";
@@ -71,6 +73,7 @@ import {
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
+  reviewsStillRunning,
 } from "./lotus-factorisation";
 import { checkWrittenItem, LotusQuestionFactory, type WriteRequest, type WriteResult } from "./lotus-question-factory";
 import {
@@ -89,6 +92,8 @@ interface LotusSessionState extends LotusSessionView {
   preferredFuture?: Record<string, string>;
   /** Factorisation topic only: the planned test and how it has changed. Server-only, never sent to the browser. */
   factorisation?: FactorisationSession;
+  /** C1: the AI's read of the whole finished test, attached to the report. */
+  overallReview?: LotusOverallReview;
 }
 
 interface FactorisationSession {
@@ -733,6 +738,8 @@ export class LotusService implements OnModuleDestroy {
   private readonly deferredAnalysisConcurrency: number;
   private readonly persistenceTails = new Map<string, Promise<void>>();
   /** Factorisation question writes waiting or running, per session. In memory only — a restart rebuilds from the plan. */
+  /** Sessions whose overall review (C1) is in flight, so it runs once. */
+  private readonly overallReviewsRunning = new Set<string>();
   private readonly writeQueues = new Map<string, {
     pending: WriteJob[];
     running: number;
@@ -1572,7 +1579,7 @@ export class LotusService implements OnModuleDestroy {
           source: "RULE_VALIDATED_PLAN",
         };
       }
-      else liveSession.finalReport = this.factorisationReport(liveSession);
+      else { liveSession.finalReport = this.factorisationReport(liveSession); this.maybeRunOverallReview(liveSession); }
     } else if (liveSession.coveragePlan) {
       if (!slot.analysisLate) {
         this.stageLaterProbe(liveSession, analysis.conclusion.nextQuestion);
@@ -2694,7 +2701,41 @@ Create one materially different question that adds new diagnostic evidence. Test
       audits: session.audits,
     });
     if (f.endedEarlyNote) report.limitations.unshift(f.endedEarlyNote);
+    const review = session.overallReview;
+    if (review) {
+      // The AI's read sits beside the code's facts, never over them.
+      report.overallReview = review;
+      report.evidenceSummary.unshift(`AI's overall view (doesn't change the results): ${review.view}`);
+      report.uncertainAreas.push(
+        ...review.noticed.map((n) => `AI noticed (not confirmed): ${n}`),
+        ...review.disagreements.map((d) => `AI reads this differently from the code: ${d}`),
+      );
+    }
     return report;
+  }
+
+  /**
+   * C1: once a finished test has no review still running, ask for one overall
+   * read of the whole test and attach it to the report. Best-effort: a failure
+   * leaves the code's report as it is.
+   */
+  private maybeRunOverallReview(session: LotusSessionState): void {
+    if (session.status !== "COMPLETE" || !session.factorisation || session.overallReview) return;
+    if (reviewsStillRunning(session) || this.overallReviewsRunning.has(session.sessionId)) return;
+    const models = this.models as LotusModelService & { overallReview?: LotusModelService["overallReview"] };
+    if (typeof models.overallReview !== "function") return;
+    this.overallReviewsRunning.add(session.sessionId);
+    const codeRecord = [...foldLedger(session.audits).values()].map((e) =>
+      `${skillName(e.skillId)}: ${e.state}${e.notes.length ? ` (${e.notes.slice(-3).join("; ")})` : ""}`);
+    void models.overallReview(overallReviewPrompt({ audits: session.audits, codeRecord, topic: session.topic }))
+      .then(async (result) => {
+        const live = this.sessions.get(session.sessionId) ?? session;
+        live.overallReview = { ...result, createdAt: new Date().toISOString() };
+        live.finalReport = this.factorisationReport(live);
+        await this.persist(live, undefined, true);
+      })
+      .catch((error) => this.logger.warn(`Overall review for ${session.sessionId} failed: ${error instanceof Error ? error.message : String(error)}`))
+      .finally(() => this.overallReviewsRunning.delete(session.sessionId));
   }
 
   private completeFactorisation(session: LotusSessionState): void {
@@ -2711,6 +2752,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     session.finalReport = report;
     session.liveProgress = null;
     this.writeQueues.delete(session.sessionId);
+    this.maybeRunOverallReview(session);
   }
 
   /**

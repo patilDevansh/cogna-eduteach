@@ -63,6 +63,7 @@ import {
 import { snapshotFromLotusSession } from "./lotus-evidence";
 import { animatedLessonsEnabled, planAnimatedLesson } from "./animated-lessons";
 import { planFactorisationLesson } from "./factorisation-lessons";
+import { reviewsStillRunning } from "../lotus/lotus-factorisation";
 import { DEMO_ANIMATIONS, LessonNarrator, buildForTheme, demoLessonRecord, type AnimationInput } from "./lesson-animation";
 import { authoredDurationInFrames, type AuthoredLessonProps, type DistributionLessonProps, type TrinomialLessonProps } from "@cogna/lesson-video";
 import type { OpenAIService } from "../ai/openai.service";
@@ -288,6 +289,11 @@ export class PersonalizedVideosService {
     if (lotusRecordId && !(options.allowTestHooks && input.scriptOverride)) {
       const prior = await this.prisma.personalizedVideoAssignment.findFirst({ where: { studentId, lotusSessionId: lotusRecordId }, orderBy: { createdAt: "asc" } });
       if (prior) return this.toView(prior);
+    }
+    // C2: a lesson chosen while AI reviews are still running would miss their
+    // evidence and then be kept for good. Wait; callers retry.
+    if (trusted.session && reviewsStillRunning(trusted.session) && !(options.allowTestHooks && input.scriptOverride)) {
+      throw new ConflictException("The diagnostic's last answer reviews are still finishing; the lesson will be chosen once they're in.");
     }
     const gate = evaluateRemediationEligibility(snapshot);
     const scriptSource: PersonalizedVideoScriptSource =

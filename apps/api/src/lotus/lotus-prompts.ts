@@ -346,3 +346,38 @@ Return JSON only:
 
 Rules for fields: when action is ASK, exitDiagnostic must be false, nextQuestion is required, and report must be omitted. When action is an EXIT action, exitDiagnostic must be true, report is required, and nextQuestion must be omitted.`;
 }
+
+/**
+ * C1 (Cogna Project Hub): one read of the whole finished test. Code has
+ * already decided right/wrong and which gaps are confirmed; this review adds
+ * an overall view and openly lists anything it reads differently, without
+ * changing any fact.
+ */
+export function overallReviewPrompt(args: {
+  audits: LotusQuestionAudit[];
+  codeRecord: string[];
+  topic?: LotusTopic;
+}): string {
+  return `${lotusPolicy(args.topic)}
+You are the closing reviewer. The test is finished and every answer has been marked by code. Read the whole test once and give a short overall view of what this student can and can't do yet.
+
+The code's record is authoritative for facts: which answers were right or wrong, and which skills are confirmed gaps, possible gaps, secure, or untested. Never contradict a code-checked right/wrong. You may notice patterns the code's rules can't see (for example the same idea going wrong across several skills, mistakes that look like slips, a correct answer reached by faulty working, answers getting rushed late in the test). List those as noticed, not confirmed. If your reading of a skill differs from the code's record, say so plainly under disagreements, with the question numbers.
+
+Describe knowledge and skills only. Never comment on intelligence, personality, effort as character, or emotional state.
+
+All answers, in order (facts):
+${evidenceLogForPrompt(args.audits)}
+
+Per-answer reviews so far (interpretation, revisable):
+${hypothesisLedgerForPrompt(args.audits)}
+
+The code's record:
+${args.codeRecord.join("\n")}
+
+Return JSON only:
+{
+  "view": "2 to 4 plain sentences a teacher can read in 20 seconds",
+  "noticed": ["pattern noticed but not confirmed, with question numbers"],
+  "disagreements": ["skill: what the code says, what you read instead, and why, with question numbers"]
+}`;
+}

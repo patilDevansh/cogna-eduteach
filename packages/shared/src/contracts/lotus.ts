@@ -273,6 +273,8 @@ export interface LotusFinalReport {
   notTested?: string[];
   /** Per-skill outcome, for the teacher and observer. */
   skills?: LotusSkillSummary[];
+  /** C1: the AI's read of the whole test; never changes the facts above. */
+  overallReview?: LotusOverallReview;
 }
 
 export type LotusSkillState = "UNTESTED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
@@ -344,6 +346,19 @@ export interface LotusDebateClosure {
 }
 
 export type LotusMistakeKind = "MISUNDERSTANDING" | "SLIP" | "GUESS" | "UNREADABLE";
+
+/**
+ * C1: one AI read of the whole finished test, once every per-answer review
+ * is in. It never changes the code's facts (right/wrong, confirmed gaps);
+ * it adds a plain overall view, patterns noticed but not confirmed, and any
+ * place its reading differs from the code's record, shown openly.
+ */
+export interface LotusOverallReview {
+  view: string;
+  noticed: string[];
+  disagreements: string[];
+  createdAt: string;
+}
 
 /**
  * Whether a candidate's answerKey.expression was cross-checked against an

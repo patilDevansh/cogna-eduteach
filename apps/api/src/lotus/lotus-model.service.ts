@@ -189,6 +189,16 @@ export class LotusModelService {
     return value as unknown as LotusDebateClosure;
   }
 
+  /** C1: one read of the whole finished test. Never changes the code's facts. */
+  async overallReview(prompt: string): Promise<{ view: string; noticed: string[]; disagreements: string[] }> {
+    const value = await this.callOpenAi(prompt, this.primaryModel, "Overall review", "closure");
+    assertObject(value, "Overall review");
+    assertStringField(value, "view", "Overall review");
+    const list = (field: string) => (Array.isArray(value[field]) ? (value[field] as unknown[]) : [])
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()).slice(0, 6);
+    return { view: String(value.view).trim(), noticed: list("noticed"), disagreements: list("disagreements") };
+  }
+
   async reviseQuestion(prompt: string): Promise<Omit<LotusQuestion, "id">> {
     const value = await this.callOpenAi(prompt, this.primaryModel, "GPT primary question revision", "revision");
     assertObject(value, "GPT primary question revision");

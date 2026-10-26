@@ -19,6 +19,7 @@ import type {
   LotusMathVerification,
   LotusQuestion,
   LotusQuestionAudit,
+  LotusSessionView,
   LotusSkillEvidence,
   LotusSkillState,
   LotusPlannedTopic,
@@ -874,6 +875,17 @@ export function depth(skillId: string, seen = new Set<string>()): number {
 /** Confirmed gaps, most foundational first — [0] is the report's starting point. */
 export function confirmedByDepth(ledger: Ledger): SkillLedgerEntry[] {
   return [...ledger.values()].filter((e) => e.state === "CONFIRMED").sort((a, b) => depth(a.skillId) - depth(b.skillId));
+}
+
+/**
+ * C2: is any AI review of this test still running and not yet well past its
+ * deadline? A lesson chosen now would miss its evidence and then be kept for
+ * good, so lesson creation waits (the classroom retries for two minutes).
+ * A review a minute past its deadline isn't waited for.
+ */
+export function reviewsStillRunning(session: Pick<LotusSessionView, "audits">, now = Date.now()): boolean {
+  return (session.audits ?? []).some((a) => a.analysisStatus === "PENDING" &&
+    (!a.analysisDeadlineAt || now < Date.parse(a.analysisDeadlineAt) + 60_000));
 }
 
 /** The foundation skill taught when one sign mistake runs through several gaps. */
