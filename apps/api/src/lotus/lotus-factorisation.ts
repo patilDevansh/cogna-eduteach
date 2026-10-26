@@ -215,7 +215,7 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
   // A predicted wrong answer after working that already reached the right
   // one is most likely a copying slip, not the misconception it resembles:
   // leave it to the AI review (which labels slips) instead of counting it.
-  const countable = predicted && !workingReachesAnswer(response.working, key, d.itemKind);
+  const countable = predicted && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, answer);
   return {
     verification: verification("VERIFIED_INCORRECT", `Not equal to ${expression} — checked by expanding.`),
     evidence: countable ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
@@ -250,6 +250,27 @@ function workingHasWrongStep(working: string | undefined, expression: string | u
     }
   }
   return false;
+}
+
+/** The signed numbers written in a piece of maths: "(x - 4)(x - 5)" → ["-4", "-5"]. */
+function signedNumbers(text: string): string[] {
+  const flat = text.replace(/[−–]/g, "-").replace(/\s+/g, "");
+  return [...flat.matchAll(/([+-]?)(\d+(?:\.\d+)?)/g)].map((m) => `${m[1] === "-" ? "-" : ""}${m[2]}`);
+}
+
+/**
+ * Does the working contain the signed numbers the correct answer needs but
+ * the submitted answer lost? E.g. working "-4 × -5 = 20, -4 + -5 = -9", then
+ * (x + 4)(x + 5): the child found the right pair and miscopied it, which
+ * looks like the predicted sign mistake but isn't one (C3).
+ */
+function workingShowsLostNumbers(working: string | undefined, key: string, answer: string): boolean {
+  if (!working?.trim()) return false;
+  const inAnswer = new Set(signedNumbers(answer));
+  const lost = [...new Set(signedNumbers(key))].filter((n) => !inAnswer.has(n) && n !== "1" && n !== "0");
+  if (!lost.length) return false;
+  const inWorking = new Set(signedNumbers(working));
+  return lost.every((n) => inWorking.has(n));
 }
 
 /** Does any line of the working (or the part after its last "=") already equal the correct answer? */
@@ -320,6 +341,8 @@ export interface SkillLedgerEntry {
   recheckUsed?: boolean;
   /** Right once on a multiple-choice tap: not yet enough to call it secure. */
   tapRights?: number;
+  /** Confirmed only by fast wrong answers late in the test: may be tiredness, so not taught (C13). */
+  tiredness?: boolean;
   mistakes: string[];
   notes: string[];
   /** The learner explicitly needed help; use a lower prerequisite probe where possible. */
@@ -341,10 +364,14 @@ export type Ledger = Map<string, SkillLedgerEntry>;
 /** An answer faster than this, and wrong, counts toward "not really trying". */
 const RUSHED_MS = 5_000;
 
-/** A tap on given options (multiple choice or choose-several), not a typed answer. */
+/**
+ * An answer picked from a few given options rather than written: multiple
+ * choice, choose-several, or the two-bracket tile game (6 tiles, so a guess
+ * is right about 1 time in 15). One right pick isn't enough for "secure".
+ */
 function isTap(audit: LotusQuestionAudit): boolean {
   const kind = audit.question?.answerKey?.diagnostics?.itemKind;
-  return kind === "CHOICE" || kind === "SELECT";
+  return kind === "CHOICE" || kind === "SELECT" || audit.question?.interaction?.format === "BRACKET_BRIDGE";
 }
 
 function couldShow(audit: LotusQuestionAudit, mistake: string | undefined): boolean {
@@ -452,7 +479,51 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
       if (e.state === "CONFIRMED") e.recheck = false;
     }
   });
+  markTirednessGaps(audits, ledger);
   return ledger;
+}
+
+/**
+ * Tired halfway (C13): careful and mostly right early, then mostly fast and
+ * wrong late. A gap confirmed only by those late rushed answers may be
+ * tiredness, not a gap: it becomes a suspicion marked `tiredness`, so no
+ * lesson is built on it and the report says why. A gap also seen in the
+ * careful part of the test stays confirmed.
+ */
+function markTirednessGaps(audits: LotusQuestionAudit[], ledger: Ledger): void {
+  const fatigue = fatigueStart(audits);
+  if (fatigue === null) return;
+  const rushedWrongTurn = (q: number) => {
+    const a = audits.at(q - 1);
+    return !!a && q >= fatigue && (a.response?.responseTimeMs ?? Infinity) < RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT";
+  };
+  for (const e of ledger.values()) {
+    if (e.state !== "CONFIRMED") continue;
+    const negativeTurns = e.notes
+      .filter((n) => !n.includes(": right"))
+      .map((n) => Number(/^Q(\d+):/.exec(n)?.[1]))
+      .filter((q) => Number.isInteger(q) && q > 0);
+    if (negativeTurns.length && negativeTurns.every(rushedWrongTurn)) {
+      e.state = "SUSPECTED"; e.tiredness = true; e.suspectedAt = negativeTurns.at(-1);
+    }
+  }
+}
+
+/** The answer number where a careful start turns into fast wrong answers, or null if it doesn't. */
+export function fatigueStart(audits: LotusQuestionAudit[]): number | null {
+  const answered = audits.filter((a) => a.response && !a.response.didNotKnow);
+  if (answered.length < 10) return null;
+  const half = Math.floor(audits.length / 2);
+  const early = audits.slice(0, half).filter((a) => a.response && !a.response.didNotKnow);
+  const late = audits.slice(half).filter((a) => a.response && !a.response.didNotKnow);
+  const rushedWrong = (a: LotusQuestionAudit) => (a.response?.responseTimeMs ?? Infinity) < RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT";
+  const earlyRight = early.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length / Math.max(early.length, 1);
+  const earlyRushed = early.filter(rushedWrong).length / Math.max(early.length, 1);
+  const lateRushed = late.filter(rushedWrong).length / Math.max(late.length, 1);
+  if (late.length < 4 || earlyRight < 0.6 || earlyRushed > 0.2 || lateRushed < 0.5) return null;
+  // The first rushed wrong answer in the second half.
+  const first = audits.findIndex((a, i) => i >= half && rushedWrong(a));
+  return first < 0 ? null : first + 1;
 }
 
 // ---------- plan adjustments ----------
@@ -891,6 +962,8 @@ export function buildFactorisationReport(args: {
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
   if (rushed) limitations.unshift("Most answers were very fast and wrong, so the gaps below may come from rushing, not from what the child knows. No lesson is suggested from this test.");
+  const tiredFrom = args.audits ? fatigueStart(args.audits) : null;
+  if (!rushed && tiredFrom !== null) limitations.unshift(`From Q${tiredFrom} the answers got much faster and more often wrong, which may be tiredness. Gaps seen only in that part are marked unclear, not taught.`);
 
   const summaries: LotusSkillSummary[] = [
     ...entries.map((e) => ({ skillId: e.skillId, name: skillName(e.skillId), state: e.state, evidence: e.notes })),
@@ -905,9 +978,18 @@ export function buildFactorisationReport(args: {
     startingPoint,
     observedStrengths: secure.map((e) => skillName(e.skillId) + (e.clearedAfterSlip ? " (an earlier mistake looked like a slip)" : "")),
     uncertainAreas: [
-      ...suspected.map((e) => e.recheck
+      ...suspected.map((e) => e.tiredness
+        ? `${skillName(e.skillId)}: unclear — the mistakes came only from fast answers late in the test, which may be tiredness. Check again when the child is fresh.`
+        : e.recheck
         ? `${skillName(e.skillId)}: unclear — confirmed earlier, but answered right on ${(e.rightSinceConfirmed ?? []).map((q) => `Q${q}`).join(", ")} since, and the re-check question wasn't reached. Check again before teaching it.`
         : `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
+      // C10: slips and unreadable answers the AI noticed. Never gaps, but the teacher should see them.
+      ...(args.audits ?? []).flatMap((a, i) => {
+        const kind = a.conclusion?.mistakeKind;
+        if (a.analysisStatus !== "COMPLETE" || (kind !== "SLIP" && kind !== "UNREADABLE")) return [];
+        const what = kind === "SLIP" ? "Possible slip" : "Answer couldn't be read";
+        return [`${what} on Q${i + 1} (not counted as a gap): ${(a.conclusion.mistakeDescription ?? "").trim() || "see the answer"}`];
+      }),
       ...confirmed.filter((e) => e.rightSinceConfirmed?.length).map((e) =>
         `${skillName(e.skillId)}: confirmed earlier, but answered right on ${e.rightSinceConfirmed!.map((q) => `Q${q}`).join(", ")} since — check again before teaching it.`),
       ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights).map((e) =>
