@@ -375,7 +375,11 @@ function scoreTranscript(persona: PersonaProfile, view: any): { pass: boolean; f
     if (decision.implementation === "QUEUED_FOR_GENERATION") metrics.queuedActions += 1;
     if (decision.action === "TARGETED_PROBE" || decision.action === "EASIER_PREREQUISITE") {
       if (!decision.targetSkill || !decision.targetTurn) failures.push(`turn ${index + 1}: ${decision.action} lacks a target skill or turn`);
-      else if (decision.targetTurn > index + 9 || decision.targetTurn >= 24) failures.push(`turn ${index + 1}: ${decision.action} was placed too late at Q${decision.targetTurn}`);
+      // A rewrite of an existing later question ("Rewritten to test X without
+      // needing Y") is placed where that question already was; only a fresh
+      // check or an easier prerequisite has to land near the evidence. Late in
+      // a test, nothing nearer than 9 questions may be left, which is fine.
+      else if (!/^Rewritten to test/.test(decision.rationale ?? "") && decision.targetTurn > index + 9) failures.push(`turn ${index + 1}: ${decision.action} was placed too late at Q${decision.targetTurn}`);
       else metrics.nearTermTargets += 1;
     }
   });
@@ -408,7 +412,23 @@ function scoreTranscript(persona: PersonaProfile, view: any): { pass: boolean; f
     }
     const guessedSecure = states.filter((skill) => skill.state === "SECURE" && persona.messy!.guessSkills?.includes(skill.skillId));
     if (guessedSecure.length) failures.push(`guessing persona reported SECURE on guessed skills: ${guessedSecure.map((skill) => skill.skillId).join(", ")}`);
+    if (persona.messy.expectOutcome && view.finalReport?.outcome !== persona.messy.expectOutcome) {
+      failures.push(`expected outcome ${persona.messy.expectOutcome}, got ${view.finalReport?.outcome}`);
+    }
+    if (persona.messy.expectSignRoot && !/sign/i.test(view.finalReport?.startingPoint ?? "")) {
+      failures.push(`expected signs with negative numbers as the starting point, got: ${view.finalReport?.startingPoint}`);
+    }
   }
+  // Scorecard (Cogna Project Hub, C5): gaps found, missed and invented, per persona.
+  const confirmedSkills = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED").map((skill: any) => skill.skillId as string);
+  const expectedGaps = [
+    ...(persona.misconception && persona.id !== "P09_ONE_OFF_SLIP" ? [persona.misconception.skillId] : []),
+    ...(persona.supportSkills ?? []).filter((id) => confirmedSkills.includes(id)),
+  ];
+  const allowed = new Set([...expectedGaps, ...(persona.messy?.mayConfirm ?? []), ...(persona.messy?.guessSkills ?? []), ...(persona.messy?.signSkills ?? [])]);
+  (metrics as any).gapsExpected = expectedGaps.length;
+  (metrics as any).gapsFound = expectedGaps.filter((id) => confirmedSkills.includes(id) || reportSkills.get(id)?.state === "SUSPECTED").length;
+  (metrics as any).falseGaps = persona.messy?.mayConfirm || !persona.messy ? confirmedSkills.filter((id) => !allowed.has(id)).length : 0;
   if (persona.misconception && persona.id !== "P09_ONE_OFF_SLIP") {
     const state = reportSkills.get(persona.misconception.skillId)?.state;
     if (state !== "CONFIRMED" && state !== "SUSPECTED") failures.push(`declared misconception ${persona.misconception.skillId} was neither suspected nor confirmed`);
@@ -426,7 +446,8 @@ async function runPersona(page: any, persona: PersonaProfile, pace: "normal" | "
     const question = await privateQuestion(sessionId);
     if (!SUBMIT_VIA_API) await assertRenderedQuestionMatchesServer(page, question, answered + 1);
     const plan = chooseResponse(persona, question, answered + 1);
-    const paceMs = pace === "fast" ? Math.min(...persona.paceMsBand) : Math.max(...persona.paceMsBand);
+    const tired = persona.messy?.tiredFromTurn !== undefined && answered + 1 >= persona.messy.tiredFromTurn;
+    const paceMs = tired ? 3_000 : pace === "fast" ? Math.min(...persona.paceMsBand) : Math.max(...persona.paceMsBand);
     const committed = SUBMIT_VIA_API
       ? await submitViaApi(page, sessionId, question, plan, paceMs, persona.confidenceBand)
       : await submitPersonaResponse(page, question, plan, paceMs, persona.confidenceBand);
@@ -463,6 +484,11 @@ async function main(): Promise<void> {
     API_URL,
   });
   const results: any[] = [];
+  const scorecard = () => {
+    const scored = results.filter((r) => r.score?.metrics);
+    const sum = (k: string) => scored.reduce((t, r) => t + (r.score.metrics[k] ?? 0), 0);
+    return { sessions: scored.length, gapsExpected: sum("gapsExpected"), gapsFound: sum("gapsFound"), falseGaps: sum("falseGaps"), passed: scored.filter((r) => r.score.pass).length };
+  };
   try {
     if (!await waitForReady(`${API_URL}/lotus/status`, SERVER_START_TIMEOUT_MS)) throw new Error(`API did not start\n${api.output()}`);
     if (!await waitForReady(WEB_URL, SERVER_START_TIMEOUT_MS)) throw new Error(`Web did not start\n${web.output()}`);
@@ -508,9 +534,12 @@ async function main(): Promise<void> {
     plannedSessions: planned,
     passedSessions: results.filter((result) => result.score.pass).length,
     failedSessions: results.filter((result) => !result.score.pass).length,
+    scorecard: scorecard(),
     results,
   };
   console.log(JSON.stringify(report, null, 2));
+  const card = report.scorecard;
+  log("scorecard", `${card.passed}/${card.sessions} sessions passed · gaps found ${card.gapsFound}/${card.gapsExpected} · false gaps ${card.falseGaps}`);
   if (REPORT_PATH) await writeFile(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   if (report.failedSessions > 0) process.exitCode = 1;
 }
