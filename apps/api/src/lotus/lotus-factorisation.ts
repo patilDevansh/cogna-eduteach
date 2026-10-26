@@ -274,6 +274,10 @@ export interface SkillLedgerEntry {
   clearedAfterSlip?: number;
   /** Answers (1-based) the student got right on this skill after it was confirmed: shown next to the gap, never silently dropped. */
   rightSinceConfirmed?: number[];
+  /** A confirmed gap reopened as a suspicion after two later right answers, waiting for one direct question. */
+  recheck?: boolean;
+  /** The skill has had its one re-check; later evidence no longer reopens it. */
+  recheckUsed?: boolean;
   mistakes: string[];
   notes: string[];
   /** The learner explicitly needed help; use a lower prerequisite probe where possible. */
@@ -333,7 +337,18 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         else if (e.state === "SECURE" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
       } else {
-        if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
+        // A re-check is settled only by a question aimed at the skill itself,
+        // not by one where it is a single step among others.
+        const direct = audit.question?.answerKey?.diagnostics?.skillId === skillId;
+        if (e.recheck && e.state === "SUSPECTED") {
+          if (direct && e.suspectedAt !== undefined && q > e.suspectedAt) {
+            e.state = "SECURE"; e.recheck = false; e.clearedAfterSlip = e.confirmedAt;
+            e.notes.push(`Q${q}: right on the re-check, so the earlier mistakes look like slips`);
+          } else {
+            e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
+            e.notes.push(`Q${q}: right, but not a direct re-check`);
+          }
+        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
           e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt; e.notes.push(`Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
         } else if (e.state === "UNTESTED") {
           e.state = "SECURE"; e.notes.push(`Q${q}: right`);
@@ -345,8 +360,16 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         else if (e.state === "CONFIRMED" && e.confirmedAt !== undefined && q > e.confirmedAt) {
           e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
           e.notes.push(`Q${q}: right after the gap was confirmed`);
+          // Two right answers since confirmation cast real doubt: reopen it as
+          // a suspicion so the plan asks one direct question to settle it.
+          // Once per skill, so the evidence can't flip back and forth.
+          if (!e.recheckUsed && e.rightSinceConfirmed.length >= 2) {
+            e.state = "SUSPECTED"; e.suspectedAt = q; e.recheck = true; e.recheckUsed = true;
+            e.notes.push(`Q${q}: right twice since the gap was confirmed, so it needs a re-check`);
+          }
         }
       }
+      if (e.state === "CONFIRMED") e.recheck = false;
     }
   });
   return ledger;
@@ -557,9 +580,13 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       if (e.state !== "SUSPECTED") continue;
     }
     if (e.state !== "SUSPECTED") continue;
+    // A re-check needs a question aimed at the skill: one that merely uses it
+    // as a step can't settle it (foldLedger only clears it on a direct item).
     const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) => t.turn >= state.planTurn &&
       ((t.purpose === "CHECK" && t.forSkill === e.skillId) ||
-        (t.status !== "SKIPPED" && usesSkill(itemAt(t.turn), e.skillId))));
+        (t.status !== "SKIPPED" && (e.recheck
+          ? itemAt(t.turn)?.answerKey.diagnostics?.skillId === e.skillId
+          : usesSkill(itemAt(t.turn), e.skillId)))));
     if (hasCheck) continue;
     const spec = slots.find((s) => s.skillId === e.skillId);
     if (!spec) continue;
@@ -571,7 +598,9 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     actions.push({
       kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: e.skillId, spec,
       targetMistake: e.mistakes.at(-1),
-      reason: `Checks the suspected gap in ${skillName(e.skillId)} a second time.`,
+      reason: e.recheck
+        ? `Re-checks ${skillName(e.skillId)}: it was confirmed earlier, but answered right twice since.`
+        : `Checks the suspected gap in ${skillName(e.skillId)} a second time.`,
     });
   }
 
@@ -750,7 +779,9 @@ export function buildFactorisationReport(args: {
     startingPoint,
     observedStrengths: secure.map((e) => skillName(e.skillId) + (e.clearedAfterSlip ? " (an earlier mistake looked like a slip)" : "")),
     uncertainAreas: [
-      ...suspected.map((e) => `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
+      ...suspected.map((e) => e.recheck
+        ? `${skillName(e.skillId)}: unclear — confirmed earlier, but answered right on ${(e.rightSinceConfirmed ?? []).map((q) => `Q${q}`).join(", ")} since, and the re-check question wasn't reached. Check again before teaching it.`
+        : `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
       ...confirmed.filter((e) => e.rightSinceConfirmed?.length).map((e) =>
         `${skillName(e.skillId)}: confirmed earlier, but answered right on ${e.rightSinceConfirmed!.map((q) => `Q${q}`).join(", ")} since — check again before teaching it.`),
     ],

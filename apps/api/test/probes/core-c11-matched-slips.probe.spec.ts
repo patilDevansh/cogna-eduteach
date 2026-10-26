@@ -47,8 +47,9 @@ describe("C11: a matched wrong answer after correct working goes to the AI, and 
     const turn = (skillEvidence: unknown[]) => ({ skillEvidence }) as unknown as LotusQuestionAudit;
     const mistake = { skillId: "FAC_DIFF_SQUARES", kind: "MISTAKE", mistake: "WROTE_PERFECT_SQUARE", source: "INSTANT" };
     const right = { skillId: "FAC_DIFF_SQUARES", kind: "SECURE", source: "INSTANT" };
-    const entry = foldLedger([turn([mistake]), turn([mistake]), turn([right]), turn([right])]).get("FAC_DIFF_SQUARES") as unknown as { state: string; rightSinceConfirmed?: number[] };
+    const entry = foldLedger([turn([mistake]), turn([mistake]), turn([right])]).get("FAC_DIFF_SQUARES") as unknown as { state: string; rightSinceConfirmed?: number[] };
     assert.equal(entry.state, "CONFIRMED", "a confirmed gap is not silently erased");
-    assert.deepEqual(entry.rightSinceConfirmed, [3, 4], "the later right answers must be kept so the report can show them");
+    assert.deepEqual(entry.rightSinceConfirmed, [3], "the later right answer must be kept so the report can show it");
+    // Two later right answers reopen it for a re-check: see core-recheck.probe.spec.ts.
   });
 });
