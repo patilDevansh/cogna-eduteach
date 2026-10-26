@@ -41,7 +41,31 @@ const respond = (answer: string, working: string): LotusStudentResponse => ({
   answer, working, confidence: 60, responseTimeMs: 40_000, didNotKnow: false,
 });
 
+const expansion = {
+  id: "probe-c3-expand",
+  answerKey: {
+    canonicalAnswer: "x^2 - 2x - 15",
+    workedSolution: ["x·x + x·(-5) + 3·x + 3·(-5)", "x^2 - 5x + 3x - 15", "x^2 - 2x - 15"],
+    diagnostics: { itemKind: "EXPAND", expression: "(x + 3)(x - 5)", skillId: "EXP_EXPAND_BINOMIALS", taggedSkills: [], stepSkills: ["EXP_EXPAND_BINOMIALS", "EXP_EXPAND_BINOMIALS", "EXP_EXPAND_BINOMIALS"], predictedMistakes: [], origin: "AI" },
+  },
+} as unknown as LotusQuestion;
+
 describe("C3: the working gets a closer look when it doesn't fit the answer", () => {
+  it("two mistakes that cancel out still send a right answer for review", () => {
+    // Step 2 gets the sign of 3x wrong (-3x), step 3 combines -5x - 3x as -2x:
+    // two errors that cancel to the right answer.
+    const verdict = instantVerdict(expansion, respond("x^2 - 2x - 15", "x^2 - 5x - 3x - 15\nx^2 - 2x - 15"));
+    assert.equal(verdict.verification?.status, "VERIFIED_CORRECT");
+    assert.ok(verdict.needsAnalysis, "a working line isn't equal to (x + 3)(x - 5), yet no review was requested");
+    assert.ok(!verdict.evidence.some((e) => e.kind === "SECURE"), "the skill shouldn't be marked secure before the review");
+  });
+
+  it("a right answer with sound working stays secure with no review", () => {
+    const verdict = instantVerdict(expansion, respond("x^2 - 2x - 15", "x^2 - 5x + 3x - 15\nx^2 - 2x - 15"));
+    assert.equal(verdict.needsAnalysis, false);
+    assert.ok(verdict.evidence.some((e) => e.kind === "SECURE"));
+  });
+
   it("a right answer reached by wrong working is sent for review", () => {
     // Right final answer, but the working adds where it should multiply:
     // 4 + 5 = 20 is false. A lucky answer like this is not secure evidence.

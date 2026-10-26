@@ -1544,6 +1544,7 @@ export class LotusService implements OnModuleDestroy {
       // The AI only points at a step; the question's own step tags say which skill that is.
       slot.skillEvidence = evidenceFromAnalysis(
         slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
+        slot.verification?.status === "VERIFIED_CORRECT",
       );
       if (liveSession.status === "ACTIVE" && !slot.analysisLate) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"

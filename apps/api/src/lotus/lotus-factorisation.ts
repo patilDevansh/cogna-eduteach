@@ -172,7 +172,10 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
     if (readNumberAnswer(answer) === null) {
       return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as a number, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
     }
-    if (sameNumber(answer, key)) return { verification: verification("VERIFIED_CORRECT", `Equal to ${key}.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    if (sameNumber(answer, key)) {
+      const doubtful = workingHasWrongStep(response.working, undefined, d.itemKind);
+      return { verification: verification("VERIFIED_CORRECT", `Equal to ${key}.`), evidence: doubtful ? [] : secureAll(d), fastSkip: false, needsAnalysis: doubtful };
+    }
     const predicted = d.predictedMistakes.find((p) => sameNumber(p.answer, answer));
     return {
       verification: verification("VERIFIED_INCORRECT", `Not equal to ${key}.`),
@@ -188,7 +191,10 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
       : classifyFactorisation(answer, expression);
   const done = d.itemKind === "SIMPLIFY" ? "simplified" : d.itemKind === "EXPAND" ? "expanded and collected" : "factorised";
   if (verdict === "CORRECT") {
-    return { verification: verification("VERIFIED_CORRECT", `Equal to ${expression} and fully ${done} — checked by expanding.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    // Right answer, but a step in the working is false: don't call the skill
+    // secure on trust — let the AI review read the working first (C3).
+    const doubtful = workingHasWrongStep(response.working, expression, d.itemKind);
+    return { verification: verification("VERIFIED_CORRECT", `Equal to ${expression} and fully ${done} — checked by expanding.`), evidence: doubtful ? [] : secureAll(d), fastSkip: false, needsAnalysis: doubtful };
   }
   if (verdict === "UNREADABLE") {
     return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as an expression, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
@@ -218,6 +224,34 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
   };
 }
 
+/**
+ * Does the working contain a step that is false, even though the final answer
+ * is right? (Two errors can cancel; a lucky answer can sit on nonsense.) A step
+ * is false when an equation in it has unequal sides ("4 + 5 = 20"), or, for
+ * EXPAND/SIMPLIFY, a line stops being equal to the original expression. Lines
+ * code can't read as maths (words, labels) are skipped, never counted against.
+ */
+function workingHasWrongStep(working: string | undefined, expression: string | undefined, itemKind: LotusItemDiagnostics["itemKind"]): boolean {
+  const readable = (s: string) => /[0-9a-z]/i.test(s) && safe(() => algebraicallyEqual(s, s));
+  for (const line of (working ?? "").split("\n")) {
+    for (const raw of line.split(/,|;|\band\b/i)) {
+      const segment = (raw.includes(":") ? raw.slice(raw.lastIndexOf(":") + 1) : raw)
+        .replace(/^\s*(so|then|therefore|which is|gives)\s+/i, "").trim();
+      if (!segment) continue;
+      const sides = segment.split("=").map((s) => s.trim()).filter(Boolean);
+      if (sides.length >= 2) {
+        for (let i = 0; i + 1 < sides.length; i += 1) {
+          const [a, b] = [sides.at(i)!, sides.at(i + 1)!];
+          if (readable(a) && readable(b) && !safe(() => algebraicallyEqual(a, b))) return true;
+        }
+      } else if (expression && (itemKind === "EXPAND" || itemKind === "SIMPLIFY") && /[a-z]/i.test(segment) && readable(segment)) {
+        if (!safe(() => algebraicallyEqual(segment, expression))) return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** Does any line of the working (or the part after its last "=") already equal the correct answer? */
 function workingReachesAnswer(working: string | undefined, key: string, itemKind: LotusItemDiagnostics["itemKind"]): boolean {
   const same = itemKind === "FACTORISE" ? sameFactorisation : algebraicallyEqual;
@@ -243,11 +277,17 @@ export function evidenceFromAnalysis(
   firstWrongStep: unknown,
   description: string | undefined,
   mistakeKind?: unknown,
+  answerCorrect = false,
 ): LotusSkillEvidence[] {
   const d = question.answerKey.diagnostics;
   // Models sometimes send the step as a string; anything that isn't a step number means "no wrong step".
   const step = typeof firstWrongStep === "string" ? Number(firstWrongStep) : firstWrongStep;
-  if (!d || typeof step !== "number" || !Number.isInteger(step) || step < 1) return existing;
+  const noRealStep = typeof step !== "number" || !Number.isInteger(step) || step < 1;
+  // A right answer held back for review because its working looked wrong (C3):
+  // if the review finds nothing, or only a slip in the working, it is the
+  // secure evidence it would have been; a real misunderstanding counts below.
+  if (d && answerCorrect && existing.length === 0 && (noRealStep || mistakeKind === "SLIP" || mistakeKind === "UNREADABLE")) return secureAll(d);
+  if (!d || noRealStep) return existing;
   if (existing.length > 0) return existing;
   // A slip or an unreadable answer is not evidence the student lacks the
   // skill: two careless copies must not confirm a gap. The analyser's note
@@ -289,6 +329,25 @@ export interface SkillLedgerEntry {
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
+
+/**
+ * Could this answered question have shown the given mistake? Only a question
+ * built to catch that mistake (it lists it among its predicted wrong answers)
+ * can clear a suspicion of it. Unknown mistake or no question details: yes,
+ * as before.
+ */
+function couldShow(audit: LotusQuestionAudit, mistake: string | undefined): boolean {
+  // The dedicated check written for this suspicion settles it either way:
+  // one mistake earns one fresh check, never a chain of them.
+  if ((audit.questionSelection as { adaptationTag?: { kind?: string } } | undefined)?.adaptationTag?.kind === "TARGETED_CHECK") return true;
+  return itemCouldShow(audit.question, mistake);
+}
+
+function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string | undefined): boolean {
+  const predicted = item?.answerKey?.diagnostics?.predictedMistakes;
+  if (!mistake || !predicted) return true;
+  return predicted.some((p) => p.mistake === mistake);
+}
 
 export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
   const ledger: Ledger = new Map();
@@ -348,6 +407,11 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
             e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
             e.notes.push(`Q${q}: right, but not a direct re-check`);
           }
+        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt && !couldShow(audit, e.mistakes.at(-1))) {
+          // C6: right, but this question couldn't produce the suspected
+          // mistake (e.g. no negative numbers for a sign mistake), so it
+          // can't clear it. The plan keeps a check that can.
+          e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
           e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt; e.notes.push(`Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
         } else if (e.state === "UNTESTED") {
@@ -582,11 +646,15 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     if (e.state !== "SUSPECTED") continue;
     // A re-check needs a question aimed at the skill: one that merely uses it
     // as a step can't settle it (foldLedger only clears it on a direct item).
-    const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) => t.turn >= state.planTurn &&
-      ((t.purpose === "CHECK" && t.forSkill === e.skillId) ||
+    // A suspicion gets one dedicated check, ever (an answered one counts too);
+    // a re-check needs its own, still ahead.
+    const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) =>
+      (t.purpose === "CHECK" && t.forSkill === e.skillId && (!e.recheck || t.turn >= state.planTurn)) ||
+      (t.turn >= state.planTurn &&
         (t.status !== "SKIPPED" && (e.recheck
           ? itemAt(t.turn)?.answerKey.diagnostics?.skillId === e.skillId
-          : usesSkill(itemAt(t.turn), e.skillId)))));
+          // C6: the later question must be able to show the suspected mistake.
+          : usesSkill(itemAt(t.turn), e.skillId) && itemCouldShow(itemAt(t.turn), e.mistakes.at(-1))))));
     if (hasCheck) continue;
     const spec = slots.find((s) => s.skillId === e.skillId);
     if (!spec) continue;

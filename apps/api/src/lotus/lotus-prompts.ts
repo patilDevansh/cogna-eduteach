@@ -15,7 +15,7 @@ Assessment rules:
 - Do not teach, hint, reveal an answer, or repair the student's method during the diagnostic.
 - Prefer short, diagnostically discriminating questions. A rich item may cover more than one subtopic.
 - Ask one clear student task at a time, normally in 28 words or fewer. Put multiple-choice options only in the options array. Do not make the student compare two long calculations in one item.
-- Every question must include an answerKey. For arithmetic, put the exact machine-readable arithmetic in answerKey.expression. Never infer a misconception from an answer that deterministic verification marks correct.
+- Every question must include an answerKey. For arithmetic, put the exact machine-readable arithmetic in answerKey.expression. Never infer a misconception from a final answer that deterministic verification marks correct; but if the student's working on a correct answer contains a false step (for example two errors that cancel), report that step as firstWrongStep.
 - A next question must add new evidence. Do not reuse the same expression, merely change its wording, or ask more than two consecutive items about the same hypothesis. Branch to a different representation or exit uncertain.
 - The soft coverage spine is order of operations, brackets/grouping, expression interpretation or construction, and equivalence/structural meaning. It is not necessary to test every subtopic when the diagnostic goal is already met.
 - EXPLORE gathers breadth; DIAGNOSE investigates the strongest candidate gap; CONFIRM uses fresh evidence, tests an alternative explanation, or locates an advancement frontier. You may move between phases.
