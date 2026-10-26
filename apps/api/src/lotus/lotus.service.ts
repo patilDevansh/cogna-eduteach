@@ -2691,6 +2691,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       ledger: foldLedger(session.audits),
       state: f.state,
       pendingAnalyses: session.audits.filter((audit) => audit.analysisStatus === "PENDING" || audit.analysisStatus === "FAILED").length,
+      audits: session.audits,
     });
     if (f.endedEarlyNote) report.limitations.unshift(f.endedEarlyNote);
     return report;
