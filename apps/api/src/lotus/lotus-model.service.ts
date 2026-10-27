@@ -286,8 +286,8 @@ export class LotusModelService {
         model,
         input: prompt,
         max_output_tokens: tuning.maxOutputTokens,
-        reasoning: { effort: tuning.reasoningEffort },
-        text: { format: { type: "json_object" }, verbosity: "low" },
+        ...(!/^(gpt-4|gpt-3)/i.test(model) ? { reasoning: { effort: tuning.reasoningEffort } } : {}),
+        text: { format: { type: "json_object" } },
         prompt_cache_key: tuning.promptCacheKey,
       }, { timeout: tuning.timeoutMs });
       if (response.usage) {
