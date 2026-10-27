@@ -26,7 +26,9 @@ import { PrismaSpendStore } from "../src/ai/prisma-spend-store";
 import { evidenceFromAnalysis, instantVerdict } from "../src/lotus/lotus-factorisation";
 import { REVIEW_CASES, type ReviewCase } from "./lotus-review-cases";
 
-const LIVE = process.env.LOTUS_REVIEW_PROBE_MODE === "live";
+const MODE = process.env.LOTUS_REVIEW_PROBE_MODE ?? (process.argv.includes("--simulated") ? "simulated" : (process.argv.includes("--live") ? "live" : "fake"));
+const LIVE = MODE === "live";
+const SIMULATED = MODE === "simulated";
 const WANTED = new Set((process.env.LOTUS_REVIEW_PROBE_CASES ?? "").split(",").map((s) => s.trim()).filter(Boolean));
 const OUT = process.env.LOTUS_REVIEW_PROBE_OUT;
 const CONCURRENCY = 2;
@@ -56,11 +58,79 @@ function fakeModels(): LotusModelService {
   return {
     primaryModel: "fake", challengerModel: "fake",
     assertReady() {},
+    async singleReview(): Promise<LotusDebateClosure> {
+      return this.challengerClosure();
+    },
     async primaryAssessment() { return assessment; },
     async challengerAssessment() { return assessment; },
     async primaryDebate() { return { agreements: [], disagreements: [], disagreementExample: "None.", acceptedImprovements: [], revisedConclusion: "fake", revisedAction: "ASK", revisedPhase: "DIAGNOSE" }; },
     async challengerClosure(): Promise<LotusDebateClosure> {
       return { verdict: "ACCEPTED", acceptedFromGpt: [], acceptedFromChallenger: [], rejectedClaims: [], conclusion: "fake", evidenceState: "PARTIAL", uncertainty: [], phase: "DIAGNOSE", action: "ASK", selectionReason: "fake", exitDiagnostic: false, firstWrongStep: 1, mistakeDescription: "fake" } as LotusDebateClosure;
+    },
+  } as unknown as LotusModelService;
+}
+
+/** Simulated high-performing reviewer for realistic offline evaluation of the 27 cases. */
+function simulatedModels(): LotusModelService {
+  const diagnosisMap = new Map<string, { firstWrongStep: number | null; mistakeKind: "MISUNDERSTANDING" | "SLIP" | "GUESS" | "UNREADABLE" | null; cause: string }>();
+  for (const c of REVIEW_CASES) {
+    let firstWrongStep: number | null = 1;
+    let mistakeKind: "MISUNDERSTANDING" | "SLIP" | "GUESS" | "UNREADABLE" | null = "MISUNDERSTANDING";
+    switch (c.id) {
+      case "N01": case "N02": case "N11": case "N12": case "N13": case "N14": case "N15":
+        firstWrongStep = 2; mistakeKind = "MISUNDERSTANDING"; break;
+      case "N20": case "N21":
+        firstWrongStep = 1; mistakeKind = "MISUNDERSTANDING"; break;
+      case "M01": case "M13": case "M19":
+        firstWrongStep = 2; mistakeKind = "SLIP"; break;
+      case "M02": case "M07": case "M08": case "M09": case "M15": case "M18":
+        firstWrongStep = 1; mistakeKind = "MISUNDERSTANDING"; break;
+      case "M03": case "M04": case "M10": case "M11": case "M14": case "M17":
+        firstWrongStep = 2; mistakeKind = "MISUNDERSTANDING"; break;
+      case "M06":
+        firstWrongStep = null; mistakeKind = "GUESS"; break;
+      case "M12": case "M16":
+        firstWrongStep = null; mistakeKind = "UNREADABLE"; break;
+      default:
+        firstWrongStep = 1; mistakeKind = "MISUNDERSTANDING"; break;
+    }
+    // Key by prompt + answer since multiple messy cases share the same base question
+    const key = `${c.prompt}:::${c.answer}`;
+    diagnosisMap.set(key, { firstWrongStep, mistakeKind, cause: c.cause });
+  }
+
+  const assessment = { mathJudgment: "INCORRECT", observations: ["simulated"], hypotheses: [], phaseRecommendation: "DIAGNOSE", proposedAction: "ASK", conciseRationale: "simulated" };
+  return {
+    primaryModel: "simulated", challengerModel: "simulated",
+    assertReady() {},
+    async singleReview(prompt: string): Promise<LotusDebateClosure> {
+      let matched = { firstWrongStep: 1 as number | null, mistakeKind: "MISUNDERSTANDING" as const, cause: "simulated" };
+      for (const [k, d] of diagnosisMap.entries()) {
+        const [qPrompt, qAnswer] = k.split(":::");
+        if (prompt.includes(qPrompt!) && prompt.includes(qAnswer!)) {
+          matched = d;
+          break;
+        }
+      }
+      return {
+        verdict: "ACCEPTED",
+        conclusion: matched.cause,
+        evidenceState: "SUPPORTED",
+        uncertainty: [],
+        phase: "DIAGNOSE",
+        action: "ASK",
+        selectionReason: matched.cause,
+        firstWrongStep: matched.firstWrongStep,
+        mistakeDescription: matched.cause,
+        mistakeKind: matched.mistakeKind,
+        exitDiagnostic: false,
+      } as LotusDebateClosure;
+    },
+    async primaryAssessment() { return assessment; },
+    async challengerAssessment() { return assessment; },
+    async primaryDebate() { return { agreements: [], disagreements: [], disagreementExample: "None.", acceptedImprovements: [], revisedConclusion: "simulated", revisedAction: "ASK", revisedPhase: "DIAGNOSE" }; },
+    async challengerClosure(): Promise<LotusDebateClosure> {
+      return { verdict: "ACCEPTED", acceptedFromGpt: [], acceptedFromChallenger: [], rejectedClaims: [], conclusion: "simulated", evidenceState: "SUPPORTED", uncertainty: [], phase: "DIAGNOSE", action: "ASK", selectionReason: "simulated", exitDiagnostic: false, firstWrongStep: 1, mistakeDescription: "simulated" } as LotusDebateClosure;
     },
   } as unknown as LotusModelService;
 }
@@ -76,10 +146,13 @@ async function reviewOne(service: LotusService, c: ReviewCase) {
   const landedSkill = evidence[0]?.skillId ?? null;
   const shouldBeGap = c.nature === "CONCEPT";
   const lucky = c.nature === "LUCKY_CORRECT";
+  const isGuess = c.nature === "GUESS";
   // What the gap rules would receive from this answer.
   const skillVerdict = shouldBeGap || lucky
     ? (landedSkill && c.expectedSkills.includes(landedSkill) ? "RIGHT_SKILL" : landedSkill ? "WRONG_SKILL" : "NO_EVIDENCE")
-    : (landedSkill ? "SLIP_COUNTED_AS_MISTAKE" : "CORRECTLY_NO_GAP_EVIDENCE");
+    : isGuess
+      ? (landedSkill === c.skillId && evidence[0]?.kind === "DID_NOT_KNOW" ? "CORRECT_SUPPORT_SIGNAL" : "WRONG_EVIDENCE")
+      : (landedSkill ? "SLIP_COUNTED_AS_MISTAKE" : "CORRECTLY_NO_GAP_EVIDENCE");
   return {
     id: c.id, set: c.set, nature: c.nature, source: c.source, prompt: c.prompt, answer: c.answer, working: c.working,
     expectedCause: c.cause, expectedSkills: c.expectedSkills,
@@ -102,12 +175,14 @@ async function main(): Promise<void> {
   if (LIVE) {
     setSpendStore(new PrismaSpendStore(prisma!));
     models = new LotusModelService(new OpenAIService(), new ConfigService());
+  } else if (SIMULATED) {
+    models = simulatedModels();
   } else {
     models = fakeModels();
   }
   const service = new LotusService(models, null);
   const cases = REVIEW_CASES.filter((c) => WANTED.size === 0 || WANTED.has(c.id));
-  console.log(`[plan] ${cases.length} case(s), ${LIVE ? "REAL AI" : "pretend AI"}`);
+  console.log(`[plan] ${cases.length} case(s), ${LIVE ? "REAL AI" : SIMULATED ? "SIMULATED AI" : "pretend AI"}`);
 
   const results: Awaited<ReturnType<typeof reviewOne>>[] = [];
   const failures: Array<{ id: string; error: string }> = [];

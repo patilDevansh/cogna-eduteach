@@ -27,6 +27,7 @@ import type {
   LotusStudentResponse,
 } from "@cogna/shared";
 import { LOTUS_SELECT_SEPARATOR, assembleTileAnswer } from "@cogna/shared";
+import { assessSkillEvidence } from "./lotus-evidence-assessment";
 import {
   algebraicallyEqual,
   classifyExpansion,
@@ -309,7 +310,7 @@ export function evidenceFromAnalysis(
   // if the review finds nothing, or only a slip in the working, it is the
   // secure evidence it would have been; a real misunderstanding counts below.
   if (d && answerCorrect && existing.length === 0 && (noRealStep || mistakeKind === "SLIP" || mistakeKind === "UNREADABLE")) return secureAll(d);
-  if (!d || noRealStep) return existing;
+  if (!d) return existing;
   if (existing.length > 0) return existing;
   // A slip or an unreadable answer is not evidence the student lacks the
   // skill: two careless copies must not confirm a gap. The analyser's note
@@ -321,6 +322,7 @@ export function evidenceFromAnalysis(
   if (mistakeKind === "GUESS") {
     return [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "ANALYSIS", description: description?.trim() || "Guessed with no method." }];
   }
+  if (noRealStep) return existing;
   const skillId = d.stepSkills[step - 1] ?? d.skillId;
   return [{ skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
 }
@@ -888,28 +890,16 @@ export function reviewsStillRunning(session: Pick<LotusSessionView, "audits">, n
     (!a.analysisDeadlineAt || now < Date.parse(a.analysisDeadlineAt) + 60_000));
 }
 
-/** The foundation skill taught when one sign mistake runs through several gaps. */
+/** Shared sign skill; it must earn its own evidence before becoming a teaching target. */
 export const SIGN_ROOT_SKILL = "FND_SIGN_MUL_DIV";
-const isSignMistake = (code: string) => /SIGN/.test(code);
 
 /**
- * Where teaching should start. Normally the most foundational confirmed gap;
- * but when the same sign mistake confirms two or more gaps, they share one
- * cause, so teaching starts with signed numbers and `rootOf` names the gaps
- * it covers. The report, the class report and the lesson all use this, so
- * they never disagree about where to start.
+ * Teach the most foundational evidenced support target. Similar sign labels on
+ * different skills are a reason to probe a prerequisite, not proof of a common
+ * cause. Never synthesize a confirmed ledger entry for an untested skill.
  */
 export function teachingStart(ledger: Ledger): (SkillLedgerEntry & { rootOf?: string[] }) | undefined {
-  const confirmed = confirmedByDepth(ledger);
-  const signGaps = confirmed.filter((e) => e.mistakes.some(isSignMistake));
-  if (signGaps.length < 2) return confirmed[0];
-  return {
-    skillId: SIGN_ROOT_SKILL,
-    state: "CONFIRMED",
-    mistakes: signGaps.flatMap((e) => e.mistakes.filter(isSignMistake)),
-    notes: signGaps.flatMap((e) => e.notes.filter((n) => !n.includes(": right"))),
-    rootOf: signGaps.map((e) => e.skillId),
-  };
+  return confirmedByDepth(ledger)[0];
 }
 
 export function buildFactorisationReport(args: {
@@ -927,9 +917,15 @@ export function buildFactorisationReport(args: {
   const rushed = answered.length >= 8 && rushedWrong.length / answered.length >= 0.6;
   const slotSkill = (slot: number) => curriculum.slots.find((s) => s.slot === slot)?.skillId;
   const entries = [...args.ledger.values()];
+  const assessments = new Map(entries.map((e) => [e.skillId, assessSkillEvidence(args.audits ?? [], e.skillId)]));
   const confirmed = confirmedByDepth(args.ledger);
   const suspected = entries.filter((e) => e.state === "SUSPECTED");
-  const secure = entries.filter((e) => e.state === "SECURE").sort((a, b) => depth(b.skillId) - depth(a.skillId));
+  // The planner's legacy SECURE state is provisional. Reporting and advancement
+  // require repeated direct checks; supporting tags cannot establish mastery.
+  const secure = entries.filter((e) => e.state === "SECURE" && assessments.get(e.skillId)!.distinctDirectSuccessCount >= 2)
+    .sort((a, b) => depth(b.skillId) - depth(a.skillId));
+  const secureIds = new Set(secure.map((e) => e.skillId));
+  const observed = entries.filter((e) => e.state === "SECURE" && !secureIds.has(e.skillId));
 
   const skipped = args.state.turns.filter((t) => t.status === "SKIPPED" && t.reason);
   // A skill tested on another question isn't "not tested", even if one of its questions was removed.
@@ -943,33 +939,27 @@ export function buildFactorisationReport(args: {
   // A catch-up is judged only on the skills it was sent for: all of them secure, nothing still suspected, means caught up.
   const focus = args.state.focusSkills;
   const caughtUp = focus?.length
-    ? focus.every((id) => args.ledger.get(id)?.state === "SECURE") && suspected.length === 0
+    ? focus.every((id) => secureIds.has(id)) && suspected.length === 0
     : suspected.length === 0 && secure.length >= 5;
   const outcome: LotusFinalReport["outcome"] = rushed ? "INSUFFICIENT_OR_CONFLICTING"
     : confirmed.length ? "SOLID_GAP" : caughtUp ? "ADVANCEMENT" : "INSUFFICIENT_OR_CONFLICTING";
-  // One cause, many gaps: the same sign mistake confirming several gaps
-  // points to signed numbers, which is where teaching should start.
-  const root = teachingStart(args.ledger);
-  const signGaps = root?.rootOf ? confirmed.filter((e) => root.rootOf!.includes(e.skillId)) : [];
-  const signRoot = signGaps.length >= 2;
-
   const startingPoint = rushed
     ? `This test doesn't tell us much: ${rushedWrong.length} of ${answered.length} answers were very fast (under ${RUSHED_MS / 1000} seconds) and wrong. Try again when the child can focus.`
-    : signRoot
-    ? `Start with signs with negative numbers: the same sign mistake shows up in ${signGaps.map((e) => skillName(e.skillId).toLowerCase()).join(", ")}.`
     : start
     ? `Start with ${skillName(start.skillId).toLowerCase()}. ${start.notes.filter((n) => !n.includes(": right")).slice(0, 2).join(" · ")}`
     : outcome === "ADVANCEMENT"
       ? focus?.length
-        ? `Caught up: ${focus.map((id) => skillName(id).toLowerCase()).join(", ")} ${focus.length === 1 ? "is" : "are"} now secure.`
-        : `${curriculum.name} looks secure across the skills tested. Move on to harder questions or the next topic.`
+        ? `Repeated direct checks succeeded for ${focus.map((id) => skillName(id).toLowerCase()).join(", ")}. Check retention later.`
+        : `Repeated direct checks succeeded across several tested ${curriculum.name.toLowerCase()} skills. Consider the next challenge; untested skills and retention remain unknown.`
       : suspected.length
         ? "No gap was confirmed. Review the suspected areas below before deciding where to start."
         : "Not enough answers to show where to start yet. Check again with a few fresh questions.";
 
   const limitations = [
     "Experimental: questions were written and checked by AI and code, without human review.",
-    "A gap is only confirmed when the same skill goes wrong on two different questions, or the student says they don't know it yet on two.",
+    "Repeated mistakes or support requests identify a skill needing support under the current rules; they do not by themselves establish a specific misconception or its cause.",
+    "Reported strengths require success on at least two distinct questions directly targeting the skill. This is a provisional product rule, not a validated mastery threshold.",
+    "This diagnostic does not measure delayed retention. Supporting skill tags and repeated copies of a question do not establish a demonstrated strength.",
   ];
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
@@ -978,7 +968,11 @@ export function buildFactorisationReport(args: {
   if (!rushed && tiredFrom !== null) limitations.unshift(`From Q${tiredFrom} the answers got much faster and more often wrong, which may be tiredness. Gaps seen only in that part are marked unclear, not taught.`);
 
   const summaries: LotusSkillSummary[] = [
-    ...entries.map((e) => ({ skillId: e.skillId, name: skillName(e.skillId), state: e.state, evidence: e.notes })),
+    ...entries.map((e) => ({
+      skillId: e.skillId, name: skillName(e.skillId),
+      state: e.state === "SECURE" && !secureIds.has(e.skillId) ? "OBSERVED" as const : e.state,
+      evidence: e.notes, evidenceAssessment: assessments.get(e.skillId),
+    })),
     ...skipped
       .map((t) => slotSkill(t.slot))
       .filter((id): id is string => !!id && !args.ledger.has(id))
@@ -990,6 +984,13 @@ export function buildFactorisationReport(args: {
     startingPoint,
     observedStrengths: secure.map((e) => skillName(e.skillId) + (e.clearedAfterSlip ? " (an earlier mistake looked like a slip)" : "")),
     uncertainAreas: [
+      ...observed.map((e) => {
+        const a = assessments.get(e.skillId)!;
+        return `${skillName(e.skillId)}: ${a.directSuccessTurns.length
+          ? `${a.distinctDirectSuccessCount} distinct direct successful check(s); more evidence is needed`
+          : a.supportingSuccessTurns.length ? "supporting evidence only; not directly demonstrated"
+          : "successful observation without enough question context to establish a strength"}.`;
+      }),
       ...suspected.map((e) => e.tiredness
         ? `${skillName(e.skillId)}: unclear — the mistakes came only from fast answers late in the test, which may be tiredness. Check again when the child is fresh.`
         : e.recheck
@@ -1008,18 +1009,17 @@ export function buildFactorisationReport(args: {
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
     ],
     evidenceSummary: [
-      ...(signRoot ? [`One cause behind ${signGaps.length} gaps: signs with negative numbers. Teaching the sign rules first is likely to help all of them.`] : []),
       ...confirmed.map((e) => `${skillName(e.skillId)} — ${e.confirmedBySupport ? "not learned yet" : "confirmed gap"}. ${e.notes.join(" · ")}`),
     ],
     recommendedNextStep: rushed
       ? "Retake the diagnostic when the child is settled; this one was too rushed to act on."
-      : signRoot
-      ? "Teach the rules for signs with negative numbers first, then re-check these skills with fresh questions."
       : start
       ? `Teach ${skillName(start.skillId).toLowerCase()} directly, then re-check it with a fresh question.`
       : suspected[0]
         ? `Give one more question on ${skillName(suspected[0].skillId).toLowerCase()} to see whether the mistake repeats.`
-        : `No teaching gap found in ${curriculum.name.toLowerCase()} from this test.`,
+        : outcome === "ADVANCEMENT"
+          ? "Offer the next challenge and schedule a later retention check."
+          : "Gather fresh direct evidence before deciding whether to teach or advance.",
     limitations,
     notTested,
     skills: summaries.sort((a, b) => curriculum.skills.findIndex((s) => s.id === a.skillId) - curriculum.skills.findIndex((s) => s.id === b.skillId)),

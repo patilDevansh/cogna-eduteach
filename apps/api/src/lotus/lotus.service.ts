@@ -41,6 +41,7 @@ import {
   independentPrompt,
   overallReviewPrompt,
   reserveCandidatesPrompt,
+  singleReviewPrompt,
 } from "./lotus-prompts";
 import type { PrismaClient } from "@cogna/database";
 import { LotusModelService, PROVIDER_OUTAGE_PROBE_MS } from "./lotus-model.service";
@@ -1682,6 +1683,62 @@ export class LotusService implements OnModuleDestroy {
       planningContext,
     };
     const t0 = Date.now();
+
+    const reviewMode = process.env.LOTUS_REVIEW_MODE?.trim().toLowerCase() ?? "single";
+    const modelsAny = this.models as unknown as { singleReview?: (prompt: string) => Promise<LotusDebateClosure> };
+    if (reviewMode !== "debate" && typeof modelsAny.singleReview === "function") {
+      onStage?.("ASSESSING", {});
+      const prompt = singleReviewPrompt(independentArgs);
+      const conclusion = await modelsAny.singleReview(prompt);
+      const tClosure = Date.now();
+      const elapsed = tClosure - t0;
+
+      const mathJudgment = verification.status === "VERIFIED_CORRECT"
+        ? "CORRECT"
+        : verification.status === "VERIFIED_INCORRECT"
+          ? "INCORRECT"
+          : "UNRESOLVED";
+
+      const gpt: LotusModelAssessment = {
+        mathJudgment,
+        observations: [conclusion.conclusion],
+        hypotheses: [{
+          label: conclusion.mistakeDescription || conclusion.conclusion,
+          evidenceState: conclusion.evidenceState,
+          evidence: [currentQuestion.prompt],
+          alternatives: [],
+        }],
+        phaseRecommendation: conclusion.phase,
+        proposedAction: conclusion.action,
+        conciseRationale: conclusion.selectionReason || conclusion.conclusion,
+        proposedQuestion: conclusion.nextQuestion,
+      };
+      const challenger: LotusModelAssessment = gpt;
+      const debate: LotusGptDebateResponse = {
+        agreements: [conclusion.conclusion],
+        disagreements: [],
+        disagreementExample: "None.",
+        acceptedImprovements: [],
+        revisedConclusion: conclusion.conclusion,
+        revisedAction: conclusion.action,
+        revisedPhase: conclusion.phase,
+      };
+
+      return {
+        gpt,
+        challenger,
+        debate,
+        conclusion,
+        stageAgreement: { assessmentsAgreed: true, debateChangedVerdict: false, closureChangedVerdict: false },
+        timingMs: {
+          assessment: 0,
+          debate: 0,
+          closure: elapsed,
+          total: elapsed,
+        },
+      };
+    }
+
     let [gpt, challenger] = await Promise.all([
       this.models.primaryAssessment(independentPrompt({ ...independentArgs, role: "GPT primary" })),
       this.models.challengerAssessment(independentPrompt({ ...independentArgs, role: "GPT challenger" })),

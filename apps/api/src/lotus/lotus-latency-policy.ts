@@ -7,7 +7,7 @@
  * is deliberately opt-in for controlled latency experiments.
  */
 export type LotusLatencyMode = "balanced" | "fast" | "quality";
-export type LotusCallKind = "assessment" | "debate" | "closure" | "revision" | "reserve" | "generation" | "blind-solve";
+export type LotusCallKind = "assessment" | "debate" | "closure" | "review" | "revision" | "reserve" | "generation" | "blind-solve";
 export type LotusReasoningEffort = "low" | "medium" | "high";
 
 export type LotusCallTuning = {
@@ -76,11 +76,8 @@ export class LotusLatencyPolicy {
         : "high";
     }
     if (this.mode === "fast") return "low";
-    // Balanced mode removes high-effort work from the two independent reads
-    // and the debate. The final critic remains medium effort, where the
-    // decision to continue or exit actually becomes durable evidence.
-    // Reserve generation runs off the critical path entirely, so it stays
-    // low regardless — there is no latency reason to spend more on it.
-    return kind === "closure" ? "medium" : "low";
+    // Balanced mode keeps the decision-making review / closure at medium effort,
+    // while generation and non-final reads remain low effort.
+    return kind === "closure" || kind === "review" ? "medium" : "low";
   }
 }

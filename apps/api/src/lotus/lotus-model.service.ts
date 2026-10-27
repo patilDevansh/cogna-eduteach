@@ -189,6 +189,21 @@ export class LotusModelService {
     return value as unknown as LotusDebateClosure;
   }
 
+  /**
+   * Unified single-call answer review: evaluates student working and produces
+   * the complete closure verdict in a single model call, avoiding the 4-call debate queue.
+   */
+  async singleReview(prompt: string): Promise<LotusDebateClosure> {
+    const value = await this.callOpenAi(prompt, this.primaryModel, "GPT single review", "review");
+    assertObject(value, "GPT single review");
+    assertStringField(value, "conclusion", "GPT single review");
+    assertStringField(value, "action", "GPT single review");
+    if (typeof value.exitDiagnostic !== "boolean") {
+      value.exitDiagnostic = value.action !== "ASK";
+    }
+    return value as unknown as LotusDebateClosure;
+  }
+
   /** C1: one read of the whole finished test. Never changes the code's facts. */
   async overallReview(prompt: string): Promise<{ view: string; noticed: string[]; disagreements: string[] }> {
     const value = await this.callOpenAi(prompt, this.primaryModel, "Overall review", "closure");
@@ -286,11 +301,20 @@ export class LotusModelService {
       const content = response.output_text;
       if (!content) throw new Error(`${agentLabel} returned an empty response.`);
       const value = extractJson(content);
-      // Anything but the blind solver's answer can reach a student, so it is
-      // safety-checked here, once, for every Lotus call. Fails closed: callers
-      // already treat a failed call as "use the fallback".
-      if (kind !== "blind-solve") {
-        const unsafe = await openAiStudentTextModerator(this.openai.getClient())(studentStrings(value));
+      // Safety-check only text that a student can read. Generation, revision,
+      // and reserve questions reach the student; internal review stages are
+      // backend diagnostic evidence. If a review proposes a nextQuestion, only
+      // that proposed question's strings are safety-checked.
+      const studentFacingStrings =
+        kind === "generation" || kind === "revision" || kind === "reserve"
+          ? studentStrings(value)
+          : kind === "review" || kind === "closure"
+            ? (value && typeof value === "object" && (value as Record<string, unknown>).nextQuestion
+                ? studentStrings((value as Record<string, unknown>).nextQuestion)
+                : [])
+            : [];
+      if (studentFacingStrings.length > 0) {
+        const unsafe = await openAiStudentTextModerator(this.openai.getClient())(studentFacingStrings);
         if (unsafe) throw new Error(`${agentLabel}: ${unsafe}`);
       }
       return value;
