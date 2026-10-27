@@ -1,4 +1,4 @@
-import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestionAudit, type LotusPhase, type LotusTopic } from "@cogna/shared";
+import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestion, type LotusQuestionAudit, type LotusPhase, type LotusStudentResponse, type LotusTopic } from "@cogna/shared";
 import { curriculumFor } from "./lotus-factorisation-catalogue";
 
 export const LOTUS_POLICY = `
@@ -381,3 +381,75 @@ Return JSON only:
   "disagreements": ["skill: what the code says, what you read instead, and why, with question numbers"]
 }`;
 }
+
+/**
+ * Unified single-call answer review prompt: replaces the 4-call debate pipeline
+ * with a single high-performing model read of the student's working against the
+ * worked solution steps.
+ */
+export function singleReviewPrompt(args: {
+  audits: LotusQuestionAudit[];
+  currentQuestion: LotusQuestion;
+  currentResponse: LotusStudentResponse;
+  currentVerification: LotusMathVerification;
+  elapsedSeconds: number;
+  answeredCount: number;
+  phase: LotusPhase;
+  topic?: LotusTopic;
+  planningContext?: string;
+}): string {
+  return `${lotusPolicy(args.topic)}
+You are the expert diagnostic reviewer for Cogna Lotus.
+Evaluate the student's latest answer and written working directly against the question's answer key and worked solution.
+
+Current question:
+${JSON.stringify({
+  phase: args.phase,
+  subtopic: args.currentQuestion.subtopic,
+  prompt: args.currentQuestion.prompt,
+  options: args.currentQuestion.options,
+  answerKey: args.currentQuestion.answerKey,
+})}
+
+Student response:
+${JSON.stringify({
+  answer: args.currentResponse.answer,
+  working: args.currentResponse.working,
+  confidence: args.currentResponse.confidence,
+  responseTimeMs: args.currentResponse.responseTimeMs,
+  didNotKnow: args.currentResponse.didNotKnow,
+  studentSaidHowTheyGotIt: args.audits.at(-1)?.reasonCheck?.chosenId,
+})}
+
+Deterministic verification (authoritative):
+${JSON.stringify(args.currentVerification)}
+
+Prior answered questions in this session:
+${evidenceLogForPrompt(args.audits)}
+
+${args.planningContext ? `Remaining plan (server-owned; any recommendation must name the earliest safe slot and preserve the pinned item):\n${args.planningContext}` : ""}
+
+Review tasks:
+1. Compare the student's written working line by line against the question's workedSolution.
+2. If the work is incorrect or unfinished, output the 1-based index of the FIRST step where the student went wrong as "firstWrongStep".
+3. Describe the mistake in plain words as "mistakeDescription".
+4. Classify "mistakeKind": MISUNDERSTANDING if the method is misapplied; SLIP if the method is sound and a sign or number was miscopied; GUESS if ungrounded; UNREADABLE if poorly formatted; or null if the work is correct.
+5. If the work is correct, firstWrongStep must be null, mistakeDescription empty, and mistakeKind null.
+6. Choose the action: ASK (continue) or an exit action (EXIT_GAP | EXIT_ADVANCE | EXIT_UNCERTAIN).
+
+Return JSON only:
+{
+  "verdict": "ACCEPTED|ACCEPTED_WITH_UNCERTAINTY",
+  "conclusion": "brief observable-evidence conclusion",
+  "evidenceState": "SUPPORTED|PARTIAL|INSUFFICIENT",
+  "uncertainty": [],
+  "phase": "${args.phase}",
+  "action": "ASK|EXIT_GAP|EXIT_ADVANCE|EXIT_UNCERTAIN",
+  "selectionReason": "brief reasoning explaining this diagnostic step",
+  "firstWrongStep": null,
+  "mistakeDescription": "",
+  "mistakeKind": null,
+  "exitDiagnostic": false
+}`;
+}
+
