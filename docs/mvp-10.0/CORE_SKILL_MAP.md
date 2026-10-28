@@ -77,7 +77,7 @@ state the new behavior: a confirmed gap goes down to foundations with short chec
 
 ## Next steps, in order
 
-1. Held-out scorecard: simulated students written before tuning and never used to tune, to check the shorter test still finds every planted gap with no false ones.
+1. Fix what the held-out scorecard found ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md)): a skill never tested must be named in the report (a gap on cancelling terms is missed and reported as "no gap found"); evidence from a question that only *tags* a skill should not land on its headline skill, and the early stop should not lock that in; then write a held-out v2 before running again, because v1 has now been used.
 2. Make the proposed skills live as each gets two code-checked questions; decide the two merges.
 3. Switch the blame rule and the prerequisite rule to the owner table and the typed links.
 4. Record conditions and help on every stored answer; keep the four layers apart (shared map, evidence history, current estimate, next step).
