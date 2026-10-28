@@ -12,10 +12,11 @@
  */
 import { createHash } from "node:crypto";
 import { FACTORISATION_SKILLS, FACTORISATION_SLOTS } from "./lotus-factorisation-catalogue";
+import { SKILL_FAMILIES, buildSkillCheck } from "./lotus-skill-checks";
 import { GRADE_8_DRAFTS } from "./syllabus";
 
 /** Bump when a skill, link, owner or card changes, so old records can be read against the map they were made with. */
-export const SKILL_MAP_VERSION = "factorisation-1.0.0";
+export const SKILL_MAP_VERSION = "factorisation-1.1.0";
 
 /** Where a skill comes from. NCERT is a reference, not a limit: COGNA marks skills we added because they help the child more. */
 export type SkillSource = "NCERT_CH12" | "FOUNDATION" | "COGNA";
@@ -231,24 +232,42 @@ export const PROPOSED_MERGES: Array<{ keep: string; retire: string }> = [
  */
 export interface SkillMapCoverage {
   skills: number;
+  /** In the live test's 25 slots. */
   skillsWithoutOwnQuestion: string[];
   mistakes: number;
   mistakesNoQuestionTargets: string[];
   mistakesListedUnderSeveralSkills: string[];
+  /** Counting the question families too (short code-made checks, not yet placed in the live test). */
+  skillsWithoutAnyQuestion: string[];
+  mistakesNoQuestionAnywhere: string[];
+}
+let familyMistakes: Set<string> | undefined;
+/** Every mistake some question family is built to show, found by building each condition from a few seeds. */
+function mistakesFamiliesTarget(): Set<string> {
+  if (familyMistakes) return familyMistakes;
+  const found = new Set<string>();
+  for (const f of SKILL_FAMILIES) for (const c of f.conditions) for (let i = 0; i < 12; i++) {
+    for (const p of buildSkillCheck(f.skillId, `coverage-${i}`, c)?.answerKey.diagnostics?.predictedMistakes ?? []) found.add(p.mistake);
+  }
+  return (familyMistakes = found);
 }
 export function skillMapCoverage(): SkillMapCoverage {
   const hasSlot = new Set(FACTORISATION_SLOTS.map((s) => s.skillId));
   const targeted = new Set(FACTORISATION_SLOTS.flatMap((s) => s.mistakes));
+  const familySkills = new Set(SKILL_FAMILIES.map((f) => f.skillId));
+  const familyTargets = mistakesFamiliesTarget();
   return {
     skills: FACTORISATION_SKILLS.length,
     skillsWithoutOwnQuestion: FACTORISATION_SKILLS.filter((s) => !hasSlot.has(s.id)).map((s) => s.id),
     mistakes: listedUnder.size,
     mistakesNoQuestionTargets: [...listedUnder.keys()].filter((m) => !targeted.has(m)),
     mistakesListedUnderSeveralSkills: [...listedUnder].filter(([, v]) => v.length > 1).map(([k]) => k),
+    skillsWithoutAnyQuestion: FACTORISATION_SKILLS.filter((s) => !hasSlot.has(s.id) && !familySkills.has(s.id)).map((s) => s.id),
+    mistakesNoQuestionAnywhere: [...listedUnder.keys()].filter((m) => !targeted.has(m) && !familyTargets.has(m)),
   };
 }
 /** Where coverage stood on 28 October 2026. The checks let it improve and refuse to let it slip. */
-export const COVERAGE_BASELINE = { skillsWithoutOwnQuestion: 14, mistakesNoQuestionTargets: 27 };
+export const COVERAGE_BASELINE = { skillsWithoutOwnQuestion: 14, mistakesNoQuestionTargets: 27, skillsWithoutAnyQuestion: 0, mistakesNoQuestionAnywhere: 0 };
 
 /** A short stable id for the map as it is, so a record can say which map it was made against. */
 export function skillMapFingerprint(): string {
@@ -320,5 +339,7 @@ export function checkSkillMap(): string[] {
   const cov = skillMapCoverage();
   if (cov.skillsWithoutOwnQuestion.length > COVERAGE_BASELINE.skillsWithoutOwnQuestion) problems.push(`${cov.skillsWithoutOwnQuestion.length} skills have no question of their own (baseline ${COVERAGE_BASELINE.skillsWithoutOwnQuestion}).`);
   if (cov.mistakesNoQuestionTargets.length > COVERAGE_BASELINE.mistakesNoQuestionTargets) problems.push(`${cov.mistakesNoQuestionTargets.length} mistakes have no question built to show them (baseline ${COVERAGE_BASELINE.mistakesNoQuestionTargets}).`);
+  if (cov.skillsWithoutAnyQuestion.length > COVERAGE_BASELINE.skillsWithoutAnyQuestion) problems.push(`Skills with no question anywhere: ${cov.skillsWithoutAnyQuestion.join(", ")}.`);
+  if (cov.mistakesNoQuestionAnywhere.length > COVERAGE_BASELINE.mistakesNoQuestionAnywhere) problems.push(`Mistakes with no question anywhere: ${cov.mistakesNoQuestionAnywhere.join(", ")}.`);
   return problems;
 }
