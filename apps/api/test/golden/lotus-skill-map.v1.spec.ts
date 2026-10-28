@@ -111,9 +111,17 @@ describe("Core Skill Map: coverage today", () => {
     assert.equal(FACTORISATION_SLOTS.length, 25);
   });
 
+  it("counts the question families too: every skill and every mistake has a verified question", () => {
+    const cov = skillMapCoverage();
+    assert.deepEqual(cov.skillsWithoutAnyQuestion, []);
+    assert.deepEqual(cov.mistakesNoQuestionAnywhere, []);
+  });
+
   it("can improve but never slip below the baseline", () => {
     const cov = skillMapCoverage();
     assert.ok(cov.skillsWithoutOwnQuestion.length <= COVERAGE_BASELINE.skillsWithoutOwnQuestion);
     assert.ok(cov.mistakesNoQuestionTargets.length <= COVERAGE_BASELINE.mistakesNoQuestionTargets);
+    assert.ok(cov.skillsWithoutAnyQuestion.length <= COVERAGE_BASELINE.skillsWithoutAnyQuestion);
+    assert.ok(cov.mistakesNoQuestionAnywhere.length <= COVERAGE_BASELINE.mistakesNoQuestionAnywhere);
   });
 });
