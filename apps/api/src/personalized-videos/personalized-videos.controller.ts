@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Headers, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { unpaidSample } from "../sample/sample-lock";
 import {
   assertWorker,
   resolveActor,
@@ -16,7 +18,10 @@ import type { PracticeAnswer } from "@cogna/shared";
 
 @Controller("personalized-videos")
 export class PersonalizedVideosController {
-  constructor(private readonly videos: PersonalizedVideosService) {}
+  constructor(
+    private readonly videos: PersonalizedVideosService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get("teacher-report")
   teacherReport(
@@ -117,11 +122,15 @@ export class PersonalizedVideosController {
   }
 
   @Post("assignments")
-  create(
+  async create(
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Body() body: CreatePersonalizedVideoAssignmentDto,
   ) {
-    return this.videos.createAssignment(body, { actor: resolveActor(headers) });
+    const actor = resolveActor(headers);
+    // The personal lesson is part of a sample test's paid report.
+    const studentId = actor.role === "student" ? actor.studentId : body.studentId;
+    if (studentId && (await unpaidSample(this.prisma, studentId))) throw new ForbiddenException("Unlock the full report to get the personal lesson.");
+    return this.videos.createAssignment(body, { actor });
   }
 
   @Post("assignments/:id/watched")

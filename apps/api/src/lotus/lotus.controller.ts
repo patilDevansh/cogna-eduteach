@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, Inject, NotFoundException, Param, Post, Query, ServiceUnavailableException } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Inject, NotFoundException, Param, Post, Query, ServiceUnavailableException, UseInterceptors } from "@nestjs/common";
+import { SampleLockInterceptor } from "../sample/sample-lock";
 import { createHash } from "node:crypto";
 import { TTS_PROVIDER } from "../ai/ai.module";
 import type { TtsProvider } from "../ai/tts.service";
@@ -47,6 +48,7 @@ function observerTeacherGateBypassed(): boolean {
  * or conclusions with the validated diagnostic-v2 engine.
  */
 @Controller("lotus")
+@UseInterceptors(SampleLockInterceptor)
 export class LotusController {
   constructor(
     private readonly lotus: LotusService,

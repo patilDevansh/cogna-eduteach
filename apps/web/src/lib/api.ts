@@ -18,6 +18,7 @@ import type {
   StudentSafetySettings,
   SubmitDiagnosticV2StepRequest,
   SubmitDiagnosticV2StepResponse,
+  LotusFinalReport,
   LotusSessionView,
   LotusStatusResponse,
   LotusStudentResponse,
@@ -518,6 +519,22 @@ export function classroomAssignmentHref(item: { id: string; kind: ClassroomAssig
   return `/student/personalized-video?${params.toString()}`;
 }
 
+/** Where a public sample test stands. The report and a student session come only once it's paid. */
+export interface SampleTestStatus {
+  childName: string;
+  state: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETE";
+  price: number;
+  paid: boolean;
+  summary?: { readable: boolean; answered: number; correct: number; skillsChecked: number; secure: number; needWork: number };
+  sessionId?: string;
+  report?: LotusFinalReport | null;
+  student?: StudentSession;
+}
+
+export type SampleOrder =
+  | { mode: "TEST"; amount: number; currency: "INR" }
+  | { mode: "RAZORPAY"; keyId: string; orderId: string; amount: number; currency: "INR"; prefill: { email: string } };
+
 export interface ClassRosterStudent {
   studentId: string;
   name: string;
@@ -831,6 +848,25 @@ export const api = {
         headers: buildParentAuthHeaders(auth),
       },
     ),
+
+  /** The public sample test. The private link token goes in a header, never in the URL path. */
+  sampleTestPrice: () => apiFetch<{ price: number; currency: "INR" }>("/sample/price", undefined, false),
+
+  startSampleTest: (input: { parentEmail: string; childName: string; consent: boolean }) =>
+    apiFetch<{ token: string; student: StudentSession }>("/sample/start", { method: "POST", body: JSON.stringify(input) }, false),
+
+  getSampleTest: (token: string) =>
+    apiFetch<SampleTestStatus>("/sample/attempt", { headers: { "x-sample-token": token } }, false),
+
+  orderSampleReport: (token: string) =>
+    apiFetch<SampleOrder>("/sample/order", { method: "POST", headers: { "x-sample-token": token }, body: "{}" }, false),
+
+  verifySamplePayment: (token: string, input: { orderId: string; paymentId: string; signature: string }) =>
+    apiFetch<SampleTestStatus>("/sample/verify", { method: "POST", headers: { "x-sample-token": token }, body: JSON.stringify(input) }, false),
+
+  /** Local only: completes a test payment when Razorpay isn't set up. */
+  testPaySampleReport: (token: string) =>
+    apiFetch<SampleTestStatus>("/sample/test-pay", { method: "POST", headers: { "x-sample-token": token }, body: "{}" }, false),
 
   studentLogin: (accessCode: string) =>
     apiFetch<StudentSession>("/auth/student/login", {

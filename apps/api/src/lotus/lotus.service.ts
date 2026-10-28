@@ -607,6 +607,37 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
 }
 
 /**
+ * A sample test before the parent pays (see sample/sample-lock.ts): the questions and answers stay,
+ * the report and everything the diagnosis is made of are held back, as during a live test.
+ */
+export function lockedCopy(view: LotusSessionView): LotusSessionView {
+  return { ...view, finalReport: null, openingAudit: lockedAudit(view.openingAudit), audits: view.audits.map(lockedAudit), liveProgress: null };
+}
+
+/** Right or wrong stays (that's in the free summary); what the AI made of each answer does not. */
+function lockedAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
+  const base = redactAudit(audit);
+  return {
+    ...base,
+    gpt: undefined,
+    challenger: undefined,
+    debate: undefined,
+    questionSelection: { ...base.questionSelection, reason: "" },
+    conclusion: audit.conclusion && {
+      ...base.conclusion,
+      acceptedFromGpt: [],
+      acceptedFromChallenger: [],
+      rejectedClaims: [],
+      conclusion: "",
+      uncertainty: [],
+      selectionReason: "",
+      firstWrongStep: undefined,
+      mistakeDescription: undefined,
+    },
+  };
+}
+
+/**
  * An authorised AI-Studio observer needs the decision record, but never an
  * unshown question or its key. Keep this a distinct copy path from
  * `publicCopy`: a student-facing request must not become an observer request
