@@ -357,6 +357,8 @@ export interface SkillLedgerEntry {
   confirmedBySupport?: boolean;
   /** Every question this skill went wrong on also needed a confirmed gap in an unrelated branch, so that gap may be the cause: shown as suspected, not confirmed. */
   explainedBy?: string;
+  /** Answers on this skill that were wrong, where the AI review said "misunderstanding" but named no step, so no skill got evidence. */
+  unexplained?: number;
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
@@ -404,6 +406,16 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
     const q = i + 1;
     const bySkill = new Map<string, LotusSkillEvidence[]>();
     for (const ev of audit.skillEvidence ?? []) bySkill.set(ev.skillId, [...(bySkill.get(ev.skillId) ?? []), ev]);
+    // Wrong, reviewed, called a misunderstanding, yet no step named: nothing was learned about any skill. Count it, so
+    // the report doesn't read it as nothing and the plan can look underneath.
+    const wrongAnswer = audit.verification?.status === "VERIFIED_INCORRECT" || audit.verification?.status === "VERIFIED_UNFINISHED";
+    const headline = audit.question?.answerKey?.diagnostics?.skillId;
+    if (headline && wrongAnswer && audit.analysisStatus === "COMPLETE" && audit.conclusion?.mistakeKind === "MISUNDERSTANDING" &&
+      !(audit.skillEvidence ?? []).some((ev) => ev.kind !== "SECURE")) {
+      const u = entry(headline);
+      u.unexplained = (u.unexplained ?? 0) + 1;
+      u.notes.push(`Q${q}: wrong, but the cause couldn't be linked to a skill`);
+    }
     for (const [skillId, items] of bySkill) {
       const e = entry(skillId);
       const negative = items.find((ev) => ev.kind !== "SECURE");
@@ -563,10 +575,24 @@ export function fatigueStart(audits: LotusQuestionAudit[]): number | null {
   const earlyRight = early.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length / Math.max(early.length, 1);
   const earlyRushed = early.filter(rushedWrong).length / Math.max(early.length, 1);
   const lateRushed = late.filter(rushedWrong).length / Math.max(late.length, 1);
-  if (late.length < 4 || earlyRight < 0.6 || earlyRushed > 0.2 || lateRushed < 0.5) return null;
-  // The first rushed wrong answer in the second half.
-  const first = audits.findIndex((a, i) => i >= half && rushedWrong(a));
-  return first < 0 ? null : first + 1;
+  if (late.length >= 4 && earlyRight >= 0.6 && earlyRushed <= 0.2 && lateRushed >= 0.5) {
+    // The first rushed wrong answer in the second half.
+    const first = audits.findIndex((a, i) => i >= half && rushedWrong(a));
+    return first < 0 ? null : first + 1;
+  }
+  // A short tired spell at the very end: three or more fast wrong answers in a row after a careful, mostly right start.
+  let run = 0;
+  for (let i = audits.length - 1; i >= 0; i -= 1) {
+    const a = audits[i]!;
+    if (!a.response || a.response.didNotKnow || !rushedWrong(a)) break;
+    run += 1;
+  }
+  if (run < 3) return null;
+  const before = audits.slice(0, audits.length - run).filter((a) => a.response && !a.response.didNotKnow);
+  const beforeRight = before.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length / Math.max(before.length, 1);
+  const beforeRushed = before.filter(rushedWrong).length / Math.max(before.length, 1);
+  if (before.length < 7 || beforeRight < 0.6 || beforeRushed > 0.2) return null;
+  return audits.length - run + 1;
 }
 
 // ---------- plan adjustments ----------
@@ -768,6 +794,24 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // justify one lower-prerequisite question. Handle it before the
     // suspicion-only confirmation path, or a pure "I don't know" remains
     // UNTESTED and can never receive the promised support action.
+    // Wrong answers whose review says "misunderstanding" but names no step give no skill evidence at all, so
+    // nothing above would send the test down. One lower question finds out whether a prerequisite is the cause.
+    if ((e.unexplained ?? 0) > 0 && !e.needsSupport) {
+      const lower = descentTargets(slots, e.skillId, ledger, 1, e.mistakes)[0];
+      const reserved = lower && (checkedThisCall.has(lower.skill) || state.turns.some((t) => t.purpose === "DESCENT" && t.forSkill === lower.skill));
+      if (lower && !reserved) {
+        const turn = pickVictim();
+        if (turn !== null) {
+          claimed.add(turn);
+          protectedTurns.add(turn);
+          checkedThisCall.add(lower.skill);
+          actions.push({
+            kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: lower.skill, spec: lower.spec,
+            reason: `${skillName(e.skillId)} went wrong without a clear cause; checking the easier prerequisite ${skillName(lower.skill)} next.`,
+          });
+        }
+      }
+    }
     if (e.needsSupport) {
       const support = descentTargets(slots, e.skillId, ledger, 1, e.mistakes)[0];
       const supportAlreadyReserved = support && (checkedThisCall.has(support.skill) || state.turns.some((t) =>
@@ -1005,16 +1049,19 @@ export function buildFactorisationReport(args: {
   // A catch-up asks only about the skills it was sent for, so nothing is "not reached" there.
   const notReached = args.state.focusSkills?.length ? [] : [...new Set(curriculum.slots.map((s) => s.skillId))].filter((id) => {
     const e = args.ledger.get(id);
-    return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport));
+    return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport && !e.unexplained));
   });
   const notReachedNames = notReached.map((id) => skillName(id).toLowerCase());
+  // Answers that were wrong but taught nothing about any skill (the review named no step). Two or more are not an all-clear.
+  const unexplained = entries.filter((e) => (e.unexplained ?? 0) > 0);
+  const unexplainedTotal = unexplained.reduce((n, e) => n + (e.unexplained ?? 0), 0);
 
   const start = confirmed[0];
   // A catch-up is judged only on the skills it was sent for: all of them secure, nothing still suspected, means caught up.
   const focus = args.state.focusSkills;
   const caughtUp = focus?.length
     ? focus.every((id) => args.ledger.get(id)?.state === "SECURE") && suspected.length === 0
-    : suspected.length === 0 && secure.length >= 5;
+    : suspected.length === 0 && secure.length >= 5 && unexplainedTotal < 2;
   const outcome: LotusFinalReport["outcome"] = rushed ? "INSUFFICIENT_OR_CONFLICTING"
     : confirmed.length ? "SOLID_GAP" : caughtUp ? "ADVANCEMENT" : "INSUFFICIENT_OR_CONFLICTING";
   // One cause, many gaps: the same sign mistake confirming several gaps
@@ -1035,12 +1082,15 @@ export function buildFactorisationReport(args: {
         : `${curriculum.name} looks secure across the skills tested.${notReached.length ? ` Not asked in this test: ${notReachedNames.join(", ")}.` : ""} Move on to harder questions or the next topic.`
       : suspected.length
         ? "No gap was confirmed. Review the suspected areas below before deciding where to start."
-        : "Not enough answers to show where to start yet. Check again with a few fresh questions.";
+        : unexplainedTotal >= 2
+          ? `${unexplainedTotal} answers were wrong but the cause couldn't be linked to a skill (${unexplained.map((e) => skillName(e.skillId).toLowerCase()).join(", ")}). Review the uncertain areas below, and check the skills underneath with fresh questions.`
+          : "Not enough answers to show where to start yet. Check again with a few fresh questions.";
 
   const limitations = [
     "Experimental: questions were written and checked by AI and code, without human review.",
     "A gap is only confirmed when the same skill goes wrong on two different questions, or the student says they don't know it yet on two.",
   ];
+  if (unexplainedTotal >= 2) limitations.push(`${unexplainedTotal} wrong answers couldn't be linked to a skill, so no gap is confirmed or ruled out from them. This is not a sign that all is well.`);
   if (notReached.length) limitations.push(`${notReached.length} skill${notReached.length === 1 ? " was" : "s were"} planned but not asked in this test (${notReachedNames.join(", ")}), so nothing is known about ${notReached.length === 1 ? "it" : "them"} yet.`);
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
@@ -1083,6 +1133,7 @@ export function buildFactorisationReport(args: {
       ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights).map((e) =>
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
       ...notReached.map((id) => `${skillName(id)}: not asked in this test, so nothing is known about it yet.`),
+      ...unexplained.map((e) => `${skillName(e.skillId)}: wrong ${e.unexplained === 1 ? "once" : `${e.unexplained} times`}, and the cause couldn't be linked to a skill. Check the skills underneath it.`),
     ],
     evidenceSummary: [
       ...(signRoot ? [`One cause behind ${signGaps.length} gaps: signs with negative numbers. Teaching the sign rules first is likely to help all of them.`] : []),
@@ -1096,6 +1147,8 @@ export function buildFactorisationReport(args: {
       ? `Teach ${skillName(start.skillId).toLowerCase()} directly, then re-check it with a fresh question.`
       : suspected[0]
         ? `Give one more question on ${skillName(suspected[0].skillId).toLowerCase()} to see whether the mistake repeats.`
+        : unexplainedTotal >= 2
+        ? "Check the skills underneath the ones that went wrong with a few fresh questions; this test could not say what went wrong."
         : notReached.length
           ? `No teaching gap found in the skills asked. ${notReachedNames.join(", ")} ${notReached.length === 1 ? "wasn't" : "weren't"} asked, so check ${notReached.length === 1 ? "it" : "them"} before moving on.`
           : `No teaching gap found in ${curriculum.name.toLowerCase()} from this test.`,

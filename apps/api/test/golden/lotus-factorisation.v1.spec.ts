@@ -16,6 +16,7 @@ import {
   buildFactorisationReport,
   evidenceFromAnalysis,
   factorisationStopReason,
+  fatigueStart,
   foldLedger,
   instantVerdict,
   nextOpenTurn,
@@ -612,6 +613,103 @@ describe("fixes from the held-out scorecard v1", () => {
         answered("FAC_GCF_VARIABLE", ["FAC_DIVIDE_TERMS"], [support("FAC_GCF_VARIABLE")]),
         answered("FAC_GCF_VARIABLE", ["FAC_DIVIDE_TERMS"], [support("FAC_GCF_VARIABLE")])]);
       assert.equal(ledger.get("FAC_GCF_VARIABLE")!.state, "CONFIRMED");
+    });
+  });
+});
+
+describe("fixes from held-out v2: wrong answers with no linked skill, and a short tired spell", () => {
+  const timed = (right: boolean, ms: number): LotusQuestionAudit =>
+    ({ skillEvidence: [], response: { responseTimeMs: ms }, verification: { status: right ? "VERIFIED_CORRECT" : "VERIFIED_INCORRECT" } }) as unknown as LotusQuestionAudit;
+  const careful = (n: number) => Array.from({ length: n }, () => timed(true, 30_000));
+  const rushedWrong = (n: number) => Array.from({ length: n }, () => timed(false, 3_000));
+
+  describe("a short tired spell at the very end", () => {
+    it("is found: three or more fast wrong answers in a row after a careful, mostly right start", () => {
+      assert.equal(fatigueStart([...careful(21), ...rushedWrong(4)]), 22);
+      assert.equal(fatigueStart([...careful(18), ...rushedWrong(7)]), 19);
+      assert.equal(fatigueStart([...careful(22), ...rushedWrong(3)]), 23);
+    });
+
+    it("is not found for only two fast wrong answers, a slow wrong run, or a start that was not careful", () => {
+      assert.equal(fatigueStart([...careful(23), ...rushedWrong(2)]), null);
+      assert.equal(fatigueStart([...careful(21), ...Array.from({ length: 4 }, () => timed(false, 40_000))]), null);
+      assert.equal(fatigueStart([...Array.from({ length: 12 }, () => timed(false, 3_000)), ...rushedWrong(4)]), null);
+    });
+
+    it("keeps a gap confirmed only by the tired spell from being called a gap", () => {
+      const audits = [...careful(21), ...rushedWrong(4)].map((a, i) => ({
+        ...a,
+        skillEvidence: i >= 21 ? [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")] : [secure("FAC_MEANING")],
+      })) as LotusQuestionAudit[];
+      const entry = foldLedger(audits).get("FAC_FACTOR_FULLY")!;
+      assert.equal(entry.state, "SUSPECTED");
+      assert.equal(entry.tiredness, true);
+    });
+
+    it("leaves a gap seen in the careful part confirmed", () => {
+      const audits = [...careful(21), ...rushedWrong(4)].map((a, i) => ({
+        ...a,
+        skillEvidence: i === 3 || i >= 22 ? [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")] : [secure("FAC_MEANING")],
+      })) as LotusQuestionAudit[];
+      assert.equal(foldLedger(audits).get("FAC_FACTOR_FULLY")!.state, "CONFIRMED");
+    });
+  });
+
+  describe("a wrong answer the review called a misunderstanding but gave no step for", () => {
+    /** Wrong, reviewed, "misunderstanding", no step named: no skill evidence at all. */
+    const unexplainedWrong = (skillId: string, over: Record<string, unknown> = {}): LotusQuestionAudit => ({
+      skillEvidence: [], verification: { status: "VERIFIED_INCORRECT" }, analysisStatus: "COMPLETE", conclusion: { mistakeKind: "MISUNDERSTANDING" },
+      question: { answerKey: { diagnostics: { skillId, taggedSkills: [], stepSkills: [skillId] } } }, ...over,
+    }) as unknown as LotusQuestionAudit;
+
+    it("is counted on the question's skill, which stays untested", () => {
+      const ledger = foldLedger([unexplainedWrong("FAC_DIFF_SQUARES"), unexplainedWrong("FAC_DIFF_SQUARES")]);
+      const entry = ledger.get("FAC_DIFF_SQUARES")!;
+      assert.equal(entry.unexplained, 2);
+      assert.equal(entry.state, "UNTESTED");
+      assert.ok(entry.notes.every((n) => /couldn't be linked to a skill/.test(n)));
+    });
+
+    it("is not counted for a slip, a guess, an unreadable answer, a review still running, a right answer or one that named a skill", () => {
+      for (const over of [
+        { conclusion: { mistakeKind: "SLIP" } }, { conclusion: { mistakeKind: "GUESS" } }, { conclusion: { mistakeKind: "UNREADABLE" } },
+        { analysisStatus: "PENDING" }, { verification: { status: "VERIFIED_CORRECT" } }, { skillEvidence: [mistake("FAC_DIFF_SQUARES", "WROTE_PERFECT_SQUARE")] },
+      ]) {
+        assert.equal(foldLedger([unexplainedWrong("FAC_DIFF_SQUARES", over)]).get("FAC_DIFF_SQUARES")?.unexplained, undefined, JSON.stringify(over));
+      }
+    });
+
+    it("sends the test down one prerequisite, and does not install a second probe for it on a later replan", () => {
+      const { state, itemAt, askedItems } = planFixture(10);
+      const ledger = foldLedger([unexplainedWrong("FAC_DIFF_SQUARES")]);
+      const first = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
+      assert.equal(first.length, 1);
+      const probe = first[0]!;
+      assert.ok(probe.kind === "REPURPOSE" && ["ID_REVERSE_PATTERN", "FND_RECOGNISE_SQUARE"].includes(probe.forSkill), "a prerequisite of the difference of squares");
+      assert.match(probe.kind === "REPURPOSE" ? probe.reason : "", /without a clear cause/);
+      state.turns.find((t) => t.turn === probe.turn)!.purpose = "DESCENT";
+      state.turns.find((t) => t.turn === probe.turn)!.forSkill = probe.kind === "REPURPOSE" ? probe.forSkill : undefined;
+      assert.deepEqual(planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT"), []);
+    });
+
+    describe("in the report", () => {
+      const secureAll = () => FACTORISATION_SLOTS.filter((s) => s.skillId !== "FAC_DIFF_SQUARES").map((s) => audit([secure(s.skillId)]));
+
+      it("two of them are not an all-clear: the outcome is unclear and the report says why", () => {
+        const ledger = foldLedger([...secureAll(), unexplainedWrong("FAC_DIFF_SQUARES"), unexplainedWrong("FAC_DIFF_SQUARES")]);
+        const report = buildFactorisationReport({ ledger, state: freshState(25), pendingAnalyses: 0 });
+        assert.equal(report.outcome, "INSUFFICIENT_OR_CONFLICTING");
+        assert.match(report.startingPoint, /2 answers were wrong but the cause couldn't be linked to a skill/);
+        assert.ok(report.uncertainAreas.some((a) => /Difference of two squares: wrong 2 times, and the cause couldn't be linked/.test(a)));
+        assert.ok(report.limitations.some((l) => /not a sign that all is well/.test(l)));
+        assert.match(report.recommendedNextStep, /skills underneath/);
+        assert.ok(!report.uncertainAreas.some((a) => /Difference of two squares: not asked/.test(a)), "it was asked, so it is not 'not asked'");
+      });
+
+      it("one of them is not enough to block an all-clear (it could be a slip)", () => {
+        const ledger = foldLedger([...secureAll(), unexplainedWrong("FAC_DIFF_SQUARES")]);
+        assert.equal(buildFactorisationReport({ ledger, state: freshState(25), pendingAnalyses: 0 }).outcome, "ADVANCEMENT");
+      });
     });
   });
 });

@@ -213,3 +213,77 @@ still is (the same student before and after, see below). D (median questions no 
 
 v1 is a tuning set (the fixes were designed from it). v2 was held out for these fixes; it has now
 shown three new problems, so a fix designed from it makes v2 a tuning set too. Write v3 first.
+(Done: see the next update. v1 and v2 are tuning sets; v3 was held out for it.)
+
+---
+
+# Update 2: the two open problems, measured on held-out v3 (28 October 2026)
+
+**Simulation performance only.** v3 (`lotus-heldout-students-v3.ts`, frozen in commit `84ca640` with
+its criteria) was written before the fixes and before any v3 run. The "before" figures are one run
+of 20 plays per student on the code before these fixes.
+
+## What changed
+
+1. **A wrong answer the review called a misunderstanding but gave no step for is no longer
+   invisible.** Such an answer taught the rules nothing about any skill, so no gap was found above
+   it, the test was never sent down, and the report read as an all-clear. Now it is counted on the
+   question's skill; the plan sends the test down one prerequisite (the foundations a gap sits on
+   are checked with the short checks); and **two or more such answers are not an all-clear**: the
+   outcome is unclear and the report says "N answers were wrong but the cause couldn't be linked to a
+   skill". A slip, a guess, an unreadable answer and a review still running are not counted.
+2. **A short tired spell at the very end is found.** The old guard needed half of the second half of
+   the test to be fast and wrong. Three or more fast wrong answers in a row at the end, after a
+   careful and mostly right start, now count too, so a gap confirmed only by that spell is shown as
+   suspected ("may be tiredness"), not confirmed.
+
+Unit tests cover each, with negative controls (`lotus-factorisation.v1.spec.ts`).
+
+## The pretend AI changed for v3
+
+The earlier pretend AI gave every answer the same flat review with no label, so slips, guesses and
+real misunderstandings could not be told apart. For v3 it labels a wrong answer the way a real
+reviewer is asked to (`lotus-labelling-models.ts`): a slip if the working already reached the right
+answer, a guess if the working says so, unreadable if the code couldn't read it, otherwise a
+misunderstanding with no step named. **I wrote it knowing what the first fix handles**, so v3
+shows the rule does what it was designed to under that model, not that real reviews look like it.
+
+## v3: before and after (340 plays with a gap, 480 in all)
+
+| | Before | After |
+|---|---|---|
+| Gap found at all (cause or something above it) | 280 / 340 (82.4%) | **320 / 340 (94.1%)** |
+| Found at the root cause | 57.4% | **74.7%** |
+| Missed | 17.6% | 5.9% |
+| **Silent misses** | 40 plays | **0** |
+| Plays with a false gap | 40 | **0** |
+| Solid children given a gap | 20 of 140 | **0 of 140** |
+| Solid children reported ADVANCEMENT | 80 of 140 | 80 of 140 |
+| Median questions, children with a gap | 24 | **23** |
+| Reported "unclear" although determinable | 60 | 80 |
+
+**Every criterion declared in advance is met:** A (no silent miss), B (found at least as often, and
+at the root more often), C (no solid child given a gap, tired or not; no false gap), D (median no
+more than 2 higher), E (solid children reported ADVANCEMENT at least as often).
+
+What moved: the two students whose foundation gap hid behind unexplained wrong answers (square roots,
+the middle term of a square) went from silent in 20 of 20 plays to found at the root in 100% and 95%;
+the solid child tired from question 19 and the signed-products child tired from 21 went from a false
+gap in 20 of 20 plays to none; signs and square roots together went from "found above" to the root.
+
+## What is still not good
+
+1. **A gap on the last skill still can't be confirmed (W18, cancelling terms).** It is asked once, at
+   the last slot, so one mistake can't be confirmed. It is named and reported unclear, not silent.
+2. **A solid child who tires near the end is reported unclear, not ADVANCEMENT (W03-W05).** That is
+   better than a false gap, but the careful first 16–22 answers could support an advancement.
+   "Unclear although determinable" rose from 60 to 80 only because the child who used to be given a
+   false gap (W04) is now unclear.
+3. **A foundation root is not always reached.** Factor pairs is found only 35–40% of the time (W14,
+   W22), and "expand one bracket" (W11) never at the root, only above it.
+4. **Unverified on a real reviewer.** If a real review names a step, evidence exists and fix 1
+   never triggers; if real reviews call slips "misunderstanding", two of them would keep a solid
+   child from an all-clear. Run it on a sample of real reviews before relying on it.
+
+These are kept as visible `todo` tests. v1, v2 and v3 are now all used: a fix designed from any of
+them needs a new held-out v4 first.

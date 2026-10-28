@@ -106,7 +106,26 @@ describe("held-out scorecard v3", () => {
       const f = (r: StudentScoreV2["result"]) => pct(runs.filter((x) => x.result === r).length, runs.length);
       console.log(`SCORECARD3|STUDENT|${s.id}|${s.group}|roots=[${runs[0]!.roots.join(",")}]|root ${f("FOUND_ROOT")}% above ${f("FOUND_ABOVE")}% missed ${f("MISSED")}% silentMiss ${runs.filter((x) => x.silentMiss).length}/${runs.length} falseGapRuns ${runs.filter((x) => x.falseGaps.length).length}/${runs.length} q ${Math.min(...runs.map((x) => x.answered))}-${median(runs.map((x) => x.answered))}-${Math.max(...runs.map((x) => x.answered))} out ${[...new Set(runs.map((x) => x.outcome))].join("/")} fg=[${[...new Set(runs.flatMap((x) => x.falseGaps))].sort().join(",")}]`);
     });
-    console.log(`SCORECARD3|TOTAL ${JSON.stringify(totals(all))}`);
+    const t = totals(all);
+    console.log(`SCORECARD3|TOTAL ${JSON.stringify(t)}`);
     assert.equal(all.flat().length, HELDOUT_STUDENTS_V3.length * REPEATS);
+
+    // Criteria A-E against the figures from the code before the fixes (20 plays each): a gap found at all 82.4%,
+    // found at the root 57.4%, 40 silent misses, 40 false-gap plays (one capable child among them), capable children
+    // reported ADVANCEMENT 57.1%, median 24 questions for children with a gap.
+    const rate = (n: number, d: number) => (100 * n) / d;
+    assert.equal(t.silentMisses, 0, "A: no silent miss");
+    assert.ok(rate(t.foundAnyRuns, t.runsWithGap) >= 82, "B: a gap is found at least as often as before");
+    // Three points of room: with 5 plays a student whose result varies (W13, W14, W22) moves the figure by a point or two.
+    assert.ok(t.foundRoot >= 70, "B: the root cause is found far more often than before (57.4%)");
+    assert.equal(t.capableRunsWithFalseGap, 0, "C: no capable child, tired or not, is given a confirmed gap");
+    assert.equal(t.falseGapRuns, 0, "C: no false gap for any student");
+    assert.ok(rate(t.capableAdvancement, t.capableRuns) >= 57, "E: solid children are reported ADVANCEMENT at least as often as before");
+    assert.ok(t.medianQuestionsWithGap <= 26, "D: median questions for children with a gap no more than 2 above before (24)");
   });
+
+  // Not met, kept visible (docs/mvp-10.0/HELDOUT_SCORECARD.md).
+  it.todo("a gap on the last skill is found (W18: cancelling terms is asked once, at the last slot, so one mistake can't be confirmed)");
+  it.todo("a solid child who tires near the end is reported ADVANCEMENT from the careful part of the test (W03-W05 are reported unclear)");
+  it.todo("a foundation gap's root is found every time (W14, W22: factor pairs only 35-40%; W11 expand one bracket: never, only above it)");
 });

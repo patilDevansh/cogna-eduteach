@@ -77,7 +77,7 @@ state the new behavior: a confirmed gap goes down to foundations with short chec
 
 ## Next steps, in order
 
-1. Fix what held-out v2 found ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md)): wrong answers that can't be linked to a skill must keep the outcome from being an all-clear and send the test down to the foundations; a solid child who is tired near the end must not be given a gap; look at the extra questions the stricter stop costs. Write a held-out v3 first, because v1 and v2 have now been used.
+1. Check the rules against a sample of real AI reviews ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md), update 2, point 4): does a real review name a step, and does it call slips "misunderstanding"? Then what held-out v3 left open: a gap on the last skill can't be confirmed from one question; a solid child who tires near the end is "unclear" rather than advanced; some foundation roots are reached only 35–40% of the time. Write a held-out v4 first, because v1–v3 have now been used.
 2. Make the proposed skills live as each gets two code-checked questions; decide the two merges.
 3. Switch the blame rule and the prerequisite rule to the owner table and the typed links.
 4. Record conditions and help on every stored answer; keep the four layers apart (shared map, evidence history, current estimate, next step).
