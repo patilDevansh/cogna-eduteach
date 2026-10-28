@@ -1,5 +1,5 @@
 import type { LotusPredictedMistake, LotusQuestion } from "@cogna/shared";
-import { assertFixedItemIsValid, skillName } from "./lotus-factorisation-catalogue";
+import { assertFixedItemIsValid, skillName, type SlotSpec } from "./lotus-factorisation-catalogue";
 
 /**
  * Question families for the skills no live question tests on its own.
@@ -556,6 +556,67 @@ export function buildSkillCheck(skillId: string, seed: string, condition?: strin
     if (!item) continue;
     try { assertFixedItemIsValid(item, `${skillId}/${cond}`); } catch { continue; }
     return { ...item, condition: cond };
+  }
+  return null;
+}
+
+// ---------- placing the checks in the live test ----------
+
+/** Check slots are numbered from here, clear of the 25 plan slots. */
+export const CHECK_SLOT_BASE = 100;
+const CHECK_SPECS = new Map<string, SlotSpec>();
+
+/**
+ * A slot spec for a skill the 25-slot plan has no question for, so the live test can
+ * check it directly: going down under a confirmed gap, re-checking a suspicion, or an
+ * AI-requested check. The base plan never contains these; they are used only when the
+ * test needs evidence on that skill. `mistakes` is left empty on purpose: each condition
+ * of a family shows different mistakes, so the writer picks a condition that shows the
+ * mistake being re-checked, not one fixed list.
+ */
+export function checkSpecFor(skillId: string): SlotSpec | undefined {
+  // Off-switch: LOTUS_DISABLE_SKILL_CHECKS=true puts the test back to passing over foundations with no slot.
+  if (process.env.LOTUS_DISABLE_SKILL_CHECKS === "true") return undefined;
+  const family = FAMILY_BY_SKILL.get(skillId);
+  if (!family) return undefined;
+  let spec = CHECK_SPECS.get(skillId);
+  if (!spec) {
+    const sample = buildSkillCheck(skillId, "spec")!;
+    spec = {
+      slot: CHECK_SLOT_BASE + SKILL_FAMILIES.indexOf(family), skillId, tagged: [], kind: sample.answerKey.diagnostics!.itemKind,
+      level: family.level, phase: "DIAGNOSE", shape: `short check: ${family.conditions.join(" / ")}`, mistakes: [],
+      note: "Short code-made check; see lotus-skill-checks.ts",
+    };
+    CHECK_SPECS.set(skillId, spec);
+  }
+  return spec;
+}
+export const isCheckSpec = (spec: Pick<SlotSpec, "slot">): boolean => spec.slot >= CHECK_SLOT_BASE;
+
+/**
+ * The checked question for a live request on a check slot: a condition that can show
+ * the mistake being re-checked (if one is named), not already in this test, built from
+ * the request's own variation so each child gets a different variant. Null if no
+ * variant fits, and the request falls through to the AI writer.
+ */
+export function skillCheckForRequest(req: { spec: SlotSpec; targetMistake?: string; variation?: string; avoid: string[] }): Item | null {
+  const family = FAMILY_BY_SKILL.get(req.spec.skillId);
+  if (!family || !isCheckSpec(req.spec)) return null;
+  const squash = (text: string) => text.replace(/\s+/g, "").toLowerCase();
+  const avoid = new Set(req.avoid.map(squash));
+  const r = seeded(`${req.spec.skillId}|${req.variation ?? ""}`);
+  const start = Math.floor(r() * family.conditions.length);
+  for (let i = 0; i < family.conditions.length; i++) {
+    const condition = family.conditions[(start + i) % family.conditions.length]!;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const built = buildSkillCheck(req.spec.skillId, `${req.variation ?? ""}|${attempt}`, condition);
+      if (!built) continue;
+      const { condition: _condition, ...item } = built;
+      if (avoid.has(squash(item.prompt))) continue;
+      const d = item.answerKey.diagnostics!;
+      if (req.targetMistake && !d.predictedMistakes.some((p) => p.mistake === req.targetMistake)) break;
+      return { ...item, answerKey: { ...item.answerKey, diagnostics: { ...d, slot: req.spec.slot, taggedSkills: req.spec.tagged } } };
+    }
   }
   return null;
 }

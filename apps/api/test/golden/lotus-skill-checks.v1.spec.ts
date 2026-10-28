@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { FACTORISATION_SKILLS, FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalogue";
 import { normalizeMathText } from "../../src/lotus/lotus-algebra";
-import { SKILL_FAMILIES, buildSkillCheck, skillFamily, skillsWithFamily } from "../../src/lotus/lotus-skill-checks";
+import { codeProbeFor } from "../../src/lotus/lotus-probes";
+import { checkWrittenItem, type WriteRequest } from "../../src/lotus/lotus-question-factory";
+import { CHECK_SLOT_BASE, SKILL_FAMILIES, buildSkillCheck, checkSpecFor, skillFamily, skillsWithFamily } from "../../src/lotus/lotus-skill-checks";
 
 const SEEDS = Array.from({ length: 60 }, (_, i) => `seed-${i}`);
 const listed = (skillId: string) => new Set(FACTORISATION_SKILLS.find((s) => s.id === skillId)!.mistakes);
@@ -65,6 +67,63 @@ describe("Skill question families: every variant checks out", () => {
   it("returns nothing for a skill without a family or a condition it doesn't have", () => {
     assert.equal(buildSkillCheck("FAC_FACTOR_FULLY", "x"), null);
     assert.equal(buildSkillCheck("FND_SIGN_MUL_DIV", "x", "no such condition"), null);
+  });
+});
+
+describe("Skill question families: in the live test", () => {
+  const request = (skillId: string, extra: Partial<WriteRequest> = {}): WriteRequest => ({ spec: checkSpecFor(skillId)!, purpose: "BASE", avoid: [], variation: "kid-7", ...extra });
+
+  it("makes a check spec for each skill the 25 slots have no question for, and none for the others", () => {
+    const hasSlot = new Set(FACTORISATION_SLOTS.map((s) => s.skillId));
+    for (const s of FACTORISATION_SKILLS) {
+      const spec = checkSpecFor(s.id);
+      if (hasSlot.has(s.id)) continue; // slot skills keep their own slot for the base plan; the check slot is also available
+      assert.ok(spec, `${s.id} has a check spec`);
+      assert.ok(spec!.slot >= CHECK_SLOT_BASE && spec!.slot < CHECK_SLOT_BASE + 100);
+      assert.deepEqual(spec!.mistakes, []);
+    }
+    assert.equal(checkSpecFor("NOT_A_SKILL"), undefined);
+    assert.ok(FACTORISATION_SLOTS.every((s) => s.slot < CHECK_SLOT_BASE), "the base plan never uses a check slot");
+    assert.equal(new Set(SKILL_FAMILIES.map((f) => checkSpecFor(f.skillId)!.slot)).size, SKILL_FAMILIES.length, "check slots are unique");
+  });
+
+  it("the live writer path builds a checked question for a check slot, without the game switch", () => {
+    for (const skillId of skillsWithFamily()) {
+      const req = request(skillId);
+      const item = codeProbeFor(req, {});
+      assert.ok(item, `${skillId} builds`);
+      assert.deepEqual(checkWrittenItem(req, item!), []);
+      assert.equal(item!.answerKey.diagnostics!.slot, req.spec.slot);
+      assert.equal(item!.answerKey.diagnostics!.skillId, skillId);
+    }
+  });
+
+  it("a re-check of one mistake gets a question that can show that mistake", () => {
+    const cases: Array<[string, string]> = [["FND_SIGN_MUL_DIV", "ADDED_INSTEAD"], ["FND_FACTOR_PAIRS", "NO_NEGATIVE_PAIRS"], ["FAC_READ_ABC_SIGNS", "DROPPED_SIGN"], ["FND_MIN_EXP_COMMON", "TOOK_HIGHEST_POWER"], ["EXP_EXPAND_BINOMIALS", "SWAPPED_PRODUCT_SUM"]];
+    for (const [skillId, targetMistake] of cases) {
+      for (const variation of ["a", "b", "c", "d", "e"]) {
+        const item = codeProbeFor(request(skillId, { purpose: "CHECK", targetMistake, variation }), {});
+        assert.ok(item, `${skillId} / ${targetMistake} builds`);
+        assert.ok(item!.answerKey.diagnostics!.predictedMistakes.some((p) => p.mistake === targetMistake));
+      }
+    }
+  });
+
+  it("never repeats a question already in the test", () => {
+    const first = codeProbeFor(request("FND_SIGN_ADD_SUB"), {})!;
+    const second = codeProbeFor(request("FND_SIGN_ADD_SUB", { avoid: [first.prompt] }), {})!;
+    assert.notEqual(second.prompt, first.prompt);
+  });
+
+  it("is a different question for different children", () => {
+    const prompts = new Set(["k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8"].map((v) => codeProbeFor(request("FND_FACTOR_PAIRS", { variation: v }), {})!.prompt));
+    assert.ok(prompts.size >= 4);
+  });
+
+  it("can be switched off, putting the test back to passing over foundations with no slot", () => {
+    process.env.LOTUS_DISABLE_SKILL_CHECKS = "true";
+    try { assert.equal(checkSpecFor("FND_SIGN_MUL_DIV"), undefined); } finally { delete process.env.LOTUS_DISABLE_SKILL_CHECKS; }
+    assert.ok(checkSpecFor("FND_SIGN_MUL_DIV"));
   });
 });
 

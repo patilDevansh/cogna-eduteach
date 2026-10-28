@@ -48,6 +48,8 @@ import {
   skillName,
   skillsUsedBy,
 } from "./lotus-factorisation-catalogue";
+import { checkSpecFor } from "./lotus-skill-checks";
+import { SHARED_PATTERNS } from "./lotus-skill-map";
 
 /** An explicit "I don't know" is always a learning signal, regardless of response speed. */
 export const FAST_SKIP_MS = 15_000;
@@ -602,9 +604,13 @@ function widenTargets(slots: SlotSpec[], skillId: string, askedSlots: Set<number
  * a skill with only one catalogue slot (e.g. FAC_GCF_VARIABLE), excluding it
  * would make that skill permanently undescendable after turn 1.
  */
-function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number) {
+function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number, mistakes: string[] = []) {
   const found: Array<{ skill: string; spec: SlotSpec }> = [];
-  const queue = [...(findSkill(skillId)?.dependsOn ?? [])];
+  // A foundation the gap's own mistakes point at goes first: a sign error under a
+  // trinomial is checked at signed numbers before it is checked at factor pairs.
+  const pointedAt = new Set(SHARED_PATTERNS.filter((p) => p.mistakes.some((m) => mistakes.includes(m)))
+    .flatMap((p) => p.skills).filter((s) => findSkill(s)?.group === 0));
+  const queue = [...(findSkill(skillId)?.dependsOn ?? [])].sort((a, b) => Number(!pointedAt.has(a)) - Number(!pointedAt.has(b)));
   const seen = new Set<string>();
   while (queue.length && found.length < max) {
     const p = queue.shift()!;
@@ -613,7 +619,9 @@ function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max:
     const state = ledger.get(p)?.state ?? "UNTESTED";
     if (state === "SECURE") continue;
     if (state === "UNTESTED") {
-      const spec = slots.find((s) => s.skillId === p);
+      // A foundation the 25 slots never ask about is checked directly with a short code-made
+      // question (lotus-skill-checks.ts) instead of being passed over.
+      const spec = slots.find((s) => s.skillId === p) ?? checkSpecFor(p);
       if (spec) { found.push({ skill: p, spec }); continue; }
     }
     queue.push(...(findSkill(p)?.dependsOn ?? []));
@@ -676,7 +684,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   // evidence. Keep the question already visible to the student, but reserve
   // the next mutable future slot for an AI-written check of the same skill.
   for (const skillId of input.forceCheckSkills ?? []) {
-    const spec = slots.find((s) => s.skillId === skillId);
+    const spec = slots.find((s) => s.skillId === skillId) ?? checkSpecFor(skillId);
     const evidence = ledger.get(skillId);
     if (!spec || !evidence || claimed.has(spec.slot)) continue;
     // A duplicate request for the same skill (e.g. a code-instant suspicion
@@ -711,7 +719,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // suspicion-only confirmation path, or a pure "I don't know" remains
     // UNTESTED and can never receive the promised support action.
     if (e.needsSupport) {
-      const support = descentTargets(slots, e.skillId, ledger, 1)[0];
+      const support = descentTargets(slots, e.skillId, ledger, 1, e.mistakes)[0];
       const supportAlreadyReserved = support && (checkedThisCall.has(support.skill) || state.turns.some((t) =>
         t.purpose === "DESCENT" && t.forSkill === support.skill));
       if (support && !supportAlreadyReserved) {
@@ -744,7 +752,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
           // C6: the later question must be able to show the suspected mistake.
           : usesSkill(itemAt(t.turn), e.skillId) && itemCouldShow(itemAt(t.turn), e.mistakes.at(-1))))));
     if (hasCheck) continue;
-    const spec = slots.find((s) => s.skillId === e.skillId);
+    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     if (!spec) continue;
     const turn = pickVictim();
     if (turn === null) continue;
@@ -788,7 +796,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // ledger entries, so nothing else stops both from picking it); skip one
     // already claimed for a probe this call rather than installing a second
     // turn for the same hypothesis.
-    for (const { skill: p, spec } of descentTargets(slots, e.skillId, ledger, 2)) {
+    for (const { skill: p, spec } of descentTargets(slots, e.skillId, ledger, 2, e.mistakes)) {
       if (checkedThisCall.has(p)) continue;
       const turn = freed.shift() ?? pickVictim();
       if (turn === null) break;

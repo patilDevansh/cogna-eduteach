@@ -20,6 +20,7 @@ import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { LotusQuestionAudit, LotusSessionView } from "@cogna/shared";
 import { LotusService } from "../../src/lotus/lotus.service";
+import { CHECK_SLOT_BASE, skillFamily } from "../../src/lotus/lotus-skill-checks";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
 import {
   PERSONA_CATALOGUE,
@@ -141,12 +142,15 @@ function assertNoHardcodedFallback(service: LotusService, view: LotusSessionView
   ].filter(Boolean);
   assert.ok(allQuestions.length > 0);
   for (const question of allQuestions) {
-    // AI-written, or a game question built and checked by code (lotus-probes.ts). Never a hardcoded fallback.
+    // AI-written, a game question built and checked by code (lotus-probes.ts), or a short
+    // foundation check built, seeded and proved by code (lotus-skill-checks.ts). Never a hardcoded fallback.
     const origin = question.answerKey.diagnostics?.origin;
-    assert.ok(origin === "AI" || origin === "CODE", "every factorisation item must be AI-generated or a checked code-built game — a hardcoded fallback is never eligible for display");
-    // Staged as a game: a presentation (fireflies, detective…) or a puzzle interaction (crossword, cut-and-build).
+    assert.ok(origin === "AI" || origin === "CODE", "every factorisation item must be AI-generated or a checked code-built item — a hardcoded fallback is never eligible for display");
+    // A code-built item is either staged as a game (a presentation such as fireflies or detective, or a puzzle
+    // interaction) or a short check, which lives on a check slot (100 and up) and is one of the checked families.
     const staged = question as { presentation?: string; interaction?: unknown };
-    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction, "a code-built item is always a staged game");
+    const shortCheck = (question.answerKey.diagnostics?.slot ?? 0) >= CHECK_SLOT_BASE && !!skillFamily(question.answerKey.diagnostics?.skillId ?? "");
+    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction || shortCheck, "a code-built item is a staged game or a checked short check");
   }
   for (const audit of view.audits) {
     assert.notEqual(audit.questionSelection.provenance, "HARDCODED_SYSTEM", "no observer-visible provenance may ever claim a hardcoded question for factorisation");
@@ -362,5 +366,36 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
       target!.state === "CONFIRMED" || target!.state === "SUSPECTED",
       `expected FAC_GROUP_TERMS to be at least SUSPECTED from the persona's repeated mistake, got ${target!.state}`,
     );
+  });
+
+  describe("short foundation checks in the live test (lotus-skill-checks.ts)", () => {
+    const confirmedOf = (view: LotusSessionView) => (view.finalReport!.skills ?? []).filter((s) => s.state === "CONFIRMED").map((s) => s.skillId).sort();
+
+    for (const id of ["P02_NUMERIC_HCF_ONLY", "P03_VARIABLE_COMMON_FACTOR_GAP", "P04_DIVIDE_FIRST_TERM_ONLY"]) {
+      it(`${id}: the same confirmed gap in fewer questions than when foundations with no slot are passed over`, async () => {
+        const persona = PERSONA_CATALOGUE.find((p) => p.id === id)!;
+        const withChecks = await playPersona(setup().service, persona, `demo_${id}_with`);
+        process.env.LOTUS_DISABLE_SKILL_CHECKS = "true";
+        let without;
+        try { without = await playPersona(setup().service, persona, `demo_${id}_without`); } finally { delete process.env.LOTUS_DISABLE_SKILL_CHECKS; }
+        assert.deepEqual(confirmedOf(withChecks.view), confirmedOf(without.view), "the same gap is confirmed");
+        assert.equal(withChecks.view.finalReport!.outcome, without.view.finalReport!.outcome);
+        assert.ok(withChecks.answered < without.answered, `${withChecks.answered} questions with the checks, ${without.answered} without`);
+      });
+    }
+
+    it("a foundation check is shown to a student with a gap above it, and it is a short, checked question", async () => {
+      const { service } = setup();
+      const persona = PERSONA_CATALOGUE.find((p) => p.id === "P05_NEGATIVE_SIGN_ERROR")!;
+      const { view } = await playPersona(service, persona, "demo_persona_p05_checks");
+      const session = internal(service, view.sessionId);
+      const shown = session.audits.map((a: LotusQuestionAudit) => a.question).filter((q: LotusQuestionAudit["question"]) => (q.answerKey.diagnostics?.slot ?? 0) >= CHECK_SLOT_BASE);
+      assert.ok(shown.length >= 1, "at least one short foundation check was asked");
+      for (const q of shown) {
+        assert.equal(q.answerKey.diagnostics?.origin, "CODE");
+        assert.ok(skillFamily(q.answerKey.diagnostics!.skillId), "from a checked family");
+        assert.equal(q.asksForWorking, false);
+      }
+    });
   });
 });

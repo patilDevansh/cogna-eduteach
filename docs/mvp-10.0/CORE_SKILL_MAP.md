@@ -30,17 +30,54 @@ distinct choices with the key among them). On top of that, the tests rebuild the
 second way for the choice families (brute-force pair counts, re-reading b and c from the
 expression shown, naming the identity from the coefficients) and run 60 seeds per condition.
 
+## How the checks are used in the live test
+
+The base plan of 25 slots is unchanged. The short checks are used only when the test needs
+evidence on a skill the 25 slots never ask about, in three places in `planAdjustments`:
+
+- **Going down under a confirmed gap** (and the one lower check after "I don't know"): a
+  foundation with no slot is now checked directly instead of being passed over.
+- **Re-checking a suspicion** on such a skill (it used to get no second check).
+- **An AI-requested check** of such a skill.
+
+Each is a request on a check slot (numbered from 100, clear of the 25 plan slots). The writer
+builds the question by code (`codeProbeFor`, no model call, independent of the game switch),
+picking a condition that can show the mistake being re-checked, a variant that is not already
+in the test, and a different one for each child. If no variant fits, the request falls through
+to the AI writer as before.
+
+When a gap's own mistakes point at a shared pattern, the foundations in that pattern are
+checked first: a sign error under a trinomial is checked at signed numbers before it is checked
+at factor pairs.
+
+**Off-switch:** `LOTUS_DISABLE_SKILL_CHECKS=true` puts the test back to passing over foundations
+with no slot.
+
+## Result on the simulated students
+
+Same persona sessions, same scripted answers, with and without the checks. The same gap is
+confirmed every time; the test reaches it sooner when a foundation can be checked directly.
+
+| Persona | Questions without | Questions with |
+|---|---|---|
+| P02 Numeric-HCF-only | 21 | 8 |
+| P03 Variable common factor | 21 | 8 |
+| P04 Divides only the first term | 20 | 8 |
+| P05 Negative-factor sign error | 24 | 17 |
+
+The other six personas are unchanged. This is simulation performance: scripted students with a
+pretend AI, used while tuning. It shows the rules behave as designed, not accuracy with real
+children, and a shorter test is only better if it stays as accurate (held-out scorecard below).
+
 ## What this does not change
 
-The live test, the evidence rules and the blame rule (`ownerOfMistake`) behave exactly as
-before. The question families are a verified bank; they are not yet placed in the live
-test's 25 slots. Switching the test, the blame rule and the prerequisite rule to the new
-families, owners and links is a separate change, to be checked against the simulated-student
-scorecard.
+The 25-slot base plan, the evidence rules and the blame rule (`ownerOfMistake`) behave as
+before. Three older tests that encoded "going down never serves a foundation question" now
+state the new behavior: a confirmed gap goes down to foundations with short checks.
 
 ## Next steps, in order
 
-1. Place the short checks in the live test (foundation checks before a full factorising question) and re-run the scorecard.
+1. Held-out scorecard: simulated students written before tuning and never used to tune, to check the shorter test still finds every planted gap with no false ones.
 2. Make the proposed skills live as each gets two code-checked questions; decide the two merges.
 3. Switch the blame rule and the prerequisite rule to the owner table and the typed links.
 4. Record conditions and help on every stored answer; keep the four layers apart (shared map, evidence history, current estimate, next step).
