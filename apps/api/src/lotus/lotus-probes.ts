@@ -3,6 +3,7 @@ import { LOTUS_SELECT_SEPARATOR } from "@cogna/shared";
 import { algebraicallyEqual, classifyFactorisation, factorisationDefect, normalizeMathText } from "./lotus-algebra";
 import { skillName, type SlotSpec } from "./lotus-factorisation-catalogue";
 import { checkWrittenItem, type WriteRequest } from "./lotus-question-factory";
+import { isCheckSpec, skillCheckForRequest } from "./lotus-skill-checks";
 import { buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
 
 /**
@@ -256,6 +257,12 @@ const PROBES: Array<{ skillId: string; build: Builder; when: (req: WriteRequest)
 
 /** A checked game question for this request, or null to let the AI writer handle it. */
 export function codeProbeFor(req: WriteRequest, env: NodeJS.ProcessEnv = process.env): Item | null {
+  // A direct check of a foundation skill the 25-slot plan has no question for: a short
+  // code-made check (lotus-skill-checks.ts). Independent of the game-format switch.
+  if (isCheckSpec(req.spec)) {
+    const check = skillCheckForRequest(req);
+    return check && !checkWrittenItem(req, check).length ? check : null;
+  }
   if (!gameFormatsEnabled(env) || req.requiredExpression) return null;
   const probe = PROBES.find((p) => p.skillId === req.spec.skillId && p.when(req));
   if (!probe) return null;

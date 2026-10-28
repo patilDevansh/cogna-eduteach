@@ -285,11 +285,12 @@ describe("planAdjustments — changing only questions the student hasn't reached
     assert.ok(skipped.includes(8), "grouping needs dividing every term");
     assert.ok(skipped.includes(17), "grouping with a minus needs dividing every term");
     const descents = actions.filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
-    // Fresh AI-written prerequisite probes can revisit the nearest skill in a
-    // new numerical form; no retired fixed foundation item is installed.
-    assert.deepEqual(descents.map((d) => d.kind === "REPURPOSE" && d.forSkill), ["FAC_GCF_VARIABLE"]);
+    // Going down reaches the number-common-to-every-term skill too: the 25 slots never ask
+    // about it, so it is checked with a short code-made question (lotus-skill-checks.ts)
+    // instead of being passed over. No hardcoded foundation item is installed.
+    assert.deepEqual(descents.map((d) => d.kind === "REPURPOSE" && d.forSkill), ["FAC_GCF_NUMERIC", "FAC_GCF_VARIABLE"]);
     // −4x − 8 and the common-bracket question both need dividing every term, so their turns are freed and reused to go down.
-    assert.deepEqual(descents.map((d) => d.turn), [5]);
+    assert.deepEqual(descents.map((d) => d.turn), [5, 7]);
     const rewrites = actions.filter((a) => a.kind === "REPURPOSE" && a.purpose === "AVOID");
     assert.ok(rewrites.every((a) => a.kind === "REPURPOSE" && a.avoidSkill === "FAC_DIVIDE_TERMS" && a.skipUntilReady));
     assert.deepEqual(state.handledConfirmed, ["FAC_DIVIDE_TERMS"]);
@@ -318,7 +319,7 @@ describe("planAdjustments — changing only questions the student hasn't reached
     const descents = planAdjustments({ state, ledger, itemAt, askedItems: notSlot2 })
       .filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT")
       .map((a) => a.kind === "REPURPOSE" && a.forSkill);
-    assert.deepEqual(descents, ["FAC_GCF_VARIABLE"]);
+    assert.deepEqual(descents, ["FAC_GCF_NUMERIC", "FAC_GCF_VARIABLE"]);
   });
 
   it("a skill already secure is solid ground: nothing below it is checked", () => {
@@ -331,14 +332,29 @@ describe("planAdjustments — changing only questions the student hasn't reached
     assert.deepEqual(descents, []);
   });
 
-  it("descent never invents a retired fixed foundation item when no safe AI slot exists", () => {
+  it("a sign error under a trinomial goes down to signed numbers first, with short code-made checks", () => {
     const { state, itemAt, askedItems } = planFixture(13);
     const ledger = foldLedger([
       audit([mistake("FAC_PAIR_PRODUCT_SUM", "SIGN_PAIR_ERROR")]),
       audit([mistake("FAC_PAIR_PRODUCT_SUM", "SIGN_PAIR_ERROR")]),
     ]);
     const descents = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
-    assert.deepEqual(descents, []);
+    // The gap's own mistake points at signs, so the sign skills come before reading b and c or factor pairs.
+    assert.deepEqual(descents.map((d) => d.kind === "REPURPOSE" && d.forSkill), ["FND_SIGN_MUL_DIV", "FND_SIGN_ADD_SUB"]);
+    for (const d of descents) {
+      assert.ok(d.kind === "REPURPOSE" && d.spec && d.spec.slot >= 100, "a check slot, never one of the 25 plan slots");
+      assert.deepEqual(d.kind === "REPURPOSE" && d.spec?.mistakes, [], "the writer picks a condition that shows the mistake being checked");
+    }
+  });
+
+  it("a gap that doesn't point at a shared pattern keeps its prerequisites in the listed order", () => {
+    const { state, itemAt, askedItems } = planFixture(13);
+    const ledger = foldLedger([
+      audit([mistake("FAC_PAIR_PRODUCT_SUM", "WRONG_FACTOR_PAIR_SUM")]),
+      audit([mistake("FAC_PAIR_PRODUCT_SUM", "WRONG_FACTOR_PAIR_SUM")]),
+    ]);
+    const descents = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
+    assert.deepEqual(descents.map((d) => d.kind === "REPURPOSE" && d.forSkill), ["FAC_READ_ABC_SIGNS", "FND_FACTOR_PAIRS"]);
   });
 
   it("two confirmed skills sharing an untested prerequisite install only one descent turn for it, not two", () => {
