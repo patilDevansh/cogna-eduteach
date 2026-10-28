@@ -42,6 +42,7 @@ import {
 import {
   type SlotSpec,
   curriculumFor,
+  curriculumOfSkill,
   dependsOnTransitively,
   findSkill,
   ownerOfMistake,
@@ -354,6 +355,8 @@ export interface SkillLedgerEntry {
   supportCount?: number;
   /** Confirmed because the student said they don't know it (twice, or once plus a mistake), not by two mistakes. */
   confirmedBySupport?: boolean;
+  /** Every question this skill went wrong on also needed a confirmed gap in an unrelated branch, so that gap may be the cause: shown as suspected, not confirmed. */
+  explainedBy?: string;
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
@@ -482,8 +485,45 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
       if (e.state === "CONFIRMED") e.recheck = false;
     }
   });
+  explainAwayConfounded(audits, ledger);
   markTirednessGaps(audits, ledger);
   return ledger;
+}
+
+/**
+ * A mistake on a question is blamed on the question's own skill, but the question may have needed
+ * other skills too (tagged or in its steps). When a skill's mistakes all came on questions that also
+ * needed a skill built on a confirmed gap in an UNRELATED branch (neither above nor below this skill),
+ * that gap may be the real cause, so this skill is shown as suspected, not confirmed, and says why.
+ * A gap above the skill (a prerequisite) is left alone: that is the "one cause, many gaps" case the
+ * report already handles by starting at the root. A skill with any mistake on a question that needed
+ * nothing else from a confirmed gap stays confirmed.
+ */
+function explainAwayConfounded(audits: LotusQuestionAudit[], ledger: Ledger): void {
+  const confirmed = [...ledger.values()].filter((e) => e.state === "CONFIRMED").map((e) => e.skillId);
+  if (confirmed.length < 2) return;
+  const demote: Array<[SkillLedgerEntry, string]> = [];
+  for (const e of ledger.values()) {
+    if (e.state !== "CONFIRMED" || e.confirmedBySupport || !e.mistakes.length) continue;
+    const negatives = audits.filter((a) => (a.skillEvidence ?? []).some((ev) => ev.skillId === e.skillId && ev.kind !== "SECURE" && ev.kind !== "DID_NOT_KNOW"));
+    if (!negatives.length) continue;
+    const causeOf = (a: LotusQuestionAudit): string | undefined => {
+      const d = a.question?.answerKey?.diagnostics;
+      if (!d) return undefined;
+      const others = skillsUsedBy(d).filter((u) => u !== e.skillId);
+      return confirmed.find((g) => g !== e.skillId && !dependsOnTransitively(g, e.skillId) && !dependsOnTransitively(e.skillId, g) &&
+        others.some((u) => dependsOnTransitively(u, g)));
+    };
+    const causes = negatives.map(causeOf);
+    if (causes.every((c) => !!c)) demote.push([e, causes[0]!]);
+  }
+  for (const [e, g] of demote) {
+    e.explainedBy = g;
+    e.state = "SUSPECTED";
+    e.suspectedAt = e.confirmedAt;
+    delete e.confirmedAt;
+    e.notes.push(`Every question it went wrong on also needed ${skillName(g)}, a confirmed gap, so that may be the cause`);
+  }
 }
 
 /**
@@ -664,14 +704,24 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     if (check) protectedTurns.add(check.turn);
   }
 
-  const pickVictim = (): number | null => {
+  // The only open question left for a skill nothing has asked about yet. Widening a skill that is already
+  // secure must not use it up (that is how a never-asked skill was left out of a test); a real gap check or a
+  // going-down question still may, because evidence about a gap outranks coverage of an unasked skill.
+  const soleQuestionForUntested = (turn: number): boolean => {
+    const skill = itemAt(turn)?.answerKey.diagnostics?.skillId;
+    if (!skill || (ledger.get(skill)?.state ?? "UNTESTED") !== "UNTESTED") return false;
+    return !state.turns.some((o) => o.turn !== turn && o.turn > state.planTurn && o.status !== "SKIPPED" &&
+      itemAt(o.turn)?.answerKey.diagnostics?.skillId === skill);
+  };
+  const pickVictim = (widening = false): number | null => {
     const candidates = mutable().filter((t) =>
       !protectedTurns.has(t.turn) && t.purpose !== "CHECK" && t.purpose !== "DESCENT" && t.purpose !== "WIDEN");
     const allSecure = candidates.filter((t) => {
       const d = itemAt(t.turn)?.answerKey.diagnostics;
       return !!d && skillsUsedBy(d).every((s) => ledger.get(s)?.state === "SECURE");
     });
-    const pool = allSecure.length ? allSecure : candidates;
+    const spare = candidates.filter((t) => !soleQuestionForUntested(t.turn));
+    const pool = allSecure.length ? allSecure : widening ? spare : candidates;
     // The earliest eligible slot, not the latest: an accepted change belongs
     // in the earliest useful unseen slot (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md
     // §8/§10 Phase 2) — picking the furthest slot here previously produced
@@ -823,7 +873,8 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     state.handledBroadened.push(e.skillId);
     const target = widenTargets(slots, e.skillId, askedSlots, 1)[0];
     if (!target) continue;
-    const turn = pickVictim();
+    // Widening is a nicety: it never takes the only question left for a skill nobody has asked about.
+    const turn = pickVictim(true);
     if (turn === null) continue;
     claimed.add(turn);
     protectedTurns.add(turn);
@@ -947,6 +998,17 @@ export function buildFactorisationReport(args: {
     return [[skill, `${skillName(skill)} — ${t.reason!.replace(/^Not tested: /, "not tested: ")}`] as const];
   })).values()];
 
+  // Skills the plan meant to ask about and never reached (a slot was reused for a gap check, or the test ended first):
+  // neither secure nor a gap, so the report says so instead of reading as "no gap found". Skills removed because
+  // they depend on a confirmed gap are already in `notTested`; skills without a slot are covered by what is built on them.
+  const skippedSkills = new Set(skipped.map((t) => slotSkill(t.slot)).filter((id): id is string => !!id));
+  // A catch-up asks only about the skills it was sent for, so nothing is "not reached" there.
+  const notReached = args.state.focusSkills?.length ? [] : [...new Set(curriculum.slots.map((s) => s.skillId))].filter((id) => {
+    const e = args.ledger.get(id);
+    return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport));
+  });
+  const notReachedNames = notReached.map((id) => skillName(id).toLowerCase());
+
   const start = confirmed[0];
   // A catch-up is judged only on the skills it was sent for: all of them secure, nothing still suspected, means caught up.
   const focus = args.state.focusSkills;
@@ -970,7 +1032,7 @@ export function buildFactorisationReport(args: {
     : outcome === "ADVANCEMENT"
       ? focus?.length
         ? `Caught up: ${focus.map((id) => skillName(id).toLowerCase()).join(", ")} ${focus.length === 1 ? "is" : "are"} now secure.`
-        : `${curriculum.name} looks secure across the skills tested. Move on to harder questions or the next topic.`
+        : `${curriculum.name} looks secure across the skills tested.${notReached.length ? ` Not asked in this test: ${notReachedNames.join(", ")}.` : ""} Move on to harder questions or the next topic.`
       : suspected.length
         ? "No gap was confirmed. Review the suspected areas below before deciding where to start."
         : "Not enough answers to show where to start yet. Check again with a few fresh questions.";
@@ -979,6 +1041,7 @@ export function buildFactorisationReport(args: {
     "Experimental: questions were written and checked by AI and code, without human review.",
     "A gap is only confirmed when the same skill goes wrong on two different questions, or the student says they don't know it yet on two.",
   ];
+  if (notReached.length) limitations.push(`${notReached.length} skill${notReached.length === 1 ? " was" : "s were"} planned but not asked in this test (${notReachedNames.join(", ")}), so nothing is known about ${notReached.length === 1 ? "it" : "them"} yet.`);
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
   if (rushed) limitations.unshift("Most answers were very fast and wrong, so the gaps below may come from rushing, not from what the child knows. No lesson is suggested from this test.");
@@ -991,6 +1054,9 @@ export function buildFactorisationReport(args: {
       .map((t) => slotSkill(t.slot))
       .filter((id): id is string => !!id && !args.ledger.has(id))
       .map((id) => ({ skillId: id, name: skillName(id), state: "NOT_TESTED_DEPENDENCY" as const, evidence: [] })),
+    ...notReached
+      .filter((id) => !args.ledger.has(id))
+      .map((id) => ({ skillId: id, name: skillName(id), state: "UNTESTED" as const, evidence: ["Planned for this test but not asked."] })),
   ].filter((s, i, all) => all.findIndex((o) => o.skillId === s.skillId) === i);
 
   return {
@@ -1000,6 +1066,8 @@ export function buildFactorisationReport(args: {
     uncertainAreas: [
       ...suspected.map((e) => e.tiredness
         ? `${skillName(e.skillId)}: unclear — the mistakes came only from fast answers late in the test, which may be tiredness. Check again when the child is fresh.`
+        : e.explainedBy
+        ? `${skillName(e.skillId)}: unclear — every question it went wrong on also needed ${skillName(e.explainedBy).toLowerCase()}, which is a confirmed gap. Check it again after that is taught.`
         : e.recheck
         ? `${skillName(e.skillId)}: unclear — confirmed earlier, but answered right on ${(e.rightSinceConfirmed ?? []).map((q) => `Q${q}`).join(", ")} since, and the re-check question wasn't reached. Check again before teaching it.`
         : `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),
@@ -1014,6 +1082,7 @@ export function buildFactorisationReport(args: {
         `${skillName(e.skillId)}: confirmed earlier, but answered right on ${e.rightSinceConfirmed!.map((q) => `Q${q}`).join(", ")} since — check again before teaching it.`),
       ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights).map((e) =>
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
+      ...notReached.map((id) => `${skillName(id)}: not asked in this test, so nothing is known about it yet.`),
     ],
     evidenceSummary: [
       ...(signRoot ? [`One cause behind ${signGaps.length} gaps: signs with negative numbers. Teaching the sign rules first is likely to help all of them.`] : []),
@@ -1027,7 +1096,9 @@ export function buildFactorisationReport(args: {
       ? `Teach ${skillName(start.skillId).toLowerCase()} directly, then re-check it with a fresh question.`
       : suspected[0]
         ? `Give one more question on ${skillName(suspected[0].skillId).toLowerCase()} to see whether the mistake repeats.`
-        : `No teaching gap found in ${curriculum.name.toLowerCase()} from this test.`,
+        : notReached.length
+          ? `No teaching gap found in the skills asked. ${notReachedNames.join(", ")} ${notReached.length === 1 ? "wasn't" : "weren't"} asked, so check ${notReached.length === 1 ? "it" : "them"} before moving on.`
+          : `No teaching gap found in ${curriculum.name.toLowerCase()} from this test.`,
     limitations,
     notTested,
     skills: summaries.sort((a, b) => curriculum.skills.findIndex((s) => s.id === a.skillId) - curriculum.skills.findIndex((s) => s.id === b.skillId)),
@@ -1079,6 +1150,13 @@ export function factorisationStopReason(
   if (!start) return null;
   const prerequisites = findSkill(start.skillId)?.dependsOn ?? [];
   if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE")) return null;
+  // Not only the start: every confirmed gap's prerequisites must be settled (secure, or a gap already found).
+  // A gap with an untested or shaky prerequisite on another branch may be that prerequisite's doing, so the plan
+  // keeps probing it. A skill nothing can test doesn't hold the test open.
+  const testable = (id: string) => !!checkSpecFor(id) || !!curriculumOfSkill(id)?.slots.some((s) => s.skillId === id);
+  const settled = (id: string) => { const s = ledger.get(id)?.state; return s === "SECURE" || s === "CONFIRMED" || !testable(id); };
+  const unsettled = [...ledger.values()].some((e) => e.state === "CONFIRMED" && (findSkill(e.skillId)?.dependsOn ?? []).some((id) => !settled(id)));
+  if (unsettled) return null;
   return {
     reason: "STARTING_POINT_FOUND",
     skillId: start.skillId,
