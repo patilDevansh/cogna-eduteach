@@ -121,6 +121,7 @@ the test, not to quote an accuracy.
 
 This set has now been used to report results. If a rule changes in response to what it found,
 treat v1 as a tuning set and write a held-out v2 first, from a statement of truth, before running.
+The two fixes below were designed from v1, so **v1 is now a tuning set** (see the update).
 
 ## Run it
 
@@ -129,3 +130,86 @@ cd apps/api
 LOTUS_HELDOUT_REPEATS=20 node --import tsx --test test/golden/lotus-heldout-scorecard.v1.spec.ts   # the published numbers, about a minute
 node --import tsx --test test/golden/lotus-heldout-scorecard.v1.spec.ts                           # 5 plays each, as in the normal suite
 ```
+
+---
+
+# Update: the two fixes, measured on held-out v2 (28 October 2026)
+
+**Simulation performance only**, as above. Held-out set v2 (`lotus-heldout-students-v2.ts`, frozen in
+commit `973b5d6` with its criteria) was written before the fixes and before any v2 run, and nothing
+was designed from it. The "before" figures are one run of 20 plays per student on the code as it was
+before the fixes.
+
+## What changed
+
+1. **A skill the test never asked about is named.** The report now lists every skill the plan meant
+   to ask about and never did, in the starting point, the uncertain areas, the next step, the limits
+   and the skill list ("Not asked in this test: cancelling factors, never terms"). The outcome is
+   unchanged; the report says what it does not cover. Catch-ups are exempt.
+2. **Widening a secure skill no longer uses up the only question left for a skill nobody has
+   asked about.** A real gap check or a going-down question still may, as a last resort, because
+   evidence about a gap outranks coverage of an unasked skill.
+3. **The early stop waits while any confirmed gap has an untested or shaky prerequisite**, not only
+   the first one it finds. (H08 and H19 stopped at 9 questions on the wrong starting point.)
+4. **A gap whose only evidence could be another branch's doing is shown as suspected, with the
+   reason.** When every question a skill went wrong on also needed a skill built on a confirmed gap
+   in an unrelated branch, that gap may be the cause. A skill built on the cause, a skill the cause
+   is built on, and a gap from the student's own "I don't know" are left alone.
+
+Unit tests cover each change and its negative controls (`lotus-factorisation.v1.spec.ts`).
+
+## v2: before and after (360 plays with a gap, 480 in all)
+
+| | Before | After |
+|---|---|---|
+| Root cause found | 52.2% | 52.5% |
+| Found above the root | 20.0% | 19.7% |
+| Missed | 27.8% | 27.8% |
+| **Silent misses** (a gap not found, and the report doesn't name the skill) | **100 plays (27.8%)** | **60 plays (16.7%)** |
+| Plays with a false gap | 20 | 20 |
+| Capable children given a gap | 20 of 120 | 20 of 120 |
+| Reported "unclear" although determinable | 20 | 40 |
+| Median questions, children with a gap | 22 | 25 |
+
+**Criteria declared in advance:** A (no silent miss) **not met** (60 remain). B (found at least as
+often) **met**. C (false gaps not higher) **met**, but no capable child may be given a gap and one
+still is (the same student before and after, see below). D (median questions no more than 2 higher)
+**not met** (+3).
+
+## What the fixes did
+
+- **Fix 1 worked where it was aimed.** The student who cancels one term (V18) and the one who
+  guesses on grouping (V23) were silent misses in 20 of 20 plays; now they are named in the report
+  in every play. V18 is now reported "unclear: one mistake, not confirmed", where before it read as
+  an all-clear. That is the "unclear although determinable" that rose from 20 to 40: honest, but
+  the gap is asked about once, at the last slot, so it cannot be confirmed.
+- **Fix 2 was not exercised by v2**, so it is not verified on held-out data. v2's student model gives
+  no wrong answer a predicted code unless the question lists a mistake behind the skill they lack,
+  so the confusion v1 showed does not arise. On the v1 tuning set it did what it was designed for:
+  false-gap plays 80 → 20 (the 20 are the not-trying student), the two students that stopped at 9
+  questions on a wrong starting point now run to 22 and find the true cause in half the plays, and
+  the gap found at all is unchanged (320 of 340).
+- **Cost.** The stricter stop makes some tests longer: two students with a signed-sum gap went from
+  22 to 25 questions in v2 with no gain in accuracy; on v1 the median for children with a gap went
+  from 18 to 23.5, mostly because the 9-question stops were wrong.
+
+## What v2 found that is still not good
+
+1. **A foundation gap can be missed silently when the wrong answers above it are unexplained
+   (V08 powers, V11 square roots, V14 which identity).** The test only asks about a skill with no
+   slot after it finds a gap above it. When the child's wrong answers don't match anything the
+   system predicted, the pretend AI gives no evidence, no gap is found above, nothing sends the test
+   down, and the report says ADVANCEMENT (or unclear) without naming the foundation. With a real AI
+   review some of these wrong answers would become evidence, so this is partly a limit of the
+   pretend AI, but "several answers were wrong and the cause couldn't be linked to a skill" should
+   itself keep the outcome from being an all-clear and should send the test down.
+2. **A solid child who gets tired near the end is given a gap (V04, tired from question 20).**
+   Every play ends SOLID_GAP on factorising fully and trinomials. The tiredness guard did not catch
+   a tired spell that starts only six questions before the end.
+3. **The cost in questions** (D above) needs a look: a stop that waits for settled prerequisites is
+   right when a prerequisite really is unchecked, but not when the plan has nothing left to ask.
+
+## Status of the sets
+
+v1 is a tuning set (the fixes were designed from it). v2 was held out for these fixes; it has now
+shown three new problems, so a fix designed from it makes v2 a tuning set too. Write v3 first.

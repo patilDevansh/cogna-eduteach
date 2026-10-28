@@ -107,5 +107,23 @@ describe("held-out scorecard v2", () => {
     const t = totals(all);
     console.log(`SCORECARD2|TOTAL ${JSON.stringify(t)}`);
     assert.equal(t.runs, HELDOUT_STUDENTS_V2.length * REPEATS);
+
+    // Criteria B and C against the figures from the code before the fixes (20 plays each: found at the root
+    // 52.2%, gap found at all 72.2%, silent misses 27.8% of plays with a gap, false-gap plays 4.2%).
+    const rate = (n: number, d: number) => (100 * n) / d;
+    assert.ok(rate(t.foundAnyRuns, t.runsWithGap) >= 72, "B: a gap is found (at the root or above) at least as often as before");
+    // 2 points of room: with 5 plays a student whose result varies (V10, V13) moves the figure by about a point.
+    assert.ok(t.foundRoot >= 50, "B: the root cause is found at least as often as before");
+    assert.ok(rate(t.silentMisses, t.runsWithGap) <= 20, "A (partly): silent misses fell from 27.8% to at most 20% of plays with a gap");
+    assert.ok(rate(t.falseGapRuns, t.runs) <= 4.3, "C: false-gap plays are not higher than before");
+    const byId = (id: string) => all[HELDOUT_STUDENTS_V2.findIndex((s) => s.id === id)]!;
+    for (const id of ["V18_CANCELS_ONE_TERM", "V23_GUESSES_ON_GROUPING"]) {
+      assert.ok(byId(id).every((s) => !s.silentMiss), `${id}: a gap on a late skill is no longer a silent miss`);
+    }
   });
+
+  // Not met in the first run of v2 (docs/mvp-10.0/HELDOUT_SCORECARD.md). Kept visible, not weakened.
+  it.todo("A: no silent miss. A foundation gap (V08 powers, V11 square roots, V14 which identity) is never asked about when the wrong answers above it are unexplained, and the report is silent");
+  it.todo("C: no capable child is given a gap. V04, solid but tired from question 20, is reported SOLID_GAP in every play");
+  it.todo("D: median questions for children with a gap no more than 2 above before (22): now 25");
 });

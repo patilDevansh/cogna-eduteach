@@ -147,14 +147,19 @@ describe("held-out scorecard v1", () => {
     assert.equal(a.runs, HELDOUT_STUDENTS.length * REPEATS);
     assert.ok(a.foundAny >= b.foundAny, "found (root or above) with the checks is not lower than without");
     assert.ok(a.falseGapRuns <= b.falseGapRuns, "false-gap runs with the checks are not higher than without");
-    // Guard-rails the first scorecard met (see docs/mvp-10.0/HELDOUT_SCORECARD.md).
+    // Guard-rails (see docs/mvp-10.0/HELDOUT_SCORECARD.md). v1 became a tuning set when the two fixes were
+    // designed from it, so these are regression guards now, not held-out evidence.
     assert.equal(a.capableChildrenWithFalseGap, 0, "a capable child, slips and odd methods included, never gets a confirmed gap");
-    assert.equal(a.unclearWhenDeterminable, 0, "a determinable child is never reported as unclear");
     assert.equal(a.notTryingReportedUnclear, 100, "a child who isn't trying is always reported as unclear");
+    // The one student reported unclear is H18: cancelling terms is asked at the last slot, one mistake cannot be
+    // confirmed, and the report now says so instead of "ADVANCEMENT".
+    assert.ok(a.unclearWhenDeterminable <= REPEATS, "only H18 may be reported unclear");
+    const h18 = withChecks[HELDOUT_STUDENTS.findIndex((s) => s.id === "H18_CANCEL_TERMS")]!;
+    assert.ok(h18.every((s) => s.outcome !== "ADVANCEMENT"), "H18 (cancelling terms) is no longer reported as an all-clear");
     assert.ok(a.medianQuestionsWithGap <= b.medianQuestionsWithGap, "the checks do not make the test longer for children with a gap");
+    assert.equal(a.falseGapRunsExcludingNotTrying, 0, "no false gap for any student who is trying");
   });
 
-  // Pre-declared targets not met in the first scorecard (docs/mvp-10.0/HELDOUT_SCORECARD.md). Kept visible, not weakened.
-  it.todo("no false gap with the checks (target: 0): evidence from a question lands on its headline skill when the cause is under a tagged skill");
-  it.todo("a gap on the last skill is found, or the report says the skill was not tested (H18: cancelling terms is never asked, and the report says no gap found)");
+  // Not met: the not-trying child's per-skill list still shows confirmed gaps, although the outcome (unclear) is right.
+  it.todo("no confirmed skill in the per-skill list for a test the report calls too rushed to act on (H24)");
 });
