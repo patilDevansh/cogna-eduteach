@@ -1,0 +1,77 @@
+/*
+ * Themed Lotus games. Everything here reads the theme's CSS variables
+ * (lotus-themes.css), so a game never needs its own colours. The data-art
+ * attribute only switches decoration; layout and behaviour are identical.
+ */
+.game { margin: 18px 0; padding: 18px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); font-family: var(--font-body); }
+.title { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.05rem; letter-spacing: .02em; }
+.intro { margin: 0 0 14px; color: var(--ink-soft); font-size: .95rem; }
+
+.twoGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; align-items: center; }
+.art { width: 100%; max-height: 190px; border-radius: var(--radius-md); background: var(--field-bg, var(--accent-wash)); }
+.move { transition: all .4s cubic-bezier(.3, 1.4, .5, 1); }
+.controls { display: grid; gap: 12px; }
+.frame { margin: 0; font-family: var(--font-math); font-size: 1.25rem; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.frame b { color: var(--accent); }
+.bracketGroup { display: inline-flex; align-items: flex-end; gap: 6px; white-space: nowrap; }
+.steppers { display: flex; flex-wrap: wrap; gap: 14px; }
+.stepper { display: grid; gap: 4px; }
+.stepLabel { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); font-family: var(--font-label, var(--font-body)); }
+.stepRow { display: inline-flex; align-items: center; gap: 2px; }
+.stepBtn { width: 44px; height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-size: 1.4rem; cursor: pointer; }
+.stepBtn:hover:not(:disabled) { border-color: var(--accent); }
+.stepBtn:disabled { opacity: .4; cursor: default; }
+.stepValue { min-width: 3.2ch; text-align: center; font-family: var(--font-math); font-size: 1.3rem; }
+.readout { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--font-math); font-size: .95rem; color: var(--ink-soft); }
+.readout b { color: var(--ink); }
+
+.guessRow { display: grid; gap: 10px; margin-bottom: 14px; }
+.primary { justify-self: start; min-height: 44px; padding: 0 20px; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: var(--theme-ink-on-accent, #fff); font-family: var(--font-display); font-weight: 700; cursor: pointer; }
+.primary:disabled { opacity: .45; cursor: default; }
+
+.options { position: relative; border-radius: var(--radius-md); }
+.optionList { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; transition: filter .5s, opacity .5s; }
+.options[data-covered] .optionList { filter: blur(6px); opacity: .35; pointer-events: none; }
+.cover { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 10px; text-align: center; border-radius: var(--radius-md); color: var(--ink); font-size: .95rem; background: var(--accent-wash); border: 1px dashed var(--line-strong); }
+.option { min-height: 52px; padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); font-size: 1.1rem; cursor: pointer; }
+.option:hover:not(:disabled) { border-color: var(--accent); }
+.option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); box-shadow: 0 0 0 2px var(--accent); }
+
+.deck { min-height: 150px; display: grid; }
+.card { position: relative; display: grid; gap: 10px; align-content: center; padding: 20px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-raised, var(--surface)); animation: dealIn .35s ease-out; overflow: hidden; }
+.cardNo { font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); font-family: var(--font-label, var(--font-body)); }
+.claim { margin: 0; font-family: var(--font-math); font-size: clamp(1.05rem, 4.2vw, 1.4rem); overflow-wrap: anywhere; }
+.cardArt { position: absolute; right: 12px; top: 12px; width: 34px; height: 34px; opacity: .85; }
+.tally { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--font-math); font-size: .9rem; color: var(--ink-soft); }
+.verdicts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+.verdict { flex: 1 1 110px; min-height: 48px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-display); font-weight: 700; cursor: pointer; }
+.verdict:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-wash); }
+.verdict:disabled { opacity: .4; cursor: default; }
+.link { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+.link:disabled { opacity: .4; cursor: default; }
+
+.game button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* ---- theme decoration: art only ---- */
+.game[data-art="drafting"] .card { border-style: dashed; }
+.game[data-art="drafting"] .cardArt { border: 2px solid var(--accent); border-radius: 50%; transform: rotate(-14deg); }
+.game[data-art="drafting"] .cover { background: repeating-linear-gradient(135deg, rgba(244,248,255,.14) 0 6px, transparent 6px 12px); }
+.game[data-art="cabinet"] .card { border-color: var(--accent-deep); }
+.game[data-art="cabinet"] .cardArt { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e86a5a, #8b1a14); box-shadow: 0 2px 5px rgba(0,0,0,.5); }
+.game[data-art="cabinet"] .cover { background: rgba(243, 230, 204, .28); backdrop-filter: blur(4px); border-style: solid; }
+.game[data-art="soundlab"] .card { border-left: 4px solid var(--accent); }
+.game[data-art="soundlab"] .cardArt { background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 7px); border-radius: 3px; opacity: .7; }
+.game[data-art="soundlab"] .cover { background: repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 4px, transparent 4px 9px); }
+.game[data-art="studio"] .cardArt { display: none; }
+
+/* Movement only: a card must stay visible even where animations never start. */
+@keyframes dealIn { from { transform: translateY(10px) scale(.97); } to { transform: none; } }
+
+@media (max-width: 560px) {
+  .twoGrid { grid-template-columns: 1fr; }
+  .game { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .move, .optionList { transition: none; }
+}

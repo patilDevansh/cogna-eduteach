@@ -12,7 +12,7 @@ import {
   Min,
   ValidateIf,
 } from "class-validator";
-import { LOTUS_TOPICS, type LotusOverrideAction, type LotusTopic, type TileBuildResponse } from "@cogna/shared";
+import { LOTUS_TOPICS, type LotusGameResponse, type LotusOverrideAction, type LotusTopic, type TileBuildResponse } from "@cogna/shared";
 
 export class StartLotusSessionDto {
   @IsString()
@@ -72,6 +72,11 @@ export class SubmitLotusAnswerDto {
   @IsOptional()
   @IsObject()
   interaction?: TileBuildResponse;
+
+  /** The play of a themed game. Shape-checked against the issued game in the service; the answer is rebuilt from it. */
+  @IsOptional()
+  @IsObject()
+  game?: LotusGameResponse;
 }
 
 export class LotusReasonDto {

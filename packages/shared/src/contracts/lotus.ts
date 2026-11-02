@@ -1,3 +1,4 @@
+import type { LotusGameConfig, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
  *
@@ -108,6 +109,12 @@ export interface LotusQuestion {
    */
   interaction?: TileBuildInteraction;
   /**
+   * When set, the student answers by playing a themed game (see lotus-games.ts)
+   * instead of typing. Built on the server from the checked question; carries
+   * no answer. The answer is rebuilt on the server from the game payload.
+   */
+  game?: LotusGameConfig;
+  /**
    * How the question is staged as a game. A skin only: marking follows the
    * item kind. FIREFLY and IMPOSTOR stage a CHOICE item, DETECTIVE a CHOICE
    * over `lines`, FISHING a SELECT item, GARDEN and BRIDGE a tile question.
@@ -169,6 +176,10 @@ export interface LotusStudentResponse {
   nextQuestionId?: string;
   /** Tile picks when the question was shown as a tile game; the server rebuilds `answer` from them. */
   interaction?: TileBuildResponse;
+  /** The play of a themed game; the server rebuilds `answer` from it and records `gameReading`. */
+  game?: LotusGameResponse;
+  /** Server-only: what the server read from `game`. Anything sent by the browser is discarded. */
+  gameReading?: LotusGameReading;
 }
 
 export interface LotusMathVerification {

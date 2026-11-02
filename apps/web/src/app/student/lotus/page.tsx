@@ -19,7 +19,7 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
+import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
@@ -37,6 +37,7 @@ import gameStyles from "@/components/games/lotus-games.module.css";
 import "@/components/lotus-themes/lotus-themes.css";
 import { ThemePicker } from "@/components/lotus-themes/ThemePicker";
 import { ThemeProgress } from "@/components/lotus-themes/ThemeProgress";
+import { ThemedGame } from "@/components/lotus-themes/ThemedGame";
 import { useLotusTheme } from "@/components/lotus-themes/use-lotus-theme";
 
 const CONFIDENCE_CHOICES = [
@@ -655,6 +656,9 @@ function AuditCard({
               {audit.response.interaction && (
                 <p><strong>Answered with:</strong> {INTERACTION_FORMATS[audit.response.interaction.format].title} (tiles; took a tile back out {audit.response.interaction.changes ?? 0}×)</p>
               )}
+              {audit.response.gameReading && (
+                <p><strong>Played:</strong> {LOTUS_GAME_TITLES[audit.response.gameReading.kind]}. {audit.response.gameReading.summary}</p>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
                 <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
@@ -1062,6 +1066,7 @@ function LotusPage() {
   const [didNotKnow, setDidNotKnow] = useState(false);
   /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
   const [tiles, setTiles] = useState<TileGameState | null>(null);
+  const [gamePlay, setGamePlay] = useState<LotusGameResponse | null>(null);
   const [readingAloud, setReadingAloud] = useState(false);
   // Working is optional by default: the final answer is the evidence (see LotusWorkingPrompt).
   const [workingOpen, setWorkingOpen] = useState(false);
@@ -1376,6 +1381,7 @@ function LotusPage() {
     setConfidenceNudge(0);
     setDidNotKnow(false);
     setTiles(null);
+    setGamePlay(null);
     setQuestionStartedAt(Date.now());
   }
 
@@ -1453,9 +1459,11 @@ function LotusPage() {
 
   async function submit() {
     const tileGame = question?.interaction;
-    const typedOrBuilt = tileGame ? tiles?.answer ?? "" : answer.trim();
+    const themedGame = question?.game;
+    // A themed game's answer is rebuilt on the server from the play, so only a placeholder travels as text.
+    const typedOrBuilt = themedGame ? (gamePlay ? "game" : "") : tileGame ? tiles?.answer ?? "" : answer.trim();
     if (!session || (!pendingSubmission && !didNotKnow && !typedOrBuilt)) {
-      setError(tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
+      setError(themedGame ? "Finish the game, or choose “I don’t know”." : tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
       return;
     }
     // Confidence has no honest default: forcing a real tap (rather than a
@@ -1484,6 +1492,7 @@ function LotusPage() {
       questionId: session.currentQuestion?.id,
       nextQuestionId: staged?.id,
       ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
+      ...(themedGame && !didNotKnow && gamePlay ? { game: gamePlay } : {}),
     };
     if (!pendingSubmission) {
       setPendingSubmission(submission);
@@ -1833,7 +1842,10 @@ function LotusPage() {
                     )}
                     {readAloudError && <p className={styles.muted} role="status">{readAloudError}</p>}
 
-                    {question.interaction ? (
+                    {question.game ? (
+                      <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} disabled={inputLocked || didNotKnow}
+                        onChange={(play) => { if (play) setDidNotKnow(false); setGamePlay(play); }} />
+                    ) : question.interaction ? (
                       question.interaction.format === "FACTOR_CROSSWORD" || question.interaction.format === "CUT_BUILD_STUDIO" ? (
                         <DiagnosticPuzzle key={question.id} interaction={question.interaction} disabled={inputLocked || didNotKnow}
                           onChange={(state) => { setTiles(state); setDidNotKnow(false); }} />
@@ -1901,7 +1913,7 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && mathToolbox("answer")}
+                    {question.type !== "MULTIPLE_CHOICE" && !question.interaction && !question.game && mathToolbox("answer")}
 
                     {question.asksForWorking && workingOptional && !workingOpen && (
                       <button type="button" className={styles.addStep} onClick={() => setWorkingOpen(true)} disabled={inputLocked || didNotKnow}>

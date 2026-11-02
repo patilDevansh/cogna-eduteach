@@ -1,5 +1,6 @@
 import type { LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
+import { chooseLotusGame, LotusGameError, readLotusGame } from "./lotus-games";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
 
@@ -57,6 +58,13 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
     }
     return question;
   }
+  // A themed game (the same turns as the tile games) takes the place of the tile game on some items.
+  const game = chooseLotusGame(question, context, env);
+  if (game) {
+    question.game = game;
+    question.asksForWorking = false;
+    return question;
+  }
   const interaction = chooseLotusInteraction(question, context, env);
   if (interaction) {
     question.interaction = interaction;
@@ -77,8 +85,30 @@ export class TileAnswerError extends Error {}
  * may switch to typing).
  */
 export function resolveLotusResponse(question: LotusQuestion, response: LotusStudentResponse): LotusStudentResponse {
+  // A reading is something the server writes; one sent by the browser is never kept.
+  const { gameReading: _reading, ...sent } = response;
+  response = sent;
+  if (response.game && !response.didNotKnow) {
+    // A game's answer is rebuilt, and its process read, from the payload against the game this server issued.
+    let read: ReturnType<typeof readLotusGame>;
+    try {
+      read = readLotusGame(question, response.game);
+    } catch (err) {
+      if (err instanceof LotusGameError) throw new TileAnswerError(err.message);
+      throw err;
+    }
+    const { interaction: _tiles, ...rest } = response;
+    return {
+      ...rest,
+      answer: read.answer,
+      working: response.working ?? "",
+      didNotKnow: read.didNotKnow ?? response.didNotKnow,
+      game: read.game,
+      gameReading: read.reading,
+    };
+  }
   if (!response.interaction || response.didNotKnow) {
-    const { interaction: _unused, ...typed } = response;
+    const { interaction: _unused, game: _game, ...typed } = response;
     return typed;
   }
   if (!question.interaction) throw new TileAnswerError("This question isn't a tile question.");

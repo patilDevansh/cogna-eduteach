@@ -594,6 +594,8 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
     ...audit,
     // What each answer said about each skill is the diagnosis itself — released with the report, not before.
     skillEvidence: undefined,
+    // What the server read from a themed game's play is part of the same diagnosis.
+    response: audit.response ? { ...audit.response, gameReading: undefined } : audit.response,
     gpt: audit.gpt ? redactAssessment(audit.gpt) : undefined,
     challenger: audit.challenger ? redactAssessment(audit.challenger) : undefined,
     debate: audit.debate ? redactDebate(audit.debate) : undefined,
@@ -2321,8 +2323,9 @@ Create one materially different question that adds new diagnostic evidence. Test
       // The bank retains the original answer-entry scene. Recompute it for
       // this session's turn so an old bridge/workshop cannot override the
       // current variety policy or turn a typed coverage slot into tiles.
-      if (candidate.interaction) {
+      if (candidate.interaction || candidate.game) {
         delete candidate.interaction;
+        delete candidate.game;
         delete candidate.presentation;
         candidate.asksForWorking = true;
       }

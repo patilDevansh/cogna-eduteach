@@ -31,6 +31,7 @@ export * from "./contracts/personalized-videos";
 export * from "./contracts/authored-lessons";
 // Game-like answer formats (diagnostic, exit, practice)
 export * from "./contracts/interaction-formats";
+export * from "./contracts/lotus-games";
 // Targeted micro-lessons (code-built, narrated)
 export * from "./contracts/micro-lessons";
 // Voice / safe text
