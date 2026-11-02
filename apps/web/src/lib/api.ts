@@ -1,5 +1,7 @@
 import { lotusModelMode, setFakeModel } from "./dev-mode";
 import type {
+  LotusTheme,
+  LotusThemeSettings,
   PracticeAnswer,
   PracticeCheckResult,
   PracticeSetView,
@@ -489,6 +491,8 @@ export interface ProductionClassroom {
   subjectId: string;
   joinCode: string;
   isDemo: boolean;
+  /** Set when the teacher locked the class to one Lotus theme; null lets students choose. */
+  lockedTheme?: LotusTheme | null;
   _count?: { enrollments: number };
   /** Newest first (up to 12), so runs[0] is the latest check. */
   runs?: Array<{ id: string; title: string; phase: string; status: string; createdAt: string; startedAt?: string | null; completedAt?: string | null }>;
@@ -669,6 +673,16 @@ export const api = {
   },
 
   listClassrooms: () => classroomFetch<ProductionClassroom[]>("/classrooms", { headers: teacherAuthHeaders() }),
+
+  /** The look the signed-in student takes Lotus in: a teacher's lock, else their own choice, else the neutral one. */
+  getLotusTheme: () => classroomFetch<LotusThemeSettings>("/classrooms/student/theme"),
+
+  chooseLotusTheme: (theme: LotusTheme) =>
+    classroomFetch<LotusThemeSettings>("/classrooms/student/theme", { method: "PUT", body: JSON.stringify({ theme }) }),
+
+  /** A teacher locks a class to one theme (Studio is the neutral one), or passes null to let students choose. */
+  lockClassTheme: (classroomId: string, lockedTheme: LotusTheme | null) =>
+    classroomFetch<{ classroomId: string; lockedTheme: LotusTheme | null }>(`/classrooms/${encodeURIComponent(classroomId)}/theme`, { method: "PUT", headers: teacherAuthHeaders(), body: JSON.stringify({ lockedTheme }) }),
 
   createClassroom: (input: { name: string; grade: number; subjectId: string; joinCode?: string; isDemo?: boolean }) =>
     classroomFetch<ProductionClassroom>("/classrooms", { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),

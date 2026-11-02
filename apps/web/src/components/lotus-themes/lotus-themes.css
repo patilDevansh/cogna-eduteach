@@ -1,0 +1,107 @@
+/*
+ * Lotus themes. A theme is only a look: colours, type, shapes and the progress
+ * art. It never changes what is asked or how an answer is read.
+ *
+ * Set data-lotus-theme on the page root. Studio is the neutral default and
+ * deliberately adds almost nothing on top of the app's own look.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=Cinzel:wght@600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Schibsted+Grotesk:wght@400;500;700;800&family=Geist+Mono:wght@400;500;600&family=Manrope:wght@500;600;700;800&family=VT323&display=swap");
+
+/* ---------- Studio: neutral, big quiet type, one cobalt accent ---------- */
+[data-lotus-theme="studio"] {
+  --bg: #f6f6f3; --surface: #ffffff; --ink: #111214; --ink-soft: #4c4e55; --ink-faint: #7b7d84;
+  --line: #e6e6e1; --line-strong: #c9cac4;
+  --accent: #2747ff; --accent-deep: #1b34c9; --accent-wash: #eef1ff; --accent-ink: #ffffff; --focus: #2747ff;
+  --success: #0f9d6b; --success-wash: #e3f6ee; --caution: #d98a00; --caution-wash: #fdf1db;
+  --font-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif; --font-body: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-math: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+  --radius: 14px; --radius-sm: 10px; --radius-md: 14px; --radius-lg: 24px;
+  --theme-art: #f6f6f3; --theme-card-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 30px rgba(0, 0, 0, .05);
+  --theme-ink-on-accent: #fff;
+  color-scheme: light;
+}
+
+/* ---------- Drafting Room: blueprint paper, a faint grid ---------- */
+[data-lotus-theme="drafting"] {
+  --field-bg: rgba(4, 22, 44, .55); --surface-raised: rgba(244, 248, 255, .1); --float-bg: rgba(8, 34, 66, .96);
+  --card-top-bg: linear-gradient(135deg, rgba(244, 248, 255, .07), rgba(255, 209, 102, .09)); --error-bg: rgba(255, 138, 118, .14); --error-ink: #ffb3a6; --error-line: rgba(255, 138, 118, .4);
+  --bg: #0c315c; --surface: rgba(8, 34, 66, .58); --ink: #f4f8ff; --ink-soft: rgba(244, 248, 255, .82); --ink-faint: rgba(244, 248, 255, .6);
+  --line: rgba(244, 248, 255, .16); --line-strong: rgba(244, 248, 255, .4); --grid: rgba(244, 248, 255, .06);
+  --accent: #ffd166; --accent-deep: #f0bb3e; --accent-wash: rgba(255, 209, 102, .12); --accent-ink: #1b2a44; --focus: #ffd166;
+  --success: #7cf2c9; --success-wash: rgba(124, 242, 201, .12); --caution: #ff8a76; --caution-wash: rgba(255, 138, 118, .12);
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; --font-body: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --font-math: "IBM Plex Mono", ui-monospace, monospace; --font-hand: "Architects Daughter", "Comic Sans MS", cursive;
+  --radius: 3px; --radius-sm: 3px; --radius-md: 4px; --radius-lg: 6px;
+  --theme-art: radial-gradient(ellipse 90% 60% at 50% 0%, #11406f, transparent 75%), #0c315c;
+  --theme-card-shadow: 0 10px 30px rgba(0, 0, 0, .25); --theme-ink-on-accent: #1b2a44;
+  color-scheme: dark;
+}
+main[data-lotus-theme="drafting"]::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(244,248,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(244,248,255,.045) 1px, transparent 1px), linear-gradient(rgba(244,248,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(244,248,255,.08) 1px, transparent 1px);
+  background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 35%, #000 35%, transparent 100%); mask-image: radial-gradient(ellipse 75% 70% at 50% 35%, #000 35%, transparent 100%);
+}
+
+/* ---------- The Cabinet: walnut, brass, engraved capitals ---------- */
+[data-lotus-theme="cabinet"] {
+  --field-bg: rgba(0, 0, 0, .28); --surface-raised: rgba(255, 236, 200, .08); --float-bg: rgba(22, 14, 8, .96);
+  --card-top-bg: linear-gradient(135deg, rgba(201, 162, 74, .14), rgba(201, 162, 74, .05)); --error-bg: rgba(232, 138, 108, .14); --error-ink: #f2b3a0; --error-line: rgba(232, 138, 108, .4);
+  --bg: #2a1a0e; --surface: rgba(22, 14, 8, .78); --ink: #f3e6cc; --ink-soft: rgba(243, 230, 204, .82); --ink-faint: rgba(243, 230, 204, .58);
+  --line: rgba(201, 162, 74, .26); --line-strong: rgba(214, 178, 96, .6); --grid: transparent;
+  --accent: #e2b65a; --accent-deep: #c9a24a; --accent-wash: rgba(201, 162, 74, .12); --accent-ink: #2a1906; --focus: #e2b65a;
+  --success: #78d4ae; --success-wash: rgba(120, 212, 174, .12); --caution: #e88a6c; --caution-wash: rgba(232, 138, 108, .12);
+  --font-display: "Cinzel", Georgia, serif; --font-body: "Spectral", Georgia, serif; --font-math: "IBM Plex Mono", ui-monospace, monospace;
+  --radius: 4px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 6px;
+  --theme-art: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(255, 196, 120, .16), transparent 70%), repeating-linear-gradient(92deg, #2d1c10 0 9px, #2a1a0e 9px 14px, #2f1e11 14px 24px), #2a1a0e;
+  --theme-card-shadow: 0 24px 60px rgba(0, 0, 0, .45); --theme-ink-on-accent: #2a1906;
+  color-scheme: dark;
+}
+
+/* ---------- Sound Lab: matte charcoal, one signal orange ---------- */
+[data-lotus-theme="soundlab"] {
+  --field-bg: #17181b; --surface-raised: #2a2b30; --float-bg: rgba(34, 35, 39, .96);
+  --card-top-bg: linear-gradient(135deg, #2a2b30, rgba(255, 106, 26, .12)); --error-bg: rgba(255, 79, 107, .14); --error-ink: #ff9aab; --error-line: rgba(255, 79, 107, .4);
+  --bg: #141416; --surface: #222327; --ink: #ecebe6; --ink-soft: #b4b4b0; --ink-faint: #85868b;
+  --line: #34353a; --line-strong: #4a4b51; --grid: transparent;
+  --accent: #ff6a1a; --accent-deep: #e45a0e; --accent-wash: rgba(255, 106, 26, .1); --accent-ink: #1a0a00; --focus: #ff6a1a;
+  --success: #3ee0b4; --success-wash: rgba(62, 224, 180, .12); --caution: #ffd23f; --caution-wash: rgba(255, 210, 63, .12);
+  --font-display: "Manrope", "Helvetica Neue", Arial, sans-serif; --font-body: "Manrope", "Helvetica Neue", Arial, sans-serif;
+  --font-math: "IBM Plex Mono", ui-monospace, monospace; --font-label: "VT323", ui-monospace, monospace;
+  --radius: 10px; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 22px;
+  --theme-art: radial-gradient(ellipse 80% 50% at 50% 0%, #232428, transparent 70%), #141416;
+  --theme-card-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 24px 50px rgba(0, 0, 0, .45); --theme-ink-on-accent: #1a0a00;
+  color-scheme: dark;
+}
+
+/* ---------- shared: what every theme repaints ---------- */
+main[data-lotus-theme] { background: var(--theme-art); color: var(--ink); font-family: var(--font-body); position: relative; }
+main[data-lotus-theme] > * { position: relative; z-index: 1; }
+main[data-lotus-theme] .btn-primary { background: var(--accent); color: var(--theme-ink-on-accent); }
+main[data-lotus-theme] .btn-primary:hover { background: var(--accent-deep); }
+main[data-lotus-theme] .btn-ghost { color: var(--ink); border-color: var(--line-strong); }
+main[data-lotus-theme] .btn-ghost:hover { background: var(--accent-wash); }
+main[data-lotus-theme] input, main[data-lotus-theme] textarea, main[data-lotus-theme] select { color: var(--ink); background: color-mix(in srgb, var(--surface) 70%, transparent); border-color: var(--line-strong); font-family: var(--font-math); }
+main[data-lotus-theme] h1, main[data-lotus-theme] h2, main[data-lotus-theme] h3 { font-family: var(--font-display); color: var(--ink); }
+main[data-lotus-theme="cabinet"] h1, main[data-lotus-theme="cabinet"] h2 { letter-spacing: .08em; }
+main[data-lotus-theme="drafting"] [data-theme-note], main[data-lotus-theme="drafting"] .themeNote { font-family: var(--font-hand); }
+main[data-lotus-theme] a:not(.btn) { color: var(--accent); }
+main[data-lotus-theme="drafting"] .btn { border-radius: 2px; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; }
+main[data-lotus-theme="cabinet"] .btn-primary { background: linear-gradient(180deg, #f4dc92, #c9a24a 55%, #8a6420); border-color: #8a6420; }
+main[data-lotus-theme="soundlab"] .btn { text-transform: uppercase; letter-spacing: .12em; font-size: .8rem; font-weight: 800; }
+main[data-lotus-theme="soundlab"] .btn-primary { box-shadow: 0 3px 0 #8a3500; }
+main[data-lotus-theme="studio"] .btn { border-radius: 999px; }
+
+@media (prefers-reduced-motion: reduce) {
+  main[data-lotus-theme] * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+/* Fields sit inside shells that already carry the field colour. */
+main[data-lotus-theme] [class*="mathAnswerShell"] input { background: transparent; }
+main[data-lotus-theme] ::placeholder { color: var(--ink-faint); opacity: 1; }
+
+/* Game text that sits straight on the page (not inside a game's own scene) must stay readable on the dark looks. */
+main[data-lotus-theme="drafting"] [class*="readAloud"], main[data-lotus-theme="cabinet"] [class*="readAloud"], main[data-lotus-theme="soundlab"] [class*="readAloud"] { background: var(--surface-raised); border-color: var(--line-strong); color: var(--ink); }
+main[data-lotus-theme="drafting"] [class*="tile-game_title"], main[data-lotus-theme="cabinet"] [class*="tile-game_title"], main[data-lotus-theme="soundlab"] [class*="tile-game_title"],
+main[data-lotus-theme="drafting"] [class*="tile-game_hint"], main[data-lotus-theme="cabinet"] [class*="tile-game_hint"], main[data-lotus-theme="soundlab"] [class*="tile-game_hint"] { color: var(--ink-soft); }
+main[data-lotus-theme="drafting"] [class*="tile-game_title"] strong, main[data-lotus-theme="cabinet"] [class*="tile-game_title"] strong, main[data-lotus-theme="soundlab"] [class*="tile-game_title"] strong { color: var(--accent); }

@@ -32,8 +32,12 @@ import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
 import { TileGame, type TileGameState } from "@/components/games/TileGame";
 import { DiagnosticPuzzle } from "@/components/games/DiagnosticPuzzle";
-import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice, LotusBloom, PondMap } from "@/components/games/LotusGames";
+import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice, LotusBloom } from "@/components/games/LotusGames";
 import gameStyles from "@/components/games/lotus-games.module.css";
+import "@/components/lotus-themes/lotus-themes.css";
+import { ThemePicker } from "@/components/lotus-themes/ThemePicker";
+import { ThemeProgress } from "@/components/lotus-themes/ThemeProgress";
+import { useLotusTheme } from "@/components/lotus-themes/use-lotus-theme";
 
 const CONFIDENCE_CHOICES = [
   { value: 25, label: "Not sure" },
@@ -1037,6 +1041,7 @@ function LotusPage() {
   const planned = isPlannedLotusTopic(topic);
   const catchUp = planned && searchParams.get("check") === "catch-up";
   const [studentId, setStudentId] = useState("");
+  const lotusTheme = useLotusTheme(studentId);
   const [studentName, setStudentName] = useState("");
   const [classEnrollment, setClassEnrollment] = useState<MockStudentEnrollment | null>(null);
   const [observer, setObserver] = useState(false);
@@ -1625,7 +1630,7 @@ function LotusPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-lotus-theme={lotusTheme.settings.effective}>
       <div className={styles.shell}>
         <header className={styles.header}>
           <div className={styles.brandRow}>
@@ -1709,6 +1714,7 @@ function LotusPage() {
                     : `Lotus is not ready. Missing: ${status.missingConfiguration.join(", ")}.`}
                 </div>
               )}
+              {!observer && <ThemePicker settings={lotusTheme.settings} ready={lotusTheme.ready} busy={lotusTheme.busy} onChoose={(theme) => void lotusTheme.choose(theme)} />}
               <div className={styles.actions} style={{ marginTop: "1.5rem" }}>
                 <button className="btn btn-primary" type="button" onClick={start} disabled={busy || !studentId || !status?.ready}>
                   {busy ? "Preparing your questions…" : `Start for ${studentName || "student"}`}
@@ -1813,7 +1819,7 @@ function LotusPage() {
                   </div>
                   <div className={styles.cardBody}>
                     {isPlannedLotusTopic(session.topic) && (
-                      <PondMap answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} />
+                      <ThemeProgress theme={lotusTheme.settings.effective} answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} />
                     )}
                     <div className={styles.question}>
                       {promptLines.map((line, index) => (

@@ -25,6 +25,7 @@ export * from "./contracts/practice-recommender";
 export * from "./contracts/diagnostic-v2";
 // Experimental AI-only diagnostic lab (isolated from diagnostic-v2)
 export * from "./contracts/lotus";
+export * from "./contracts/lotus-themes";
 // Personalized video production path
 export * from "./contracts/personalized-videos";
 export * from "./contracts/authored-lessons";

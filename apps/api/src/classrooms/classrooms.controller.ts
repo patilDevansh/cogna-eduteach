@@ -5,6 +5,8 @@ import { resolveActor } from "../access/cogna-access";
 import { ClassTopicsService } from "./class-topics.service";
 import { ClassroomsService, type RosterImportRow } from "./classrooms.service";
 import { ClassroomEventsService, openEventStream } from "./classroom-events";
+import { LotusThemeService } from "./lotus-theme.service";
+import { LOTUS_THEMES, type LotusTheme } from "@cogna/shared";
 
 class CreateClassroomDto {
   @IsString() @Length(2, 100) name!: string;
@@ -16,6 +18,15 @@ class CreateClassroomDto {
 
 class RenameClassroomDto {
   @IsString() @Length(2, 100) name!: string;
+}
+
+class ChooseThemeDto {
+  @IsIn([...LOTUS_THEMES]) theme!: LotusTheme;
+}
+
+class LockThemeDto {
+  /** null lets students choose again. */
+  @IsOptional() @IsIn([...LOTUS_THEMES]) lockedTheme?: LotusTheme | null;
 }
 
 class JoinClassroomDto {
@@ -63,6 +74,7 @@ export class ClassroomsController {
     private readonly classrooms: ClassroomsService,
     private readonly topics: ClassTopicsService,
     private readonly events: ClassroomEventsService,
+    private readonly themes: LotusThemeService,
   ) {}
 
   /** Live updates for the signed-in student's home page. Declared before ":classroomId/events" so it is matched first. */
@@ -93,6 +105,23 @@ export class ClassroomsController {
   @Patch(":classroomId")
   rename(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: RenameClassroomDto): Promise<unknown> {
     return this.classrooms.rename(resolveActor(headers), classroomId, body.name);
+  }
+
+  /** The look the signed-in student takes Lotus in: their choice, or their teacher's class lock. */
+  @Get("student/theme")
+  studentTheme(@Headers() headers: Record<string, string | string[] | undefined>): Promise<unknown> {
+    return this.themes.studentSettings(resolveActor(headers));
+  }
+
+  @Put("student/theme")
+  chooseTheme(@Headers() headers: Record<string, string | string[] | undefined>, @Body() body: ChooseThemeDto): Promise<unknown> {
+    return this.themes.choose(resolveActor(headers), body.theme);
+  }
+
+  /** The teacher locks the class to one theme (Studio is the neutral one), or sends null to let students choose. */
+  @Put(":classroomId/theme")
+  lockTheme(@Headers() headers: Record<string, string | string[] | undefined>, @Param("classroomId") classroomId: string, @Body() body: LockThemeDto): Promise<unknown> {
+    return this.themes.lockClass(resolveActor(headers), classroomId, body.lockedTheme ?? null);
   }
 
   /** The class's topic plan, the topic being taught, where every student stands on it and what to do next. */

@@ -33,7 +33,7 @@
   padding: 0.85rem 1rem;
   border: 1px solid var(--line);
   border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--float-bg, rgba(255, 255, 255, 0.96));
   box-shadow: 0 12px 32px rgba(24, 45, 38, 0.16);
 }
 
@@ -185,7 +185,7 @@
   gap: var(--s-3);
   padding: var(--s-5) var(--s-6);
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(135deg, #fbfdfb, var(--accent-wash));
+  background: var(--card-top-bg, linear-gradient(135deg, #fbfdfb, var(--accent-wash)));
 }
 
 .questionNumber {
@@ -220,7 +220,7 @@
   min-height: 62px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: #fbfcfb;
+  background: var(--field-bg, #fbfcfb);
   padding: 0 var(--s-4);
 }
 
@@ -338,7 +338,7 @@
   resize: vertical;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: #fbfcfb;
+  background: var(--field-bg, #fbfcfb);
   color: var(--ink);
   padding: var(--s-3) var(--s-4);
   font: inherit;
@@ -1181,7 +1181,7 @@
   padding: var(--s-4);
   border-radius: var(--radius);
   border: 1px solid var(--line);
-  background: #fbfcfb;
+  background: var(--field-bg, #fbfcfb);
 }
 
 .reportBlock h3 { font-size: var(--text-md); margin-bottom: var(--s-2); }
@@ -1189,9 +1189,9 @@
 .error {
   padding: var(--s-4);
   border-radius: var(--radius);
-  color: #7b2e23;
-  background: #fae9e5;
-  border: 1px solid #efc9c0;
+  color: var(--error-ink, #7b2e23);
+  background: var(--error-bg, #fae9e5);
+  border: 1px solid var(--error-line, #efc9c0);
 }
 
 .loading {
