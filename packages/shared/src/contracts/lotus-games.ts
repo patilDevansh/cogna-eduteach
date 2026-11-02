@@ -10,7 +10,7 @@
  *
  * The student's theme (see lotus-themes.ts) supplies words and art only.
  */
-export const LOTUS_GAME_KINDS = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "EDIT_HISTORY"] as const;
+export const LOTUS_GAME_KINDS = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "EDIT_HISTORY", "RECTANGLE", "READBACK"] as const;
 export type LotusGameKind = (typeof LOTUS_GAME_KINDS)[number];
 
 export function isLotusGameKind(value: unknown): value is LotusGameKind {
@@ -26,6 +26,8 @@ export const LOTUS_GAME_TITLES: Record<LotusGameKind, string> = {
   TWO_MOVES: "Look inside",
   FOUR_SIGNS: "Four sign cases",
   EDIT_HISTORY: "Edit history",
+  RECTANGLE: "Tiles",
+  READBACK: "Confirm your input",
 };
 
 /** Most numbers a "Two numbers" search can record, and the longest search kept. */
@@ -98,8 +100,24 @@ export interface EditHistoryGame extends LotusGameBase {
   kind: "EDIT_HISTORY";
 }
 
+/**
+ * Make one rectangle from an x² square, `strips` strips and `units` unit tiles
+ * by choosing how many strips go down the side. Both numbers are the
+ * coefficients already written in the expression.
+ */
+export interface RectangleGame extends LotusGameBase {
+  kind: "RECTANGLE";
+  strips: number;
+  units: number;
+}
+
+/** Type the answer and see how it was read before it is marked. Works on any factorising question. */
+export interface ReadbackGame extends LotusGameBase {
+  kind: "READBACK";
+}
+
 /** What the browser gets: the configuration of a game, carrying no answer. */
-export type LotusGameConfig = TwoNumbersGame | CommitThenChooseGame | TrueFalseGame | SplitConfidenceGame | TwoMovesGame | FourSignsGame | EditHistoryGame;
+export type LotusGameConfig = TwoNumbersGame | CommitThenChooseGame | TrueFalseGame | SplitConfidenceGame | TwoMovesGame | FourSignsGame | EditHistoryGame | RectangleGame | ReadbackGame;
 
 export interface TwoNumbersTry {
   p: number;
@@ -167,7 +185,23 @@ export interface EditHistoryResponse {
   history: EditHistorySample[];
 }
 
-export type LotusGameResponse = TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse | SplitConfidenceResponse | TwoMovesResponse | FourSignsResponse | EditHistoryResponse;
+export interface RectangleResponse {
+  kind: "RECTANGLE";
+  /** The number of strips down the side each time the student settled on a split, oldest first. */
+  tries: number[];
+  /** The split locked in. */
+  final: number;
+}
+
+export interface ReadbackResponse {
+  kind: "READBACK";
+  /** Snapshots of the answer box, oldest first. The last one is what the student confirmed. */
+  history: EditHistorySample[];
+  /** The student pressed "use the suggestion" when one was offered. */
+  tookSuggestion?: boolean;
+}
+
+export type LotusGameResponse = TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse | SplitConfidenceResponse | TwoMovesResponse | FourSignsResponse | EditHistoryResponse | RectangleResponse | ReadbackResponse;
 
 /**
  * What a play means for the skill. The mark on the answer never changes; only

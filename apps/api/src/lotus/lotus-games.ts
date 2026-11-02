@@ -13,6 +13,10 @@ import type {
   LotusGameReading,
   LotusGameResponse,
   LotusQuestion,
+  ReadbackGame,
+  ReadbackResponse,
+  RectangleGame,
+  RectangleResponse,
   SplitConfidenceGame,
   SplitConfidenceResponse,
   TrueFalseGame,
@@ -22,7 +26,7 @@ import type {
   TwoNumbersGame,
   TwoNumbersResponse,
 } from "@cogna/shared";
-import { LOTUS_CLAIM_VERDICTS, LOTUS_EDIT_MAX_LENGTH, LOTUS_EDIT_MAX_SAMPLES, LOTUS_GAME_MAX_TRIES, LOTUS_SPLIT_TOKENS } from "@cogna/shared";
+import { readbackTyped, LOTUS_CLAIM_VERDICTS, LOTUS_EDIT_MAX_LENGTH, LOTUS_EDIT_MAX_SAMPLES, LOTUS_GAME_MAX_TRIES, LOTUS_SPLIT_TOKENS } from "@cogna/shared";
 import { gameFormatsEnabled, tidyAlgebra } from "../interaction-formats/tile-builder";
 import { algebraicallyEqual, classifyFactorisation, isReadable, normalizeMathText } from "./lotus-algebra";
 import { findSkill } from "./lotus-factorisation-catalogue";
@@ -55,7 +59,10 @@ export function themedGamesEnabled(env: NodeJS.ProcessEnv = process.env): boolea
 interface Pair { p: number; q: number }
 
 /** The games that take the place of a tile game. "Edit history" is not one: it dresses a typed turn. */
-const TILE_TURN_KINDS: readonly LotusGameKind[] = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS"];
+const TILE_TURN_KINDS: readonly LotusGameKind[] = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "RECTANGLE"];
+/** The games that dress a typed turn: the answer is still typed, and the working is still asked for. */
+const TYPED_TURN_KINDS: readonly LotusGameKind[] = ["EDIT_HISTORY", "READBACK"];
+export const isTypedGame = (kind: LotusGameKind) => TYPED_TURN_KINDS.includes(kind);
 
 const PAIR_TEXT = /^\(x([+-]\d+)\)\*?\(x([+-]\d+)\)$/;
 
@@ -226,6 +233,7 @@ export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): Lo
   if (!isCheckedFactorising(question)) return undefined;
   const base = { version: 1 as const, expression: tidyAlgebra(question.answerKey.diagnostics!.expression!) };
   if (kind === "EDIT_HISTORY") return { ...base, kind } satisfies EditHistoryGame;
+  if (kind === "READBACK") return { ...base, kind } satisfies ReadbackGame;
   const t = targetOf(question);
   if (!t) return undefined;
   try {
@@ -239,6 +247,12 @@ export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): Lo
       return options ? ({ ...base, kind, options } satisfies SplitConfidenceGame) : undefined;
     }
     if (kind === "TWO_MOVES") return { ...base, kind, range: t.range } satisfies TwoMovesGame;
+    if (kind === "RECTANGLE") {
+      // The area model has only positive pieces: x², strips and unit tiles.
+      const { p, q } = t.pair;
+      if (p < 1 || q < 1 || p + q > MAX_STRIPS || p * q > MAX_UNITS) return undefined;
+      return { ...base, kind, strips: p + q, units: p * q } satisfies RectangleGame;
+    }
     if (kind === "FOUR_SIGNS") {
       const { a, b, order } = fourCases(question, t);
       // With equal numbers (x² − 16) two of the cases are the same expression, so there is no pattern to read.
@@ -266,7 +280,7 @@ export function chooseLotusGame(question: LotusQuestion, context: { turn: number
   if (!themedGamesEnabled(env)) return undefined;
   const h = hashOf(question.id);
   if (h % 2 === 0 && (env.COGNA_THEMED_GAMES ?? "").toLowerCase() !== "all") return undefined;
-  if (!(context.turn === 1 || context.repurposed || context.turn % 2 === 0)) return buildLotusGame(question, "EDIT_HISTORY");
+  if (!(context.turn === 1 || context.repurposed || context.turn % 2 === 0)) return buildLotusGame(question, TYPED_TURN_KINDS[(h >>> 3) % TYPED_TURN_KINDS.length]!);
   return twoBracketGame(question, h);
 }
 
@@ -315,6 +329,9 @@ const KIND_NAMES: Record<PairKind, string> = {
   swap: "product and sum mixed up",
   other: "a pair that does not fit",
 };
+
+const MAX_STRIPS = 12;
+const MAX_UNITS = 36;
 
 /** The mistake a two-bracket pair shows, by how it relates to the question. */
 const KIND_MISTAKE: Record<Exclude<PairKind, "right">, string> = {
@@ -577,7 +594,8 @@ function readTwoMoves(question: LotusQuestion, t: Target, game: TwoMovesGame, ra
   else if (numbersRight) { summary = "The right numbers, but one sign changed on the way into the brackets."; signals.push("one_sign_lost"); }
   else { summary = "Move 1 does not fit the product–sum rule. Start there."; signals.push("move_1_off"); }
   const signNote = "A sign went the wrong way between the numbers and the brackets.";
-  const diagnosis: LotusGameDiagnosis = signals.includes("sound") ? { effect: "SECURE" }
+  // The rule is stated on the screen, so even sound work needs one more right answer to count as secure.
+  const diagnosis: LotusGameDiagnosis = signals.includes("sound") ? { effect: "NEEDS_ANOTHER", note: "Did both moves soundly, with the rule stated on the screen." }
     // The answer is right and the mark stands, but each step had a sign the wrong way round: the same slip will show on the next question.
     : signals.includes("two_slips_cancel") ? { effect: "MISTAKE", ...(ownMistake(question, "SIGN_PAIR_ERROR") ? { mistake: "SIGN_PAIR_ERROR" } : {}), note: "Reached the right answer, but the numbers and the brackets each had a sign the wrong way round." }
     : finalKind === "right" ? { effect: "NO_EVIDENCE", note: "Reached the right answer, but the two moves don't fit together." }
@@ -651,18 +669,8 @@ function readFourSigns(question: LotusQuestion, t: Target, game: FourSignsGame, 
 }
 
 function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Read {
-  const samples = raw.history;
-  if (!Array.isArray(samples) || samples.length === 0 || samples.length > LOTUS_EDIT_MAX_SAMPLES) throw new LotusGameError("Type an answer before submitting.");
-  let previous = 0;
-  const history = samples.map((s) => {
-    if (typeof s?.v !== "string" || s.v.length > LOTUS_EDIT_MAX_LENGTH) throw new LotusGameError("That answer is too long.");
-    const t = clampMs(s?.t);
-    if (t === undefined || t < previous) throw new LotusGameError("The typing record is out of order.");
-    previous = t;
-    return { t, v: s.v };
-  });
+  const history = checkedHistory(raw.history);
   const final = history[history.length - 1]!.v;
-  if (!final.trim()) throw new LotusGameError("Type an answer before submitting.");
 
   const d = question.answerKey.diagnostics!;
   const expression = d.expression!;
@@ -711,6 +719,76 @@ function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Rea
   };
 }
 
+function readRectangle(question: LotusQuestion, t: Target, game: RectangleGame, raw: RectangleResponse): Read {
+  const inRange = (n: unknown, what: string): number => {
+    if (!isInt(n) || n < 0 || n > game.strips) throw new LotusGameError(`${what} is out of range.`);
+    return n;
+  };
+  if (!Array.isArray(raw.tries) || raw.tries.length > LOTUS_GAME_MAX_TRIES) throw new LotusGameError("The record of splits is malformed.");
+  const tries = raw.tries.map((n) => inRange(n, "A split"));
+  const final = inRange(raw.final, "The split");
+  const path = tries[tries.length - 1] === final ? tries : [...tries, final];
+  const pair = { p: final, q: game.strips - final };
+  const right = classifyPair(pair, t) === "right";
+  const stepped = path.every((n, k) => !k || Math.abs(n - path[k - 1]!) === 1);
+  const signals = [right ? "final_right" : "final_open"];
+  let summary: string;
+  if (right && path.length === 1) { summary = "Split it right on the first try. Fluent with the sum and the product."; signals.push("first_try"); }
+  else if (right) { summary = `Found the split in ${path.length} tries, ${stepped ? "stepping one strip at a time: a systematic search" : "jumping around: the corner and the unit tiles aren't linked yet"}.`; signals.push(stepped ? "stepped_search" : "jumped_around"); }
+  else { summary = "Settled on a split that leaves gaps or spare tiles. The corner and the unit tiles aren't linked yet."; signals.push("settled_open"); }
+  return {
+    answer: pairAnswer(pair),
+    game: { kind: "RECTANGLE", tries, final },
+    reading: {
+      kind: "RECTANGLE", summary, signals, skillId: question.answerKey.diagnostics!.skillId,
+      certainty: right ? (path.length === 1 ? 0.95 : stepped ? 0.75 : 0.4) : 0.6,
+      // The picture shows how a split fits, so only a first try shows they knew it; the tiles do the rest of the checking.
+      diagnosis: right ? (path.length === 1 ? { effect: "SECURE" } : { effect: "NEEDS_ANOTHER", note: "Found the split by trying several, with the tiles showing how each fitted." })
+        : mistakeOf(question, "other", "Settled on strips and unit tiles that don't make one rectangle."),
+      facts: { tries: path.length, stepped, final },
+    },
+  };
+}
+
+/** The drafts and answer of a typed game, checked: the same record Edit history and Confirm your input send. */
+function checkedHistory(samples: unknown): Array<{ t: number; v: string }> {
+  if (!Array.isArray(samples) || samples.length === 0 || samples.length > LOTUS_EDIT_MAX_SAMPLES) throw new LotusGameError("Type an answer before submitting.");
+  let previous = 0;
+  const history = samples.map((s: { t?: unknown; v?: unknown }) => {
+    if (typeof s?.v !== "string" || s.v.length > LOTUS_EDIT_MAX_LENGTH) throw new LotusGameError("That answer is too long.");
+    const t = clampMs(s?.t);
+    if (t === undefined || t < previous) throw new LotusGameError("The typing record is out of order.");
+    previous = t;
+    return { t, v: s.v };
+  });
+  if (!history[history.length - 1]!.v.trim()) throw new LotusGameError("Type an answer before submitting.");
+  return history;
+}
+
+function readReadback(question: LotusQuestion, raw: ReadbackResponse): Read {
+  const history = checkedHistory(raw.history);
+  const d = question.answerKey.diagnostics!;
+  const confirmed = history[history.length - 1]!.v;
+  const read = readbackTyped(confirmed);
+  if (!read.read) throw new LotusGameError("Type an answer before submitting.");
+  // "Use the suggestion" only counts when the typing really did read as a sum at some point.
+  const tookSuggestion = raw.tookSuggestion === true && history.slice(0, -1).some((s) => readbackTyped(s.v).suggestion !== null) && read.flags.length === 0;
+  const right = (() => { try { return classifyFactorisation(read.read, d.expression!) === "CORRECT"; } catch { return false; } })();
+  const flagged = read.flags.length > 0;
+  const signals = flagged ? ["confirmed_with_flags", ...read.flags.map((f) => `flag:${f.code.toLowerCase()}`)] : [tookSuggestion ? "took_suggestion" : "typed_clean"];
+  const summary = flagged
+    ? `Confirmed after being told: ${read.flags.map((f) => f.text).join(" ")} ${right ? "Marked as read, which is right." : "A typing problem, kept apart from the maths."}`
+    : tookSuggestion ? "Typed it as a sum, then took the suggestion to read it as two brackets multiplied." : "Typed it cleanly; read exactly as typed.";
+  const diagnosis: LotusGameDiagnosis | undefined = flagged
+    ? (right ? { effect: "NEEDS_ANOTHER", note: "Right, but typed in a way that needed reading." } : { effect: "NO_EVIDENCE", note: "Typed in a way that needed reading, so this says nothing about the maths." })
+    : tookSuggestion && right ? { effect: "NEEDS_ANOTHER", note: "Right once the typing was read as two brackets multiplied." } : undefined;
+  return {
+    answer: read.read,
+    game: { kind: "READBACK", history, ...(tookSuggestion ? { tookSuggestion: true } : {}) },
+    reading: { kind: "READBACK", summary, signals, skillId: d.skillId, certainty: flagged ? 0.5 : 0.85, ...(diagnosis ? { diagnosis } : {}), facts: { flags: read.flags.length, tookSuggestion } },
+  };
+}
+
 /**
  * The marked answer and the process evidence for a submitted game, read
  * against the game this server issued. Throws LotusGameError for a payload
@@ -720,9 +798,9 @@ export function readLotusGame(question: LotusQuestion, response: LotusGameRespon
   const game = question.game;
   if (!game) throw new LotusGameError("This question isn't a game.");
   if (!response || typeof response !== "object" || response.kind !== game.kind) throw new LotusGameError("That doesn't match the game on screen.");
-  if (game.kind === "EDIT_HISTORY") {
+  if (game.kind === "EDIT_HISTORY" || game.kind === "READBACK") {
     if (!isCheckedFactorising(question)) throw new LotusGameError("That doesn't match the game on screen.");
-    return readEditHistory(question, response as EditHistoryResponse);
+    return game.kind === "EDIT_HISTORY" ? readEditHistory(question, response as EditHistoryResponse) : readReadback(question, response as ReadbackResponse);
   }
   const t = targetOf(question);
   if (!t) throw new LotusGameError("That doesn't match the game on screen.");
@@ -733,5 +811,6 @@ export function readLotusGame(question: LotusQuestion, response: LotusGameRespon
     case "SPLIT_CONFIDENCE": return readSplit(question, t, game, response as SplitConfidenceResponse);
     case "TWO_MOVES": return readTwoMoves(question, t, game, response as TwoMovesResponse);
     case "FOUR_SIGNS": return readFourSigns(question, t, game, response as FourSignsResponse);
+    case "RECTANGLE": return readRectangle(question, t, game, response as RectangleResponse);
   }
 }

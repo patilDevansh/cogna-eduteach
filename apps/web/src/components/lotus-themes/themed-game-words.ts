@@ -64,6 +64,30 @@ export interface EditWords {
   draft: string;
 }
 
+export interface RectangleWords {
+  title: string;
+  intro: string;
+  /** The control that sets how many strips go down the side. */
+  control: string;
+  /** What the picture is of, for the screen reader. */
+  picture: string;
+  square: string;
+  strip: string;
+  unit: string;
+}
+export interface ReadbackWords {
+  title: string;
+  intro: string;
+  input: string;
+  read: string;
+  flag: string;
+  confirm: string;
+  suggest: string;
+  stamp: string;
+  change: string;
+  nothing: string;
+}
+
 export const GAME_WORDS: {
   TWO_NUMBERS: Record<LotusTheme, TwoNumbersWords>;
   COMMIT_THEN_CHOOSE: Record<LotusTheme, CommitWords>;
@@ -72,6 +96,8 @@ export const GAME_WORDS: {
   TWO_MOVES: Record<LotusTheme, TwoMovesWords>;
   FOUR_SIGNS: Record<LotusTheme, FourSignsWords>;
   EDIT_HISTORY: Record<LotusTheme, EditWords>;
+  RECTANGLE: Record<LotusTheme, RectangleWords>;
+  READBACK: Record<LotusTheme, ReadbackWords>;
 } = {
   TWO_NUMBERS: {
     studio: { title: "Two numbers", intro: "Pick the two numbers that go inside the brackets.", first: "First", second: "Second", product: "multiply", sum: "add" },
@@ -114,6 +140,18 @@ export const GAME_WORDS: {
     drafting: { title: "Revision table", intro: "Letter the factorisation. Every change you make goes in the revision table.", input: "Your drawing note", log: "Revision table", empty: "No revisions yet.", draft: "Rev" },
     cabinet: { title: "Telegraph", intro: "Send your factorisation by telegraph. Every message you delete stays on the tape.", input: "Your message", log: "Telegraph tape", empty: "The tape is clean.", draft: "Message" },
     soundlab: { title: "Take history", intro: "Type the factorisation. Every edit becomes a take.", input: "Your take", log: "Take history", empty: "No takes dropped yet.", draft: "Take" },
+  },
+  RECTANGLE: {
+    studio: { title: "Tiles", intro: "Use every tile to make one rectangle. Choose how many strips go down the side; the rest go along the top.", control: "Strips down the side", picture: "The tiles laid out as a rectangle", square: "x²", strip: "strip", unit: "unit tile" },
+    drafting: { title: "Floor plan", intro: "Lay the wall strips and the unit slabs into one room. Choose how many strips go on the side wall; the rest go along the top.", control: "Strips on the side wall", picture: "The floor plan", square: "x²", strip: "wall strip", unit: "unit slab" },
+    cabinet: { title: "Inlay tray", intro: "Fit the veneers into one tray: the dark square, the mid strips and the brass unit pieces. Choose how many strips go down the side.", control: "Strips down the side of the tray", picture: "The inlay tray", square: "x²", strip: "strip", unit: "brass piece" },
+    soundlab: { title: "Pad grid", intro: "Light up one rectangle of pads from the big pad, the bars and the single pads. Choose how many bars go down the side.", control: "Bars down the side", picture: "The pad grid", square: "x²", strip: "bar", unit: "pad" },
+  },
+  READBACK: {
+    studio: { title: "Confirm your input", intro: "Type the factorisation. Before it is marked you see exactly how it was read.", input: "What you typed", read: "What Lotus read", flag: "CHECK", confirm: "That's what I meant", suggest: "Use the suggestion", stamp: "Confirmed", change: "Change it", nothing: "Nothing typed yet." },
+    drafting: { title: "Issued for construction", intro: "Letter the factorisation. The drafter letters it back to you, with a query for anything unclear.", input: "Your drawing note", read: "Lettered back", flag: "RFI", confirm: "Issue for construction", suggest: "Use the drafter's reading", stamp: "Issued", change: "Revise it", nothing: "Nothing lettered yet." },
+    cabinet: { title: "Engraver's proof", intro: "Write out the factorisation. The engraver reads it back before anything is cut.", input: "Your instruction", read: "The engraver's proof", flag: "QUERY", confirm: "Approve the proof", suggest: "Use the engraver's reading", stamp: "Approved", change: "Amend it", nothing: "Nothing written yet." },
+    soundlab: { title: "Export check", intro: "Type the factorisation. Before export, the engineer reads back what the file will contain.", input: "Your session note", read: "Engineer's readback", flag: "WARN", confirm: "Export as is", suggest: "Use the suggested fix", stamp: "Exported", change: "Edit again", nothing: "Nothing typed yet." },
   },
 };
 

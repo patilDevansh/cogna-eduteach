@@ -85,6 +85,30 @@
 .tapeList { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-family: var(--font-math); font-size: .95rem; color: var(--ink-soft); overflow-wrap: anywhere; }
 .tapeList b { font-weight: 500; color: var(--ink-faint); }
 
+.readBox { display: grid; gap: 6px; padding: 12px 14px; margin-bottom: 12px; border-radius: var(--radius-md); background: var(--field-bg, var(--accent-wash)); }
+.readText { font-family: var(--font-math); font-size: clamp(1.15rem, 4.6vw, 1.5rem); color: var(--ink); overflow-wrap: anywhere; min-height: 1.6em; }
+.readText i { font-style: normal; color: var(--ink-faint); font-size: .95rem; font-family: var(--font-body); }
+.flag { margin: 0; padding: 8px 10px; border-left: 3px solid var(--caution); background: var(--caution-wash); font-size: .92rem; }
+.flag b { font-family: var(--font-math); font-size: .8rem; margin-right: 6px; }
+.readButtons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.secondary { min-height: 44px; padding: 0 16px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: none; color: var(--accent); font-family: var(--font-display); font-weight: 600; cursor: pointer; }
+.secondary:disabled { opacity: .45; cursor: default; }
+.stamp { padding: 6px 12px; border: 2px solid var(--success); border-radius: var(--radius-sm); color: var(--success); font-family: var(--font-display); font-weight: 700; transform: rotate(-4deg); }
+
+.rectWrap { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.rectArt { width: 100%; max-height: 360px; border-radius: var(--radius-md); background: var(--field-bg, var(--accent-wash)); }
+.rectSquare { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 2; }
+.rectStrip { fill: var(--accent); fill-opacity: .55; stroke: var(--accent-deep); stroke-width: 1; }
+.rectUnit { fill: var(--ink-soft); fill-opacity: .8; }
+.rectHole { fill: none; stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.rectLabel { fill: var(--ink); font-family: var(--font-math); font-size: 16px; }
+.rectDim { fill: var(--ink-soft); font-family: var(--font-math); font-size: 12px; }
+.rectControl { display: grid; gap: 10px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.segBtn { min-width: 44px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); font-size: 1.05rem; cursor: pointer; }
+.segBtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--theme-ink-on-accent, #fff); }
+.segBtn:disabled { opacity: .4; cursor: default; }
+
 .game button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* ---- theme decoration: art only ---- */
@@ -99,6 +123,14 @@
 .game[data-art="soundlab"] .cover { background: repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 4px, transparent 4px 9px); }
 .game[data-art="studio"] .cardArt { display: none; }
 .game[data-art="studio"] .caseArt { display: none; }
+.game[data-art="drafting"] .rectSquare, .game[data-art="drafting"] .rectStrip { fill-opacity: .12; stroke-dasharray: 4 3; }
+.game[data-art="drafting"] .rectUnit { fill: var(--accent); fill-opacity: .35; }
+.game[data-art="cabinet"] .rectSquare { fill: #3a2410; stroke: var(--accent-deep); }
+.game[data-art="cabinet"] .rectStrip { fill: #7a5320; fill-opacity: 1; stroke: var(--accent-deep); }
+.game[data-art="cabinet"] .rectUnit { fill: var(--accent); fill-opacity: 1; }
+.game[data-art="soundlab"] .rectSquare { fill: var(--surface-raised, #2a2b30); stroke: var(--line-strong); rx: 10; }
+.game[data-art="soundlab"] .rectStrip { fill: var(--caution); fill-opacity: .8; stroke: none; rx: 4; }
+.game[data-art="soundlab"] .rectUnit { fill: var(--accent); fill-opacity: 1; rx: 4; }
 .game[data-art="drafting"] .token { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
 .game[data-art="drafting"] .plate { border: 1px dashed var(--accent); }
 .game[data-art="cabinet"] .token { width: 12px; height: 16px; border-radius: 3px 3px 6px 6px; background: linear-gradient(var(--accent), var(--accent-deep)); }
@@ -113,6 +145,7 @@
 @media (max-width: 560px) {
   .twoGrid { grid-template-columns: 1fr; }
   .game { padding: 14px; }
+  .rectWrap { grid-template-columns: 1fr; }
   .splitRow { grid-template-columns: minmax(0, 1fr) auto; }
   .splitRow .tokens { grid-row: 2; grid-column: 1 / -1; }
 }

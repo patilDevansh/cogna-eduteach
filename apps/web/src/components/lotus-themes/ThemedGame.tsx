@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import {
+  prettyReadback,
+  readbackTyped,
   LOTUS_EDIT_MAX_LENGTH,
   LOTUS_EDIT_MAX_SAMPLES,
   LOTUS_GAME_MAX_TRIES,
@@ -9,6 +11,8 @@ import {
   type CommitThenChooseGame,
   type EditHistoryGame,
   type EditHistorySample,
+  type ReadbackGame,
+  type RectangleGame,
   type FourSignsGame,
   type LotusBracketSign,
   type LotusClaimVerdict,
@@ -437,52 +441,69 @@ const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
 const typedMath = (text: string) => text.replace(/[\^ˆ]([0-9]+)/g, (_, digits: string) => [...digits].map((d) => SUPERSCRIPTS[Number(d)]).join(""));
 const MATH_KEYS: Array<[string, string]> = [["+", "+"], ["−", "-"], ["(", "("], [")", ")"], ["x²", "²"], ["x³", "³"]];
 
-function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
-  const words = GAME_WORDS.EDIT_HISTORY[theme];
+/**
+ * A typing box that keeps every change, with the maths keys of the ordinary
+ * answer box. The record it keeps is what the server reads.
+ */
+function useTypedRecord(onTyped: (value: string, history: EditHistorySample[]) => void, onDraft?: (draft: string) => void) {
   const [value, setValue] = useState("");
   const history = useRef<EditHistorySample[]>([]);
   // Monotonic: the server refuses a record that runs backwards, and the wall clock can jump.
   const startedAt = useRef(performance.now());
-  const [drafts, setDrafts] = useState<string[]>([]);
   const field = useRef<HTMLInputElement>(null);
-
-  const report = useRef(onChange);
-  report.current = onChange;
+  const callbacks = useRef({ onTyped, onDraft });
+  callbacks.current = { onTyped, onDraft };
 
   const type = (raw: string) => {
-    const next = typedMath(raw);
+    const next = typedMath(raw).slice(0, LOTUS_EDIT_MAX_LENGTH);
     const log = history.current;
     const last = log[log.length - 1];
     // Whatever stood in the box when deleting began is a draft (shown back as the student's own words, with no verdict).
-    if (last && next.length < last.v.length && (log.length < 2 || log[log.length - 2]!.v.length <= last.v.length) && last.v.trim()) setDrafts((cur) => [...cur, last.v]);
+    if (last && next.length < last.v.length && (log.length < 2 || log[log.length - 2]!.v.length <= last.v.length) && last.v.trim()) callbacks.current.onDraft?.(last.v);
     const sample = { t: Math.round(performance.now() - startedAt.current), v: next };
     // Past the cap, the newest text overwrites the last slot: the final answer is never lost.
     if (log.length >= LOTUS_EDIT_MAX_SAMPLES) log[log.length - 1] = sample;
     else log.push(sample);
     setValue(next);
-    report.current(next.trim() ? { kind: "EDIT_HISTORY", history: [...log] } : null);
+    callbacks.current.onTyped(next, [...log]);
   };
   const press = (token: string) => {
     const box = field.current;
     const at = box?.selectionStart ?? value.length;
     const to = box?.selectionEnd ?? value.length;
-    type(`${value.slice(0, at)}${token}${value.slice(to)}`.slice(0, LOTUS_EDIT_MAX_LENGTH));
+    type(`${value.slice(0, at)}${token}${value.slice(to)}`);
     window.requestAnimationFrame(() => { box?.focus(); box?.setSelectionRange(at + token.length, at + token.length); });
   };
+  return { value, field, type, press };
+}
 
+function TypedBox({ label, record, disabled, autoFocus }: { label: string; record: ReturnType<typeof useTypedRecord>; disabled?: boolean; autoFocus?: boolean }) {
+  return (
+    <>
+      <label className={styles.editLabel}>
+        <span className={styles.stepLabel}>{label}</span>
+        <input ref={record.field} className={styles.editInput} value={record.value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} autoFocus={autoFocus}
+          placeholder="Type your answer" onChange={(event) => record.type(event.target.value)} />
+      </label>
+      <div className={styles.mathKeys} role="group" aria-label="Math tools">
+        {MATH_KEYS.map(([keyLabel, token]) => (
+          <button key={keyLabel} type="button" className={styles.mathKey} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => record.press(token)}>{keyLabel}</button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.EDIT_HISTORY[theme];
+  const [drafts, setDrafts] = useState<string[]>([]);
+  const report = useRef(onChange);
+  report.current = onChange;
+  const record = useTypedRecord((value, history) => report.current(value.trim() ? { kind: "EDIT_HISTORY", history } : null), (draft) => setDrafts((cur) => [...cur, draft]));
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <label className={styles.editLabel}>
-        <span className={styles.stepLabel}>{words.input}</span>
-        <input ref={field} className={styles.editInput} value={value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-          placeholder="Type your answer" onChange={(event) => type(event.target.value)} />
-      </label>
-      <div className={styles.mathKeys} role="group" aria-label="Math tools">
-        {MATH_KEYS.map(([label, token]) => (
-          <button key={label} type="button" className={styles.mathKey} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => press(token)}>{label}</button>
-        ))}
-      </div>
+      <TypedBox label={words.input} record={record} disabled={disabled} />
       <div className={styles.tape}>
         <span className={styles.stepLabel}>{words.log}</span>
         {drafts.length === 0 ? <p className={styles.tapeEmpty}>{words.empty}</p> : (
@@ -490,6 +511,112 @@ function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: E
             {drafts.slice(-5).map((draft, i) => <li key={`${draft}-${i}`}><b>{words.draft} {Math.max(0, drafts.length - 5) + i + 1}</b> <s>{prettyAlgebra(draft)}</s></li>)}
           </ol>
         )}
+      </div>
+    </>
+  );
+}
+
+// ---------- Confirm your input ----------
+
+function Readback({ theme, disabled, onChange }: { theme: LotusTheme; game: ReadbackGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.READBACK[theme];
+  const [confirmed, setConfirmed] = useState(false);
+  const [took, setTook] = useState(false);
+  const latest = useRef<EditHistorySample[]>([]);
+  const report = useRef(onChange);
+  report.current = onChange;
+  const record = useTypedRecord((_, history) => { latest.current = history; });
+  const read = readbackTyped(record.value);
+  // Reading changes with every key, so a play is only reported once the student confirms.
+  useEffect(() => {
+    report.current(confirmed && record.value.trim() ? { kind: "READBACK", history: latest.current, ...(took ? { tookSuggestion: true } : {}) } : null);
+  }, [confirmed, took, record.value]);
+
+  const locked = disabled || confirmed;
+  return (
+    <>
+      <p className={styles.intro}>{words.intro}</p>
+      <TypedBox label={words.input} record={record} disabled={locked} />
+      <div className={styles.readBox} aria-live="polite">
+        <span className={styles.stepLabel}>{words.read}</span>
+        <span className={styles.readText}>{record.value.trim() ? prettyReadback(read.read) : <i>{words.nothing}</i>}</span>
+        {record.value.trim() && read.flags.map((flag, i) => (
+          <p key={flag.code} className={styles.flag}><b>{words.flag}-{i + 1}</b> {flag.text}</p>
+        ))}
+      </div>
+      <div className={styles.readButtons}>
+        <button type="button" className={styles.primary} disabled={locked || !record.value.trim()} onClick={() => setConfirmed(true)}>{words.confirm}</button>
+        {read.suggestion && !confirmed && (
+          <button type="button" className={styles.secondary} disabled={disabled} onClick={() => { record.type(read.suggestion!); setTook(true); }}>{words.suggest}</button>
+        )}
+        {confirmed && <><span className={styles.stamp} role="status">{words.stamp}</span><button type="button" className={styles.link} disabled={disabled} onClick={() => setConfirmed(false)}>{words.change}</button></>}
+      </div>
+    </>
+  );
+}
+
+// ---------- Tiles: one rectangle ----------
+
+function Rectangle({ theme, game, disabled, onChange }: { theme: LotusTheme; game: RectangleGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.RECTANGLE[theme];
+  const [side, setSide] = useState<number | null>(null);
+  const [tries, setTries] = useState<number[]>([]);
+  const top = side === null ? 0 : game.strips - side;
+  const down = side ?? 0;
+
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => {
+    report.current(side === null ? null : { kind: "RECTANGLE", tries, final: side });
+  }, [side, tries]);
+
+  const choose = (n: number) => {
+    if (n === side) return;
+    setSide(n);
+    setTries((cur) => (cur.length >= LOTUS_GAME_MAX_TRIES ? cur : [...cur, n]));
+  };
+
+  // The picture: an x² square, `down` strips along the side, `top` strips along the top, and the unit tiles in the corner.
+  // It is the same picture whatever the choice; nothing in it marks a split as the one.
+  const U = Math.max(14, Math.min(30, Math.floor(300 / (game.strips + 4))));
+  const X = U * 4;
+  const cols = top;
+  const rows = down;
+  const cells = Array.from({ length: rows * cols }, (_, k) => ({ r: Math.floor(k / Math.max(cols, 1)), c: k % Math.max(cols, 1) }));
+  const W = X + cols * U;
+  const H = X + rows * U;
+  const pad = 40;
+  const extent = X + game.strips * U;
+  const perRow = Math.max(4, game.strips + 4);
+  const leftover = Math.max(0, game.units - cells.length);
+  const poolRows = Math.ceil(game.units / perRow);
+  const poolY = pad + extent + 14;
+  return (
+    <>
+      <p className={styles.intro}>{words.intro}</p>
+      <div className={styles.rectWrap}>
+        <svg viewBox={`0 0 ${pad + extent + 16} ${poolY + poolRows * (U + 3) + 8}`} className={styles.rectArt} role="img" aria-label={`${words.picture}: ${down} ${down === 1 ? words.strip : `${words.strip}s`} down the side, ${top} along the top`}>
+          <rect x={pad} y={pad} width={X} height={X} className={styles.rectSquare} />
+          <text x={pad + X / 2} y={pad + X / 2 + 6} textAnchor="middle" className={styles.rectLabel}>{words.square}</text>
+          {Array.from({ length: top }, (_, i) => <rect key={`t${i}`} x={pad + X + i * U} y={pad} width={U} height={X} className={styles.rectStrip} />)}
+          {Array.from({ length: down }, (_, i) => <rect key={`s${i}`} x={pad} y={pad + X + i * U} width={X} height={U} className={styles.rectStrip} />)}
+          {cells.slice(0, game.units).map(({ r, c }, k) => <rect key={`u${k}`} x={pad + X + c * U + 2} y={pad + X + r * U + 2} width={U - 4} height={U - 4} className={styles.rectUnit} />)}
+          {cells.slice(game.units).map(({ r, c }, k) => <rect key={`h${k}`} x={pad + X + c * U + 3} y={pad + X + r * U + 3} width={U - 6} height={U - 6} className={styles.rectHole} />)}
+          {Array.from({ length: leftover }, (_, k) => <rect key={`p${k}`} x={pad + (k % perRow) * (U + 3)} y={poolY + Math.floor(k / perRow) * (U + 3)} width={U - 4} height={U - 4} className={styles.rectUnit} />)}
+          {side !== null && <>
+            <text x={pad + W / 2} y={pad - 14} textAnchor="middle" className={styles.rectDim}>x + {top}</text>
+            <text transform={`translate(${pad - 14} ${pad + H / 2}) rotate(-90)`} textAnchor="middle" className={styles.rectDim}>x + {down}</text>
+          </>}
+        </svg>
+        <div className={styles.rectControl} role="group" aria-label={words.control}>
+          <span className={styles.stepLabel}>{words.control}</span>
+          <div className={styles.seg}>
+            {Array.from({ length: game.strips + 1 }, (_, n) => (
+              <button key={n} type="button" className={styles.segBtn} aria-pressed={side === n} disabled={disabled} onClick={() => choose(n)}>{n}</button>
+            ))}
+          </div>
+          <p className={styles.readout}><span>{words.strip}s: <b>{game.strips}</b></span><span>{words.unit}s: <b>{game.units}</b></span></p>
+        </div>
       </div>
     </>
   );
@@ -507,6 +634,8 @@ export function ThemedGame({ theme, game, disabled, onChange }: ThemedGameProps)
       {game.kind === "TWO_MOVES" && <TwoMoves theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "FOUR_SIGNS" && <FourSigns theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "READBACK" && <Readback theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "RECTANGLE" && <Rectangle theme={theme} game={game} disabled={disabled} onChange={onChange} />}
     </section>
   );
 }

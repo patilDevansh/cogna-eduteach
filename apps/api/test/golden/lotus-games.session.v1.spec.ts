@@ -59,13 +59,15 @@ function playRight(game: NonNullable<LotusSessionView["currentQuestion"]>["game"
   if (game!.kind === "SPLIT_CONFIDENCE") return { kind: "SPLIT_CONFIDENCE", counts: game!.options.map((o) => (norm(o) === canonical ? 4 : 0)) };
   if (game!.kind === "TWO_MOVES") return { kind: "TWO_MOVES", numbers: { n1: 4, n2: -1 }, signs: ["+", "-"] };
   if (game!.kind === "FOUR_SIGNS") return { kind: "FOUR_SIGNS", picks: game!.cases.map((c) => ({ "x^2 + 5x + 4": ["+", "+"], "x^2 - 5x + 4": ["-", "-"], "x^2 + 3x - 4": ["-", "+"], "x^2 - 3x - 4": ["+", "-"] } as Record<string, ["+" | "-", "+" | "-"]>)[c]!) };
+  if (game!.kind === "READBACK") return { kind: "READBACK", history: [{ t: 900, v: "x+4(x-1)" }, { t: 2500, v: "(x + 4)(x - 1)" }], tookSuggestion: true };
+  if (game!.kind === "RECTANGLE") throw new Error("tiles are played on a positive trinomial");
   if (game!.kind === "EDIT_HISTORY") return { kind: "EDIT_HISTORY", history: [{ t: 900, v: "(x - 4)(x + 1)" }, { t: 1500, v: "(x" }, { t: 3000, v: "(x + 4)(x - 1)" }] };
   if (game!.kind === "COMMIT_THEN_CHOOSE") return { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: game!.options.findIndex((o) => norm(o) === canonical) };
   return { kind: "TRUE_FALSE", verdicts: game!.claims.map((c) => (norm(c) === canonical || norm(c) === "(x-1)(x+4)" ? "true" : "false")) };
 }
 
 describe("themed games through a whole session", () => {
-  for (const kind of LOTUS_GAME_KINDS) {
+  for (const kind of LOTUS_GAME_KINDS.filter((k) => k !== "RECTANGLE")) {
     it(`${kind}: issued without a key, then marked like a typed answer with the reading kept`, async () => {
       const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
       services.push(service);
@@ -163,6 +165,30 @@ describe("themed games through a whole session", () => {
     assert.equal(inReport(slips), "CONFIRMED", "the report shows the gap though every answer was right");
     assert.notEqual(inReport(sound), "CONFIRMED");
     delete process.env.LOTUS_E2E_FAKE_MODEL;
+  });
+
+  it("Tiles: a positive trinomial played through the whole path", async () => {
+    const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
+    services.push(service);
+    const started = await service.start("demo_aarav", "FACTORISATION");
+    let view = started;
+    for (let i = 0; i < 40 && !(view.currentQuestion && view.preparation?.ready); i += 1) { await flush(); view = await service.get(started.sessionId); }
+    const q = internal(service, started.sessionId).currentQuestion;
+    q.prompt = "Factorise completely: x^2 + 5x + 6"; q.type = "CONSTRUCTED_RESPONSE";
+    delete q.options; delete q.interaction; delete q.presentation;
+    q.answerKey.canonicalAnswer = "(x + 2)(x + 3)";
+    q.answerKey.diagnostics = { ...q.answerKey.diagnostics, itemKind: "FACTORISE", expression: "x^2 + 5x + 6", skillId: "FAC_MONIC_TRINOMIAL", level: "easy",
+      predictedMistakes: [{ answer: "(x + 1)(x + 6)", mistake: "WRONG_FACTOR_PAIR_SUM" }] };
+    q.game = buildLotusGame(q, "RECTANGLE");
+    const shown = await service.get(started.sessionId);
+    assert.deepEqual(shown.currentQuestion!.game, { version: 1, kind: "RECTANGLE", expression: "x^2 + 5x + 6", strips: 5, units: 6 });
+    const next = await service.answer(started.sessionId, "demo_aarav", { answer: "ignored", working: "", confidence: 60, responseTimeMs: 30_000, didNotKnow: false, submissionId: "tiles-1",
+      questionId: shown.currentQuestion!.id, nextQuestionId: shown.upcomingQuestions?.[0]?.id, game: { kind: "RECTANGLE", tries: [1, 2], final: 2 } });
+    await flush();
+    const audit = internal(service, next.sessionId).audits[0];
+    assert.equal(audit.verification.status, "VERIFIED_CORRECT");
+    assert.equal(audit.response.gameReading.diagnosis.effect, "NEEDS_ANOTHER");
+    assert.ok(["(x + 2)(x + 3)", "(x + 3)(x + 2)"].includes(audit.response.answer));
   });
 
   it("a wrong play is marked wrong, and a tampered or misplaced payload is refused with the question left open", async () => {

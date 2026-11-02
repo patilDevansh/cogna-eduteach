@@ -1,6 +1,6 @@
 import type { LotusGameConfig, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
-import { chooseLotusGame, chooseLotusGameOverPuzzle, LotusGameError, readLotusGame } from "./lotus-games";
+import { chooseLotusGame, chooseLotusGameOverPuzzle, isTypedGame, LotusGameError, readLotusGame } from "./lotus-games";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
 
@@ -38,8 +38,8 @@ export function chooseLotusInteraction(
 
 function withGame(question: LotusQuestion, game: LotusGameConfig): LotusQuestion {
   question.game = game;
-  // Edit history is typed like any other answer, so its working stays.
-  if (game.kind !== "EDIT_HISTORY") question.asksForWorking = false;
+  // A typed game is typed like any other answer, so its working stays.
+  if (!isTypedGame(game.kind)) question.asksForWorking = false;
   // Sharing the tokens already says how sure the student is; don't ask again.
   if (game.kind === "SPLIT_CONFIDENCE") question.requiresConfidenceProbe = false;
   return question;
