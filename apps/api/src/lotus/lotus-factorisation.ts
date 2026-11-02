@@ -112,6 +112,43 @@ export interface InstantVerdict {
 }
 
 export function instantVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
+  return withGameDiagnosis(question, response, markedVerdict(question, response));
+}
+
+/**
+ * A themed game's reading decides how far a marked answer counts towards the
+ * skill. It never changes the mark, except that an answer which only a game can
+ * give ("None of these") is plainly wrong rather than unreadable. Code settles
+ * all of this, so a game never needs an AI review.
+ */
+function withGameDiagnosis(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
+  const diagnosis = response.gameReading?.diagnosis;
+  if (!diagnosis || response.didNotKnow) return verdict;
+  const d = question.answerKey.diagnostics!;
+  const description = diagnosis.note;
+  switch (diagnosis.effect) {
+    case "SECURE":
+    case "NEEDS_ANOTHER":
+      return verdict;
+    case "NO_EVIDENCE":
+      return { ...verdict, evidence: [], needsAnalysis: false };
+    case "DOESNT_KNOW":
+      return {
+        ...verdict,
+        verification: verdict.verification.status === "NOT_DETERMINISTIC" ? { ...verdict.verification, status: "VERIFIED_INCORRECT", explanation: "Didn't choose the factorisation." } : verdict.verification,
+        evidence: [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "INSTANT", ...(description ? { description } : {}) }],
+        needsAnalysis: false,
+      };
+    case "MISTAKE": {
+      // The question's own predicted mistake is more exact than one worked out from the play.
+      if (verdict.evidence.some((e) => e.kind === "MISTAKE" && e.mistake)) return { ...verdict, needsAnalysis: false };
+      const skillId = diagnosis.mistake ? ownerOfMistake(diagnosis.mistake, d) : d.skillId;
+      return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }], needsAnalysis: false };
+    }
+  }
+}
+
+function markedVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
   const d = question.answerKey.diagnostics!;
   const key = question.answerKey.canonicalAnswer;
   const verification = (status: LotusMathVerification["status"], explanation: string): LotusMathVerification => ({
@@ -373,6 +410,9 @@ const RUSHED_MS = 5_000;
  * is right about 1 time in 15). One right pick isn't enough for "secure".
  */
 function isTap(audit: LotusQuestionAudit): boolean {
+  // A themed game says itself how far a right answer counts.
+  const effect = audit.response?.gameReading?.diagnosis?.effect;
+  if (effect) return effect === "NEEDS_ANOTHER";
   const kind = audit.question?.answerKey?.diagnostics?.itemKind;
   return kind === "CHOICE" || kind === "SELECT" || audit.question?.interaction?.format === "BRACKET_BRIDGE" || ["COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "FOUR_SIGNS"].includes(audit.question?.game?.kind ?? "");
 }
@@ -381,6 +421,9 @@ function couldShow(audit: LotusQuestionAudit, mistake: string | undefined): bool
   // The dedicated check written for this suspicion settles it either way:
   // one mistake earns one fresh check, never a chain of them.
   if ((audit.questionSelection as { adaptationTag?: { kind?: string } } | undefined)?.adaptationTag?.kind === "TARGETED_CHECK") return true;
+  // These plays show the student's signs directly, whatever the question's own list of mistakes says.
+  const signals = audit.response?.gameReading?.signals ?? [];
+  if ((mistake === "SIGN_PAIR_ERROR" || mistake === "SIGNS_SWAPPED") && (signals.includes("sound") || signals.includes("rule_real"))) return true;
   return itemCouldShow(audit.question, mistake);
 }
 

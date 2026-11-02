@@ -6,7 +6,8 @@
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { LOTUS_GAME_KINDS, type LotusGameKind, type LotusGameResponse, type LotusSessionView } from "@cogna/shared";
-import { buildLotusGame } from "../../src/lotus/lotus-games";
+import { buildLotusGame, parseMonicPair } from "../../src/lotus/lotus-games";
+import { foldLedger } from "../../src/lotus/lotus-factorisation";
 import { LotusService } from "../../src/lotus/lotus.service";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
 import { FakeLotusModelService } from "../../src/lotus/lotus-fake-model.service";
@@ -94,6 +95,75 @@ describe("themed games through a whole session", () => {
       assert.equal(again.audits.length, next.audits.length);
     });
   }
+
+  it("two slips that cancel: marked right, but a later question checks the skill", async () => {
+    const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
+    services.push(service);
+    const view = await sessionWithGame(service, "demo_aarav", "TWO_MOVES");
+    const next = await service.answer(view.sessionId, "demo_aarav", {
+      answer: "ignored", working: "", confidence: 60, responseTimeMs: 30_000, didNotKnow: false, submissionId: "cancels", questionId: view.currentQuestion!.id,
+      nextQuestionId: view.upcomingQuestions?.[0]?.id, game: { kind: "TWO_MOVES", numbers: { n1: -4, n2: 1 }, signs: ["+", "-"] },
+    });
+    await flush();
+    const state = internal(service, next.sessionId);
+    const audit = state.audits[0];
+    assert.equal(audit.verification.status, "VERIFIED_CORRECT");
+    assert.deepEqual(audit.skillEvidence.map((e: { kind: string; mistake?: string }) => [e.kind, e.mistake]), [["MISTAKE", "SIGN_PAIR_ERROR"]]);
+    assert.equal(audit.analysisStatus, "NOT_REQUIRED", "code settled it; no AI review");
+    assert.equal(audit.reasonCheck, undefined);
+    assert.equal(foldLedger(state.audits).get("FAC_MONIC_TRINOMIAL")?.state, "SUSPECTED");
+    // Either a turn repurposed to check it, or a planned question on the skill that the plan now keeps for that.
+    const f = state.factorisation;
+    const check = f.state.turns.find((t: { turn: number; forSkill?: string; status: string }) => t.turn > f.state.planTurn && t.status !== "SKIPPED"
+      && (t.forSkill === "FAC_MONIC_TRINOMIAL" || f.versions[String(t.turn)]?.some((v: { answerKey: { diagnostics?: { skillId?: string } } }) => v.answerKey.diagnostics?.skillId === "FAC_MONIC_TRINOMIAL")));
+    assert.ok(check, "a later turn checks the skill");
+  });
+
+  it("the same answers, played soundly or with slips that cancel, end in different diagnoses", async () => {
+    process.env.LOTUS_E2E_FAKE_MODEL = "true";
+    const runWhole = async (studentId: string, slips: boolean) => {
+      const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
+      services.push(service);
+      const started = await service.start(studentId, "FACTORISATION");
+      let view = started;
+      for (let i = 0; i < 40 && !(view.currentQuestion && view.preparation?.ready); i += 1) { await flush(); view = await service.get(started.sessionId); }
+      let plays = 0;
+      for (let turn = 0; turn < 30 && view.status === "ACTIVE"; turn += 1) {
+        await flush();
+        view = await service.get(started.sessionId);
+        if (view.status !== "ACTIVE" || !view.currentQuestion) continue;
+        const q = internal(service, started.sessionId).currentQuestion;
+        const pair = q.answerKey.diagnostics?.skillId === "FAC_MONIC_TRINOMIAL" && q.answerKey.diagnostics.itemKind === "FACTORISE" ? parseMonicPair(q.answerKey.canonicalAnswer) : null;
+        const base = { working: "", confidence: 60, responseTimeMs: 40_000, didNotKnow: false, submissionId: `whole-${studentId}-${turn}`, questionId: view.currentQuestion.id, nextQuestionId: view.upcomingQuestions?.[0]?.id };
+        if (pair) {
+          // Play every trinomial as two moves: the numbers either way round in sign, the brackets always right.
+          delete q.interaction; delete q.presentation;
+          q.game = buildLotusGame(q, "TWO_MOVES");
+          plays += 1;
+          const sign = (n: number) => (n < 0 ? "-" : "+") as "+" | "-";
+          const numbers = slips ? { n1: -pair.p, n2: -pair.q } : { n1: pair.p, n2: pair.q };
+          view = await service.answer(started.sessionId, studentId, { ...base, answer: "ignored", game: { kind: "TWO_MOVES", numbers, signs: [sign(pair.p), sign(pair.q)] } });
+        } else {
+          const fill = await service.demoFill(started.sessionId, studentId);
+          view = await service.answer(started.sessionId, studentId, { ...base, answer: fill.answer, working: fill.working });
+        }
+      }
+      await flush();
+      const final = internal(service, started.sessionId);
+      return { plays, status: final.status, marks: final.audits.filter((a: { response?: { game?: { kind: string } } }) => a.response?.game?.kind === "TWO_MOVES").map((a: { verification: { status: string } }) => a.verification.status), skill: foldLedger(final.audits).get("FAC_MONIC_TRINOMIAL"), report: final.finalReport };
+    };
+    const sound = await runWhole("demo_e2esound", false);
+    const slips = await runWhole("demo_e2eslips", true);
+    assert.ok(sound.plays >= 2 && slips.plays >= 2, `the plan reaches trinomials more than once (${sound.plays}, ${slips.plays})`);
+    for (const run of [sound, slips]) assert.ok(run.marks.every((m: string) => m === "VERIFIED_CORRECT"), "the marks are the same: every answer is right");
+    assert.equal(sound.skill?.state, "SECURE");
+    assert.equal(slips.skill?.state, "CONFIRMED");
+    assert.ok(slips.skill?.mistakes.includes("SIGN_PAIR_ERROR"));
+    const inReport = (run: typeof sound) => run.report?.skills?.find((s: { skillId: string }) => s.skillId === "FAC_MONIC_TRINOMIAL")?.state;
+    assert.equal(inReport(slips), "CONFIRMED", "the report shows the gap though every answer was right");
+    assert.notEqual(inReport(sound), "CONFIRMED");
+    delete process.env.LOTUS_E2E_FAKE_MODEL;
+  });
 
   it("a wrong play is marked wrong, and a tampered or misplaced payload is refused with the question left open", async () => {
     const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);

@@ -8,6 +8,7 @@ import type {
   LotusBracketSign,
   LotusClaimVerdict,
   LotusGameConfig,
+  LotusGameDiagnosis,
   LotusGameKind,
   LotusGameReading,
   LotusGameResponse,
@@ -24,6 +25,7 @@ import type {
 import { LOTUS_CLAIM_VERDICTS, LOTUS_EDIT_MAX_LENGTH, LOTUS_EDIT_MAX_SAMPLES, LOTUS_GAME_MAX_TRIES, LOTUS_SPLIT_TOKENS } from "@cogna/shared";
 import { gameFormatsEnabled, tidyAlgebra } from "../interaction-formats/tile-builder";
 import { algebraicallyEqual, classifyFactorisation, isReadable, normalizeMathText } from "./lotus-algebra";
+import { findSkill } from "./lotus-factorisation-catalogue";
 
 /**
  * Themed Lotus games, built and read by code.
@@ -314,6 +316,23 @@ const KIND_NAMES: Record<PairKind, string> = {
   other: "a pair that does not fit",
 };
 
+/** The mistake a two-bracket pair shows, by how it relates to the question. */
+const KIND_MISTAKE: Record<Exclude<PairKind, "right">, string> = {
+  flip: "SIGNS_SWAPPED",
+  prod: "WRONG_FACTOR_PAIR_SUM",
+  swap: "PRODUCT_SUM_SWAPPED",
+  other: "WRONG_FACTOR_PAIR_PRODUCT",
+};
+
+/** A mistake code only counts on a skill that has it: x² − 16 has no "signs swapped". */
+function ownMistake(question: LotusQuestion, code: string): string | undefined {
+  return findSkill(question.answerKey.diagnostics!.skillId)?.mistakes.includes(code) ? code : undefined;
+}
+
+function mistakeOf(question: LotusQuestion, kind: PairKind, note: string): LotusGameDiagnosis {
+  return { effect: "MISTAKE", ...(kind !== "right" && ownMistake(question, KIND_MISTAKE[kind]) ? { mistake: KIND_MISTAKE[kind] } : {}), note };
+}
+
 interface Read {
   answer: string;
   didNotKnow?: boolean;
@@ -350,6 +369,10 @@ function readTwoNumbers(question: LotusQuestion, t: Target, game: TwoNumbersGame
     reading: {
       kind: "TWO_NUMBERS", summary, signals, skillId: question.answerKey.diagnostics!.skillId,
       certainty: finalKind === "right" ? (path.length <= 2 ? 0.95 : 0.7) : 0.6,
+      diagnosis: finalKind !== "right" ? mistakeOf(question, finalKind, "The two numbers chosen don't make this factorisation.")
+        // A long hunt with the product and sum on screen can land on the answer without knowing how to get there.
+        : signals.includes("trial_and_error") ? { effect: "NEEDS_ANOTHER", note: "Reached the answer by trying many pairs." }
+        : { effect: "SECURE" },
       facts: { tries: path.length, onProduct: on, finalKind, signSlipTried: slip },
     },
   };
@@ -374,7 +397,15 @@ function readCommit(question: LotusQuestion, t: Target, game: CommitThenChooseGa
   return {
     answer: game.options[raw.pick]!,
     game: { kind: "COMMIT_THEN_CHOOSE", guess, pick: raw.pick, ...(chooseMs !== undefined ? { chooseMs } : {}) },
-    reading: { kind: "COMMIT_THEN_CHOOSE", summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { guessKind: pk, pickKind: ok } },
+    reading: {
+      kind: "COMMIT_THEN_CHOOSE", summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty,
+      diagnosis: signals.includes("predicted_then_picked") ? { effect: "SECURE" }
+        : signals.includes("checked_options") ? { effect: "NO_EVIDENCE", note: "Picked the right answer after a different first answer, so it may have come from checking the options." }
+        : signals.includes("changed_a_right_guess") ? { effect: "NO_EVIDENCE", note: "Wrote the right answer first, then picked a different one." }
+        : signals.includes("same_mistake_twice") ? mistakeOf(question, ok, "Wrote this answer first and picked it again from the options.")
+        : { effect: "DOESNT_KNOW", note: "The first answer and the pick were two different wrong answers." },
+      facts: { guessKind: pk, pickKind: ok },
+    },
   };
 }
 
@@ -426,6 +457,8 @@ function readTrueFalse(question: LotusQuestion, t: Target, game: TrueFalseGame, 
     if (slow.length) { signals.push("slow_on_some"); lines.push(`Took much longer on ${slow.join(", ")}.`); }
   }
 
+  const allRight = !hitsOnFalse && !unsure && !signals.includes("missed_control");
+  if (allRight) signals.push("all_judged_right");
   // What gets marked: a false claim called true is the answer given; otherwise a true claim called true means the right answer.
   const wrongTrue = game.claims.filter((_, i) => verdicts[i] === "true" && !truth[i]);
   const rightTrue = game.claims.some((_, i) => verdicts[i] === "true" && truth[i]);
@@ -436,12 +469,22 @@ function readTrueFalse(question: LotusQuestion, t: Target, game: TrueFalseGame, 
   else if (verdicts.every((v) => v === "unsure")) { answer = "I don't know"; didNotKnow = true; }
   else answer = "None of these";
 
+  const markedPair = wrongTrue.length ? parseMonicPair(wrongTrue[0]!) : null;
+  const diagnosis: LotusGameDiagnosis | undefined = didNotKnow ? undefined
+    : wrongTrue.length ? mistakeOf(question, markedPair ? classifyPair(markedPair, t) : "right", "Called a claim true that isn't.")
+    : !rightTrue ? { effect: "DOESNT_KNOW", note: "Didn't call any of the claims true, including the true one." }
+    // Every card right is hard to do by chance, so it needs no second answer to back it up.
+    : allRight ? { effect: "SECURE" }
+    : signals.includes("missed_control") ? { effect: "NO_EVIDENCE", note: "Called one form of the right answer true and another form of it false." }
+    : { effect: "NEEDS_ANOTHER", note: "Knew the true claim, but wasn't sure about the others." };
+
   return {
     answer, ...(didNotKnow ? { didNotKnow } : {}),
     game: { kind: "TRUE_FALSE", verdicts, ...(cardMs ? { cardMs } : {}) },
     reading: {
       kind: "TRUE_FALSE", summary: lines.join(" "), signals, skillId: question.answerKey.diagnostics!.skillId,
       certainty: hitsOnFalse ? 0.75 : unsure ? 0.25 : 0.8,
+      ...(diagnosis ? { diagnosis } : {}),
       facts: { claims: game.claims.length, calledFalseClaimTrue: hitsOnFalse, unsure },
     },
   };
@@ -473,7 +516,7 @@ function readSplit(question: LotusQuestion, t: Target, game: SplitConfidenceGame
   if (top.n === LOTUS_SPLIT_TOKENS) {
     certainty = 0.95;
     if (kinds[top.i] === "right") { summary = "All four tokens on the right answer. Confident and correct."; signals.push("confident_right"); }
-    else { summary = `All four tokens on ${nameOf(top.i)}. Confident, so this is a misconception and not a guess.`; signals.push("confident_mistake"); }
+    else { summary = `All four tokens on ${nameOf(top.i)}. Confident, so this is a settled belief and not a guess.`; signals.push("confident_mistake"); }
   } else if (shape === "2–2") {
     certainty = 0.55;
     const over = TORN_OVER[[kinds[order[0]!.i]!, kinds[order[1]!.i]!].sort().join("|")] ?? "which of these two is the factorisation";
@@ -493,13 +536,20 @@ function readSplit(question: LotusQuestion, t: Target, game: SplitConfidenceGame
     signals.push("leans");
   }
   const clean = { kind: "SPLIT_CONFIDENCE" as const, counts: [...counts] };
-  const base = { kind: "SPLIT_CONFIDENCE" as const, summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { shape, leaderKind: kinds[top.i]! } };
+  const reading = { kind: "SPLIT_CONFIDENCE" as const, summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { shape, leaderKind: kinds[top.i]! } };
   if (top.n === 1) {
-    return { answer: "I don't know", didNotKnow: true, game: clean, reading: base };
+    return { answer: "I don't know", didNotKnow: true, game: clean, reading };
   }
   // A tie is not a commitment to the right answer: mark the wrong one it includes, and let the plan re-check that doubt.
   const marked = tied.find((x) => kinds[x.i] !== "right") ?? top;
-  return { answer: game.options[marked.i]!, confidence: top.n === LOTUS_SPLIT_TOKENS ? 90 : top.n === 3 ? 60 : 25, game: clean, reading: base };
+  const markedKind = kinds[marked.i]!;
+  // One token more on an answer than on the others is a lean, not a belief: it shows neither that they know it nor a mistake.
+  const leaning = signals.includes("leans");
+  const diagnosis: LotusGameDiagnosis = markedKind === "right"
+    ? (leaning ? { effect: "NO_EVIDENCE", note: "Leaned towards the right answer, but was unsure." } : { effect: "NEEDS_ANOTHER", note: "Put most of their confidence on the right answer." })
+    : leaning ? { effect: "DOESNT_KNOW", note: "Leaned towards a wrong answer, but was unsure." }
+    : mistakeOf(question, markedKind, signals.includes("torn") ? "Was torn between two answers, and one of them was wrong." : "Put most of their confidence on a wrong answer.");
+  return { answer: game.options[marked.i]!, confidence: top.n === LOTUS_SPLIT_TOKENS ? 90 : top.n === 3 ? 60 : 25, game: clean, reading: { ...reading, diagnosis } };
 }
 
 const isSign = (s: unknown): s is LotusBracketSign => s === "+" || s === "-";
@@ -526,12 +576,21 @@ function readTwoMoves(question: LotusQuestion, t: Target, game: TwoMovesGame, ra
   else if (numbersRight && flipped) { summary = "Flips the signs into the brackets: the right numbers, lost in move 2."; signals.push("flips_into_brackets"); }
   else if (numbersRight) { summary = "The right numbers, but one sign changed on the way into the brackets."; signals.push("one_sign_lost"); }
   else { summary = "Move 1 does not fit the product–sum rule. Start there."; signals.push("move_1_off"); }
+  const signNote = "A sign went the wrong way between the numbers and the brackets.";
+  const diagnosis: LotusGameDiagnosis = signals.includes("sound") ? { effect: "SECURE" }
+    // The answer is right and the mark stands, but each step had a sign the wrong way round: the same slip will show on the next question.
+    : signals.includes("two_slips_cancel") ? { effect: "MISTAKE", ...(ownMistake(question, "SIGN_PAIR_ERROR") ? { mistake: "SIGN_PAIR_ERROR" } : {}), note: "Reached the right answer, but the numbers and the brackets each had a sign the wrong way round." }
+    : finalKind === "right" ? { effect: "NO_EVIDENCE", note: "Reached the right answer, but the two moves don't fit together." }
+    : signals.includes("flips_into_brackets") ? { effect: "MISTAKE", ...(ownMistake(question, "SIGNS_SWAPPED") ? { mistake: "SIGNS_SWAPPED" } : {}), note: "Found the right numbers, then changed their signs going into the brackets." }
+    : signals.includes("sign_slip_move_1") || signals.includes("one_sign_lost") ? { effect: "MISTAKE", ...(ownMistake(question, "SIGN_PAIR_ERROR") ? { mistake: "SIGN_PAIR_ERROR" } : {}), note: signNote }
+    : mistakeOf(question, move1, "The two numbers don't fit this expression.");
   return {
     answer: pairAnswer({ p: b1, q: b2 }),
     game: { kind: "TWO_MOVES", numbers: { n1, n2 }, signs: [signs[0], signs[1]] },
     reading: {
       kind: "TWO_MOVES", summary, signals, skillId: question.answerKey.diagnostics!.skillId,
       certainty: signals.includes("two_slips_cancel") || signals.includes("sound") ? 0.85 : 0.7,
+      diagnosis,
       facts: { move1, finalKind, carried, flipped },
     },
   };
@@ -568,15 +627,24 @@ function readFourSigns(question: LotusQuestion, t: Target, game: FourSignsGame, 
   let summary: string;
   if (bestScore === 4 && best === 0) summary = "All four cases follow the real rule. Not a shortcut.";
   else if (bestScore === 4) {
-    summary = `All four follow “${rules[best]!.name}”. ${right ? `${right} of 4 came out right anyway, so a single question could have marked this student correct.` : "Consistent, so this is a misconception."}`;
+    summary = `All four follow “${rules[best]!.name}”. ${right ? `${right} of 4 came out right anyway, so a single question could have marked this student correct.` : "Consistent, so this is a settled belief."}`;
     if (right) signals.push("rule_hides_in_right_answers");
   } else summary = `No known rule fits all four (closest ${bestScore} of 4). Guessing signs: doesn't know yet.`;
+  const askedRight = same(facts[asked]!.ok, pick);
+  const ruleCode = rules[best]!.id === "flip_all" ? "SIGNS_SWAPPED" : "SIGN_PAIR_ERROR";
+  const diagnosis: LotusGameDiagnosis = bestScore === 4 && best === 0
+    // The numbers were given, so this shows the signs only, not finding the numbers.
+    ? { effect: "NEEDS_ANOTHER", note: "Set the signs right in all four cases, with the two numbers given." }
+    : bestScore === 4 ? { effect: "MISTAKE", ...(ownMistake(question, ruleCode) ? { mistake: ruleCode } : {}), note: "Used the same wrong rule for the signs in all four cases." }
+    : askedRight ? { effect: "NO_EVIDENCE", note: "Got this case right, but the signs followed no pattern across the four." }
+    : { effect: "DOESNT_KNOW", note: "The signs followed no pattern across the four cases." };
   return {
     answer: pairAnswer({ p: signValue(pick[0]) * a, q: signValue(pick[1]) * b }),
     game: { kind: "FOUR_SIGNS", picks: picks.map((p) => [p[0], p[1]] as [LotusBracketSign, LotusBracketSign]) },
     reading: {
       kind: "FOUR_SIGNS", summary, signals, skillId: question.answerKey.diagnostics!.skillId,
       certainty: bestScore === 4 ? 0.9 : 0.35,
+      diagnosis,
       facts: { casesRight: right, closestRule: rules[best]!.id, closestScore: bestScore },
     },
   };
@@ -634,7 +702,12 @@ function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Rea
   return {
     answer: final,
     game: { kind: "EDIT_HISTORY", history },
-    reading: { kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85, facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap } },
+    reading: {
+      kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,
+      // Typed like any other answer, so it is marked and reviewed like one. Only a caught mistake changes anything: they fixed it, but it's still live.
+      ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves." } } : {}),
+      facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap },
+    },
   };
 }
 

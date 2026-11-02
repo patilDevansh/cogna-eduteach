@@ -1,9 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { LOTUS_GAME_KINDS, LOTUS_THEMES, type LotusGameKind, type LotusGameResponse, type LotusQuestion, type LotusStudentResponse } from "@cogna/shared";
+import { findForbiddenTerm, LOTUS_GAME_KINDS, LOTUS_THEMES, type LotusGameKind, type LotusGameResponse, type LotusQuestion, type LotusQuestionAudit, type LotusStudentResponse } from "@cogna/shared";
 import { buildLotusGame, chooseLotusGame, parseMonicPair, readLotusGame } from "../../src/lotus/lotus-games";
 import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "../../src/lotus/lotus-interactions";
-import { instantVerdict } from "../../src/lotus/lotus-factorisation";
+import { foldLedger, instantVerdict } from "../../src/lotus/lotus-factorisation";
 
 // x² + 3x − 4 = (x + 4)(x − 1): product −4, sum 3.
 function question(id = "games-1", level: "easy" | "medium" | "hard" = "medium"): LotusQuestion {
@@ -399,5 +399,127 @@ describe("Lotus themed games, second batch: tampered payloads are rejected", () 
     rejects(q, { kind: "EDIT_HISTORY", history: Array.from({ length: 401 }, (_, i) => ({ t: i, v: "x" })) });
     rejects(q, { kind: "EDIT_HISTORY", history: [{ t: -1, v: "x" }] });
     rejects(q, { kind: "EDIT_HISTORY", history: [{ t: 1, v: 5 }] });
+  });
+});
+
+describe("Lotus themed games: the reading counts towards the skill", () => {
+  const SKILL = "FAC_MONIC_TRINOMIAL";
+  const outcome = (kind: LotusGameKind, build: (q: LotusQuestion) => unknown) => {
+    const q = withGame(kind);
+    const response = play(q, build(q));
+    const verdict = instantVerdict(q, response);
+    return { q, response, verdict, status: verdict.verification.status, kinds: verdict.evidence.map((e) => e.kind), mistake: verdict.evidence.find((e) => e.kind !== "SECURE")?.mistake, effect: response.gameReading?.diagnosis?.effect };
+  };
+  const optionsOf = (q: LotusQuestion) => (q.game as { options: string[] }).options;
+  const claimsOf = (q: LotusQuestion) => (q.game as { claims: string[] }).claims;
+  const RIGHT = ["(x + 4)(x - 1)", "(x - 1)(x + 4)"];
+  const FOUR_TRUE: Record<string, [string, string]> = { "x^2 + 5x + 4": ["+", "+"], "x^2 - 5x + 4": ["-", "-"], "x^2 + 3x - 4": ["-", "+"], "x^2 - 3x - 4": ["+", "-"] };
+  const FOUR_COPY: Record<string, [string, string]> = { "x^2 + 5x + 4": ["+", "+"], "x^2 - 5x + 4": ["-", "-"], "x^2 + 3x - 4": ["+", "+"], "x^2 - 3x - 4": ["-", "-"] };
+  const claimVerdicts = (q: LotusQuestion, f: (c: string, isRight: boolean) => string) => claimsOf(q).map((c) => f(c, RIGHT.includes(c)));
+
+  const cases: Array<[string, LotusGameKind, (q: LotusQuestion) => unknown, { status: string; effect: string; kinds: string[]; mistake?: string }]> = [
+    ["two numbers, straight there", "TWO_NUMBERS", () => ({ kind: "TWO_NUMBERS", tries: [{ p: 4, q: -1 }], final: { p: 4, q: -1 } }), { status: "VERIFIED_CORRECT", effect: "SECURE", kinds: ["SECURE"] }],
+    ["two numbers, a long hunt", "TWO_NUMBERS", () => ({ kind: "TWO_NUMBERS", tries: [{ p: 1, q: 1 }, { p: 2, q: 3 }, { p: 5, q: 5 }, { p: 4, q: -1 }], final: { p: 4, q: -1 } }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
+    ["two numbers, the right product only", "TWO_NUMBERS", () => ({ kind: "TWO_NUMBERS", tries: [], final: { p: 2, q: -2 } }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "PRODUCT_ONLY" }],
+    ["commit, right both times", "COMMIT_THEN_CHOOSE", (q) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: optionsOf(q).indexOf("(x + 4)(x - 1)") }), { status: "VERIFIED_CORRECT", effect: "SECURE", kinds: ["SECURE"] }],
+    ["commit, found by checking", "COMMIT_THEN_CHOOSE", (q) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: 1, q: 1 }, pick: optionsOf(q).indexOf("(x + 4)(x - 1)") }), { status: "VERIFIED_CORRECT", effect: "NO_EVIDENCE", kinds: [] }],
+    ["commit, right guess then wrong pick", "COMMIT_THEN_CHOOSE", (q) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: optionsOf(q).indexOf("(x - 4)(x + 1)") }), { status: "VERIFIED_INCORRECT", effect: "NO_EVIDENCE", kinds: [] }],
+    ["commit, the same mistake twice", "COMMIT_THEN_CHOOSE", (q) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: -4, q: 1 }, pick: optionsOf(q).indexOf("(x - 4)(x + 1)") }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "SIGNS_FLIPPED" }],
+    ["commit, two different wrong answers", "COMMIT_THEN_CHOOSE", (q) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: 2, q: 3 }, pick: optionsOf(q).indexOf("(x - 4)(x + 1)") }), { status: "VERIFIED_INCORRECT", effect: "DOESNT_KNOW", kinds: ["DID_NOT_KNOW"] }],
+    ["true or false, every card right", "TRUE_FALSE", (q) => ({ kind: "TRUE_FALSE", verdicts: claimVerdicts(q, (_, r) => (r ? "true" : "false")) }), { status: "VERIFIED_CORRECT", effect: "SECURE", kinds: ["SECURE"] }],
+    ["true or false, right but unsure on others", "TRUE_FALSE", (q) => ({ kind: "TRUE_FALSE", verdicts: claimVerdicts(q, (_, r) => (r ? "true" : "unsure")) }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
+    ["true or false, one form right and the other false", "TRUE_FALSE", (q) => ({ kind: "TRUE_FALSE", verdicts: claimVerdicts(q, (c) => (c === "(x + 4)(x - 1)" ? "true" : "false")) }), { status: "VERIFIED_CORRECT", effect: "NO_EVIDENCE", kinds: [] }],
+    ["true or false, believes a wrong claim", "TRUE_FALSE", (q) => ({ kind: "TRUE_FALSE", verdicts: claimVerdicts(q, (c, r) => (r || c === "(x - 4)(x + 1)" ? "true" : "false")) }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "SIGNS_FLIPPED" }],
+    ["true or false, nothing called true", "TRUE_FALSE", (q) => ({ kind: "TRUE_FALSE", verdicts: claimVerdicts(q, () => "false") }), { status: "VERIFIED_INCORRECT", effect: "DOESNT_KNOW", kinds: ["DID_NOT_KNOW"] }],
+    ["split, all on the right one", "SPLIT_CONFIDENCE", (q) => ({ kind: "SPLIT_CONFIDENCE", counts: optionsOf(q).map((o) => (o === "(x + 4)(x - 1)" ? 4 : 0)) }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
+    ["split, leaning to the right one", "SPLIT_CONFIDENCE", (q) => ({ kind: "SPLIT_CONFIDENCE", counts: optionsOf(q).map((o) => (o === "(x + 4)(x - 1)" ? 2 : o === "(x - 4)(x + 1)" || o === "(x + 2)(x - 2)" ? 1 : 0)) }), { status: "VERIFIED_CORRECT", effect: "NO_EVIDENCE", kinds: [] }],
+    ["split, all on a wrong one", "SPLIT_CONFIDENCE", (q) => ({ kind: "SPLIT_CONFIDENCE", counts: optionsOf(q).map((o) => (o === "(x - 4)(x + 1)" ? 4 : 0)) }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "SIGNS_FLIPPED" }],
+    ["split, leaning to a wrong one", "SPLIT_CONFIDENCE", (q) => ({ kind: "SPLIT_CONFIDENCE", counts: optionsOf(q).map((o) => (o === "(x - 4)(x + 1)" ? 2 : o === "(x + 4)(x - 1)" || o === "(x + 2)(x - 2)" ? 1 : 0)) }), { status: "VERIFIED_INCORRECT", effect: "DOESNT_KNOW", kinds: ["DID_NOT_KNOW"] }],
+    ["two moves, sound", "TWO_MOVES", () => ({ kind: "TWO_MOVES", numbers: { n1: 4, n2: -1 }, signs: ["+", "-"] }), { status: "VERIFIED_CORRECT", effect: "SECURE", kinds: ["SECURE"] }],
+    ["two moves, two slips that cancel", "TWO_MOVES", () => ({ kind: "TWO_MOVES", numbers: { n1: -4, n2: 1 }, signs: ["+", "-"] }), { status: "VERIFIED_CORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "SIGN_PAIR_ERROR" }],
+    ["two moves, flipped into the brackets", "TWO_MOVES", () => ({ kind: "TWO_MOVES", numbers: { n1: 4, n2: -1 }, signs: ["-", "+"] }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "SIGNS_FLIPPED" }],
+    ["two moves, numbers that don't fit", "TWO_MOVES", () => ({ kind: "TWO_MOVES", numbers: { n1: 2, n2: 3 }, signs: ["+", "+"] }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "WRONG_FACTOR_PAIR_PRODUCT" }],
+    ["four signs, the real rule", "FOUR_SIGNS", (q) => ({ kind: "FOUR_SIGNS", picks: (q.game as { cases: string[] }).cases.map((c) => FOUR_TRUE[c]) }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
+    ["four signs, a wrong rule", "FOUR_SIGNS", (q) => ({ kind: "FOUR_SIGNS", picks: (q.game as { cases: string[] }).cases.map((c) => FOUR_COPY[c]) }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "SIGN_PAIR_ERROR" }],
+    ["edit history, a caught mistake", "EDIT_HISTORY", () => ({ kind: "EDIT_HISTORY", history: [{ t: 500, v: "(x - 4)(x + 1)" }, { t: 900, v: "(" }, { t: 3000, v: "(x + 4)(x - 1)" }] }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
+  ];
+  for (const [name, kind, build, expected] of cases) {
+    it(name, () => {
+      const r = outcome(kind, build);
+      assert.equal(r.status, expected.status);
+      assert.equal(r.effect, expected.effect);
+      assert.deepEqual([...new Set(r.kinds)], expected.kinds);
+      if (expected.mistake) assert.equal(r.mistake, expected.mistake);
+      assert.equal(r.verdict.needsAnalysis, false, "code settles a game; it never needs an AI review");
+    });
+  }
+
+  it("a typed Edit history that adds nothing leaves the marking and any AI review as they were", () => {
+    const q = withGame("EDIT_HISTORY");
+    const clean = play(q, { kind: "EDIT_HISTORY", history: [{ t: 500, v: "(x + 4)(x - 1)" }] });
+    assert.equal(clean.gameReading?.diagnosis, undefined);
+    assert.deepEqual(instantVerdict(q, clean).evidence.map((e) => e.kind), instantVerdict(q, { ...base(), answer: "(x + 4)(x - 1)" }).evidence.map((e) => e.kind));
+    const unknown = play(q, { kind: "EDIT_HISTORY", history: [{ t: 500, v: "(x + 9)(x - 9)" }] });
+    assert.equal(instantVerdict(q, unknown).needsAnalysis, true, "an unexplained typed answer still goes to review");
+  });
+  it("a code no skill owns is not put on the wrong skill", () => {
+    const q = question();
+    q.answerKey.canonicalAnswer = "(x - 4)(x + 4)";
+    q.answerKey.diagnostics!.expression = "x^2 - 16";
+    q.answerKey.diagnostics!.skillId = "FAC_DIFF_SQUARES";
+    q.answerKey.diagnostics!.predictedMistakes = [];
+    q.game = buildLotusGame(q, "TWO_MOVES");
+    const verdict = instantVerdict(q, play(q, { kind: "TWO_MOVES", numbers: { n1: 2, n2: 3 }, signs: ["+", "+"] }));
+    assert.deepEqual(verdict.evidence.map((e) => [e.skillId, e.kind, e.mistake]), [["FAC_DIFF_SQUARES", "MISTAKE", undefined]]);
+  });
+
+  const audit = (q: LotusQuestion, r: LotusStudentResponse): LotusQuestionAudit => {
+    const v = instantVerdict(q, r);
+    return { question: q, response: r, verification: v.verification, skillEvidence: v.evidence } as unknown as LotusQuestionAudit;
+  };
+  const stateAfter = (...plays: Array<[LotusGameKind, unknown]>) => foldLedger(plays.map(([kind, game], i) => {
+    const q = withGame(kind, `ledger-${i}`);
+    return audit(q, play(q, typeof game === "function" ? (game as (q: LotusQuestion) => unknown)(q) : game));
+  })).get(SKILL);
+  const sound = { kind: "TWO_MOVES", numbers: { n1: 4, n2: -1 }, signs: ["+", "-"] };
+  const cancels = { kind: "TWO_MOVES", numbers: { n1: -4, n2: 1 }, signs: ["+", "-"] };
+  const hunt = { kind: "TWO_NUMBERS", tries: [{ p: 1, q: 1 }, { p: 2, q: 3 }, { p: 5, q: 5 }, { p: 4, q: -1 }], final: { p: 4, q: -1 } };
+  const splitRight = (q: LotusQuestion) => ({ kind: "SPLIT_CONFIDENCE", counts: optionsOf(q).map((o) => (o === "(x + 4)(x - 1)" ? 4 : 0)) });
+  const checked = (q: LotusQuestion) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: 1, q: 1 }, pick: optionsOf(q).indexOf("(x + 4)(x - 1)") });
+  const predicted = (q: LotusQuestion) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: optionsOf(q).indexOf("(x + 4)(x - 1)") });
+
+  it("the ledger: two slips that cancel raise a suspicion even though the answer was right", () => {
+    assert.equal(stateAfter(["TWO_MOVES", sound])?.state, "SECURE");
+    const e = stateAfter(["TWO_MOVES", cancels]);
+    assert.equal(e?.state, "SUSPECTED");
+    assert.deepEqual(e?.mistakes, ["SIGN_PAIR_ERROR"]);
+  });
+  it("the ledger: a sound answer on the next question clears that suspicion; the same slip again confirms it", () => {
+    assert.equal(stateAfter(["TWO_MOVES", cancels], ["TWO_MOVES", sound])?.state, "SECURE");
+    assert.equal(stateAfter(["TWO_MOVES", cancels], ["TWO_MOVES", cancels])?.state, "CONFIRMED");
+  });
+  it("the ledger: a right answer that needs another isn't secure until a second one", () => {
+    assert.equal(stateAfter(["TWO_NUMBERS", hunt])?.state, "UNTESTED");
+    assert.equal(stateAfter(["SPLIT_CONFIDENCE", splitRight])?.state, "UNTESTED");
+    assert.equal(stateAfter(["TWO_NUMBERS", hunt], ["SPLIT_CONFIDENCE", splitRight])?.state, "SECURE");
+  });
+  it("the ledger: a pick backed by a guess made first counts at once, though it was chosen from options", () => {
+    assert.equal(stateAfter(["COMMIT_THEN_CHOOSE", predicted])?.state, "SECURE");
+  });
+  it("the ledger: right by checking the options says nothing, and doesn't clear a suspicion", () => {
+    assert.equal(stateAfter(["COMMIT_THEN_CHOOSE", checked]), undefined);
+    assert.equal(stateAfter(["TWO_MOVES", cancels], ["COMMIT_THEN_CHOOSE", checked])?.state, "SUSPECTED");
+  });
+  it("a play with no diagnosis on an older record is treated as it was", () => {
+    const q = withGame("TWO_NUMBERS");
+    const r = play(q, { kind: "TWO_NUMBERS", tries: [], final: { p: 4, q: -1 } });
+    delete r.gameReading!.diagnosis;
+    assert.deepEqual(instantVerdict(q, r).evidence.map((e) => e.kind), ["SECURE"]);
+  });
+  it("every note that can reach a student's report is free of forbidden words", () => {
+    for (const [, kind, build] of cases) {
+      const note = outcome(kind, build).response.gameReading?.diagnosis?.note;
+      if (note) assert.equal(findForbiddenTerm(note), null, note);
+    }
   });
 });

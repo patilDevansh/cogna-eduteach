@@ -170,6 +170,25 @@ export interface EditHistoryResponse {
 export type LotusGameResponse = TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse | SplitConfidenceResponse | TwoMovesResponse | FourSignsResponse | EditHistoryResponse;
 
 /**
+ * What a play means for the skill. The mark on the answer never changes; only
+ * how far it counts does.
+ *  SECURE        counts in full
+ *  NEEDS_ANOTHER right, but one more right answer is needed to call the skill secure
+ *  NO_EVIDENCE   right or wrong, this play says nothing either way about the skill
+ *  MISTAKE       one negative on the skill, even if the answer came out right
+ *  DOESNT_KNOW   the same as saying "I don't know this yet"
+ */
+export type LotusGameEffect = "SECURE" | "NEEDS_ANOTHER" | "NO_EVIDENCE" | "MISTAKE" | "DOESNT_KNOW";
+
+export interface LotusGameDiagnosis {
+  effect: LotusGameEffect;
+  /** MISTAKE: the skill's mistake code, when the play names one. */
+  mistake?: string;
+  /** One neutral sentence that can reach the student's report. */
+  note?: string;
+}
+
+/**
  * What the server read from a game, for teachers and the diagnosis. Never shown
  * to the student during the test. Plain text only.
  */
@@ -183,6 +202,8 @@ export interface LotusGameReading {
   certainty: number;
   /** The skill the question tests, copied from the checked question. */
   skillId: string;
+  /** How this play counts towards the skill. Absent on older records and on plays that add nothing to the mark. */
+  diagnosis?: LotusGameDiagnosis;
   /** Small figures behind the summary (tries, right-product tries, …). */
   facts: Record<string, number | string | boolean>;
 }
