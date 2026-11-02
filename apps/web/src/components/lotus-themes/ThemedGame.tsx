@@ -27,6 +27,8 @@ import {
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
 import { GAME_WORDS } from "./themed-game-words";
+import { signed, Stepper } from "./themed-game-parts";
+import { ChunkIt, FindEveryB, OrderSteps, RapidSet, Replay, TestClaim } from "./ThemedGameMore";
 import styles from "./themed-game.module.css";
 
 /**
@@ -45,27 +47,6 @@ export interface ThemedGameProps {
 }
 
 const SETTLE_MS = 600;
-
-const signed = (n: number) => (n < 0 ? `−${-n}` : `${n}`);
-
-/** Steps a whole number up or down, skipping 0 (a bracket of x + 0 is not an answer here). */
-function Stepper({ label, value, range, disabled, showPlus, onChange }: { label: string; value: number; range: number; disabled?: boolean; showPlus?: boolean; onChange: (next: number) => void }) {
-  const step = (d: number) => {
-    let next = value + d;
-    if (next === 0) next += d;
-    onChange(Math.max(-range, Math.min(range, next)));
-  };
-  return (
-    <div className={styles.stepper} role="group" aria-label={label}>
-      <span className={styles.stepLabel}>{label}</span>
-      <div className={styles.stepRow}>
-        <button type="button" className={styles.stepBtn} disabled={disabled || value <= -range} onClick={() => step(-1)} aria-label={`${label}: lower`}>‹</button>
-        <output className={styles.stepValue} aria-live="polite">{showPlus ? `${value < 0 ? "−" : "+"} ${Math.abs(value)}` : signed(value)}</output>
-        <button type="button" className={styles.stepBtn} disabled={disabled || value >= range} onClick={() => step(1)} aria-label={`${label}: higher`}>›</button>
-      </div>
-    </div>
-  );
-}
 
 // ---------- Two numbers ----------
 
@@ -636,6 +617,12 @@ export function ThemedGame({ theme, game, disabled, onChange }: ThemedGameProps)
       {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "READBACK" && <Readback theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "RECTANGLE" && <Rectangle theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "ORDER_STEPS" && <OrderSteps theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "TEST_CLAIM" && <TestClaim theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "RAPID_SET" && <RapidSet theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "FIND_EVERY_B" && <FindEveryB theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "REPLAY" && <Replay theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "CHUNK_IT" && <ChunkIt theme={theme} game={game} disabled={disabled} onChange={onChange} />}
     </section>
   );
 }

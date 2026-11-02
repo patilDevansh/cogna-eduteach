@@ -58,6 +58,7 @@ import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
 import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
+import { codeGameProbeFor } from "./lotus-game-probes";
 import { codeProbeFor } from "./lotus-probes";
 import {
   curriculumFor,
@@ -2261,7 +2262,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     // Some slots are staged as games (fireflies, impostor, detective, fishing,
     // garden): built and checked by code, no model call. See lotus-probes.ts.
     const gameRequest = { ...job.request, variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`, avoid: this.testPrints(session, job.turn) };
-    const game = codeProbeFor(gameRequest);
+    const game = codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest);
     if (game && !checkWrittenItem(gameRequest, game).length) {
       await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
       return;

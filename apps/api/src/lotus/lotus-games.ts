@@ -30,6 +30,10 @@ import { readbackTyped, LOTUS_CLAIM_VERDICTS, LOTUS_EDIT_MAX_LENGTH, LOTUS_EDIT_
 import { gameFormatsEnabled, tidyAlgebra } from "../interaction-formats/tile-builder";
 import { algebraicallyEqual, classifyFactorisation, isReadable, normalizeMathText } from "./lotus-algebra";
 import { findSkill } from "./lotus-factorisation-catalogue";
+import { buildOrderSteps, isMoreGameKind, readMoreGame } from "./lotus-games-more";
+import { clampMs, equalSafe, hashOf, isInt, LotusGameError, ownMistake, shuffled, themedGamesEnabled, type Read } from "./lotus-game-core";
+
+export { LotusGameError, themedGamesEnabled };
 
 /**
  * Themed Lotus games, built and read by code.
@@ -45,21 +49,10 @@ import { findSkill } from "./lotus-factorisation-catalogue";
  * Anything else stays a tile game or typed.
  */
 
-export class LotusGameError extends Error {}
-
-/**
- * The single switch for themed games. Off only when explicitly turned off (or
- * when all game formats are off). "all" skips the half-of-items rule so a test
- * run can reach a game quickly; it never changes how a game is read.
- */
-export function themedGamesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return gameFormatsEnabled(env) && (env.COGNA_THEMED_GAMES ?? "on").toLowerCase() !== "off";
-}
-
 interface Pair { p: number; q: number }
 
 /** The games that take the place of a tile game. "Edit history" is not one: it dresses a typed turn. */
-const TILE_TURN_KINDS: readonly LotusGameKind[] = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "RECTANGLE"];
+const TILE_TURN_KINDS: readonly LotusGameKind[] = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "RECTANGLE", "ORDER_STEPS"];
 /** The games that dress a typed turn: the answer is still typed, and the working is still asked for. */
 const TYPED_TURN_KINDS: readonly LotusGameKind[] = ["EDIT_HISTORY", "READBACK"];
 export const isTypedGame = (kind: LotusGameKind) => TYPED_TURN_KINDS.includes(kind);
@@ -116,35 +109,6 @@ function classifyPair(pair: Pair, t: Target): PairKind {
   if (pair.p * pair.q !== t.product) return "other";
   if (pair.p + pair.q === -t.sum) return "flip";
   return "prod";
-}
-
-function hashOf(text: string): number {
-  let h = 2166136261;
-  for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  return h >>> 0;
-}
-
-function seededRandom(seed: string): () => number {
-  let h = hashOf(seed);
-  return () => {
-    h = Math.imul(h ^ (h >>> 15), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    return ((h ^= h >>> 16) >>> 0) / 4294967296;
-  };
-}
-
-function shuffled<T>(seed: string, items: T[]): T[] {
-  const rand = seededRandom(seed);
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
-
-function equalSafe(a: string, b: string): boolean {
-  try { return algebraicallyEqual(a, b); } catch { return false; }
 }
 
 // ---------- building ----------
@@ -231,6 +195,9 @@ function buildClaims(question: LotusQuestion, t: Target): string[] | null {
 
 export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): LotusGameConfig | undefined {
   if (!isCheckedFactorising(question)) return undefined;
+  // The other new games come with their own question (lotus-game-probes.ts); only "Order the steps" dresses one the plan already asked.
+  if (kind === "ORDER_STEPS") return buildOrderSteps(question);
+  if (isMoreGameKind(kind)) return undefined;
   const base = { version: 1 as const, expression: tidyAlgebra(question.answerKey.diagnostics!.expression!) };
   if (kind === "EDIT_HISTORY") return { ...base, kind } satisfies EditHistoryGame;
   if (kind === "READBACK") return { ...base, kind } satisfies ReadbackGame;
@@ -307,8 +274,6 @@ export function chooseLotusGameOverPuzzle(question: LotusQuestion, env: NodeJS.P
 
 // ---------- reading ----------
 
-const isInt = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
-const clampMs = (n: unknown): number | undefined => (typeof n === "number" && Number.isFinite(n) && n >= 0 ? Math.min(Math.round(n), 3_600_000) : undefined);
 
 function checkedNumber(n: unknown, range: number, what: string): number {
   if (!isInt(n) || n === 0 || Math.abs(n) > range) throw new LotusGameError(`${what} is out of range.`);
@@ -341,24 +306,11 @@ const KIND_MISTAKE: Record<Exclude<PairKind, "right">, string> = {
   other: "WRONG_FACTOR_PAIR_PRODUCT",
 };
 
-/** A mistake code only counts on a skill that has it: x² − 16 has no "signs swapped". */
-function ownMistake(question: LotusQuestion, code: string): string | undefined {
-  return findSkill(question.answerKey.diagnostics!.skillId)?.mistakes.includes(code) ? code : undefined;
-}
 
 function mistakeOf(question: LotusQuestion, kind: PairKind, note: string): LotusGameDiagnosis {
   return { effect: "MISTAKE", ...(kind !== "right" && ownMistake(question, KIND_MISTAKE[kind]) ? { mistake: KIND_MISTAKE[kind] } : {}), note };
 }
 
-interface Read {
-  answer: string;
-  didNotKnow?: boolean;
-  /** Set when the play itself says how sure the student was, in place of a separate question. */
-  confidence?: number;
-  /** The payload as the server accepted it: only known fields, numbers checked and clamped. */
-  game: LotusGameResponse;
-  reading: LotusGameReading;
-}
 
 function readTwoNumbers(question: LotusQuestion, t: Target, game: TwoNumbersGame, raw: TwoNumbersResponse): Read {
   if (!Array.isArray(raw.tries) || raw.tries.length > LOTUS_GAME_MAX_TRIES) throw new LotusGameError("The search is malformed.");
@@ -798,6 +750,7 @@ export function readLotusGame(question: LotusQuestion, response: LotusGameRespon
   const game = question.game;
   if (!game) throw new LotusGameError("This question isn't a game.");
   if (!response || typeof response !== "object" || response.kind !== game.kind) throw new LotusGameError("That doesn't match the game on screen.");
+  if (isMoreGameKind(game.kind)) return readMoreGame(question, response);
   if (game.kind === "EDIT_HISTORY" || game.kind === "READBACK") {
     if (!isCheckedFactorising(question)) throw new LotusGameError("That doesn't match the game on screen.");
     return game.kind === "EDIT_HISTORY" ? readEditHistory(question, response as EditHistoryResponse) : readReadback(question, response as ReadbackResponse);

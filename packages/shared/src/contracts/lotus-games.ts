@@ -10,7 +10,7 @@
  *
  * The student's theme (see lotus-themes.ts) supplies words and art only.
  */
-export const LOTUS_GAME_KINDS = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "EDIT_HISTORY", "RECTANGLE", "READBACK"] as const;
+export const LOTUS_GAME_KINDS = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "EDIT_HISTORY", "RECTANGLE", "READBACK", "ORDER_STEPS", "TEST_CLAIM", "RAPID_SET", "FIND_EVERY_B", "REPLAY", "CHUNK_IT"] as const;
 export type LotusGameKind = (typeof LOTUS_GAME_KINDS)[number];
 
 export function isLotusGameKind(value: unknown): value is LotusGameKind {
@@ -28,6 +28,12 @@ export const LOTUS_GAME_TITLES: Record<LotusGameKind, string> = {
   EDIT_HISTORY: "Edit history",
   RECTANGLE: "Tiles",
   READBACK: "Confirm your input",
+  ORDER_STEPS: "Order the steps",
+  TEST_CLAIM: "Test the claim",
+  RAPID_SET: "Rapid set",
+  FIND_EVERY_B: "Find every b",
+  REPLAY: "Stop the replay",
+  CHUNK_IT: "Chunk it",
 };
 
 /** Most numbers a "Two numbers" search can record, and the longest search kept. */
@@ -116,8 +122,78 @@ export interface ReadbackGame extends LotusGameBase {
   kind: "READBACK";
 }
 
+/**
+ * Build the working for a grouping question by tapping three of the six cards
+ * into order. Three cards are sound steps and three each hide a slip; nothing
+ * on a card says which. The last card placed is the answer.
+ */
+export interface OrderStepsGame extends LotusGameBase {
+  kind: "ORDER_STEPS";
+  /** The six cards, in the order they are dealt. */
+  steps: string[];
+  /** How many cards the working takes. */
+  slots: number;
+}
+
+/** Is `(x + k)² = x² + k²` always, sometimes or never true? Try values of x, then decide. */
+export interface TestClaimGame extends LotusGameBase {
+  kind: "TEST_CLAIM";
+  /** The claim compares (x + k)² with x² + k². */
+  k: number;
+  min: number;
+  max: number;
+  /** The verdicts, in display order. */
+  options: string[];
+}
+
+export interface RapidSetRow {
+  /** The expression to factorise. */
+  q: string;
+  options: string[];
+}
+
+/** Four quick factorisations; the last one is a look-alike of the first three. */
+export interface RapidSetGame extends LotusGameBase {
+  kind: "RAPID_SET";
+  rows: RapidSetRow[];
+}
+
+/** Pick every whole number b for which x² + bx + c factorises into two brackets. */
+export interface FindEveryBGame extends LotusGameBase {
+  kind: "FIND_EVERY_B";
+  c: number;
+  /** The b values on the number line run from −range to +range. */
+  range: number;
+}
+
+/** A worked check plays line by line; stop it at the first line that goes wrong. */
+export interface ReplayGame extends LotusGameBase {
+  kind: "REPLAY";
+  /** What is being checked, e.g. "(x − 3)(x + 2)". */
+  claim: string;
+  /** The working, one line at a time. */
+  lines: string[];
+  /** How long each line stays alone on the screen before the next appears. */
+  stepMs: number;
+}
+
+export interface ChunkRoute {
+  /** The first move, named. Says what is done, never whether it works. */
+  move: "CHUNK" | "EXPAND" | "ROOT";
+  /** The working this first move leads to, line by line. The last line is the answer it ends with. */
+  lines: string[];
+}
+
+/** Choose a first move for a bracket-squared minus a number; each leads to its own working. */
+export interface ChunkItGame extends LotusGameBase {
+  kind: "CHUNK_IT";
+  /** The bracket that can be treated as one chunk, e.g. "x + 3". */
+  chunk: string;
+  routes: ChunkRoute[];
+}
+
 /** What the browser gets: the configuration of a game, carrying no answer. */
-export type LotusGameConfig = TwoNumbersGame | CommitThenChooseGame | TrueFalseGame | SplitConfidenceGame | TwoMovesGame | FourSignsGame | EditHistoryGame | RectangleGame | ReadbackGame;
+export type LotusGameConfig = OrderStepsGame | TestClaimGame | RapidSetGame | FindEveryBGame | ReplayGame | ChunkItGame | TwoNumbersGame | CommitThenChooseGame | TrueFalseGame | SplitConfidenceGame | TwoMovesGame | FourSignsGame | EditHistoryGame | RectangleGame | ReadbackGame;
 
 export interface TwoNumbersTry {
   p: number;
@@ -201,7 +277,51 @@ export interface ReadbackResponse {
   tookSuggestion?: boolean;
 }
 
-export type LotusGameResponse = TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse | SplitConfidenceResponse | TwoMovesResponse | FourSignsResponse | EditHistoryResponse | RectangleResponse | ReadbackResponse;
+export interface OrderStepsResponse {
+  kind: "ORDER_STEPS";
+  /** The three cards placed, in order, as indexes into the issued cards. */
+  placed: number[];
+  /** Every card that was ever placed, including ones taken back out. */
+  ever: number[];
+}
+
+export interface TestClaimResponse {
+  kind: "TEST_CLAIM";
+  /** The values of x tried, each once. */
+  tested: number[];
+  /** The verdict chosen, as an index into the issued options. */
+  verdict: number;
+}
+
+export interface RapidSetResponse {
+  kind: "RAPID_SET";
+  /** The option picked on each row, same order. */
+  picks: number[];
+  /** Milliseconds spent on each row. Weak evidence only. */
+  times: number[];
+}
+
+export interface FindEveryBResponse {
+  kind: "FIND_EVERY_B";
+  /** Every b picked. */
+  picked: number[];
+}
+
+export interface ReplayResponse {
+  kind: "REPLAY";
+  /** The line the replay was stopped at (0 = the first line). */
+  stopped: number;
+  /** Milliseconds after that line appeared that the student pressed stop. Weak evidence only. */
+  lateMs?: number;
+}
+
+export interface ChunkItResponse {
+  kind: "CHUNK_IT";
+  /** The first move chosen, as an index into the issued routes. */
+  route: number;
+}
+
+export type LotusGameResponse = OrderStepsResponse | TestClaimResponse | RapidSetResponse | FindEveryBResponse | ReplayResponse | ChunkItResponse | TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse | SplitConfidenceResponse | TwoMovesResponse | FourSignsResponse | EditHistoryResponse | RectangleResponse | ReadbackResponse;
 
 /**
  * What a play means for the skill. The mark on the answer never changes; only

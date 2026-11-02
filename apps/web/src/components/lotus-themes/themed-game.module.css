@@ -109,6 +109,45 @@
 .segBtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--theme-ink-on-accent, #fff); }
 .segBtn:disabled { opacity: .4; cursor: default; }
 
+.orderSlots { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.orderSlot { display: grid; gap: 4px; padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); min-height: 74px; align-content: center; }
+.orderSlot[data-filled] { border-style: solid; background: var(--accent-wash); }
+.orderEmpty { color: var(--ink-faint); font-size: .9rem; }
+.orderPool { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-top: 6px; }
+.orderCard { min-height: 48px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); font-size: 1rem; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.orderCard:hover:not(:disabled) { border-color: var(--accent); }
+.orderCard[data-used] { opacity: .35; }
+.orderCard:disabled { cursor: default; }
+
+.claimGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: center; margin-bottom: 12px; }
+.claimBars { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; height: 190px; }
+.claimBar { position: relative; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 4px; }
+.claimValue { font-family: var(--font-math); font-size: 1.1rem; }
+.claimFill { align-self: end; width: 56%; max-width: 70px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--accent); transition: height .4s cubic-bezier(.3, 1.4, .5, 1); }
+.claimBar:nth-child(2) .claimFill { background: var(--caution); }
+.verdictRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+
+.rapidRow { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-raised, var(--surface)); animation: dealIn .3s ease-out; }
+.rapidOptions { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.rapidTrail { list-style: none; margin: 12px 0 0; padding: 0; display: flex; gap: 6px; }
+.rapidTrail li { width: 28px; height: 6px; border-radius: 3px; background: var(--line-strong); }
+.rapidTrail li[data-done] { background: var(--accent); }
+
+.numberGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.numberKey { min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); cursor: pointer; }
+.numberKey[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--theme-ink-on-accent, #fff); }
+.numberKey:disabled { opacity: .4; cursor: default; }
+
+.tape { list-style: none; margin: 0 0 12px; padding: 12px 14px; display: grid; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius-md); min-height: 120px; align-content: start; }
+.tapeLine { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; animation: dealIn .3s ease-out; }
+.tapeLine[data-stopped] { background: var(--accent-wash); box-shadow: 0 0 0 2px var(--accent); border-radius: var(--radius-sm); }
+.tapeText { font-family: var(--font-math); font-size: 1.05rem; overflow-wrap: anywhere; }
+.readButtons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.readButtons .primary { justify-self: auto; }
+.routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.working { display: grid; gap: 6px; padding: 12px 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); }
+.working .tapeList { color: var(--ink); font-size: 1.05rem; }
+
 .game button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* ---- theme decoration: art only ---- */
@@ -123,6 +162,14 @@
 .game[data-art="soundlab"] .cover { background: repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 4px, transparent 4px 9px); }
 .game[data-art="studio"] .cardArt { display: none; }
 .game[data-art="studio"] .caseArt { display: none; }
+.game[data-art="drafting"] .orderSlot, .game[data-art="drafting"] .tape, .game[data-art="drafting"] .working { border-style: dashed; }
+.game[data-art="drafting"] .claimFill { background: var(--accent); opacity: .7; border-radius: 0; }
+.game[data-art="cabinet"] .orderCard, .game[data-art="cabinet"] .numberKey { border-color: var(--accent-deep); }
+.game[data-art="cabinet"] .claimFill { background: linear-gradient(var(--accent), var(--accent-deep)); }
+.game[data-art="cabinet"] .tape { background: rgba(243, 230, 204, .06); border-color: var(--accent-deep); }
+.game[data-art="soundlab"] .claimFill { border-radius: 4px; }
+.game[data-art="soundlab"] .numberKey { font-family: var(--font-label, var(--font-math)); }
+.game[data-art="soundlab"] .tapeLine { border-left: 3px solid var(--accent); padding-left: 8px; }
 .game[data-art="drafting"] .rectSquare, .game[data-art="drafting"] .rectStrip { fill-opacity: .12; stroke-dasharray: 4 3; }
 .game[data-art="drafting"] .rectUnit { fill: var(--accent); fill-opacity: .35; }
 .game[data-art="cabinet"] .rectSquare { fill: #3a2410; stroke: var(--accent-deep); }
@@ -145,11 +192,14 @@
 @media (max-width: 560px) {
   .twoGrid { grid-template-columns: 1fr; }
   .game { padding: 14px; }
-  .rectWrap { grid-template-columns: 1fr; }
+  .rectWrap, .claimGrid { grid-template-columns: 1fr; }
+  .tapeLine { grid-template-columns: auto minmax(0, 1fr); }
+  .tapeLine .link { grid-column: 1 / -1; justify-self: start; }
   .splitRow { grid-template-columns: minmax(0, 1fr) auto; }
   .splitRow .tokens { grid-row: 2; grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .card { animation: none; }
+  .card, .rapidRow, .tapeLine { animation: none; }
+  .claimFill { transition: none; }
   .move { transition: none; }
 }

@@ -48,7 +48,8 @@ function withGame(question: LotusQuestion, game: LotusGameConfig): LotusQuestion
 /** Attaches a tile game to the question when one applies. Mutates and returns the question. */
 export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
   // A game probe (e.g. garden fences) already carries its own checked tiles.
-  if (question.interaction) {
+  // A game probe (garden fences, a rapid set) already carries its own checked game.
+  if (question.interaction || question.game) {
     question.asksForWorking = false;
     return question;
   }

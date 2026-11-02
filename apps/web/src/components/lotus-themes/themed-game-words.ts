@@ -88,6 +88,13 @@ export interface ReadbackWords {
   nothing: string;
 }
 
+export interface OrderWords { title: string; intro: string; slot: string; pool: string; empty: string }
+export interface ClaimWords { title: string; intro: string; control: string; sideA: string; sideB: string; tried: string; decide: string }
+export interface RapidWords { title: string; intro: string; row: string; done: string }
+export interface FindWords { title: string; intro: string; unit: string; picked: string; none: string }
+export interface ReplayWords { title: string; intro: string; play: string; stop: string; again: string; line: string; stopHere: string; stoppedAt: string }
+export interface ChunkWords { title: string; intro: string; chunk: string; expand: string; root: string; working: string }
+
 export const GAME_WORDS: {
   TWO_NUMBERS: Record<LotusTheme, TwoNumbersWords>;
   COMMIT_THEN_CHOOSE: Record<LotusTheme, CommitWords>;
@@ -98,6 +105,12 @@ export const GAME_WORDS: {
   EDIT_HISTORY: Record<LotusTheme, EditWords>;
   RECTANGLE: Record<LotusTheme, RectangleWords>;
   READBACK: Record<LotusTheme, ReadbackWords>;
+  ORDER_STEPS: Record<LotusTheme, OrderWords>;
+  TEST_CLAIM: Record<LotusTheme, ClaimWords>;
+  RAPID_SET: Record<LotusTheme, RapidWords>;
+  FIND_EVERY_B: Record<LotusTheme, FindWords>;
+  REPLAY: Record<LotusTheme, ReplayWords>;
+  CHUNK_IT: Record<LotusTheme, ChunkWords>;
 } = {
   TWO_NUMBERS: {
     studio: { title: "Two numbers", intro: "Pick the two numbers that go inside the brackets.", first: "First", second: "Second", product: "multiply", sum: "add" },
@@ -152,6 +165,42 @@ export const GAME_WORDS: {
     drafting: { title: "Issued for construction", intro: "Letter the factorisation. The drafter letters it back to you, with a query for anything unclear.", input: "Your drawing note", read: "Lettered back", flag: "RFI", confirm: "Issue for construction", suggest: "Use the drafter's reading", stamp: "Issued", change: "Revise it", nothing: "Nothing lettered yet." },
     cabinet: { title: "Engraver's proof", intro: "Write out the factorisation. The engraver reads it back before anything is cut.", input: "Your instruction", read: "The engraver's proof", flag: "QUERY", confirm: "Approve the proof", suggest: "Use the engraver's reading", stamp: "Approved", change: "Amend it", nothing: "Nothing written yet." },
     soundlab: { title: "Export check", intro: "Type the factorisation. Before export, the engineer reads back what the file will contain.", input: "Your session note", read: "Engineer's readback", flag: "WARN", confirm: "Export as is", suggest: "Use the suggested fix", stamp: "Exported", change: "Edit again", nothing: "Nothing typed yet." },
+  },
+  ORDER_STEPS: {
+    studio: { title: "Order the steps", intro: "Build the working: tap three of the six cards into order. Three of them contain a slip.", slot: "Step", pool: "Steps", empty: "Tap a step" },
+    drafting: { title: "Stack the floors", intro: "Lift three of the six floor slabs into place, bottom to top. Three of them contain a slip.", slot: "Floor", pool: "Slabs", empty: "Lift a slab here" },
+    cabinet: { title: "Gear train", intro: "Mesh three of the six engraved gears into a train, in order. Three of them contain a slip.", slot: "Gear", pool: "Gears", empty: "Mesh a gear here" },
+    soundlab: { title: "Arrange the track", intro: "Drop three of the six clips onto the track, in order. Three of them contain a slip.", slot: "Slot", pool: "Clips", empty: "Drop a clip here" },
+  },
+  TEST_CLAIM: {
+    studio: { title: "Test the claim", intro: "Is the claim always true, sometimes true or never true? Try some values of x, then decide.", control: "Try a value of x", sideA: "Left side", sideB: "Right side", tried: "Values tried", decide: "Your verdict" },
+    drafting: { title: "Area audit", intro: "Two formulas for the same room. Try different values of x, then decide whether they always, sometimes or never agree.", control: "Try a value of x", sideA: "Formula A", sideB: "Formula B", tried: "Sizes tried", decide: "Your verdict" },
+    cabinet: { title: "Brass balance", intro: "Weigh both sides on the balance with different values of x, then decide whether it always, sometimes or never balances.", control: "Try a value of x", sideA: "Left pan", sideB: "Right pan", tried: "Weighings", decide: "Your verdict" },
+    soundlab: { title: "A/B compare", intro: "Two signals. Try different values of x, then decide whether A and B are always, sometimes or never the same.", control: "Try a value of x", sideA: "Signal A", sideB: "Signal B", tried: "Takes tried", decide: "Your verdict" },
+  },
+  RAPID_SET: {
+    studio: { title: "Rapid set", intro: "Four quick ones. Choose the factorisation, or say it can't be done.", row: "Question", done: "All four done" },
+    drafting: { title: "Door schedule", intro: "Fill in the schedule row by row. Choose the factorisation, or say it can't be done.", row: "Row", done: "Schedule complete" },
+    cabinet: { title: "Pneumatic post", intro: "Canisters arrive by tube, one at a time. Choose the factorisation, or say it can't be done.", row: "Canister", done: "All canisters answered" },
+    soundlab: { title: "Keep the beat", intro: "Four quick ones, on the beat. Choose the factorisation, or say it can't be done.", row: "Beat", done: "All four beats played" },
+  },
+  FIND_EVERY_B: {
+    studio: { title: "Find every b", intro: "Tap every b that makes it factorise into two brackets with whole numbers.", unit: "b", picked: "Picked", none: "None yet" },
+    drafting: { title: "Every room of this area", intro: "Flag every b on the scale rule for which the room can be split into two whole-number sides.", unit: "b", picked: "Flagged", none: "None yet" },
+    cabinet: { title: "Pegboard", intro: "Set a brass peg at every b that works: it must factorise into two brackets with whole numbers.", unit: "b", picked: "Pegs set", none: "No pegs yet" },
+    soundlab: { title: "Find every note", intro: "Light every key b that works: it must factorise into two brackets with whole numbers.", unit: "b", picked: "Keys lit", none: "None lit" },
+  },
+  REPLAY: {
+    studio: { title: "Stop the replay", intro: "The working plays line by line. Stop it at the first line that goes wrong.", play: "Play", stop: "Stop", again: "Play again", line: "Line", stopHere: "Stop here", stoppedAt: "Stopped at line" },
+    drafting: { title: "Plotter check", intro: "A pen plotter draws the working line by line. Stop the plot at the first line that goes wrong.", play: "Start plot", stop: "Stop plot", again: "Plot again", line: "Line", stopHere: "Stop at this line", stoppedAt: "Stopped at line" },
+    cabinet: { title: "The automaton", intro: "A writing automaton pens the working line by line. Stop it at the first line that goes wrong.", play: "Wind it up", stop: "Stop the automaton", again: "Wind it again", line: "Line", stopHere: "Stop at this line", stoppedAt: "Stopped at line" },
+    soundlab: { title: "Scrub the take", intro: "The working plays back like a take. Stop the tape at the first line that goes wrong.", play: "Play", stop: "Stop the tape", again: "Play again", line: "Line", stopHere: "Stop here", stoppedAt: "Stopped at line" },
+  },
+  CHUNK_IT: {
+    studio: { title: "Chunk it", intro: "What is your first move? Each one leads to its own working.", chunk: "Treat ({chunk}) as one chunk", expand: "Expand the bracket first", root: "Square-root each part", working: "Your working" },
+    drafting: { title: "Module", intro: "What is your first move? Each one leads to its own set of drawings.", chunk: "Block ({chunk}) as one module", expand: "Expand the bracket first", root: "Take the square root of each part", working: "Your drawings" },
+    cabinet: { title: "Nested boxes", intro: "What is your first move? Each one leads to its own working in the workshop.", chunk: "Pack ({chunk}) into one small box", expand: "Unpack the bracket first", root: "Take the square root of each part", working: "Your workshop notes" },
+    soundlab: { title: "Bus it", intro: "What is your first move? Each one leads to its own signal path.", chunk: "Route ({chunk}) to a single bus", expand: "Split the bracket out first", root: "Take the square root of each part", working: "Your signal path" },
   },
 };
 

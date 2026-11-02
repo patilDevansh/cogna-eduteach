@@ -144,9 +144,9 @@ function assertNoHardcodedFallback(service: LotusService, view: LotusSessionView
     // AI-written, or a game question built and checked by code (lotus-probes.ts). Never a hardcoded fallback.
     const origin = question.answerKey.diagnostics?.origin;
     assert.ok(origin === "AI" || origin === "CODE", "every factorisation item must be AI-generated or a checked code-built game — a hardcoded fallback is never eligible for display");
-    // Staged as a game: a presentation (fireflies, detective…) or a puzzle interaction (crossword, cut-and-build).
-    const staged = question as { presentation?: string; interaction?: unknown };
-    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction, "a code-built item is always a staged game");
+    // Staged as a game: a presentation (fireflies, detective…), a puzzle interaction (crossword, cut-and-build) or a themed game.
+    const staged = question as { presentation?: string; interaction?: unknown; game?: unknown };
+    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction || staged.game, "a code-built item is always a staged game");
   }
   for (const audit of view.audits) {
     assert.notEqual(audit.questionSelection.provenance, "HARDCODED_SYSTEM", "no observer-visible provenance may ever claim a hardcoded question for factorisation");

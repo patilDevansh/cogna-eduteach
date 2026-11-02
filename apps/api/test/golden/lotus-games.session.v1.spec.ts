@@ -7,6 +7,9 @@ import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { LOTUS_GAME_KINDS, type LotusGameKind, type LotusGameResponse, type LotusSessionView } from "@cogna/shared";
 import { buildLotusGame, parseMonicPair } from "../../src/lotus/lotus-games";
+import { codeGameProbeFor } from "../../src/lotus/lotus-game-probes";
+import { tagRapidOption, validBs } from "../../src/lotus/lotus-games-more";
+import { FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalogue";
 import { foldLedger } from "../../src/lotus/lotus-factorisation";
 import { LotusService } from "../../src/lotus/lotus.service";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
@@ -67,7 +70,7 @@ function playRight(game: NonNullable<LotusSessionView["currentQuestion"]>["game"
 }
 
 describe("themed games through a whole session", () => {
-  for (const kind of LOTUS_GAME_KINDS.filter((k) => k !== "RECTANGLE")) {
+  for (const kind of LOTUS_GAME_KINDS.filter((k) => ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "EDIT_HISTORY", "READBACK"].includes(k))) {
     it(`${kind}: issued without a key, then marked like a typed answer with the reading kept`, async () => {
       const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
       services.push(service);
@@ -165,6 +168,57 @@ describe("themed games through a whole session", () => {
     assert.equal(inReport(slips), "CONFIRMED", "the report shows the gap though every answer was right");
     assert.notEqual(inReport(sound), "CONFIRMED");
     delete process.env.LOTUS_E2E_FAKE_MODEL;
+  });
+
+  it("the plan asks the game questions itself, and each plays through the whole path", async () => {
+    const start = async (studentId: string) => {
+      const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
+      services.push(service);
+      const started = await service.start(studentId, "FACTORISATION");
+      let view = started;
+      for (let i = 0; i < 40 && !(view.currentQuestion && view.preparation?.ready); i += 1) { await flush(); view = await service.get(started.sessionId); }
+      return { service, id: started.sessionId };
+    };
+    // 1. The plan itself: with every game on, the slots those games fill hold them.
+    const planned = await start("demo_aarav");
+    const f = internal(planned.service, planned.id).factorisation;
+    const kinds = new Set<string>((Object.values(f.versions).flat() as Array<{ game?: { kind: string } }>).map((q) => q.game?.kind ?? ""));
+    assert.ok(kinds.has("FIND_EVERY_B"), "the pair-product-sum slot holds Find every b");
+    assert.ok(kinds.has("TEST_CLAIM") || kinds.has("REPLAY"), "the checking-by-expanding slot holds a game");
+    assert.ok(kinds.has("RAPID_SET") || kinds.has("CHUNK_IT"), "the difference-of-squares slot holds a game");
+
+    // 2. Each game question, played to its right answer through service.answer.
+    const spec = (slot: number) => FACTORISATION_SLOTS.find((s) => s.slot === slot)!;
+    const make = (kind: string, slot: number) => {
+      for (let i = 0; i < 80; i++) { const item = codeGameProbeFor({ spec: spec(slot), purpose: "BASE", variation: `svc${i}`, avoid: [] }, { COGNA_THEMED_GAMES: "all" }); if (item?.game?.kind === kind) return item; }
+      throw new Error(`no ${kind}`);
+    };
+    const tagIndex = (g: { rows: Array<{ q: string; options: string[] }> }, row: number, tag: string) => g.rows[row]!.options.findIndex((o) => tagRapidOption(g.rows[row]!, row === 3, o) === tag);
+    const plays: Array<[string, number, (g: any) => unknown]> = [
+      ["TEST_CLAIM", 18, (g) => ({ kind: "TEST_CLAIM", tested: [0, 1, 2, 3], verdict: g.options.indexOf("Sometimes true") })],
+      ["REPLAY", 18, () => ({ kind: "REPLAY", stopped: 2, lateMs: 800 })],
+      ["FIND_EVERY_B", 12, (g) => ({ kind: "FIND_EVERY_B", picked: validBs(g.c) })],
+      ["RAPID_SET", 10, (g) => ({ kind: "RAPID_SET", picks: [0, 1, 2].map((r) => tagIndex(g, r, "right")).concat(tagIndex(g, 3, "right")), times: [3000, 3000, 3000, 6000] })],
+      ["CHUNK_IT", 10, (g) => ({ kind: "CHUNK_IT", route: g.routes.findIndex((r: { lines: string[] }) => /^A\^2/.test(r.lines[1]!)) })],
+    ];
+    for (const [kind, slot, right] of plays) {
+      const { service, id } = await start("demo_aarav");
+      const item = make(kind, slot);
+      const q = internal(service, id).currentQuestion;
+      for (const key of Object.keys(q)) if (key !== "id") delete q[key];
+      Object.assign(q, structuredClone(item));
+      const shown = await service.get(id);
+      assert.equal(shown.currentQuestion!.game!.kind, kind);
+      assert.equal(shown.currentQuestion!.answerKey.canonicalAnswer, "", "no answer key reaches the browser");
+      const next = await service.answer(id, "demo_aarav", { answer: "ignored", working: "", confidence: 60, responseTimeMs: 30_000, didNotKnow: false, submissionId: `more-${kind}`,
+        questionId: shown.currentQuestion!.id, nextQuestionId: shown.upcomingQuestions?.[0]?.id, game: right(item.game) as never });
+      await flush();
+      const audit = internal(service, next.sessionId).audits[0];
+      assert.equal(audit.verification.status, "VERIFIED_CORRECT", kind);
+      assert.equal(audit.response.gameReading.kind, kind);
+      assert.equal(audit.analysisStatus, "NOT_REQUIRED", `${kind}: code settles it`);
+      assert.equal((await service.get(next.sessionId)).audits[0]?.response?.gameReading, undefined, "the student's copy hides the reading");
+    }
   });
 
   it("Tiles: a positive trinomial played through the whole path", async () => {

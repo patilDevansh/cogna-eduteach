@@ -45,7 +45,11 @@ describe("Lotus themed games: issuing", () => {
     assert.equal(commit.kind === "COMMIT_THEN_CHOOSE" && commit.options.length >= 3 && commit.options.length <= 4, true);
     const tf = buildLotusGame(question(), "TRUE_FALSE")!;
     assert.equal(tf.kind === "TRUE_FALSE" && tf.claims.length >= 3, true);
-    for (const kind of LOTUS_GAME_KINDS) assert.doesNotMatch(JSON.stringify(buildLotusGame(question(), kind) ?? buildLotusGame(positive(), kind)), /canonical|correct|mistake|truth|answer|FLIPPED|PRODUCT_ONLY/i);
+    for (const kind of LOTUS_GAME_KINDS) {
+      const game = buildLotusGame(question(), kind) ?? buildLotusGame(positive(), kind);
+      // The games with a question of their own are built by lotus-game-probes.ts and checked in lotus-games-more.v1.spec.ts.
+      if (game) assert.doesNotMatch(JSON.stringify(game), /canonical|correct|mistake|truth|answer|FLIPPED|PRODUCT_ONLY/i);
+    }
   });
   it("is deterministic for a question and keeps options unique", () => {
     assert.deepEqual(buildLotusGame(question(), "COMMIT_THEN_CHOOSE"), buildLotusGame(question(), "COMMIT_THEN_CHOOSE"));
