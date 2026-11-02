@@ -1,6 +1,6 @@
-import type { LotusQuestion, LotusStudentResponse } from "@cogna/shared";
+import type { LotusGameConfig, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
-import { chooseLotusGame, LotusGameError, readLotusGame } from "./lotus-games";
+import { chooseLotusGame, chooseLotusGameOverPuzzle, LotusGameError, readLotusGame } from "./lotus-games";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
 
@@ -36,6 +36,15 @@ export function chooseLotusInteraction(
   }) ?? undefined;
 }
 
+function withGame(question: LotusQuestion, game: LotusGameConfig): LotusQuestion {
+  question.game = game;
+  // Edit history is typed like any other answer, so its working stays.
+  if (game.kind !== "EDIT_HISTORY") question.asksForWorking = false;
+  // Sharing the tokens already says how sure the student is; don't ask again.
+  if (game.kind === "SPLIT_CONFIDENCE") question.requiresConfidenceProbe = false;
+  return question;
+}
+
 /** Attaches a tile game to the question when one applies. Mutates and returns the question. */
 export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
   // A game probe (e.g. garden fences) already carries its own checked tiles.
@@ -44,6 +53,8 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
     return question;
   }
   const puzzle = gameFormatsEnabled(env) && !context.repurposed ? buildLotusPuzzle(question) : undefined;
+  const gameOverPuzzle = puzzle ? chooseLotusGameOverPuzzle(question, env) : undefined;
+  if (gameOverPuzzle) return withGame(question, gameOverPuzzle);
   if (puzzle) {
     question.interaction = puzzle.interaction;
     question.asksForWorking = false;
@@ -58,13 +69,9 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
     }
     return question;
   }
-  // A themed game (the same turns as the tile games) takes the place of the tile game on some items.
+  // A themed game takes the place of a tile game on some items, and dresses some typed ones.
   const game = chooseLotusGame(question, context, env);
-  if (game) {
-    question.game = game;
-    question.asksForWorking = false;
-    return question;
-  }
+  if (game) return withGame(question, game);
   const interaction = chooseLotusInteraction(question, context, env);
   if (interaction) {
     question.interaction = interaction;
@@ -103,6 +110,7 @@ export function resolveLotusResponse(question: LotusQuestion, response: LotusStu
       answer: read.answer,
       working: response.working ?? "",
       didNotKnow: read.didNotKnow ?? response.didNotKnow,
+      ...(read.confidence !== undefined ? { confidence: read.confidence } : {}),
       game: read.game,
       gameReading: read.reading,
     };

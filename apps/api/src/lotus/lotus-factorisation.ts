@@ -374,7 +374,7 @@ const RUSHED_MS = 5_000;
  */
 function isTap(audit: LotusQuestionAudit): boolean {
   const kind = audit.question?.answerKey?.diagnostics?.itemKind;
-  return kind === "CHOICE" || kind === "SELECT" || audit.question?.interaction?.format === "BRACKET_BRIDGE" || audit.question?.game?.kind === "COMMIT_THEN_CHOOSE" || audit.question?.game?.kind === "TRUE_FALSE";
+  return kind === "CHOICE" || kind === "SELECT" || audit.question?.interaction?.format === "BRACKET_BRIDGE" || ["COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "FOUR_SIGNS"].includes(audit.question?.game?.kind ?? "");
 }
 
 function couldShow(audit: LotusQuestionAudit, mistake: string | undefined): boolean {

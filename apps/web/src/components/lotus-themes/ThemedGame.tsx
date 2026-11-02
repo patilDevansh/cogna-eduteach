@@ -2,13 +2,22 @@
 
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import {
+  LOTUS_EDIT_MAX_LENGTH,
+  LOTUS_EDIT_MAX_SAMPLES,
   LOTUS_GAME_MAX_TRIES,
+  LOTUS_SPLIT_TOKENS,
   type CommitThenChooseGame,
+  type EditHistoryGame,
+  type EditHistorySample,
+  type FourSignsGame,
+  type LotusBracketSign,
   type LotusClaimVerdict,
   type LotusGameConfig,
   type LotusGameResponse,
   type LotusTheme,
+  type SplitConfidenceGame,
   type TrueFalseGame,
+  type TwoMovesGame,
   type TwoNumbersGame,
   type TwoNumbersTry,
 } from "@cogna/shared";
@@ -36,7 +45,7 @@ const SETTLE_MS = 600;
 const signed = (n: number) => (n < 0 ? `−${-n}` : `${n}`);
 
 /** Steps a whole number up or down, skipping 0 (a bracket of x + 0 is not an answer here). */
-function Stepper({ label, value, range, disabled, onChange }: { label: string; value: number; range: number; disabled?: boolean; onChange: (next: number) => void }) {
+function Stepper({ label, value, range, disabled, showPlus, onChange }: { label: string; value: number; range: number; disabled?: boolean; showPlus?: boolean; onChange: (next: number) => void }) {
   const step = (d: number) => {
     let next = value + d;
     if (next === 0) next += d;
@@ -47,7 +56,7 @@ function Stepper({ label, value, range, disabled, onChange }: { label: string; v
       <span className={styles.stepLabel}>{label}</span>
       <div className={styles.stepRow}>
         <button type="button" className={styles.stepBtn} disabled={disabled || value <= -range} onClick={() => step(-1)} aria-label={`${label}: lower`}>‹</button>
-        <output className={styles.stepValue} aria-live="polite">{signed(value)}</output>
+        <output className={styles.stepValue} aria-live="polite">{showPlus ? `${value < 0 ? "−" : "+"} ${Math.abs(value)}` : signed(value)}</output>
         <button type="button" className={styles.stepBtn} disabled={disabled || value >= range} onClick={() => step(1)} aria-label={`${label}: higher`}>›</button>
       </div>
     </div>
@@ -189,8 +198,8 @@ function CommitThenChoose({ theme, game, disabled, onChange }: { theme: LotusThe
       <div className={styles.guessRow}>
         <span className={styles.stepLabel}>{words.guess}</span>
         <span className={styles.frame}>
-          <span className={styles.bracketGroup}>(x <b>{guess.p < 0 ? "−" : "+"}</b> <Stepper label="First number" value={guess.p} range={game.range} disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, p: v })); }} />)</span>
-          <span className={styles.bracketGroup}>(x <b>{guess.q < 0 ? "−" : "+"}</b> <Stepper label="Second number" value={guess.q} range={game.range} disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, q: v })); }} />)</span>
+          <span className={styles.bracketGroup}>(x <Stepper label="First number" value={guess.p} range={game.range} showPlus disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, p: v })); }} />)</span>
+          <span className={styles.bracketGroup}>(x <Stepper label="Second number" value={guess.q} range={game.range} showPlus disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, q: v })); }} />)</span>
         </span>
         <button type="button" className={styles.primary} disabled={disabled || committed || !touched} onClick={() => setCommittedAt(Date.now())}>{words.commit}</button>
       </div>
@@ -268,6 +277,224 @@ function TrueFalse({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
   );
 }
 
+// ---------- Split your confidence ----------
+
+function SplitConfidence({ theme, game, disabled, onChange }: { theme: LotusTheme; game: SplitConfidenceGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.SPLIT_CONFIDENCE[theme];
+  const [counts, setCounts] = useState<number[]>(() => game.options.map(() => 0));
+  const placed = counts.reduce((a, b) => a + b, 0);
+  const left = LOTUS_SPLIT_TOKENS - placed;
+
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => {
+    report.current(left === 0 ? { kind: "SPLIT_CONFIDENCE", counts } : null);
+  }, [left, counts]);
+
+  const change = (i: number, by: number) => setCounts((cur) => cur.map((n, k) => (k === i ? n + by : n)));
+  return (
+    <>
+      <p className={styles.intro}>{words.intro}</p>
+      <div className={styles.tray} aria-live="polite">
+        <span className={styles.stepLabel}>{words.tray}</span>
+        <span className={styles.tokens} aria-hidden="true">{Array.from({ length: left }, (_, i) => <i key={i} className={styles.token} />)}</span>
+        <b>{left}</b>
+      </div>
+      <ul className={styles.splitList}>
+        {game.options.map((option, i) => (
+          <li key={option} className={styles.splitRow} data-has={counts[i]! > 0 || undefined}>
+            <span className={styles.splitText}>{prettyAlgebra(option)}</span>
+            <span className={styles.tokens} aria-hidden="true">{Array.from({ length: counts[i]! }, (_, k) => <i key={k} className={styles.token} />)}</span>
+            <span className={styles.stepRow}>
+              <button type="button" className={styles.stepBtn} disabled={disabled || counts[i] === 0} onClick={() => change(i, -1)} aria-label={`${words.takeBack} ${prettyAlgebra(option)}`}>−</button>
+              <output className={styles.stepValue} aria-label={`${counts[i]} ${counts[i] === 1 ? words.token : words.tokens} on ${prettyAlgebra(option)}`}>{counts[i]}</output>
+              <button type="button" className={styles.stepBtn} disabled={disabled || left === 0} onClick={() => change(i, 1)} aria-label={`${words.place} ${prettyAlgebra(option)}`}>+</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+// ---------- A sign that starts unset and flips when tapped ----------
+
+function SignToggle({ value, label, disabled, onChange }: { value: LotusBracketSign | null; label: string; disabled?: boolean; onChange: (next: LotusBracketSign) => void }) {
+  const shown = value === "-" ? "−" : value === "+" ? "+" : "?";
+  return (
+    <button type="button" className={styles.signToggle} data-set={value !== null || undefined} disabled={disabled} aria-label={`${label}: ${value === "-" ? "minus" : value === "+" ? "plus" : "not set"}`}
+      onClick={() => onChange(value === "+" ? "-" : "+")}>{shown}</button>
+  );
+}
+
+// ---------- Look inside: two moves ----------
+
+function TwoMoves({ theme, game, disabled, onChange }: { theme: LotusTheme; game: TwoMovesGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.TWO_MOVES[theme];
+  const [numbers, setNumbers] = useState({ n1: 1, n2: 1 });
+  const [signs, setSigns] = useState<[LotusBracketSign | null, LotusBracketSign | null]>([null, null]);
+  const complete = signs[0] !== null && signs[1] !== null;
+
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => {
+    report.current(complete ? { kind: "TWO_MOVES", numbers, signs: [signs[0]!, signs[1]!] } : null);
+  }, [complete, numbers, signs]);
+
+  const bracket = (k: 0 | 1, n: number) => `(x ${signs[k] === "-" ? "−" : signs[k] === "+" ? "+" : "?"} ${Math.abs(n)})`;
+  return (
+    <>
+      <p className={styles.intro}>{words.intro}</p>
+      <div className={styles.moves}>
+        <div className={styles.move}>
+          <span className={styles.moveLabel}>{words.move1}</span>
+          <div className={styles.steppers}>
+            <Stepper label={words.first} value={numbers.n1} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n1: v }))} />
+            <Stepper label={words.second} value={numbers.n2} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n2: v }))} />
+          </div>
+        </div>
+        <div className={styles.move}>
+          <span className={styles.moveLabel}>{words.move2}</span>
+          <p className={styles.frame}>
+            <span className={styles.bracketGroup}>(x <SignToggle value={signs[0]} label={`${words.first} bracket sign`} disabled={disabled} onChange={(v) => setSigns((c) => [v, c[1]])} /> {Math.abs(numbers.n1)})</span>
+            <span className={styles.bracketGroup}>(x <SignToggle value={signs[1]} label={`${words.second} bracket sign`} disabled={disabled} onChange={(v) => setSigns((c) => [c[0], v])} /> {Math.abs(numbers.n2)})</span>
+          </p>
+        </div>
+      </div>
+      <div className={styles.plate} aria-live="polite">
+        <span className={styles.stepLabel}>{words.plate}</span>
+        <span className={styles.plateText}>{bracket(0, numbers.n1)}{bracket(1, numbers.n2)}</span>
+      </div>
+    </>
+  );
+}
+
+// ---------- Four sign cases ----------
+
+/** A small picture on each case: decoration only. It lights up once the case is set, whatever the signs are. */
+function CaseArt({ theme, set }: { theme: LotusTheme; set: boolean }): ReactElement | null {
+  if (theme === "drafting") return (
+    <svg viewBox="0 0 120 60" className={styles.caseArt} aria-hidden="true">
+      <path d="M12 56 V26 L60 6 L108 26 V56 Z" fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
+      {[28, 54, 80].map((x) => <rect key={x} x={x} y="30" width="14" height="16" fill={set ? "var(--accent-wash)" : "none"} stroke={set ? "var(--accent)" : "var(--line-strong)"} />)}
+    </svg>
+  );
+  if (theme === "cabinet") return (
+    <svg viewBox="0 0 120 60" className={styles.caseArt} aria-hidden="true">
+      <path d="M46 28 V18 a14 14 0 0 1 28 0 V28" fill="none" stroke="var(--accent)" strokeWidth="5" strokeLinecap="round" transform={set ? "translate(0 -5)" : undefined} className={styles.move} />
+      <rect x="38" y="27" width="44" height="30" rx="5" fill={set ? "var(--accent-wash)" : "none"} stroke="var(--accent-deep)" strokeWidth="2" />
+      <circle cx="60" cy="40" r="4" fill="var(--accent-deep)" />
+    </svg>
+  );
+  if (theme === "soundlab") return (
+    <svg viewBox="0 0 120 60" className={styles.caseArt} aria-hidden="true">
+      <rect x="34" y="6" width="52" height="48" rx="8" fill={set ? "var(--accent)" : "var(--surface-raised, none)"} stroke="var(--line-strong)" strokeWidth="1.5" className={styles.move} />
+    </svg>
+  );
+  return null;
+}
+
+function FourSigns({ theme, game, disabled, onChange }: { theme: LotusTheme; game: FourSignsGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.FOUR_SIGNS[theme];
+  const [picks, setPicks] = useState<Array<[LotusBracketSign | null, LotusBracketSign | null]>>(() => game.cases.map(() => [null, null]));
+  const complete = picks.every((p) => p[0] !== null && p[1] !== null);
+
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => {
+    report.current(complete ? { kind: "FOUR_SIGNS", picks: picks as Array<[LotusBracketSign, LotusBracketSign]> } : null);
+  }, [complete, picks]);
+
+  const set = (i: number, k: 0 | 1, v: LotusBracketSign) => setPicks((cur) => cur.map((p, c) => (c === i ? (k === 0 ? [v, p[1]] : [p[0], v]) : p)));
+  return (
+    <>
+      <p className={styles.intro}>{words.intro}</p>
+      <div className={styles.fourGrid}>
+        {game.cases.map((expression, i) => {
+          const name = words.cases[i] ?? `Case ${i + 1}`;
+          const pick = picks[i]!;
+          return (
+            <div key={expression} className={styles.fourCase} data-set={(pick[0] !== null && pick[1] !== null) || undefined}>
+              <CaseArt theme={theme} set={pick[0] !== null && pick[1] !== null} />
+              <span className={styles.stepLabel}>{name}</span>
+              <span className={styles.fourExpr}>{prettyAlgebra(expression)}</span>
+              <span className={styles.frame}>
+                <span className={styles.bracketGroup}>(x <SignToggle value={pick[0]} label={`${name}, sign before ${game.numbers[0]}`} disabled={disabled} onChange={(v) => set(i, 0, v)} /> {game.numbers[0]})</span>
+                <span className={styles.bracketGroup}>(x <SignToggle value={pick[1]} label={`${name}, sign before ${game.numbers[1]}`} disabled={disabled} onChange={(v) => set(i, 1, v)} /> {game.numbers[1]})</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// ---------- Edit history ----------
+
+const SUPERSCRIPTS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+/** ^2 reads as ², as in the ordinary typed answer box. */
+const typedMath = (text: string) => text.replace(/[\^ˆ]([0-9]+)/g, (_, digits: string) => [...digits].map((d) => SUPERSCRIPTS[Number(d)]).join(""));
+const MATH_KEYS: Array<[string, string]> = [["+", "+"], ["−", "-"], ["(", "("], [")", ")"], ["x²", "²"], ["x³", "³"]];
+
+function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+  const words = GAME_WORDS.EDIT_HISTORY[theme];
+  const [value, setValue] = useState("");
+  const history = useRef<EditHistorySample[]>([]);
+  // Monotonic: the server refuses a record that runs backwards, and the wall clock can jump.
+  const startedAt = useRef(performance.now());
+  const [drafts, setDrafts] = useState<string[]>([]);
+  const field = useRef<HTMLInputElement>(null);
+
+  const report = useRef(onChange);
+  report.current = onChange;
+
+  const type = (raw: string) => {
+    const next = typedMath(raw);
+    const log = history.current;
+    const last = log[log.length - 1];
+    // Whatever stood in the box when deleting began is a draft (shown back as the student's own words, with no verdict).
+    if (last && next.length < last.v.length && (log.length < 2 || log[log.length - 2]!.v.length <= last.v.length) && last.v.trim()) setDrafts((cur) => [...cur, last.v]);
+    const sample = { t: Math.round(performance.now() - startedAt.current), v: next };
+    // Past the cap, the newest text overwrites the last slot: the final answer is never lost.
+    if (log.length >= LOTUS_EDIT_MAX_SAMPLES) log[log.length - 1] = sample;
+    else log.push(sample);
+    setValue(next);
+    report.current(next.trim() ? { kind: "EDIT_HISTORY", history: [...log] } : null);
+  };
+  const press = (token: string) => {
+    const box = field.current;
+    const at = box?.selectionStart ?? value.length;
+    const to = box?.selectionEnd ?? value.length;
+    type(`${value.slice(0, at)}${token}${value.slice(to)}`.slice(0, LOTUS_EDIT_MAX_LENGTH));
+    window.requestAnimationFrame(() => { box?.focus(); box?.setSelectionRange(at + token.length, at + token.length); });
+  };
+
+  return (
+    <>
+      <p className={styles.intro}>{words.intro}</p>
+      <label className={styles.editLabel}>
+        <span className={styles.stepLabel}>{words.input}</span>
+        <input ref={field} className={styles.editInput} value={value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+          placeholder="Type your answer" onChange={(event) => type(event.target.value)} />
+      </label>
+      <div className={styles.mathKeys} role="group" aria-label="Math tools">
+        {MATH_KEYS.map(([label, token]) => (
+          <button key={label} type="button" className={styles.mathKey} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => press(token)}>{label}</button>
+        ))}
+      </div>
+      <div className={styles.tape}>
+        <span className={styles.stepLabel}>{words.log}</span>
+        {drafts.length === 0 ? <p className={styles.tapeEmpty}>{words.empty}</p> : (
+          <ol className={styles.tapeList}>
+            {drafts.slice(-5).map((draft, i) => <li key={`${draft}-${i}`}><b>{words.draft} {Math.max(0, drafts.length - 5) + i + 1}</b> <s>{prettyAlgebra(draft)}</s></li>)}
+          </ol>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function ThemedGame({ theme, game, disabled, onChange }: ThemedGameProps) {
   const words = GAME_WORDS[game.kind][theme];
   return (
@@ -276,6 +503,10 @@ export function ThemedGame({ theme, game, disabled, onChange }: ThemedGameProps)
       {game.kind === "TWO_NUMBERS" && <TwoNumbers theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "COMMIT_THEN_CHOOSE" && <CommitThenChoose theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "TRUE_FALSE" && <TrueFalse theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "SPLIT_CONFIDENCE" && <SplitConfidence theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "TWO_MOVES" && <TwoMoves theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "FOUR_SIGNS" && <FourSigns theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} disabled={disabled} onChange={onChange} />}
     </section>
   );
 }

@@ -5,7 +5,7 @@
  */
 import { after, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { LotusGameResponse, LotusSessionView } from "@cogna/shared";
+import { LOTUS_GAME_KINDS, type LotusGameKind, type LotusGameResponse, type LotusSessionView } from "@cogna/shared";
 import { buildLotusGame } from "../../src/lotus/lotus-games";
 import { LotusService } from "../../src/lotus/lotus.service";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
@@ -34,7 +34,7 @@ let counter = 0;
  * plan only reaches a monic-trinomial game on some turns; this puts one in
  * front of the whole answer path.)
  */
-async function sessionWithGame(service: LotusService, studentId: string, kind: "TWO_NUMBERS" | "COMMIT_THEN_CHOOSE" | "TRUE_FALSE") {
+async function sessionWithGame(service: LotusService, studentId: string, kind: LotusGameKind) {
   const started = await service.start(studentId, "FACTORISATION");
   let view = started;
   for (let i = 0; i < 40 && !(view.currentQuestion && view.preparation?.ready); i += 1) { await flush(); view = await service.get(started.sessionId); }
@@ -55,12 +55,16 @@ function playRight(game: NonNullable<LotusSessionView["currentQuestion"]>["game"
   const canonical = "(x+4)(x-1)";
   const norm = (t: string) => t.replace(/\s/g, "");
   if (game!.kind === "TWO_NUMBERS") return { kind: "TWO_NUMBERS", tries: [{ p: 1, q: 1 }, { p: 4, q: -1 }], final: { p: 4, q: -1 } };
+  if (game!.kind === "SPLIT_CONFIDENCE") return { kind: "SPLIT_CONFIDENCE", counts: game!.options.map((o) => (norm(o) === canonical ? 4 : 0)) };
+  if (game!.kind === "TWO_MOVES") return { kind: "TWO_MOVES", numbers: { n1: 4, n2: -1 }, signs: ["+", "-"] };
+  if (game!.kind === "FOUR_SIGNS") return { kind: "FOUR_SIGNS", picks: game!.cases.map((c) => ({ "x^2 + 5x + 4": ["+", "+"], "x^2 - 5x + 4": ["-", "-"], "x^2 + 3x - 4": ["-", "+"], "x^2 - 3x - 4": ["+", "-"] } as Record<string, ["+" | "-", "+" | "-"]>)[c]!) };
+  if (game!.kind === "EDIT_HISTORY") return { kind: "EDIT_HISTORY", history: [{ t: 900, v: "(x - 4)(x + 1)" }, { t: 1500, v: "(x" }, { t: 3000, v: "(x + 4)(x - 1)" }] };
   if (game!.kind === "COMMIT_THEN_CHOOSE") return { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: game!.options.findIndex((o) => norm(o) === canonical) };
   return { kind: "TRUE_FALSE", verdicts: game!.claims.map((c) => (norm(c) === canonical || norm(c) === "(x-1)(x+4)" ? "true" : "false")) };
 }
 
 describe("themed games through a whole session", () => {
-  for (const kind of ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE"] as const) {
+  for (const kind of LOTUS_GAME_KINDS) {
     it(`${kind}: issued without a key, then marked like a typed answer with the reading kept`, async () => {
       const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
       services.push(service);
@@ -79,7 +83,7 @@ describe("themed games through a whole session", () => {
       assert.equal(audit.response.gameReading.kind, kind);
       assert.equal(audit.response.gameReading.skillId, "FAC_MONIC_TRINOMIAL");
       assert.equal(audit.verification.status, "VERIFIED_CORRECT", "the right play is marked correct by the algebra engine");
-      assert.equal(audit.response.answer.replace(/\s/g, ""), "(x+4)(x-1)");
+      assert.ok(["(x+4)(x-1)", "(x-1)(x+4)"].includes(audit.response.answer.replace(/\s/g, "")));
 
       // While the test runs, the browser's copy of that past turn carries no reading.
       const live = await service.get(next.sessionId);

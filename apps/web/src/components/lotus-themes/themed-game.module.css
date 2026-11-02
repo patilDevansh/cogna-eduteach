@@ -21,7 +21,7 @@
 .stepBtn { width: 44px; height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-size: 1.4rem; cursor: pointer; }
 .stepBtn:hover:not(:disabled) { border-color: var(--accent); }
 .stepBtn:disabled { opacity: .4; cursor: default; }
-.stepValue { min-width: 3.2ch; text-align: center; font-family: var(--font-math); font-size: 1.3rem; }
+.stepValue { min-width: 3.2ch; white-space: nowrap; text-align: center; font-family: var(--font-math); font-size: 1.3rem; }
 .readout { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--font-math); font-size: .95rem; color: var(--ink-soft); }
 .readout b { color: var(--ink); }
 
@@ -30,7 +30,7 @@
 .primary:disabled { opacity: .45; cursor: default; }
 
 .options { position: relative; border-radius: var(--radius-md); }
-.optionList { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; transition: filter .5s, opacity .5s; }
+.optionList { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .options[data-covered] .optionList { filter: blur(6px); opacity: .35; pointer-events: none; }
 .cover { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 10px; text-align: center; border-radius: var(--radius-md); color: var(--ink); font-size: .95rem; background: var(--accent-wash); border: 1px dashed var(--line-strong); }
 .option { min-height: 52px; padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); font-size: 1.1rem; cursor: pointer; }
@@ -50,6 +50,41 @@
 .link { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
 .link:disabled { opacity: .4; cursor: default; }
 
+.tray { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; min-height: 24px; }
+.tokens { display: inline-flex; flex-wrap: wrap; gap: 5px; align-items: center; min-width: 0; }
+.token { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+.splitList { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.splitRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 8px 8px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); }
+.splitRow[data-has] { border-color: var(--accent); background: var(--accent-wash); }
+.splitText { font-family: var(--font-math); font-size: 1.1rem; }
+
+.moves { display: grid; gap: 14px; margin-bottom: 14px; }
+.move { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); }
+.moveLabel { font-size: .9rem; color: var(--ink-soft); }
+.signToggle { width: 44px; height: 44px; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); font-size: 1.3rem; cursor: pointer; }
+.signToggle[data-set] { border: 1px solid var(--accent); color: var(--accent); }
+.signToggle:disabled { opacity: .4; cursor: default; }
+.plate { display: grid; gap: 4px; padding: 14px; border-radius: var(--radius-md); background: var(--field-bg, var(--accent-wash)); }
+.plateText { font-family: var(--font-math); font-size: clamp(1.2rem, 5vw, 1.6rem); color: var(--ink); overflow-wrap: anywhere; }
+
+.fourGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fourCase { display: grid; gap: 6px; align-content: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); }
+.fourCase[data-set] { border-color: var(--line-strong); background: var(--accent-wash); }
+.fourExpr { font-family: var(--font-math); font-size: 1.05rem; }
+.fourCase .frame { font-size: 1.05rem; }
+.caseArt { width: 100%; max-height: 64px; }
+
+.editLabel { display: grid; gap: 6px; margin-bottom: 12px; }
+.editInput { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--field-bg, var(--surface)); color: var(--ink); font-family: var(--font-math); font-size: 1.15rem; box-sizing: border-box; }
+.editInput:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.mathKeys { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.mathKey { min-width: 44px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised, var(--surface)); color: var(--ink); font-family: var(--font-math); cursor: pointer; }
+.mathKey:disabled { opacity: .4; cursor: default; }
+.tape { display: grid; gap: 6px; padding: 12px 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); }
+.tapeEmpty { margin: 0; color: var(--ink-faint); font-size: .9rem; }
+.tapeList { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-family: var(--font-math); font-size: .95rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.tapeList b { font-weight: 500; color: var(--ink-faint); }
+
 .game button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* ---- theme decoration: art only ---- */
@@ -63,6 +98,14 @@
 .game[data-art="soundlab"] .cardArt { background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 7px); border-radius: 3px; opacity: .7; }
 .game[data-art="soundlab"] .cover { background: repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 4px, transparent 4px 9px); }
 .game[data-art="studio"] .cardArt { display: none; }
+.game[data-art="studio"] .caseArt { display: none; }
+.game[data-art="drafting"] .token { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.game[data-art="drafting"] .plate { border: 1px dashed var(--accent); }
+.game[data-art="cabinet"] .token { width: 12px; height: 16px; border-radius: 3px 3px 6px 6px; background: linear-gradient(var(--accent), var(--accent-deep)); }
+.game[data-art="cabinet"] .plate { border: 1px solid var(--accent-deep); box-shadow: inset 0 1px 0 rgba(255, 236, 200, .25); }
+.game[data-art="cabinet"] .tape { border-style: solid; background: rgba(243, 230, 204, .06); }
+.game[data-art="soundlab"] .token { width: 8px; height: 18px; border-radius: 2px; }
+.game[data-art="soundlab"] .plate { border-left: 4px solid var(--accent); }
 
 /* Movement only: a card must stay visible even where animations never start. */
 @keyframes dealIn { from { transform: translateY(10px) scale(.97); } to { transform: none; } }
@@ -70,8 +113,10 @@
 @media (max-width: 560px) {
   .twoGrid { grid-template-columns: 1fr; }
   .game { padding: 14px; }
+  .splitRow { grid-template-columns: minmax(0, 1fr) auto; }
+  .splitRow .tokens { grid-row: 2; grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card { animation: none; }
-  .move, .optionList { transition: none; }
+  .move { transition: none; }
 }

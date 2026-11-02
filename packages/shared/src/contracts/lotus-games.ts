@@ -10,7 +10,7 @@
  *
  * The student's theme (see lotus-themes.ts) supplies words and art only.
  */
-export const LOTUS_GAME_KINDS = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE"] as const;
+export const LOTUS_GAME_KINDS = ["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS", "EDIT_HISTORY"] as const;
 export type LotusGameKind = (typeof LOTUS_GAME_KINDS)[number];
 
 export function isLotusGameKind(value: unknown): value is LotusGameKind {
@@ -22,6 +22,10 @@ export const LOTUS_GAME_TITLES: Record<LotusGameKind, string> = {
   TWO_NUMBERS: "Two numbers",
   COMMIT_THEN_CHOOSE: "Commit, then choose",
   TRUE_FALSE: "True or false",
+  SPLIT_CONFIDENCE: "Split your confidence",
+  TWO_MOVES: "Look inside",
+  FOUR_SIGNS: "Four sign cases",
+  EDIT_HISTORY: "Edit history",
 };
 
 /** Most numbers a "Two numbers" search can record, and the longest search kept. */
@@ -29,6 +33,13 @@ export const LOTUS_GAME_MAX_TRIES = 40;
 /** A claim verdict. `null` is not used on the wire: every claim must be decided. */
 export type LotusClaimVerdict = "true" | "false" | "unsure";
 export const LOTUS_CLAIM_VERDICTS: readonly LotusClaimVerdict[] = ["true", "false", "unsure"];
+/** Tokens a student shares across the answers in "Split your confidence". */
+export const LOTUS_SPLIT_TOKENS = 4;
+/** The sign in front of a number in a bracket. */
+export type LotusBracketSign = "+" | "-";
+/** "Edit history": most snapshots of the typed answer kept, and the longest text of one snapshot. */
+export const LOTUS_EDIT_MAX_SAMPLES = 400;
+export const LOTUS_EDIT_MAX_LENGTH = 120;
 
 interface LotusGameBase {
   version: 1;
@@ -58,8 +69,37 @@ export interface TrueFalseGame extends LotusGameBase {
   claims: string[];
 }
 
+/** Share four tokens across the answers: all on one if sure, split if torn. */
+export interface SplitConfidenceGame extends LotusGameBase {
+  kind: "SPLIT_CONFIDENCE";
+  options: string[];
+}
+
+/** Move 1: the two numbers. Move 2: the sign each one takes into its bracket. */
+export interface TwoMovesGame extends LotusGameBase {
+  kind: "TWO_MOVES";
+  range: number;
+}
+
+/**
+ * The numbers are given; the student sets the signs in four cases, one of which
+ * is the question. The pattern across the four is the evidence.
+ */
+export interface FourSignsGame extends LotusGameBase {
+  kind: "FOUR_SIGNS";
+  /** The two numbers, smaller first, as they sit in every bracket pair. */
+  numbers: [number, number];
+  /** The four expressions, in display order. */
+  cases: string[];
+}
+
+/** Type the answer; each deleted draft is kept and read. Works on any factorising question. */
+export interface EditHistoryGame extends LotusGameBase {
+  kind: "EDIT_HISTORY";
+}
+
 /** What the browser gets: the configuration of a game, carrying no answer. */
-export type LotusGameConfig = TwoNumbersGame | CommitThenChooseGame | TrueFalseGame;
+export type LotusGameConfig = TwoNumbersGame | CommitThenChooseGame | TrueFalseGame | SplitConfidenceGame | TwoMovesGame | FourSignsGame | EditHistoryGame;
 
 export interface TwoNumbersTry {
   p: number;
@@ -94,7 +134,40 @@ export interface TrueFalseResponse {
   cardMs?: number[];
 }
 
-export type LotusGameResponse = TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse;
+export interface SplitConfidenceResponse {
+  kind: "SPLIT_CONFIDENCE";
+  /** Tokens on each issued option, same order. Adds up to LOTUS_SPLIT_TOKENS. */
+  counts: number[];
+}
+
+export interface TwoMovesResponse {
+  kind: "TWO_MOVES";
+  /** Move 1: the two numbers as chosen, with their own signs. */
+  numbers: { n1: number; n2: number };
+  /** Move 2: the sign written into each bracket. */
+  signs: [LotusBracketSign, LotusBracketSign];
+}
+
+export interface FourSignsResponse {
+  kind: "FOUR_SIGNS";
+  /** The two signs chosen for each issued case, same order. */
+  picks: Array<[LotusBracketSign, LotusBracketSign]>;
+}
+
+export interface EditHistorySample {
+  /** Milliseconds since the game was shown. */
+  t: number;
+  /** The whole answer box at that moment. */
+  v: string;
+}
+
+export interface EditHistoryResponse {
+  kind: "EDIT_HISTORY";
+  /** Snapshots of the answer box, oldest first. The last one is the answer. */
+  history: EditHistorySample[];
+}
+
+export type LotusGameResponse = TwoNumbersResponse | CommitThenChooseResponse | TrueFalseResponse | SplitConfidenceResponse | TwoMovesResponse | FourSignsResponse | EditHistoryResponse;
 
 /**
  * What the server read from a game, for teachers and the diagnosis. Never shown
