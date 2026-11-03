@@ -3,7 +3,13 @@
 **Status: Canonical / Frozen**  
 **Implementation status: Active**
 
-## Product contract
+## Contract precedence and delivery status
+
+This README defines the original diagnostic-cycle baseline. [PILOT_FLOW.md](./PILOT_FLOW.md) is the active amendment for default per-student auto-advance; class-wide gates below apply when `config.autoAdvance: false`. [INTERACTION_FORMATS.md](./INTERACTION_FORMATS.md) governs configured exit-item formats/counts.
+
+[MODULE_LEARNING.md](./MODULE_LEARNING.md) is the canonical additive teaching-first contract (28 October 2026). It defines assigned and self-directed module learning, relevant gap repair, independent evidence and later review. **Its runtime implementation is pending.** It does not replace either existing diagnostic-cycle mode or silently migrate old runs.
+
+## Product contract — diagnostic-cycle baseline
 
 Cogna provides one durable, teacher-controlled classroom lifecycle:
 
@@ -46,3 +52,13 @@ Assignments are durable per student and stage. Re-launching a stage is idempoten
 
 
 See [INTERACTION_FORMATS.md](./INTERACTION_FORMATS.md) for game-like answer formats in the diagnostic, exit and practice. The exit is one attempt, and its answer is hidden until then.
+
+See [DIAGNOSTIC_EVIDENCE.md](./DIAGNOSTIC_EVIDENCE.md) for report qualification: direct versus supporting success, provisional repeated-check strengths, and the boundary between an observed support target and an inferred cause.
+
+
+## Personalised lesson evidence amendment — 29 October 2026
+
+[LEARNER_EVIDENCE.md](./LEARNER_EVIDENCE.md) is the additive versioned observation/replay contract. The bounded typed-practice runtime uses immutable receipts in the existing assignment record, atomic saving and resumable UI. This is existing personalised practice, not implementation of the full MODULE_LEARNING teaching-first journey or a retention detector. Other formats and delayed-review integration remain explicit follow-on work.
+
+
+[RECOVERY_AND_CONTEXTUAL_SUPPORT.md](./RECOVERY_AND_CONTEXTUAL_SUPPORT.md) is the30October additive contract for recovery, independent presentation observations, joined student history and bounded contextual support. It preserves specialised LLM cognitive-inference bans and diagnostic/exit boundaries.

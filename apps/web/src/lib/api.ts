@@ -31,6 +31,8 @@ import type {
   TileBuildResponse,
   MicroCheckResult,
   MicroLessonView,
+  LessonEvidenceRequest,
+  LessonEvidenceReceipt,
 } from "@cogna/shared";
 import { LOTUS_PLANNED_TOPICS } from "@cogna/shared";
 import {
@@ -648,7 +650,21 @@ export interface ClassroomRunReport {
   students: Array<{ assignmentId: string; studentId: string; studentName: string; kind: ClassroomAssignmentKind; status: ClassroomAssignmentStatus; result?: Record<string, unknown> | null }>;
 }
 
+export interface ModuleRunView {
+  identity: { runId: string; flow: "MODULE_LEARNING_V1"; studentId: string; source: "SELF_DIRECTED" | "TEACHER_ASSIGNED"; moduleId: string; packageId: string; packageVersion: string; classroomId: string | null; repeatOfRunId: string | null };
+  state: { revision: number; stage: string; paused: boolean; teacherPaused: boolean; workflow: "ACTIVE" | "COMPLETE" | "UNRESOLVED"; lastResult: { itemId: string; verdict: string; assistance: string } | null; independentResult: { itemId: string; verdict: string } | null; supportTarget: string | null };
+  asset: { exposureTag: string; segmentId: string; purpose: string; staticSlides: Array<{ step: number; title: string; explanation: string; equations: string[] }> } | null;
+  question: { id: string; prompt: string; options: string[] | null; independent: boolean } | null;
+}
+
 export const api = {
+  moduleRuns: () => apiFetch<ModuleRunView[]>("/module-learning/for-student"),
+  moduleRun: (id: string) => apiFetch<ModuleRunView>(`/module-learning/runs/${encodeURIComponent(id)}`),
+  startSelfModule: (requestId: string) => apiFetch<ModuleRunView>("/module-learning/runs", { method: "POST", body: JSON.stringify({ flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId }) }),
+  assignClassModule: (classroomId: string, requestId: string, studentIds?: string[]) => apiFetch<{ flow: string; classroomId: string; runs: ModuleRunView[] }>("/module-learning/classroom-assignments", { method: "POST", body: JSON.stringify({ flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", classroomId, requestId, studentIds }) }),
+  moduleAction: (id: string, eventId: string, expectedRevision: number, action: Record<string, unknown>) => apiFetch<ModuleRunView>(`/module-learning/runs/${encodeURIComponent(id)}/actions`, { method: "POST", body: JSON.stringify({ eventId, expectedRevision, action }) }),
+  recordLearnerObservation: (body: unknown) => apiFetch<{ eventId: string; receivedAt: string; interpretation: string; next?: PracticeNextResponse | null; checkStatus?: string; offer: { policyVersion: string; reason: string; options: string[]; message: string } | null }>("/learning-evidence/observations", { method: "POST", body: JSON.stringify(body) }),
+  learnerHistory: (cursor?: string) => apiFetch<any>(`/learning-evidence/history${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
   /** Dev-only demo login credentials. The API omits them in production/staging, so fail with a clear message. */
   health: async () => {
     const health = await apiFetch<{ devStudentId?: string; devAccessCode?: string }>("/health");
@@ -851,6 +867,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ accessCode }),
     }),
+
+  getLearningSession: (sessionId: string) => apiFetch<{ id: string; studentId: string; status: string; startedAt: string; currentDelivery: PracticeNextResponse | null; issuedHints?: Array<{eventId:string;questionId:string;level:number}>; attempts: Array<{ eventId: string; questionId: string; storedResponse?: unknown }> }>(`/sessions/${encodeURIComponent(sessionId)}`),
 
   createSession: (studentId: string, sessionMode: "BASELINE" | "ADAPTIVE_PRACTICE") =>
     apiFetch<{ sessionId: string; sessionMode: string; next: PracticeNextResponse }>(
@@ -1215,6 +1233,11 @@ export const api = {
     personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
 
   getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
+
+  recordPracticeEvidence: (id: string, event: LessonEvidenceRequest) =>
+    personalizedVideoFetch<LessonEvidenceReceipt>(`/assignments/${id}/practice-evidence`, {
+      method: "POST", body: JSON.stringify(event),
+    }),
 
   /** The narrated 20-second lesson on the student's own mistake, or null when none fits. */
   getMicroLesson: (id: string, theme?: string) =>

@@ -49,6 +49,11 @@
       "env": {
         "PORT": "3001"
       }
+    },
+    {
+      "name": "api-attach",
+      "port": 3001,
+      "url": "http://localhost:3001"
     }
   ]
 }

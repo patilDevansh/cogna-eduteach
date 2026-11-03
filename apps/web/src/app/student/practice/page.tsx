@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { LearnerSupport } from "@/components/learning/LearnerSupport";
 import Link from "next/link";
 import type { PracticeNextResponse, QuestionPayload } from "@cogna/shared";
 import {
@@ -11,6 +12,9 @@ import {
   SESSION_LIMIT_MS,
 } from "@/lib/api";
 import { getStudent, clearStudent } from "@/lib/session";
+import { useInteractionObservation } from "@/lib/use-interaction-observation";
+import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
+import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
 import styles from "@/components/practice.module.css";
 
 type Phase =
@@ -21,7 +25,8 @@ type Phase =
   | "explanation"
   | "break"
   | "ended"
-  | "handoff";
+  | "handoff"
+  | "recovery-error";
 
 type BreakInfo = {
   minutes: number;
@@ -50,9 +55,11 @@ function PracticeContent() {
   const [confidenceTap, setConfidenceTap] = useState<"guess" | "hunch" | "worked-unsure" | "sure" | null>(null);
   const [hints, setHints] = useState<Array<{ level: number; content: string }>>([]);
   const [hintCount, setHintCount] = useState(0);
+  const [hintLoading, setHintLoading] = useState(false);
   const [highestHintLevel, setHighestHintLevel] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [supportPaused, setSupportPaused] = useState(false);
   const [summary, setSummary] = useState<{
     questionCount: number;
     summaryReportId: string;
@@ -66,13 +73,29 @@ function PracticeContent() {
   const [submitFailed, setSubmitFailed] = useState(false);
   const [baselineQuestionIndex, setBaselineQuestionIndex] = useState(0);
 
+  const booted = useRef(false);
+  const recoveryReady = useRef(false);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
+  const [blockedRecovery, setBlockedRecovery] = useState<"saved" | "stale" | null>(null);
   const questionShownAt = useRef<number>(Date.now());
   const firstInputAt = useRef<number | null>(null);
   const pendingEventId = useRef<string | null>(null);
   const pendingPayload = useRef<Parameters<typeof api.submitAnswer>[0] | null>(null);
+  const submissionLock = useRef(false);
 
   const question = current?.payload as QuestionPayload | undefined;
   const BASELINE_TARGET = 12;
+  type Recovery = { sessionId: string; current: PracticeNextResponse; phase: Phase; answer: string; confidence: number | null; gradeResult: typeof gradeResult; hints: typeof hints; hintCount: number; highestHintLevel: number; startedAt: number; shownAt: number; firstInputAt: number | null; answerChanged: boolean; pending: Parameters<typeof api.submitAnswer>[0] | null };
+  function persistRecovery(overrides: Partial<Recovery> = {}) {
+    if (!studentId || !sessionId || !current || !recoveryReady.current || phase === "loading") return;
+    try {
+      if (phase === "ended" || phase === "handoff") { if(pendingPayload.current || !gradeResult && answer.trim())return; sessionStorage.removeItem(recoveryKey("EXERCISE", studentId, mode)); return; }
+      writeRecovery(recoveryKey("EXERCISE", studentId, mode), { sessionId, current, phase, answer, confidence, gradeResult, hints, hintCount, highestHintLevel, startedAt: sessionStartedAt ?? Date.now(), shownAt: questionShownAt.current, firstInputAt: firstInputAt.current, answerChanged, pending: pendingPayload.current, ...overrides });
+    } catch { setRecoveryMessage("This browser cannot keep a draft after refresh. Keep this page open until your answer is confirmed."); }
+  }
+  useEffect(() => { persistRecovery(); }, [studentId, sessionId, current, phase, answer, confidence, gradeResult, hints, hintCount, highestHintLevel, submitting]);
+  const interaction = useInteractionObservation("EXERCISE", question?.id, question?.version ?? null, "TYPED_ANSWER", (phase === "question" || phase === "confidence") && !supportPaused, sessionId);
+  const draftCheckpoints = useDraftCheckpoints("EXERCISE", studentId, sessionId, question?.id, question?.version ?? null, phase === "question" && !submitting && !submitFailed && !supportPaused, questionShownAt.current);
 
   function questionLabel(count: number): string {
     return count === 1 ? "question" : "questions";
@@ -203,6 +226,55 @@ function PracticeContent() {
     setStudentName(student.name);
 
     try {
+      let cached: Recovery | null = null;
+      try { cached = readRecovery<Recovery>(recoveryKey("EXERCISE", student.studentId, mode)); } catch { setRecoveryMessage("Draft recovery is unavailable in this browser."); }
+      if (cached?.sessionId && typeof cached.answer === "string" && cached.answer.length <= 10000 && Array.isArray(cached.hints) && Number.isFinite(cached.startedAt) && Number.isFinite(cached.shownAt) && cached.current?.decision && cached.current?.payload && (cached.confidence === null || Number.isInteger(cached.confidence) && cached.confidence >= 1 && cached.confidence <= 5) && (!cached.pending || cached.pending.studentId === student.studentId && cached.pending.sessionId === cached.sessionId && cached.pending.questionId === (cached.current.payload as QuestionPayload).id && typeof cached.pending.eventId === "string") && ["question", "confidence", "feedback", "explanation"].includes(cached.phase)) {
+        const server = await api.getLearningSession(cached.sessionId);
+        const replay = cached.pending && server.attempts.some(a => a.eventId === cached.pending?.eventId && a.questionId === cached.pending?.questionId);
+        const superseded = cached.pending && server.attempts.some(a => a.questionId === cached.pending?.questionId && a.eventId !== cached.pending?.eventId);
+        if (replay || superseded) {
+          setSessionId(cached.sessionId); setAnswer(cached.answer); setPhase("recovery-error");
+          setBlockedRecovery(replay ? "saved" : "stale");
+          setError(replay ? "Your answer was saved, but the next step could not be completed in this review session." : "This answer was not saved because this question already has a different submitted answer.");
+          setRecoveryMessage("Your typed answer is retained in this browser. Check the learning record for the saved answer.");
+          return;
+        }
+        const cachedItem = cached.current.payload as QuestionPayload;
+        const supportKey = recoveryKey("SUPPORT",student.studentId,`EXERCISE:${cached.sessionId}:${cachedItem.id}:${cachedItem.version}`);
+        let supportPending: any = null;
+        try { supportPending = readRecovery<any>(supportKey); } catch { /* canonical mismatch remains explicit */ }
+        if(supportPending?.pending?.kind === "SUPPORT_CHECK" && supportPending.pending.eventId === server.currentDelivery?.decisionId && server.studentId === student.studentId && server.status === "ACTIVE") {
+          await api.recordLearnerObservation(supportPending.pending);
+          writeRecovery(recoveryKey("PREVIOUS_EXERCISE_DRAFT",student.studentId,`${cached.sessionId}:${cachedItem.id}:${cachedItem.version}`),cached);
+          writeRecovery(supportKey,{...supportPending,pending:undefined,checkAttempted:true});
+          setSessionId(cached.sessionId);setCurrent(server.currentDelivery);setPhase("question");setAnswer("");setConfidence(null);setGradeResult(null);setHints([]);setHintCount(0);setHighestHintLevel(0);setSessionStartedAt(cached.startedAt);questionShownAt.current=Date.now();firstInputAt.current=null;pendingPayload.current=null;pendingEventId.current=null;recoveryReady.current=true;setRecoveryMessage("Your requested practice check was confirmed. The earlier draft is retained locally.");return;
+        }
+        const issuedItem = server.currentDelivery?.payload as QuestionPayload | undefined;
+        const sameItem = server.currentDelivery?.decision.uiAction === cached.current.decision.uiAction && issuedItem?.id === cachedItem?.id && issuedItem?.version === cachedItem?.version;
+        if (server.studentId === student.studentId && server.status === "ACTIVE" && (sameItem || replay)) {
+          setSessionId(cached.sessionId); setCurrent(replay ? cached.current : server.currentDelivery); setPhase(cached.phase);
+          setAnswer(cached.answer); setConfidence(cached.confidence);
+          const checked = server.attempts.at(-1)?.storedResponse as {grade:string;isCorrect:boolean;attemptId:string}|undefined;
+          setGradeResult(checked ? {grade:checked.grade,isCorrect:checked.isCorrect,attemptId:checked.attemptId} : null);
+          const issued = (server.issuedHints ?? []).filter(h=>h.questionId===cachedItem.id);
+          const highest = issued.reduce((n,h)=>Math.max(n,h.level??0),0);
+          const ladder=(server.currentDelivery?.payload as QuestionPayload)?.hintLadder ?? [];
+          setHints(issued.length ? Array.from({length:highest},(_,i)=>({level:i+1,content:ladder[i]??"Previously issued help"})) : []);
+          setHintCount(issued.length); setHighestHintLevel(highest);
+          setSessionStartedAt(cached.startedAt); questionShownAt.current = cached.shownAt; firstInputAt.current = cached.firstInputAt;
+          setAnswerChanged(cached.answerChanged); pendingPayload.current = cached.pending; pendingEventId.current = cached.pending?.eventId ?? null;
+          setSubmitFailed(Boolean(cached.pending)); recoveryReady.current = true;
+          setRecoveryMessage(cached.pending ? "Your previous answer needs confirmation. Retry saving it." : "Draft restored in this tab. Unchecked work is not a server save.");
+          return;
+        }
+      }
+      if (cached?.sessionId) {
+        setAnswer(typeof cached.answer === "string" ? cached.answer : "");
+        setError("Saved work no longer matches the server's current session. Your local work is retained.");
+        setRecoveryMessage("Reload to retry confirmation, or explicitly start a new session from Home.");
+        setPhase("recovery-error");return;
+      }
+      recoveryReady.current = true;
       const session = await api.createSession(student.studentId, mode);
       setSessionId(session.sessionId);
       setCurrent(session.next);
@@ -236,12 +308,14 @@ function PracticeContent() {
           ? "We're having trouble connecting. Ask a grown-up to make sure practice is running, then try again."
           : "Something went wrong starting your session. Please try again.",
       );
-      setPhase("loading");
+      setPhase("recovery-error");
     }
   }, [mode, router]);
 
   useEffect(() => {
-    startSession();
+    if (booted.current) return;
+    booted.current = true;
+    void startSession();
   }, [startSession]);
 
   useEffect(() => {
@@ -250,7 +324,7 @@ function PracticeContent() {
   }, [mode]);
 
   useEffect(() => {
-    if (!sessionStartedAt || phase === "ended" || phase === "handoff") return;
+    if (!sessionStartedAt || phase === "ended" || phase === "handoff" || submitFailed || pendingPayload.current) return;
 
     const tick = () => {
       const elapsed = Date.now() - sessionStartedAt;
@@ -263,7 +337,7 @@ function PracticeContent() {
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [sessionStartedAt, phase, sessionId, endSessionEarly]);
+  }, [sessionStartedAt, phase, sessionId, endSessionEarly, submitFailed]);
 
   function formatElapsed(ms: number): string {
     const totalSec = Math.floor(ms / 1000);
@@ -274,18 +348,24 @@ function PracticeContent() {
 
   function onAnswerChange(value: string) {
     if (!firstInputAt.current) firstInputAt.current = Date.now();
-    setAnswerChanged(true);
+    if (answer.trim() && value !== answer) setAnswerChanged(true);
+    interaction.input(value);
+    draftCheckpoints.record(value);
     setAnswer(value);
+    persistRecovery({ answer: value, answerChanged: Boolean(answer.trim() && value !== answer) || answerChanged, firstInputAt: firstInputAt.current });
     if (error) setError("");
   }
 
   async function requestHint() {
-    if (!question || !sessionId || !studentId) return;
-    if ((question.hintLadder?.length ?? 0) <= highestHintLevel) return;
+    if (hintLoading || submitting || submitFailed) return null;
+    if (!question || !sessionId || !studentId) return null;
+    if ((question.hintLadder?.length ?? 0) <= highestHintLevel) return null;
 
+    setHintLoading(true);
+    const hintEventId = newEventId();
     try {
       const result = await api.requestHint({
-        eventId: newEventId(),
+        eventId: hintEventId,
         eventType: "HINT_REQUESTED",
         studentId,
         sessionId,
@@ -300,12 +380,15 @@ function PracticeContent() {
       });
       setHintCount((c) => c + 1);
       setHighestHintLevel((prev) => Math.max(prev, hint.level));
+      return hintEventId;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hint unavailable");
-    }
+      return null;
+    } finally { setHintLoading(false); }
   }
 
   function submitForConfidence() {
+    if (hintLoading || supportPaused) return;
     if (!answer.trim()) {
       setError("Please enter an answer.");
       return;
@@ -322,13 +405,17 @@ function PracticeContent() {
   }
 
   async function submitAnswer(conf: number | null) {
+    if (submissionLock.current) return;
+    if (pendingPayload.current) { await retrySubmit(); return; }
     if (!question || !sessionId || !studentId) return;
-
+    submissionLock.current = true;
+    const clickedAt = Date.now();
+    const submittedAnswer = answer.trim();
+    const answerContext = interaction.snapshot({ status: conf === null ? "NOT_ASKED" : "REPORTED_BEFORE_ANSWER", value: conf, scale: "ONE_TO_FIVE" });
     setSubmitting(true);
     setError("");
     setSubmitFailed(false);
 
-    const now = Date.now();
     const eventId = pendingEventId.current ?? newEventId();
     pendingEventId.current = eventId;
 
@@ -339,22 +426,24 @@ function PracticeContent() {
       sessionId,
       questionId: question.id,
       questionVersion: question.version,
-      submittedAnswer: answer.trim(),
+      submittedAnswer,
       timeToFirstResponseMs:
         (firstInputAt.current ?? questionShownAt.current) - questionShownAt.current,
-      totalTimeMs: now - questionShownAt.current,
+      totalTimeMs: clickedAt - questionShownAt.current,
       idleTimeMs: 0,
       attemptNumber: 1,
       hintCount,
       highestHintLevel,
       selfRatedConfidence: conf,
       answerChangedBeforeSubmit: answerChanged,
-      clientTimestamp: new Date().toISOString(),
+      clientTimestamp: new Date(clickedAt).toISOString(),
+      interactionContext: answerContext,
     };
-
     pendingPayload.current = payload;
+    persistRecovery({ pending: payload });
 
     try {
+      try { await draftCheckpoints.flushBeforeSubmit(); } catch { /* Answer submission remains available if evidence capture fails. */ }
       const result = await api.submitAnswer(payload);
       pendingEventId.current = null;
       pendingPayload.current = null;
@@ -395,13 +484,12 @@ function PracticeContent() {
       setCurrent(result.next ?? null);
       setPhase("feedback");
     } catch (err) {
-      setSubmitFailed(true);
-      setError(
-        err instanceof Error
-          ? `${err.message} — tap Retry to resubmit with the same event.`
-          : "Submit failed",
-      );
+      if (!await reconcileFailedAnswer(err, payload)) {
+        setSubmitFailed(true);
+        setError(err instanceof Error ? `${err.message} — tap Retry to resubmit with the same event.` : "Submit failed");
+      }
     } finally {
+      submissionLock.current = false;
       setSubmitting(false);
     }
   }
@@ -436,11 +524,30 @@ function PracticeContent() {
       }
       setError("");
     } catch (err) {
-      setSubmitFailed(true);
-      setError(err instanceof Error ? err.message : "Retry failed");
+      if (!await reconcileFailedAnswer(err, pendingPayload.current)) {
+        setSubmitFailed(true);
+        setError(err instanceof Error ? err.message : "Retry failed");
+      }
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function reconcileFailedAnswer(error: unknown, payload: Parameters<typeof api.submitAnswer>[0] | null): Promise<boolean> {
+    if (!payload || !sessionId) return false;
+    try {
+      const server = await api.getLearningSession(sessionId);
+      const saved = server.attempts.some(a => a.eventId === payload.eventId && a.questionId === payload.questionId);
+      const superseded = server.attempts.some(a => a.questionId === payload.questionId && a.eventId !== payload.eventId);
+      if (!saved && !superseded && !(error instanceof Error && /current question changed|issued question changed/i.test(error.message))) return false;
+      recoveryReady.current = false;
+      setBlockedRecovery(saved ? "saved" : "stale");
+      setPhase("recovery-error");
+      setSubmitFailed(false);
+      setError(saved ? "Your answer was saved, but the next step could not be completed in this review session." : "This answer was not saved because the question changed or already has another submitted answer.");
+      setRecoveryMessage("Your typed answer is retained in this browser. Check the learning record for the saved answer.");
+      return true;
+    } catch { return false; }
   }
 
   async function continueAfterFeedback() {
@@ -677,6 +784,19 @@ function PracticeContent() {
     );
   }
 
+  if (phase === "recovery-error") {
+    return shell(<>
+      <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>{blockedRecovery === "saved" ? "Your answer was saved" : blockedRecovery === "stale" ? "This question was already answered" : "Your work needs confirmation"}</h1>
+      {question?.stem && <p><strong>Question:</strong> {question.stem}</p>}
+      <p role="alert">{error}</p>
+      <p>{recoveryMessage || "Your local draft has not been replaced."}</p>
+      {answer && <details open><summary>Your typed answer — retained here, not applied to another question</summary><p style={{ marginTop: "var(--s-2)", fontWeight: 700 }}>{answer}</p></details>}
+      <div className="actions" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-3)", marginTop: "var(--s-5)" }}>
+        {blockedRecovery ? <Link className="btn btn-primary" href="/student/learning-history">View learning record</Link> : <><button type="button" onClick={()=>window.location.reload()}>Retry session recovery</button><button type="button" onClick={()=>{try{sessionStorage.removeItem(recoveryKey("EXERCISE",studentId,mode));}catch{}window.location.reload();}}>Discard this local draft and start a new session</button></>}
+        <Link className="btn btn-ghost" href="/student/home">Back home</Link>
+      </div>
+    </>);
+  }
   if (phase === "ended") {
     return shell(
       <>
@@ -885,6 +1005,8 @@ function PracticeContent() {
 
   return shell(
     <>
+      {recoveryMessage && <p role="status">{recoveryMessage}</p>}
+      {question && sessionId && <LearnerSupport key={`${sessionId}:${question.id}:${question.version}`} studentId={studentId} identity={{source:"EXERCISE",sessionId,questionId:question.id,questionVersion:question.version}} onHint={mode === "ADAPTIVE_PRACTICE" ? requestHint : undefined} onPause={setSupportPaused} onPracticeCheck={mode === "ADAPTIVE_PRACTICE" && !submitting && !submitFailed ? async () => { const confirmed=await api.getLearningSession(sessionId); if(confirmed.status!=="ACTIVE"||!confirmed.currentDelivery)throw new Error("Could not confirm the issued check");resetQuestionState(confirmed.currentDelivery); } : undefined} />}
       <div className={styles.quietRow} style={{ borderTop: "none", paddingTop: 0, justifyContent: "space-between" }}>
         {mode === "BASELINE" ? (
           <div className="progress-row">
@@ -932,10 +1054,12 @@ function PracticeContent() {
               <label htmlFor="answer">Your answer</label>
               <input
                 id="answer"
+                disabled={submitting || submitFailed || hintLoading || supportPaused}
                 className={`input ${styles.answerInput}`}
                 type="text"
                 value={answer}
                 onChange={(e) => onAnswerChange(e.target.value)}
+                onBlur={() => draftCheckpoints.flush()}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !submitting) {
                     e.preventDefault();
@@ -955,16 +1079,16 @@ function PracticeContent() {
               type="button"
               className="btn btn-primary"
               onClick={submitForConfidence}
-              disabled={submitting}
+              disabled={submitting || hintLoading || supportPaused}
             >
-              Check
+              {submitFailed ? "Retry saving" : "Check"}
             </button>
             {(question.hintLadder?.length ?? 0) > highestHintLevel && (
               <button
                 type="button"
                 className="btn btn-ghost"
                 onClick={() => void requestHint()}
-                disabled={submitting}
+                disabled={submitting || hintLoading || submitFailed}
               >
                 Get a hint
               </button>
@@ -973,7 +1097,7 @@ function PracticeContent() {
               type="button"
               className="btn-quiet"
               onClick={() => void skipQuestion()}
-              disabled={submitting}
+              disabled={submitting || hintLoading || submitFailed}
             >
               Skip this one
             </button>

@@ -35,6 +35,7 @@ export * from "./contracts/lotus-games";
 export * from "./contracts/lotus-readback";
 // Targeted micro-lessons (code-built, narrated)
 export * from "./contracts/micro-lessons";
+export * from "./contracts/lesson-evidence";
 // Voice / safe text
 export * from "./voice/forbidden-terms";
 export * from "./voice/safe-text";
@@ -110,3 +111,4 @@ export interface LearningLoopContext {
   currentDifficulty?: number;
 }
 export * from "./rate-limit";
+export * from "./contracts/interaction-context";

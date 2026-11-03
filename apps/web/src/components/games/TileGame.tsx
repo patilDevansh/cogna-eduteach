@@ -42,8 +42,10 @@ export function TileGame({
   sealed = false,
   look,
   onChange,
+  initialState,
 }: {
   interaction: TileBuildInteraction;
+  initialState?: TileGameState | null;
   /** Visual staging only; all looks submit the same server-issued tile picks. */
   look?: "garden" | "workshop" | "constellation";
   disabled?: boolean;
@@ -51,9 +53,9 @@ export function TileGame({
   sealed?: boolean;
   onChange: (state: TileGameState) => void;
 }) {
-  const [picks, setPicks] = useState<Array<number | null>>(() => Array.from({ length: interaction.slots }, () => null));
+  const [picks, setPicks] = useState<Array<number | null>>(() => initialTilePicks(interaction, initialState));
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const changesRef = useRef(0);
+  const changesRef = useRef(initialState?.changes ?? 0);
   const spec = look === "garden"
     ? { title: "Garden fences", instruction: "Choose the fence for the top and the fence for the side." }
     : look === "workshop"
@@ -63,8 +65,8 @@ export function TileGame({
     : INTERACTION_FORMATS[interaction.format];
 
   useEffect(() => {
-    setPicks(Array.from({ length: interaction.slots }, () => null));
-    changesRef.current = 0;
+    setPicks(initialTilePicks(interaction, initialState));
+    changesRef.current = initialState?.changes ?? 0;
     setActiveSlot(null);
   }, [interaction]);
 
@@ -227,4 +229,9 @@ export function FactorSafe({
       </button>
     </div>
   );
+}
+
+export function initialTilePicks(interaction: TileBuildInteraction, state?: TileGameState | null): Array<number | null> {
+  const picks = state?.picks;
+  return picks && picks.length === interaction.slots && picks.every(p => p === null || Number.isInteger(p) && p >= 0 && p < interaction.tiles.length) && new Set(picks.filter(p => p !== null)).size === picks.filter(p => p !== null).length ? [...picks] : Array(interaction.slots).fill(null);
 }

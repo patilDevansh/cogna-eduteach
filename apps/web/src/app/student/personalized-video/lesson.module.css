@@ -75,6 +75,10 @@
 .journey li[data-state="done"]:not(:last-child)::after { background: var(--accent); }
 .journey li[data-state="current"] { color: var(--ink); }
 .journey li[data-state="done"] { color: var(--accent); }
+@media (max-width: 640px) {
+  .journey { flex-wrap: wrap; row-gap: 10px; }
+  .journey li:not(:last-child)::after { width: 16px; margin-left: 2px; }
+}
 .journeyDot {
   display: grid;
   place-items: center;

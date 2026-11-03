@@ -9,6 +9,7 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(webRoot, "../..");
 
 const nextConfig: NextConfig = {
+  ...(process.env.COGNA_REVIEW_DIST_DIR ? { distDir: process.env.COGNA_REVIEW_DIST_DIR } : {}),
   outputFileTracingRoot: repoRoot,
   // lesson-video's browser entry (src/player.ts) is compiled for the interactive lesson player.
   transpilePackages: ["@cogna/shared", "@cogna/lesson-video"],

@@ -515,7 +515,10 @@ describe("factorisation session — safety of the running test", () => {
     models.closureGate = new Promise((resolve) => { release = resolve; });
     models.firstWrongStep = 2;
     let view = await startReady(service, "demo_aarav");
-    view = await submit(service, view, "3(2x + 4)"); // unpredicted — only the AI review can explain it
+    // The random opener can be 6x+12, so 3(2x+4) was sometimes a correct-but-unfinished answer.
+    // Coefficient 7 and constant 700021 are outside every opener's generated range.
+    view = await submit(service, view, "7(x + 100003)");
+    assert.equal(internal(service, view.sessionId).audits.at(-1)?.verification?.status, "VERIFIED_INCORRECT");
     release();
     await settle(() => internal(service, view.sessionId).factorisation.state.turns.some((t: { purpose?: string }) => t.purpose === "CHECK"));
     view = await service.get(view.sessionId);
@@ -540,7 +543,9 @@ describe("factorisation session — safety of the running test", () => {
     models.closureGate = new Promise((resolve) => { release = resolve; });
     models.firstWrongStep = 2;
     let view = await startReady(service, "demo_aarav");
-    view = await submit(service, view, "3(2x + 4)"); // unpredicted — only the AI review can explain it
+    // Guaranteed outside the generated opener range; never a coincidentally equivalent answer.
+    view = await submit(service, view, "7(x + 100003)");
+    assert.equal(internal(service, view.sessionId).audits.at(-1)?.verification?.status, "VERIFIED_INCORRECT");
     release();
     await settle(() => internal(service, view.sessionId).factorisation.state.turns.some((t: { purpose?: string }) => t.purpose === "CHECK"));
     view = await service.get(view.sessionId);

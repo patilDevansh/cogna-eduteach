@@ -378,6 +378,14 @@ export default function StudentHomePage() {
             </div>
           </>
         )}
+        {process.env.NEXT_PUBLIC_MODULE_LEARNING_ENABLED === "true" && (
+          <div className={styles.heroCard}>
+            <span className={styles.kicker}>Learn a module · factorisation</span>
+            <h2>Start with a lesson</h2>
+            <p className={styles.meta}>Learn the method, practise, get help on a specific sticking point and try a fresh question independently.</p>
+            <Link href="/student/module-learning" className="btn btn-primary" style={{ alignSelf: "flex-start", background: "var(--accent)", color: "#fff" }}>Open my factorisation module →</Link>
+          </div>
+        )}
 
         {isDemoStudent && (
           <>

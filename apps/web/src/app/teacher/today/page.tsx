@@ -173,6 +173,7 @@ export default function TeacherTodayPage() {
           <p>{selected ? `${selected.name}: here’s what to do next.` : "Pick a class to see what to do next."}</p>
         </div>
         <div className={styles.headerActions}>
+          {process.env.NEXT_PUBLIC_MODULE_LEARNING_ENABLED === "true" && selected?.grade === 8 && !sample && <Link className={styles.secondary} href="/teacher/module-learning">Assign factorisation module</Link>}
           {selected && <Link className={styles.secondary} href="/teacher/sessions">Class code: {selected.joinCode}</Link>}
           <Link className={styles.secondary} href="/teacher/sessions">Open class page</Link>
         </div>

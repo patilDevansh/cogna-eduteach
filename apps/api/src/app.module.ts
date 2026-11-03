@@ -1,3 +1,4 @@
+import { LearningEvidenceModule } from "./learning-evidence/learning-evidence.module";
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { join } from "path";
@@ -33,6 +34,7 @@ import { PersonalizedVideosModule } from "./personalized-videos/personalized-vid
 import { TeachersModule } from "./teachers/teachers.module";
 import { ClassroomsModule } from "./classrooms/classrooms.module";
 import { ClassroomEventsModule } from "./classrooms/classroom-events";
+import { ModuleLearningModule } from "./module-learning/module-learning.module";
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { ClassroomEventsModule } from "./classrooms/classroom-events";
     StudentsModule,
     SessionsModule,
     LearningLoopModule,
+    LearningEvidenceModule,
     QuestionGeneratorModule,
     DiagnosticEngineModule,
     DecisionEngineModule,
@@ -87,6 +90,7 @@ import { ClassroomEventsModule } from "./classrooms/classroom-events";
     TeachersModule,
     ClassroomEventsModule,
     ClassroomsModule,
+    ModuleLearningModule,
   ],
   controllers: [HealthController],
 })

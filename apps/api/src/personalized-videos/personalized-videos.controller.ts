@@ -57,6 +57,16 @@ export class PersonalizedVideosController {
     return this.videos.practiceSet(id, resolveActor(headers));
   }
 
+  /** Versioned receipts for typed practice; student ownership is checked by the service. */
+  @Post("assignments/:id/practice-evidence")
+  practiceEvidence(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.videos.recordPracticeEvidence(id, body, resolveActor(headers));
+  }
+
   /** The targeted micro-lesson (15–25 s, narrated), or null when the student's answers don't fit a template. */
   @Get("assignments/:id/micro-lesson")
   microLesson(

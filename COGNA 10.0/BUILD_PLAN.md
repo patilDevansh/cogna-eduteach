@@ -1,5 +1,18 @@
 # Build plan
 
+## MVP 10.0 evidence qualification — 2026-10-26
+
+- [x] Qualify report strengths using distinct direct successful questions; keep supporting, unscoped and one-off success as observations.
+- [x] Expose source turns, policy version and retention-not-measured metadata; base report advancement on qualified strengths.
+- [x] Remove synthetic confirmed sign-root teaching targets and blanket student-facing mastery claims.
+- [x] Write the factorisation educator-review and real-student validation protocol.
+- [x] Shared build, API/web type checks and 218 focused diagnostic/lesson/video regression tests pass.
+- [ ] Full golden/database regression and browser acceptance: the full golden run was stopped after sandbox database connection failures; no phase gate or production readiness is claimed.
+- [ ] Conditional prerequisites, calibrated internal routing, misconception-label validation and cross-board alignment remain follow-up blueprint work.
+- [ ] Execute consented real-student evaluation with independent educator judgments and predeclared release criteria.
+
+See [validation plan](./FACTORISATION_VALIDATION_PLAN.md) for scope and dependencies.
+
 - [x] Persistent teacher, classroom, enrollment, run, and assignment schema
 - [x] Teacher and student classroom APIs with ownership boundaries
 - [x] Production classroom creation and code-join screens
@@ -85,3 +98,61 @@ Before executing each phase's test gate, notify the product owner in the active 
 - [ ] Student due-soon banner (24 h before), then parent due-day message, at most one each per assignment
 - [x] Email sending (SMTP via nodemailer; Gmail for the pilot)
 - [ ] WhatsApp Business provider, approved templates, parent phone number and recorded opt-in
+
+## Shared AI delivery coordination (2026-10-28)
+
+- [x] ~~Create common agent entrypoints and a local claim/evidence/handoff workflow.~~
+- [x] ~~Record a source-inspection baseline with explicit runtime-verification limits.~~
+- [x] ~~Verify local coordination with 13 isolated tests, including simultaneous claims and edit-scope conflicts.~~
+- [x] ~~Activate the private cross-computer Project and verify task import, visibility and single-authority cutover.~~ Follow AGENTS.md; do not mirror private task details into this public repository.
+- Product implementation and existing phase gates remain separate; no application acceptance check is marked complete by this setup.
+
+## Teaching-first contract amendment (2026-10-28)
+
+- [x] ~~Define the additive teaching-first module contract, assigned/self-directed entry and compatibility with both diagnostic modes.~~
+- [ ] Implement and verify the new module path against MODULE_LEARNING.md; documentation completion does not complete runtime acceptance.
+
+## Verified local staging during provider outage (2026-10-28)
+
+- [x] ~~Keep eligible verified local question staging reachable during provider outages.~~
+- [x] ~~Add seven outage regressions; 51 combined focused tests and API TypeScript pass.~~
+- [ ] Verify complete entry/resume, reserve coverage and outage recovery through browser/database acceptance; this backend repair does not close those gates.
+
+
+## Typed-practice evidence and recovery — 29 October 2026
+
+- [x] Add versioned typed-practice observation/receipt contract and additive views.
+- [x] Persist receipt + current aggregates atomically under assignment row lock; enforce student ownership, version and replay semantics.
+- [x] Show truthful save/retry feedback, recover pending/saved typed work, record actual presentation/help and repair mobile overflow.
+- [x] Independent source review and local synthetic gate: 80 API + 4 PostgreSQL + 2 client tests; 16 browser assertions; API/web type checks.
+- [ ] Extend remaining formats/history/module progression and run full production/classroom gates before broader claims.
+
+
+### Unsubmitted practice refresh correction — 29 October 2026
+
+Follow-up acceptance: verify unsubmitted and post-feedback edits survive refresh in the same tab; preserve exact input and server receipts; distinguish local draft recovery from server save.
+
+
+### Exercise and Lotus interaction context — 30 October 2026
+
+Additive answer-context slice: shared strict v1 shape, post-DOM answerable presentation collector, exercise/Lotus forwarding, original-payload retry checks and existing RawEvent/audit/ANSWER persistence. Verify both actual pages and isolated real storage; full cognitive interpretation remains separate.
+
+Verification for the bounded answer-context change:50 focused API tests,9 client cases,2 real disposable PostgreSQL tests and12 actual-page browser checks passed; shared build/API+web types/whitespace passed. Provider-free seeded harness exercised real controllers/services/storage, not full production bootstrap. Existing regression fixtures were corrected to use a guaranteed wrong answer outside the random opener range.
+
+
+### Recovery, joined history and contextual support —30October2026
+
+Verification for this increment:50 focused API,12 client and9 disposable PostgreSQL tests;26 browser checks across the main recovery/support/history, tile recovery and explicit practice-check flows. Shared build/API+web types/whitespace passed. Actual pages/controllers/services/storage used in a seeded provider-free fixture; production bootstrap and live-child validation remain separate.
+
+### Draft-process review correction — 2 November 2026
+
+Sprint 1 corrective slice (2 November): expose submitted answer text and observed elapsed time in the student history; persist bounded typed draft candidate/clear checkpoints on the same learner/session/issued question. Verify strict ownership, altered retries, history projection and no answer-key leakage. Broader content and delayed-learning telemetry remain later work.
+
+### Teaching-first reference module — 2 November 2026
+
+- [x] Implement one versioned, rollout-gated factorisation teaching path with separate teacher-assigned and self-directed runs; keep diagnostic routes unchanged.
+- [x] Persist client-reported lesson presentation, checkpoint/probe/practice/independent answers, pause/resume, teacher pause and replay-safe revisions in the existing authorised event store.
+- [x] Verify the reference content and state policy with focused tests, a disposable PostgreSQL fixture and a provider-free browser journey.
+- [ ] Complete the full module contract: teacher release/cancel/due controls, later review, generalised curriculum packages, reporting, access/retention policy and independent product review.
+
+3 November reference hardening: 4/4 state tests, 2/2 isolated PostgreSQL tests and 11/11 browser checks pass after exit-item reservation and classroom-owner checks. API TypeScript passes; full web TypeScript currently fails in concurrent unfinished `sevenways` theme maps and must be rerun after that integration.

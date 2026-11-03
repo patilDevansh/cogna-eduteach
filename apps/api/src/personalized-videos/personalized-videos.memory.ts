@@ -26,7 +26,7 @@ export function createPersonalizedVideoMemoryDb() {
   const lotusEvidence: Row[] = [];
   const lotusQuestionBank = new Map<string, Row>();
 
-  return {
+  const db = {
     personalizedVideoAssignment: {
       create: async ({ data }: { data: Row }) => {
         const row = {
@@ -326,8 +326,24 @@ export function createPersonalizedVideoMemoryDb() {
         return updated;
       },
     },
+    // A serialised rollback-capable fixture. Real row-lock semantics are verified separately on Postgres.
+    $queryRaw: async (..._args: unknown[]) => [],
     // Exposed only to tests so persistence contracts can inspect the complete
     // durable trail rather than merely proving that calls did not throw.
     _store: { assignments, events, jobs, assets, outcomes, lotusSessions, lotusEvidence, lotusQuestionBank },
   };
+  let queue = Promise.resolve();
+  const transactional = Object.assign(db, {
+    async $transaction<T>(work: (client: typeof db) => Promise<T>): Promise<T> {
+      const preceding = queue;
+      let release!: () => void;
+      queue = new Promise<void>((resolve) => { release = resolve; });
+      await preceding;
+      const snapshot = new Map([...assignments].map(([id, row]) => [id, structuredClone(row)]));
+      try { return await work(db); }
+      catch (error) { assignments.clear(); for (const [id, row] of snapshot) assignments.set(id, row); throw error; }
+      finally { release(); }
+    },
+  });
+  return transactional;
 }

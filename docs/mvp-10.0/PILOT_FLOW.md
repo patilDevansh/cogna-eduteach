@@ -66,7 +66,11 @@ Built only from stored evidence: Lotus records, lessons and their practice attem
 - **Skill map:** secure, unsure and gap counts per skill across the class.
 - **Progress:** *Improved* only when the independent exit is right. Practice never counts.
 
-## Not in the pilot (full Cogna, later)
+## Scope of this diagnostic-cycle amendment
+
+The exclusions below describe this existing diagnostic-cycle implementation. [MODULE_LEARNING.md](./MODULE_LEARNING.md) now defines a separate canonical teaching-first extension; its runtime implementation remains pending. The exclusions are not a permanent prohibition on that work, and this pilot flow must continue unchanged for existing diagnostic runs.
+
+### Not delivered by this diagnostic-cycle implementation
 
 Whole curriculum, teacher input by web or WhatsApp, retention and forgetting curves, next-day reports, peer nudges, teacher chatbots. (Parent deadline reminders are now specified in [PARENT_DASHBOARD.md](./PARENT_DASHBOARD.md).) See the product memory and `COGNA/` vision docs. None of these is built here.
 

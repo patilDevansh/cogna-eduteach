@@ -38,3 +38,69 @@ export interface UnitConcept {
   conceptId: string;
   kind: ConceptKind;
 }
+
+/**
+ * CUR-002 — Multi-Board Shared Skill Contracts
+ * Represents observable mathematical skills with examples, non-examples,
+ * alternative instructional methods, assessment conditions, conditional
+ * prerequisite routes, and board terminology overlays.
+ */
+
+export type PrerequisiteRouteKind = "MANDATORY" | "ALTERNATIVE_ROUTE";
+
+export interface PrerequisiteLink {
+  targetSkillId: string;
+  kind: PrerequisiteRouteKind;
+  rationale: string;
+}
+
+export type PreferredBoardKind = "CBSE" | "ICSE" | "CAMBRIDGE_STAGE_9" | "UNIVERSAL";
+
+export interface AlternativeMethod {
+  name: string;
+  description: string;
+  preferredBoard?: PreferredBoardKind;
+}
+
+export interface AssessmentConditions {
+  calculatorAllowed: boolean;
+  formulaSheetProvided: boolean;
+  allowedTimeMinutes: number;
+  targetSuccessRate: number; // 0.0 to 1.0
+}
+
+export type CognitiveDepthTier =
+  | "REMEMBER"
+  | "UNDERSTAND"
+  | "APPLY"
+  | "ANALYZE"
+  | "EVALUATE"
+  | "CREATE";
+
+export interface BoardTerminologyOverlay {
+  objectiveId: string;
+  localTitle: string;
+  terminologyOverlay: Record<string, string>;
+  localDepth: CognitiveDepthTier;
+  isTestedInBoard: boolean;
+}
+
+export type SkillDomain =
+  | "NUMBER"
+  | "ALGEBRA"
+  | "GEOMETRY"
+  | "MENSURATION"
+  | "STATISTICS_PROBABILITY";
+
+export interface SharedSkillRecord {
+  skillId: string;
+  version: number;
+  canonicalTitle: string;
+  domain: SkillDomain;
+  examples: string[];
+  nonExamples: string[];
+  alternativeMethods: AlternativeMethod[];
+  assessmentConditions: AssessmentConditions;
+  prerequisites: PrerequisiteLink[];
+  boardMappings: Partial<Record<"CBSE" | "ICSE" | "CAMBRIDGE_STAGE_9", BoardTerminologyOverlay>>;
+}

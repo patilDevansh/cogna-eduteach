@@ -1,3 +1,4 @@
+import type { StudentInteractionContext } from "./interaction-context";
 import type { LotusGameConfig, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
@@ -164,6 +165,7 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
   confidence: number;
@@ -288,13 +290,25 @@ export interface LotusFinalReport {
   overallReview?: LotusOverallReview;
 }
 
-export type LotusSkillState = "UNTESTED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
+export type LotusSkillState = "UNTESTED" | "OBSERVED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
+
+/** Diagnostic evidence only: this does not establish delayed retention or a causal misconception. */
+export interface LotusSkillEvidenceAssessment {
+  policyVersion: "diagnostic-evidence-v1";
+  directSuccessTurns: number[];
+  supportingSuccessTurns: number[];
+  unscopedSuccessTurns: number[];
+  distinctDirectSuccessCount: number;
+  retention: "NOT_MEASURED";
+}
 
 export interface LotusSkillSummary {
   skillId: string;
   name: string;
   state: LotusSkillState;
   evidence: string[];
+  /** Absent on historical reports; absence must not be treated as validated mastery. */
+  evidenceAssessment?: LotusSkillEvidenceAssessment;
 }
 
 export interface LotusSkillEvidence {

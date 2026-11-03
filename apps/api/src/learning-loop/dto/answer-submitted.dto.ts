@@ -1,3 +1,4 @@
+import type { StudentInteractionContext } from "@cogna/shared";
 import { Type } from "class-transformer";
 import {
   IsBoolean,
@@ -5,6 +6,7 @@ import {
   IsInt,
   IsISO8601,
   IsOptional,
+  IsObject,
   IsString,
   Min,
   Max,
@@ -12,6 +14,10 @@ import {
 import type { SelfRatedConfidence } from "@cogna/shared";
 
 export class AnswerSubmittedDto {
+  @IsOptional()
+  @IsObject()
+  interactionContext?: StudentInteractionContext;
+
   @IsString()
   eventId!: string;
 

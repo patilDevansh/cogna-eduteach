@@ -35,6 +35,7 @@ import {
   type TileBuildResponse,
   type MicroCheckResult,
   type MicroLessonView,
+  type LessonEvidenceReceipt,
 } from "@cogna/shared";
 import { isPlannedLotusTopic, type AuthoredTask } from "@cogna/shared";
 import { randomUUID } from "crypto";
@@ -87,6 +88,7 @@ import {
 import { skillName } from "../lotus/lotus-factorisation-catalogue";
 import { createMediaStorageFromEnv, defaultPublicBaseUrl, type MediaStorage } from "./media-storage";
 import { evaluateRemediationEligibility } from "./video-evidence";
+import { evidenceHash, lessonContentVersion, practiceProgress, validateLessonEvidence, type LessonEvidenceLedger } from "./lesson-evidence";
 import { validateVideoLanguage } from "./video-language";
 import { collectSceneClaims, validateMathClaims } from "./video-math";
 import {
@@ -188,6 +190,8 @@ type StoredScript = {
   formatReason?: string;
   /** Tries per practice item, for the reveal-after-two-misses rule and the teacher view. */
   practiceAttempts?: Record<string, { tries: number; correct: boolean }>;
+  /** Immutable, server-enriched receipts for the bounded typed-practice path. */
+  learningEvidence?: LessonEvidenceLedger;
 };
 
 type AnimationKind = "distribution" | "trinomial" | "authored";
@@ -943,7 +947,87 @@ export class PersonalizedVideosService {
       source: script.practice.source,
       skillName: skillName(script.practice.skillId),
       items: script.practice.items.map(practiceItemView),
+      learning: practiceProgress(script as unknown as Record<string, unknown>, script.practice.items),
     };
+  }
+
+  /** A transaction is required: a process-local lock cannot protect multiple API instances. */
+  private async withPracticeLock<T>(id: string, work: (tx: PrismaClient) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async (client) => {
+      // Values are parameterised; the lock covers legacy aggregates and the receipt ledger together.
+      await client.$queryRaw`SELECT "id" FROM "PersonalizedVideoAssignment" WHERE "id" = ${id} FOR UPDATE`;
+      return work(client as unknown as PrismaClient);
+    });
+  }
+
+  async recordPracticeEvidence(id: string, payload: unknown, actor: AccessActor): Promise<LessonEvidenceReceipt> {
+    const input = validateLessonEvidence(payload);
+    // The shared ownership helper also permits internal workers; these receipts must originate from the student.
+    if (actor.role !== "student") throw new ForbiddenException("Only the assigned student can record this practice.");
+    const assignment = await this.requireAssignableLesson(id);
+    assertStudentOwner(actor, assignment.studentId);
+    return this.withPracticeLock(id, async (tx) => {
+      const row = await tx.personalizedVideoAssignment.findUnique({ where: { id } });
+      if (!row) throw new NotFoundException("Lesson not found.");
+      assertStudentOwner(actor, row.studentId);
+      if (row.status !== "READY" && row.status !== "FALLBACK") throw new ConflictException("This lesson is not available for practice.");
+      const script = row.script as StoredScript | null;
+      if (!script?.lesson) throw new ConflictException("The lesson content is unavailable.");
+      if (script.authoring?.status === "pending") throw new ConflictException("The lesson is still being prepared. Reload when it is ready.");
+      const ledger: LessonEvidenceLedger = script.learningEvidence ?? { schemaVersion: 1, receipts: [] };
+      if (ledger.schemaVersion !== 1 || !Array.isArray(ledger.receipts)) throw new ConflictException("This practice record needs a compatible app version.");
+      const requestHash = evidenceHash(input);
+      const prior = ledger.receipts.find((entry) => entry.receipt.eventId === input.eventId);
+      if (prior) {
+        if (prior.requestHash !== requestHash) throw new ConflictException("This event was already used for different work.");
+        return prior.receipt;
+      }
+      const contentVersion = lessonContentVersion(script as unknown as Record<string, unknown>);
+      if (input.contentVersion !== contentVersion) throw new ConflictException("The lesson changed. Reload before continuing.");
+      if (ledger.receipts.length >= 2000) throw new ConflictException("This practice record is full. Your saved work is preserved.");
+      const item = script.practice?.items.find((candidate) => candidate.id === input.itemId);
+      if (input.itemId && (!item || item.format !== "type-answer")) throw new BadRequestException("This record supports typed practice only.");
+      const sameItem = ledger.receipts.map((entry) => entry.receipt).filter((r) => r.contentVersion === contentVersion && r.itemId === input.itemId);
+      if (input.supportEventId && !sameItem.some((r) => r.kind === "HINT_REQUESTED" && r.eventId === input.supportEventId)) throw new BadRequestException("The support acknowledgement does not match this item.");
+      if (input.supportEventId && !input.itemId) throw new BadRequestException("A support acknowledgement needs an item.");
+      const answers = sameItem.filter((r) => r.kind === "ANSWER_SUBMITTED");
+      const lastAnswer = answers.at(-1);
+      const previous = input.itemId ? script.practiceAttempts?.[input.itemId] : undefined;
+      const hasUnattributedHistory = (previous?.tries ?? 0) > (lastAnswer?.result?.attempt ?? 0) || sameItem.some((r) => r.assistance === "UNKNOWN");
+      const receipt: LessonEvidenceReceipt = {
+        schemaVersion: 1, eventId: input.eventId, contentVersion, kind: input.kind,
+        ...(input.itemId ? { itemId: input.itemId } : {}),
+        studentId: row.studentId, assignmentId: id, sourceSessionId: row.lotusSessionId,
+        flow: "PERSONALIZED_VIDEO_PRACTICE_V1", purpose: input.kind === "ANSWER_SUBMITTED" ? "PRACTICE" : "EXPOSURE",
+        conceptId: row.conceptId, skillId: script.practice?.skillId ?? null,
+        skillMapVersion: null, evidencePolicyVersion: "typed-practice-v1", sequence: ledger.receipts.length + 1,
+        itemVersion: item ? evidenceHash(item) : null,
+        receivedAt: new Date().toISOString(), clientOccurredAt: input.clientOccurredAt ?? null,
+        assistance: hasUnattributedHistory ? "UNKNOWN" : sameItem.some((r) => r.kind === "HINT_REQUESTED" || r.kind === "ANSWER_SUBMITTED") ? "ISSUED" : "NONE_RECORDED",
+        exposureEventId: sameItem.find((r) => r.kind === "PRESENTED" && !r.supportEventId)?.eventId ?? null,
+        lessonExposureEventId: ledger.receipts.find(({ receipt: r }) => r.contentVersion === contentVersion && r.kind === "PRESENTED" && !r.itemId)?.receipt.eventId ?? null,
+        ...(input.supportEventId ? { supportEventId: input.supportEventId } : {}),
+      };
+      if (input.kind === "HINT_REQUESTED") {
+        if (!item || item.format !== "type-answer") throw new BadRequestException("No hint is available for this item.");
+        receipt.hint = item.hint;
+        receipt.assistance = "ISSUED";
+      }
+      if (input.kind === "ANSWER_SUBMITTED") {
+        if (!item || item.format !== "type-answer") throw new BadRequestException("No typed practice item found.");
+        if (lastAnswer?.result && (lastAnswer.result.verdict === "CORRECT" || lastAnswer.result.reveal)) throw new ConflictException("This practice item is already finished. Reload your saved progress.");
+        const attempt = (previous?.tries ?? 0) + 1;
+        const result = checkPracticeAnswer(item, input.answer!, attempt);
+        receipt.answer = input.answer;
+        receipt.result = result;
+        receipt.verifierVersion = "practice-algebra-v1";
+        if ("stuck" in input.answer!) receipt.assistance = "ISSUED";
+        if (result.verdict !== "UNREADABLE") script.practiceAttempts = { ...(script.practiceAttempts ?? {}), [item.id]: { tries: attempt, correct: previous?.correct || result.verdict === "CORRECT" } };
+      }
+      script.learningEvidence = { schemaVersion: 1, receipts: [...ledger.receipts, { requestHash, receipt }] };
+      await tx.personalizedVideoAssignment.update({ where: { id }, data: { script: script as object } });
+      return receipt;
+    });
   }
 
   /**
@@ -975,27 +1059,30 @@ export class PersonalizedVideosService {
 
   /** Checks one practice answer on the server and records the attempt. */
   async checkPractice(id: string, itemId: string, answer: PracticeAnswer, actor: AccessActor): Promise<PracticeCheckResult> {
-    const row = await this.requireAssignment(id);
-    assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
-    if (actor.role === "student") assertStudentOwner(actor, row.studentId);
-    const script = row.script as StoredScript | null;
-    const item = script?.practice?.items.find((it) => it.id === itemId);
-    if (!script || !item) throw new NotFoundException("No such practice item.");
-    const previous = script.practiceAttempts?.[itemId];
-    const attempt = (previous?.tries ?? 0) + 1;
-    const result = checkPracticeAnswer(item, answer ?? ({} as PracticeAnswer), attempt);
-    if (result.verdict !== "UNREADABLE") {
-      await this.prisma.personalizedVideoAssignment.update({
-        where: { id },
-        data: {
-          script: {
-            ...script,
-            practiceAttempts: { ...(script.practiceAttempts ?? {}), [itemId]: { tries: attempt, correct: previous?.correct || result.verdict === "CORRECT" } },
-          } as object,
-        },
-      });
-    }
-    return result;
+    return this.withPracticeLock(id, async (tx) => {
+      const row = await tx.personalizedVideoAssignment.findUnique({ where: { id } });
+      if (!row) throw new NotFoundException("Lesson not found.");
+      assertCanReadStudent(actor, row.studentId, row.schoolId ?? schoolIdForStudent(row.studentId));
+      if (actor.role === "student") assertStudentOwner(actor, row.studentId);
+      const script = row.script as StoredScript | null;
+      const item = script?.practice?.items.find((it) => it.id === itemId);
+      if (!script || !item) throw new NotFoundException("No such practice item.");
+      const previous = script.practiceAttempts?.[itemId];
+      const attempt = (previous?.tries ?? 0) + 1;
+      const result = checkPracticeAnswer(item, answer ?? ({} as PracticeAnswer), attempt);
+      if (result.verdict !== "UNREADABLE") {
+        await tx.personalizedVideoAssignment.update({
+          where: { id },
+          data: {
+            script: {
+              ...script,
+              practiceAttempts: { ...(script.practiceAttempts ?? {}), [itemId]: { tries: attempt, correct: previous?.correct || result.verdict === "CORRECT" } },
+            } as object,
+          },
+        });
+      }
+      return result;
+    });
   }
 
   /**
@@ -1644,6 +1731,7 @@ export class PersonalizedVideosService {
       id: row.id,
       studentId: row.studentId,
       studentKey: (row.studentKey as PilotStudentKey | null) ?? null,
+      contentVersion: lessonContentVersion(script as unknown as Record<string, unknown>),
       name: script.name ?? "Student",
       roll: script.roll,
       status: row.status,

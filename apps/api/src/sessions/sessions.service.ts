@@ -100,12 +100,12 @@ export class SessionsService {
   }
 
   async get(sessionId: string): Promise<unknown> {
-    return this.prisma.learningSession.findUniqueOrThrow({
+    const session = await this.prisma.learningSession.findUniqueOrThrow({
       where: { id: sessionId },
-      include: {
-        attempts: { orderBy: { createdAt: "asc" } },
-        decisions: { orderBy: { createdAt: "asc" } },
-      },
+      include: { attempts: { orderBy: { createdAt: "asc" } }, decisions: { orderBy: { createdAt: "asc" } } },
     });
+    const delivery = await this.prisma.rawEvent.findUnique({ where: { eventId: `current-delivery-${sessionId}` } });
+    const hints = await this.prisma.rawEvent.findMany({where:{sessionId,studentId:session.studentId,eventType:"HINT_REQUESTED"},orderBy:{createdAt:"asc"},take:500});
+    return { ...session, currentDelivery: (delivery?.payload as any)?.next ?? null, issuedHints:hints.map(h=>({eventId:h.eventId,questionId:(h.payload as any).questionId,level:(h.payload as any).hintLevel})) };
   }
 }

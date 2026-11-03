@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import styles from "./practice.module.css";
 import { FactorSafe, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { BracketRush, MarkersDesk, RectangleGame } from "@/components/games/PracticeGames";
+import { SavedPracticeCard } from "./SavedPracticeCard";
 
 /**
  * Independent practice after the targeted lesson. Every answer is checked
@@ -53,12 +54,27 @@ export function PracticeArena({
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [streak, setStreak] = useState(0);
   const [theme, setTheme] = useState<LessonThemeChoice>("classic");
+  const [resumeItem, setResumeItem] = useState<string | null>(null);
 
   useEffect(() => {
     setTheme(readTheme(studentId));
     api
       .getPracticeSet(assignmentId)
-      .then(setSet)
+      .then((next) => {
+        setSet(next);
+        // Resume only the contiguous typed items backed by the new durable receipts.
+        const restored: Outcome[] = [];
+        for (const item of next.items) {
+          const progress = item.format === "type-answer" ? next.learning?.items[item.id] : undefined;
+          if (!progress?.resolved) break;
+          restored.push({ firstTry: progress.firstTry, correct: progress.correct });
+        }
+        setOutcomes(restored);
+        setIndex(restored.length);
+        setStreak(0);
+        const resumeIndex = next.items.findIndex((item) => item.id === next.learning?.resumeItemId && item.format === "type-answer");
+        setResumeItem(resumeIndex >= restored.length ? next.items[resumeIndex]!.id : null);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Practice could not be loaded."));
   }, [assignmentId, studentId]);
 
@@ -82,6 +98,7 @@ export function PracticeArena({
   const total = set.items.length;
   const finished = index >= total;
   const earned = outcomes.filter((o) => o.correct).length;
+  const resumed = resumeItem ? set.items.find((item) => item.id === resumeItem && item.format === "type-answer") : undefined;
 
   function record(outcome: Outcome) {
     setOutcomes((prev) => [...prev, outcome]);
@@ -105,8 +122,40 @@ export function PracticeArena({
         </div>
       </header>
 
-      {finished ? (
+      {resumed?.format === "type-answer" && set.learning ? (
+        <div>
+          <p className={styles.note}>Welcome back. Continue your saved question.</p>
+          <SavedPracticeCard key={`resume-${resumed.id}`} assignmentId={assignmentId} studentId={studentId} item={resumed} learning={set.learning} onResolved={() => undefined} onNext={() => {
+            setResumeItem(null);
+            // Refresh the durable summaries; do not invent outcomes for local-only games.
+            void api.getPracticeSet(assignmentId).then((next) => {
+              setSet(next);
+              const restored: Outcome[] = [];
+              for (const item of next.items) {
+                const progress = item.format === "type-answer" ? next.learning?.items[item.id] : undefined;
+                if (!progress?.resolved) break;
+                restored.push({ firstTry: progress.firstTry, correct: progress.correct });
+              }
+              setOutcomes(restored); setIndex(restored.length);
+            }).catch(() => undefined);
+          }} />
+        </div>
+      ) : finished ? (
         <Finale outcomes={outcomes} firstName={firstName} world={world} onNext={() => onDone({ correct: earned, total })} />
+      ) : set.items[index]!.format === "type-answer" && set.learning ? (
+        <SavedPracticeCard
+          key={`${set.items[index]!.id}-${set.learning.contentVersion}`}
+          assignmentId={assignmentId}
+          studentId={studentId}
+          item={set.items[index] as Extract<PracticeItemView, { format: "type-answer" }>}
+          learning={set.learning}
+          onResolved={record}
+          onNext={() => {
+            const existing = set.learning?.items[set.items[index]!.id];
+            if (existing?.resolved && outcomes.length <= index) record({ firstTry: existing.firstTry, correct: existing.correct });
+            setIndex((i) => i + 1);
+          }}
+        />
       ) : (
         <ItemCard
           key={set.items[index]!.id}

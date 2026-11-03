@@ -25,11 +25,15 @@ export function MicroLessonCard({
   lesson,
   onCheck,
   onFinished,
+  onPresented,
 }: {
   lesson: MicroLessonView;
   onCheck: (option: number) => Promise<MicroCheckResult>;
   onFinished?: () => void;
+  onPresented?: () => void;
 }) {
+  const presentedRef = useRef(onPresented);
+  presentedRef.current = onPresented;
   const stageRef = useRef<HTMLDivElement>(null);
   const pillsRef = useRef<HTMLDivElement>(null);
   const tokens = useRef<Record<string, HTMLSpanElement>>({});
@@ -88,6 +92,7 @@ export function MicroLessonCard({
 
   useEffect(() => {
     build(true);
+    presentedRef.current?.();
     return () => {
       runRef.current += 1;
       audioRef.current?.pause();

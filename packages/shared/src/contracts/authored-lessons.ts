@@ -234,6 +234,8 @@ export interface PracticeSetView {
   source: "AI_VERIFIED" | "CODE_GENERATED";
   skillName: string;
   items: PracticeItemView[];
+  /** Durable typed-practice receipts; absent on older servers. */
+  learning?: import("./lesson-evidence").LessonPracticeProgress;
 }
 
 /** A practice answer: pair-hunt and factor-safe send the pair, spot-mistake the line, choose the option, type-answer the text, build the tile picks. */

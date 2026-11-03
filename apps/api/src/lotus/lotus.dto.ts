@@ -1,3 +1,4 @@
+import type { StudentInteractionContext } from "@cogna/shared";
 import { Type } from "class-transformer";
 import {
   IsBoolean,
@@ -30,6 +31,10 @@ export class StartLotusSessionDto {
 }
 
 export class SubmitLotusAnswerDto {
+  @IsOptional()
+  @IsObject()
+  interactionContext?: StudentInteractionContext;
+
   @IsString()
   @IsNotEmpty()
   studentId!: string;

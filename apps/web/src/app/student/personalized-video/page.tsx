@@ -47,6 +47,7 @@ function PersonalizedVideoPage() {
   const [sealing, setSealing] = useState(false);
   const [correct, setCorrect] = useState<boolean | null>(null);
   const watchedRef = useRef(false);
+  const restoredAssignment = useRef<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const load = useCallback(async () => {
@@ -62,6 +63,10 @@ function PersonalizedVideoPage() {
       ? await api.getPersonalizedVideoById(videoId)
       : await api.getPersonalizedVideoAssignment(studentId, key);
     setAssignment(next);
+    if (restoredAssignment.current !== next.id) {
+      restoredAssignment.current = next.id;
+      if (search.get("stage") !== "exit" && next.completed) setStage("practice");
+    }
     return next;
   }, [isProductionClassroom, key, signedStudentId, studentId, videoId]);
 
@@ -283,6 +288,13 @@ function PersonalizedVideoPage() {
   const firstName = name.split(" ")[0];
   const reportHref = reportSessionId ? `/student/lotus/report?session=${encodeURIComponent(reportSessionId)}` : null;
   const lessonReady = Boolean(assignment) && !waiting && assignment?.delivery !== "ABSTAINED";
+  const recordLessonPresented = () => {
+    if (!assignment?.contentVersion || !lessonReady || stage !== "lesson") return;
+    // Called by a rendered micro-lesson or playing video, not by parent-page readiness.
+    void api.recordPracticeEvidence(assignment.id, {
+      schemaVersion: 1, eventId: `lesson-${assignment.contentVersion}`, contentVersion: assignment.contentVersion, kind: "PRESENTED",
+    }).catch(() => undefined);
+  };
   const watchedCta = (
     <div className={L.cta}>
       <button className={L.primary} onClick={() => void finishLesson()}>
@@ -333,7 +345,7 @@ function PersonalizedVideoPage() {
             {assignment?.delivery === "SHORT" && micro && (
               <section className={L.microSlot} aria-label="Your 20-second lesson">
                 <p className={L.eyebrow}>20 seconds on your own answer</p>
-                <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment!.id, option)} />
+                <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment!.id, option)} onPresented={recordLessonPresented} />
                 {watchedCta}
               </section>
             )}
@@ -385,7 +397,7 @@ function PersonalizedVideoPage() {
               micro ? (
                 <section className={L.microSlot} aria-label="Your 20-second lesson">
                   <p className={L.eyebrow}>20 seconds on your own answer</p>
-                  <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment.id, option)} />
+                  <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment.id, option)} onPresented={recordLessonPresented} />
                   {watchedCta}
                 </section>
               ) : (
@@ -416,6 +428,7 @@ function PersonalizedVideoPage() {
                       setPlaying(true);
                       void markWatched();
                     }}
+                    onPlaying={recordLessonPresented}
                     onPause={() => setPlaying(false)}
                     onEnded={() => void finishLesson()}
                   >
