@@ -32,11 +32,12 @@ import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
 import { TileGame, type TileGameState } from "@/components/games/TileGame";
 import { DiagnosticPuzzle } from "@/components/games/DiagnosticPuzzle";
-import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice, LotusBloom } from "@/components/games/LotusGames";
+import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice } from "@/components/games/LotusGames";
 import gameStyles from "@/components/games/lotus-games.module.css";
 import "@/components/lotus-themes/lotus-themes.css";
 import { ThemePicker } from "@/components/lotus-themes/ThemePicker";
 import { ThemeProgress } from "@/components/lotus-themes/ThemeProgress";
+import { ThemeFinish } from "@/components/lotus-themes/ThemeFinish";
 import { ThemedGame } from "@/components/lotus-themes/ThemedGame";
 import { useLotusTheme } from "@/components/lotus-themes/use-lotus-theme";
 
@@ -1740,7 +1741,7 @@ function LotusPage() {
                 <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
               ) : (
                 <section className={styles.introCard}>
-                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1rem" }}><LotusBloom answered={session.audits.length} /></div>}
+                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1rem" }}><ThemeFinish theme={lotusTheme.settings.effective} answered={session.audits.length} /></div>}
                   <h1>Your diagnostic is complete</h1>
                   <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
                   <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>

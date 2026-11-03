@@ -61,7 +61,7 @@
   padding: 12px 20px;
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--theme-ink-on-accent, #fff);
   font-weight: 600;
   text-decoration: none;
 }
@@ -144,7 +144,7 @@
   border-radius: 50%;
   border: 2px solid var(--line-strong);
   font-size: 12px;
-  color: #fff;
+  color: var(--theme-ink-on-accent, #fff);
 }
 li[data-state="done"] .stepMark { background: var(--success); border-color: var(--success); }
 li[data-state="active"] .stepMark {
@@ -388,3 +388,22 @@ li[data-state="active"] .stepMark {
 .dev dl { display: grid; grid-template-columns: 170px 1fr; gap: 6px 14px; margin: 12px 0 0; }
 .dev dt { font-weight: 600; color: var(--ink-soft); }
 .dev dd { margin: 0; font-family: var(--font-math); word-break: break-word; }
+
+/* ---------- the student's Lotus look (data-lotus-theme on the page) ----------
+   The pages above already read the theme variables; these are the few spots
+   that carried their own colours. */
+.page[data-lotus-theme] { color: var(--ink); font-family: var(--font-body); }
+.page[data-lotus-theme] .startCard { color: var(--theme-hero-ink, #eef6f2); background: var(--theme-hero, linear-gradient(160deg, #0c5a47, var(--accent-deep))); border: 1px solid var(--theme-hero-line, transparent); box-shadow: var(--theme-card-shadow); }
+.page[data-lotus-theme] .startCard h2 { color: var(--theme-hero-ink, #fff); }
+.page[data-lotus-theme] .startWhy, .page[data-lotus-theme] .lessonNote { color: color-mix(in srgb, var(--theme-hero-ink, #eef6f2) 78%, transparent); }
+.page[data-lotus-theme] .startEyebrow, .page[data-lotus-theme] .evidence li { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.14); }
+.page[data-lotus-theme] .learn { background: var(--accent); color: var(--theme-ink-on-accent); }
+.page[data-lotus-theme] .secondaryOnDark { color: var(--theme-hero-ink, #fff); border-color: color-mix(in srgb, var(--theme-hero-ink, #fff) 45%, transparent); }
+.page[data-lotus-theme] .groupLabel[data-tone="work"] { color: var(--caution); }
+.page[data-lotus-theme] .chip[data-tone="work"] { background: var(--caution-wash); color: var(--ink); border-color: var(--caution); }
+.page[data-lotus-theme] .chip[data-tone="unsure"] { color: var(--ink); }
+.page[data-lotus-theme] .chip[data-tone="secure"] { color: var(--ink); }
+.page[data-lotus-theme] .dev summary { color: var(--ink); }
+.page[data-lotus-theme="drafting"] .startCard, .page[data-lotus-theme="drafting"] .card, .page[data-lotus-theme="drafting"] .map, .page[data-lotus-theme="drafting"] .stats div { border-radius: 4px; }
+.page[data-lotus-theme="cabinet"] .hero h1, .page[data-lotus-theme="cabinet"] .startCard h2 { letter-spacing: 0.06em; }
+.page[data-lotus-theme="soundlab"] .eyebrow, .page[data-lotus-theme="soundlab"] .startEyebrow { font-family: var(--font-label); letter-spacing: 0.14em; }

@@ -1,10 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_LOTUS_THEME, type LotusTheme, type LotusThemeSettings } from "@cogna/shared";
+import { DEFAULT_LOTUS_THEME, LOTUS_THEMES, type LotusTheme, type LotusThemeSettings } from "@cogna/shared";
 import { api } from "@/lib/api";
 
 const NEUTRAL: LotusThemeSettings = { chosen: null, lockedTheme: null, effective: DEFAULT_LOTUS_THEME };
+const SEEN_KEY = "cogna_lotus_theme_seen";
+
+/** The look this browser last showed, so a page opened later (the report) doesn't flash the neutral look first. */
+function lastSeenTheme(): LotusTheme | null {
+  try {
+    const seen = localStorage.getItem(SEEN_KEY);
+    return LOTUS_THEMES.find((theme) => theme === seen) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The student's Lotus look. A failed lookup never blocks the test: it falls
@@ -17,6 +28,8 @@ export function useLotusTheme(studentId: string) {
 
   useEffect(() => {
     if (!studentId) return;
+    const seen = lastSeenTheme();
+    if (seen) setSettings((current) => (current.effective === seen ? current : { ...current, effective: seen }));
     let cancelled = false;
     // The student's session can still be settling when the page opens, so a first miss is retried a few times.
     (async () => {
@@ -47,6 +60,11 @@ export function useLotusTheme(studentId: string) {
       setBusy(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    try { localStorage.setItem(SEEN_KEY, settings.effective); } catch { /* storage can be blocked */ }
+  }, [ready, settings.effective]);
 
   return { settings, ready, busy, choose };
 }

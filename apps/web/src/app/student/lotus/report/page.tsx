@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { LotusSessionView, LotusSkillState, PersonalizedVideoAssignmentView } from "@cogna/shared";
+import type { LotusSessionView, LotusSkillState, LotusTheme, PersonalizedVideoAssignmentView } from "@cogna/shared";
 import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic } from "@cogna/shared";
 import { Wordmark } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -11,7 +11,9 @@ import { useDevState } from "@/lib/dev-mode";
 import { getStoredLotusSessions, saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import { getStudent } from "@/lib/session";
 import styles from "./report.module.css";
-import { LotusBloom } from "@/components/games/LotusGames";
+import { ThemeFinish } from "@/components/lotus-themes/ThemeFinish";
+import { useLotusTheme } from "@/components/lotus-themes/use-lotus-theme";
+import "@/components/lotus-themes/lotus-themes.css";
 
 const SESSION_POLL_MS = 1500;
 const LESSON_POLL_MS = 3000;
@@ -61,6 +63,8 @@ function ReportPage() {
   const [student, setStudent] = useState<ReturnType<typeof getStudent>>(null);
   useEffect(() => setStudent(getStudent()), []);
   const firstName = (student?.name ?? "").split(" ")[0] ?? "";
+  // The report wears the look the student took the test in.
+  const lotusTheme = useLotusTheme(student?.studentId ?? session?.studentId ?? "");
 
   // 1. Poll the diagnostic until the report is written.
   useEffect(() => {
@@ -160,7 +164,7 @@ function ReportPage() {
     : null;
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} data-lotus-theme={lotusTheme.settings.effective}>
       <header className={styles.header}>
         <Wordmark href="/student/home" />
         <div className={styles.crumbs}>
@@ -191,6 +195,7 @@ function ReportPage() {
           lessonError={lessonError}
           lessonHref={lessonHref}
           studentId={student?.studentId ?? session.studentId}
+          theme={lotusTheme.settings.effective}
           homeHref={classroomAssignmentId ? "/student/classroom/live" : "/student/home"}
         />
       )}
@@ -280,6 +285,7 @@ function Report({
   lessonError,
   lessonHref,
   studentId,
+  theme,
   homeHref,
 }: {
   session: LotusSessionView;
@@ -290,6 +296,7 @@ function Report({
   lessonError: string;
   lessonHref: string | null;
   studentId: string;
+  theme: LotusTheme;
   homeHref: string;
 }) {
   const report = session.finalReport!;
@@ -320,7 +327,7 @@ function Report({
     <div className={styles.report}>
       <section className={styles.hero}>
         {isPlannedLotusTopic(session.topic) && session.audits.length > 0 && (
-          <div className={styles.bloom}><LotusBloom answered={session.audits.length} /></div>
+          <div className={styles.bloom}><ThemeFinish theme={theme} answered={session.audits.length} /></div>
         )}
         <p className={styles.eyebrow}>Your diagnostic report</p>
         <h1>{heading.title}</h1>

@@ -9,6 +9,7 @@
 
 /* ---------- Studio: neutral, big quiet type, one cobalt accent ---------- */
 [data-lotus-theme="studio"] {
+  --theme-hero: linear-gradient(160deg, #2747ff, #16257f); --theme-hero-ink: #fff;
   --bg: #f6f6f3; --surface: #ffffff; --ink: #111214; --ink-soft: #4c4e55; --ink-faint: #7b7d84;
   --line: #e6e6e1; --line-strong: #c9cac4;
   --accent: #2747ff; --accent-deep: #1b34c9; --accent-wash: #eef1ff; --accent-ink: #ffffff; --focus: #2747ff;
@@ -23,6 +24,7 @@
 
 /* ---------- Drafting Room: blueprint paper, a faint grid ---------- */
 [data-lotus-theme="drafting"] {
+  --theme-hero: linear-gradient(160deg, #144d86, #0a2b52); --theme-hero-ink: #f4f8ff; --theme-hero-line: rgba(255, 209, 102, .45);
   --field-bg: rgba(4, 22, 44, .55); --surface-raised: rgba(244, 248, 255, .1); --float-bg: rgba(8, 34, 66, .96);
   --card-top-bg: linear-gradient(135deg, rgba(244, 248, 255, .07), rgba(255, 209, 102, .09)); --error-bg: rgba(255, 138, 118, .14); --error-ink: #ffb3a6; --error-line: rgba(255, 138, 118, .4);
   --bg: #0c315c; --surface: rgba(8, 34, 66, .58); --ink: #f4f8ff; --ink-soft: rgba(244, 248, 255, .82); --ink-faint: rgba(244, 248, 255, .6);
@@ -45,6 +47,7 @@ main[data-lotus-theme="drafting"]::before {
 
 /* ---------- The Cabinet: walnut, brass, engraved capitals ---------- */
 [data-lotus-theme="cabinet"] {
+  --theme-hero: linear-gradient(160deg, #4b3019, #24150a); --theme-hero-ink: #f3e6cc; --theme-hero-line: rgba(201, 162, 74, .5);
   --field-bg: rgba(0, 0, 0, .28); --surface-raised: rgba(255, 236, 200, .08); --float-bg: rgba(22, 14, 8, .96);
   --card-top-bg: linear-gradient(135deg, rgba(201, 162, 74, .14), rgba(201, 162, 74, .05)); --error-bg: rgba(232, 138, 108, .14); --error-ink: #f2b3a0; --error-line: rgba(232, 138, 108, .4);
   --bg: #2a1a0e; --surface: rgba(22, 14, 8, .78); --ink: #f3e6cc; --ink-soft: rgba(243, 230, 204, .82); --ink-faint: rgba(243, 230, 204, .58);
@@ -60,6 +63,7 @@ main[data-lotus-theme="drafting"]::before {
 
 /* ---------- Sound Lab: matte charcoal, one signal orange ---------- */
 [data-lotus-theme="soundlab"] {
+  --theme-hero: linear-gradient(160deg, #34353b, #1b1c20); --theme-hero-ink: #ecebe6; --theme-hero-line: rgba(255, 106, 26, .5);
   --field-bg: #17181b; --surface-raised: #2a2b30; --float-bg: rgba(34, 35, 39, .96);
   --card-top-bg: linear-gradient(135deg, #2a2b30, rgba(255, 106, 26, .12)); --error-bg: rgba(255, 79, 107, .14); --error-ink: #ff9aab; --error-line: rgba(255, 79, 107, .4);
   --bg: #141416; --surface: #222327; --ink: #ecebe6; --ink-soft: #b4b4b0; --ink-faint: #85868b;

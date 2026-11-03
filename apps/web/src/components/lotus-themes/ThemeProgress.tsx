@@ -1,20 +1,29 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { useRef, type ReactElement } from "react";
 import type { LotusTheme } from "@cogna/shared";
+import { artSteps } from "./art-steps";
 import styles from "./lotus-themes.module.css";
 
 /**
  * Progress art, one per theme. It grows with every question finished, right or
  * wrong, so it never rewards guessing and never reveals a mark. The plan's
  * length changes as Lotus adapts, so none of these show "of N".
+ *
+ * With a plan length the art is spread over the whole test, so it keeps
+ * growing to the last question; its final piece (the roof, the last drawer)
+ * waits for the finish. Without one, one piece per question.
  */
 export interface ThemeProgressProps {
   theme: LotusTheme;
   answered: number;
   /** Only sizes the art; never shown as a number. */
   total?: number;
+  /** The test is over: draw the art finished. */
+  complete?: boolean;
 }
+
+type ArtProps = { answered: number; steps: number };
 
 const FLOORS = 10;
 const DRAWERS = 16;
@@ -22,11 +31,11 @@ const SEQ_COLS = 16;
 const SEQ_ROWS = ["#ff6a1a", "#ffd23f", "#3ee0b4", "#7aa2ff", "#ff4f6b"];
 
 /** Drafting Room: a building section drawn floor by floor. */
-function Building({ answered }: { answered: number }) {
-  const done = Math.min(answered, FLOORS);
+function Building({ answered, steps }: ArtProps) {
+  const done = steps;
   const w = 150, floorH = 13, base = 128;
   return (
-    <svg viewBox="0 0 220 150" className={styles.art} role="img" aria-label={`${answered} questions finished`}>
+    <svg viewBox="0 -24 220 174" className={styles.art} role="img" aria-label={`${answered} questions finished`}>
       <line x1="10" y1={base} x2="210" y2={base} stroke="var(--ink-soft)" strokeWidth="1.5" />
       {Array.from({ length: FLOORS }, (_, i) => {
         const y = base - (i + 1) * floorH;
@@ -45,8 +54,8 @@ function Building({ answered }: { answered: number }) {
 }
 
 /** The Cabinet: a wall of 16 drawers; each answer opens one, and a gear turns. */
-function Drawers({ answered }: { answered: number }) {
-  const open = Math.min(answered, DRAWERS);
+function Drawers({ answered, steps }: ArtProps) {
+  const open = steps;
   return (
     <div className={styles.cabinet} role="img" aria-label={`${answered} questions finished`}>
       <div className={styles.drawerGrid}>
@@ -68,8 +77,8 @@ function Drawers({ answered }: { answered: number }) {
 }
 
 /** Studio: a thinking print; one ring per answer, a little different each time. */
-function Print({ answered }: { answered: number }) {
-  const rings = Math.min(answered, 14);
+function Print({ answered, steps }: ArtProps) {
+  const rings = steps;
   return (
     <svg viewBox="-60 -60 120 120" className={styles.print} role="img" aria-label={`${answered} questions finished`}>
       <circle r="52" fill="var(--accent-wash)" />
@@ -86,8 +95,8 @@ function Print({ answered }: { answered: number }) {
 }
 
 /** Sound Lab: a 16-step track; each answer lights a pad. */
-function Sequencer({ answered }: { answered: number }) {
-  const lit = Math.min(answered, SEQ_COLS * SEQ_ROWS.length);
+function Sequencer({ answered, steps }: ArtProps) {
+  const lit = steps;
   const on = new Set<string>();
   for (let i = 0; i < lit; i++) on.add(`${i % SEQ_ROWS.length}:${i % SEQ_COLS}`);
   return (
@@ -103,18 +112,28 @@ function Sequencer({ answered }: { answered: number }) {
   );
 }
 
-const ART: Record<LotusTheme, (props: { answered: number }) => ReactElement> = {
+const RINGS = 14;
+const PADS = SEQ_COLS * SEQ_ROWS.length;
+/** How many pieces each look is drawn from. */
+const UNITS: Record<LotusTheme, number> = { drafting: FLOORS, cabinet: DRAWERS, studio: RINGS, soundlab: PADS };
+
+const ART: Record<LotusTheme, (props: ArtProps) => ReactElement> = {
   drafting: Building,
   cabinet: Drawers,
   studio: Print,
   soundlab: Sequencer,
 };
 
-export function ThemeProgress({ theme, answered }: ThemeProgressProps) {
+export function ThemeProgress({ theme, answered, total, complete }: ThemeProgressProps) {
   const Art = ART[theme];
+  // The plan's length can shrink mid-test; the art must never take a piece back.
+  const peak = useRef({ theme, steps: 0 });
+  const floor = peak.current.theme === theme ? peak.current.steps : 0;
+  const steps = Math.max(floor, artSteps(answered, UNITS[theme], total, complete));
+  peak.current = { theme, steps };
   return (
     <div className={styles.progress} data-theme-progress={theme}>
-      <Art answered={answered} />
+      <Art answered={answered} steps={steps} />
     </div>
   );
 }
