@@ -1068,6 +1068,8 @@ function LotusPage() {
   /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
   const [tiles, setTiles] = useState<TileGameState | null>(null);
   const [gamePlay, setGamePlay] = useState<LotusGameResponse | null>(null);
+  /** Which row of a game is on screen, so "Read it to me" reads that row and no other. */
+  const gameRow = useRef<number | undefined>(undefined);
   const [readingAloud, setReadingAloud] = useState(false);
   // Working is optional by default: the final answer is the evidence (see LotusWorkingPrompt).
   const [workingOpen, setWorkingOpen] = useState(false);
@@ -1341,7 +1343,7 @@ function LotusPage() {
     setReadingAloud(true);
     setReadAloudError("");
     try {
-      const spoken = await api.readLotusAloud(session.sessionId, studentId);
+      const spoken = await api.readLotusAloud(session.sessionId, studentId, gameRow.current);
       const audio = new Audio(`data:audio/mpeg;base64,${spoken.audio}`);
       const done = () => setReadingAloud(false);
       audio.onended = done;
@@ -1844,7 +1846,7 @@ function LotusPage() {
                     {readAloudError && <p className={styles.muted} role="status">{readAloudError}</p>}
 
                     {question.game ? (
-                      <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} disabled={inputLocked || didNotKnow}
+                      <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} disabled={inputLocked || didNotKnow} onRowChange={(row) => { gameRow.current = row; }}
                         onChange={(play) => { if (play) setDidNotKnow(false); setGamePlay(play); }} />
                     ) : question.interaction ? (
                       question.interaction.format === "FACTOR_CROSSWORD" || question.interaction.format === "CUT_BUILD_STUDIO" ? (

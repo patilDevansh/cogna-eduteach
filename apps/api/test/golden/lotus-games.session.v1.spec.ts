@@ -221,7 +221,7 @@ describe("themed games through a whole session", () => {
     }
   });
 
-  it("Read it to me doesn't read out a rapid set's last row", async () => {
+  it("Read it to me reads only the rapid set row on screen", async () => {
     const spec = FACTORISATION_SLOTS.find((s) => s.slot === 10)!;
     const item = Array.from({ length: 60 }, (_, i) => codeGameProbeFor({ spec, purpose: "BASE", variation: `aloud-${i}`, avoid: [] }, { COGNA_THEMED_GAMES: "all" })).find((c) => c?.game?.kind === "RAPID_SET")!;
     const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
@@ -233,8 +233,18 @@ describe("themed games through a whole session", () => {
     const q = internal(service, id).currentQuestion;
     for (const key of Object.keys(q)) if (key !== "id") delete q[key];
     Object.assign(q, structuredClone(item));
-    const text = await service.readAloudText(id, "demo_aarav");
-    assert.equal(text, item.prompt);
+    const rows = (item.game as { rows: Array<{ q: string; options: string[] }> }).rows;
+    // No row known, or one that doesn't exist: the instruction, and nothing that gives a row away.
+    for (const row of [undefined, 4, 99, -1, 1.5]) assert.equal(await service.readAloudText(id, "demo_aarav", row), item.prompt, `row ${row}`);
+    for (const [row, r] of rows.entries()) {
+      const text = await service.readAloudText(id, "demo_aarav", row);
+      assert.ok(text.includes(r.q), `row ${row} reads its own sum`);
+      for (const option of r.options) assert.ok(text.includes(option), `row ${row} reads its choice ${option}`);
+      for (const [other, o] of rows.entries()) if (other !== row) assert.equal(text.includes(`: ${o.q}.`), false, `row ${row} doesn't read row ${other}`);
+      assert.equal(text.includes(item.prompt), row === 0, "the instruction is read once, with the first row");
+    }
+    const last = rows[rows.length - 1]!;
+    assert.equal((await service.readAloudText(id, "demo_aarav", 0)).includes(last.q), false, "the look-alike stays unheard until it is on screen");
   });
 
   it("Tiles: a positive trinomial played through the whole path", async () => {

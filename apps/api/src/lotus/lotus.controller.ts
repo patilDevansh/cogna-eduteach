@@ -182,10 +182,11 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("id") id: string,
     @Query("studentId") studentId: string,
+    @Query("row") row?: string,
   ): Promise<{ audio: string; format: "mp3" }> {
     const actor = resolveActor(headers);
     assertStudentAccess(actor, studentId);
-    const text = spokenMath(await this.lotus.readAloudText(id, studentId));
+    const text = spokenMath(await this.lotus.readAloudText(id, studentId, row !== undefined && /^\d+$/.test(row) ? Number(row) : undefined));
     const key = createHash("sha1").update(`${this.tts.provider}|${this.tts.voice}|${text}`).digest("hex");
     const cached = this.speech.get(key);
     if (cached) return { audio: cached, format: "mp3" };

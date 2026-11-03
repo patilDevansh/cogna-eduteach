@@ -45,6 +45,8 @@ export interface ThemedGameProps {
   disabled?: boolean;
   /** The play so far, or null while it is not yet a complete answer. */
   onChange: (response: LotusGameResponse | null) => void;
+  /** A game played row by row says which row is on screen, and clears it when it leaves. */
+  onRowChange?: (row: number | undefined) => void;
 }
 
 const SETTLE_MS = 600;
@@ -574,7 +576,7 @@ function Rectangle({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
   );
 }
 
-export function ThemedGame({ theme, game, disabled, onChange }: ThemedGameProps) {
+export function ThemedGame({ theme, game, disabled, onChange, onRowChange }: ThemedGameProps) {
   const words = GAME_WORDS[game.kind][theme];
   return (
     <section className={styles.game} data-game={game.kind} data-art={theme} aria-label={words.title}>
@@ -590,7 +592,7 @@ export function ThemedGame({ theme, game, disabled, onChange }: ThemedGameProps)
       {game.kind === "RECTANGLE" && <Rectangle theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "ORDER_STEPS" && <OrderSteps theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "TEST_CLAIM" && <TestClaim theme={theme} game={game} disabled={disabled} onChange={onChange} />}
-      {game.kind === "RAPID_SET" && <RapidSet theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "RAPID_SET" && <RapidSet theme={theme} game={game} disabled={disabled} onChange={onChange} onRowChange={onRowChange} />}
       {game.kind === "FIND_EVERY_B" && <FindEveryB theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "REPLAY" && <Replay theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "CHUNK_IT" && <ChunkIt theme={theme} game={game} disabled={disabled} onChange={onChange} />}

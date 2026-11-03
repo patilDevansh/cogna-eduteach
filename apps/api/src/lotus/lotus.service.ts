@@ -24,6 +24,7 @@ import type {
   LotusReserveIntent,
   LotusOverallReview,
   LotusSessionView,
+  RapidSetGame,
   LotusStageAgreement,
   LotusStageTimingMs,
   LotusStatusResponse,
@@ -437,6 +438,18 @@ function adaptationTagFor(turn: { status: string; purpose?: string; forSkill?: s
     case "AVOID": return { kind: "COVERAGE_REPLACEMENT", reason: turn.reason ?? "Rewritten to avoid an unconfirmed prerequisite." };
     default: return undefined;
   }
+}
+
+/**
+ * "Read it to me" on a rapid set: only the row on screen, never a row still to
+ * come. The question's own options belong to its last row, so reading them out
+ * would give that row away. The instruction is read once, with the first row.
+ */
+function rapidSetAloud(prompt: string, game: RapidSetGame, row?: number): string {
+  const current = row === undefined ? undefined : game.rows[row];
+  if (!current) return prompt;
+  const parts = [`Question ${row! + 1} of ${game.rows.length}: ${current.q}.`, `The choices are: ${current.options.join("; ")}.`];
+  return (row === 0 ? [prompt, ...parts] : parts).join(" ");
 }
 
 /** An item a student may see: checked AI writing, or a game question built and checked by code. */
@@ -959,15 +972,15 @@ export class LotusService implements OnModuleDestroy {
    * the prompt, plus the choices, fish or working lines a game shows. Only
    * what is already on the student's screen — never the key or purpose.
    */
-  async readAloudText(sessionId: string, studentId: string): Promise<string> {
+  async readAloudText(sessionId: string, studentId: string, row?: number): Promise<string> {
     const session = await this.requireSession(sessionId);
     if (session.studentId !== studentId) throw new BadRequestException("This Lotus session belongs to a different student.");
     const question = session.status === "ACTIVE" ? session.currentQuestion : null;
     if (!question) throw new BadRequestException("There is no question to read right now.");
+    if (question.game?.kind === "RAPID_SET") return rapidSetAloud(question.prompt, question.game, row);
     const parts = [question.prompt];
     if (question.lines?.length) parts.push(...question.lines.map((line, i) => (i === 0 ? `The working starts with ${line}.` : `Line ${i}: ${line}.`)));
-    // A rapid set's own options belong to its last row: reading them out would give that row away.
-    if (question.options?.length && question.presentation !== "DETECTIVE" && question.game?.kind !== "RAPID_SET") parts.push(`The choices are: ${question.options.join("; ")}.`);
+    if (question.options?.length && question.presentation !== "DETECTIVE") parts.push(`The choices are: ${question.options.join("; ")}.`);
     return parts.join(" ");
   }
 

@@ -1149,8 +1149,8 @@ export const api = {
     ),
 
   /** The current question, spoken by the server's voice (base64 MP3). */
-  readLotusAloud: (sessionId: string, studentId: string) =>
-    lotusFetch<{ audio: string; format: "mp3" }>(`/sessions/${sessionId}/read-aloud?studentId=${encodeURIComponent(studentId)}`),
+  readLotusAloud: (sessionId: string, studentId: string, row?: number) =>
+    lotusFetch<{ audio: string; format: "mp3" }>(`/sessions/${sessionId}/read-aloud?studentId=${encodeURIComponent(studentId)}${row === undefined ? "" : `&row=${row}`}`),
 
   submitLotusAnswer: (
     sessionId: string,

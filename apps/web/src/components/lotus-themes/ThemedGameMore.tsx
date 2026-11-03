@@ -160,7 +160,7 @@ export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGa
 
 // ---------- Rapid set ----------
 
-export function RapidSet({ theme, game, disabled, onChange }: Props<RapidSetGame>) {
+export function RapidSet({ theme, game, disabled, onChange, onRowChange }: Props<RapidSetGame> & { onRowChange?: (row: number | undefined) => void }) {
   const words = GAME_WORDS.RAPID_SET[theme];
   const [picks, setPicks] = useState<number[]>([]);
   const [times, setTimes] = useState<number[]>([]);
@@ -177,6 +177,9 @@ export function RapidSet({ theme, game, disabled, onChange }: Props<RapidSetGame
     if (row >= game.rows.length) doneNote.current?.focus();
     else region.current?.querySelector<HTMLButtonElement>("button")?.focus();
   }, [row, game.rows.length]);
+  const rowReport = useLatest(onRowChange);
+  useEffect(() => { rowReport.current?.(row); }, [row, rowReport]);
+  useEffect(() => () => rowReport.current?.(undefined), [rowReport]);
   const report = useLatest(onChange);
   useEffect(() => {
     report.current(finished ? { kind: "RAPID_SET", picks, times } : null);
