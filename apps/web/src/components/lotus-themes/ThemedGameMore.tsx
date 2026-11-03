@@ -58,7 +58,7 @@ export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderSteps
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <p className={styles.stepLabel}>{prettyAlgebra(game.expression)}</p>
+      <p className={styles.frame}>{prettyAlgebra(game.expression)}</p>
       <ol className={styles.orderSlots}>
         {Array.from({ length: game.slots }, (_, k) => {
           const i = placed[k];
