@@ -31,4 +31,15 @@ The existing repeated-mistake/support-request policy still identifies support ta
 - Mathematical verification remains authoritative within its supported forms. This change does not validate AI-authored misconception labels.
 - No real student data is collected and no live-model accuracy claim follows from the regression tests.
 
+## Choosing the next question's format
+
+Each question format shows something the others can't, so the format of an upcoming question is chosen from what the last answer left unclear (`lotus-format-guide.ts`). It never changes what is asked or how the maths is marked.
+
+- **On every answer, with no model call**, code reads the answer, the mistake it matched and what the play showed. A sign slip asks for the sign cases, a wrong pair asks to watch the search, "right but unsure" asks where the doubt is, and a wrong answer is checked in a different format from the one that raised it. A sure, careful right answer asks for nothing and the plan's rotation continues.
+- **When an AI review runs**, it is given the format guide, how the student played and the formats already seen, and may name one format with a reason. Its choice is tried first.
+- **The server has the final say.** A format must exist, be one that can dress a written question, and fit the question. Otherwise the evidence's choice is used, or the question stays as it is. The audit records who chose, what was asked for, what happened and on which question, so nothing claims a change that didn't happen. All of this is hidden from the student while the test runs.
+- **The question the browser may already hold next is never changed.** A later question gets a new version with a new id; the older version stays valid for a browser that already has it.
+
+Limits: the AI only weighs in on answers code can't explain, to keep the cost of a test down, so most choices come from the evidence rules. Formats that come with their own question (Stop the tape, Find them all and others) are placed by the plan and can't be requested. These rules are an engineering heuristic that has not been validated with students.
+
 The next gate is the [factorisation validation plan](../../COGNA%2010.0/FACTORISATION_VALIDATION_PLAN.md).

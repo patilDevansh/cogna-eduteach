@@ -1,5 +1,5 @@
 import type { StudentInteractionContext } from "./interaction-context";
-import type { LotusGameConfig, LotusGameReading, LotusGameResponse } from "./lotus-games";
+import type { LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
  *
@@ -368,6 +368,20 @@ export interface LotusDebateClosure {
    * records and models, which are treated as before (counted).
    */
   mistakeKind?: LotusMistakeKind | null;
+  /** The format the reviewer thinks would show most next. A suggestion: the server checks it and may not use it. */
+  nextFormat?: string | null;
+  nextFormatReason?: string;
+}
+
+/** Which format was chosen for an upcoming question and why, and whether it really happened. Hidden from the student. */
+export interface LotusFormatDecision {
+  source: "AI" | "EVIDENCE";
+  /** What the model asked for, including one that was refused. */
+  proposed?: string;
+  reason: string;
+  chosen?: LotusGameKind;
+  targetTurn?: number;
+  status: "APPLIED" | "WAITING_FOR_WRITE" | "NOT_APPLIED";
 }
 
 export type LotusMistakeKind = "MISUNDERSTANDING" | "SLIP" | "GUESS" | "UNREADABLE";
@@ -595,6 +609,8 @@ export interface LotusQuestionAudit {
   analysisFailureReason?: string;
   /** The validated planning decision made from this turn, if one was needed. */
   adaptiveDecision?: LotusAdaptiveDecision;
+  /** The format this answer led to for an upcoming question. */
+  formatDecision?: LotusFormatDecision;
   /** What this turn told us about each skill. Hidden from the student while the diagnostic is active. */
   skillEvidence?: LotusSkillEvidence[];
   stageAgreement?: LotusStageAgreement | null;

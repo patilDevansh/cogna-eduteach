@@ -243,8 +243,10 @@ export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): Lo
  * starts with something to do rather than a box to type in. The choice never
  * depends on the student's theme.
  */
-export function chooseLotusGame(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind }, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
+export function chooseLotusGame(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind; preferredKinds?: readonly LotusGameKind[] }, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
   if (!themedGamesEnabled(env)) return undefined;
+  const wanted = gameOfPreferredKind(question, context.preferredKinds ?? [], context.previousKind);
+  if (wanted) return wanted;
   const h = hashOf(question.id);
   const twoBracket = twoBracketGame(question, h, context.previousKind);
   if (twoBracket) return twoBracket;
@@ -254,6 +256,16 @@ export function chooseLotusGame(question: LotusQuestion, context: { turn: number
   const rotation: Array<() => LotusGameConfig | undefined> = [() => chips, () => typed("READBACK"), () => chips, () => typed("EDIT_HISTORY")];
   const offered = rotation.map((_, i) => rotation[(context.turn - 1 + i) % rotation.length]!()).filter((game): game is LotusGameConfig => !!game);
   return offered.find((game) => game.kind !== context.previousKind) ?? offered[0];
+}
+
+/** The first of these formats that fits the question, skipping the one just shown. */
+export function gameOfPreferredKind(question: LotusQuestion, kinds: readonly LotusGameKind[], previousKind?: LotusGameKind): LotusGameConfig | undefined {
+  for (const kind of kinds) {
+    if (kind === previousKind) continue;
+    const game = kind === "SPLIT_CONFIDENCE" ? buildLotusGame(question, kind) ?? buildOptionChips(question) : buildLotusGame(question, kind);
+    if (game) return game;
+  }
+  return undefined;
 }
 
 /** For 2(3x + 8): the look-alikes from dividing only the first term, and from flipping the inside sign. */

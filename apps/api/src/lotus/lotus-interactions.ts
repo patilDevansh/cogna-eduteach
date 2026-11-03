@@ -1,6 +1,7 @@
 import type { LotusGameConfig, LotusGameKind, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
-import { chooseLotusGame, isTypedGame, LotusGameError, readLotusGame, themedGamesEnabled } from "./lotus-games";
+import { chooseLotusGame, gameOfPreferredKind, isTypedGame, LotusGameError, readLotusGame, themedGamesEnabled } from "./lotus-games";
+import { DRESSABLE_KINDS } from "./lotus-format-guide";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
 
@@ -46,7 +47,7 @@ function withGame(question: LotusQuestion, game: LotusGameConfig): LotusQuestion
 }
 
 /** Attaches a tile game to the question when one applies. Mutates and returns the question. */
-export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
+export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind; preferredKinds?: readonly LotusGameKind[] }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
   // A game probe (e.g. garden fences) already carries its own checked tiles.
   // A game probe (garden fences, a rapid set) already carries its own checked game.
   if (question.interaction || question.game) {
@@ -82,6 +83,21 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
     question.asksForWorking = false;
   }
   return question;
+}
+
+/**
+ * This question in another format, or undefined if it can't be: a question built
+ * for its own game keeps it, as does a staged choice. A new id, because a browser
+ * may already hold the old version and must still be able to submit it.
+ */
+export function redressedQuestion(question: LotusQuestion, kinds: readonly LotusGameKind[], previousKind: LotusGameKind | undefined, newId: string): LotusQuestion | undefined {
+  if (question.presentation || question.interaction) return undefined;
+  if (question.game && !DRESSABLE_KINDS.includes(question.game.kind)) return undefined;
+  const game = gameOfPreferredKind(question, kinds, previousKind);
+  if (!game || game.kind === question.game?.kind) return undefined;
+  const next = withGame({ ...structuredClone(question), id: newId }, game);
+  if (isTypedGame(game.kind)) next.asksForWorking = true;
+  return next;
 }
 
 export class TileAnswerError extends Error {}

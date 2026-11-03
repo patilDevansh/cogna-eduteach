@@ -87,7 +87,7 @@ function makerPrompt(req: WriteRequest): string {
   }
   lines.push(
     "",
-    `Mistakes this question must be able to catch — give at least ${minWrong} wrong answer(s), each EXACTLY what a student making that mistake would write:`,
+    `Mistakes this question must be able to catch — give at least ${minWrong} wrong answer(s), each EXACTLY what a student making that mistake would write, as a whole answer in the same form as the right one, because it may be shown beside the right answer as a choice:`,
     ...spec.mistakes.map((m) => `- ${m}${curriculum?.mistakeNotes[m] ? `: ${curriculum.mistakeNotes[m]}` : ""}`),
     "",
     "Rules:",

@@ -1,4 +1,5 @@
 import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestion, type LotusQuestionAudit, type LotusPhase, type LotusStudentResponse, type LotusTopic } from "@cogna/shared";
+import { formatGuideForPrompt, formatsUsedForPrompt } from "./lotus-format-guide";
 import { curriculumFor } from "./lotus-factorisation-catalogue";
 
 export const LOTUS_POLICY = `
@@ -419,6 +420,9 @@ ${JSON.stringify({
   responseTimeMs: args.currentResponse.responseTimeMs,
   didNotKnow: args.currentResponse.didNotKnow,
   studentSaidHowTheyGotIt: args.audits.at(-1)?.reasonCheck?.chosenId,
+  format: args.currentQuestion.game?.kind ?? (args.currentQuestion.options?.length ? "OPTIONS" : "TYPED"),
+  whatThePlayShowed: args.currentResponse.gameReading?.summary,
+  playSignals: args.currentResponse.gameReading?.signals,
 })}
 
 Deterministic verification (authoritative):
@@ -426,6 +430,10 @@ ${JSON.stringify(args.currentVerification)}
 
 Prior answered questions in this session:
 ${evidenceLogForPrompt(args.audits)}
+
+Question formats you can ask for next:
+${formatGuideForPrompt()}
+Formats this student has already seen, oldest first: ${formatsUsedForPrompt(args.audits)}.
 
 ${args.planningContext ? `Remaining plan (server-owned; any recommendation must name the earliest safe slot and preserve the pinned item):\n${args.planningContext}` : ""}
 
@@ -436,6 +444,7 @@ Review tasks:
 4. Classify "mistakeKind": MISUNDERSTANDING if the method is misapplied; SLIP if the method is sound and a sign or number was miscopied; GUESS if ungrounded; UNREADABLE if poorly formatted; or null if the work is correct.
 5. If the work is correct, firstWrongStep must be null, mistakeDescription empty, and mistakeKind null.
 6. Choose the action: ASK (continue) or an exit action (EXIT_GAP | EXIT_ADVANCE | EXIT_UNCERTAIN).
+7. If the action is ASK, set "nextFormat" to the one format above that would best settle what is still unclear about this student, and say why in "nextFormatReason" in one short sentence. Pick for what it would reveal, not for variety. Use null if the answer left nothing unclear. The server checks your choice and may keep the question as it is; it never changes the maths.
 
 Return JSON only:
 {
@@ -449,6 +458,8 @@ Return JSON only:
   "firstWrongStep": null,
   "mistakeDescription": "",
   "mistakeKind": null,
+  "nextFormat": null,
+  "nextFormatReason": "",
   "exitDiagnostic": false
 }`;
 }

@@ -33,6 +33,8 @@ import type {
   LotusUnseenPlanEntry,
   LotusTopic,
   LotusWorkingPrompt,
+  LotusFormatDecision,
+  LotusGameKind,
 } from "@cogna/shared";
 import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
@@ -58,7 +60,9 @@ import {
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
-import { resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { checkedAiFormat, evidenceFormatNeed, formatDecisionNote } from "./lotus-format-guide";
+import { themedGamesEnabled } from "./lotus-game-core";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
 import { codeGameProbeFor } from "./lotus-game-probes";
 import { codeProbeFor } from "./lotus-probes";
@@ -110,6 +114,8 @@ interface FactorisationSession {
   writes: FactorisationWriteLog[];
   /** Set when the test ended before its plan ran out, so a rebuilt report keeps saying so. */
   endedEarlyNote?: string;
+  /** Formats wanted for the next question still to be written. */
+  formatIntent?: LotusGameKind[];
 }
 
 interface FactorisationWriteLog {
@@ -164,6 +170,8 @@ interface LotusServiceOptions {
 }
 
 const MAX_QUESTIONS = 16;
+/** How many upcoming questions to try when looking for one a wanted format fits. */
+const FORMAT_LOOKAHEAD = 6;
 const MAX_DURATION_MS = 20 * 60 * 1000;
 /**
  * Floor, not just a ceiling. MAX_QUESTIONS stops the diagnostic from running
@@ -587,6 +595,8 @@ function redactClosure(conclusion: LotusDebateClosure): LotusDebateClosure {
     ...conclusion,
     nextQuestion: conclusion.nextQuestion ? redactQuestion(conclusion.nextQuestion) : undefined,
     report: undefined,
+    nextFormat: undefined,
+    nextFormatReason: undefined,
   };
 }
 
@@ -607,6 +617,8 @@ function redactSelection(selection: LotusQuestionSelection): LotusQuestionSelect
 function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
   return {
     ...audit,
+    // Why a format was chosen names what Lotus suspects.
+    formatDecision: undefined,
     // What each answer said about each skill is the diagnosis itself — released with the report, not before.
     skillEvidence: undefined,
     // What the server read from a themed game's play is part of the same diagnosis.
@@ -1585,6 +1597,7 @@ export class LotusService implements OnModuleDestroy {
         slot.questionSelection.planningNote = planDecisionNote(adjustments);
         slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
         slot.adaptiveDecision.recommendedAt = slot.analysisCompletedAt;
+        if (analysis.conclusion.action === "ASK") this.steerNextFormat(liveSession, slot, { proposed: analysis.conclusion.nextFormat, reason: analysis.conclusion.nextFormatReason });
       } else if (liveSession.status === "ACTIVE") {
         slot.adaptiveDecision = {
           action: "KEEP",
@@ -2477,7 +2490,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     question.requiresConfidenceProbe = !!planTurn?.purpose;
     // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
     const previous = f.versions[String(job.turn - 1)]?.find((candidate) => candidate.id === f.preferred[String(job.turn - 1)]);
-    withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose, previousKind: previous?.game?.kind });
+    withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose, previousKind: previous?.game?.kind, preferredKinds: f.formatIntent });
+    if (f.formatIntent && question.game && f.formatIntent.includes(question.game.kind)) delete f.formatIntent;
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
@@ -2553,6 +2567,59 @@ Create one materially different question that adds new diagnostic evidence. Test
     });
     for (const action of actions) this.applyPlanAction(session, action);
     return actions;
+  }
+
+  /**
+   * Chooses the format of an upcoming question from what this answer left unclear,
+   * going with the AI review's suggestion if it made a usable one. The question the
+   * browser may already be showing next is left alone, as with any plan change.
+   */
+  private steerNextFormat(session: LotusSessionState, audit: LotusQuestionAudit, aiFormat?: { proposed: unknown; reason?: string }): void {
+    const f = session.factorisation;
+    if (!f || session.status !== "ACTIVE" || !themedGamesEnabled()) return;
+    const need = evidenceFormatNeed(session.audits);
+    const aiKind = checkedAiFormat(aiFormat?.proposed);
+    const proposed = typeof aiFormat?.proposed === "string" && aiFormat.proposed.trim() ? aiFormat.proposed.trim() : undefined;
+    if (!aiKind && !need) {
+      if (proposed) audit.formatDecision = { source: "AI", proposed, reason: `${aiFormat?.reason ?? ""} That isn't a format Lotus can use here.`.trim(), status: "NOT_APPLIED" };
+      return;
+    }
+    const frozen = nextOpenTurn(f.state, f.state.planTurn);
+    const firstTurn = frozen === null ? null : nextOpenTurn(f.state, frozen);
+    const firstPrevious = frozen === null ? undefined : preferredItem(f, frozen)?.game?.kind;
+    const place = (kinds: LotusGameKind[]): Pick<LotusFormatDecision, "status" | "targetTurn" | "chosen"> | null => {
+      let turn = firstTurn;
+      let previous = firstPrevious;
+      for (let looked = 0; turn !== null && looked < FORMAT_LOOKAHEAD; looked += 1) {
+        const item = preferredItem(f, turn);
+        if (!item) {
+          f.formatIntent = kinds;
+          return { status: "WAITING_FOR_WRITE", targetTurn: turn };
+        }
+        // Already the format that was wanted.
+        if (item.game && kinds.includes(item.game.kind)) return { status: "APPLIED", targetTurn: turn, chosen: item.game.kind };
+        const next = redressedQuestion(item, kinds, previous, randomUUID());
+        if (next) {
+          if (next.game?.kind === "SPLIT_CONFIDENCE") next.requiresConfidenceProbe = false;
+          const key = String(turn);
+          f.versions[key] = [...(f.versions[key] ?? []), next];
+          f.preferred[key] = next.id;
+          return { status: "APPLIED", targetTurn: turn, chosen: next.game?.kind };
+        }
+        previous = item.game?.kind;
+        turn = nextOpenTurn(f.state, turn);
+      }
+      return null;
+    };
+    // The review's choice gets the whole window before the evidence's choice gets a look.
+    const placedAi = aiKind ? place([aiKind]) : null;
+    const placed = placedAi ?? (need?.kinds.length ? place(need.kinds) : null);
+    const source = placedAi || !need ? (aiKind ? "AI" as const : "EVIDENCE" as const) : "EVIDENCE" as const;
+    const reason = source === "AI" ? aiFormat?.reason?.trim() || "The review asked for this format." : need!.reason;
+    const decision: LotusFormatDecision = { source, ...(proposed ? { proposed } : {}), reason, status: "NOT_APPLIED", ...placed };
+    audit.formatDecision = decision;
+    const note = formatDecisionNote(decision);
+    audit.questionSelection.planningNote = audit.questionSelection.planningNote ? `${audit.questionSelection.planningNote} ${note}` : note;
   }
 
   private applyPlanAction(session: LotusSessionState, action: PlanAction): void {
@@ -2739,6 +2806,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
+    this.steerNextFormat(session, audit);
     await this.persist(
       session, audit, true,
       analyse ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : [],
