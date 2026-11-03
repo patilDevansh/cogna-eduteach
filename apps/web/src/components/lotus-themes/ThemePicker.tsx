@@ -37,11 +37,13 @@ export function ThemePicker({ settings, ready = true, busy, onChoose }: { settin
             role="radio"
             aria-checked={settings.effective === theme}
             className={styles.card}
+            data-lotus-theme={theme}
             data-lotus-theme-card={theme}
             data-selected={settings.effective === theme || undefined}
             onClick={() => onChoose(theme)}
           >
-            <span className={styles.cardArt} data-lotus-theme={theme}><ThemeProgress theme={theme} answered={6} /></span>
+            <span className={styles.cardArt}><ThemeProgress theme={theme} answered={12} total={25} /></span>
+            {settings.effective === theme && <span className={styles.cardCheck} aria-hidden="true">✓</span>}
             <strong>{LOTUS_THEME_NAMES[theme]}</strong>
             <span>{BLURB[theme].line}</span>
             <em>{BLURB[theme].builds}</em>

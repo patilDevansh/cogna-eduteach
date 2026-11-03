@@ -21,6 +21,8 @@ export interface ThemeProgressProps {
   total?: number;
   /** The test is over: draw the art finished. */
   complete?: boolean;
+  /** Small enough to sit in the question header. */
+  compact?: boolean;
 }
 
 type ArtProps = { answered: number; steps: number };
@@ -81,7 +83,7 @@ function Print({ answered, steps }: ArtProps) {
   const rings = steps;
   return (
     <svg viewBox="-60 -60 120 120" className={styles.print} role="img" aria-label={`${answered} questions finished`}>
-      <circle r="52" fill="var(--accent-wash)" />
+      <circle r="56" fill="var(--accent-wash)" stroke="var(--line-strong)" strokeWidth="1.5" />
       {Array.from({ length: rings }, (_, i) => {
         const r = 6 + i * 3.4;
         const wobble = ((i * 37) % 7) / 10;
@@ -98,7 +100,8 @@ function Print({ answered, steps }: ArtProps) {
 function Sequencer({ answered, steps }: ArtProps) {
   const lit = steps;
   const on = new Set<string>();
-  for (let i = 0; i < lit; i++) on.add(`${i % SEQ_ROWS.length}:${i % SEQ_COLS}`);
+  // Laid down step by step from the left, like a track being recorded.
+  for (let i = 0; i < lit; i++) on.add(`${i % SEQ_ROWS.length}:${Math.floor(i / SEQ_ROWS.length)}`);
   return (
     <div className={styles.seq} role="img" aria-label={`${answered} questions finished`}>
       {SEQ_ROWS.map((color, row) => (
@@ -124,7 +127,7 @@ const ART: Record<LotusTheme, (props: ArtProps) => ReactElement> = {
   soundlab: Sequencer,
 };
 
-export function ThemeProgress({ theme, answered, total, complete }: ThemeProgressProps) {
+export function ThemeProgress({ theme, answered, total, complete, compact }: ThemeProgressProps) {
   const Art = ART[theme];
   // The plan's length can shrink mid-test; the art must never take a piece back.
   const peak = useRef({ theme, steps: 0 });
@@ -132,7 +135,7 @@ export function ThemeProgress({ theme, answered, total, complete }: ThemeProgres
   const steps = Math.max(floor, artSteps(answered, UNITS[theme], total, complete));
   peak.current = { theme, steps };
   return (
-    <div className={styles.progress} data-theme-progress={theme}>
+    <div className={styles.progress} data-theme-progress={theme} data-compact={compact || undefined}>
       <Art answered={answered} steps={steps} />
     </div>
   );

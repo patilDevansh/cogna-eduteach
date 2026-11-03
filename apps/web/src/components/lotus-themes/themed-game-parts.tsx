@@ -15,7 +15,7 @@ export function Stepper({ label, value, range, disabled, showPlus, allowZero, mi
   };
   return (
     <div className={styles.stepper} role="group" aria-label={label}>
-      <span className={styles.stepLabel}>{label}</span>
+      <span className={styles.label}>{label}</span>
       <div className={styles.stepRow}>
         <button type="button" className={styles.stepBtn} disabled={disabled || value <= (min ?? -range)} onClick={() => step(-1)} aria-label={`${label}: lower`}>‹</button>
         <output className={styles.stepValue} aria-live="polite">{showPlus ? `${value < 0 ? "−" : "+"} ${Math.abs(value)}` : signed(value)}</output>

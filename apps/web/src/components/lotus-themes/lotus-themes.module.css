@@ -7,6 +7,16 @@
 .ringIn { animation: ring .6s ease-out both; transform-box: fill-box; transform-origin: center; }
 @keyframes ring { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
 
+/* In the question header: the art is a companion, not a banner. */
+.progress[data-compact] { flex: 0 1 auto; width: auto; max-width: min(100%, 300px); margin: 0; }
+.progress[data-compact] .art { width: auto; height: 76px; }
+.progress[data-compact] .print { width: 64px; height: 64px; }
+.progress[data-compact] .cabinet { width: clamp(170px, 34vw, 280px); gap: 8px; }
+.progress[data-compact] .gear { width: 28px; height: 28px; }
+.progress[data-compact] .drawerGrid { gap: 2px; }
+.progress[data-compact] .seq { width: clamp(150px, 30vw, 230px); padding: 5px; gap: 2px; border-radius: 6px; }
+.progress[data-compact] .seqRow { gap: 2px; }
+
 /* Cabinet */
 .cabinet { display: flex; align-items: center; gap: 12px; }
 .drawerGrid { flex: 1; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
@@ -30,23 +40,29 @@
 .picker { border: 0; margin: var(--s-4, 16px) 0 0; padding: 0; min-width: 0; }
 .picker legend { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; padding: 0; margin-bottom: 4px; }
 .pickerHint { color: var(--ink-soft); font-size: .92rem; margin: 0 0 12px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-.card { text-align: left; display: grid; gap: 4px; align-content: start; padding: 12px; border-radius: var(--radius-md, 10px); border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; min-height: 44px; transition: border-color .15s, transform .15s; }
-.card:hover { border-color: var(--line-strong); }
-.card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.card[data-selected] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.card strong { font-family: var(--font-display); font-size: 1.02rem; }
-.card span:not(.cardArt) { color: var(--ink-soft); font-size: .88rem; }
-.card em { color: var(--ink-faint); font-size: .8rem; font-style: normal; }
-.cardArt { display: grid; place-items: center; height: 112px; border-radius: 8px; padding: 8px; margin-bottom: 6px; background: var(--theme-art); color: var(--ink); overflow: hidden; }
-.cardArt .progress { margin: 0; max-height: 96px; display: grid; place-items: center; }
-.cardArt .progress svg { max-height: 96px; width: auto; }
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Each card wears its own look, so the choice shows what the test will feel like. */
+.card { position: relative; text-align: left; display: grid; gap: 4px; align-content: start; padding: 10px 10px 14px; border-radius: var(--radius-md, 10px); border: 1px solid var(--line-strong); background: var(--theme-art); color: var(--ink); font-family: var(--font-body); cursor: pointer; font-size: inherit; min-height: 44px; box-shadow: var(--theme-card-shadow); transition: transform .15s, box-shadow .15s; }
+.card:hover { transform: translateY(-2px); }
+.card:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.card[data-selected] { box-shadow: 0 0 0 3px var(--accent), var(--theme-card-shadow); border-color: var(--accent); }
+.card strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); padding: 0 4px; }
+.card span:not(.cardArt):not(.cardCheck) { color: var(--ink-soft); font-size: .88rem; line-height: 1.35; padding: 0 4px; }
+.card em { color: var(--ink-faint); font-size: .8rem; font-style: normal; padding: 0 4px; }
+.cardArt { display: grid; place-items: center; height: 116px; border-radius: max(4px, calc(var(--radius-md, 10px) - 4px)); padding: 8px; margin-bottom: 8px; background: var(--surface); overflow: hidden; }
+.cardArt .progress { margin: 0; max-height: 100px; display: grid; place-items: center; }
+.cardArt .progress svg { max-height: 100px; width: auto; }
 .cardArt .progress .seq, .cardArt .progress .cabinet { width: 100%; }
+.cardCheck { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--theme-ink-on-accent, #fff); font-size: .8rem; font-weight: 700; }
 .lockNote { margin: var(--s-4, 16px) 0 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--accent-wash); font-size: .95rem; }
 
 /* The finished art with its caption (end of the test and top of the report) */
-.finish { margin: 0; display: grid; justify-items: center; gap: 6px; }
-.finish .progress { margin-bottom: 0; }
+.finish { margin: 0; display: grid; justify-items: center; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-lg, 16px); background: var(--surface); }
+.finish .progress { margin: 0; max-width: 340px; display: grid; justify-items: center; }
+.finish .art { max-height: 210px; }
+.finish .print { width: 170px; height: 170px; max-height: none; }
+.finish .cabinet, .finish .seq { width: min(340px, 72vw); }
 .finishText { display: grid; gap: 2px; text-align: center; line-height: 1.25; }
-.finishText strong { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); }
-.finishText span { font-size: .85rem; color: var(--ink-soft); }
+.finishText strong { font-family: var(--font-display); font-size: 1.12rem; color: var(--ink); }
+.finishText span { font-size: .88rem; color: var(--ink-soft); }

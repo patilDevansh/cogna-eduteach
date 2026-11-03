@@ -5,7 +5,7 @@
  * Set data-lotus-theme on the page root. Studio is the neutral default and
  * deliberately adds almost nothing on top of the app's own look.
  */
-@import url("https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=Cinzel:wght@600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Schibsted+Grotesk:wght@400;500;700;800&family=Geist+Mono:wght@400;500;600&family=Manrope:wght@500;600;700;800&family=VT323&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=Cinzel:wght@600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Schibsted+Grotesk:wght@400;500;700;800&family=Geist+Mono:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@500;600;700;800&family=VT323&display=swap");
 
 /* ---------- Studio: neutral, big quiet type, one cobalt accent ---------- */
 [data-lotus-theme="studio"] {
@@ -99,6 +99,10 @@ main[data-lotus-theme="studio"] .btn { border-radius: 999px; }
 @media (prefers-reduced-motion: reduce) {
   main[data-lotus-theme] * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* In these looks the question is read as a sentence, with the game below it as the object. */
+main[data-lotus-theme] [class*="lotus_question__"] { font-family: var(--font-body); font-size: clamp(1.25rem, 2.2vw, 1.5rem); line-height: 1.45; letter-spacing: 0; }
+main[data-lotus-theme="drafting"] [class*="lotus_question__"] { font-family: var(--font-hand); }
 
 /* Fields sit inside shells that already carry the field colour. */
 main[data-lotus-theme] [class*="mathAnswerShell"] input { background: transparent; }

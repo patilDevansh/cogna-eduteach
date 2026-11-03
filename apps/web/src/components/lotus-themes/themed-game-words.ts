@@ -25,6 +25,8 @@ export interface TrueFalseWords {
   title: string;
   intro: string;
   card: string;
+  /** A small mark on the corner of the card; optional. */
+  tag?: string;
   yes: string;
   no: string;
   unsure: string;
@@ -126,8 +128,8 @@ export const GAME_WORDS: {
   },
   TRUE_FALSE: {
     studio: { title: "True or false", intro: "Is each claim true or false? Choose “not sure” if you can’t tell.", card: "Card", yes: "True", no: "False", unsure: "Not sure", done: "All cards judged" },
-    drafting: { title: "Submittal review", intro: "Review each submittal. Approve it, reject it, or query it if you are unsure.", card: "Submittal", yes: "Approve", no: "Reject", unsure: "Query", done: "All submittals reviewed" },
-    cabinet: { title: "Sealed letters", intro: "Break each seal. Is the claim genuine or forged? You may say you are unsure.", card: "Letter", yes: "Genuine", no: "Forged", unsure: "Unsure", done: "All letters read" },
+    drafting: { title: "Submittal review", intro: "Review each submittal. Approve it, reject it, or query it if you are unsure.", card: "Submittal", tag: "For review", yes: "Approve", no: "Reject", unsure: "Query", done: "All submittals reviewed" },
+    cabinet: { title: "Sealed letters", intro: "Break each seal. Is the claim genuine or forged? You may say you are unsure.", card: "Letter", tag: "By hand", yes: "Genuine", no: "Forged", unsure: "Unsure", done: "All letters read" },
     soundlab: { title: "Keep or drop", intro: "Listen to each take. Keep it, drop it, or mark it unsure.", card: "Take", yes: "Keep", no: "Drop", unsure: "Unsure", done: "All takes judged" },
   },
   SPLIT_CONFIDENCE: {

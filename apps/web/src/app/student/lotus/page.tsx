@@ -1740,8 +1740,8 @@ function LotusPage() {
               observer ? (
                 <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
               ) : (
-                <section className={styles.introCard}>
-                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1rem" }}><ThemeFinish theme={lotusTheme.settings.effective} answered={session.audits.length} /></div>}
+                <section className={styles.introCard} style={{ textAlign: "center" }}>
+                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1.5rem" }}><ThemeFinish theme={lotusTheme.settings.effective} answered={session.audits.length} /></div>}
                   <h1>Your diagnostic is complete</h1>
                   <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
                   <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
@@ -1826,11 +1826,11 @@ function LotusPage() {
                     )}
                     {/* No "of N": the plan grows and shrinks with the answers, so a total would change mid-test. */}
                     <strong className={styles.questionNumber}>Question {shownQuestionNumber}</strong>
+                    {isPlannedLotusTopic(session.topic) && (
+                      <ThemeProgress theme={lotusTheme.settings.effective} answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} compact />
+                    )}
                   </div>
                   <div className={styles.cardBody}>
-                    {isPlannedLotusTopic(session.topic) && (
-                      <ThemeProgress theme={lotusTheme.settings.effective} answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} />
-                    )}
                     <div className={styles.question}>
                       {promptLines.map((line, index) => (
                         <span key={`${line}-${index}`}>{line}</span>

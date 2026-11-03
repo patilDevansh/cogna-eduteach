@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   prettyReadback,
   readbackTyped,
@@ -26,8 +26,9 @@ import {
   type TwoNumbersTry,
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
-import { GAME_WORDS } from "./themed-game-words";
+import { GAME_WORDS, type TrueFalseWords } from "./themed-game-words";
 import { signed, Stepper } from "./themed-game-parts";
+import { CaseArt, Token, TwoNumbersArt } from "./themed-game-art";
 import { ChunkIt, FindEveryB, OrderSteps, RapidSet, Replay, TestClaim } from "./ThemedGameMore";
 import styles from "./themed-game.module.css";
 
@@ -49,69 +50,6 @@ export interface ThemedGameProps {
 const SETTLE_MS = 600;
 
 // ---------- Two numbers ----------
-
-/** Theme art that redraws from the two numbers. It only shows their sum and product, never a verdict. */
-function TwoNumbersArt({ theme, p, q }: { theme: LotusTheme; p: number; q: number }): ReactElement {
-  const prod = p * q;
-  const sum = p + q;
-  if (theme === "drafting") {
-    // A plan: a room whose sides are (x + p) by (x + q) around a fixed x square.
-    const base = 46;
-    const w = Math.max(10, base + p * 3);
-    const h = Math.max(10, base + q * 3);
-    return (
-      <svg viewBox="0 0 220 160" className={styles.art} aria-hidden="true">
-        <rect x="20" y="20" width={base} height={base} fill="none" stroke="var(--line-strong)" strokeDasharray="4 3" />
-        <rect x="20" y="20" width={w} height={h} fill="var(--accent-wash)" stroke="var(--accent)" strokeWidth="1.6" className={styles.move} />
-        <text x={20 + w / 2} y="14" textAnchor="middle" fontSize="11" fill="var(--ink-soft)" fontFamily="var(--font-math)">x {p < 0 ? "−" : "+"} {Math.abs(p)}</text>
-        <text x={Math.min(150, 20 + w + 6)} y={20 + h / 2} fontSize="11" fill="var(--ink-soft)" fontFamily="var(--font-math)">x {q < 0 ? "−" : "+"} {Math.abs(q)}</text>
-      </svg>
-    );
-  }
-  if (theme === "cabinet") {
-    const dial = (n: number, cx: number) => {
-      const angle = (n / 12) * 150;
-      return (
-        <g key={cx} transform={`translate(${cx} 70)`}>
-          <circle r="46" fill="rgba(0,0,0,.25)" stroke="var(--accent)" strokeWidth="3" />
-          {Array.from({ length: 25 }, (_, i) => <line key={i} x1="0" y1="-42" x2="0" y2={i % 6 === 0 ? -34 : -38} stroke="var(--ink-soft)" strokeWidth="1" transform={`rotate(${-150 + i * 12.5})`} />)}
-          <line x1="0" y1="0" x2="0" y2="-34" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" transform={`rotate(${angle})`} className={styles.move} />
-          <circle r="4" fill="var(--accent)" />
-          <text y="62" textAnchor="middle" fontSize="13" fill="var(--ink)" fontFamily="var(--font-math)">{signed(n)}</text>
-        </g>
-      );
-    };
-    return <svg viewBox="0 0 240 150" className={styles.art} aria-hidden="true">{dial(p, 65)}{dial(q, 175)}</svg>;
-  }
-  if (theme === "soundlab") {
-    // Two oscillators drawn at a frequency set by each number; negative numbers are inverted waves.
-    const wave = (n: number, y: number, color: string) => {
-      const f = Math.min(8, Math.abs(n)) / 2 + 0.6;
-      const d = Array.from({ length: 81 }, (_, i) => `${i ? "L" : "M"}${10 + i * 2.5} ${y - Math.sin((i / 80) * Math.PI * 2 * f) * 16 * (n < 0 ? -1 : 1)}`).join(" ");
-      return <path d={d} fill="none" stroke={color} strokeWidth="2" className={styles.move} />;
-    };
-    return (
-      <svg viewBox="0 0 220 120" className={styles.art} aria-hidden="true">
-        <line x1="10" y1="30" x2="210" y2="30" stroke="var(--line)" /><line x1="10" y1="85" x2="210" y2="85" stroke="var(--line)" />
-        {wave(p, 30, "var(--accent)")}{wave(q, 85, "var(--caution)")}
-      </svg>
-    );
-  }
-  // Studio: two plain bars, one for the product and one for the sum.
-  const bar = (v: number, k: number) => {
-    const wv = Math.min(100, Math.abs(v) * k);
-    return v < 0 ? { x: 110 - wv, w: wv } : { x: 110, w: wv };
-  };
-  const a = bar(prod, 2.2);
-  const b = bar(sum, 6);
-  return (
-    <svg viewBox="0 0 220 120" className={styles.art} aria-hidden="true">
-      <line x1="110" y1="8" x2="110" y2="112" stroke="var(--line-strong)" />
-      <rect x={a.x} y="22" width={a.w} height="18" rx="9" fill="var(--accent)" className={styles.move} />
-      <rect x={b.x} y="72" width={b.w} height="18" rx="9" fill="var(--accent)" className={styles.move} />
-    </svg>
-  );
-}
 
 function TwoNumbers({ theme, game, disabled, onChange }: { theme: LotusTheme; game: TwoNumbersGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.TWO_NUMBERS[theme];
@@ -144,16 +82,18 @@ function TwoNumbers({ theme, game, disabled, onChange }: { theme: LotusTheme; ga
     <>
       <p className={styles.intro}>{words.intro}</p>
       <div className={styles.twoGrid}>
-        <TwoNumbersArt theme={theme} p={pair.p} q={pair.q} />
+        <div className={styles.stage}>
+          <TwoNumbersArt theme={theme} p={pair.p} q={pair.q} productLabel={words.product} sumLabel={words.sum} />
+        </div>
         <div className={styles.controls}>
-          <p className={styles.frame} aria-live="polite">(x <b>{pair.p < 0 ? "−" : "+"} {Math.abs(pair.p)}</b>)(x <b>{pair.q < 0 ? "−" : "+"} {Math.abs(pair.q)}</b>)</p>
+          <p className={styles.math} aria-live="polite">(x <b>{pair.p < 0 ? "−" : "+"} {Math.abs(pair.p)}</b>)(x <b>{pair.q < 0 ? "−" : "+"} {Math.abs(pair.q)}</b>)</p>
           <div className={styles.steppers}>
             <Stepper label={words.first} value={pair.p} range={game.range} disabled={disabled} onChange={(v) => set("p", v)} />
             <Stepper label={words.second} value={pair.q} range={game.range} disabled={disabled} onChange={(v) => set("q", v)} />
           </div>
-          <p className={styles.readout}>
-            <span>{words.product}: <b>{signed(pair.p * pair.q)}</b></span>
-            <span>{words.sum}: <b>{signed(pair.p + pair.q)}</b></span>
+          <p className={styles.readouts}>
+            <span className={styles.readout}>{words.product} <b>{signed(pair.p * pair.q)}</b></span>
+            <span className={styles.readout}>{words.sum} <b>{signed(pair.p + pair.q)}</b></span>
           </p>
         </div>
       </div>
@@ -180,19 +120,21 @@ function CommitThenChoose({ theme, game, disabled, onChange }: { theme: LotusThe
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.guessRow}>
-        <span className={styles.stepLabel}>{words.guess}</span>
-        <span className={styles.frame}>
-          <span className={styles.bracketGroup}>(x <Stepper label="First number" value={guess.p} range={game.range} showPlus disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, p: v })); }} />)</span>
-          <span className={styles.bracketGroup}>(x <Stepper label="Second number" value={guess.q} range={game.range} showPlus disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, q: v })); }} />)</span>
-        </span>
-        <button type="button" className={styles.primary} disabled={disabled || committed || !touched} onClick={() => setCommittedAt(Date.now())}>{words.commit}</button>
+      <div className={styles.stage}>
+        <div className={styles.guessRow}>
+          <span className={styles.label}>{words.guess}</span>
+          <span className={styles.math}>
+            <span className={styles.bracket}>(x <Stepper label="First number" value={guess.p} range={game.range} showPlus disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, p: v })); }} />)</span>
+            <span className={styles.bracket}>(x <Stepper label="Second number" value={guess.q} range={game.range} showPlus disabled={disabled || committed} onChange={(v) => { setTouched(true); setGuess((g) => ({ ...g, q: v })); }} />)</span>
+          </span>
+          <button type="button" className={styles.primary} disabled={disabled || committed || !touched} onClick={() => setCommittedAt(Date.now())}>{words.commit}</button>
+        </div>
       </div>
-      <div className={styles.options} data-covered={!committed || undefined} aria-label={words.options}>
+      <div className={styles.options} data-covered={!committed || undefined}>
         {!committed && <div className={styles.cover}>{words.cover}</div>}
-        <div className={styles.optionList} role="group" aria-label={words.options} aria-hidden={!committed}>
+        <div className={styles.choiceGrid} role="group" aria-label={words.options} aria-hidden={!committed}>
           {game.options.map((option, index) => (
-            <button key={option} type="button" className={styles.option} aria-pressed={pick?.index === index} disabled={disabled || !committed} tabIndex={committed ? 0 : -1}
+            <button key={option} type="button" className={styles.choice} aria-pressed={pick?.index === index} disabled={disabled || !committed} tabIndex={committed ? 0 : -1}
               onClick={() => setPick({ index, at: Date.now() })}>
               {prettyAlgebra(option)}
             </button>
@@ -205,6 +147,21 @@ function CommitThenChoose({ theme, game, disabled, onChange }: { theme: LotusThe
 
 // ---------- True or false ----------
 
+function ClaimFace({ words, card, n, text, foot }: { words: TrueFalseWords; card: number; n: number; text: string; foot: boolean }) {
+  const [left, right] = text.split(" = ");
+  return (
+    <>
+      <div className={styles.sheetHead}><span>{words.card} {card + 1} / {n}</span>{words.tag && <span>{words.tag}</span>}</div>
+      <p className={styles.sheetClaim}><span>{left} =</span> <span>{right}</span></p>
+      {foot ? <div className={styles.sheetFoot}><span>Project: factorisation</span><span>Spec section: 08</span></div> : <span />}
+    </>
+  );
+}
+
+function ClaimSheet(props: { words: TrueFalseWords; card: number; n: number; text: string; foot: boolean }) {
+  return <div className={styles.sheet}><ClaimFace {...props} /></div>;
+}
+
 function TrueFalse({ theme, game, disabled, onChange }: { theme: LotusTheme; game: TrueFalseGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.TRUE_FALSE[theme];
   const n = game.claims.length;
@@ -213,6 +170,13 @@ function TrueFalse({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
   const shownAt = useRef(Date.now());
   const index = verdicts.findIndex((v) => v === null);
   const finished = index === -1;
+  // The judged card stays a moment under its stamp, then leaves. The next one is already live beneath it.
+  const [leaving, setLeaving] = useState<{ card: number; verdict: LotusClaimVerdict } | null>(null);
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = window.setTimeout(() => setLeaving(null), 520);
+    return () => window.clearTimeout(timer);
+  }, [leaving]);
 
   useEffect(() => { shownAt.current = Date.now(); }, [index]);
 
@@ -227,6 +191,7 @@ function TrueFalse({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
     const spent = Math.max(200, Date.now() - shownAt.current);
     setVerdicts((cur) => cur.map((v, i) => (i === index ? verdict : v)));
     setTimes((cur) => cur.map((t, i) => (i === index ? spent : t)));
+    setLeaving({ card: index, verdict });
   };
   const back = () => {
     const last = finished ? n - 1 : index - 1;
@@ -234,23 +199,31 @@ function TrueFalse({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
     setVerdicts((cur) => cur.map((v, i) => (i === last ? null : v)));
   };
   const label: Record<LotusClaimVerdict, string> = { true: words.yes, false: words.no, unsure: words.unsure };
+  const claimText = (card: number) => `${prettyAlgebra(game.expression)} = ${prettyAlgebra(game.claims[card]!)}`;
 
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.deck} data-theme-card={theme}>
-        {finished ? (
-          <div className={styles.card} role="status">
-            <span className={styles.cardNo}>{words.done}</span>
-            <ul className={styles.tally}>{verdicts.map((v, i) => <li key={i}>{i + 1}. {label[v!]}</li>)}</ul>
-          </div>
-        ) : (
-          <div className={styles.card} key={index}>
-            <span className={styles.cardNo}>{words.card} {index + 1} / {n}</span>
-            <p className={styles.claim}>{prettyAlgebra(game.expression)} = {prettyAlgebra(game.claims[index]!)}</p>
-            <span className={styles.cardArt} aria-hidden="true" />
-          </div>
-        )}
+      <div className={styles.deckRow}>
+        <div className={styles.deck} data-theme-card={theme}>
+          {finished ? (
+            <div className={styles.sheet} role="status">
+              <div className={styles.sheetHead}><span>{words.done}</span></div>
+              <ul className={styles.doneList}>{verdicts.map((v, i) => <li key={i}>{i + 1}. {label[v!]}</li>)}</ul>
+            </div>
+          ) : (
+            <ClaimSheet key={index} words={words} card={index} n={n} text={claimText(index)} foot={theme === "drafting"} />
+          )}
+          {leaving && (
+            <div className={`${styles.sheet} ${styles.leaving}`} data-v={leaving.verdict} aria-hidden="true">
+              <ClaimFace words={words} card={leaving.card} n={n} text={claimText(leaving.card)} foot={theme === "drafting"} />
+              <span className={styles.seal}>{label[leaving.verdict]}</span>
+            </div>
+          )}
+        </div>
+        <ul className={styles.tally} aria-label="Your choices so far">
+          {(["false", "unsure", "true"] as const).map((v) => <li key={v}><b>{verdicts.filter((c) => c === v).length}</b>{label[v]}</li>)}
+        </ul>
       </div>
       <div className={styles.verdicts}>
         {(["false", "unsure", "true"] as const).map((v) => (
@@ -280,24 +253,29 @@ function SplitConfidence({ theme, game, disabled, onChange }: { theme: LotusThem
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.tray} aria-live="polite">
-        <span className={styles.stepLabel}>{words.tray}</span>
-        <span className={styles.tokens} aria-hidden="true">{Array.from({ length: left }, (_, i) => <i key={i} className={styles.token} />)}</span>
-        <b>{left}</b>
+      <div className={styles.stage}>
+        <ul className={styles.splitGrid} style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {game.options.map((option, i) => {
+            const [one, two] = prettyAlgebra(option).split(")(");
+            return (
+              <li key={option} className={styles.splitCol} data-has={counts[i]! > 0 || undefined}>
+                <span className={styles.splitSlot} aria-hidden="true">{Array.from({ length: counts[i]! }, (_, k) => <Token key={k} theme={theme} />)}</span>
+                <span className={styles.splitText}>{two === undefined ? one : <><span>{one})</span><span>({two}</span></>}</span>
+                <span className={styles.splitCtl}>
+                  <button type="button" className={styles.splitBtn} disabled={disabled || counts[i] === 0} onClick={() => change(i, -1)} aria-label={`${words.takeBack} ${prettyAlgebra(option)}`}>−</button>
+                  <output className={styles.splitCount} aria-label={`${counts[i]} ${counts[i] === 1 ? words.token : words.tokens} on ${prettyAlgebra(option)}`}>{counts[i]}</output>
+                  <button type="button" className={styles.splitBtn} disabled={disabled || left === 0} onClick={() => change(i, 1)} aria-label={`${words.place} ${prettyAlgebra(option)}`}>+</button>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className={styles.trayRow} aria-live="polite">
+          <span className={styles.label}>{words.tray}</span>
+          <span className={styles.trayTokens} aria-hidden="true">{Array.from({ length: left }, (_, i) => <Token key={i} theme={theme} />)}</span>
+          <b>{left}</b>
+        </div>
       </div>
-      <ul className={styles.splitList}>
-        {game.options.map((option, i) => (
-          <li key={option} className={styles.splitRow} data-has={counts[i]! > 0 || undefined}>
-            <span className={styles.splitText}>{prettyAlgebra(option)}</span>
-            <span className={styles.tokens} aria-hidden="true">{Array.from({ length: counts[i]! }, (_, k) => <i key={k} className={styles.token} />)}</span>
-            <span className={styles.stepRow}>
-              <button type="button" className={styles.stepBtn} disabled={disabled || counts[i] === 0} onClick={() => change(i, -1)} aria-label={`${words.takeBack} ${prettyAlgebra(option)}`}>−</button>
-              <output className={styles.stepValue} aria-label={`${counts[i]} ${counts[i] === 1 ? words.token : words.tokens} on ${prettyAlgebra(option)}`}>{counts[i]}</output>
-              <button type="button" className={styles.stepBtn} disabled={disabled || left === 0} onClick={() => change(i, 1)} aria-label={`${words.place} ${prettyAlgebra(option)}`}>+</button>
-            </span>
-          </li>
-        ))}
-      </ul>
     </>
   );
 }
@@ -330,54 +308,33 @@ function TwoMoves({ theme, game, disabled, onChange }: { theme: LotusTheme; game
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.moves}>
-        <div className={styles.move}>
-          <span className={styles.moveLabel}>{words.move1}</span>
-          <div className={styles.steppers}>
-            <Stepper label={words.first} value={numbers.n1} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n1: v }))} />
-            <Stepper label={words.second} value={numbers.n2} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n2: v }))} />
+      <div className={styles.movesGrid}>
+        <div className={styles.moves}>
+          <div className={styles.moveCard}>
+            <span className={styles.moveLabel}>{words.move1}</span>
+            <div className={styles.steppers}>
+              <Stepper label={words.first} value={numbers.n1} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n1: v }))} />
+              <Stepper label={words.second} value={numbers.n2} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n2: v }))} />
+            </div>
+          </div>
+          <div className={styles.moveCard}>
+            <span className={styles.moveLabel}>{words.move2}</span>
+            <p className={styles.math}>
+              <span className={styles.bracket}>(x <SignToggle value={signs[0]} label={`${words.first} bracket sign`} disabled={disabled} onChange={(v) => setSigns((c) => [v, c[1]])} /> {Math.abs(numbers.n1)})</span>
+              <span className={styles.bracket}>(x <SignToggle value={signs[1]} label={`${words.second} bracket sign`} disabled={disabled} onChange={(v) => setSigns((c) => [c[0], v])} /> {Math.abs(numbers.n2)})</span>
+            </p>
           </div>
         </div>
-        <div className={styles.move}>
-          <span className={styles.moveLabel}>{words.move2}</span>
-          <p className={styles.frame}>
-            <span className={styles.bracketGroup}>(x <SignToggle value={signs[0]} label={`${words.first} bracket sign`} disabled={disabled} onChange={(v) => setSigns((c) => [v, c[1]])} /> {Math.abs(numbers.n1)})</span>
-            <span className={styles.bracketGroup}>(x <SignToggle value={signs[1]} label={`${words.second} bracket sign`} disabled={disabled} onChange={(v) => setSigns((c) => [c[0], v])} /> {Math.abs(numbers.n2)})</span>
-          </p>
+        <div className={`${styles.stage} ${styles.plate}`} aria-live="polite">
+          <span className={styles.label}>{words.plate}</span>
+          <span className={styles.plateText}><span>{bracket(0, numbers.n1)}</span><span>{bracket(1, numbers.n2)}</span></span>
         </div>
-      </div>
-      <div className={styles.plate} aria-live="polite">
-        <span className={styles.stepLabel}>{words.plate}</span>
-        <span className={styles.plateText}>{bracket(0, numbers.n1)}{bracket(1, numbers.n2)}</span>
       </div>
     </>
   );
 }
 
 // ---------- Four sign cases ----------
-
-/** A small picture on each case: decoration only. It lights up once the case is set, whatever the signs are. */
-function CaseArt({ theme, set }: { theme: LotusTheme; set: boolean }): ReactElement | null {
-  if (theme === "drafting") return (
-    <svg viewBox="0 0 120 60" className={styles.caseArt} aria-hidden="true">
-      <path d="M12 56 V26 L60 6 L108 26 V56 Z" fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
-      {[28, 54, 80].map((x) => <rect key={x} x={x} y="30" width="14" height="16" fill={set ? "var(--accent-wash)" : "none"} stroke={set ? "var(--accent)" : "var(--line-strong)"} />)}
-    </svg>
-  );
-  if (theme === "cabinet") return (
-    <svg viewBox="0 0 120 60" className={styles.caseArt} aria-hidden="true">
-      <path d="M46 28 V18 a14 14 0 0 1 28 0 V28" fill="none" stroke="var(--accent)" strokeWidth="5" strokeLinecap="round" transform={set ? "translate(0 -5)" : undefined} className={styles.move} />
-      <rect x="38" y="27" width="44" height="30" rx="5" fill={set ? "var(--accent-wash)" : "none"} stroke="var(--accent-deep)" strokeWidth="2" />
-      <circle cx="60" cy="40" r="4" fill="var(--accent-deep)" />
-    </svg>
-  );
-  if (theme === "soundlab") return (
-    <svg viewBox="0 0 120 60" className={styles.caseArt} aria-hidden="true">
-      <rect x="34" y="6" width="52" height="48" rx="8" fill={set ? "var(--accent)" : "var(--surface-raised, none)"} stroke="var(--line-strong)" strokeWidth="1.5" className={styles.move} />
-    </svg>
-  );
-  return null;
-}
 
 function FourSigns({ theme, game, disabled, onChange }: { theme: LotusTheme; game: FourSignsGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.FOUR_SIGNS[theme];
@@ -394,22 +351,24 @@ function FourSigns({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.fourGrid}>
-        {game.cases.map((expression, i) => {
-          const name = words.cases[i] ?? `Case ${i + 1}`;
-          const pick = picks[i]!;
-          return (
-            <div key={expression} className={styles.fourCase} data-set={(pick[0] !== null && pick[1] !== null) || undefined}>
-              <CaseArt theme={theme} set={pick[0] !== null && pick[1] !== null} />
-              <span className={styles.stepLabel}>{name}</span>
-              <span className={styles.fourExpr}>{prettyAlgebra(expression)}</span>
-              <span className={styles.frame}>
-                <span className={styles.bracketGroup}>(x <SignToggle value={pick[0]} label={`${name}, sign before ${game.numbers[0]}`} disabled={disabled} onChange={(v) => set(i, 0, v)} /> {game.numbers[0]})</span>
-                <span className={styles.bracketGroup}>(x <SignToggle value={pick[1]} label={`${name}, sign before ${game.numbers[1]}`} disabled={disabled} onChange={(v) => set(i, 1, v)} /> {game.numbers[1]})</span>
-              </span>
-            </div>
-          );
-        })}
+      <div className={styles.stage}>
+        <div className={styles.fourGrid}>
+          {game.cases.map((expression, i) => {
+            const name = words.cases[i] ?? `Case ${i + 1}`;
+            const pick = picks[i]!;
+            return (
+              <div key={expression} className={styles.fourCase} data-set={(pick[0] !== null && pick[1] !== null) || undefined}>
+                <CaseArt theme={theme} set={pick[0] !== null && pick[1] !== null} />
+                <span className={styles.label}>{name}</span>
+                <span className={styles.fourExpr}>{prettyAlgebra(expression)}</span>
+                <span className={styles.math}>
+                  <span className={styles.bracket}>(x <SignToggle value={pick[0]} label={`${name}, sign before ${game.numbers[0]}`} disabled={disabled} onChange={(v) => set(i, 0, v)} /> {game.numbers[0]})</span>
+                  <span className={styles.bracket}>(x <SignToggle value={pick[1]} label={`${name}, sign before ${game.numbers[1]}`} disabled={disabled} onChange={(v) => set(i, 1, v)} /> {game.numbers[1]})</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </>
   );
@@ -460,18 +419,18 @@ function useTypedRecord(onTyped: (value: string, history: EditHistorySample[]) =
 
 function TypedBox({ label, record, disabled, autoFocus }: { label: string; record: ReturnType<typeof useTypedRecord>; disabled?: boolean; autoFocus?: boolean }) {
   return (
-    <>
-      <label className={styles.editLabel}>
-        <span className={styles.stepLabel}>{label}</span>
+    <div className={styles.typedRow}>
+      <label className={styles.typedRow}>
+        <span className={styles.label}>{label}</span>
         <input ref={record.field} className={styles.editInput} value={record.value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} autoFocus={autoFocus}
-          placeholder="Type your answer" onChange={(event) => record.type(event.target.value)} />
+          placeholder="(x + ?)(x − ?)" onChange={(event) => record.type(event.target.value)} />
       </label>
       <div className={styles.mathKeys} role="group" aria-label="Math tools">
         {MATH_KEYS.map(([keyLabel, token]) => (
           <button key={keyLabel} type="button" className={styles.mathKey} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => record.press(token)}>{keyLabel}</button>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -485,10 +444,10 @@ function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: E
     <>
       <p className={styles.intro}>{words.intro}</p>
       <TypedBox label={words.input} record={record} disabled={disabled} />
-      <div className={styles.tape}>
-        <span className={styles.stepLabel}>{words.log}</span>
-        {drafts.length === 0 ? <p className={styles.tapeEmpty}>{words.empty}</p> : (
-          <ol className={styles.tapeList}>
+      <div className={`${styles.stage} ${styles.log}`}>
+        <span className={styles.label}>{words.log}</span>
+        {drafts.length === 0 ? <p className={styles.logEmpty}>{words.empty}</p> : (
+          <ol className={styles.logList}>
             {drafts.slice(-5).map((draft, i) => <li key={`${draft}-${i}`}><b>{words.draft} {Math.max(0, drafts.length - 5) + i + 1}</b> <s>{prettyAlgebra(draft)}</s></li>)}
           </ol>
         )}
@@ -517,15 +476,17 @@ function Readback({ theme, disabled, onChange }: { theme: LotusTheme; game: Read
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <TypedBox label={words.input} record={record} disabled={locked} />
-      <div className={styles.readBox} aria-live="polite">
-        <span className={styles.stepLabel}>{words.read}</span>
-        <span className={styles.readText}>{record.value.trim() ? prettyReadback(read.read) : <i>{words.nothing}</i>}</span>
-        {record.value.trim() && read.flags.map((flag, i) => (
-          <p key={flag.code} className={styles.flag}><b>{words.flag}-{i + 1}</b> {flag.text}</p>
-        ))}
+      <div className={styles.readGrid}>
+        <TypedBox label={words.input} record={record} disabled={locked} />
+        <div className={styles.stage} aria-live="polite">
+          <span className={styles.label}>{words.read}</span>
+          <span className={styles.readText}>{record.value.trim() ? prettyReadback(read.read) : <i>{words.nothing}</i>}</span>
+          {record.value.trim() && read.flags.map((flag, i) => (
+            <p key={flag.code} className={styles.flag}><b>{words.flag}-{i + 1}</b> {flag.text}</p>
+          ))}
+        </div>
       </div>
-      <div className={styles.readButtons}>
+      <div className={styles.actions}>
         <button type="button" className={styles.primary} disabled={locked || !record.value.trim()} onClick={() => setConfirmed(true)}>{words.confirm}</button>
         {read.suggestion && !confirmed && (
           <button type="button" className={styles.secondary} disabled={disabled} onClick={() => { record.type(read.suggestion!); setTook(true); }}>{words.suggest}</button>
@@ -557,46 +518,56 @@ function Rectangle({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
     setTries((cur) => (cur.length >= LOTUS_GAME_MAX_TRIES ? cur : [...cur, n]));
   };
 
-  // The picture: an x² square, `down` strips along the side, `top` strips along the top, and the unit tiles in the corner.
+  // The picture: an x² square, then every strip and unit tile as one piece that moves. Loose pieces wait in the margin.
   // It is the same picture whatever the choice; nothing in it marks a split as the one.
-  const U = Math.max(14, Math.min(30, Math.floor(300 / (game.strips + 4))));
+  const U = 28;
   const X = U * 4;
-  const cols = top;
+  const pad = 44;
   const rows = down;
+  const cols = top;
   const cells = Array.from({ length: rows * cols }, (_, k) => ({ r: Math.floor(k / Math.max(cols, 1)), c: k % Math.max(cols, 1) }));
-  const W = X + cols * U;
-  const H = X + rows * U;
-  const pad = 40;
   const extent = X + game.strips * U;
-  const perRow = Math.max(4, game.strips + 4);
-  const leftover = Math.max(0, game.units - cells.length);
-  const poolRows = Math.ceil(game.units / perRow);
-  const poolY = pad + extent + 14;
+  const marginX = pad + extent + 26;
+  const perRow = Math.max(3, Math.ceil(Math.sqrt(game.units)));
+  const looseStrip = U * 0.5;
+  const stripScale = 0.62;
+  const stripRows = side === null ? game.strips : 0;
+  const unitTop = pad + stripRows * (looseStrip + 4) + (stripRows ? 14 : 0);
+  const width = marginX + Math.max(perRow * (U + 3), X * stripScale) + 8;
+  const height = Math.max(pad + extent + 10, unitTop + Math.ceil(game.units / perRow) * (U + 3) + 8);
+  const stripAt = (i: number) => {
+    if (side === null) return `translate(${marginX}px, ${pad + i * (looseStrip + 4)}px) scale(${stripScale}, ${looseStrip / U})`;
+    if (i < down) return `translate(${pad}px, ${pad + X + i * U}px)`;
+    return `translate(${pad + X + (i - down) * U + U}px, ${pad}px) rotate(90deg)`;
+  };
+  const unitAt = (k: number) => {
+    const cell = cells[k];
+    if (side !== null && cell) return `translate(${pad + X + cell.c * U + 2}px, ${pad + X + cell.r * U + 2}px)`;
+    const loose = side !== null ? k - cells.length : k;
+    return `translate(${marginX + (loose % perRow) * (U + 3)}px, ${unitTop + Math.floor(loose / perRow) * (U + 3)}px)`;
+  };
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.rectWrap}>
-        <svg viewBox={`0 0 ${pad + extent + 16} ${poolY + poolRows * (U + 3) + 8}`} className={styles.rectArt} role="img" aria-label={`${words.picture}: ${down} ${down === 1 ? words.strip : `${words.strip}s`} down the side, ${top} along the top`}>
-          <rect x={pad} y={pad} width={X} height={X} className={styles.rectSquare} />
-          <text x={pad + X / 2} y={pad + X / 2 + 6} textAnchor="middle" className={styles.rectLabel}>{words.square}</text>
-          {Array.from({ length: top }, (_, i) => <rect key={`t${i}`} x={pad + X + i * U} y={pad} width={U} height={X} className={styles.rectStrip} />)}
-          {Array.from({ length: down }, (_, i) => <rect key={`s${i}`} x={pad} y={pad + X + i * U} width={X} height={U} className={styles.rectStrip} />)}
-          {cells.slice(0, game.units).map(({ r, c }, k) => <rect key={`u${k}`} x={pad + X + c * U + 2} y={pad + X + r * U + 2} width={U - 4} height={U - 4} className={styles.rectUnit} />)}
-          {cells.slice(game.units).map(({ r, c }, k) => <rect key={`h${k}`} x={pad + X + c * U + 3} y={pad + X + r * U + 3} width={U - 6} height={U - 6} className={styles.rectHole} />)}
-          {Array.from({ length: leftover }, (_, k) => <rect key={`p${k}`} x={pad + (k % perRow) * (U + 3)} y={poolY + Math.floor(k / perRow) * (U + 3)} width={U - 4} height={U - 4} className={styles.rectUnit} />)}
+      <div className={styles.stage}>
+        <svg viewBox={`0 0 ${width} ${height}`} className={styles.tileArt} role="img" aria-label={side === null ? words.picture : `${words.picture}: ${down} ${down === 1 ? words.strip : `${words.strip}s`} down the side, ${top} along the top`}>
+          <rect x={pad} y={pad} width={X} height={X} className={styles.tileSquare} />
+          <text x={pad + X / 2} y={pad + X / 2 + 7} textAnchor="middle" className={styles.tileLabel}>{words.square}</text>
+          {side !== null && cells.slice(game.units).map(({ r, c }, k) => <rect key={`h${k}`} x={pad + X + c * U + 3} y={pad + X + r * U + 3} width={U - 6} height={U - 6} className={styles.tileHole} />)}
+          {Array.from({ length: game.strips }, (_, i) => <rect key={`s${i}`} width={X} height={U} className={`${styles.tilePiece} ${styles.tileStrip}`} style={{ transform: stripAt(i) }} />)}
+          {Array.from({ length: game.units }, (_, k) => <rect key={`u${k}`} width={U - 4} height={U - 4} className={`${styles.tilePiece} ${styles.tileUnit}`} style={{ transform: unitAt(k) }} />)}
           {side !== null && <>
-            <text x={pad + W / 2} y={pad - 14} textAnchor="middle" className={styles.rectDim}>x + {top}</text>
-            <text transform={`translate(${pad - 14} ${pad + H / 2}) rotate(-90)`} textAnchor="middle" className={styles.rectDim}>x + {down}</text>
+            <text x={pad + (X + top * U) / 2} y={pad - 14} textAnchor="middle" className={styles.tileDim}>x + {top}</text>
+            <text transform={`translate(${pad - 14} ${pad + (X + down * U) / 2}) rotate(-90)`} textAnchor="middle" className={styles.tileDim}>x + {down}</text>
           </>}
         </svg>
-        <div className={styles.rectControl} role="group" aria-label={words.control}>
-          <span className={styles.stepLabel}>{words.control}</span>
-          <div className={styles.seg}>
-            {Array.from({ length: game.strips + 1 }, (_, n) => (
-              <button key={n} type="button" className={styles.segBtn} aria-pressed={side === n} disabled={disabled} onClick={() => choose(n)}>{n}</button>
-            ))}
-          </div>
-          <p className={styles.readout}><span>{words.strip}s: <b>{game.strips}</b></span><span>{words.unit}s: <b>{game.units}</b></span></p>
+      </div>
+      <div className={styles.segRow} role="group" aria-label={words.control}>
+        <span className={styles.label}>{words.control}</span>
+        <div className={styles.seg}>
+          {Array.from({ length: game.strips + 1 }, (_, n) => (
+            <button key={n} type="button" className={styles.segBtn} aria-pressed={side === n} disabled={disabled} onClick={() => choose(n)}>{n}</button>
+          ))}
         </div>
       </div>
     </>

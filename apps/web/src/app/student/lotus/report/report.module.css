@@ -393,6 +393,13 @@ li[data-state="active"] .stepMark {
    The pages above already read the theme variables; these are the few spots
    that carried their own colours. */
 .page[data-lotus-theme] { color: var(--ink); font-family: var(--font-body); }
+.hero:has(.bloom) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); column-gap: 36px; align-items: start; }
+.hero:has(.bloom) > * { grid-column: 1; }
+.hero:has(.bloom) .bloom { grid-column: 2; grid-row: 1 / span 4; margin: 0; align-self: center; }
+@media (max-width: 860px) {
+  .hero:has(.bloom) { grid-template-columns: minmax(0, 1fr); }
+  .hero:has(.bloom) .bloom { grid-column: 1; grid-row: auto; margin-bottom: 18px; }
+}
 .page[data-lotus-theme] .startCard { color: var(--theme-hero-ink, #eef6f2); background: var(--theme-hero, linear-gradient(160deg, #0c5a47, var(--accent-deep))); border: 1px solid var(--theme-hero-line, transparent); box-shadow: var(--theme-card-shadow); }
 .page[data-lotus-theme] .startCard h2 { color: var(--theme-hero-ink, #fff); }
 .page[data-lotus-theme] .startWhy, .page[data-lotus-theme] .lessonNote { color: color-mix(in srgb, var(--theme-hero-ink, #eef6f2) 78%, transparent); }

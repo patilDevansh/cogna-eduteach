@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   ChunkItGame,
   FindEveryBGame,
@@ -13,7 +13,8 @@ import type {
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
 import { GAME_WORDS } from "./themed-game-words";
-import { signed, Stepper } from "./themed-game-parts";
+import { signed } from "./themed-game-parts";
+import { ChunkArt, CompareArt, StepMark } from "./themed-game-art";
 import styles from "./themed-game.module.css";
 
 /**
@@ -75,25 +76,31 @@ export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderSteps
   return (
     <div ref={area}>
       <p className={styles.intro}>{words.intro}</p>
-      <p className={styles.frame}>{prettyAlgebra(game.expression)}</p>
-      <ol className={styles.orderSlots}>
-        {Array.from({ length: game.slots }, (_, k) => {
-          const i = placed[k];
-          return (
-            <li key={k} className={styles.orderSlot} data-filled={i !== undefined || undefined}>
-              <span className={styles.stepLabel}>{words.slot} {k + 1}</span>
-              {i === undefined ? <span className={styles.orderEmpty}>{words.empty}</span> : (
-                <button type="button" className={styles.orderCard} data-slotcard disabled={disabled} onClick={() => takeBack(i)} aria-label={`${words.slot} ${k + 1}: ${prettyAlgebra(game.steps[i]!)}. Tap to take back.`}>{prettyAlgebra(game.steps[i]!)}</button>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      <span className={styles.stepLabel}>{words.pool}</span>
-      <div className={styles.orderPool}>
-        {game.steps.map((text, i) => (
-          <button key={i} type="button" className={styles.orderCard} data-poolcard={i} disabled={disabled || placed.includes(i) || placed.length >= game.slots} data-used={placed.includes(i) || undefined} onClick={() => place(i)}>{prettyAlgebra(text)}</button>
-        ))}
+      <div className={styles.orderGrid}>
+        <div>
+          <span className={styles.label}>{words.slot}s</span>
+          <ol className={styles.orderSlots}>
+            {Array.from({ length: game.slots }, (_, k) => {
+              const i = placed[k];
+              return (
+                <li key={k} className={styles.orderSlot} data-filled={i !== undefined || undefined}>
+                  <span className={styles.label}>{words.slot} {k + 1}</span>
+                  {i === undefined ? <span className={styles.orderEmpty}>{words.empty}</span> : (
+                    <button type="button" className={styles.orderCard} data-slotcard disabled={disabled} onClick={() => takeBack(i)} aria-label={`${words.slot} ${k + 1}: ${prettyAlgebra(game.steps[i]!)}. Tap to take back.`}><StepMark theme={theme} /><span>{prettyAlgebra(game.steps[i]!)}</span></button>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+        <div>
+          <span className={styles.label}>{words.pool}</span>
+          <div className={styles.orderPool}>
+            {game.steps.map((text, i) => (
+              <button key={i} type="button" className={styles.orderCard} data-poolcard={i} disabled={disabled || placed.includes(i) || placed.length >= game.slots} data-used={placed.includes(i) || undefined} onClick={() => place(i)}><StepMark theme={theme} /><span>{prettyAlgebra(text)}</span></button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -107,9 +114,9 @@ export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGa
   const [touched, setTouched] = useState(false);
   const [tested, setTested] = useState<number[]>([]);
   const [verdict, setVerdict] = useState<number | null>(null);
+  const sliderId = useId();
   const a = (x + game.k) ** 2;
   const b = x * x + game.k * game.k;
-  const top = Math.max(a, b, 1);
 
   // A value counts as tried once the student pauses on it.
   useEffect(() => {
@@ -123,28 +130,28 @@ export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGa
     report.current(verdict === null ? null : { kind: "TEST_CLAIM", tested, verdict });
   }, [verdict, tested, report]);
 
-  const bar = (value: number, label: string) => (
-    <div className={styles.claimBar} aria-label={`${label}: ${value}`}>
-      <span className={styles.claimValue}>{value}</span>
-      <i className={styles.claimFill} style={{ height: `${Math.max(4, (value / top) * 100)}%` }} />
-      <span className={styles.stepLabel}>{label}</span>
-    </div>
-  );
+  const labelA = `(x + ${game.k})²`;
+  const labelB = `x² + ${game.k * game.k}`;
+  const at = (value: number) => ((value - game.min) / Math.max(1, game.max - game.min)) * 100;
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <p className={styles.frame}>{prettyAlgebra(game.expression)}</p>
-      <div className={styles.claimGrid}>
-        <div className={styles.claimBars}>{bar(a, `${words.sideA}: (x + ${game.k})²`)}{bar(b, `${words.sideB}: x² + ${game.k * game.k}`)}</div>
-        <div className={styles.controls}>
-          <Stepper label={words.control} value={x} range={game.max} min={game.min} allowZero disabled={disabled} onChange={(v) => { setTouched(true); setX(v); }} />
-          <p className={styles.readout}><span>x = <b>{signed(x)}</b></span></p>
-          <p className={styles.readout} aria-live="polite"><span>{words.tried}: <b>{tested.length}</b></span></p>
-        </div>
+      <div className={styles.stage}>
+        <CompareArt theme={theme} a={a} b={b} labelA={labelA} labelB={labelB} />
       </div>
-      <div className={styles.verdictRow} role="group" aria-label={words.decide}>
+      <div className={styles.sliderRow}>
+        <div className={styles.sliderHead}>
+          <label htmlFor={sliderId} className={styles.label}>{words.control}</label>
+          <b>x = {signed(x)}</b>
+          <span className={styles.label} aria-live="polite">{words.tried}: {tested.length}</span>
+        </div>
+        <input id={sliderId} type="range" className={styles.slider} min={game.min} max={game.max} step={1} value={x} disabled={disabled}
+          aria-valuetext={`x = ${x}. ${words.sideA} ${a}, ${words.sideB} ${b}`} onChange={(event) => { setTouched(true); setX(Number(event.target.value)); }} />
+        <div className={styles.sliderTried} aria-hidden="true">{tested.map((value) => <i key={value} style={{ left: `${at(value)}%` }} />)}</div>
+      </div>
+      <div className={styles.verdictGrid} role="group" aria-label={words.decide}>
         {game.options.map((option, i) => (
-          <button key={option} type="button" className={styles.option} aria-pressed={verdict === i} disabled={disabled} onClick={() => setVerdict(i)}>{option}</button>
+          <button key={option} type="button" className={styles.choice} aria-pressed={verdict === i} disabled={disabled} onClick={() => setVerdict(i)}>{option}</button>
         ))}
       </div>
     </>
@@ -183,16 +190,23 @@ export function RapidSet({ theme, game, disabled, onChange }: Props<RapidSetGame
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      {finished ? <p className={styles.frame} role="status" tabIndex={-1} ref={doneNote}>{words.done}</p> : (
-        <div className={styles.rapidRow} key={row} ref={region}>
-          <span className={styles.cardNo}>{words.row} {row + 1} / {game.rows.length}</span>
-          <p className={styles.claim}>{prettyAlgebra(game.rows[row]!.q)}</p>
-          <div className={styles.rapidOptions}>
-            {game.rows[row]!.options.map((option, k) => <button key={option} type="button" className={styles.option} disabled={disabled} onClick={() => choose(k)}>{prettyAlgebra(option)}</button>)}
+      <div className={styles.stage}>
+        <ol className={styles.rapidTrail} aria-hidden="true">{game.rows.map((_, i) => <li key={i} data-done={i < row || undefined} data-now={i === row || undefined} />)}</ol>
+        {picks.length > 0 && (
+          <ul className={styles.rapidPast}>
+            {picks.map((pick, i) => <li key={i}><span className={styles.label}>{words.row} {i + 1}</span><span>{prettyAlgebra(game.rows[i]!.q)}</span><span>{prettyAlgebra(game.rows[i]!.options[pick]!)}</span></li>)}
+          </ul>
+        )}
+        {finished ? <p className={styles.heroMath} role="status" tabIndex={-1} ref={doneNote}>{words.done}</p> : (
+          <div className={styles.rapidNow} key={row} ref={region}>
+            <div className={styles.rapidNowHead}><span className={styles.label}>{words.row} {row + 1} / {game.rows.length}</span></div>
+            <p className={styles.heroMath}>{prettyAlgebra(game.rows[row]!.q)}</p>
+            <div className={styles.choiceGrid}>
+              {game.rows[row]!.options.map((option, k) => <button key={option} type="button" className={styles.choice} disabled={disabled} onClick={() => choose(k)}>{prettyAlgebra(option)}</button>)}
+            </div>
           </div>
-        </div>
-      )}
-      <ol className={styles.rapidTrail} aria-hidden="true">{game.rows.map((_, i) => <li key={i} data-done={i < row || undefined} />)}</ol>
+        )}
+      </div>
     </>
   );
 }
@@ -211,13 +225,16 @@ export function FindEveryB({ theme, game, disabled, onChange }: Props<FindEveryB
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <p className={styles.frame}>{prettyAlgebra(game.expression)}</p>
-      <div className={styles.numberGrid} role="group" aria-label={`Choose every ${words.unit}`}>
-        {values.map((n) => (
-          <button key={n} type="button" className={styles.numberKey} aria-pressed={picked.includes(n)} disabled={disabled} onClick={() => toggle(n)}>{signed(n)}</button>
+      <div className={styles.stage} role="group" aria-label={`Choose every ${words.unit}`}>
+        {[values.filter((n) => n < 0), values.filter((n) => n > 0)].map((rule, r) => (
+          <div key={r} className={styles.ruleRow}>
+            {rule.map((n) => (
+              <button key={n} type="button" className={styles.key} aria-pressed={picked.includes(n)} disabled={disabled} onClick={() => toggle(n)}><i aria-hidden="true" />{signed(n)}</button>
+            ))}
+          </div>
         ))}
       </div>
-      <p className={styles.readout} aria-live="polite"><span>{words.picked}: <b>{picked.length ? [...picked].sort((x, y) => x - y).map(signed).join(", ") : words.none}</b></span></p>
+      <p className={styles.pickedRow} aria-live="polite"><span className={styles.label}>{words.picked}</span> <b>{picked.length ? [...picked].sort((x, y) => x - y).map(signed).join(", ") : words.none}</b></p>
     </>
   );
 }
@@ -261,21 +278,25 @@ export function Replay({ theme, game, disabled, onChange }: Props<ReplayGame>) {
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <p className={styles.frame}>{prettyAlgebra(game.claim)}</p>
-      <ol className={styles.tape}>
-        {game.lines.slice(0, shown).map((line, i) => (
-          <li key={i} className={styles.tapeLine} data-stopped={stopped?.line === i || undefined}>
-            <span className={styles.stepLabel}>{words.line} {i + 1}</span>
-            <span className={styles.tapeText}>{prettyAlgebra(line)}</span>
-            <button type="button" className={styles.link} disabled={disabled} onClick={() => stopAt(i)}>{words.stopHere}</button>
-          </li>
-        ))}
-        {shown === 0 && <li className={styles.tapeEmpty}>—</li>}
-      </ol>
-      <div className={styles.readButtons}>
-        {!instant && !playing && !stopped && shown < game.lines.length && <button type="button" className={styles.primary} disabled={disabled} onClick={start}>{words.play}</button>}
-        {playing && !stopped && <button type="button" className={styles.primary} ref={stopButton} disabled={disabled} onClick={() => stopAt(Math.max(0, shown - 1))}>{words.stop}</button>}
+      <div className={styles.bed} style={{ ["--at" as string]: Math.max(0, shown - 1) }}>
+        <p className={styles.bedClaim}>{prettyAlgebra(game.claim)}</p>
+        <ol className={styles.bedLines}>
+          {game.lines.map((line, i) => i < shown ? (
+            <li key={i} className={styles.bedLine} data-stopped={stopped?.line === i || undefined}>
+              <button type="button" className={styles.bedBtn} disabled={disabled} onClick={() => stopAt(i)} aria-label={`${words.stopHere}: ${words.line} ${i + 1}, ${prettyAlgebra(line)}`}>
+                <span className={styles.label}>{words.line} {i + 1}</span>
+                <span className={styles.bedText}>{prettyAlgebra(line)}</span>
+                <span className={styles.bedStop}>{words.stopHere}</span>
+              </button>
+            </li>
+          ) : <li key={i} className={styles.bedGhost} aria-hidden="true" />)}
+        </ol>
+      </div>
+      <div className={styles.transport}>
+        {!instant && !playing && !stopped && shown < game.lines.length && <button type="button" className={styles.primary} disabled={disabled} onClick={start}>▶ {words.play}</button>}
+        {playing && !stopped && <button type="button" className={`${styles.primary} ${styles.stopBtn}`} ref={stopButton} disabled={disabled} onClick={() => stopAt(Math.max(0, shown - 1))}>■ {words.stop}</button>}
         {!instant && (stopped || shown >= game.lines.length) && <button type="button" className={styles.secondary} disabled={disabled} onClick={start}>{words.again}</button>}
+        <ol className={styles.rail} aria-hidden="true">{game.lines.map((_, i) => <li key={i} data-done={i < shown || undefined} data-stopped={stopped?.line === i || undefined} />)}</ol>
         {stopped && <span className={styles.stamp} role="status" tabIndex={-1} ref={stoppedNote}>{words.stoppedAt} {stopped.line + 1}</span>}
       </div>
     </>
@@ -295,16 +316,21 @@ export function ChunkIt({ theme, game, disabled, onChange }: Props<ChunkItGame>)
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      <p className={styles.frame}>{prettyAlgebra(game.expression)}</p>
+      <div className={`${styles.stage} ${styles.chunkHero}`}>
+        <p className={styles.heroMath}>{prettyAlgebra(game.expression)}</p>
+      </div>
       <div className={styles.routes} role="group" aria-label={words.title}>
         {game.routes.map((r, i) => (
-          <button key={r.move} type="button" className={styles.option} aria-pressed={route === i} disabled={disabled} onClick={() => setRoute(i)}>{prettyAlgebra(label(r.move))}</button>
+          <button key={r.move} type="button" className={styles.choice} aria-pressed={route === i} disabled={disabled} onClick={() => setRoute(i)}>{prettyAlgebra(label(r.move))}</button>
         ))}
       </div>
       {route !== null && (
-        <div className={styles.working}>
-          <span className={styles.stepLabel}>{words.working}</span>
-          <ol className={styles.tapeList}>{game.routes[route]!.lines.map((line, i) => <li key={i}>{prettyAlgebra(line)}</li>)}</ol>
+        <div className={styles.chunkGrid} key={route} data-solo={game.routes[route]!.move !== "CHUNK" || undefined}>
+          <div className={styles.stage}>
+            <span className={styles.label}>{words.working}</span>
+            <ol className={styles.workingList}>{game.routes[route]!.lines.map((line, i) => <li key={i}>{prettyAlgebra(line)}</li>)}</ol>
+          </div>
+          {game.routes[route]!.move === "CHUNK" && <div className={styles.stage}><ChunkArt theme={theme} chunk={game.chunk} /></div>}
         </div>
       )}
     </>
