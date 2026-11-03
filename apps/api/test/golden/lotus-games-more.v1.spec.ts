@@ -169,6 +169,26 @@ describe("Rapid set", () => {
     assert.equal(rows[3]!.options.filter((o) => tagRapidOption(rows[3]!, true, o) === "right").length, 1);
     assert.equal(q.answerKey.canonicalAnswer, CANT_BE_FACTORISED);
   });
+  it("names no row in the stem, so nothing announces the look-alike", () => {
+    for (const row of rows) {
+      const shown = row.q.replace("^2", "²");
+      assert.equal(q.prompt.includes(row.q) || q.prompt.includes(shown), false, `the stem gives away ${row.q}`);
+    }
+    assert.doesNotMatch(q.prompt, /ending|last|fourth|\d/i);
+  });
+  it("still tells one set from another by its last row", () => {
+    assert.equal(q.answerKey.diagnostics!.expression, rows[3]!.q);
+    const spec = FACTORISATION_SLOTS.find((s) => s.slot === 10)!;
+    const makeAll = (variation: string) => codeGameProbeFor({ spec, purpose: "BASE", variation, avoid: [] }, ALL);
+    const first = Array.from({ length: 40 }, (_, i) => makeAll(`set-${i}`)).find((item) => item?.game?.kind === "RAPID_SET");
+    assert.ok(first, "a rapid set comes up");
+    const again = codeGameProbeFor({ spec, purpose: "BASE", variation: "set-other", avoid: [first.answerKey.diagnostics!.expression!] }, ALL);
+    assert.notEqual(again?.answerKey.diagnostics?.expression, first.answerKey.diagnostics!.expression, "a set already asked isn't asked again");
+  });
+  it("tells the teacher which row the reading is about", () => {
+    const r = play(q, { kind: "RAPID_SET", picks: picks("pattern"), times: [3000, 3000, 3000, 3200] });
+    assert.ok(r.gameReading!.summary.includes(rows[3]!.q.replace("^2", "²")), r.gameReading!.summary);
+  });
   it("reads whether the look-alike was noticed", () => {
     const t = (a: number, b: number, c: number, d: number) => [a, b, c, d];
     check(q, [

@@ -966,7 +966,8 @@ export class LotusService implements OnModuleDestroy {
     if (!question) throw new BadRequestException("There is no question to read right now.");
     const parts = [question.prompt];
     if (question.lines?.length) parts.push(...question.lines.map((line, i) => (i === 0 ? `The working starts with ${line}.` : `Line ${i}: ${line}.`)));
-    if (question.options?.length && question.presentation !== "DETECTIVE") parts.push(`The choices are: ${question.options.join("; ")}.`);
+    // A rapid set's own options belong to its last row: reading them out would give that row away.
+    if (question.options?.length && question.presentation !== "DETECTIVE" && question.game?.kind !== "RAPID_SET") parts.push(`The choices are: ${question.options.join("; ")}.`);
     return parts.join(" ");
   }
 

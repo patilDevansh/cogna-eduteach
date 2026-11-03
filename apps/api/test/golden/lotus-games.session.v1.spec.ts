@@ -221,6 +221,22 @@ describe("themed games through a whole session", () => {
     }
   });
 
+  it("Read it to me doesn't read out a rapid set's last row", async () => {
+    const spec = FACTORISATION_SLOTS.find((s) => s.slot === 10)!;
+    const item = Array.from({ length: 60 }, (_, i) => codeGameProbeFor({ spec, purpose: "BASE", variation: `aloud-${i}`, avoid: [] }, { COGNA_THEMED_GAMES: "all" })).find((c) => c?.game?.kind === "RAPID_SET")!;
+    const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
+    services.push(service);
+    const started = await service.start("demo_aarav", "FACTORISATION");
+    const id = started.sessionId;
+    let view = started;
+    for (let i = 0; i < 40 && !(view.currentQuestion && view.preparation?.ready); i += 1) { await flush(); view = await service.get(id); }
+    const q = internal(service, id).currentQuestion;
+    for (const key of Object.keys(q)) if (key !== "id") delete q[key];
+    Object.assign(q, structuredClone(item));
+    const text = await service.readAloudText(id, "demo_aarav");
+    assert.equal(text, item.prompt);
+  });
+
   it("Tiles: a positive trinomial played through the whole path", async () => {
     const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
     services.push(service);

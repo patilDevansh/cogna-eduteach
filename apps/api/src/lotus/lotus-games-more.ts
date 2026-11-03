@@ -242,20 +242,22 @@ function readRapidSet(question: LotusQuestion, game: RapidSetGame, raw: RapidSet
   const ratio = times[3]! / base;
   const last = tags[3]!;
   const signals = [`row4_${last}`, firstRight ? "first_three_right" : "first_three_not_all_right"];
+  // The stem no longer names the last row, so the teacher's reading has to.
+  const fourth = prettyText(game.rows[3]!.q);
   let summary: string;
   let diagnosis: LotusGameDiagnosis;
   if (last === "pattern") {
-    summary = `Autopilot on the fourth. Carried the difference-of-squares pattern onto a plus sign${ratio < 1.4 ? `, at their usual pace (${ratio.toFixed(1)}×)` : ""}. Treat the first three with care.`;
+    summary = `Autopilot on the fourth (${fourth}). Carried the difference-of-squares pattern onto a plus sign${ratio < 1.4 ? `, at their usual pace (${ratio.toFixed(1)}×)` : ""}. Treat the first three with care.`;
     diagnosis = mistakeWith(question, "NOT_DIFF_OF_SQUARES", "Carried the difference-of-squares pattern onto a sum of squares.");
   } else if (last === "square") {
-    summary = "Noticed the fourth was different, but thinks it is a perfect square.";
+    summary = `Noticed the fourth (${fourth}) was different, but thinks it is a perfect square.`;
     diagnosis = mistakeWith(question, "WROTE_PERFECT_SQUARE", "Wrote a sum of squares as a perfect square.");
   } else if (last === "right") {
-    summary = ratio >= 1.4 ? `Noticed the switch. Slowed down (${ratio.toFixed(1)}× their usual pace) and checked.` : "Spotted the switch straight away.";
+    summary = ratio >= 1.4 ? `Noticed the switch at ${fourth}. Slowed down (${ratio.toFixed(1)}× their usual pace) and checked.` : `Spotted the switch at ${fourth} straight away.`;
     diagnosis = firstRight ? { effect: "SECURE" } : { effect: "NEEDS_ANOTHER", note: "Spotted the look-alike, but not every one of the first three was right." };
     signals.push(ratio >= 1.4 ? "slowed_down" : "spotted_at_once");
   } else {
-    summary = "Gave an answer to the fourth that fits neither the pattern nor the look-alike. Doesn't know yet.";
+    summary = `Gave an answer to the fourth (${fourth}) that fits neither the pattern nor the look-alike. Doesn't know yet.`;
     diagnosis = { effect: "DOESNT_KNOW", note: "Gave an answer to the last one that fitted no pattern." };
   }
   return {

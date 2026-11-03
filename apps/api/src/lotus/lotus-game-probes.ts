@@ -47,11 +47,11 @@ function diagnostics(spec: SlotSpec, itemKind: "CHOICE" | "SELECT" | "FACTORISE"
 }
 
 /** A four-option multiple-choice item whose own options are what the game's answer maps onto. */
-function choiceItem(spec: SlotSpec, req: WriteRequest, prompt: string, options: string[], key: string, steps: string[], mistakes: LotusPredictedMistake[], game: NonNullable<LotusQuestion["game"]>): Item {
+function choiceItem(spec: SlotSpec, req: WriteRequest, prompt: string, options: string[], key: string, steps: string[], mistakes: LotusPredictedMistake[], game: NonNullable<LotusQuestion["game"]>, expression?: string): Item {
   return {
     ...base(spec, req, prompt),
     type: "MULTIPLE_CHOICE", asksForWorking: false, options, game,
-    answerKey: { kind: "MULTIPLE_CHOICE", canonicalAnswer: key, workedSolution: steps, diagnostics: diagnostics(spec, "CHOICE", steps.length, mistakes) },
+    answerKey: { kind: "MULTIPLE_CHOICE", canonicalAnswer: key, workedSolution: steps, diagnostics: diagnostics(spec, "CHOICE", steps.length, mistakes, expression) },
   };
 }
 
@@ -119,11 +119,13 @@ const rapidSet: Builder = (spec, req, rand) => {
   const options = trap.options;
   return choiceItem(
     spec, req,
-    `Four quick ones, ending with ${prettyText(trap.q)}. Factorise each, or say it can't be done.`,
+    // The stem names no row: the point of the last one is that nothing announces it.
+    "Four quick ones. Factorise each, or say it can't be done.",
     options, CANT_BE_FACTORISED,
     [`${prettyText(trap.q)} is a sum of two squares, not a difference`, "A sum of two squares has no factors in whole-number brackets"],
     [{ answer: `(x - ${root})(x + ${root})`, mistake: "NOT_DIFF_OF_SQUARES" }, { answer: `(x + ${root})^2`, mistake: "WROTE_PERFECT_SQUARE" }],
     { version: 1, kind: "RAPID_SET", expression: trap.q, rows: rows.map(({ q, options }) => ({ q, options })) },
+    trap.q, // Every stem is now the same, so this is what tells one set from another.
   );
 };
 
