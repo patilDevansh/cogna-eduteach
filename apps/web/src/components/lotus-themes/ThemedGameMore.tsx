@@ -49,14 +49,31 @@ export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderSteps
     report.current(placed.length === game.slots ? { kind: "ORDER_STEPS", placed, ever } : null);
   }, [placed, ever, game.slots, report]);
 
+  const area = useRef<HTMLDivElement>(null);
+  /** A pressed card turns disabled, which would drop keyboard focus to the page: move it to the next card still on offer. */
+  const pendingFocus = useRef<{ selector: string; last: boolean } | null>(null);
+  const focusNext = (selector: string, last = false) => { pendingFocus.current = { selector, last }; };
+  // Runs once the cards have been redrawn, so the card to focus exists and the pressed one is already disabled.
+  useEffect(() => {
+    const want = pendingFocus.current;
+    if (!want) return;
+    pendingFocus.current = null;
+    const found = area.current?.querySelectorAll<HTMLButtonElement>(want.selector);
+    (want.last ? found?.[found.length - 1] : found?.[0])?.focus();
+  }, [placed]);
   const place = (i: number) => {
     if (placed.includes(i) || placed.length >= game.slots) return;
     setPlaced((cur) => [...cur, i]);
     setEver((cur) => (cur.includes(i) ? cur : [...cur, i]));
+    if (placed.length + 1 >= game.slots) focusNext("[data-slotcard]", true);
+    else focusNext("[data-poolcard]:not(:disabled)");
   };
-  const takeBack = (i: number) => setPlaced((cur) => cur.filter((n) => n !== i));
+  const takeBack = (i: number) => {
+    setPlaced((cur) => cur.filter((n) => n !== i));
+    focusNext(`[data-poolcard="${i}"]`);
+  };
   return (
-    <>
+    <div ref={area}>
       <p className={styles.intro}>{words.intro}</p>
       <p className={styles.frame}>{prettyAlgebra(game.expression)}</p>
       <ol className={styles.orderSlots}>
@@ -66,7 +83,7 @@ export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderSteps
             <li key={k} className={styles.orderSlot} data-filled={i !== undefined || undefined}>
               <span className={styles.stepLabel}>{words.slot} {k + 1}</span>
               {i === undefined ? <span className={styles.orderEmpty}>{words.empty}</span> : (
-                <button type="button" className={styles.orderCard} disabled={disabled} onClick={() => takeBack(i)} aria-label={`${words.slot} ${k + 1}: ${prettyAlgebra(game.steps[i]!)}. Tap to take back.`}>{prettyAlgebra(game.steps[i]!)}</button>
+                <button type="button" className={styles.orderCard} data-slotcard disabled={disabled} onClick={() => takeBack(i)} aria-label={`${words.slot} ${k + 1}: ${prettyAlgebra(game.steps[i]!)}. Tap to take back.`}>{prettyAlgebra(game.steps[i]!)}</button>
               )}
             </li>
           );
@@ -75,10 +92,10 @@ export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderSteps
       <span className={styles.stepLabel}>{words.pool}</span>
       <div className={styles.orderPool}>
         {game.steps.map((text, i) => (
-          <button key={i} type="button" className={styles.orderCard} disabled={disabled || placed.includes(i) || placed.length >= game.slots} data-used={placed.includes(i) || undefined} onClick={() => place(i)}>{prettyAlgebra(text)}</button>
+          <button key={i} type="button" className={styles.orderCard} data-poolcard={i} disabled={disabled || placed.includes(i) || placed.length >= game.slots} data-used={placed.includes(i) || undefined} onClick={() => place(i)}>{prettyAlgebra(text)}</button>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -144,7 +161,15 @@ export function RapidSet({ theme, game, disabled, onChange }: Props<RapidSetGame
   const row = picks.length;
   const finished = row >= game.rows.length;
 
-  useEffect(() => { shownAt.current = performance.now(); }, [row]);
+  const region = useRef<HTMLDivElement>(null);
+  const doneNote = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    shownAt.current = performance.now();
+    // The row is replaced after each answer; keep keyboard focus with the game instead of dropping it to the page.
+    if (row === 0) return;
+    if (row >= game.rows.length) doneNote.current?.focus();
+    else region.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [row, game.rows.length]);
   const report = useLatest(onChange);
   useEffect(() => {
     report.current(finished ? { kind: "RAPID_SET", picks, times } : null);
@@ -158,8 +183,8 @@ export function RapidSet({ theme, game, disabled, onChange }: Props<RapidSetGame
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
-      {finished ? <p className={styles.frame} role="status">{words.done}</p> : (
-        <div className={styles.rapidRow} key={row}>
+      {finished ? <p className={styles.frame} role="status" tabIndex={-1} ref={doneNote}>{words.done}</p> : (
+        <div className={styles.rapidRow} key={row} ref={region}>
           <span className={styles.cardNo}>{words.row} {row + 1} / {game.rows.length}</span>
           <p className={styles.claim}>{prettyAlgebra(game.rows[row]!.q)}</p>
           <div className={styles.rapidOptions}>
@@ -204,27 +229,35 @@ export function Replay({ theme, game, disabled, onChange }: Props<ReplayGame>) {
   const instant = reducedMotion();
   const [shown, setShown] = useState(instant ? game.lines.length : 0);
   const [playing, setPlaying] = useState(false);
-  const [stopped, setStopped] = useState<{ line: number; lateMs: number } | null>(null);
-  const appearedAt = useRef(performance.now());
+  const [stopped, setStopped] = useState<{ line: number; lateMs?: number } | null>(null);
+  const appearedAt = useRef<number[]>([]);
+  const stopButton = useRef<HTMLButtonElement>(null);
+  const stoppedNote = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!playing || stopped) return;
     if (shown >= game.lines.length) { setPlaying(false); return; }
-    const timer = window.setTimeout(() => { appearedAt.current = performance.now(); setShown((n) => n + 1); }, shown === 0 ? 300 : game.stepMs);
+    const timer = window.setTimeout(() => { appearedAt.current[shown] = performance.now(); setShown((n) => n + 1); }, shown === 0 ? 300 : game.stepMs);
     return () => window.clearTimeout(timer);
   }, [playing, shown, stopped, game.lines.length, game.stepMs]);
 
   const report = useLatest(onChange);
   useEffect(() => {
-    report.current(stopped ? { kind: "REPLAY", stopped: stopped.line, lateMs: stopped.lateMs } : null);
+    report.current(stopped ? { kind: "REPLAY", stopped: stopped.line, ...(stopped.lateMs !== undefined ? { lateMs: stopped.lateMs } : {}) } : null);
   }, [stopped, report]);
 
   const stopAt = (line: number) => {
     setPlaying(false);
-    // How long after that line appeared: only meaningful for the line currently on screen.
-    setStopped({ line, lateMs: line === shown - 1 ? Math.round(performance.now() - appearedAt.current) : 0 });
+    // How long after that line appeared, whichever line it is: stopping on an old line after the tape has run on is late, not instant.
+    const at = appearedAt.current[line];
+    // No tape, no timing (reduced motion shows every line at once): then there is nothing to report, not a fast stop.
+    setStopped({ line, ...(at === undefined ? {} : { lateMs: Math.round(performance.now() - at) }) });
   };
-  const start = () => { setStopped(null); setShown(0); appearedAt.current = performance.now(); setPlaying(true); };
+  const start = () => { setStopped(null); setShown(0); appearedAt.current = []; setPlaying(true); };
+  // Play is replaced by Stop; keep keyboard focus on the control that matters most here.
+  useEffect(() => { if (playing) stopButton.current?.focus(); }, [playing]);
+  // Stop is removed once pressed; say where it stopped and keep focus there.
+  useEffect(() => { if (stopped) stoppedNote.current?.focus(); }, [stopped]);
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
@@ -241,9 +274,9 @@ export function Replay({ theme, game, disabled, onChange }: Props<ReplayGame>) {
       </ol>
       <div className={styles.readButtons}>
         {!instant && !playing && !stopped && shown < game.lines.length && <button type="button" className={styles.primary} disabled={disabled} onClick={start}>{words.play}</button>}
-        {playing && !stopped && <button type="button" className={styles.primary} disabled={disabled} onClick={() => stopAt(Math.max(0, shown - 1))}>{words.stop}</button>}
+        {playing && !stopped && <button type="button" className={styles.primary} ref={stopButton} disabled={disabled} onClick={() => stopAt(Math.max(0, shown - 1))}>{words.stop}</button>}
         {!instant && (stopped || shown >= game.lines.length) && <button type="button" className={styles.secondary} disabled={disabled} onClick={start}>{words.again}</button>}
-        {stopped && <span className={styles.stamp} role="status">{words.stoppedAt} {stopped.line + 1}</span>}
+        {stopped && <span className={styles.stamp} role="status" tabIndex={-1} ref={stoppedNote}>{words.stoppedAt} {stopped.line + 1}</span>}
       </div>
     </>
   );

@@ -346,14 +346,15 @@ function readReplay(question: LotusQuestion, game: ReplayGame, raw: ReplayRespon
   if (!isInt(raw.stopped) || raw.stopped < 0 || raw.stopped >= game.lines.length) throw new LotusGameError("Stop the replay at a line before submitting.");
   const lateMs = clampMs(raw.lateMs);
   const late = (lateMs ?? 0) / 1000;
+  // Without timing (no tape was played) a stop on the right line is not shown to be fast.
   let summary: string;
   let diagnosis: LotusGameDiagnosis;
   const signals = [`stopped_line_${raw.stopped + 1}`];
   if (raw.stopped === SLIP_LINE) {
-    const quick = late < 1.5;
-    summary = `Stopped at line 3, ${late.toFixed(1)}s after the sign slip appeared. ${quick ? "Fast: fluent." : "Got there, after a moment."}`;
+    const quick = lateMs !== undefined && late < 1.5;
+    summary = lateMs === undefined ? "Stopped at line 3, with no timing to show how quickly." : `Stopped at line 3, ${late.toFixed(1)}s after the sign slip appeared. ${quick ? "Fast: fluent." : "Got there, after a moment."}`;
     signals.push(quick ? "stopped_quickly" : "stopped_after_a_moment");
-    diagnosis = quick ? { effect: "SECURE" } : { effect: "NEEDS_ANOTHER", note: "Found the slip, after a moment." };
+    diagnosis = quick ? { effect: "SECURE" } : { effect: "NEEDS_ANOTHER", note: lateMs === undefined ? "Found the slip, with no timing to show how quickly." : "Found the slip, after a moment." };
   } else if (raw.stopped > SLIP_LINE) {
     summary = `Stopped at line ${raw.stopped + 1}, after the slip. Missed the sign error in the line before.`;
     signals.push("missed_the_slip");

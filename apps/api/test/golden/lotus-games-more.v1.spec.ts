@@ -119,6 +119,7 @@ describe("Stop the replay", () => {
     check(q, [
       { name: "stopped on the slip, quickly", payload: { kind: "REPLAY", stopped: 2, lateMs: 900 }, status: "VERIFIED_CORRECT", effect: "SECURE", kinds: ["SECURE"] },
       { name: "stopped on the slip, after a while", payload: { kind: "REPLAY", stopped: 2, lateMs: 4000 }, status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] },
+      { name: "stopped on the slip with no timing (no tape played)", payload: { kind: "REPLAY", stopped: 2 }, status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] },
       { name: "stopped after the slip", payload: { kind: "REPLAY", stopped: 3, lateMs: 800 }, status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "EXPAND_CHECK_FAIL" },
       { name: "false alarm", payload: { kind: "REPLAY", stopped: 1, lateMs: 600 }, status: "VERIFIED_INCORRECT", effect: "NO_EVIDENCE", kinds: [] },
     ]);
