@@ -12,6 +12,7 @@ import type {
   TestClaimGame,
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
+import { useGameDraft } from "./game-draft";
 import { GAME_WORDS } from "./themed-game-words";
 import { signed } from "./themed-game-parts";
 import { ChunkArt, CompareArt, StepMark } from "./themed-game-art";
@@ -44,8 +45,8 @@ function useLatest<T>(value: T) {
 
 export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderStepsGame>) {
   const words = GAME_WORDS.ORDER_STEPS[theme];
-  const [placed, setPlaced] = useState<number[]>([]);
-  const [ever, setEver] = useState<number[]>([]);
+  const [placed, setPlaced] = useGameDraft<number[]>("placed", []);
+  const [ever, setEver] = useGameDraft<number[]>("ever", []);
   const report = useLatest(onChange);
   useEffect(() => {
     report.current(placed.length === game.slots ? { kind: "ORDER_STEPS", placed, ever } : null);
@@ -111,10 +112,10 @@ export function OrderSteps({ theme, game, disabled, onChange }: Props<OrderSteps
 
 export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGame>) {
   const words = GAME_WORDS.TEST_CLAIM[theme];
-  const [x, setX] = useState(1);
-  const [touched, setTouched] = useState(false);
-  const [tested, setTested] = useState<number[]>([]);
-  const [verdict, setVerdict] = useState<number | null>(null);
+  const [x, setX] = useGameDraft("x", 1);
+  const [touched, setTouched] = useGameDraft("touched", false);
+  const [tested, setTested] = useGameDraft<number[]>("tested", []);
+  const [verdict, setVerdict] = useGameDraft<number | null>("verdict", null);
   const sliderId = useId();
   const a = (x + game.k) ** 2;
   const b = x * x + game.k * game.k;
@@ -124,7 +125,7 @@ export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGa
     if (!touched) return;
     const timer = window.setTimeout(() => setTested((cur) => (cur.includes(x) ? cur : [...cur, x])), SETTLE_MS);
     return () => window.clearTimeout(timer);
-  }, [x, touched]);
+  }, [x, touched, setTested]);
 
   const report = useLatest(onChange);
   useEffect(() => {
@@ -164,8 +165,8 @@ export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGa
 
 export function RapidSet({ theme, game, disabled, onChange, onRowChange }: Props<RapidSetGame> & { onRowChange?: (row: number | undefined) => void }) {
   const words = GAME_WORDS.RAPID_SET[theme];
-  const [picks, setPicks] = useState<number[]>([]);
-  const [times, setTimes] = useState<number[]>([]);
+  const [picks, setPicks] = useGameDraft<number[]>("rows", []);
+  const [times, setTimes] = useGameDraft<number[]>("rowTimes", []);
   const shownAt = useRef(performance.now());
   const row = picks.length;
   const finished = row >= game.rows.length;
@@ -220,7 +221,7 @@ export function RapidSet({ theme, game, disabled, onChange, onRowChange }: Props
 
 export function FindEveryB({ theme, game, disabled, onChange }: Props<FindEveryBGame>) {
   const words = GAME_WORDS.FIND_EVERY_B[theme];
-  const [picked, setPicked] = useState<number[]>([]);
+  const [picked, setPicked] = useGameDraft<number[]>("picked", []);
   const report = useLatest(onChange);
   useEffect(() => {
     report.current(picked.length ? { kind: "FIND_EVERY_B", picked } : null);
@@ -249,9 +250,9 @@ export function FindEveryB({ theme, game, disabled, onChange }: Props<FindEveryB
 export function Replay({ theme, game, disabled, onChange }: Props<ReplayGame>) {
   const words = GAME_WORDS.REPLAY[theme];
   const instant = reducedMotion();
-  const [shown, setShown] = useState(instant ? game.lines.length : 0);
+  const [shown, setShown] = useGameDraft("shown", instant ? game.lines.length : 0);
   const [playing, setPlaying] = useState(false);
-  const [stopped, setStopped] = useState<{ line: number; lateMs?: number } | null>(null);
+  const [stopped, setStopped] = useGameDraft<{ line: number; lateMs?: number } | null>("stopped", null);
   const appearedAt = useRef<number[]>([]);
   const stopButton = useRef<HTMLButtonElement>(null);
   const stoppedNote = useRef<HTMLSpanElement>(null);
@@ -312,7 +313,7 @@ export function Replay({ theme, game, disabled, onChange }: Props<ReplayGame>) {
 
 export function ChunkIt({ theme, game, disabled, onChange }: Props<ChunkItGame>) {
   const words = GAME_WORDS.CHUNK_IT[theme];
-  const [route, setRoute] = useState<number | null>(null);
+  const [route, setRoute] = useGameDraft<number | null>("route", null);
   const report = useLatest(onChange);
   useEffect(() => {
     report.current(route === null ? null : { kind: "CHUNK_IT", route });

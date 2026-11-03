@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   prettyReadback,
   readbackTyped,
@@ -27,6 +27,7 @@ import {
   type TwoNumbersTry,
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
+import { clearOtherGameDrafts, GameDraft, useGameDraft } from "./game-draft";
 import { GAME_WORDS, type TrueFalseWords } from "./themed-game-words";
 import { signed, Stepper } from "./themed-game-parts";
 import { CaseArt, Token, TwoNumbersArt } from "./themed-game-art";
@@ -49,6 +50,12 @@ export interface ThemedGameProps {
   onChange: (response: LotusGameResponse | null) => void;
   /** A game played row by row says which row is on screen, and clears it when it leaves. */
   onRowChange?: (row: number | undefined) => void;
+  /** The student and question this play belongs to, so a refresh can resume it. */
+  draftScope?: string;
+  /** The student's first touch of the game, before there is a complete play to report. */
+  onFirstTouch?: () => void;
+  onTyped?: (text: string) => void;
+  onTypedBlur?: () => void;
 }
 
 const SETTLE_MS = 600;
@@ -109,10 +116,10 @@ function TwoNumbers({ theme, game, disabled, onChange }: { theme: LotusTheme; ga
 
 function CommitThenChoose({ theme, game, disabled, onChange }: { theme: LotusTheme; game: CommitThenChooseGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.COMMIT_THEN_CHOOSE[theme];
-  const [guess, setGuess] = useState({ p: 1, q: 1 });
-  const [touched, setTouched] = useState(false);
-  const [committedAt, setCommittedAt] = useState<number | null>(null);
-  const [pick, setPick] = useState<{ index: number; at: number } | null>(null);
+  const [guess, setGuess] = useGameDraft("guess", { p: 1, q: 1 });
+  const [touched, setTouched] = useGameDraft("touched", false);
+  const [committedAt, setCommittedAt] = useGameDraft<number | null>("committedAt", null);
+  const [pick, setPick] = useGameDraft<{ index: number; at: number } | null>("pick", null);
   const committed = committedAt !== null;
 
   const report = useRef(onChange);
@@ -298,8 +305,8 @@ function SignToggle({ value, label, disabled, onChange }: { value: LotusBracketS
 
 function TwoMoves({ theme, game, disabled, onChange }: { theme: LotusTheme; game: TwoMovesGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.TWO_MOVES[theme];
-  const [numbers, setNumbers] = useState({ n1: 1, n2: 1 });
-  const [signs, setSigns] = useState<[LotusBracketSign | null, LotusBracketSign | null]>([null, null]);
+  const [numbers, setNumbers] = useGameDraft("numbers", { n1: 1, n2: 1 });
+  const [signs, setSigns] = useGameDraft<[LotusBracketSign | null, LotusBracketSign | null]>("moveSigns", [null, null]);
   const complete = signs[0] !== null && signs[1] !== null;
 
   const report = useRef(onChange);
@@ -390,13 +397,15 @@ const MATH_KEYS: Array<[string, string]> = [["+", "+"], ["−", "-"], ["(", "("]
  * answer box. The record it keeps is what the server reads.
  */
 function useTypedRecord(onTyped: (value: string, history: EditHistorySample[]) => void, onDraft?: (draft: string) => void) {
-  const [value, setValue] = useState("");
-  const history = useRef<EditHistorySample[]>([]);
-  // Monotonic: the server refuses a record that runs backwards, and the wall clock can jump.
-  const startedAt = useRef(performance.now());
+  const draft = useContext(GameDraft);
+  const [value, setValue] = useGameDraft("typed", "");
+  const [savedHistory, saveHistory] = useGameDraft<EditHistorySample[]>("typedHistory", []);
+  const history = useRef<EditHistorySample[]>(savedHistory);
+  // Monotonic: the server refuses a record that runs backwards, and the wall clock can jump. A refresh carries on from the last sample.
+  const startedAt = useRef(performance.now() - (savedHistory[savedHistory.length - 1]?.t ?? 0));
   const field = useRef<HTMLInputElement>(null);
-  const callbacks = useRef({ onTyped, onDraft });
-  callbacks.current = { onTyped, onDraft };
+  const callbacks = useRef({ onTyped, onDraft, onDraftText: draft?.onTyped });
+  callbacks.current = { onTyped, onDraft, onDraftText: draft?.onTyped };
 
   const type = (raw: string) => {
     const next = typedMath(raw).slice(0, LOTUS_EDIT_MAX_LENGTH);
@@ -409,6 +418,8 @@ function useTypedRecord(onTyped: (value: string, history: EditHistorySample[]) =
     if (log.length >= LOTUS_EDIT_MAX_SAMPLES) log[log.length - 1] = sample;
     else log.push(sample);
     setValue(next);
+    saveHistory([...log]);
+    callbacks.current.onDraftText?.(next);
     callbacks.current.onTyped(next, [...log]);
   };
   const press = (token: string) => {
@@ -418,7 +429,7 @@ function useTypedRecord(onTyped: (value: string, history: EditHistorySample[]) =
     type(`${value.slice(0, at)}${token}${value.slice(to)}`);
     window.requestAnimationFrame(() => { box?.focus(); box?.setSelectionRange(at + token.length, at + token.length); });
   };
-  return { value, field, type, press, history: history.current };
+  return { value, field, type, press, history: history.current, onBlur: draft?.onTypedBlur };
 }
 
 function TypedBox({ label, record, disabled, autoFocus }: { label: string; record: ReturnType<typeof useTypedRecord>; disabled?: boolean; autoFocus?: boolean }) {
@@ -427,7 +438,7 @@ function TypedBox({ label, record, disabled, autoFocus }: { label: string; recor
       <label className={styles.typedRow}>
         <span className={styles.label}>{label}</span>
         <input ref={record.field} className={styles.editInput} value={record.value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} autoFocus={autoFocus}
-          placeholder="(x + ?)(x − ?)" onChange={(event) => record.type(event.target.value)} />
+          placeholder="(x + ?)(x − ?)" onBlur={record.onBlur} onChange={(event) => record.type(event.target.value)} />
       </label>
       <div className={styles.mathKeys} role="group" aria-label="Math tools">
         {MATH_KEYS.map(([keyLabel, token]) => (
@@ -440,10 +451,13 @@ function TypedBox({ label, record, disabled, autoFocus }: { label: string; recor
 
 function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.EDIT_HISTORY[theme];
-  const [drafts, setDrafts] = useState<string[]>([]);
+  const [drafts, setDrafts] = useGameDraft<string[]>("deleted", []);
   const report = useRef(onChange);
   report.current = onChange;
   const record = useTypedRecord((value, history) => report.current(value.trim() ? { kind: "EDIT_HISTORY", history } : null), (draft) => setDrafts((cur) => [...cur, draft]));
+  // After a refresh the page has lost the play, though the student hasn't.
+  const resumed = useRef(record.value.trim() ? { kind: "EDIT_HISTORY" as const, history: [...record.history] } : null);
+  useEffect(() => { if (resumed.current) report.current(resumed.current); }, []);
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
@@ -464,12 +478,12 @@ function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: E
 
 function Readback({ theme, disabled, onChange }: { theme: LotusTheme; game: ReadbackGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.READBACK[theme];
-  const [confirmed, setConfirmed] = useState(false);
-  const [took, setTook] = useState(false);
-  const latest = useRef<EditHistorySample[]>([]);
+  const [confirmed, setConfirmed] = useGameDraft("confirmed", false);
+  const [took, setTook] = useGameDraft("took", false);
   const report = useRef(onChange);
   report.current = onChange;
   const record = useTypedRecord((_, history) => { latest.current = history; });
+  const latest = useRef<EditHistorySample[]>(record.history);
   const read = readbackTyped(record.value);
   // Reading changes with every key, so a play is only reported once the student confirms.
   useEffect(() => {
@@ -505,8 +519,8 @@ function Readback({ theme, disabled, onChange }: { theme: LotusTheme; game: Read
 
 function Rectangle({ theme, game, disabled, onChange }: { theme: LotusTheme; game: RectangleGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.RECTANGLE[theme];
-  const [side, setSide] = useState<number | null>(null);
-  const [tries, setTries] = useState<number[]>([]);
+  const [side, setSide] = useGameDraft<number | null>("side", null);
+  const [tries, setTries] = useGameDraft<number[]>("sideTries", []);
   const top = side === null ? 0 : game.strips - side;
   const down = side ?? 0;
 
@@ -584,11 +598,22 @@ export const SEVEN_HERO: ReadonlySet<LotusGameKind> = new Set<LotusGameKind>(["T
 /** The games whose own screen says everything the page's sentence would. */
 export const sevenLeavesOutPrompt = (kind: LotusGameKind) => SEVEN_HERO.has(kind) || kind === "FOUR_SIGNS";
 
-export function ThemedGame({ theme, game, disabled, onChange, onRowChange }: ThemedGameProps) {
+export function ThemedGame({ theme, game, disabled, onChange, onRowChange, draftScope, onFirstTouch, onTyped, onTypedBlur }: ThemedGameProps) {
   const words = GAME_WORDS[game.kind][theme];
   const seven = theme === "sevenways";
+  const latest = useRef({ onTyped, onTypedBlur, onFirstTouch });
+  latest.current = { onTyped, onTypedBlur, onFirstTouch };
+  const draft = useMemo(() => (draftScope ? {
+    scope: draftScope,
+    onTyped: (text: string) => latest.current.onTyped?.(text),
+    onTypedBlur: () => latest.current.onTypedBlur?.(),
+  } : null), [draftScope]);
+  useEffect(() => { if (draftScope) clearOtherGameDrafts(draftScope); }, [draftScope]);
+  const touched = useRef(false);
+  const touch = () => { if (!touched.current) { touched.current = true; latest.current.onFirstTouch?.(); } };
   return (
-    <section className={styles.game} data-game={game.kind} data-art={theme} aria-label={words.title}>
+    <GameDraft.Provider value={draft}>
+    <section className={styles.game} data-game={game.kind} data-art={theme} aria-label={words.title} onPointerDownCapture={touch} onKeyDownCapture={touch}>
       {/* Seven Ways names the game in the card's header. */}
       {!seven && <h3 className={styles.title}>{words.title}</h3>}
       {seven && SEVEN_HERO.has(game.kind) && <p className={styles.sevenExpr}>{prettyAlgebra(game.expression)}</p>}
@@ -608,5 +633,6 @@ export function ThemedGame({ theme, game, disabled, onChange, onRowChange }: The
       {game.kind === "REPLAY" && <Replay theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "CHUNK_IT" && <ChunkIt theme={theme} game={game} disabled={disabled} onChange={onChange} />}
     </section>
+    </GameDraft.Provider>
   );
 }

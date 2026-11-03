@@ -16,6 +16,7 @@ import {
   type TwoNumbersTry,
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
+import { useGameDraft } from "./game-draft";
 import { GAME_WORDS } from "./themed-game-words";
 import { signed } from "./themed-game-parts";
 import styles from "./seven-ways.module.css";
@@ -45,7 +46,7 @@ function useLatest<T>(value: T) {
 export function ChipSplit({ game, disabled, onChange }: Props<SplitConfidenceGame>) {
   const words = GAME_WORDS.SPLIT_CONFIDENCE.sevenways;
   // Where each chip is: the index of an answer, or -1 for the tray.
-  const [at, setAt] = useState<number[]>(() => Array(LOTUS_SPLIT_TOKENS).fill(-1));
+  const [at, setAt] = useGameDraft<number[]>("chips", Array(LOTUS_SPLIT_TOKENS).fill(-1) as number[]);
   const [spots, setSpots] = useState<Array<{ x: number; y: number }>>([]);
   const area = useRef<HTMLDivElement>(null);
   const counts = game.options.map((_, i) => at.filter((a) => a === i).length);
@@ -129,8 +130,8 @@ const SWIPE_Y = 90;
 export function SwipeDeck({ game, disabled, onChange }: Props<TrueFalseGame>) {
   const words = GAME_WORDS.TRUE_FALSE.sevenways;
   const n = game.claims.length;
-  const [verdicts, setVerdicts] = useState<Array<LotusClaimVerdict | null>>(() => Array(n).fill(null));
-  const [times, setTimes] = useState<number[]>(() => Array(n).fill(0));
+  const [verdicts, setVerdicts] = useGameDraft<Array<LotusClaimVerdict | null>>("verdicts", Array(n).fill(null) as null[]);
+  const [times, setTimes] = useGameDraft<number[]>("times", Array(n).fill(0) as number[]);
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const [leaving, setLeaving] = useState<{ card: number; verdict: LotusClaimVerdict } | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
@@ -278,10 +279,10 @@ function Gauge({ label, value, scale }: { label: string; value: number; scale: n
 
 export function LockReels({ game, disabled, onChange }: Props<TwoNumbersGame>) {
   const words = GAME_WORDS.TWO_NUMBERS.sevenways;
-  const [pair, setPair] = useState({ p: 1, q: 1 });
-  const [touched, setTouched] = useState(false);
-  const [tries, setTries] = useState<TwoNumbersTry[]>([]);
-  const startedAt = useRef(Date.now());
+  const [pair, setPair] = useGameDraft("pair", { p: 1, q: 1 });
+  const [touched, setTouched] = useGameDraft("touched", false);
+  const [tries, setTries] = useGameDraft<TwoNumbersTry[]>("tries", []);
+  const [startedAt] = useGameDraft("startedAt", Date.now());
   const set = (key: "p" | "q", value: number) => { setTouched(true); setPair((cur) => ({ ...cur, [key]: value })); };
 
   // A pair counts as a try once the student pauses on it.
@@ -291,11 +292,11 @@ export function LockReels({ game, disabled, onChange }: Props<TwoNumbersGame>) {
       setTries((cur) => {
         const last = cur[cur.length - 1];
         if ((last && last.p === pair.p && last.q === pair.q) || cur.length >= LOTUS_GAME_MAX_TRIES) return cur;
-        return [...cur, { p: pair.p, q: pair.q, atMs: Date.now() - startedAt.current }];
+        return [...cur, { p: pair.p, q: pair.q, atMs: Date.now() - startedAt }];
       });
     }, SETTLE_MS);
     return () => window.clearTimeout(timer);
-  }, [pair, touched]);
+  }, [pair, touched, setTries, startedAt]);
 
   const report = useLatest(onChange);
   useEffect(() => {
@@ -354,7 +355,7 @@ function caseSigns(expression: string): { middle: "+" | "−"; last: "+" | "−"
 
 export function SignQuadrant({ game, disabled, onChange }: Props<FourSignsGame>) {
   const words = GAME_WORDS.FOUR_SIGNS.sevenways;
-  const [picks, setPicks] = useState<Array<[LotusBracketSign | null, LotusBracketSign | null]>>(() => game.cases.map(() => [null, null]));
+  const [picks, setPicks] = useGameDraft<Array<[LotusBracketSign | null, LotusBracketSign | null]>>("signs", game.cases.map(() => [null, null]));
   const complete = picks.every((p) => p[0] !== null && p[1] !== null);
   const report = useLatest(onChange);
   useEffect(() => {

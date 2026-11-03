@@ -1643,7 +1643,7 @@ function LotusPage() {
   const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
   const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
-  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && !question.game && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
+  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
   // Only sizes the pond map. The plan's length changes as Lotus adapts, so it
@@ -1953,6 +1953,7 @@ function LotusPage() {
 
                     {question.game ? (
                       <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} disabled={inputLocked || didNotKnow} onRowChange={(row) => { gameRow.current = row; }}
+                        draftScope={`${studentId}:${question.id}`} onFirstTouch={() => interaction.input("game", true)} onTyped={(text) => { interaction.input(text); draftCheckpoints.record(text); }} onTypedBlur={() => draftCheckpoints.flush()}
                         onChange={(play) => { if (play) { interaction.input(JSON.stringify(play), true); setDidNotKnow(false); } setGamePlay(play); }} />
                     ) : question.interaction ? (
                       question.interaction.format === "FACTOR_CROSSWORD" || question.interaction.format === "CUT_BUILD_STUDIO" ? (
