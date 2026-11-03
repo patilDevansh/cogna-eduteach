@@ -1,0 +1,81 @@
+<title>Sound Lab Set</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=VT323&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<style>
+/* Layout: a studio desk. Tracks across the top, the active instrument on a matte panel, your 16-step track in the side column.
+   Single dark look: matte charcoal, one signal orange, phosphor-amber screens. Works fully on mute. */
+:root {
+  color-scheme: dark;
+  --bg-solid: #141416; --bg: radial-gradient(ellipse 80% 50% at 50% 0%, #232428, transparent 70%), #141416;
+  --panel: #222327; --panel2: #2a2b30; --canvas: #070707; --cover: rgba(20, 20, 22, .72);
+  --ink: #ecebe6; --soft: #b4b4b0; --muted: #85868b; --rule: #34353a; --line: #4a4b51; --hover: #2f3035;
+  --accent: #ff6a1a; --accent-ink: #1a0a00; --ok: #3ee0b4; --bad: #ff4f6b; --warn: #ffd23f;
+  --note-font: 500 1rem/1.6 "Manrope", "Helvetica Neue", Arial, sans-serif; --note-bg: rgba(255, 106, 26, .08); --note-edge: #ff6a1a;
+  --q-font: 500 1.1rem/1.6 "Manrope", "Helvetica Neue", Arial, sans-serif; --h1: 800 clamp(1.8rem, 4vw, 2.6rem)/1.05 "Manrope", Arial, sans-serif; --h1-track: -.02em; --h2: 800 1.4rem/1.1 "Manrope", Arial, sans-serif; --h2-track: 0;
+  --btn-font: 800 .78rem "Manrope", Arial, sans-serif; --btn-track: .16em;
+  --f-ui: "Manrope", "Helvetica Neue", Arial, sans-serif; --f-math: "IBM Plex Mono", ui-monospace, monospace; --f-label: "VT323", ui-monospace, monospace;
+  --r-sheet: 22px; --r-sm: 12px; --r-btn: 10px; --r-tab: 10px;
+  --t-sq: #ff6a1a; --t-sq-ink: #1a0a00; --t-bar: #3a3b40; --t-unit: #ffd23f; --t-line: #141416; --t-hole: #ff4f6b; --t-dim: #ff8a3d;
+  --r-ink: #ff8a3d; --r-soft: rgba(255, 138, 61, .6); --r-ok: #3ee0b4; --l-line: #3a3b40; --l-accent: #ff6a1a; --l-ok: #3ee0b4; --f-line: #85868b;
+}
+.sheet, .panel { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 24px 50px rgba(0, 0, 0, .45); }
+.index li button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn { box-shadow: 0 3px 0 #111; }
+.btn.primary { box-shadow: 0 3px 0 #8a3500; }
+.g-replay svg text, .g-tiles text, .g-line .g-ft { font-family: "VT323", ui-monospace, monospace; }
+.g-replay { box-shadow: inset 0 0 0 2px #000; background-image: repeating-linear-gradient(90deg, rgba(255, 138, 61, .06) 0 1px, transparent 1px 24px); }
+.g-cursor { fill: #ff8a3d; }
+/* sequencer (progress) */
+.seqrows { position: relative; display: grid; gap: 4px; }
+.srow { display: grid; grid-template-columns: 54px repeat(16, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.srow span { font-size: .62rem; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.pad { aspect-ratio: 1; border-radius: 3px; background: #303136; transition: background .2s, box-shadow .2s; }
+.pad.on { background: var(--c); box-shadow: 0 0 8px var(--c); }
+.pad.soft { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+.pad.hit { filter: brightness(1.9); }
+.ph { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0; pointer-events: none; }
+.seqctl { display: flex; gap: 8px; }
+/* faders */
+.mixer { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .mixer { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ch { background: var(--panel2); border-radius: 12px; padding: 12px 8px; display: grid; justify-items: center; gap: 8px; }
+.ch .m { font-size: .95rem; }
+.track { position: relative; width: 44px; height: 170px; border-radius: 8px; background: #111; box-shadow: inset 0 0 0 1px #333; }
+.track .lv { position: absolute; left: 6px; right: 6px; bottom: 6px; display: grid; gap: 4px; }
+.track .lv i { height: 34px; border-radius: 4px; background: #2a2b30; }
+.track .lv i.on { background: linear-gradient(#ffb36b, #ff6a1a); box-shadow: 0 0 10px rgba(255, 106, 26, .6); }
+.ch .pm { display: flex; gap: 6px; }
+.ch .pm button { width: 34px; height: 30px; border-radius: 8px; border: 0; background: #34353a; cursor: pointer; font-weight: 800; }
+.budget { font: 400 1.4rem var(--f-label); color: #ff8a3d; }
+.padcard { position: absolute; inset: 0; border-radius: 16px; background: #1b1c20; box-shadow: inset 0 0 0 2px #2f3035, 0 14px 30px rgba(0, 0, 0, .5); display: grid; place-items: center; text-align: center; padding: 18px; }
+.padcard .m { font-size: clamp(1.15rem, 4vw, 1.5rem); white-space: normal; color: #ff8a3d; }
+.padcard .num { position: absolute; top: 12px; left: 16px; font: 400 1.1rem var(--f-label); color: var(--muted); }
+.padcard .g-mark { position: absolute; top: 12px; right: 16px; font: 800 .8rem var(--f-ui); letter-spacing: .16em; opacity: 0; }
+.padcard .g-mark[data-v="true"] { color: var(--ok); } .padcard .g-mark[data-v="false"] { color: var(--bad); } .padcard .g-mark[data-v="null"] { color: var(--warn); }
+.g-piece { background: linear-gradient(90deg, rgba(255, 106, 26, .18), rgba(255, 106, 26, .06)); border-color: rgba(255, 106, 26, .35); }
+.g-qc { background: var(--panel2); }
+.g-qc.lit { box-shadow: 0 0 22px rgba(255, 106, 26, .35); }
+.export { border: 2px solid var(--ok); color: var(--ok); border-radius: 8px; padding: 6px 10px; font: 800 .78rem var(--f-ui); letter-spacing: .16em; }
+</style>
+
+<div class="page">
+  <header class="top"><h1>Sound Lab</h1><p>Sixteen instruments on one studio desk. Each game becomes something you mix, tune, record or arrange, and keeps the same evidence. Every answer lays down a step of your track. Works fully on mute.</p></header>
+  <nav class="index" aria-label="Instruments"><ol id="index"></ol></nav>
+  <div class="layout">
+    <article class="sheet">
+      <div class="sheethead"><h2 id="tTitle"></h2><span class="sn" id="tNo"></span></div>
+      <div class="xlate"><div><b>Was</b><span id="xWas"></span></div><div class="now"><b>Now</b><span id="xNow"></span></div><div class="kept"><b>Evidence kept</b><span id="xKept"></span></div></div>
+      <div class="work" id="work"></div>
+    </article>
+    <aside class="side">
+      <div class="panel"><span class="label">Your track · <b id="takes">0</b> steps</span><div class="seqrows" id="seq"><span class="ph" id="ph"></span></div>
+        <div class="seqctl"><button class="btn" id="snd" type="button" aria-pressed="false">♪ Sound off</button><button class="btn primary" id="play" type="button">▶ Play</button></div>
+        <p class="cap">Each answer lays down a step. A bright pad means a sure answer, an outlined pad a guess. Right and wrong sound the same.</p></div>
+      <div class="panel"><span class="label">What Lotus noticed</span><ol class="log" id="log"><li>Nothing yet.</li></ol></div>
+    </aside>
+  </div>
+</div>

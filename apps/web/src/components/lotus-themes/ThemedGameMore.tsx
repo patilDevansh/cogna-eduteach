@@ -15,6 +15,7 @@ import { prettyAlgebra } from "@/components/games/TileGame";
 import { GAME_WORDS } from "./themed-game-words";
 import { signed } from "./themed-game-parts";
 import { ChunkArt, CompareArt, StepMark } from "./themed-game-art";
+import { ClaimBars } from "./SevenWaysGames";
 import styles from "./themed-game.module.css";
 
 /**
@@ -136,8 +137,9 @@ export function TestClaim({ theme, game, disabled, onChange }: Props<TestClaimGa
   return (
     <>
       <p className={styles.intro}>{words.intro}</p>
+      {theme === "sevenways" && <p className={styles.sevenExpr}>{labelA} = {labelB}</p>}
       <div className={styles.stage}>
-        <CompareArt theme={theme} a={a} b={b} labelA={labelA} labelB={labelB} />
+        {theme === "sevenways" ? <ClaimBars a={a} b={b} labelA={labelA} labelB={labelB} /> : <CompareArt theme={theme} a={a} b={b} labelA={labelA} labelB={labelB} />}
       </div>
       <div className={styles.sliderRow}>
         <div className={styles.sliderHead}>

@@ -1,0 +1,1745 @@
+<title>The Maths Mela</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Mukta:wght@400;500;600;700&family=Kalam:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<style>
+/* Layout: a night fair. A map of 16 stalls under string lights; each stall opens into its own lit booth. A rangoli in the header grows as Lotus learns.
+   One deliberate night palette (no light theme): indigo sky, marigold, rani pink, peacock teal, saffron, cream sign-boards. */
+:root {
+  color-scheme: dark;
+  --sky: #130e2a; --sky2: #1d1540; --booth: #241b4a; --booth2: #2e2360; --line: #3d3170;
+  --ink: #fff3e2; --soft: #c8bde8; --faint: #8f84b8;
+  --marigold: #ffb21e; --saffron: #ff7a1f; --rani: #ec3f8c; --peacock: #16c2a3; --sky-blue: #63b6ff; --leaf: #7fd65b;
+  --cream: #fff1d6; --wood: #8b5a33; --brass: #d9a441; --brass2: #a8741c; --chalk: #f4efe6;
+  --display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Mukta", "Segoe UI", system-ui, sans-serif;
+  --hand: "Kalam", "Comic Sans MS", cursive;
+  --math: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--sky); }
+body { color: var(--ink); font: 400 16px/1.55 var(--body); overflow-x: hidden;
+  background: radial-gradient(ellipse 80% 50% at 70% -10%, #3a2470 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 0% 100%, #2a1650 0%, transparent 60%), var(--sky); }
+button { font: inherit; color: inherit; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.05; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.m { font-family: var(--math); font-weight: 500; letter-spacing: -0.02em; white-space: nowrap; }
+:focus-visible { outline: 3px solid var(--marigold); outline-offset: 3px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0; }
+
+/* ---------- sky ambience ---------- */
+.stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+.stars i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: .6; animation: tw 3s ease-in-out infinite alternate; }
+@keyframes tw { to { opacity: .1; } }
+.kandil { position: fixed; bottom: -60px; width: 18px; height: 26px; border-radius: 6px 6px 9px 9px; background: radial-gradient(circle at 50% 70%, #fff3b0, var(--saffron) 60%, #b33b00); box-shadow: 0 0 18px 6px rgba(255, 140, 40, .45); pointer-events: none; z-index: 0; opacity: .8; animation: rise linear infinite; }
+@keyframes rise { to { transform: translateY(-120vh) translateX(40px); opacity: 0; } }
+
+/* ---------- header ---------- */
+.hud { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; background: color-mix(in srgb, var(--sky) 88%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.hud .wrap { display: flex; align-items: center; gap: 14px; padding-block: 8px; }
+.logo { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: .01em; cursor: pointer; background: none; border: 0; padding: 0; }
+.logo small { font-family: var(--body); font-weight: 500; font-size: .8rem; color: var(--soft); }
+.hud .grow { flex: 1; }
+.rgbtn { display: flex; align-items: center; gap: 8px; background: var(--booth); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px 3px 3px; cursor: pointer; }
+.rgbtn svg { width: 40px; height: 40px; display: block; }
+.rgbtn span { font-size: .85rem; font-weight: 600; }
+.nbbtn { position: relative; background: var(--cream); color: #3b2414; border: 0; border-radius: 10px; padding: 7px 12px; font-family: var(--hand); font-weight: 700; cursor: pointer; transform: rotate(-2deg); box-shadow: 0 3px 0 #c9a46a; }
+.nbbtn b { position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; border-radius: 11px; background: var(--rani); color: #fff; font: 700 .75rem/22px var(--body); text-align: center; padding: 0 5px; }
+@media (max-width: 560px) { .logo small, .rgbtn span { display: none; } .logo { font-size: 1.1rem; } .nbbtn { padding: 6px 9px; font-size: .9rem; } .hud .wrap { gap: 8px; } }
+
+/* ---------- map ---------- */
+#map { position: relative; z-index: 1; padding-block: 18px 60px; }
+.lights { width: 100%; height: 70px; display: block; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: end; margin: 4px 0 18px; }
+.hero h1 { font-size: clamp(2.6rem, 8vw, 5rem); font-weight: 800; letter-spacing: -.01em; color: var(--marigold); text-shadow: 0 0 30px rgba(255, 178, 30, .35); }
+.hero h1 span { color: var(--ink); }
+.hero p { color: var(--soft); max-width: 52ch; font-size: 1.08rem; margin-top: 6px; }
+.mithu { display: flex; align-items: flex-end; gap: 10px; }
+.bubble { position: relative; max-width: 270px; background: var(--cream); color: #3b2414; border-radius: 16px; padding: 10px 14px; font-family: var(--hand); font-size: 1rem; line-height: 1.3; }
+.bubble::after { content: ""; position: absolute; right: -9px; bottom: 16px; border: 9px solid transparent; border-left-color: var(--cream); border-right: 0; }
+.bubble button { margin-top: 6px; display: inline-block; background: var(--rani); color: #fff; border: 0; border-radius: 999px; padding: 2px 12px; font: 600 .85rem var(--body); cursor: pointer; }
+.parrot { width: 74px; height: 92px; flex: none; }
+.parrot .bob { animation: bob 2.6s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes bob { 50% { transform: rotate(-4deg) translateY(-2px); } }
+@media (max-width: 720px) { .hero { grid-template-columns: 1fr; } .mithu { justify-content: flex-end; } }
+
+.grounds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 980px) { .grounds { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .grounds { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
+.stall { position: relative; display: grid; grid-template-rows: auto 1fr auto; text-align: left; border: 0; padding: 0; cursor: pointer; border-radius: 16px 16px 12px 12px; background: linear-gradient(180deg, var(--booth2), var(--booth)); box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 0 0 1px var(--line); overflow: hidden; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s; min-width: 0; }
+.stall:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0, 0, 0, .45), 0 0 0 2px var(--a), 0 0 40px -10px var(--a); }
+.awning { position: relative; height: 40px; background: repeating-linear-gradient(90deg, var(--a) 0 20px, var(--b) 20px 40px); }
+.awning::after { content: ""; position: absolute; left: 0; right: 0; bottom: -11px; height: 12px; background: radial-gradient(circle at 10px 0, var(--a) 9.5px, transparent 10.5px) 0 0 / 40px 12px, radial-gradient(circle at 30px 0, var(--b) 9.5px, transparent 10.5px) 0 0 / 40px 12px; }
+.bulbs { position: absolute; left: 6px; right: 6px; bottom: -22px; display: flex; justify-content: space-between; z-index: 1; }
+.bulbs i { width: 6px; height: 6px; border-radius: 50%; background: #ffe7a0; box-shadow: 0 0 8px 2px rgba(255, 210, 110, .8); animation: twk 1.8s ease-in-out infinite alternate; }
+.bulbs i:nth-child(2n) { animation-delay: .6s; } .bulbs i:nth-child(3n) { animation-delay: 1.1s; }
+@keyframes twk { to { opacity: .45; } }
+.stall .inner { padding: 30px 14px 10px; display: grid; justify-items: center; gap: 6px; }
+.stall .icon { width: 74px; height: 64px; filter: drop-shadow(0 0 12px color-mix(in srgb, var(--a) 40%, transparent)); transition: transform .3s; }
+.stall:hover .icon { transform: scale(1.08) rotate(-3deg); }
+.sign { margin: 0 12px 12px; background: var(--cream); color: #3b2414; border-radius: 8px; padding: 6px 10px; text-align: center; box-shadow: 0 3px 0 #c9a46a; display: grid; }
+.sign b { font-family: var(--display); font-weight: 800; font-size: 1.08rem; line-height: 1.1; }
+.sign small { font-size: .78rem; color: #7a5a3a; }
+.stall .no { position: absolute; top: 66px; left: 10px; font: 700 .72rem var(--math); color: var(--faint); }
+.stall .done { position: absolute; top: 64px; right: 8px; width: 28px; height: 28px; opacity: 0; transform: scale(.4); }
+.stall.visited .done { opacity: 1; transform: none; transition: all .4s cubic-bezier(.2,.8,.2,1.4); }
+.stall.suggested { box-shadow: 0 0 0 2px var(--marigold), 0 0 50px -6px var(--marigold); }
+.stall.suggested::before { content: "Mithu's pick"; position: absolute; top: 64px; right: 8px; font: 700 .68rem var(--body); background: var(--marigold); color: #3b2414; border-radius: 999px; padding: 1px 8px; z-index: 2; }
+
+/* ---------- a stall's booth ---------- */
+#scene { position: relative; z-index: 2; padding-block: 0 70px; }
+.boothhead { position: relative; margin-top: 18px; border-radius: 22px 22px 0 0; overflow: visible; background: linear-gradient(180deg, var(--booth2), var(--booth)); }
+.boothhead .awning { height: 54px; border-radius: 22px 22px 0 0; }
+.boothhead .awning::after { bottom: -13px; height: 14px; background: radial-gradient(circle at 14px 0, var(--a) 13px, transparent 14px) 0 0 / 56px 14px, radial-gradient(circle at 42px 0, var(--b) 13px, transparent 14px) 0 0 / 56px 14px; }
+.boothhead .bulbs { bottom: -26px; left: 12px; right: 12px; }
+.boothtitle { padding: 40px 24px 16px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+.boothtitle .icon { width: 64px; height: 56px; }
+.boothtitle h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); font-weight: 800; color: var(--a); }
+.boothtitle p { color: var(--soft); font-size: 1rem; }
+.back { background: var(--booth); border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; cursor: pointer; font-weight: 600; white-space: nowrap; }
+.back:hover { border-color: var(--a); }
+@media (max-width: 640px) { .boothtitle { grid-template-columns: 1fr; padding-inline: 16px; } .boothtitle .icon { display: none; } .back { justify-self: start; } }
+.booth { background: linear-gradient(180deg, var(--booth), #1b1440); border-radius: 0 0 22px 22px; padding: 22px 24px 28px; display: grid; gap: 18px; box-shadow: 0 30px 60px rgba(0, 0, 0, .4); min-height: 520px; align-content: start; }
+@media (max-width: 640px) { .booth { padding-inline: 14px; } }
+.ask { font-size: 1.12rem; font-weight: 500; }
+.big { font-family: var(--math); font-size: clamp(1.7rem, 5vw, 2.6rem); font-weight: 600; text-align: center; color: var(--cream); letter-spacing: -0.03em; text-shadow: 0 0 24px rgba(255, 220, 160, .25); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { border: 0; border-radius: 14px; padding: 12px 22px; font-family: var(--display); font-weight: 700; font-size: 1.05rem; cursor: pointer; color: #3b2414; background: linear-gradient(180deg, #ffd36b, var(--marigold) 60%, #e08e00); box-shadow: 0 4px 0 #a86400, 0 8px 20px rgba(255, 170, 30, .25); transition: transform .12s, box-shadow .12s, opacity .2s; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #a86400; }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn.alt { background: var(--booth2); color: var(--ink); box-shadow: 0 4px 0 #120c2a; border: 1px solid var(--line); }
+.btn.red { background: linear-gradient(180deg, #ff6f8d, var(--rani) 60%, #b51f63); color: #fff; box-shadow: 0 4px 0 #7d1243; }
+.chipset { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipset button { border: 1px solid var(--line); background: var(--booth2); border-radius: 999px; padding: 5px 13px; font-size: .9rem; cursor: pointer; }
+.chipset button[aria-pressed="true"] { background: var(--rani); border-color: var(--rani); color: #fff; }
+.chiplab { font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+/* Lotus's note, shown when a game finishes */
+.noticed { position: relative; background: var(--cream); color: #3b2414; border-radius: 6px; padding: 16px 18px 16px 22px; font-family: var(--hand); font-size: 1.08rem; line-height: 1.4; box-shadow: 0 10px 24px rgba(0, 0, 0, .35); transform: rotate(-.6deg); background-image: repeating-linear-gradient(180deg, transparent 0 27px, rgba(80, 120, 200, .18) 27px 28px); }
+.noticed::before { content: ""; position: absolute; top: -10px; left: 50%; width: 80px; height: 22px; translate: -50% 0; background: rgba(255, 210, 120, .7); transform: rotate(2deg); }
+.noticed b { color: #a8164f; }
+.noticed .from { display: block; font-size: .85rem; color: #8a6a4a; margin-bottom: 2px; font-family: var(--body); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+
+/* rangoli modal + notebook drawer */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(8, 5, 20, .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modal .card { width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--booth); border: 1px solid var(--line); border-radius: 24px; padding: 22px; display: grid; gap: 14px; justify-items: center; text-align: center; }
+.modal svg { width: min(380px, 100%); height: auto; }
+.modal p { color: var(--soft); max-width: 46ch; }
+.keyrow { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; font-size: .85rem; color: var(--soft); }
+.keyrow span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100%); z-index: 45; background: var(--cream); color: #3b2414; box-shadow: -20px 0 50px rgba(0, 0, 0, .5); padding: calc(env(safe-area-inset-top, 0px) + 18px) max(18px, env(safe-area-inset-right, 0px)) 18px 18px; display: grid; grid-template-rows: auto 1fr; gap: 10px; transform: translateX(105%); transition: transform .45s cubic-bezier(.2,.8,.2,1); background-image: repeating-linear-gradient(180deg, transparent 0 29px, rgba(80, 120, 200, .18) 29px 30px); }
+.drawer.open { transform: none; }
+.drawer h3 { font-family: var(--hand); font-size: 1.6rem; display: flex; justify-content: space-between; align-items: center; }
+.drawer h3 button { background: none; border: 1px solid #c9a46a; border-radius: 999px; padding: 2px 12px; font: 600 .85rem var(--body); cursor: pointer; color: #3b2414; }
+.drawer ol { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; gap: 10px; align-content: start; font-family: var(--hand); font-size: 1.02rem; line-height: 1.35; }
+.drawer li small { display: block; font-family: var(--body); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #8a6a4a; }
+.drawer li.warn { color: #a8164f; } .drawer li.good { color: #0d7a63; }
+@media (prefers-reduced-motion: reduce) { .stars i, .kandil, .bulbs i, .parrot .bob { animation: none !important; } .kandil { display: none; } }
+</style>
+
+<div class="stars" id="stars" aria-hidden="true"></div>
+
+<header class="hud">
+  <div class="wrap">
+    <button class="logo" id="home" type="button" aria-label="Back to the fair">
+      <svg width="30" height="34" viewBox="0 0 30 34" aria-hidden="true"><line x1="15" y1="0" x2="15" y2="6" stroke="#c8bde8" stroke-width="1.5"/><path d="M6 8 h18 l-2 4 h-14z" fill="#d9a441"/><ellipse cx="15" cy="20" rx="10" ry="9" fill="#ff7a1f"/><ellipse cx="15" cy="20" rx="5" ry="7" fill="#ffd36b" opacity=".9"/><path d="M8 28 h14 l-3 4 h-8z" fill="#d9a441"/></svg>
+      Maths Mela <small>a factorising fair</small>
+    </button>
+    <span class="grow"></span>
+    <button class="rgbtn" id="rgOpen" type="button" aria-label="Open your rangoli"><svg viewBox="-180 -180 360 360" id="rgMini" aria-hidden="true"></svg><span id="rgLabel">Your rangoli</span></button>
+    <button class="nbbtn" id="nbOpen" type="button">Lotus noticed <b id="nbCount">0</b></button>
+  </div>
+</header>
+
+<main>
+  <section id="map">
+    <svg class="lights" viewBox="0 0 1200 70" preserveAspectRatio="none" id="lights" aria-hidden="true"></svg>
+    <div class="wrap">
+      <div class="hero">
+        <div>
+          <h1><span>The</span> Maths Mela</h1>
+          <p>Sixteen stalls, every one a factorising game. Toss coins, crack a safe, balance the tarazu, stop the bioscope. Nothing here says right or wrong. Your rangoli grows as Lotus learns how you think.</p>
+        </div>
+        <div class="mithu">
+          <div class="bubble" id="mithuSays">Namaste! I'm Mithu. Start anywhere, or try my pick.<br><button type="button" id="mithuGo">Take me there</button></div>
+          <svg class="parrot" viewBox="0 0 74 92" aria-hidden="true"><g class="bob"><path d="M30 86 L26 92 M40 86 L44 92" stroke="#d9a441" stroke-width="3" stroke-linecap="round"/><path d="M36 84 C18 82 12 62 18 44 C22 30 34 24 44 28 C56 32 58 50 54 64 C50 76 46 84 36 84Z" fill="#3fbf55"/><path d="M40 84 C46 70 60 66 66 86 C58 82 50 86 40 84Z" fill="#2d8f3f"/><path d="M24 50 C30 60 44 62 50 56 C46 70 34 74 26 66Z" fill="#2d8f3f"/><circle cx="40" cy="18" r="16" fill="#3fbf55"/><path d="M26 22 C30 30 40 32 48 28" stroke="#ec3f8c" stroke-width="3" fill="none"/><path d="M52 14 C62 14 64 24 56 28 C56 22 54 18 52 18Z" fill="#ff3b3b"/><circle cx="44" cy="13" r="4" fill="#fff"/><circle cx="45" cy="13" r="2.2" fill="#130e2a"/></g></svg>
+        </div>
+      </div>
+      <div class="grounds" id="grounds"></div>
+    </div>
+  </section>
+
+  <section id="scene" hidden>
+    <div class="wrap">
+      <div class="boothhead" id="boothhead"></div>
+      <div class="booth" id="booth"></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="rgModal" hidden>
+  <div class="card">
+    <h2 style="color:var(--marigold)">Your rangoli</h2>
+    <svg viewBox="-180 -180 360 360" id="rgBig" aria-label="Your rangoli"></svg>
+    <p id="rgText">Every answer adds a ring. The colour shows the skill, solid shapes mean a sure answer and dotted ones a guess, and more petals mean Lotus learned more. Right and wrong look exactly the same.</p>
+    <div class="keyrow"><span style="--c:var(--marigold)">x² + bx + c</span><span style="--c:var(--rani)">Squares</span><span style="--c:var(--saffron)">Signs</span><span style="--c:var(--peacock)">Checking</span><span style="--c:var(--sky-blue)">Grouping</span></div>
+    <button class="btn alt" id="rgClose" type="button">Back to the fair</button>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer" aria-label="Lotus noticed">
+  <h3>Lotus noticed <button type="button" id="nbClose">Close</button></h3>
+  <ol id="nbList"><li><small>Nothing yet</small>Play a stall. Every tap, take-back and pause that tells Lotus something will be written here.</li></ol>
+</aside>
+
+<style>
+/* shared picker */
+.pick { display: inline-flex; align-items: center; background: var(--cream); color: #3b2414; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 0 #c9a46a; }
+.pick button { border: 0; background: rgba(0, 0, 0, .06); width: 34px; height: 42px; cursor: pointer; font-weight: 800; color: #7a5a3a; }
+.pick output { min-width: 3rem; text-align: center; font: 600 1.25rem var(--math); }
+
+/* 1 sikka */
+.cloth { position: relative; border-radius: 22px; padding: 22px 16px 16px; background: radial-gradient(ellipse at 50% 0%, #b3123f, #6e0a2a 70%); box-shadow: inset 0 0 0 6px #d9a441, inset 0 0 0 9px #6e0a2a, inset 0 0 0 11px #d9a441; display: grid; gap: 18px; }
+.thalis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .thalis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.thali { position: relative; border: 0; background: none; cursor: pointer; display: grid; justify-items: center; gap: 8px; padding: 0; }
+.thali .plate { width: min(140px, 100%); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 50% 50%, #f7cf6a 0 38%, #c98e22 39% 42%, #f1c056 43% 58%, #a8741c 59% 61%, #e9b44b 62% 100%); box-shadow: 0 8px 18px rgba(0, 0, 0, .45), inset 0 -4px 10px rgba(0, 0, 0, .25); transition: transform .3s; }
+.thali:hover .plate { transform: translateY(-3px) rotate(-3deg); }
+.thali .lbl { background: var(--cream); color: #3b2414; border-radius: 8px; padding: 4px 8px; font: 600 .95rem var(--math); box-shadow: 0 3px 0 #c9a46a; white-space: nowrap; }
+.thali .cnt { position: absolute; top: 6px; right: 10%; background: var(--rani); color: #fff; border-radius: 999px; font: 700 .72rem var(--body); padding: 1px 8px; opacity: 0; }
+.thali.has .cnt { opacity: 1; }
+.pouch { justify-self: center; display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-radius: 40px 40px 26px 26px; background: linear-gradient(#8b5a33, #5e3a1e); box-shadow: inset 0 3px 0 rgba(255, 255, 255, .15); }
+.pouch span { font-family: var(--hand); color: var(--cream); }
+.pouch .spot { width: 38px; height: 38px; border-radius: 50%; background: rgba(0, 0, 0, .25); }
+.coins { position: absolute; inset: 0; pointer-events: none; }
+.coin { position: absolute; left: 0; top: 0; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; border: 0; pointer-events: auto; cursor: pointer; background: radial-gradient(circle at 35% 30%, #fff1b0, #ffd36b 35%, #d9a441 60%, #8a5a10); box-shadow: 0 3px 0 #6b4308, 0 6px 12px rgba(0, 0, 0, .4); color: #8a5a10; font: 800 1rem var(--display); }
+.spark { position: absolute; width: 4px; height: 12px; border-radius: 2px; background: #ffe7a0; pointer-events: none; }
+
+/* 2 tota */
+.fortune { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 720px) { .fortune { grid-template-columns: 1fr; } }
+.perch { display: grid; justify-items: center; gap: 4px; }
+.perch svg { width: 150px; height: auto; }
+.cardbox { width: 130px; height: 54px; border-radius: 6px; background: linear-gradient(#a06a3c, #6d4422); box-shadow: inset 0 4px 0 rgba(255, 255, 255, .15); display: flex; justify-content: center; gap: 3px; padding-top: 6px; }
+.cardbox i { width: 14px; height: 30px; background: var(--cream); border-radius: 2px; transform: rotate(var(--r)); }
+.fstage { position: relative; display: grid; gap: 14px; }
+.table3 { display: grid; grid-template-columns: 1fr minmax(0, 360px) 1fr; gap: 10px; align-items: center; }
+@media (max-width: 720px) { .table3 { grid-template-columns: 1fr 1fr; } .table3 .deck { grid-column: 1 / -1; grid-row: 1; } }
+.basket { display: grid; justify-items: center; gap: 4px; padding: 14px 8px; border-radius: 20px; border: 2px dashed var(--line); min-height: 130px; align-content: center; transition: border-color .2s, background .2s; }
+.basket b { font-family: var(--display); font-size: 1.3rem; }
+.basket small { color: var(--soft); }
+.basket .n { font: 700 1.6rem var(--display); }
+.basket.t b { color: var(--peacock); } .basket.f b { color: var(--rani); }
+.basket.hot { background: rgba(255, 255, 255, .06); border-color: var(--ink); }
+.deck { position: relative; height: 230px; touch-action: none; }
+.fcard { position: absolute; inset: 0; border-radius: 18px; padding: 18px; display: grid; place-items: center; text-align: center; cursor: grab; user-select: none; background: var(--cream); color: #3b2414; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); border: 6px solid #fff8ea; outline: 2px solid #d9a441; outline-offset: -12px; }
+.fcard .m { font-size: clamp(1.15rem, 4vw, 1.5rem); white-space: normal; }
+.fcard .num { position: absolute; top: 14px; left: 18px; font: 700 .75rem var(--body); color: #a5865f; }
+.fcard .orn { position: absolute; bottom: 12px; font-family: var(--hand); color: #a5865f; font-size: .85rem; }
+.fstamp { position: absolute; top: 18px; padding: 2px 10px; border: 3px solid; border-radius: 8px; font: 800 1.1rem var(--display); opacity: 0; }
+.fstamp.t { left: 16px; color: #0d7a63; transform: rotate(-12deg); } .fstamp.f { right: 16px; color: #a8164f; transform: rotate(12deg); }
+.fstamp.u { bottom: 40px; top: auto; left: 50%; translate: -50% 0; color: #b5780c; }
+.unsure { justify-self: center; }
+.fams { display: grid; gap: 8px; }
+.fam { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; background: rgba(255, 255, 255, .05); border-radius: 12px; padding: 8px 12px; font-size: .92rem; }
+.fam p { grid-column: 1 / -1; color: var(--soft); font-size: .86rem; }
+.fam .dots { display: flex; gap: 4px; } .fam .dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.fam .dots i.hit { background: var(--rani); } .fam .dots i.ok { background: var(--peacock); } .fam .dots i.uns { background: var(--marigold); }
+
+/* 3 rangoli floor */
+.floor { border-radius: 20px; padding: 10px; background: #2a1b14; background-image: radial-gradient(circle, rgba(255, 241, 214, .14) 1.2px, transparent 1.6px); background-size: 15px 15px; box-shadow: inset 0 0 0 4px #5e3a1e; }
+.floor svg { width: 100%; max-width: 620px; height: auto; display: block; margin: 0 auto; overflow: visible; }
+.knobs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; align-items: center; }
+.knobs > span { color: var(--soft); font-size: .92rem; margin-right: 4px; }
+.knob { width: 46px; height: 46px; border-radius: 50%; border: 0; cursor: pointer; font: 700 1.1rem var(--math); color: #3b2414; background: radial-gradient(circle at 35% 30%, #fff1b0, #d9a441 60%, #8a5a10); box-shadow: 0 4px 0 #6b4308; transition: transform .15s; }
+.knob[aria-pressed="true"] { background: radial-gradient(circle at 35% 30%, #ffd1e6, var(--rani) 60%, #7d1243); color: #fff; transform: translateY(3px); box-shadow: 0 1px 0 #4a0a28; }
+.trail { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.trail span { font: 600 .82rem var(--math); border-radius: 999px; padding: 1px 10px; background: rgba(255, 255, 255, .07); }
+.trail span.fit { background: var(--peacock); color: #062b24; }
+
+/* 4 bioscope */
+.bio { display: grid; gap: 14px; }
+.bioframe { position: relative; padding: 18px; border-radius: 26px; background: linear-gradient(180deg, #a06a3c, #6d4422); box-shadow: inset 0 3px 0 rgba(255, 255, 255, .18), 0 18px 40px rgba(0, 0, 0, .5); }
+.bioframe::before, .bioframe::after { content: ""; position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff1b0, #d9a441 60%, #8a5a10); translate: 0 -50%; }
+.bioframe::before { left: 4px; } .bioframe::after { right: 4px; }
+.lens { position: relative; border-radius: 18px; overflow: hidden; background: #efdcb6; box-shadow: inset 0 0 0 6px #d9a441, inset 0 0 0 9px #8a5a10, inset 0 0 60px rgba(70, 40, 10, .55); }
+.lens svg { display: block; width: 100%; height: auto; }
+.lens svg text { font-family: var(--math); }
+.grain { position: absolute; inset: 0; pointer-events: none; opacity: .18; mix-blend-mode: multiply; background-image: radial-gradient(rgba(60, 30, 0, .9) .6px, transparent .8px), radial-gradient(rgba(60, 30, 0, .6) .5px, transparent .7px); background-size: 7px 7px, 11px 11px; animation: grain .35s steps(3) infinite; }
+@keyframes grain { 33% { background-position: 3px 2px, 5px 1px; } 66% { background-position: 1px 4px, 2px 6px; } }
+.flick { position: absolute; inset: 0; pointer-events: none; background: rgba(255, 245, 220, .08); animation: flick .18s steps(2) infinite; }
+@keyframes flick { 50% { opacity: .2; } }
+.biobar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.crank { width: 52px; height: 52px; border-radius: 50%; border: 0; cursor: pointer; background: radial-gradient(circle at 35% 30%, #fff1b0, #d9a441 60%, #8a5a10); box-shadow: 0 4px 0 #6b4308; position: relative; }
+.crank::after { content: ""; position: absolute; left: 50%; top: 8px; width: 6px; height: 18px; border-radius: 3px; background: #6b4308; translate: -50% 0; transform-origin: 50% 18px; }
+.crank.spin::after { animation: crank .6s linear infinite; }
+@keyframes crank { to { transform: rotate(360deg); } }
+.strip { position: relative; height: 40px; border-radius: 6px; background: #1a1206; overflow: hidden; }
+.strip::before, .strip::after { content: ""; position: absolute; left: 0; right: 0; height: 6px; background: repeating-linear-gradient(90deg, transparent 0 6px, #f4efe6 6px 12px); opacity: .55; }
+.strip::before { top: 3px; } .strip::after { bottom: 3px; }
+.strip input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0; }
+.strip .fill { position: absolute; left: 0; top: 12px; bottom: 12px; background: linear-gradient(90deg, var(--saffron), var(--marigold)); border-radius: 2px; width: 0; }
+.strip .marks { position: absolute; inset: 12px 0; display: flex; pointer-events: none; }
+.strip .marks span { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, .5); }
+.strip .marks b { position: absolute; top: -2px; translate: 4px 0; font: 700 .65rem var(--math); color: #fff; }
+.roko { justify-self: start; }
+
+/* 5 toy train */
+.yard { display: flex; flex-wrap: wrap; gap: 12px; min-height: 90px; padding: 14px; border-radius: 16px; background: rgba(255, 255, 255, .04); border: 1px dashed var(--line); }
+.yard > p { width: 100%; font-size: .85rem; color: var(--faint); }
+.coach { position: relative; border: 0; cursor: pointer; padding: 12px 14px 20px; border-radius: 10px 10px 4px 4px; background: linear-gradient(180deg, var(--c1), var(--c2)); color: #1a1206; text-align: left; box-shadow: 0 6px 14px rgba(0, 0, 0, .35); min-width: 0; }
+.coach::before { content: ""; position: absolute; left: 8px; right: 8px; top: -6px; height: 6px; border-radius: 6px 6px 0 0; background: #3d3170; }
+.coach::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: -9px; height: 16px; background: radial-gradient(circle at 9px 8px, #130e2a 6px, #d9a441 7px, transparent 8px) left / 18px 16px no-repeat, radial-gradient(circle at 9px 8px, #130e2a 6px, #d9a441 7px, transparent 8px) right / 18px 16px no-repeat; }
+.coach .m { font-size: .98rem; white-space: nowrap; }
+.coach .win { display: flex; gap: 5px; margin-bottom: 6px; }
+.coach .win i { width: 16px; height: 9px; border-radius: 2px; background: rgba(255, 255, 255, .55); }
+.trackwrap { overflow-x: auto; padding-bottom: 6px; }
+.track { position: relative; display: flex; align-items: flex-end; gap: 10px; padding: 10px 10px 18px; min-width: max-content; }
+.track::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 8px; background: repeating-linear-gradient(90deg, #8b5a33 0 8px, transparent 8px 18px), linear-gradient(#8f84b8, #8f84b8) 0 0 / 100% 2px no-repeat, linear-gradient(#8f84b8, #8f84b8) 0 100% / 100% 2px no-repeat; }
+.engine { width: 120px; height: 86px; flex: none; }
+.slot { min-width: 210px; min-height: 76px; border-radius: 10px; border: 2px dashed var(--line); display: grid; place-items: center; color: var(--faint); font-size: .85rem; position: relative; }
+.slot .coach { width: 100%; }
+.slot > span { position: absolute; }
+.puff { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: rgba(240, 235, 255, .6); pointer-events: none; }
+
+/* 6 tijori */
+.tij { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .tij { grid-template-columns: 1fr; } }
+.gauges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.gauge { background: radial-gradient(circle at 50% 30%, #2e2360, #1b1440); border-radius: 16px; padding: 8px; display: grid; justify-items: center; box-shadow: inset 0 0 0 3px #d9a441; }
+.gauge svg { width: 100%; max-width: 200px; height: auto; }
+.gauge .lab { font-size: .8rem; color: var(--soft); font-weight: 600; }
+.gauge .val { font: 600 1.35rem var(--math); color: var(--cream); }
+.safe { position: relative; perspective: 1000px; border-radius: 18px; padding: 16px; background: linear-gradient(180deg, #2f6b5c, #1d4a3f); box-shadow: inset 0 0 0 4px #d9a441, 0 20px 40px rgba(0, 0, 0, .5); min-height: 280px; }
+.safe .inside { position: absolute; inset: 16px; border-radius: 12px; background: radial-gradient(circle at 50% 60%, #ffe7a0, #d9a441 40%, #3b2414 85%); display: grid; place-items: center; text-align: center; color: #3b2414; padding: 14px; }
+.safe .inside b { font: 700 1.4rem var(--math); }
+.door { position: relative; z-index: 1; transform-origin: left center; border-radius: 12px; background: linear-gradient(180deg, #2a5f52, #194036); box-shadow: inset 0 0 0 3px #d9a441, 4px 0 10px rgba(0, 0, 0, .4); padding: 18px; display: grid; justify-items: center; gap: 12px; backface-visibility: hidden; }
+.rivets { position: absolute; inset: 8px; pointer-events: none; background: radial-gradient(circle, #d9a441 2.4px, transparent 3px) 0 0 / 100% 100%; }
+.door .rivets { background: radial-gradient(circle at 6px 6px, #d9a441 2.5px, transparent 3px) 0 0 / calc(100% - 0px) calc(100% - 0px) no-repeat, radial-gradient(circle at calc(100% - 6px) 6px, #d9a441 2.5px, transparent 3px), radial-gradient(circle at 6px calc(100% - 6px), #d9a441 2.5px, transparent 3px), radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #d9a441 2.5px, transparent 3px); }
+.wheels { display: flex; align-items: center; gap: 12px; }
+.wheel { display: grid; gap: 6px; justify-items: center; }
+.wheel button { width: 64px; border: 0; border-radius: 8px; background: rgba(0, 0, 0, .3); color: var(--cream); cursor: pointer; padding: 3px 0; font-size: .8rem; }
+.wwin { position: relative; width: 78px; height: 156px; overflow: hidden; border-radius: 12px; background: linear-gradient(90deg, #8a5a10, #ffd36b 30%, #fff1b0 50%, #ffd36b 70%, #8a5a10); touch-action: none; cursor: grab; box-shadow: inset 0 0 0 3px #6b4308; }
+.wwin::before, .wwin::after { content: ""; position: absolute; left: 0; right: 0; height: 52px; z-index: 2; pointer-events: none; }
+.wwin::before { top: 0; background: linear-gradient(rgba(40, 20, 0, .7), transparent); }
+.wwin::after { bottom: 0; background: linear-gradient(transparent, rgba(40, 20, 0, .7)); }
+.wwin .band { position: absolute; left: 0; right: 0; top: 52px; height: 52px; border-block: 2px solid #3b2414; z-index: 1; pointer-events: none; }
+.wlist { position: absolute; left: 0; right: 0; top: 0; }
+.wlist div { height: 52px; display: grid; place-items: center; font: 700 1.5rem var(--math); color: #3b2414; }
+.handle { width: 60px; height: 60px; }
+.notebook { background: var(--cream); color: #3b2414; border-radius: 6px; padding: 12px; box-shadow: 0 10px 24px rgba(0, 0, 0, .35); transform: rotate(.8deg); background-image: repeating-linear-gradient(180deg, transparent 0 21px, rgba(80, 120, 200, .2) 21px 22px); }
+.notebook h4 { margin: 0 0 4px; font-family: var(--hand); font-size: 1.1rem; }
+.notebook svg { width: 100%; height: auto; display: block; }
+
+/* 7 tarazu */
+.tz svg { width: 100%; max-width: 640px; height: auto; display: block; margin: 0 auto; overflow: visible; }
+.tz svg text { font-family: var(--math); }
+.rail { display: grid; gap: 6px; max-width: 560px; margin: 0 auto; width: 100%; }
+.rail .lbl { display: flex; justify-content: space-between; font-size: .95rem; }
+.rail input { width: 100%; accent-color: var(--brass); height: 28px; }
+.beads { position: relative; height: 18px; margin-inline: 10px; }
+.beads i { position: absolute; top: 3px; width: 13px; height: 13px; margin-left: -6.5px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.banners { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.banner { position: relative; border: 0; cursor: pointer; padding: 14px 8px 20px; color: #3b2414; background: var(--cream); font: 700 1.05rem var(--display); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%); transition: transform .2s, background .2s; }
+.banner small { display: block; font: 500 .8rem var(--body); color: #7a5a3a; }
+.banner[aria-pressed="true"] { background: var(--marigold); transform: translateY(4px); }
+
+/* 8 jadoo */
+.show { position: relative; border-radius: 18px; overflow: hidden; background: radial-gradient(ellipse 45% 70% at 50% 0%, rgba(255, 240, 200, .28), transparent 70%), linear-gradient(#1a0f2e, #0d0718); min-height: 420px; padding: 54px 60px 24px; display: grid; gap: 16px; align-content: start; }
+@media (max-width: 640px) { .show { padding-inline: 34px; } }
+.valance { position: absolute; top: 0; left: 0; right: 0; height: 34px; z-index: 3; background: radial-gradient(circle at 18px 34px, transparent 17px, #8e0f2f 18px) 0 0 / 36px 34px; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .4)); }
+.curtain { position: absolute; top: 0; bottom: 0; width: 56px; z-index: 2; background: repeating-linear-gradient(90deg, #a3123a 0 10px, #7a0b2a 10px 18px); }
+.curtain.l { left: 0; transform-origin: left center; box-shadow: inset -8px 0 14px rgba(0, 0, 0, .4); } .curtain.r { right: 0; transform-origin: right center; box-shadow: inset 8px 0 14px rgba(0, 0, 0, .4); }
+@media (max-width: 640px) { .curtain { width: 28px; } }
+.trickrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; position: relative; z-index: 1; }
+@media (max-width: 640px) { .trickrow { grid-template-columns: 1fr; } }
+.mcard { border-radius: 14px; padding: 12px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); display: grid; gap: 8px; }
+.mcard > span { font-size: .9rem; color: var(--soft); }
+.tog { width: 44px; height: 46px; border-radius: 10px; border: 0; cursor: pointer; background: var(--cream); color: #3b2414; font: 700 1.4rem var(--math); box-shadow: 0 3px 0 #c9a46a; transition: transform .25s; }
+.tog.set { background: var(--marigold); }
+.brk { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font: 600 1.35rem var(--math); }
+.reveal { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 14px; align-items: center; }
+@media (max-width: 720px) { .reveal { grid-template-columns: 1fr; } }
+.marked { border-radius: 16px; padding: 16px; background: rgba(255, 255, 255, .06); text-align: center; display: grid; gap: 6px; }
+.marked .stampbig { font: 900 3.2rem var(--display); line-height: 1; }
+.xray { perspective: 1100px; height: 320px; position: relative; }
+.layers { position: absolute; inset: 0; transform-style: preserve-3d; }
+.layer { position: absolute; left: 4%; right: 4%; top: 112px; height: 94px; border-radius: 14px; padding: 10px 14px; display: grid; align-content: center; gap: 2px; background: rgba(255, 241, 214, .96); color: #3b2414; border: 3px solid #c9a46a; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.layer small { font: 700 .7rem var(--body); letter-spacing: .08em; text-transform: uppercase; color: #8a6a4a; }
+.layer .m { white-space: normal; font-size: 1.02rem; }
+.layer .v { font: 700 .86rem var(--body); }
+.layer.ok { border-color: #0d7a63; } .layer.ok .v { color: #0d7a63; }
+.layer.bad { border-color: #a8164f; } .layer.bad .v { color: #a8164f; }
+.star { position: absolute; pointer-events: none; width: 18px; height: 18px; }
+
+/* 9 lantern lane */
+.lane { position: relative; padding-top: 20px; }
+.lane svg.rope { position: absolute; top: 0; left: 0; width: 100%; height: 60px; }
+.lanterns { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 24px; }
+@media (max-width: 760px) { .lanterns { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 22px; } }
+.lan { display: grid; justify-items: center; transform-origin: 50% -24px; animation: sway 4s ease-in-out infinite alternate; }
+.lan:nth-child(2) { animation-delay: -1s; } .lan:nth-child(3) { animation-delay: -2s; } .lan:nth-child(4) { animation-delay: -3s; }
+@keyframes sway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+.lan .cap { width: 70%; height: 12px; border-radius: 4px 4px 2px 2px; background: #d9a441; }
+.lan .body { width: 100%; max-width: 190px; padding: 22px 8px; border-radius: 40% 40% 40% 40% / 30% 30% 30% 30%; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 22px), var(--lc); color: #3b2414; text-align: center; transition: box-shadow .5s, filter .5s; filter: saturate(.55) brightness(.75); }
+.lan.lit .body { filter: none; box-shadow: 0 0 40px 10px color-mix(in srgb, var(--lc) 60%, transparent), inset 0 0 30px rgba(255, 255, 200, .8); }
+.lan .body .m { font-size: 1rem; font-weight: 600; white-space: normal; }
+.lan .tassel { width: 4px; height: 26px; background: var(--rani); border-radius: 2px; }
+.lan .sw { margin-top: 8px; display: flex; align-items: center; gap: 3px; font: 600 1.05rem var(--math); }
+.lan .tog { width: 36px; height: 38px; font-size: 1.15rem; }
+.rules { display: grid; gap: 8px; }
+.rule { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 4px 4px 14px 14px; background: rgba(255, 241, 214, .08); border-top: 4px solid var(--line); font-size: .94rem; }
+.rule .dots { display: flex; gap: 5px; } .rule .dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--line); }
+.rule .dots i.on { background: var(--marigold); box-shadow: 0 0 8px var(--marigold); }
+.rule.match { border-top-color: var(--marigold); background: rgba(255, 178, 30, .16); font-weight: 700; }
+
+/* 10 mithai covers */
+.guess { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+.guess .tag { background: var(--cream); color: #3b2414; padding: 8px 14px; border-radius: 10px 30px 30px 10px; display: inline-flex; align-items: center; gap: 6px; font: 600 1.3rem var(--math); box-shadow: 0 3px 0 #c9a46a; }
+.counter { border-radius: 18px; padding: 26px 16px 18px; background: linear-gradient(180deg, #6d4422, #4a2d16); box-shadow: inset 0 6px 0 #8b5a33; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .counter { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dish { position: relative; border: 0; background: none; cursor: pointer; padding: 0; display: grid; justify-items: center; min-height: 170px; align-content: end; }
+.dish:disabled { cursor: default; }
+.dish .plate2 { width: 100%; max-width: 170px; padding: 14px 6px 22px; border-radius: 50% / 34%; background: radial-gradient(ellipse at 50% 40%, #fff, #dfe4ee 60%, #b9c0d2); color: #3b2414; display: grid; justify-items: center; gap: 4px; }
+.dish .plate2 .m { font-size: .98rem; font-weight: 600; }
+.dish .exp { font: 500 .78rem var(--math); color: #5e4a36; min-height: 1.1em; }
+.dish .exp s { color: #a8164f; }
+.sweets { display: flex; gap: 3px; } .sweets i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe08a, #f29a1f); }
+.dome { position: absolute; left: 50%; bottom: 26px; width: min(160px, 92%); height: 110px; translate: -50% 0; border-radius: 80px 80px 8px 8px; background: radial-gradient(ellipse at 35% 25%, #ffffff, #c8cfe0 35%, #8f97ad 90%); box-shadow: 0 10px 20px rgba(0, 0, 0, .45); pointer-events: none; }
+.dome::before { content: ""; position: absolute; top: -12px; left: 50%; width: 22px; height: 16px; translate: -50% 0; border-radius: 50%; background: #c8cfe0; }
+.dish[aria-pressed="true"] .plate2 { outline: 3px solid var(--marigold); outline-offset: 3px; }
+
+/* 11 jalebi belt */
+.belt { position: relative; height: 250px; border-radius: 20px; overflow: hidden; background: linear-gradient(180deg, #2e2360, #241b4a); }
+.belt .strip2 { position: absolute; left: 0; right: 0; bottom: 30px; height: 26px; background: repeating-linear-gradient(90deg, #4a3d80 0 24px, #3a2f68 24px 48px); }
+.belt .rollers { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: space-around; }
+.belt .rollers i { width: 22px; height: 22px; border-radius: 50%; background: conic-gradient(#8f84b8 0 25%, #5e5490 0 50%, #8f84b8 0 75%, #5e5490 0); }
+.plate3 { position: absolute; left: 50%; top: 14px; width: min(88%, 460px); translate: -50% 0; background: var(--cream); color: #3b2414; border-radius: 22px; padding: 14px; display: grid; gap: 10px; justify-items: center; box-shadow: 0 14px 30px rgba(0, 0, 0, .4); }
+.plate3 .m.q { font-size: 1.7rem; font-weight: 600; }
+.plate3 .opts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.plate3 .opts button { border: 0; border-radius: 999px; padding: 8px 14px; cursor: pointer; background: radial-gradient(circle at 35% 30%, #ffe08a, #f2a21f); color: #3b2414; font: 600 .98rem var(--math); box-shadow: 0 3px 0 #b46a00; }
+.plate3 .opts button:disabled { opacity: .5; }
+.dhol svg { width: 100%; height: auto; display: block; }
+
+/* 12 chitthi wala */
+.tw { position: relative; display: grid; justify-items: center; padding-top: 6px; }
+.paper { position: relative; z-index: 0; width: min(560px, 92%); min-height: 120px; background: #fffaf0; color: #2a1d10; border-radius: 4px 4px 0 0; padding: 18px 22px 30px; box-shadow: 0 -6px 18px rgba(0, 0, 0, .3); background-image: repeating-linear-gradient(180deg, transparent 0 33px, rgba(80, 120, 200, .2) 33px 34px); }
+.paper .hd { font-family: var(--hand); color: #8a6a4a; font-size: .95rem; }
+.pline { font: 600 1.55rem/2 "IBM Plex Mono", monospace; letter-spacing: .02em; min-height: 2em; white-space: pre-wrap; word-break: break-all; }
+.pline .del { color: #a8164f; text-decoration: line-through; text-decoration-thickness: 2px; }
+.pline .cur { display: inline-block; width: 2px; height: 1.2em; background: #a8164f; vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.machine { position: relative; z-index: 1; width: min(640px, 100%); margin-top: -10px; border-radius: 18px 18px 26px 26px; background: linear-gradient(180deg, #2f6b5c, #1d4a3f); box-shadow: inset 0 3px 0 rgba(255, 255, 255, .15), 0 18px 40px rgba(0, 0, 0, .5); padding: 16px 18px 20px; display: grid; gap: 8px; }
+.roller { height: 16px; border-radius: 8px; background: linear-gradient(180deg, #4a4a52, #1d1d22); margin: -26px 30px 4px; }
+.krow { display: flex; justify-content: center; gap: 6px; }
+.krow i { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff, #e8e1d0 55%, #b6ab92); box-shadow: 0 3px 0 #2a1d10; font: 700 .7rem/30px var(--math); text-align: center; color: #3b2414; font-style: normal; }
+.krow i.hit { transform: translateY(3px); box-shadow: 0 0 0 #2a1d10; background: radial-gradient(circle at 40% 35%, #fff, #ffd36b 55%, #d9a441); }
+@media (max-width: 560px) { .krow i { width: 22px; height: 22px; line-height: 22px; } }
+.bell { position: absolute; top: -34px; right: 6%; font: 800 1.1rem var(--display); color: var(--marigold); opacity: 0; }
+.typein { flex: 1; min-width: 200px; font: 600 1.3rem var(--math); padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--booth2); color: var(--ink); }
+.typein:focus { outline: none; border-color: var(--marigold); }
+.tickertape { border-radius: 12px; background: #0d0920; padding: 12px; display: grid; gap: 8px; }
+.tline { position: relative; height: 26px; border-radius: 8px; background: rgba(255, 255, 255, .06); }
+.tline i { position: absolute; top: 5px; width: 3px; height: 16px; border-radius: 2px; background: #c8bde8; }
+.tline i.d { background: var(--rani); }
+.tline b { position: absolute; top: 3px; height: 20px; border-radius: 6px; background: rgba(255, 178, 30, .3); border: 1px solid var(--marigold); }
+.tline .head { position: absolute; top: -3px; width: 2px; height: 32px; background: #fff; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; color: var(--soft); }
+
+/* 13 gubbara */
+.board { border-radius: 18px; padding: 14px 10px 10px; background: linear-gradient(180deg, #1a2a5a, #101a3d); box-shadow: inset 0 0 0 8px #8b5a33, inset 0 0 0 11px #5e3a1e; }
+.balloons { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px 4px; }
+@media (max-width: 640px) { .balloons { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.bl { position: relative; border: 0; background: none; cursor: pointer; padding: 0; display: grid; justify-items: center; animation: float 3s ease-in-out infinite alternate; }
+@keyframes float { to { transform: translateY(-6px); } }
+.bl svg { width: 100%; max-width: 54px; height: auto; overflow: visible; }
+.bl text { font: 700 15px var(--math); }
+.bl .tagx { position: absolute; bottom: 4px; right: 8%; background: var(--cream); color: #3b2414; border-radius: 4px; font: 700 .7rem var(--body); padding: 0 5px; transform: rotate(-10deg); }
+.bl.on svg .skin { stroke: #fff1d6; stroke-width: 3; }
+.bl .pair { position: absolute; top: -6px; left: 50%; translate: -50% 0; white-space: nowrap; font: 700 .7rem var(--body); border-radius: 999px; padding: 0 6px; background: var(--peacock); color: #062b24; opacity: 0; }
+.bl.miss .pair { background: transparent; color: var(--marigold); border: 1px dashed var(--marigold); }
+
+/* 14 tiffin */
+.tf { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 16px; align-items: center; }
+@media (max-width: 620px) { .tf { grid-template-columns: 1fr; } .tf svg.tiffin { justify-self: center; } }
+.tf .big .chunk { display: inline-block; border-radius: 10px; padding: 0 6px; background: rgba(255, 255, 255, .08); }
+svg.tiffin { width: 140px; height: auto; overflow: visible; }
+.moves { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .moves { grid-template-columns: 1fr; } }
+.move { border: 2px solid var(--line); background: var(--booth2); border-radius: 14px; padding: 12px; cursor: pointer; font-weight: 600; text-align: left; transition: border-color .2s, background .2s; }
+.move:hover:not(:disabled) { border-color: var(--a); }
+.move[aria-pressed="true"] { border-color: var(--marigold); background: rgba(255, 178, 30, .14); }
+.move:disabled { cursor: default; opacity: .5; } .move[aria-pressed="true"]:disabled { opacity: 1; }
+.route { display: grid; gap: 8px; min-height: 70px; padding: 14px; border-radius: 16px; background: rgba(0, 0, 0, .2); }
+.rl2 { font: 600 1.3rem var(--math); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rl2 .eqs { color: var(--faint); }
+.mini { display: inline-block; width: 26px; height: 30px; vertical-align: -6px; }
+.flyer { position: fixed; z-index: 60; pointer-events: none; font: 600 2rem var(--math); color: var(--cream); }
+.mental { display: grid; gap: 8px; padding: 14px; border-radius: 16px; border: 2px dashed var(--line); }
+.mental input { font: 600 1.3rem var(--math); width: 9rem; padding: 6px 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--booth2); color: var(--ink); }
+
+/* 15 mithu's map */
+.mapgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 16px; }
+@media (max-width: 820px) { .mapgrid { grid-template-columns: 1fr; } }
+.parch { position: relative; border-radius: 10px; background: radial-gradient(ellipse at 50% 40%, #fff6e2, #f1dcb0 80%); box-shadow: inset 0 0 40px rgba(120, 80, 30, .35); }
+.parch svg { width: 100%; height: auto; display: block; }
+.ribbons { display: grid; gap: 8px; align-content: start; }
+.rib { display: grid; grid-template-columns: minmax(0, 1fr) 3rem; gap: 2px 8px; font-size: .9rem; }
+.rib .bar { grid-column: 1 / -1; height: 12px; border-radius: 2px 8px 8px 2px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.rib .bar i { display: block; height: 100%; width: 0; background: var(--c); }
+.rib em { font-style: normal; text-align: right; font-family: var(--math); color: var(--soft); }
+.rib.lead { font-weight: 700; }
+.hist { display: flex; flex-wrap: wrap; gap: 6px; }
+.hist span { font-size: .82rem; border-radius: 999px; padding: 2px 10px; background: rgba(255, 255, 255, .07); }
+
+/* 16 daakghar */
+.post { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; align-items: start; }
+@media (max-width: 820px) { .post { grid-template-columns: 1fr; } }
+.card2 { position: relative; aspect-ratio: 3 / 2; max-width: 100%; background: #fff4dc; color: #3b2414; border-radius: 6px; box-shadow: 0 14px 30px rgba(0, 0, 0, .45); display: grid; grid-template-columns: 1.3fr 1fr; padding: 16px; gap: 12px; }
+.card2::after { content: ""; position: absolute; top: 14px; bottom: 14px; left: 56%; width: 1px; background: #c9a46a; }
+.card2 .msg { display: grid; align-content: start; gap: 6px; }
+.card2 .msg span { font-family: var(--hand); color: #8a6a4a; }
+.card2 input { width: 100%; font: 700 1.5rem var(--hand); border: 0; border-bottom: 2px dashed #c9a46a; background: transparent; color: #1d2a6a; padding: 4px 0; }
+.card2 input:focus { outline: none; border-bottom-color: #a8164f; }
+.card2 .addr { display: grid; align-content: end; gap: 14px; padding-left: 14px; }
+.card2 .addr i { height: 1px; background: #c9a46a; }
+.card2 .addr small { font-family: var(--hand); color: #8a6a4a; }
+.stampbox { position: absolute; top: 14px; right: 14px; width: 62px; height: 74px; background: #fff; padding: 4px; border: 2px dashed #c9a46a; }
+.stampbox div { width: 100%; height: 100%; background: linear-gradient(#ec3f8c, #a8164f); display: grid; place-items: center; color: #fff; font: 800 .8rem var(--display); text-align: center; }
+.postmark { position: absolute; left: 40%; top: 30%; width: 150px; height: 150px; border-radius: 50%; border: 5px double #a8164f; color: #a8164f; display: grid; place-items: center; text-align: center; font: 800 .9rem var(--display); letter-spacing: .06em; opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+.postmark span { display: block; font: 700 .7rem var(--body); }
+.slip { background: var(--cream); color: #3b2414; border-radius: 6px; padding: 14px; display: grid; gap: 8px; box-shadow: 0 10px 24px rgba(0, 0, 0, .35); transform: rotate(.6deg); }
+.slip h4 { margin: 0; font: 700 .78rem var(--body); letter-spacing: .08em; text-transform: uppercase; color: #8a6a4a; }
+.slip .read { font: 600 1.6rem var(--math); min-height: 2.2rem; }
+.flag { font-family: var(--hand); font-size: 1rem; color: #a8164f; padding-left: 26px; position: relative; }
+.flag::before { content: "!"; position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #a8164f; display: grid; place-items: center; font: 800 .8rem var(--body); text-align: center; line-height: 16px; }
+.envs { display: flex; gap: 6px; flex-wrap: wrap; }
+.envs button { border: 0; border-radius: 4px; background: #f1dcb0; color: #3b2414; padding: 6px 10px; font: 600 .85rem var(--math); cursor: pointer; box-shadow: 0 2px 0 #c9a46a; }
+</style>
+<script>
+gsap.registerPlugin(Draggable, Flip);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const sgn = (n) => (n < 0 ? `−${-n}` : `${n}`);
+const pm = (n) => (n < 0 ? `− ${-n}` : `+ ${n}`);
+const NS = "http://www.w3.org/2000/svg";
+const svgEl = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+const html = (s) => { const t = document.createElement("template"); t.innerHTML = s.trim(); return t.content.firstElementChild; };
+const SKILLS = { PAIR: ["x² + bx + c", "--marigold"], SQUARES: ["Squares", "--rani"], SIGNS: ["Signs", "--saffron"], CHECK: ["Checking", "--peacock"], GROUP: ["Grouping", "--sky-blue"] };
+
+// ---------- number picker shared by several stalls ----------
+function picker(id, v, cls = "") { return `<span class="pick ${cls}"><button type="button" data-np="${id}" data-d="-1" aria-label="less">‹</button><output id="${id}">${sgn(v)}</output><button type="button" data-np="${id}" data-d="1" aria-label="more">›</button></span>`; }
+function wirePickers(root, st, onChange, lo = -9, hi = 9) {
+  $$("[data-np]", root).forEach((b) => b.addEventListener("click", () => {
+    const id = b.dataset.np, d = +b.dataset.d;
+    let v = st[id] + d; if (v === 0) v += d;
+    st[id] = Math.max(lo, Math.min(hi, v));
+    const o = $(`#${id}`, root); o.textContent = sgn(st[id]);
+    if (!REDUCED) gsap.fromTo(o, { y: d * -10, opacity: .2 }, { y: 0, opacity: 1, duration: .3, ease: "back.out(3)" });
+    onChange && onChange(id);
+  }));
+}
+
+// ---------- the rangoli: progress that grows from what Lotus learns ----------
+const Rangoli = (() => {
+  const layers = [];
+  const motif = (skill, s) => ({
+    PAIR: `<ellipse cx="0" cy="${-s}" rx="${s * .45}" ry="${s}"/>`,
+    SQUARES: `<path d="M0 ${-2.1 * s} L${s * .62} ${-s} L0 0 L${-s * .62} ${-s}Z"/>`,
+    SIGNS: `<path d="M0 0 C${s * .8} ${-s * .6} ${s * .45} ${-s * 1.6} 0 ${-s * 2.1} C${-s * .45} ${-s * 1.6} ${-s * .8} ${-s * .6} 0 0Z"/>`,
+    CHECK: `<circle cx="0" cy="${-s}" r="${s * .55}"/>`,
+    GROUP: `<rect x="${-s * .5}" y="${-s * 1.6}" width="${s}" height="${s}" rx="${s * .2}" transform="rotate(45 0 ${-s * 1.1})"/>`,
+  }[skill]);
+  function layerSVG(L, k, gap) {
+    const r = 20 + k * gap, n = 8 * (1 + Math.round(L.strength * 2)), s = 4 + L.strength * 4;
+    const col = css(SKILLS[L.skill][1]);
+    const solid = L.cert >= .55;
+    const paint = solid ? `fill="${col}" stroke="#130e2a" stroke-width="1"` : `fill="${col}" fill-opacity=".18" stroke="${col}" stroke-width="1.6" stroke-dasharray="2 2.5"`;
+    let g = `<g class="rl" data-k="${k}">`;
+    for (let i = 0; i < n; i++) g += `<g class="mo" transform="rotate(${(360 / n) * i + k * 7}) translate(0 ${-r})"><g ${paint}>${motif(L.skill, s)}</g></g>`;
+    return g + "</g>";
+  }
+  function render(svg, animate) {
+    const gap = Math.min(10, 150 / Math.max(1, layers.length));
+    svg.innerHTML = `<circle r="172" fill="#1d1540" stroke="#3d3170" stroke-width="2"/>` +
+      layers.map((L, k) => layerSVG(L, k, gap)).join("") +
+      `<circle r="11" fill="#ffd36b"/><path d="M0 -26 C6 -18 5 -12 0 -9 C-5 -12 -6 -18 0 -26Z" fill="#ff7a1f"/><circle r="5" fill="#ff7a1f"/>`;
+    if (animate && !REDUCED && layers.length) {
+      const last = $$(".rl", svg).at(-1);
+      gsap.from($$(".mo > g", last), { scale: 0, transformOrigin: "50% 100%", duration: .5, stagger: { each: .025 }, ease: "back.out(2.5)" });
+    }
+  }
+  function add(skill, strength = .6, cert = .7) {
+    layers.push({ skill, strength, cert });
+    render($("#rgMini"), true);
+    if (!$("#rgModal").hidden) render($("#rgBig"), true);
+    $("#rgLabel").textContent = `Your rangoli · ${layers.length} ring${layers.length > 1 ? "s" : ""}`;
+    if (!REDUCED) gsap.fromTo("#rgOpen", { scale: 1.12 }, { scale: 1, duration: .6, ease: "elastic.out(1,.4)" });
+  }
+  return { add, render, count: () => layers.length };
+})();
+
+// ---------- Lotus's notebook ----------
+const Note = (() => {
+  const list = $("#nbList"), badge = $("#nbCount");
+  let items = [];
+  function add(where, text, tone = "") {
+    items.unshift({ where, text, tone, at: new Date() });
+    list.innerHTML = items.map((i) => `<li class="${i.tone}"><small>${i.where} · ${i.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</small>${i.text}</li>`).join("");
+    badge.textContent = items.length;
+    if (!REDUCED) gsap.fromTo(badge, { scale: 1.6 }, { scale: 1, duration: .5, ease: "elastic.out(1,.4)" });
+  }
+  return { add };
+})();
+
+// ---------- stalls ----------
+const ICON = {
+  coin: `<circle cx="40" cy="34" r="26" fill="#d9a441"/><circle cx="40" cy="34" r="20" fill="#ffd36b" stroke="#a8741c" stroke-width="2"/><text x="40" y="42" text-anchor="middle" font-size="22" font-weight="800" fill="#a8741c" font-family="Baloo 2,sans-serif">₹</text>`,
+  parrot: `<circle cx="38" cy="30" r="20" fill="#3fbf55"/><path d="M54 24 C68 24 70 38 58 42 C58 34 56 30 54 30Z" fill="#ff3b3b"/><circle cx="44" cy="24" r="5" fill="#fff"/><circle cx="45" cy="24" r="2.6" fill="#130e2a"/><path d="M22 34 C28 44 42 46 50 40" stroke="#ec3f8c" stroke-width="3.5" fill="none"/><rect x="18" y="52" width="44" height="12" rx="3" fill="#8b5a33"/>`,
+  rangoli: `<g transform="translate(40 34)">${Array.from({ length: 8 }, (_, i) => `<ellipse cx="0" cy="-15" rx="6" ry="13" fill="${i % 2 ? "#ec3f8c" : "#ffb21e"}" transform="rotate(${i * 45})"/>`).join("")}<circle r="8" fill="#16c2a3"/><circle r="3" fill="#fff1d6"/></g>`,
+  bioscope: `<rect x="12" y="14" width="56" height="38" rx="6" fill="#8b5a33"/><circle cx="40" cy="33" r="13" fill="#d9a441"/><circle cx="40" cy="33" r="8" fill="#130e2a"/><circle cx="37" cy="30" r="2.5" fill="#fff" opacity=".7"/><path d="M20 52 L16 66 M60 52 L64 66 M40 52 V66" stroke="#d9a441" stroke-width="3"/><rect x="26" y="6" width="28" height="8" rx="3" fill="#ec3f8c"/>`,
+  train: `<rect x="10" y="24" width="38" height="26" rx="4" fill="#ec3f8c"/><rect x="40" y="14" width="22" height="36" rx="4" fill="#ff7a1f"/><rect x="46" y="20" width="10" height="9" rx="2" fill="#fff1d6"/><rect x="16" y="8" width="8" height="16" fill="#3d3170"/><circle cx="20" cy="54" r="7" fill="#130e2a" stroke="#d9a441" stroke-width="2"/><circle cx="52" cy="54" r="7" fill="#130e2a" stroke="#d9a441" stroke-width="2"/><circle cx="12" cy="4" r="4" fill="#c8bde8" opacity=".6"/>`,
+  safe: `<rect x="14" y="8" width="52" height="52" rx="6" fill="#2f6b5c"/><rect x="20" y="14" width="40" height="40" rx="4" fill="#245448" stroke="#d9a441" stroke-width="2"/><circle cx="40" cy="34" r="11" fill="#ffd36b" stroke="#a8741c" stroke-width="2"/><path d="M40 25 V30 M49 34 H44" stroke="#a8741c" stroke-width="2.5"/><rect x="20" y="60" width="8" height="5" fill="#130e2a"/><rect x="52" y="60" width="8" height="5" fill="#130e2a"/>`,
+  tarazu: `<path d="M40 10 V58" stroke="#d9a441" stroke-width="4"/><path d="M14 18 H66" stroke="#d9a441" stroke-width="4" stroke-linecap="round"/><path d="M14 18 L6 40 H22Z M66 18 L58 40 H74Z" fill="none" stroke="#c8bde8" stroke-width="1.5"/><path d="M4 40 Q14 50 24 40Z M56 40 Q66 50 76 40Z" fill="#ffb21e"/><rect x="28" y="58" width="24" height="6" rx="2" fill="#8b5a33"/>`,
+  jadoo: `<rect x="22" y="12" width="36" height="30" rx="3" fill="#130e2a" stroke="#c8bde8" stroke-width="1.5"/><rect x="22" y="34" width="36" height="6" fill="#ec3f8c"/><rect x="12" y="42" width="56" height="7" rx="3" fill="#130e2a" stroke="#c8bde8" stroke-width="1.5"/><path d="M58 58 L74 44" stroke="#fff1d6" stroke-width="4" stroke-linecap="round"/><path d="M71 40 l3 -5 l3 5 l5 -2 l-3 5 l3 4 l-5 0 l-3 5 l-1 -6 z" fill="#ffd36b"/>`,
+  lantern: `<line x1="40" y1="0" x2="40" y2="10" stroke="#c8bde8" stroke-width="1.5"/><path d="M28 10 H52 L56 16 H24Z" fill="#d9a441"/><ellipse cx="40" cy="36" rx="18" ry="20" fill="#ff7a1f"/><ellipse cx="40" cy="36" rx="9" ry="18" fill="#ffd36b" opacity=".8"/><path d="M28 56 H52 L48 62 H32Z" fill="#d9a441"/><path d="M36 62 V70 M40 62 V72 M44 62 V70" stroke="#ec3f8c" stroke-width="2"/>`,
+  cloche: `<ellipse cx="40" cy="56" rx="32" ry="7" fill="#d9a441"/><path d="M14 54 C14 30 66 30 66 54Z" fill="#c8cfe0"/><path d="M22 46 C24 38 34 34 40 34" stroke="#fff" stroke-width="3" fill="none" opacity=".7"/><circle cx="40" cy="30" r="4" fill="#c8cfe0"/>`,
+  jalebi: `<g fill="none" stroke="#ffb21e" stroke-width="5" stroke-linecap="round"><path d="M40 34 m0 -4 a4 4 0 1 1 -4 4 a8 8 0 1 1 8 8 a12 12 0 1 1 -12 -12 a16 16 0 1 1 16 16"/></g><ellipse cx="40" cy="62" rx="30" ry="5" fill="#16c2a3" opacity=".6"/>`,
+  typewriter: `<rect x="22" y="4" width="36" height="22" fill="#fff1d6"/><path d="M26 10 H54 M26 15 H48 M26 20 H52" stroke="#8f84b8" stroke-width="1.5"/><rect x="10" y="24" width="60" height="12" rx="4" fill="#3d3170"/><path d="M8 36 H72 L66 62 H14Z" fill="#2f6b5c"/>${Array.from({ length: 8 }, (_, i) => `<circle cx="${20 + i * 6}" cy="${46 + (i % 2) * 6}" r="2.6" fill="#fff1d6"/>`).join("")}`,
+  balloon: `<path d="M24 46 Q22 58 30 66 M42 40 Q44 56 38 68 M58 46 Q60 58 52 66" stroke="#c8bde8" stroke-width="1.2" fill="none"/><ellipse cx="24" cy="30" rx="12" ry="15" fill="#ec3f8c"/><ellipse cx="42" cy="24" rx="13" ry="16" fill="#ffb21e"/><ellipse cx="58" cy="30" rx="12" ry="15" fill="#16c2a3"/><ellipse cx="38" cy="18" rx="3" ry="5" fill="#fff" opacity=".5"/>`,
+  tiffin: `<rect x="22" y="14" width="36" height="14" rx="3" fill="#c8cfe0"/><rect x="22" y="30" width="36" height="14" rx="3" fill="#b4bdd2"/><rect x="22" y="46" width="36" height="14" rx="3" fill="#c8cfe0"/><path d="M18 10 V50 M62 10 V50" stroke="#8f84b8" stroke-width="3"/><path d="M18 10 Q40 -6 62 10" stroke="#8f84b8" stroke-width="3" fill="none"/><text x="40" y="41" text-anchor="middle" font-size="11" font-weight="800" fill="#ec3f8c" font-family="Baloo 2,sans-serif">A</text>`,
+  map: `<path d="M10 14 L30 8 L50 14 L70 8 V58 L50 64 L30 58 L10 64Z" fill="#fff1d6"/><path d="M30 8 V58 M50 14 V64" stroke="#c9a46a" stroke-width="1.5"/><path d="M18 50 C28 30 42 46 58 24" stroke="#ec3f8c" stroke-width="2.5" stroke-dasharray="3 3" fill="none"/><circle cx="58" cy="22" r="5" fill="#16c2a3"/>`,
+  daak: `<rect x="22" y="14" width="36" height="50" rx="16" fill="#e0262b"/><rect x="28" y="28" width="24" height="5" rx="2" fill="#130e2a"/><rect x="30" y="40" width="20" height="12" rx="2" fill="#ffd36b"/><rect x="34" y="62" width="12" height="6" fill="#8b5a33"/><path d="M26 18 Q40 6 54 18" fill="#b81c21"/>`,
+};
+const STALLS = [
+  { id: "sikka", name: "Sikka Toss", hi: "सिक्का", tag: "Four coins, four brass thalis. Toss them where you think the answer is.", a: "#ffb21e", b: "#ec3f8c", icon: "coin", pitch: "Toss four coins. Split them if you're torn." },
+  { id: "tota", name: "Mithu's Cards", hi: "तोता", tag: "Mithu picks a fortune card. Is it true, false, or are you not sure?", a: "#3fbf55", b: "#ffb21e", icon: "parrot", pitch: "Let me pick you some fortune cards!" },
+  { id: "rangoli", name: "Rangoli Floor", hi: "रंगोली", tag: "Lay the tiles into one perfect rectangle. The edges tell you the factors.", a: "#ec3f8c", b: "#16c2a3", icon: "rangoli", pitch: "Lay tiles into a rectangle. When it fits, the diyas light." },
+  { id: "bioscope", name: "Bioscope", hi: "बाइस्कोप", tag: "Sam's working plays like an old film. Shout ROKO the moment it goes wrong.", a: "#ff7a1f", b: "#3d3170", icon: "bioscope", pitch: "An old film! Stop it the moment something goes wrong." },
+  { id: "rail", name: "Toy Train", hi: "रेलगाड़ी", tag: "Couple the right coaches, in order, and wave the green flag.", a: "#16c2a3", b: "#ffb21e", icon: "train", pitch: "Couple the coaches in the right order." },
+  { id: "tijori", name: "Tijori", hi: "तिजोरी", tag: "Two brass dials. Find the numbers that open the safe.", a: "#2f6b5c", b: "#d9a441", icon: "safe", pitch: "Crack the safe. I'll watch how you hunt." },
+  { id: "tarazu", name: "Tarazu", hi: "तराज़ू", tag: "Weigh both sides for different x. Always, sometimes, or never equal?", a: "#d9a441", b: "#8b5a33", icon: "tarazu", pitch: "Balance the tarazu. Is it always equal?" },
+  { id: "jadoo", name: "Jadoo Show", hi: "जादू", tag: "Perform a factorising trick, then reveal how it really worked.", a: "#ec3f8c", b: "#130e2a", icon: "jadoo", pitch: "A magic trick, then the reveal." },
+  { id: "lantern", name: "Lantern Lane", hi: "लालटेन", tag: "Light four lanterns by choosing their signs.", a: "#ff7a1f", b: "#ffb21e", icon: "lantern", pitch: "Light the lanterns. Four sign puzzles." },
+  { id: "mithai", name: "Mithai Covers", hi: "ढक्कन", tag: "Guess what's under the covers before you lift them.", a: "#63b6ff", b: "#fff1d6", icon: "cloche", pitch: "Guess before you lift the covers." },
+  { id: "jalebi", name: "Jalebi Belt", hi: "जलेबी", tag: "Quick plates roll past on the belt. Keep up, and watch out.", a: "#ffb21e", b: "#ff7a1f", icon: "jalebi", pitch: "Fast plates! Don't get fooled." },
+  { id: "chitthi", name: "Chitthi Wala", hi: "चिट्ठी", tag: "Type your answer. The letter writer replays every keystroke.", a: "#2f6b5c", b: "#fff1d6", icon: "typewriter", pitch: "Type to the letter writer." },
+  { id: "gubbara", name: "Gubbara Wall", hi: "गुब्बारा", tag: "Tag every balloon that works. Find all of them.", a: "#ec3f8c", b: "#63b6ff", icon: "balloon", pitch: "Tag every balloon that works!" },
+  { id: "tiffin", name: "Tiffin Trick", hi: "डिब्बा", tag: "Pack a bracket into a tiffin and see what happens.", a: "#8f84b8", b: "#c8cfe0", icon: "tiffin", pitch: "Pack a bracket into a tiffin." },
+  { id: "naksha", name: "Mithu's Map", hi: "नक्शा", tag: "Watch me choose which stall tells Lotus the most about a student.", a: "#fff1d6", b: "#ec3f8c", icon: "map", pitch: "See how I choose the next stall." },
+  { id: "daak", name: "Daakghar", hi: "डाकघर", tag: "Write your answer on a postcard. The postmaster reads it back before stamping.", a: "#e0262b", b: "#ffb21e", icon: "daak", pitch: "Post your answer on a postcard." },
+];
+const GAMES = {};
+const visited = new Set();
+const SUGGEST = ["tijori", "sikka", "bioscope", "tota", "rangoli", "tarazu", "jadoo", "lantern", "gubbara", "mithai", "rail", "jalebi", "tiffin", "chitthi", "daak", "naksha"];
+const iconSVG = (k, cls = "icon") => `<svg class="${cls}" viewBox="0 0 80 70" aria-hidden="true">${ICON[k]}</svg>`;
+
+function renderMap() {
+  const g = $("#grounds");
+  g.innerHTML = STALLS.map((s, i) => `<button class="stall ${visited.has(s.id) ? "visited" : ""}" type="button" data-id="${s.id}" style="--a:${s.a};--b:${s.b}">
+      <span class="awning"><span class="bulbs">${"<i></i>".repeat(9)}</span></span>
+      <span class="no">${String(i + 1).padStart(2, "0")}</span>
+      <svg class="done" viewBox="0 0 28 28" aria-hidden="true">${Array.from({ length: 8 }, (_, k) => `<circle cx="${14 + Math.cos(k * Math.PI / 4) * 9}" cy="${14 + Math.sin(k * Math.PI / 4) * 9}" r="4" fill="${k % 2 ? "#ffb21e" : "#ff7a1f"}"/>`).join("")}<circle cx="14" cy="14" r="4" fill="#ec3f8c"/></svg>
+      <span class="inner">${iconSVG(s.icon)}</span>
+      <span class="sign"><b>${s.name}</b><small>${s.hi}</small></span>
+    </button>`).join("");
+  $$(".stall", g).forEach((b) => b.addEventListener("click", () => openStall(b.dataset.id)));
+  suggest();
+}
+function suggest() {
+  const next = SUGGEST.find((id) => !visited.has(id) && GAMES[id]);
+  $$(".stall").forEach((b) => b.classList.toggle("suggested", b.dataset.id === next));
+  const s = STALLS.find((x) => x.id === next);
+  $("#mithuSays").innerHTML = s ? `${visited.size ? "Shabash! " : "Namaste! I'm Mithu. "}Try <b>${s.name}</b> next. ${s.pitch}<br><button type="button" id="mithuGo">Take me there</button>` : "You've played every stall! Open your rangoli to see it all.<br><button type=\"button\" id=\"mithuGo\">Show my rangoli</button>";
+  $("#mithuGo").onclick = () => (s ? openStall(s.id) : openRangoli());
+}
+
+let cleanup = null, current = null;
+function openStall(id) {
+  const s = STALLS.find((x) => x.id === id), game = GAMES[id];
+  if (!s || !game) return;
+  cleanup && cleanup(); cleanup = null; current = id;
+  const scene = $("#scene");
+  scene.style.setProperty("--a", s.a); scene.style.setProperty("--b", s.b);
+  $("#boothhead").innerHTML = `<div class="awning"><span class="bulbs">${"<i></i>".repeat(16)}</span></div>
+    <div class="boothtitle">${iconSVG(s.icon)}<div><h2>${s.name} <span style="font-size:.55em;color:var(--soft);font-weight:600">${s.hi}</span></h2><p>${s.tag}</p></div><button class="back" type="button" id="backBtn">← Back to the fair</button></div>`;
+  $("#backBtn").onclick = closeStall;
+  const booth = $("#booth"); booth.innerHTML = "";
+  $("#map").hidden = true; scene.hidden = false;
+  window.scrollTo({ top: 0, behavior: "auto" });
+  if (!REDUCED) gsap.fromTo(scene, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .55, ease: "power3.out", clearProps: "transform" });
+  const api = {
+    note: (t, tone) => Note.add(s.name, t, tone),
+    learn: (skill, strength, cert) => { Rangoli.add(skill, strength, cert); visited.add(id); },
+    noticed(text) {
+      let n = $(".noticed", booth);
+      if (!n) { n = document.createElement("div"); n.className = "noticed"; booth.appendChild(n); }
+      n.innerHTML = `<span class="from">Lotus noticed</span>${text}`;
+      if (!REDUCED) gsap.fromTo(n, { y: 24, opacity: 0, rotation: -5 }, { y: 0, opacity: 1, rotation: -.6, duration: .6, ease: "back.out(2)" });
+    },
+  };
+  cleanup = game.mount(booth, api) || null;
+  try { history.replaceState(null, "", `#${id}`); } catch {}
+}
+function closeStall() {
+  cleanup && cleanup(); cleanup = null; current = null;
+  gsap.killTweensOf($$("#booth *"));
+  $("#scene").hidden = true; $("#map").hidden = false;
+  renderMap();
+  window.scrollTo({ top: 0, behavior: "auto" });
+  if (!REDUCED) gsap.from(".stall", { opacity: 0, y: 20, stagger: .03, duration: .4, ease: "power2.out", clearProps: "opacity,transform" });
+  try { history.replaceState(null, "", location.pathname); } catch {}
+}
+function openRangoli() {
+  const m = $("#rgModal"); m.hidden = false;
+  Rangoli.render($("#rgBig"), false);
+  if (!REDUCED) gsap.from($$("#rgBig .mo > g"), { scale: 0, transformOrigin: "50% 100%", stagger: .004, duration: .4, ease: "back.out(2)" });
+  $("#rgText").textContent = Rangoli.count()
+    ? `${Rangoli.count()} ring${Rangoli.count() > 1 ? "s" : ""} so far. Colour shows the skill, solid shapes a sure answer, dotted ones a guess, and more petals mean Lotus learned more. Right and wrong look exactly the same.`
+    : "Empty for now. Every stall you play adds a ring.";
+}
+
+// ---------- ambience ----------
+(function ambience() {
+  const st = $("#stars");
+  st.innerHTML = Array.from({ length: 90 }, () => `<i style="left:${Math.random() * 100}%;top:${Math.random() * 70}%;animation-delay:${(Math.random() * 3).toFixed(2)}s;opacity:${(.2 + Math.random() * .6).toFixed(2)}"></i>`).join("");
+  if (!REDUCED) for (let i = 0; i < 7; i++) {
+    const k = document.createElement("i"); k.className = "kandil";
+    k.style.left = `${5 + Math.random() * 90}%`; k.style.animationDuration = `${22 + Math.random() * 18}s`; k.style.animationDelay = `-${Math.random() * 30}s`;
+    k.style.transform = `scale(${.6 + Math.random() * .6})`;
+    document.body.appendChild(k);
+  }
+  const L = $("#lights"), cols = ["#ffb21e", "#ec3f8c", "#16c2a3", "#ff7a1f", "#63b6ff"];
+  let s = "";
+  for (const [y0, sag] of [[6, 40], [2, 58]]) {
+    s += `<path d="M0 ${y0} Q600 ${y0 + sag * 2} 1200 ${y0}" stroke="#3d3170" stroke-width="1.5" fill="none"/>`;
+    for (let i = 1; i < 30; i++) {
+      const t = i / 30, x = 1200 * t, y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * (y0 + sag * 2) + t * t * y0;
+      s += `<circle cx="${x}" cy="${y + 5}" r="4" fill="${cols[(i + y0) % 5]}" class="lb" style="filter:drop-shadow(0 0 5px ${cols[(i + y0) % 5]})"/>`;
+    }
+  }
+  L.innerHTML = s;
+  if (!REDUCED) gsap.to($$(".lb", L), { opacity: .35, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut", delay: (i) => (i % 9) * .17 });
+})();
+
+$("#home").onclick = () => { if (current) closeStall(); };
+$("#rgOpen").onclick = openRangoli;
+$("#rgClose").onclick = () => ($("#rgModal").hidden = true);
+$("#rgModal").addEventListener("click", (e) => { if (e.target.id === "rgModal") $("#rgModal").hidden = true; });
+$("#nbOpen").onclick = () => $("#drawer").classList.add("open");
+$("#nbClose").onclick = () => $("#drawer").classList.remove("open");
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("#rgModal").hidden = true; $("#drawer").classList.remove("open"); } });
+
+// =================== 1. Sikka Toss ===================
+GAMES.sikka = { mount(booth, api) {
+  const OPTS = [
+    { t: "(x − 3)(x − 1)", k: "ps", name: "product and sum swapped" },
+    { t: "(x − 1)(x + 4)", k: "right", name: "the correct one" },
+    { t: "(x − 2)(x + 2)", k: "po", name: "right product, wrong sum" },
+    { t: "(x − 4)(x + 1)", k: "sw", name: "right numbers, signs flipped" },
+  ];
+  const PAIRS = { "right|sw": "the signs inside the brackets", "po|right": "whether the numbers must also add to 3", "ps|right": "which number is the product and which the sum", "po|sw": "both the sum and the signs", "ps|sw": "the product–sum rule itself", "po|ps": "the product–sum rule itself" };
+  booth.innerHTML = `<p class="ask">Which thali holds the same thing as this? You have four coins. Put them all on one if you're sure, or split them if you're torn.</p>
+    <div class="big">x² + 3x − 4</div>
+    <div class="cloth" id="cloth">
+      <div class="thalis">${OPTS.map((o, i) => `<button class="thali" type="button" data-i="${i}" aria-label="Toss a coin onto ${o.t}"><span class="plate"></span><span class="lbl">${o.t}</span><span class="cnt"></span></button>`).join("")}</div>
+      <div class="pouch"><span>Your coins</span>${'<i class="spot"></i>'.repeat(4)}</div>
+      <div class="coins"></div>
+    </div>
+    <div class="row"><button class="btn" id="lock" type="button" disabled>Done tossing</button><span id="left" style="color:var(--soft)">4 coins left</span></div>`;
+  const cloth = $("#cloth", booth), layer = $(".coins", booth), plates = $$(".thali", booth), spots = $$(".spot", booth);
+  const coins = Array.from({ length: 4 }, () => ({ at: -1, x: 0, y: 0, el: html(`<button class="coin" type="button" aria-label="coin">₹</button>`) }));
+  coins.forEach((c) => layer.appendChild(c.el));
+  const rel = (el) => { const a = el.getBoundingClientRect(), b = cloth.getBoundingClientRect(); return { x: a.left - b.left + a.width / 2, y: a.top - b.top + a.height / 2 }; };
+  const STACK = [[0, 0], [14, -8], [-14, -6], [2, -18]];
+  function target(c) {
+    if (c.at < 0) return rel(spots[coins.filter((d) => d.at < 0).indexOf(c)]);
+    const p = rel($(".plate", plates[c.at])), k = coins.filter((d) => d.at === c.at).indexOf(c);
+    return { x: p.x + STACK[k][0], y: p.y + STACK[k][1] };
+  }
+  function fly(c, instant) {
+    const to = target(c);
+    if (c.tw) { c.tw.kill(); c.x = gsap.getProperty(c.el, "x"); c.y = gsap.getProperty(c.el, "y"); }
+    const from = { x: c.x, y: c.y };
+    c.x = to.x; c.y = to.y;
+    if (instant || REDUCED) return gsap.set(c.el, { x: to.x, y: to.y, scaleX: 1 });
+    const ctrl = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 120 }, o = { p: 0 };
+    c.tw = gsap.to(o, { p: 1, duration: .7, ease: "power1.inOut", onUpdate() { const p = o.p, q = 1 - p; gsap.set(c.el, { x: q * q * from.x + 2 * q * p * ctrl.x + p * p * to.x, y: q * q * from.y + 2 * q * p * ctrl.y + p * p * to.y, scaleX: .2 + .8 * Math.abs(Math.cos(p * Math.PI * 4)) }); },
+      onComplete() {
+        gsap.set(c.el, { scaleX: 1 });
+        gsap.fromTo(c.el, { scaleY: .6 }, { scaleY: 1, duration: .5, ease: "elastic.out(1.2,.35)" });
+        if (c.at >= 0) {
+          gsap.fromTo($(".plate", plates[c.at]), { rotation: -4 }, { rotation: 0, duration: .6, ease: "elastic.out(1,.3)" });
+          for (let i = 0; i < 6; i++) { const s = html(`<i class="spark"></i>`); layer.appendChild(s); const a = (i / 6) * Math.PI * 2; gsap.fromTo(s, { x: to.x, y: to.y, rotation: (a * 180) / Math.PI + 90, opacity: 1 }, { x: to.x + Math.cos(a) * 34, y: to.y + Math.sin(a) * 34, opacity: 0, duration: .5, ease: "power2.out", onComplete: () => s.remove() }); }
+        }
+      } });
+  }
+  const layout = (instant) => coins.forEach((c) => fly(c, instant));
+  function counts() { return OPTS.map((_, i) => coins.filter((c) => c.at === i).length); }
+  function refresh() {
+    const n = counts(), placed = n.reduce((a, b) => a + b, 0);
+    plates.forEach((p, i) => { p.classList.toggle("has", n[i] > 0); $(".cnt", p).textContent = `${n[i]} coin${n[i] > 1 ? "s" : ""}`; });
+    $("#lock", booth).disabled = placed < 4;
+    $("#left", booth).textContent = placed < 4 ? `${4 - placed} coin${4 - placed > 1 ? "s" : ""} left` : "All four tossed";
+  }
+  plates.forEach((p, i) => p.addEventListener("click", () => {
+    const c = coins.find((d) => d.at < 0);
+    if (!c) return;
+    c.at = i; api.note(`Tossed a coin onto ${OPTS[i].t}`); layout(); refresh();
+  }));
+  coins.forEach((c) => c.el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (c.at < 0) return;
+    api.note(`Took a coin back from ${OPTS[c.at].t}`, "warn"); c.at = -1; layout(); refresh();
+  }));
+  $("#lock", booth).addEventListener("click", () => {
+    const n = counts(), order = n.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]);
+    const [[n1, i1], [n2, i2]] = order, shape = order.map(([v]) => v).filter(Boolean).join("–");
+    let t;
+    if (n1 === 4) t = OPTS[i1].k === "right" ? "<b>All four coins on the right thali.</b> Confident and correct." : `<b>All four on “${OPTS[i1].name}”.</b> Confident, so this is a misconception, not a guess.`;
+    else if (shape === "2–2") t = `<b>Split 2–2.</b> The two thalis differ only in <b>${PAIRS[[OPTS[i1].k, OPTS[i2].k].sort().join("|")]}</b>. That's exactly where the doubt is.`;
+    else if (shape === "3–1") t = `<b>Mostly “${OPTS[i1].name}”</b>, with a doubt about “${OPTS[i2].name}”.`;
+    else if (shape === "1–1–1–1") t = "<b>One coin on every thali.</b> Doesn't know yet. Lotus won't call that a misconception.";
+    else t = `<b>Leans “${OPTS[i1].name}”</b>, but unsure.`;
+    api.noticed(t); api.note(`Done: ${shape} split`, "good");
+    const cert = shape === "4" ? .95 : shape === "3–1" ? .7 : shape === "2–2" ? .55 : .2;
+    api.learn("PAIR", .8, cert); if (n[3]) api.learn("SIGNS", .4, cert);
+  });
+  requestAnimationFrame(() => { coins.forEach((c) => { const t = target(c); c.x = t.x; c.y = t.y - 60; }); layout(); });
+  const onR = () => layout(true); addEventListener("resize", onR);
+  return () => removeEventListener("resize", onR);
+} };
+
+// =================== 2. Mithu's Cards ===================
+GAMES.tota = { mount(booth, api) {
+  const CARDS = [
+    { c: "x² − 9 = (x − 3)(x + 3)", truth: true, fam: "DS" }, { c: "(x + 5)² = x² + 25", truth: false, fam: "SPREAD" },
+    { c: "x² + 2x − 8 = (x − 4)(x + 2)", truth: false, fam: "SIGN" }, { c: "(x + 2)² = x² + 4x + 4", truth: true, fam: "SPREAD" },
+    { c: "x² + 9 = (x + 3)(x + 3)", truth: false, fam: "SUMSQ" }, { c: "x² − 2x − 8 = (x − 4)(x + 2)", truth: true, fam: "SIGN" },
+    { c: "(x − 4)² = x² − 16", truth: false, fam: "SPREAD" }, { c: "x² − 6x + 9 = (x − 3)²", truth: true, fam: "DS" },
+  ];
+  const FAMS = {
+    SPREAD: { name: "Squares a bracket term by term: (a + b)² = a² + b²", bug: [true, false, true], idx: [1, 3, 6], skill: "SQUARES" },
+    SIGN: { name: "Flips the signs into the brackets", bug: [true, false], idx: [2, 5], skill: "SIGNS" },
+    SUMSQ: { name: "Thinks x² + 9 factorises", bug: [true], idx: [4], skill: "SQUARES" },
+    DS: { name: "Control cards", bug: [false, false], idx: [0, 7], skill: "SQUARES" },
+  };
+  booth.innerHTML = `<p class="ask">Mithu pulls a fortune card for you. Drag it into <b>Sach</b> if it's always true, <b>Jhooth</b> if it isn't, or tap “Not sure”.</p>
+    <div class="fortune">
+      <div class="perch">
+        <svg viewBox="0 0 150 140" aria-hidden="true"><g id="mbody"><path d="M70 132 L64 140 M84 132 L90 140" stroke="#d9a441" stroke-width="4" stroke-linecap="round"/><path d="M76 130 C46 128 36 96 46 70 C52 50 70 42 86 48 C104 54 106 82 100 102 C94 120 90 130 76 130Z" fill="#3fbf55"/><path d="M84 130 C94 108 116 104 124 134 C112 128 98 134 84 130Z" fill="#2d8f3f"/><path d="M52 78 C62 94 84 96 94 86 C88 108 70 114 56 102Z" fill="#2d8f3f"/></g><g id="mhead" style="transform-origin:80px 46px"><circle cx="80" cy="34" r="24" fill="#3fbf55"/><path d="M60 40 C66 52 82 54 94 46" stroke="#ec3f8c" stroke-width="4" fill="none"/><path d="M98 26 C114 26 118 42 104 48 C104 40 102 34 98 34Z" fill="#ff3b3b"/><circle cx="88" cy="26" r="6" fill="#fff"/><circle cx="89.5" cy="26" r="3.2" fill="#130e2a"/></g><rect x="20" y="132" width="110" height="8" rx="4" fill="#8b5a33"/></svg>
+        <div class="cardbox" id="cbox">${[-8, 4, -2, 10, -6].map((r) => `<i style="--r:${r}deg"></i>`).join("")}</div>
+      </div>
+      <div class="fstage">
+        <div class="table3"><div class="basket f" id="bF"><b>Jhooth</b><small>false</small><span class="n">0</span></div><div class="deck" id="deck" tabindex="0" aria-label="Fortune card. Left arrow false, right arrow true, down arrow not sure."></div><div class="basket t" id="bT"><b>Sach</b><small>true</small><span class="n">0</span></div></div>
+        <div class="row" style="justify-content:center"><button class="btn alt" id="kF" type="button">← Jhooth</button><button class="btn alt unsure" id="kU" type="button">Not sure</button><button class="btn alt" id="kT" type="button">Sach →</button></div>
+        <div class="fams" id="fams"></div>
+      </div>
+    </div>`;
+  const deck = $("#deck", booth), answers = [], times = [];
+  let i = 0, shown = 0, drag = null, busy = false, card = null;
+  const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  function deal() {
+    if (i >= CARDS.length) return finish();
+    card = html(`<div class="fcard"><span class="num">Card ${i + 1} of ${CARDS.length}</span><span class="m">${CARDS[i].c}</span><span class="orn">~ Mithu's fortune ~</span><span class="fstamp t">SACH</span><span class="fstamp f">JHOOTH</span><span class="fstamp u">PATA NAHI</span></div>`);
+    deck.appendChild(card);
+    const a = center($("#cbox", booth)), b = center(deck);
+    if (!REDUCED) {
+      gsap.timeline().to("#mhead", { rotation: 22, duration: .25, ease: "power2.in" }).to("#mhead", { rotation: 0, duration: .5, ease: "elastic.out(1,.4)" });
+      gsap.from(card, { x: a.x - b.x, y: a.y - b.y, scale: .15, rotation: -40, duration: .75, ease: "back.out(1.3)", delay: .15 });
+    }
+    shown = performance.now() + 700;
+    drag = Draggable.create(card, { type: "x,y",
+      onDrag() { gsap.set(card, { rotation: this.x / 14 }); $(".fstamp.t", card).style.opacity = Math.max(0, this.x / 110); $(".fstamp.f", card).style.opacity = Math.max(0, -this.x / 110); $("#bT", booth).classList.toggle("hot", this.x > 110); $("#bF", booth).classList.toggle("hot", this.x < -110); },
+      onRelease() { $$(".basket", booth).forEach((b) => b.classList.remove("hot")); if (this.x > 110) decide(true); else if (this.x < -110) decide(false); else gsap.to(card, { x: 0, y: 0, rotation: 0, duration: .7, ease: "elastic.out(1,.45)", onComplete: () => $$(".fstamp", card).forEach((s) => (s.style.opacity = 0)) }); } })[0];
+  }
+  function decide(v) {
+    if (busy || !card) return; busy = true;
+    const t = Math.max(.2, (performance.now() - shown) / 1000);
+    answers[i] = v; times[i] = t;
+    api.note(`Card ${i + 1}: ${v === null ? "not sure" : v ? "Sach (true)" : "Jhooth (false)"}, after ${t.toFixed(1)}s`);
+    drag && drag.kill();
+    const c = card;
+    $(`.fstamp.${v === null ? "u" : v ? "t" : "f"}`, c).style.opacity = 1;
+    if (v === null) gsap.to(c, { y: 260, scale: .4, opacity: 0, rotation: 8, duration: .5, ease: "power2.in", onComplete: () => c.remove() });
+    else {
+      const bk = $(v ? "#bT" : "#bF", booth), a = center(bk), b = center(deck);
+      gsap.to(c, { x: a.x - b.x, y: a.y - b.y, scale: .2, rotation: v ? 30 : -30, opacity: .2, duration: .55, ease: "power2.in", onComplete: () => { c.remove(); const n = $(".n", bk); n.textContent = +n.textContent + 1; gsap.fromTo(bk, { scale: 1.1 }, { scale: 1, duration: .5, ease: "elastic.out(1,.4)" }); } });
+    }
+    setTimeout(() => { i++; busy = false; deal(); }, REDUCED ? 60 : 600);
+  }
+  function finish() {
+    card = null;
+    const med = [...times].sort((a, b) => a - b)[4];
+    const rows = Object.entries(FAMS).map(([key, f]) => {
+      const hits = f.idx.map((k, j) => answers[k] === null ? "uns" : answers[k] === CARDS[k].truth ? "ok" : "hit");
+      const nHit = hits.filter((h) => h === "hit").length, n = f.idx.length;
+      let v;
+      if (key === "DS") v = nHit ? "Missed a control card, so read the rest with care." : "Both control cards right, so the other answers aren't random.";
+      else if (nHit === n && n >= 2) v = `<b>Consistent:</b> all ${n} cards match this mistake.`;
+      else if (nHit === n) v = "One card points to this. Worth a second look.";
+      else if (nHit) v = `Matches ${nHit} of ${n}. Could be a slip.`;
+      else if (hits.includes("uns")) v = "Unsure here: doesn't know yet.";
+      else v = "No sign of it.";
+      api.learn(f.skill, key !== "DS" && nHit === n && n >= 2 ? .9 : .4, hits.includes("uns") ? .25 : .75);
+      return `<div class="fam"><span>${f.name}</span><span class="dots">${hits.map((h) => `<i class="${h}"></i>`).join("")}</span><p>${v}</p></div>`;
+    });
+    $("#fams", booth).innerHTML = rows.join("");
+    if (!REDUCED) gsap.from($$(".fam", booth), { opacity: 0, y: 12, stagger: .08, duration: .4 });
+    const slow = times.map((t, k) => [t, k]).filter(([t]) => t > med * 1.8).map(([, k]) => `card ${k + 1}`);
+    deck.innerHTML = `<div class="fcard" style="cursor:default"><span class="m" style="font-family:var(--hand);font-size:1.4rem">Mithu is out of cards!</span></div>`;
+    api.noticed(`Eight fortune cards, sorted into families (dots: <span style="color:#a8164f">●</span> matches the mistake, <span style="color:#0d7a63">●</span> right, <span style="color:#b5780c">●</span> not sure). ${slow.length ? `Took much longer on ${slow.join(", ")}.` : "Steady pace throughout."}`);
+    api.note("All 8 cards sorted", "good");
+  }
+  $("#kF", booth).onclick = () => decide(false); $("#kT", booth).onclick = () => decide(true); $("#kU", booth).onclick = () => decide(null);
+  deck.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") decide(false); else if (e.key === "ArrowRight") decide(true); else if (e.key === "ArrowDown") { e.preventDefault(); decide(null); } });
+  deal();
+  return () => drag && drag.kill();
+} };
+
+// =================== 3. Rangoli Floor ===================
+GAMES.rangoli = { mount(booth, api) {
+  const X = 120, U = 30, OX = 70, OY = 62, UNITS = 6, BARS = 5;
+  booth.innerHTML = `<p class="ask">Lay these tiles into one perfect rectangle. How many long tiles go down the side?</p>
+    <div class="big">x² + 5x + 6</div>
+    <div class="floor"><svg viewBox="0 0 560 380" id="fsvg" aria-label="Rangoli tiles"></svg></div>
+    <div class="knobs"><span>Long tiles down the side</span>${[0, 1, 2, 3, 4, 5].map((n) => `<button class="knob" type="button" data-n="${n}" aria-pressed="${n === 0}">${n}</button>`).join("")}</div>
+    <div class="trail" id="trail"></div>`;
+  const svg = $("#fsvg", booth);
+  svg.innerHTML = `<defs><radialGradient id="dg"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#ff9a1f"/><stop offset="1" stop-color="#ff7a1f" stop-opacity="0"/></radialGradient></defs><g id="holes"></g>`;
+  const big = svgEl("g", {}, svg);
+  svgEl("rect", { x: OX, y: OY, width: X, height: X, rx: 8, fill: "#ec3f8c" }, big);
+  for (let k = 0; k < 8; k++) svgEl("ellipse", { cx: OX + X / 2, cy: OY + X / 2 - 24, rx: 9, ry: 22, fill: k % 2 ? "#ffb21e" : "#fff1d6", transform: `rotate(${k * 45} ${OX + X / 2} ${OY + X / 2})`, opacity: .9 }, big);
+  svgEl("circle", { cx: OX + X / 2, cy: OY + X / 2, r: 10, fill: "#16c2a3" }, big);
+  const bars = Array.from({ length: BARS }, () => { const o = svgEl("rect", { x: OX, y: OY, width: X, height: U, rx: 5, fill: "#16c2a3", stroke: "#0b6e5c", "stroke-width": 2 }, svg); const i2 = svgEl("rect", { x: OX + 4, y: OY + 4, width: X - 8, height: U - 8, rx: 3, fill: "none", stroke: "#e8fff9", "stroke-width": 1.5, "stroke-dasharray": "5 4", opacity: .7 }, svg); return [o, i2]; });
+  const units = Array.from({ length: UNITS }, () => { const g = svgEl("g", {}, svg); svgEl("rect", { x: 0, y: 0, width: U, height: U, rx: 5, fill: "#ffb21e", stroke: "#a86400", "stroke-width": 2 }, g); svgEl("path", { d: `M${U / 2} 7 C${U / 2 + 5} 13 ${U / 2 + 4} 19 ${U / 2} 21 C${U / 2 - 4} 19 ${U / 2 - 5} 13 ${U / 2} 7Z`, fill: "#ff3d00" }, g); return g; });
+  const outline = svgEl("rect", { x: OX - 4, y: OY - 4, width: 10, height: 10, rx: 12, fill: "none", stroke: "#f4efe6", "stroke-width": 3, "stroke-dasharray": "8 6", opacity: 0 }, svg);
+  const dims = svgEl("g", { opacity: 0, fill: "#f4efe6", "font-family": "Kalam, cursive", "font-size": 22, "font-weight": 700 }, svg);
+  const diyas = svgEl("g", {}, svg);
+  const answer = svgEl("text", { x: 470, y: 210, "text-anchor": "middle", "font-family": "IBM Plex Mono, monospace", "font-size": 22, "font-weight": 600, fill: "#fff1d6", opacity: 0 }, svg);
+  const pool = (k) => ({ x: 450 + (k % 2) * 38, y: 70 + Math.floor(k / 2) * 38 });
+  const tries = []; let cur = -1;
+  function place(a, instant) {
+    const b = BARS - a, need = a * b, d = instant || REDUCED ? 0 : 1;
+    bars.forEach(([o, i2], k) => {
+      const side = k < a, to = side ? { x: OX + X + k * U, y: OY, width: U, height: X } : { x: OX, y: OY + X + (k - a) * U, width: X, height: U };
+      gsap.to(o, { attr: to, duration: .6 * d, delay: k * .05 * d, ease: "back.out(1.3)" });
+      gsap.to(i2, { attr: { x: to.x + 4, y: to.y + 4, width: to.width - 8, height: to.height - 8 }, duration: .6 * d, delay: k * .05 * d, ease: "back.out(1.3)" });
+    });
+    const cells = [];
+    for (let j = 0; j < b; j++) for (let i = 0; i < a; i++) cells.push({ x: OX + X + i * U, y: OY + X + j * U });
+    units.forEach((u, k) => {
+      gsap.killTweensOf(u);
+      if (k < cells.length) gsap.to(u, { x: cells[k].x, y: cells[k].y, rotation: 0, duration: .55 * d, delay: (.35 + k * .06) * d, ease: "back.out(1.6)", transformOrigin: "50% 50%" });
+      else { const p = pool(k - cells.length); gsap.to(u, { x: p.x, y: p.y, duration: .6 * d, delay: (.35 + k * .05) * d, ease: "bounce.out" }); if (d) gsap.to(u, { rotation: 7, yoyo: true, repeat: -1, duration: .35, delay: 1.1, ease: "sine.inOut", transformOrigin: "50% 50%" }); }
+    });
+    const holes = $("#holes", svg); gsap.killTweensOf([...holes.children]); holes.innerHTML = "";
+    cells.slice(UNITS).forEach((c, k) => { const h = svgEl("rect", { x: c.x + 3, y: c.y + 3, width: U - 6, height: U - 6, rx: 4, fill: "none", stroke: "#f4efe6", "stroke-width": 2, "stroke-dasharray": "3 3" }, holes); gsap.fromTo(h, { opacity: 0 }, { opacity: 1, duration: .3, delay: .9 * d + k * .05, onComplete: () => d && gsap.to(h, { opacity: .25, yoyo: true, repeat: -1, duration: .6 }) }); });
+    gsap.to([outline, dims, answer], { opacity: 0, duration: .2 }); diyas.innerHTML = "";
+    if (need === UNITS && a && b) {
+      const w = X + a * U, hgt = X + b * U;
+      gsap.set(outline, { attr: { width: w + 8, height: hgt + 8 } });
+      dims.innerHTML = `<text x="${OX + w / 2}" y="${OY - 16}" text-anchor="middle">x + ${a}</text><text transform="translate(${OX - 18} ${OY + hgt / 2}) rotate(-90)" text-anchor="middle">x + ${b}</text>`;
+      answer.textContent = `(x + ${a})(x + ${b})`;
+      for (const [cx, cy] of [[OX - 4, OY - 4], [OX + w + 4, OY - 4], [OX - 4, OY + hgt + 4], [OX + w + 4, OY + hgt + 4]]) {
+        const g = svgEl("g", { transform: `translate(${cx} ${cy})` }, diyas);
+        svgEl("circle", { r: 22, fill: "url(#dg)", class: "glow", opacity: 0 }, g);
+        svgEl("path", { d: "M-11 2 Q0 14 11 2 Z", fill: "#c8742a" }, g);
+        svgEl("path", { d: "M0 -14 C5 -8 4 -3 0 -1 C-4 -3 -5 -8 0 -14Z", fill: "#ffd36b", class: "flame" }, g);
+      }
+      const L = 2 * (w + hgt + 16);
+      gsap.timeline({ delay: 1.1 * d })
+        .fromTo(outline, { opacity: 1, attr: { "stroke-dashoffset": L } }, { attr: { "stroke-dashoffset": 0 }, duration: .9 * d + .01, ease: "power2.inOut" })
+        .from($$("g > g", diyas), { scale: 0, transformOrigin: "50% 50%", stagger: .12, duration: .4, ease: "back.out(3)" })
+        .to($$(".glow", diyas), { opacity: 1, duration: .4 }, "<.2")
+        .to(dims, { opacity: 1, duration: .5 })
+        .fromTo(answer, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: .5, ease: "back.out(2)" });
+      if (d) gsap.to($$(".flame", diyas), { scaleY: 1.2, transformOrigin: "50% 100%", yoyo: true, repeat: -1, duration: .3, ease: "sine.inOut", stagger: .07, delay: 2 });
+    }
+  }
+  function choose(a) {
+    if (a === cur) return; cur = a;
+    $$(".knob", booth).forEach((k) => k.setAttribute("aria-pressed", String(+k.dataset.n === a)));
+    place(a);
+    const b = BARS - a, need = a * b, fits = need === UNITS;
+    tries.push({ a, b, fits });
+    $("#trail", booth).innerHTML = tries.map((t) => `<span class="${t.fits ? "fit" : ""}">${t.a}|${t.b}</span>`).join("");
+    api.note(`Split ${a} | ${b}: corner needs ${need}, ${fits ? "fits exactly" : need > UNITS ? `${need - UNITS} hole${need - UNITS > 1 ? "s" : ""}` : `${UNITS - need} left over`}`, fits ? "good" : "");
+    if (fits) {
+      const ordered = tries.every((t, k) => k === 0 || Math.abs(t.a - tries[k - 1].a) === 1);
+      const t = tries.length === 1 ? "<b>Fit on the first try.</b> Fluent with the product–sum idea." : ordered ? `<b>Found it in ${tries.length} tries</b>, stepping one at a time: a systematic search.` : `<b>Found it in ${tries.length} tries</b>, jumping around. Not yet linking the corner to the 6.`;
+      setTimeout(() => api.noticed(t), REDUCED ? 0 : 2400);
+      api.learn("PAIR", .8, tries.length === 1 ? .95 : ordered ? .75 : .45);
+    }
+  }
+  $$(".knob", booth).forEach((k) => k.addEventListener("click", () => choose(+k.dataset.n)));
+  units.forEach((u, k) => gsap.set(u, pool(k)));
+  cur = 0; place(0, true);
+  return () => gsap.killTweensOf([...units, ...bars.flat(), outline, dims, answer]);
+} };
+
+// =================== 4. Bioscope ===================
+GAMES.bioscope = { mount(booth, api) {
+  booth.innerHTML = `<p class="ask">Sam is checking <span class="m">x² − x − 6</span> by expanding. Turn the crank to play the film, and press <b>ROKO!</b> the moment something goes wrong.</p>
+    <div class="bio">
+      <div class="bioframe"><div class="lens"><svg viewBox="0 0 560 250" id="lsv"></svg><div class="grain"></div><div class="flick" id="flick" hidden></div></div></div>
+      <div class="biobar"><button class="crank" id="crank" type="button" aria-label="Play or pause the film"></button><div class="strip"><span class="fill" id="fill"></span><span class="marks" id="marks"></span><input type="range" id="sc" min="0" max="1000" value="0" aria-label="Scrub the film"></div></div>
+      <div class="row"><button class="btn red" id="roko" type="button">ROKO! That's wrong</button><button class="btn alt" id="fine" type="button" disabled>Sab theek hai · looks right</button></div>
+    </div>`;
+  const svg = $("#lsv", booth), INK = "#3b2414", SOFT = "#8a6a4a";
+  const T = (x, y, s, size = 34, fill = INK, extra = {}) => { const e = svgEl("text", { x, y, "text-anchor": "middle", "font-size": size, fill, "font-weight": 600, ...extra }, svg); e.textContent = s; return e; };
+  const stepLabel = T(280, 32, "", 15, SOFT, { "font-weight": 600, "font-family": "Kalam, cursive" });
+  [["(", 182], [")", 280], ["(", 312], [")", 412]].forEach(([s, x]) => T(x, 102, s, 36, SOFT));
+  const F = { a1: T(205, 102, "x"), a2: T(250, 102, "−3"), b1: T(337, 102, "x"), b2: T(384, 102, "+2") };
+  svgEl("line", { x1: 100, x2: 460, y1: 150, y2: 150, stroke: "#c9a46a", "stroke-width": 2 }, svg);
+  const terms = { s1: T(0, 0, "x²"), s2: T(0, 0, "+ 2x"), s3: T(0, 0, "− 3x"), s4: T(0, 0, "+ 6"), comb: T(0, 0, "− x"), check: T(430, 208, "✓", 38, "#0d7a63") };
+  Object.values(terms).forEach((t) => gsap.set(t, { opacity: 0 }));
+  const COLORS = ["#2d5fa8", "#0d7a63", "#7a3fb0", "#b5420c"];
+  const arcs = [["a1", "b1"], ["a1", "b2"], ["a2", "b1"], ["a2", "b2"]].map(([p, q], k) => {
+    const x1 = +F[p].getAttribute("x"), x2 = +F[q].getAttribute("x");
+    const e = svgEl("path", { d: `M${x1} 72 Q${(x1 + x2) / 2} ${10 - k * 4} ${x2} 72`, fill: "none", stroke: COLORS[k], "stroke-width": 3, "stroke-linecap": "round" }, svg);
+    const L = e.getTotalLength(); e.style.strokeDasharray = L; e.style.strokeDashoffset = L; return e;
+  });
+  const tl = gsap.timeline({ paused: true, onUpdate: () => { $("#sc", booth).value = Math.round(tl.progress() * 1000); $("#fill", booth).style.width = `${tl.progress() * 100}%`; },
+    onComplete: () => { $("#fine", booth).disabled = false; $("#crank", booth).classList.remove("spin"); $("#flick", booth).hidden = true; } });
+  const steps = [];
+  function mult(label, text, p, q, term, x, k, t) {
+    steps.push({ label, text, t });
+    tl.addLabel(label, t).set(stepLabel, { textContent: `Step ${label}: ${text}` }, t)
+      .to(arcs[k], { strokeDashoffset: 0, duration: .6, ease: "power2.inOut" }, t)
+      .to([F[p], F[q]], { fill: COLORS[k], duration: .2 }, t)
+      .fromTo(term, { attr: { x: (+F[p].getAttribute("x") + +F[q].getAttribute("x")) / 2, y: 62 }, opacity: 0 }, { opacity: 1, duration: .25 }, t + .6)
+      .to(term, { attr: { x, y: 205 }, duration: .75, ease: "power3.inOut" }, t + .8)
+      .to(arcs[k], { opacity: 0, duration: .3 }, t + 1.5).to([F[p], F[q]], { fill: INK, duration: .3 }, t + 1.5);
+  }
+  mult("A", "x × x", "a1", "b1", terms.s1, 140, 0, .5); mult("B", "x × (+2)", "a1", "b2", terms.s2, 230, 1, 2.5);
+  mult("C", "(−3) × x", "a2", "b1", terms.s3, 320, 2, 4.5); mult("D", "(−3) × (+2)", "a2", "b2", terms.s4, 410, 3, 6.5);
+  steps.push({ label: "E", text: "collect the x terms", t: 8.5 });
+  tl.addLabel("E", 8.5).set(stepLabel, { textContent: "Step E: collect the x terms" }, 8.5)
+    .to([terms.s2, terms.s3], { attr: { x: 275 }, duration: .6, ease: "power3.in" }, 8.6).to([terms.s2, terms.s3], { opacity: 0, duration: .15 }, 9.15)
+    .fromTo(terms.comb, { attr: { x: 275, y: 205 }, opacity: 0 }, { opacity: 1, duration: .3, ease: "back.out(3)" }, 9.2);
+  steps.push({ label: "F", text: "Sam's answer", t: 10.2 });
+  tl.addLabel("F", 10.2).set(stepLabel, { textContent: "Step F: Sam's answer, x² − x + 6" }, 10.2)
+    .to(terms.s1, { attr: { x: 190 }, duration: .5 }, 10.2).to(terms.comb, { attr: { x: 265 }, duration: .5 }, 10.2).to(terms.s4, { attr: { x: 340 }, duration: .5 }, 10.2)
+    .fromTo(terms.check, { opacity: 0, attr: { y: 218 } }, { opacity: 1, attr: { y: 208 }, duration: .4, ease: "back.out(3)" }, 10.8).to({}, { duration: .8 });
+  const D = tl.duration();
+  $("#marks", booth).innerHTML = steps.map((s) => `<span style="left:${(s.t / D) * 100}%"><b>${s.label}</b></span>`).join("");
+  const stepAt = (t) => [...steps].reverse().find((s) => t >= s.t) ?? steps[0];
+  function playing(on) { $("#crank", booth).classList.toggle("spin", on); $("#flick", booth).hidden = !on || REDUCED; }
+  $("#crank", booth).addEventListener("click", () => {
+    if (tl.progress() >= 1) { tl.restart(); playing(true); api.note("Rewound and replayed the film"); }
+    else if (tl.paused() || !tl.isActive()) { tl.play(); playing(true); api.note(tl.time() < .1 ? "Started the film" : "Kept cranking"); }
+    else { tl.pause(); playing(false); api.note(`Paused at ${tl.time().toFixed(1)}s`); }
+  });
+  $("#sc", booth).addEventListener("input", (e) => { tl.pause(); playing(false); tl.progress(e.target.value / 1000); });
+  $("#sc", booth).addEventListener("change", () => api.note(`Scrubbed to step ${stepAt(tl.time()).label}`));
+  $("#roko", booth).addEventListener("click", () => {
+    tl.pause(); playing(false);
+    const t = tl.time(), s = stepAt(t), late = t - 7.1;
+    let r, cert = .8;
+    if (s.label === "D") r = `<b>Shouted ROKO in step D</b>, ${Math.max(0, late).toFixed(1)}s after −3 × +2 became +6. ${late < 1.2 ? "Fast: this is fluent." : "Got there, but it took a moment."}`;
+    else if (s.label === "E" || s.label === "F") { r = s.label === "E" && late < 2.6 ? `<b>Probably meant step D</b>, just a little late (${late.toFixed(1)}s).` : `<b>Stopped at step ${s.label}</b> (${s.text}), not at D. Missed the sign error.`; cert = .55; }
+    else { r = `<b>False alarm at step ${s.label}</b> (${s.text}). That step looks wrong to them, which is a gap of its own.`; cert = .6; }
+    api.noticed(r + " <span style='color:#8a6a4a'>(Scrub to adjust, then press ROKO again.)</span>");
+    api.note(`ROKO at ${t.toFixed(1)}s, step ${s.label}`, s.label === "D" ? "good" : "warn");
+    api.learn("CHECK", .6, cert); if (s.label === "D") api.learn("SIGNS", .5, cert);
+  });
+  $("#fine", booth).addEventListener("click", () => {
+    api.noticed("<b>Said it all looks right.</b> Either they'd make Sam's sign slip themselves, or they don't check every part. One follow-up would tell which.");
+    api.note("Said the film looked right", "warn"); api.learn("CHECK", .6, .75); api.learn("SIGNS", .5, .7);
+  });
+  return () => tl.kill();
+} };
+
+// =================== 5. Toy Train ===================
+GAMES.rail = { mount(booth, api) {
+  const CARDS = [
+    { id: "L1", t: "= (6xy − 4y) − (9x − 6)", ok: 0 }, { id: "D1", t: "= (6xy − 4y) − (9x + 6)", bad: "kept the + inside after taking out −" },
+    { id: "L2", t: "= 2y(3x − 2) − 3(3x − 2)", ok: 1 }, { id: "D2", t: "= 2y(3x − 2) − 3(3x + 2)", bad: "didn't flip the sign when taking out −3" },
+    { id: "L3", t: "= (3x − 2)(2y − 3)", ok: 2 }, { id: "D3", t: "= (3x − 2)(2y + 3)", bad: "lost the minus in the last bracket" },
+  ];
+  const COLS = [["#ffd36b", "#e0a01a"], ["#ff9ac4", "#e24f8c"], ["#7fe0cf", "#16a58b"], ["#a8d4ff", "#4f95e0"], ["#ffb27a", "#e8691a"], ["#c9b8ff", "#8a6ad8"]];
+  const order = [3, 0, 5, 2, 1, 4];
+  booth.innerHTML = `<p class="ask">Factorise <span class="m">6xy − 4y − 9x + 6</span> by grouping. Couple three coaches to the engine, in order. Careful: three of the coaches carry a slip.</p>
+    <div class="yard" id="yard"><p>The siding: tap a coach to couple it to the train</p>${order.map((k, j) => `<button class="coach" type="button" data-id="${CARDS[k].id}" style="--c1:${COLS[j][0]};--c2:${COLS[j][1]}"><span class="win"><i></i><i></i><i></i><i></i></span><span class="m">${CARDS[k].t}</span></button>`).join("")}</div>
+    <div class="trackwrap"><div class="track" id="track">
+      <svg class="engine" viewBox="0 0 120 86" aria-hidden="true"><rect x="8" y="34" width="70" height="34" rx="6" fill="#e0262b"/><rect x="58" y="14" width="44" height="54" rx="6" fill="#ff7a1f"/><rect x="66" y="22" width="26" height="16" rx="3" fill="#fff1d6"/><rect id="chim" x="18" y="12" width="14" height="22" fill="#3d3170"/><rect x="14" y="8" width="22" height="6" rx="2" fill="#3d3170"/><path d="M0 64 L10 52 V68Z" fill="#d9a441"/>${[22, 54, 88].map((x) => `<g class="wh" style="transform-origin:${x}px 72px"><circle cx="${x}" cy="72" r="12" fill="#130e2a" stroke="#d9a441" stroke-width="3"/><path d="M${x - 10} 72 H${x + 10} M${x} 62 V82" stroke="#d9a441" stroke-width="2"/></g>`).join("")}</svg>
+      ${[1, 2, 3].map((n) => `<div class="slot" data-s="${n - 1}"><span>Coach ${n}</span></div>`).join("")}
+    </div></div>
+    <div class="row"><button class="btn" id="go" type="button" disabled>Wave the green flag</button></div>`;
+  const yard = $("#yard", booth), slots = $$(".slot", booth), placedEver = new Set();
+  function move(c) {
+    const state = Flip.getState($$(".coach", booth));
+    const card = CARDS.find((x) => x.id === c.dataset.id);
+    if (c.parentElement.classList.contains("slot")) { yard.appendChild(c); api.note(`Uncoupled ${card.t.slice(2)}`, card.bad ? "good" : "warn"); }
+    else {
+      const free = slots.find((s) => !$(".coach", s)); if (!free) return;
+      free.appendChild(c); placedEver.add(card.id); api.note(`Coach ${+free.dataset.s + 1}: ${card.t.slice(2)}`);
+    }
+    Flip.from(state, { duration: REDUCED ? 0 : .65, ease: "power3.inOut", absolute: true, scale: true, onComplete: () => !REDUCED && gsap.fromTo(c, { x: -6 }, { x: 0, duration: .4, ease: "elastic.out(1.2,.3)" }) });
+    $("#go", booth).disabled = slots.some((s) => !$(".coach", s));
+  }
+  booth.addEventListener("click", (e) => { const c = e.target.closest(".coach"); if (c && booth.contains(c)) move(c); });
+  $("#go", booth).addEventListener("click", () => {
+    const chosen = slots.map((s) => CARDS.find((c) => c.id === $(".coach", s).dataset.id));
+    const slips = chosen.filter((c) => c.bad), rightSet = chosen.every((c) => c.ok !== undefined), rightOrder = rightSet && chosen.every((c, k) => c.ok === k);
+    const fixed = [...placedEver].filter((id) => id.startsWith("D") && !chosen.some((c) => c.id === id));
+    let t = rightOrder ? "<b>All three coaches right, in order.</b> As strong as typed working." : rightSet ? "<b>Right coaches, wrong order.</b> Knows the moves, not yet the shape of the method." : `<b>Coupled ${slips.length} coach${slips.length > 1 ? "es" : ""} with a slip:</b> ${slips.map((s) => s.bad).join("; ")}.`;
+    if (fixed.length) t += ` They also uncoupled ${fixed.length} slip coach${fixed.length > 1 ? "es" : ""} before leaving, so they caught their own slip.`;
+    $("#go", booth).disabled = true;
+    const track = $("#track", booth), w = track.parentElement.clientWidth + 200;
+    const tl = gsap.timeline({ onComplete: () => { api.noticed(t); $("#go", booth).disabled = false; } });
+    if (!REDUCED) {
+      tl.to($$(".wh", track), { rotation: 720, duration: 2.4, ease: "power1.in" }, 0)
+        .to(track, { x: w, duration: 1.8, ease: "power2.in" }, .3)
+        .set(track, { x: -track.scrollWidth - 40 })
+        .to(track, { x: 0, duration: 1.4, ease: "power3.out" })
+        .to($$(".wh", track), { rotation: 1440, duration: 1.4, ease: "power3.out" }, "<");
+      for (let i = 0; i < 6; i++) tl.call(() => { const p = html(`<i class="puff"></i>`); track.appendChild(p); gsap.fromTo(p, { x: 18, y: 0, scale: .4, opacity: .8 }, { x: -30 - Math.random() * 20, y: -50 - Math.random() * 20, scale: 1.8, opacity: 0, duration: 1.1, onComplete: () => p.remove() }); }, null, i * .25);
+    }
+    api.note(`Train left: ${chosen.map((c) => c.id).join(" → ")}`, "good");
+    api.learn("GROUP", .8, rightOrder ? .9 : .7); if (slips.length) api.learn("SIGNS", .6, .8);
+  });
+  return () => {};
+} };
+
+// =================== 6. Tijori ===================
+GAMES.tijori = { mount(booth, api) {
+  const NUMS = [...Array.from({ length: 12 }, (_, k) => k - 12), ...Array.from({ length: 12 }, (_, k) => k + 1)];
+  const ROW = 52, TP = -12, TS = -1;
+  booth.innerHTML = `<p class="ask">The tijori opens for <span class="m">x² − x − 12</span>. Find two numbers that multiply to <b>−12</b> and add to <b>−1</b>. Drag the brass wheels or tap the arrows.</p>
+    <div class="tij">
+      <div style="display:grid;gap:12px">
+        <div class="gauges">${[["prod", "multiply → −12", TP, 60], ["sum", "add → −1", TS, 24]].map(([id, lab, tgt, R]) => `<div class="gauge"><span class="lab">${lab}</span><svg viewBox="0 0 200 112"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#3d3170" stroke-width="14" stroke-linecap="round"/>${Array.from({ length: 11 }, (_, i) => { const a = (-90 + i * 18) * Math.PI / 180; return `<line x1="${100 + 66 * Math.sin(a)}" y1="${100 - 66 * Math.cos(a)}" x2="${100 + 74 * Math.sin(a)}" y2="${100 - 74 * Math.cos(a)}" stroke="#8f84b8" stroke-width="2"/>`; }).join("")}<line x1="100" y1="100" x2="${100 + 84 * Math.sin((tgt / R) * Math.PI / 2)}" y2="${100 - 84 * Math.cos((tgt / R) * Math.PI / 2)}" stroke="#ffb21e" stroke-width="4" stroke-dasharray="3 4"/><line id="n${id}" x1="100" y1="100" x2="100" y2="28" stroke="#fff1d6" stroke-width="4" stroke-linecap="round"/><circle cx="100" cy="100" r="9" fill="#d9a441"/></svg><span class="val" id="v${id}">1</span></div>`).join("")}</div>
+        <div class="safe" id="safe"><div class="inside"><div><span style="font-family:var(--hand);font-size:1.1rem">Unlocked!</span><br><b>(x − 4)(x + 3)</b></div></div>
+          <div class="door" id="door"><div class="rivets"></div>
+            <div class="wheels">${["p", "q"].map((r, k) => `${k ? '<span style="font:800 1.4rem var(--display);color:#d9a441">&amp;</span>' : ""}<div class="wheel"><button type="button" data-r="${r}" data-d="-1" aria-label="up">▲</button><div class="wwin" id="w${r}"><div class="band"></div><div class="wlist" id="l${r}">${NUMS.map((n) => `<div>${sgn(n)}</div>`).join("")}</div></div><button type="button" data-r="${r}" data-d="1" aria-label="down">▼</button></div>`).join("")}</div>
+            <svg class="handle" id="handle" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="8" fill="#d9a441"/>${[0, 120, 240].map((a) => `<g transform="rotate(${a} 30 30)"><rect x="27" y="4" width="6" height="22" rx="3" fill="#d9a441"/><circle cx="30" cy="6" r="5" fill="#ffd36b"/></g>`).join("")}</svg>
+          </div></div>
+      </div>
+      <div class="notebook"><h4>The safecracker's notebook</h4><svg viewBox="0 0 300 190" id="tmap"></svg><p style="font-family:var(--hand);font-size:.95rem" id="nbtext">Every pair you try gets a dot. The dashed line is every pair that multiplies to −12.</p></div>
+    </div>`;
+  const map = $("#tmap", booth), INK = "#3b2414";
+  const mx = (s) => 30 + ((s + 24) / 48) * 260, my = (p) => 95 - (Math.max(-40, Math.min(40, p)) / 40) * 80;
+  map.innerHTML = `<line x1="30" y1="95" x2="290" y2="95" stroke="#c9a46a"/><line x1="160" y1="10" x2="160" y2="180" stroke="#c9a46a"/><line x1="30" y1="${my(TP)}" x2="290" y2="${my(TP)}" stroke="#a8164f" stroke-dasharray="4 4"/>
+    <text x="290" y="90" text-anchor="end" font-size="11" fill="${INK}" font-family="Kalam,cursive">add →</text><text x="164" y="20" font-size="11" fill="${INK}" font-family="Kalam,cursive">multiply</text>
+    <circle cx="${mx(TS)}" cy="${my(TP)}" r="10" fill="none" stroke="#0d7a63" stroke-width="2.5"/><polyline id="path" fill="none" stroke="#2d5fa8" stroke-width="2" stroke-linejoin="round" points=""/><g id="dots"></g>`;
+  const idx = { p: NUMS.indexOf(1), q: NUMS.indexOf(1) }, tries = [];
+  let settleT = null, solved = false;
+  const val = (r) => NUMS[idx[r]];
+  const needle = (id, v, R) => { gsap.to(`#n${id}`, { rotation: Math.max(-1, Math.min(1, v / R)) * 90, svgOrigin: "100 100", duration: 1, ease: "elastic.out(1,.4)" }); $(`#v${id}`, booth).textContent = sgn(v); };
+  function update() { const p = val("p"), q = val("q"); needle("prod", p * q, 60); needle("sum", p + q, 24); clearTimeout(settleT); settleT = setTimeout(() => settle(p, q), 550); }
+  function settle(p, q) {
+    if (solved) return;
+    const last = tries.at(-1); if (last && last.p === p && last.q === q) return;
+    tries.push({ p, q });
+    $("#path", map).setAttribute("points", tries.map((t) => `${mx(t.p + t.q)},${my(t.p * t.q)}`).join(" "));
+    const d = svgEl("circle", { cx: mx(p + q), cy: my(p * q), r: 4.5, fill: "#2d5fa8" }, $("#dots", map));
+    gsap.from(d, { attr: { r: 12 }, opacity: 0, duration: .5, ease: "back.out(3)" });
+    const pOK = p * q === TP, slip = pOK && p + q === -TS;
+    api.note(`Tried ${sgn(p)} and ${sgn(q)}: multiply ${sgn(p * q)}, add ${sgn(p + q)}${slip ? ". The classic sign slip." : pOK ? ". On the product line." : ""}`, slip ? "warn" : pOK ? "good" : "");
+    if (pOK && p + q === TS) {
+      solved = true;
+      const on = tries.filter((t) => t.p * t.q === TP).length, hadSlip = tries.some((t) => t.p * t.q === TP && t.p + t.q === -TS);
+      const style = tries.length <= 2 ? "Straight there: fluent." : on / tries.length >= .5 ? `${on} of ${tries.length} tries on the product line: a systematic hunt.` : `Only ${on} of ${tries.length} tries on the product line: trial and error.`;
+      if (!REDUCED) gsap.timeline().to("#handle", { rotation: 300, svgOrigin: "30 30", duration: .8, ease: "power2.inOut" }).to("#door", { rotationY: -108, duration: 1.4, ease: "power3.inOut" }, "+=.1");
+      else gsap.set("#door", { rotationY: -108 });
+      $("#nbtext", booth).textContent = `${tries.length} tries. ${style}`;
+      setTimeout(() => api.noticed(`<b>Safe open.</b> ${style}${hadSlip ? " On the way they hit 4 and −3, the classic sign slip, and fixed it themselves." : ""}`), REDUCED ? 0 : 1800);
+      api.learn("PAIR", .8, tries.length <= 2 ? .95 : .7); if (hadSlip) api.learn("SIGNS", .6, .6);
+    }
+  }
+  const drags = ["p", "q"].map((r) => {
+    const list = $(`#l${r}`, booth); gsap.set(list, { y: ROW - idx[r] * ROW });
+    return Draggable.create(list, { type: "y", trigger: $(`#w${r}`, booth), bounds: { minY: ROW - (NUMS.length - 1) * ROW, maxY: ROW }, liveSnap: { y: (v) => Math.round(v / ROW) * ROW }, onDrag() { idx[r] = Math.round((ROW - this.y) / ROW); update(); } })[0];
+  });
+  $$(".wheel button", booth).forEach((b) => b.addEventListener("click", () => {
+    const r = b.dataset.r; idx[r] = Math.max(0, Math.min(NUMS.length - 1, idx[r] + +b.dataset.d));
+    gsap.to(`#l${r}`, { y: ROW - idx[r] * ROW, duration: .35, ease: "back.out(2)", onComplete: () => drags[r === "p" ? 0 : 1].update() });
+    update();
+  }));
+  needle("prod", 1, 60); needle("sum", 2, 24);
+  return () => { drags.forEach((d) => d.kill()); clearTimeout(settleT); };
+} };
+
+// =================== 7. Tarazu ===================
+GAMES.tarazu = { mount(booth, api) {
+  booth.innerHTML = `<p class="ask">Is this always true? Put different values of x on the tarazu and watch which side is heavier.</p>
+    <div class="big">(x + 3)² = x² + 9</div>
+    <div class="tz"><svg viewBox="0 0 600 340" id="tzs" aria-label="Balance scale"></svg></div>
+    <div class="rail"><div class="lbl"><span>x = <b class="m" id="xv">0</b></span><span style="color:var(--soft)">values you've weighed</span></div><input type="range" id="xs" min="-6" max="6" step="1" value="0" aria-label="x"><div class="beads" id="beads"></div></div>
+    <div class="banners">${[["Always true", "Hamesha"], ["Sometimes true", "Kabhi-kabhi"], ["Never true", "Kabhi nahi"]].map(([e, h]) => `<button class="banner" type="button" data-a="${e}" aria-pressed="false">${e}<small>${h}</small></button>`).join("")}</div>
+    <div class="row"><button class="btn" id="lock" type="button" disabled>Decide</button></div>`;
+  const svg = $("#tzs", booth), P = { x: 300, y: 74 }, HALF = 200;
+  svg.innerHTML = `<rect x="230" y="300" width="140" height="22" rx="6" fill="#8b5a33"/><rect x="292" y="74" width="16" height="230" rx="4" fill="#d9a441"/><path d="M300 40 l14 34 h-28z" fill="#d9a441"/>
+    <g id="beam"><rect x="100" y="68" width="400" height="12" rx="6" fill="#d9a441"/><circle cx="100" cy="74" r="7" fill="#ffd36b"/><circle cx="500" cy="74" r="7" fill="#ffd36b"/></g><circle cx="300" cy="74" r="10" fill="#ffd36b" stroke="#8a5a10" stroke-width="3"/>
+    ${["L", "R"].map((s) => `<g id="pan${s}"><path d="M0 0 L-62 112 M0 0 L62 112" stroke="#c8bde8" stroke-width="1.5"/><g id="w${s}"></g><path d="M-76 112 Q0 150 76 112 Z" fill="#ffb21e" stroke="#a86400" stroke-width="2"/><text y="176" text-anchor="middle" font-size="16" fill="#c8bde8" id="t${s}"></text><text y="202" text-anchor="middle" font-size="26" font-weight="600" fill="#fff1d6" id="v${s}"></text></g>`).join("")}`;
+  const ang = { a: 0 };
+  function drawBeam() {
+    const r = ang.a * Math.PI / 180;
+    $("#beam", svg).setAttribute("transform", `rotate(${ang.a} ${P.x} ${P.y})`);
+    $("#panL", svg).setAttribute("transform", `translate(${P.x - HALF * Math.cos(r)} ${P.y - HALF * Math.sin(r)})`);
+    $("#panR", svg).setAttribute("transform", `translate(${P.x + HALF * Math.cos(r)} ${P.y + HALF * Math.sin(r)})`);
+  }
+  function weights(id, v) {
+    const g = $(`#w${id}`, svg), n = Math.min(8, Math.ceil(v / 10));
+    g.innerHTML = Array.from({ length: n }, (_, k) => `<path d="M${-26 + (k % 4) * 15} ${106 - Math.floor(k / 4) * 18} h12 l2 -14 h-16z" fill="#8a8fa8" stroke="#3d3170"/>`).join("");
+    if (!REDUCED) gsap.from(g.children, { y: -30, opacity: 0, stagger: .04, duration: .35, ease: "bounce.out" });
+  }
+  const tested = new Map(); let pick = null;
+  function show(x) {
+    const L = (x + 3) ** 2, R = x * x + 9;
+    $("#xv", booth).textContent = sgn(x);
+    $("#tL", svg).textContent = `(x + 3)²`; $("#tR", svg).textContent = `x² + 9`;
+    $("#vL", svg).textContent = L; $("#vR", svg).textContent = R;
+    weights("L", L); weights("R", R);
+    gsap.to(ang, { a: Math.max(-1, Math.min(1, (R - L) / 30)) * 16, duration: REDUCED ? 0 : 1.4, ease: "elastic.out(1,.35)", onUpdate: drawBeam });
+    if (!tested.has(x)) {
+      tested.set(x, L === R);
+      const b = document.createElement("i"); b.style.left = `${((x + 6) / 12) * 100}%`; b.style.background = b.style.color = L === R ? css("--peacock") : css("--rani");
+      $("#beads", booth).appendChild(b); if (!REDUCED) gsap.from(b, { scale: 0, duration: .4, ease: "back.out(3)" });
+      api.note(`Weighed x = ${sgn(x)}: ${L} ${L === R ? "=" : "≠"} ${R}`);
+    }
+  }
+  $("#xs", booth).addEventListener("input", (e) => show(+e.target.value));
+  $$(".banner", booth).forEach((b) => b.addEventListener("click", () => { pick = b.dataset.a; $$(".banner", booth).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("#lock", booth).disabled = false; }));
+  $("#lock", booth).addEventListener("click", () => {
+    const n = tested.size, sawNe = [...tested.values()].includes(false);
+    let t, cert = .8;
+    if (pick === "Always true" && !sawNe) t = `<b>Weighed only ${n === 1 ? "x = 0" : "values that happened to balance"} and said always.</b> Checks one easy case and stops.`;
+    else if (pick === "Always true") { t = "<b>Saw the scale tip and still said always.</b> Believes (a + b)² = a² + b² firmly enough to overrule the tarazu. Worth a teacher's attention."; cert = .95; }
+    else if (pick === "Never true") t = tested.get(0) ? "<b>Saw it balance at x = 0, but said never.</b> Doesn't count one case as “sometimes”, which is a language gap more than an algebra one." : "<b>Said never without weighing x = 0.</b>";
+    else t = `<b>Sometimes, after weighing ${n} value${n > 1 ? "s" : ""}.</b> ${n >= 3 && sawNe ? "Tested like a mathematician." : "Right, but tested very little."}`;
+    api.noticed(t); api.note(`Decided “${pick}” after ${n} weighing${n > 1 ? "s" : ""}`, "good");
+    api.learn("SQUARES", .7, cert); api.learn("CHECK", .5, cert);
+  });
+  tested.set(0, true);
+  const b0 = document.createElement("i"); b0.style.left = "50%"; b0.style.background = b0.style.color = css("--peacock"); $("#beads", booth).appendChild(b0);
+  $("#tL", svg).textContent = "(x + 3)²"; $("#tR", svg).textContent = "x² + 9"; $("#vL", svg).textContent = 9; $("#vR", svg).textContent = 9;
+  weights("L", 9); weights("R", 9); drawBeam();
+  return () => gsap.killTweensOf(ang);
+} };
+
+// =================== 8. Jadoo Show ===================
+GAMES.jadoo = { mount(booth, api) {
+  const st = { n1: 1, n2: 1, s1: null, s2: null };
+  booth.innerHTML = `<div class="show" id="show"><div class="valance"></div><div class="curtain l" id="cl"></div><div class="curtain r" id="cr"></div>
+      <p class="ask" style="position:relative;z-index:1;text-align:center">Tonight's trick: factorise <span class="m">x² − x − 6</span> in two moves.</p>
+      <div class="trickrow">
+        <div class="mcard"><span>Move 1 · two numbers that multiply to −6 and add to −1</span><div class="row">${picker("n1", 1)}<span>and</span>${picker("n2", 1)}</div></div>
+        <div class="mcard"><span>Move 2 · tap the cards to set the signs</span><span class="brk" style="color:var(--cream)">(x <button class="tog" id="s1" type="button">?</button> <span id="m1">1</span>)(x <button class="tog" id="s2" type="button">?</button> <span id="m2">1</span>)</span></div>
+      </div>
+      <div class="row" style="justify-content:center;position:relative;z-index:1"><button class="btn" id="perform" type="button" disabled>Perform the trick</button><button class="btn red" id="rev" type="button" hidden>Reveal how it worked</button></div>
+      <div class="reveal" id="res" hidden>
+        <div class="marked"><span class="chiplab">The audience sees</span><span class="stampbig" id="oldv"></span><span id="final" class="m" style="font-size:1.2rem"></span></div>
+        <div class="xray"><div class="layers" id="layers"></div></div>
+      </div>
+    </div>
+    <div style="display:grid;gap:6px"><span class="chiplab">Or watch a student who…</span><div class="chipset" id="as"><button type="button" data-p="right">does it properly</button><button type="button" data-p="double">makes two slips that cancel</button><button type="button" data-p="slip">slips only in move 1</button><button type="button" data-p="flip">only flips the signs</button></div></div>`;
+  const ready = () => ($("#perform", booth).disabled = !(st.s1 && st.s2));
+  const mags = () => { $("#m1", booth).textContent = Math.abs(st.n1); $("#m2", booth).textContent = Math.abs(st.n2); };
+  wirePickers(booth, st, () => { mags(); api.note(`Move 1: ${sgn(st.n1)} and ${sgn(st.n2)}`); }, -6, 6);
+  ["s1", "s2"].forEach((k) => $(`#${k}`, booth).addEventListener("click", (e) => {
+    st[k] = st[k] === "+" ? "−" : "+"; const b = e.currentTarget; b.textContent = st[k]; b.classList.add("set");
+    if (!REDUCED) gsap.fromTo(b, { rotationY: 180 }, { rotationY: 0, duration: .45, ease: "back.out(2)" });
+    api.note(`Move 2: bracket ${k === "s1" ? 1 : 2} gets ${st[k]}`); ready();
+  }));
+  function analyse() {
+    const b1 = (st.s1 === "−" ? -1 : 1) * Math.abs(st.n1), b2 = (st.s2 === "−" ? -1 : 1) * Math.abs(st.n2);
+    const nR = st.n1 * st.n2 === -6 && st.n1 + st.n2 === -1, nS = st.n1 * st.n2 === -6 && st.n1 + st.n2 === 1;
+    const carried = b1 === st.n1 && b2 === st.n2, flipped = b1 === -st.n1 && b2 === -st.n2, fin = b1 * b2 === -6 && b1 + b2 === -1;
+    return { b1, b2, nR, nS, carried, flipped, fin };
+  }
+  function sparkle(el) {
+    if (REDUCED) return;
+    const show = $("#show", booth), a = el.getBoundingClientRect(), s = show.getBoundingClientRect();
+    for (let i = 0; i < 10; i++) {
+      const star = html(`<svg class="star" viewBox="0 0 20 20"><path d="M10 0 L12.5 7.5 L20 10 L12.5 12.5 L10 20 L7.5 12.5 L0 10 L7.5 7.5Z" fill="${["#ffd36b", "#fff1d6", "#ec3f8c"][i % 3]}"/></svg>`);
+      show.appendChild(star);
+      const x = a.left - s.left + a.width / 2, y = a.top - s.top + a.height / 2, ang = Math.random() * Math.PI * 2, d = 50 + Math.random() * 60;
+      gsap.fromTo(star, { x, y, scale: 0, rotation: 0 }, { x: x + Math.cos(ang) * d, y: y + Math.sin(ang) * d, scale: 1, rotation: 180, opacity: 0, duration: 1, ease: "power2.out", onComplete: () => star.remove() });
+    }
+  }
+  function perform() {
+    const r = analyse();
+    $("#res", booth).hidden = false; $("#rev", booth).hidden = false;
+    $("#layers", booth).innerHTML = ""; $("#oldv", booth).textContent = r.fin ? "✓" : "✗";
+    $("#oldv", booth).style.color = r.fin ? css("--peacock") : css("--rani");
+    $("#final", booth).textContent = `(x ${pm(r.b1)})(x ${pm(r.b2)})`;
+    sparkle($("#final", booth));
+    api.note(`Performed: (x ${pm(r.b1)})(x ${pm(r.b2)}). The audience sees ${r.fin ? "a right answer" : "a wrong answer"}`);
+  }
+  function reveal() {
+    const r = analyse();
+    const L = [
+      ["Move 1 · the numbers", `${sgn(st.n1)} and ${sgn(st.n2)}`, r.nR ? "✓ multiply to −6, add to −1" : r.nS ? "✗ they add to +1, not −1: a sign slip" : `✗ multiply to ${sgn(st.n1 * st.n2)}, add to ${sgn(st.n1 + st.n2)}`, r.nR],
+      ["Move 2 · into the brackets", r.carried ? "carried each sign straight in" : r.flipped ? "flipped both signs on the way in" : "one carried, one flipped", r.carried ? "✓ the taught method" : "✗ the signs changed on the way", r.carried],
+      ["What the audience saw", `(x ${pm(r.b1)})(x ${pm(r.b2)})`, r.fin ? "✓ expands to x² − x − 6" : "✗ doesn't expand to x² − x − 6", r.fin],
+    ];
+    const layers = $("#layers", booth);
+    layers.innerHTML = L.map(([lab, t, v, ok]) => `<div class="layer ${ok ? "ok" : "bad"}"><small>${lab}</small><span class="m">${t}</span><span class="v">${v}</span></div>`).join("");
+    const els = $$(".layer", layers);
+    gsap.set(layers, { rotationX: 0, rotationZ: 0 }); gsap.set(els, { z: 0, y: 0, opacity: (i) => (i === 2 ? 1 : 0) });
+    if (REDUCED) { gsap.set(layers, { rotationX: 18, rotationZ: -3 }); gsap.set(els, { opacity: 1, z: (i) => (i - 1) * 40, y: (i) => (1 - i) * 102 }); }
+    else gsap.timeline()
+      .to(["#cl", "#cr"], { scaleX: 3.2, duration: .45, ease: "power2.in" }, 0)
+      .to(["#cl", "#cr"], { scaleX: 1, duration: .6, ease: "power2.out" }, .7)
+      .set(els, { opacity: 1 }, .55)
+      .to(layers, { rotationX: 18, rotationZ: -3, duration: .9, ease: "power3.inOut" }, .7)
+      .to(els, { z: (i) => (i - 1) * 40, y: (i) => (1 - i) * 102, duration: .9, ease: "power3.inOut", stagger: .07 }, .7);
+    let t;
+    if (r.nR && r.carried) t = "<b>A real trick, done properly.</b> Every layer checks out.";
+    else if (r.nS && r.flipped) t = "<b>Two wrongs make a right.</b> The numbers had the wrong signs, and so did the bracket step, so they cancel. An answer-only check marks this correct every time. It falls apart when they split the middle term in Class 9.";
+    else if (r.nS) t = "<b>A sign slip in move 1</b>, carried faithfully into the brackets.";
+    else if (r.nR && r.flipped) t = "<b>Flips the signs into the brackets.</b> The right numbers, lost in move 2.";
+    else t = "<b>The numbers in move 1 don't fit the product–sum rule.</b> Start there.";
+    api.noticed(t);
+    api.note(`Revealed: move 1 ${L[0][3] ? "✓" : "✗"}, move 2 ${L[1][3] ? "✓" : "✗"}, final ${r.fin ? "✓" : "✗"}`, r.nS && r.flipped ? "warn" : "good");
+    api.learn("PAIR", .7, .85); if (!L[0][3] || !L[1][3]) api.learn("SIGNS", .7, .85);
+  }
+  $("#perform", booth).addEventListener("click", perform);
+  $("#rev", booth).addEventListener("click", reveal);
+  const PRESETS = { right: [-3, 2, "−", "+"], double: [3, -2, "−", "+"], slip: [3, -2, "+", "−"], flip: [-3, 2, "+", "−"] };
+  $$("#as button", booth).forEach((b) => b.addEventListener("click", () => {
+    $$("#as button", booth).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    const [n1, n2, s1, s2] = PRESETS[b.dataset.p]; Object.assign(st, { n1, n2, s1, s2 });
+    $("#n1", booth).textContent = sgn(n1); $("#n2", booth).textContent = sgn(n2);
+    [["s1", s1], ["s2", s2]].forEach(([k, v]) => { const e = $(`#${k}`, booth); e.textContent = v; e.classList.add("set"); });
+    mags(); ready(); api.note(`Watching a student who ${b.textContent}`);
+    perform(); setTimeout(reveal, REDUCED ? 0 : 900);
+  }));
+  return () => {};
+} };
+
+// =================== 9. Lantern Lane ===================
+GAMES.lantern = { mount(booth, api) {
+  const CARDS = [{ b: 5, c: 6, ok: ["+", "+"], lc: "#ff9a3c" }, { b: -5, c: 6, ok: ["−", "−"], lc: "#ff6fa8" }, { b: 1, c: -6, ok: ["−", "+"], lc: "#5fe0c6" }, { b: -1, c: -6, ok: ["+", "−"], lc: "#ffd36b" }];
+  const RULES = [
+    { name: "The real rule: the signs multiply to the last sign and add to the middle", pred: CARDS.map((c) => c.ok) },
+    { name: "Copy the middle sign into both brackets", pred: [["+", "+"], ["−", "−"], ["+", "+"], ["−", "−"]] },
+    { name: "The minus always goes on the smaller number", pred: [["+", "+"], ["−", "−"], ["−", "+"], ["−", "+"]] },
+    { name: "First bracket copies the middle sign, second copies the last", pred: [["+", "+"], ["−", "+"], ["+", "−"], ["−", "−"]] },
+    { name: "Flip every sign into the brackets", pred: CARDS.map((c) => c.ok.map((s) => (s === "+" ? "−" : "+"))) },
+  ];
+  const t = (b, c) => `x² ${b < 0 ? "−" : "+"} ${Math.abs(b) === 1 ? "" : Math.abs(b)}x ${c < 0 ? "−" : "+"} ${Math.abs(c)}`;
+  booth.innerHTML = `<p class="ask">Each lantern factorises with the numbers 2 and 3. Set the two signs to light it.</p>
+    <div class="lane"><svg class="rope" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 10 Q500 70 1000 10" stroke="#c8bde8" stroke-width="2" fill="none"/></svg>
+      <div class="lanterns">${CARDS.map((c, i) => `<div class="lan" data-i="${i}" style="--lc:${c.lc}"><span class="cap"></span><div class="body"><span class="m">${t(c.b, c.c)}</span></div><span class="cap" style="width:50%"></span><span class="tassel"></span><span class="sw">(x <button class="tog" type="button" data-c="${i}" data-k="0">?</button> 2)(x <button class="tog" type="button" data-c="${i}" data-k="1">?</button> 3)</span></div>`).join("")}</div></div>
+    <div class="row"><button class="btn" id="see" type="button" disabled>See the pattern</button></div>
+    <div class="rules" id="rules"></div>`;
+  const picks = CARDS.map(() => [null, null]);
+  $$(".lan .tog", booth).forEach((b) => b.addEventListener("click", () => {
+    const i = +b.dataset.c, k = +b.dataset.k;
+    picks[i][k] = picks[i][k] === "+" ? "−" : "+"; b.textContent = picks[i][k]; b.classList.add("set");
+    if (!REDUCED) gsap.fromTo(b, { rotationX: 180 }, { rotationX: 0, duration: .4, ease: "back.out(2)" });
+    const lan = $(`.lan[data-i="${i}"]`, booth), lit = !picks[i].includes(null);
+    if (lit && !lan.classList.contains("lit")) { lan.classList.add("lit"); if (!REDUCED) gsap.fromTo($(".body", lan), { scale: .92 }, { scale: 1, duration: .6, ease: "elastic.out(1,.4)" }); }
+    if (lit) api.note(`${t(CARDS[i].b, CARDS[i].c)} → (x ${picks[i][0]} 2)(x ${picks[i][1]} 3)`);
+    $("#see", booth).disabled = picks.some((p) => p.includes(null));
+  }));
+  $("#see", booth).addEventListener("click", () => {
+    const right = picks.map((p, i) => p[0] === CARDS[i].ok[0] && p[1] === CARDS[i].ok[1]);
+    const scores = RULES.map((r) => r.pred.map((p, i) => p[0] === picks[i][0] && p[1] === picks[i][1]));
+    const best = scores.map((s, k) => [s.filter(Boolean).length, k]).sort((a, b) => b[0] - a[0])[0];
+    $("#rules", booth).innerHTML = RULES.map((r, k) => `<div class="rule" data-k="${k}"><span>${r.name}</span><span class="dots">${scores[k].map((on) => `<i class="${on ? "on" : ""}"></i>`).join("")}</span></div>`).join("");
+    if (!REDUCED) gsap.from($$(".rule", booth), { y: -30, opacity: 0, rotationX: -60, stagger: .1, duration: .5, ease: "back.out(1.6)" });
+    const nR = right.filter(Boolean).length;
+    let txt;
+    if (best[0] === 4) {
+      setTimeout(() => $(`.rule[data-k="${best[1]}"]`, booth).classList.add("match"), REDUCED ? 0 : 900);
+      txt = best[1] === 0 ? "<b>All four lanterns follow the real rule.</b> Not a shortcut." : `<b>Every lantern follows “${RULES[best[1]].name}”.</b> ${nR ? `${nR} of the 4 came out right anyway, so one question could easily have marked this student correct.` : "Consistent, so this is a misconception, not a slip."}`;
+    } else txt = `<b>No known rule fits all four</b> (closest: ${best[0]} of 4). Guessing signs: doesn't know yet.`;
+    api.noticed(txt); api.note(`Pattern: ${nR}/4 right, best rule ${best[0]}/4`, best[0] === 4 && best[1] !== 0 ? "warn" : "good");
+    api.learn("SIGNS", .9, best[0] === 4 ? .9 : .35);
+  });
+  return () => {};
+} };
+
+// =================== 10. Mithai Covers ===================
+GAMES.mithai = { mount(booth, api) {
+  const OPTS = [{ t: "(x − 5)(x + 3)", e: "x² − 2x − 15", k: "flip" }, { t: "(x + 15)(x − 1)", e: "x² + 14x − 15", k: "prod" }, { t: "(x + 5)(x − 3)", e: "x² + 2x − 15", k: "right" }, { t: "(x − 15)(x + 1)", e: "x² − 14x − 15", k: "prod" }];
+  const st = { p1: 1, p2: 1 };
+  booth.innerHTML = `<p class="ask">Under each cover is an answer for <span class="m">x² + 2x − 15</span>. Before you lift anything, write your guess on the price tag.</p>
+    <div class="guess"><span class="tag">(x + ${picker("p1", 1)})(x + ${picker("p2", 1)})</span><button class="btn" id="commit" type="button">That's my guess</button></div>
+    <div class="counter">${OPTS.map((o, i) => `<button class="dish" type="button" data-i="${i}" disabled aria-pressed="false"><span class="plate2"><span class="sweets"><i></i><i></i><i></i></span><span class="m">${o.t}</span><span class="exp"></span></span><span class="dome"></span></button>`).join("")}</div>
+    <div class="row"><button class="btn alt" id="peek" type="button">▶ Watch someone peek under every cover</button></div>`;
+  wirePickers(booth, st, null, -15, 15);
+  let pred = null, tl = null;
+  const lift = (i, d = 0) => gsap.to($$(".dome", booth)[i], { y: -96, x: -18, rotation: -16, duration: REDUCED ? 0 : .6, delay: d, ease: "back.out(1.6)" });
+  $("#commit", booth).addEventListener("click", () => {
+    pred = { ...st }; $("#commit", booth).disabled = true; $$("[data-np]", booth).forEach((b) => (b.disabled = true));
+    api.note(`Guessed (x ${pm(pred.p1)})(x ${pm(pred.p2)}) before seeing anything`, "good");
+    OPTS.forEach((_, i) => lift(i, i * .12)); $$(".dish", booth).forEach((d) => (d.disabled = false));
+  });
+  $$(".dish", booth).forEach((d) => d.addEventListener("click", () => {
+    if (!pred) return;
+    $$(".dish", booth).forEach((x) => x.setAttribute("aria-pressed", String(x === d)));
+    const o = OPTS[+d.dataset.i];
+    const pk = pred.p1 * pred.p2 === -15 && pred.p1 + pred.p2 === 2 ? "right" : pred.p1 * pred.p2 === -15 && pred.p1 + pred.p2 === -2 ? "flip" : pred.p1 * pred.p2 === -15 ? "prod" : "other";
+    let t;
+    if (pk === "right" && o.k === "right") t = "<b>Guessed it, then picked it.</b> Real factorising.";
+    else if (o.k === "right") t = "<b>The guess was off, but the pick is right.</b> They most likely found it by checking under the covers. That's expanding, which is an easier skill than factorising.";
+    else if (pk === o.k) t = `<b>The same mistake twice, independently</b> (${o.k === "flip" ? "signs flipped" : "right product, wrong sum"}). Strong evidence.`;
+    else t = "<b>Guess and pick disagree, and both are wrong.</b> Doesn't know yet.";
+    api.noticed(t); api.note(`Picked ${o.t} (guess was ${pk})`); api.learn("PAIR", .7, o.k === "right" && pk === "right" ? .9 : .6);
+  }));
+  $("#peek", booth).addEventListener("click", () => {
+    tl && tl.kill(); const dishes = $$(".dish", booth);
+    dishes.forEach((d) => ($(".exp", d).innerHTML = ""));
+    gsap.set($$(".dome", booth), { y: 0, x: 0, rotation: 0 });
+    tl = gsap.timeline();
+    OPTS.forEach((o, i) => {
+      if (i > 2) return;
+      tl.call(() => lift(i)).to({}, { duration: .5 })
+        .call(() => ($(".exp", dishes[i]).innerHTML = o.k === "right" ? `= ${o.e} ✓` : `<s>= ${o.e}</s>`)).to({}, { duration: .6 });
+    });
+    tl.call(() => { api.noticed("That's peeking: expand under each cover until one matches. The tick lands on the right answer, and no factorising happened."); api.note("Demo: someone peeked under the covers"); });
+  });
+  return () => tl && tl.kill();
+} };
+
+// =================== 11. Jalebi Belt ===================
+GAMES.jalebi = { mount(booth, api) {
+  const CARDS = [
+    { q: "x² − 9", o: ["(x − 3)(x + 3)", "(x − 3)²", "(x − 9)(x + 1)"] }, { q: "x² − 25", o: ["(x − 5)²", "(x − 5)(x + 5)", "(x − 25)(x + 1)"] },
+    { q: "4x² − 1", o: ["(4x − 1)(x + 1)", "(2x − 1)²", "(2x − 1)(2x + 1)"] }, { q: "x² + 16", o: ["(x − 4)(x + 4)", "(x + 4)²", "It can't be factorised"], sw: true },
+  ];
+  booth.innerHTML = `<p class="ask">Plates roll down the belt fast. Factorise each one, or say it can't be done.</p>
+    <div class="belt" id="belt"><div class="strip2"></div><div class="rollers">${"<i></i>".repeat(10)}</div></div>
+    <div class="dhol"><svg viewBox="0 0 520 150" id="rh"></svg></div>`;
+  const belt = $("#belt", booth), rh = $("#rh", booth), times = [], picks = [];
+  let i = 0, shown = 0, beltT;
+  if (!REDUCED) beltT = gsap.timeline({ repeat: -1 }).to($(".strip2", booth), { backgroundPositionX: "-48px", duration: .5, ease: "none" }).to($$(".rollers i", booth), { rotation: 360, duration: .5, ease: "none" }, 0);
+  function drum() {
+    const max = Math.max(4, ...times) * 1.15;
+    rh.innerHTML = `<text x="20" y="16" font-size="12" fill="#8f84b8" font-family="Mukta,sans-serif">seconds per plate</text><line x1="20" y1="118" x2="510" y2="118" stroke="#3d3170"/>` + CARDS.map((c, k) => {
+      const x = 80 + k * 120, h = times[k] ? (times[k] / max) * 90 : 0, col = c.sw ? "#ec3f8c" : "#ffb21e";
+      return `<rect x="${x - 24}" y="${118 - h}" width="48" height="${h}" rx="8" fill="${col}" class="rb" data-k="${k}"/><ellipse cx="${x}" cy="${118 - h}" rx="24" ry="6" fill="#fff1d6" opacity="${times[k] ? .8 : 0}"/>
+        <text x="${x}" y="138" text-anchor="middle" font-size="12" fill="#c8bde8" font-family="IBM Plex Mono,monospace">${c.q}</text>${times[k] ? `<text x="${x}" y="${110 - h}" text-anchor="middle" font-size="13" font-weight="700" fill="#fff1d6" font-family="Mukta,sans-serif">${times[k].toFixed(1)}s</text>` : ""}`;
+    }).join("");
+    const last = $(`.rb[data-k="${times.length - 1}"]`, rh);
+    if (last && !REDUCED) gsap.from(last, { attr: { height: 0, y: 118 }, duration: .7, ease: "elastic.out(1,.5)" });
+  }
+  function next() {
+    if (i >= CARDS.length) return finish();
+    const c = CARDS[i], el = html(`<div class="plate3"><span style="font:700 .75rem var(--body);color:#a5865f">PLATE ${i + 1}</span><span class="m q">${c.q}</span><div class="opts">${c.o.map((o, k) => `<button type="button" data-k="${k}">${o}</button>`).join("")}</div></div>`);
+    belt.appendChild(el);
+    gsap.fromTo(el, { x: 640 }, { x: 0, duration: REDUCED ? 0 : .6, ease: "power3.out", onComplete: () => (shown = performance.now()) });
+    shown = performance.now() + 600;
+    $$(".opts button", el).forEach((b) => b.addEventListener("click", () => {
+      const t = Math.max(.3, (performance.now() - shown) / 1000); times.push(t); picks.push(+b.dataset.k);
+      $$(".opts button", el).forEach((x) => (x.disabled = true));
+      api.note(`${c.q} → ${c.o[+b.dataset.k]} in ${t.toFixed(1)}s`, c.sw ? "warn" : ""); drum();
+      gsap.to(el, { x: -680, duration: REDUCED ? 0 : .5, ease: "power2.in", delay: .2, onComplete: () => el.remove() });
+      i++; setTimeout(next, REDUCED ? 50 : 520);
+    }));
+  }
+  function finish() {
+    beltT && beltT.pause();
+    const base = (times[0] + times[1] + times[2]) / 3, ratio = times[3] / base, p = picks[3];
+    let t;
+    if (p === 0) t = `<b>Autopilot.</b> Carried the difference-of-squares pattern onto a plus sign${ratio < 1.4 ? `, at their usual pace (${ratio.toFixed(1)}×)` : ""}. Treat the first three right answers with care.`;
+    else if (p === 1) t = "<b>Noticed something was different</b>, but thinks x² + 16 = (x + 4)². A sum-of-squares belief, not autopilot.";
+    else t = ratio >= 1.4 ? `<b>Noticed the switch.</b> Slowed down (${ratio.toFixed(1)}× their usual time) and checked.` : "<b>Spotted the switch instantly.</b>";
+    belt.appendChild(html(`<div class="plate3" style="top:70px"><span style="font-family:var(--hand);font-size:1.3rem">Belt's empty!</span></div>`));
+    api.noticed(t); api.note(`Switch plate: ${["autopilot", "sum-of-squares belief", "noticed"][p]} (${ratio.toFixed(1)}× usual time)`, "good");
+    api.learn("SQUARES", .8, .85);
+  }
+  drum(); next();
+  return () => beltT && beltT.kill();
+} };
+
+// =================== 12. Chitthi Wala ===================
+GAMES.chitthi = { mount(booth, api) {
+  const RIGHT = ["(x+5)(x-2)", "(x-2)(x+5)"], BUGS = { "(x-5)(x+2)": "the sign-flipped answer", "(x+2)(x-5)": "the sign-flipped answer", "(x+10)(x-1)": "a right-product, wrong-sum answer", "(x-10)(x+1)": "a right-product, wrong-sum answer" };
+  const ROWS = ["1234567890", "QWERTYUIOP", "ASDFGHJKL+", "ZXCVBNM()-"];
+  booth.innerHTML = `<p class="ask">The letter writer types out your answer to <span class="m">x² + 3x − 10</span>. Type it below (use - for minus). Then watch every keystroke replayed on paper.</p>
+    <div class="tw"><span class="bell" id="bell">ding!</span><div class="paper"><div class="hd">To: Lotus, Maths Mela</div><div class="pline" id="pl"><span class="cur"></span></div></div>
+      <div class="machine"><div class="roller"></div>${ROWS.map((r) => `<div class="krow">${[...r].map((k) => `<i data-k="${k}">${k}</i>`).join("")}</div>`).join("")}</div></div>
+    <div class="row"><input class="typein" id="ti" autocomplete="off" spellcheck="false" placeholder="(x + ?)(x − ?)" aria-label="Your answer"><button class="btn" id="post" type="button">Give it to the letter writer</button></div>
+    <div class="tickertape"><div class="tline" id="tl"><span class="head" id="hd" style="left:0"></span></div><div class="legend"><span>▮ a key</span><span style="color:var(--rani)">▮ a deletion</span><span style="color:var(--marigold)">▬ a pause over 1.5s</span></div></div>
+    <div style="display:grid;gap:6px"><span class="chiplab">Or read someone else's letter</span><div class="chipset" id="as"><button type="button" data-p="fix">they fixed a sign</button><button type="button" data-p="clean">they typed it straight</button><button type="button" data-p="stuck">they stalled</button></div></div>`;
+  const input = $("#ti", booth); let hist = [], t0 = null, tl = null;
+  input.addEventListener("input", () => { const now = performance.now(); if (t0 === null) t0 = now; hist.push({ t: (now - t0) / 1000, v: input.value }); });
+  const norm = (s) => s.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
+  const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  function script(ops) { const h = []; let t = 0, v = ""; for (const o of ops) { if (o.type) for (const ch of o.type) { t += o.d ?? .2; v += ch; h.push({ t, v }); } if (o.wait) t += o.wait; if (o.back) for (let k = 0; k < o.back; k++) { t += .1; v = v.slice(0, -1); h.push({ t, v }); } } return h; }
+  const SAMPLES = { fix: script([{ type: "(x-5)(x+2)" }, { wait: 2.6 }, { back: 8 }, { type: "+5)(x-2)" }]), clean: script([{ wait: 1.2 }, { type: "(x+5)(x-2)", d: .16 }]), stuck: script([{ type: "(x+" }, { wait: 4.2 }, { type: "10)(x-1)", d: .24 }]) };
+  function analyse(h) {
+    const fin = norm(h.at(-1)?.v ?? ""), drafts = [];
+    h.forEach((s, k) => { const nx = h[k + 1]; if (nx && nx.v.length < s.v.length) drafts.push(norm(s.v)); });
+    const buggy = [...new Set(drafts)].map((d) => BUGS[d]).filter(Boolean);
+    const dels = h.filter((s, k) => k && s.v.length < h[k - 1].v.length).length;
+    let longest = { gap: 0, at: "" };
+    h.forEach((s, k) => { const gap = s.t - (k ? h[k - 1].t : 0); if (gap > longest.gap) longest = { gap, at: k ? h[k - 1].v : "" }; });
+    const right = RIGHT.includes(fin);
+    let t;
+    if (right && buggy.length) t = `<b>The final letter is right, but the first draft was ${buggy[0]}.</b> They caught it this time. The mistake is still there, so Lotus keeps watching for it.`;
+    else if (right && !dels) t = "<b>Typed it straight through.</b> Fluent and sure.";
+    else if (right) t = `<b>Right, after ${dels} deletion${dels > 1 ? "s" : ""}.</b> None of the deleted drafts matched a known mistake.`;
+    else if (BUGS[fin]) t = `<b>Sent ${BUGS[fin]}.</b>`;
+    else t = "<b>Not the right factorisation.</b>";
+    if (longest.gap > 1.5) t += ` Longest pause: ${longest.gap.toFixed(1)}s${longest.at ? `, after “${esc(longest.at)}”` : " before starting"}.`;
+    return { t, right, buggy, dels, longest };
+  }
+  function replay(h) {
+    tl && tl.kill();
+    const T = Math.max(1, h.at(-1).t + .6), line = $("#tl", booth), pl = $("#pl", booth);
+    line.querySelectorAll("i,b").forEach((e) => e.remove());
+    h.forEach((s, k) => { const p = k ? h[k - 1] : { t: 0, v: "" }, gap = s.t - p.t; if (gap > 1.5) line.insertAdjacentHTML("beforeend", `<b style="left:${(p.t / T) * 100}%;width:${(gap / T) * 100}%"></b>`); line.insertAdjacentHTML("beforeend", `<i class="${s.v.length < p.v.length ? "d" : ""}" style="left:${(s.t / T) * 100}%"></i>`); });
+    const tape = []; pl.innerHTML = `<span class="cur"></span>`;
+    tl = gsap.timeline();
+    tl.fromTo($("#hd", booth), { left: "0%" }, { left: "100%", duration: T / 1.4, ease: "none" }, 0);
+    h.forEach((s, k) => {
+      const prev = k ? h[k - 1].v : "";
+      tl.call(() => {
+        let pre = 0; while (pre < prev.length && pre < s.v.length && prev[pre] === s.v[pre]) pre++;
+        for (let n = prev.length - pre; n > 0; n--) { for (let j = tape.length - 1; j >= 0; j--) if (!tape[j].del) { tape[j].del = true; break; } }
+        for (const ch of s.v.slice(pre)) tape.push({ ch });
+        pl.innerHTML = tape.map((c) => (c.del ? `<span class="del">${esc(c.ch)}</span>` : esc(c.ch))).join("") + `<span class="cur"></span>`;
+        const ch = (s.v.slice(pre).at(-1) ?? "X").toUpperCase(), key = $(`.krow i[data-k="${CSS.escape(ch)}"]`, booth) ?? $$(".krow i", booth)[Math.floor(Math.random() * 30)];
+        if (key) { key.classList.add("hit"); setTimeout(() => key.classList.remove("hit"), 90); }
+        if (!REDUCED) gsap.fromTo(pl, { x: -2 }, { x: 0, duration: .12 });
+      }, null, s.t / 1.4);
+    });
+    tl.call(() => { if (!REDUCED) gsap.fromTo($("#bell", booth), { opacity: 1, y: 0, scale: 1.3 }, { opacity: 0, y: -16, scale: 1, duration: 1.1 }); }, null, T / 1.4);
+  }
+  function report(h, who) {
+    const r = analyse(h); api.noticed(r.t);
+    api.note(`${who}: ${r.dels} deletion${r.dels === 1 ? "" : "s"}, longest pause ${r.longest.gap.toFixed(1)}s${r.buggy.length ? ", and a deleted draft matched a known mistake" : ""}`, r.buggy.length ? "warn" : "good");
+    api.learn("PAIR", .6, r.buggy.length ? .6 : .85); if (r.buggy.length) api.learn("SIGNS", .5, .7);
+  }
+  $("#post", booth).addEventListener("click", () => { if (!hist.length) return input.focus(); replay(hist); setTimeout(() => report(hist, "Your letter"), REDUCED ? 0 : hist.at(-1).t / 1.4 * 1000 + 400); });
+  $$("#as button", booth).forEach((b) => b.addEventListener("click", () => { $$("#as button", booth).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); const h = SAMPLES[b.dataset.p]; replay(h); setTimeout(() => report(h, `A letter where ${b.textContent}`), REDUCED ? 0 : h.at(-1).t / 1.4 * 1000 + 400); }));
+  return () => tl && tl.kill();
+} };
+
+// =================== 13. Gubbara Wall ===================
+GAMES.gubbara = { mount(booth, api) {
+  const VALID = [-13, -8, -7, 7, 8, 13], PAIR = { 13: "1 × 12", 8: "2 × 6", 7: "3 × 4", "-13": "−1 × −12", "-8": "−2 × −6", "-7": "−3 × −4" };
+  const NUMS = [...Array.from({ length: 15 }, (_, k) => k - 15), ...Array.from({ length: 15 }, (_, k) => k + 1)];
+  const COLS = ["#ec3f8c", "#ffb21e", "#16c2a3", "#63b6ff", "#ff7a1f", "#b27bff"];
+  booth.innerHTML = `<p class="ask"><span class="m">x² + bx + 12</span> factorises into two brackets with whole numbers. Tag <b>every</b> balloon whose number works as b.</p>
+    <div class="board"><div class="balloons">${NUMS.map((n, i) => `<button class="bl" type="button" data-v="${n}" aria-pressed="false" aria-label="b = ${n}" style="animation-delay:-${(i * .37) % 3}s"><svg viewBox="0 0 50 84"><path d="M25 50 Q20 64 27 82" stroke="#c8bde8" stroke-width="1.2" fill="none"/><ellipse class="skin" cx="25" cy="26" rx="19" ry="23" fill="${COLS[i % 6]}"/><path d="M21 49 h8 l-4 5z" fill="${COLS[i % 6]}"/><ellipse cx="18" cy="16" rx="4" ry="7" fill="#fff" opacity=".35"/><text x="25" y="31" text-anchor="middle" fill="#130e2a">${sgn(n)}</text></svg><span class="pair">${PAIR[n] ?? ""}</span></button>`).join("")}</div></div>
+    <div class="row"><button class="btn" id="done" type="button" disabled>I've found them all</button><span id="cnt" style="color:var(--soft)">No balloons tagged yet</span></div>`;
+  const picked = [];
+  function retag() {
+    $$(".tagx", booth).forEach((t) => t.remove());
+    picked.forEach((v, k) => $(`.bl[data-v="${v}"]`, booth).insertAdjacentHTML("beforeend", `<span class="tagx">${k + 1}</span>`));
+    $("#cnt", booth).textContent = picked.length ? `${picked.length} tagged` : "No balloons tagged yet";
+    $("#done", booth).disabled = !picked.length;
+  }
+  $$(".bl", booth).forEach((b) => b.addEventListener("click", () => {
+    const v = +b.dataset.v, at = picked.indexOf(v);
+    if (at >= 0) { picked.splice(at, 1); b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); api.note(`Untagged b = ${sgn(v)}`, "warn"); }
+    else { picked.push(v); b.classList.add("on"); b.setAttribute("aria-pressed", "true"); api.note(`Tagged b = ${sgn(v)} (tag ${picked.length})`); if (!REDUCED) gsap.fromTo($("svg", b), { scale: 1.25 }, { scale: 1, duration: .5, ease: "elastic.out(1,.35)", transformOrigin: "50% 40%" }); }
+    retag();
+  }));
+  $("#done", booth).addEventListener("click", () => {
+    $("#done", booth).disabled = true;
+    const found = picked.filter((v) => VALID.includes(v)), wrong = picked.filter((v) => !VALID.includes(v)), neg = found.filter((v) => v < 0), pos = found.filter((v) => v > 0);
+    VALID.forEach((v, k) => {
+      const b = $(`.bl[data-v="${v}"]`, booth), hit = found.includes(v);
+      if (!hit) b.classList.add("miss");
+      gsap.to($(".pair", b), { opacity: 1, duration: .4, delay: .1 * k });
+      if (!REDUCED) gsap.to(b, hit ? { y: -16, duration: .8, delay: .1 * k, ease: "back.out(2)" } : { rotation: 6, yoyo: true, repeat: 5, duration: .15, delay: .1 * k });
+      gsap.set(b, { animation: "none" });
+    });
+    wrong.forEach((v) => gsap.to(`.bl[data-v="${v}"]`, { scale: .8, opacity: .45, duration: .5 }));
+    const ordered = picked.filter((v) => v > 0 && VALID.includes(v)).join();
+    let t = found.length === 6 ? "<b>All six.</b>" : pos.length === 3 && !neg.length ? "<b>Found 7, 8 and 13, and no negatives.</b> Forgets that two negatives also multiply to +12. That's the “no negative pairs” mistake, now with solid evidence." : found.length <= 2 ? `<b>Found ${found.length}.</b> Knows an example, not the whole set.` : `<b>Found ${found.length} of 6.</b>`;
+    if (ordered === "13,8,7" || ordered === "7,8,13") t += " Listed the pairs in order, which is systematic.";
+    if (wrong.some((v) => [12, -12, 1, -1].includes(v))) t += " Tagged 12 or 1, mixing up b with a factor of 12.";
+    else if (wrong.length) t += ` ${wrong.length} balloon${wrong.length > 1 ? "s" : ""} that don't work: ${wrong.map(sgn).join(", ")}.`;
+    api.noticed(t); api.note(`Done: ${found.length}/6 found, ${wrong.length} wrong, negatives ${neg.length ? "included" : "missing"}`, "good");
+    api.learn("PAIR", .8, found.length === 6 ? .9 : .7); if (!neg.length) api.learn("SIGNS", .6, .8);
+  });
+  return () => {};
+} };
+
+// =================== 14. Tiffin Trick ===================
+GAMES.tiffin = { mount(booth, api) {
+  const MINI = `<svg class="mini" viewBox="0 0 26 30" aria-label="A"><rect x="3" y="6" width="20" height="7" rx="2" fill="#c8cfe0"/><rect x="3" y="14" width="20" height="7" rx="2" fill="#b4bdd2"/><rect x="3" y="22" width="20" height="7" rx="2" fill="#c8cfe0"/><path d="M1 4 Q13 -4 25 4" stroke="#8f84b8" stroke-width="2" fill="none"/><text x="13" y="20" text-anchor="middle" font-size="8" font-weight="800" fill="#ec3f8c" font-family="Baloo 2,sans-serif">A</text></svg>`;
+  const PATHS = {
+    block: { label: "Pack (x + 3) into a tiffin", lines: [`${MINI}² − 16`, `${MINI}² − 4²`, `(${MINI} − 4)(${MINI} + 4)`, "(x + 3 − 4)(x + 3 + 4)", "(x − 1)(x + 7)"], t: "<b>Packed (x + 3) into one tiffin.</b> Saw A² − 4². That's structure sense, the skill behind spotting a difference of squares wherever it hides.", cert: .9 },
+    expand: { label: "Unpack it: expand the bracket", lines: ["(x + 3)² − 16", "x² + 6x + 9 − 16", "x² + 6x − 7", "(x + 7)(x − 1)"], t: "<b>Right, the long way.</b> Four lines and a product–sum hunt. They can do it but didn't see the structure, and an answer-only check would call this full mastery.", cert: .7 },
+    root: { label: "Square-root each part", lines: ["(x + 3)² − 16", "(x + 3) − 4", "x − 1"], t: "<b>Square-rooted each part separately.</b> Thinks √(a − b) = √a − √b. A different misconception, worth its own follow-up.", cert: .85 },
+  };
+  booth.innerHTML = `<div class="tf"><div><p class="ask">Factorise this. What's your first move?</p><div class="big" id="ex"><span class="chunk" id="chunk">(x + 3)</span>² − 16</div></div>
+      <svg class="tiffin" id="tif" viewBox="0 0 140 170" aria-hidden="true"><circle id="tglow" cx="70" cy="100" r="70" fill="#ffd36b" opacity="0"/><path d="M14 30 V130 M126 30 V130" stroke="#8f84b8" stroke-width="5"/><path d="M14 30 Q70 -14 126 30" stroke="#8f84b8" stroke-width="5" fill="none"/><rect x="24" y="96" width="92" height="30" rx="6" fill="#c8cfe0"/><rect x="24" y="62" width="92" height="32" rx="6" fill="#b4bdd2"/><g id="tlid"><rect x="24" y="40" width="92" height="22" rx="6" fill="#dde2ee"/><rect x="58" y="34" width="24" height="8" rx="3" fill="#8f84b8"/></g><rect x="24" y="128" width="92" height="30" rx="6" fill="#c8cfe0"/><text id="tA" x="70" y="85" text-anchor="middle" font-size="22" font-weight="800" fill="#ec3f8c" font-family="Baloo 2,sans-serif" opacity="0">A</text></svg></div>
+    <div class="moves">${Object.entries(PATHS).map(([k, p]) => `<button class="move" type="button" data-k="${k}">${p.label}</button>`).join("")}</div>
+    <div class="route" id="route"><span style="color:var(--faint)">Your route plays out here.</span></div>
+    <div class="mental" id="mn" hidden><p class="ask" style="font-size:1rem">Now in your head: <span class="m">99² − 1</span> = ?</p><div class="row"><input id="mi" inputmode="numeric" autocomplete="off" aria-label="99 squared minus 1"><button class="btn" id="ms" type="button">Done</button></div></div>`;
+  let tl = null, start = 0;
+  function lines(p) {
+    const r = $("#route", booth);
+    r.innerHTML = p.lines.map((l, k) => `<div class="rl2">${k ? '<span class="eqs">=</span>' : ""}${l}</div>`).join("");
+    const rows = $$(".rl2", r); gsap.set(rows, { opacity: 0, x: -14 });
+    return rows;
+  }
+  $$(".move", booth).forEach((b) => b.addEventListener("click", () => {
+    $$(".move", booth).forEach((x) => { x.setAttribute("aria-pressed", String(x === b)); x.disabled = true; });
+    const k = b.dataset.k, p = PATHS[k];
+    tl && tl.kill(); tl = gsap.timeline();
+    if (k === "block" && !REDUCED) {
+      const c = $("#chunk", booth).getBoundingClientRect(), t = $("#tif", booth).getBoundingClientRect();
+      const fly = html(`<span class="flyer">(x + 3)</span>`); document.body.appendChild(fly);
+      gsap.set(fly, { left: c.left, top: c.top });
+      tl.to("#tlid", { rotation: -50, svgOrigin: "24 50", duration: .4, ease: "back.out(2)" })
+        .to($("#chunk", booth), { opacity: .25, duration: .2 }, 0)
+        .to(fly, { left: t.left + t.width / 2 - 40, top: t.top + t.height / 2 - 20, scale: .35, duration: .8, ease: "power3.inOut" }, .1)
+        .to(fly, { opacity: 0, duration: .15, onComplete: () => fly.remove() })
+        .to("#tlid", { rotation: 0, svgOrigin: "24 50", duration: .45, ease: "bounce.out" })
+        .to("#tA", { opacity: 1, duration: .3 }, "<.2")
+        .fromTo("#tglow", { opacity: .6 }, { opacity: 0, duration: .9 }, "<");
+    }
+    const rows = lines(p);
+    rows.forEach((r, i) => tl.to(r, { opacity: 1, x: 0, duration: REDUCED ? 0 : .45, ease: "power3.out" }, `>${REDUCED ? 0 : .25}`));
+    if (k === "block" && !REDUCED) tl.to("#tlid", { rotation: -50, svgOrigin: "24 50", duration: .4 }, `-=${.7 * 2}`);
+    tl.call(() => { api.noticed(p.t); $("#mn", booth).hidden = false; start = performance.now(); });
+    api.note(`First move: ${p.label} (${p.lines.length} lines to the answer)`, k === "block" ? "good" : k === "root" ? "warn" : "");
+    api.learn("SQUARES", .7, p.cert);
+  }));
+  $("#ms", booth).addEventListener("click", () => {
+    const v = $("#mi", booth).value.replace(/[^\d-]/g, ""), t = (performance.now() - start) / 1000;
+    const r = v === "9800" && t <= 12 ? `<b>9800 in ${t.toFixed(0)}s.</b> That fast almost certainly means (99 − 1)(99 + 1) = 98 × 100. The structure carries over to plain numbers.`
+      : v === "9800" ? `<b>9800, after ${t.toFixed(0)}s.</b> Probably 99 × 99 = 9801, then minus 1. Right, with no sign of the structure.`
+      : `<b>${v || "No answer"}.</b> Not 9800. Lotus would check for an arithmetic slip first.`;
+    api.noticed(`${PATHS[$(".move[aria-pressed='true']", booth)?.dataset.k ?? "expand"].t}<br><br>${r}`);
+    api.note(`99² − 1 → ${v || "blank"} in ${t.toFixed(1)}s`, v === "9800" && t <= 12 ? "good" : ""); $("#ms", booth).disabled = true;
+  });
+  return () => { tl && tl.kill(); $$(".flyer").forEach((f) => f.remove()); };
+} };
+
+// =================== 15. Mithu's Map ===================
+GAMES.naksha = { mount(booth, api) {
+  const S = ["M", "FLIP", "PROD", "SWAP", "UNK"];
+  const NAMES = { M: "Knows it", FLIP: "Flips signs into the brackets", PROD: "Matches the product, ignores the sum", SWAP: "Mixes up product and sum", UNK: "Doesn't know yet" };
+  const COL = { M: "#16c2a3", FLIP: "#ff7a1f", PROD: "#ffb21e", SWAP: "#b27bff", UNK: "#8f84b8" };
+  const u = (ks) => Object.fromEntries(ks.map((k) => [k, 1 / ks.length]));
+  const sl = (m, ks, p = .92) => Object.fromEntries(ks.map((k) => [k, k === m ? p : (1 - p) / (ks.length - 1)]));
+  const QS = [
+    { id: "fire", name: "Fireflies (today's game)", x: 90, y: 255, sec: 20, L: { M: sl("r", ["r", "s", "o", "p"]), FLIP: sl("r", ["r", "s", "o", "p"]), PROD: { r: .31, s: .31, o: .31, p: .07 }, SWAP: u(["r", "s", "o", "p"]), UNK: u(["r", "s", "o", "p"]) } },
+    { id: "sikka", name: "Sikka Toss", x: 95, y: 90, sec: 30, L: { M: sl("right", ["right", "sw", "ps", "po"]), FLIP: sl("sw", ["right", "sw", "ps", "po"]), PROD: { right: .31, sw: .31, po: .31, ps: .07 }, SWAP: sl("ps", ["right", "sw", "ps", "po"]), UNK: u(["right", "sw", "ps", "po"]) } },
+    { id: "chitthi", name: "Chitthi Wala", x: 260, y: 58, sec: 40, L: { M: { right: .92, other: .08 }, FLIP: { flip: .88, other: .12 }, PROD: { right: .5, prod: .45, other: .05 }, SWAP: { swap: .85, other: .15 }, UNK: { dunno: .5, other: .4, right: .1 } } },
+    { id: "lantern", name: "Lantern Lane", x: 430, y: 100, sec: 60, L: { M: { all: .9, none: .1 }, FLIP: { flipped: .85, none: .15 }, PROD: { all: .4, none: .4, copy: .2 }, SWAP: { all: .3, none: .5, copy: .2 }, UNK: { none: .6, copy: .25, all: .1, flipped: .05 } } },
+    { id: "tota", name: "Mithu's Cards", x: 425, y: 268, sec: 60, L: Object.fromEntries(S.map((s) => [s, { a: .5, b: .5 }])) },
+    { id: "gubbara", name: "Gubbara Wall", x: 255, y: 305, sec: 45, L: { M: { ok: .9, no: .1 }, FLIP: { ok: .7, no: .3 }, PROD: { ok: .6, no: .4 }, SWAP: { ok: .5, no: .5 }, UNK: { ok: .25, no: .75 } } },
+  ];
+  for (const q of QS) { const R = [...new Set(S.flatMap((s) => Object.keys(q.L[s])))]; for (const s of S) q.L[s] = Object.fromEntries(R.map((r) => [r, .94 * (q.L[s][r] ?? 0) + .06 / R.length])); }
+  const PRIOR = { M: .35, FLIP: .2, PROD: .15, SWAP: .1, UNK: .2 };
+  booth.innerHTML = `<p class="ask">I'm Mithu, and I plan the route through the fair. Pick a hidden student. I'll fly to whichever stall tells Lotus the most about them, and stop once Lotus is sure.</p>
+    <div style="display:grid;gap:6px"><span class="chiplab">Hidden student</span><div class="chipset" id="hid">${S.map((s) => `<button type="button" data-s="${s}" aria-pressed="${s === "FLIP"}">${NAMES[s]}</button>`).join("")}</div></div>
+    <div class="mapgrid"><div class="parch"><svg viewBox="0 0 520 360" id="pmap" aria-label="Map of the fair"></svg></div>
+      <div class="ribbons" id="rib"></div></div>
+    <div class="row"><button class="btn" id="ask" type="button">Fly to the best stall</button><button class="btn alt" id="rs" type="button">Start again</button></div>
+    <div class="hist" id="hist"></div>`;
+  const svg = $("#pmap", booth), C0 = { x: 260, y: 185 };
+  svg.innerHTML = `${QS.map((q) => `<path d="M${C0.x} ${C0.y} Q${(C0.x + q.x) / 2 + 30} ${(C0.y + q.y) / 2 - 30} ${q.x} ${q.y}" stroke="#a5865f" stroke-width="2" stroke-dasharray="5 6" fill="none"/>`).join("")}
+    <circle cx="${C0.x}" cy="${C0.y}" r="16" fill="#e7cf9c" stroke="#a5865f" stroke-width="2"/><text x="${C0.x}" y="${C0.y + 34}" text-anchor="middle" font-size="12" fill="#6b4a2a" font-family="Kalam,cursive">entrance</text>
+    ${QS.map((q) => `<g class="pin" data-id="${q.id}"><circle class="halo" cx="${q.x}" cy="${q.y}" r="8" fill="#ffb21e" opacity=".35"/><circle cx="${q.x}" cy="${q.y}" r="10" fill="#ec3f8c" stroke="#fff6e2" stroke-width="3"/><text x="${q.x}" y="${q.y + 30}" text-anchor="middle" font-size="13" font-weight="700" fill="#3b2414" font-family="Baloo 2,sans-serif">${q.name}</text><text class="bits" x="${q.x}" y="${q.y + 45}" text-anchor="middle" font-size="11" fill="#6b4a2a" font-family="IBM Plex Mono,monospace"></text><text class="flag" x="${q.x}" y="${q.y - 18}" text-anchor="middle" font-size="12" fill="#a8164f" font-family="Kalam,cursive" font-weight="700"></text></g>`).join("")}
+    <g id="bird" transform="translate(${C0.x} ${C0.y})"><circle r="11" fill="#3fbf55"/><path d="M8 -4 C16 -4 17 4 10 6Z" fill="#ff3b3b"/><circle cx="4" cy="-4" r="3" fill="#fff"/><circle cx="4.6" cy="-4" r="1.6" fill="#130e2a"/><path d="M-6 6 C-14 14 -18 6 -16 2" fill="#2d8f3f"/></g>`;
+  let hidden = "FLIP", belief = { ...PRIOR }, asked = [], done = false, at = { ...C0 };
+  const H = (d) => -Object.values(d).reduce((t, p) => t + (p > 0 ? p * Math.log2(p) : 0), 0);
+  const post = (b, q, r) => { const o = {}; let z = 0; for (const s of S) { o[s] = b[s] * (q.L[s][r] ?? 0); z += o[s]; } for (const s of S) o[s] = z ? o[s] / z : b[s]; return o; };
+  const eig = (b, q) => { const rs = [...new Set(S.flatMap((s) => Object.keys(q.L[s])))]; let e = 0; for (const r of rs) { const pr = S.reduce((t, s) => t + b[s] * (q.L[s][r] ?? 0), 0); if (pr > 0) e += pr * H(post(b, q, r)); } return Math.max(0, H(b) - e); };
+  function draw() {
+    const lead = S.reduce((a, s) => (belief[s] > belief[a] ? s : a), S[0]);
+    $("#rib", booth).innerHTML = `<span class="chiplab">What Lotus believes</span>` + S.map((s) => `<div class="rib ${s === lead ? "lead" : ""}" style="--c:${COL[s]}"><span>${NAMES[s]}</span><em>${Math.round(belief[s] * 100)}%</em><span class="bar"><i data-w="${belief[s]}"></i></span></div>`).join("");
+    $$(".rib .bar i", booth).forEach((i) => gsap.to(i, { width: `${+i.dataset.w * 100}%`, duration: .8, ease: "power3.out" }));
+    const sc = QS.map((q) => { const g = eig(belief, q); return { q, g, pm: g / (q.sec / 60) }; });
+    sc.forEach(({ q, g, pm: p }) => { const pin = $(`.pin[data-id="${q.id}"]`, svg); gsap.to($(".halo", pin), { attr: { r: 10 + Math.min(40, p * 30) }, opacity: asked.includes(q.id) ? .12 : .4, duration: .8, ease: "elastic.out(1,.5)" }); $(".bits", pin).textContent = `${g.toFixed(2)} bits · ${p.toFixed(2)}/min`; });
+    return { best: sc.filter((x) => !asked.includes(x.q.id)).sort((a, b) => b.pm - a.pm)[0], lead };
+  }
+  function ask() {
+    if (done) return;
+    const { best } = draw();
+    if (!best || best.g < .05) return stop("No stall left is worth the student's time.");
+    const q = best.q, L = q.L[hidden];
+    let u2 = Math.random(), acc = 0, r = Object.keys(L).at(-1);
+    for (const [k, p] of Object.entries(L)) { acc += p; if (u2 <= acc) { r = k; break; } }
+    const mid = { x: (at.x + q.x) / 2, y: Math.min(at.y, q.y) - 60 };
+    $("#ask", booth).disabled = true;
+    gsap.timeline({ onComplete: () => {
+      at = { x: q.x, y: q.y };
+      $(".flag", $(`.pin[data-id="${q.id}"]`, svg)).textContent = `“${r}”`;
+      belief = post(belief, q, r); asked.push(q.id);
+      $("#hist", booth).insertAdjacentHTML("beforeend", `<span>${asked.length}. ${q.name} → “${r}”</span>`);
+      api.note(`Mithu chose ${q.name} (${best.g.toFixed(2)} bits expected). The answer was “${r}”`);
+      const { lead } = draw(); $("#ask", booth).disabled = false;
+      if (belief[lead] >= .85 && (lead === "M" || lead === "UNK" || asked.length >= 2)) stop(`Sure enough: “${NAMES[lead]}” at ${Math.round(belief[lead] * 100)}%, after ${asked.length} stall${asked.length > 1 ? "s" : ""}.${lead === hidden ? " That's the hidden student." : " Not the hidden student, though. Answers include slips, so press Start again to retry."}`);
+    } })
+      .to("#bird", { x: mid.x, y: mid.y, duration: REDUCED ? 0 : .5, ease: "power1.out" })
+      .to("#bird", { x: q.x, y: q.y - 4, duration: REDUCED ? 0 : .5, ease: "power1.in" })
+      .fromTo($(`.pin[data-id="${q.id}"] .halo`, svg), { attr: { r: 50 } }, { attr: { r: 14 }, duration: REDUCED ? 0 : .5 });
+  }
+  function stop(why) { done = true; draw(); $("#ask", booth).disabled = true; api.noticed(`<b>Mithu stops.</b> ${why} A fixed route would keep sending the student to more stalls. A named mistake always needs a second, different stall first.`); api.note("Stopped: Lotus is sure enough", "good"); }
+  function reset() { belief = { ...PRIOR }; asked = []; done = false; at = { ...C0 }; gsap.set("#bird", { x: C0.x, y: C0.y }); $$(".flag", svg).forEach((f) => (f.textContent = "")); $("#hist", booth).innerHTML = ""; $("#ask", booth).disabled = false; $(".noticed", booth)?.remove(); draw(); }
+  $$("#hid button", booth).forEach((b) => b.addEventListener("click", () => { hidden = b.dataset.s; $$("#hid button", booth).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); api.note(`Hidden student: ${NAMES[hidden]}`); reset(); }));
+  $("#ask", booth).addEventListener("click", ask); $("#rs", booth).addEventListener("click", reset);
+  gsap.set("#bird", { x: C0.x, y: C0.y }); draw();
+  return () => {};
+} };
+
+// =================== 16. Daakghar ===================
+GAMES.daak = { mount(booth, api) {
+  booth.innerHTML = `<p class="ask">Write your factorisation of <span class="m">x² + 5x + 6</span> on the postcard. Before anything gets marked, the postmaster reads it back to you.</p>
+    <div class="post">
+      <div class="card2" id="pc"><div class="msg"><span>Dear Lotus, my answer is:</span><input id="ri" autocomplete="off" spellcheck="false" value="x+2(x+3)" aria-label="Your answer"></div>
+        <div class="addr"><small>To: Lotus, Maths Mela</small><i></i><i></i><i></i></div>
+        <div class="stampbox"><div>कमल<br>₹5</div></div>
+        <div class="postmark" id="pmk"><div>READ &amp; CONFIRMED<span>Mela Daakghar</span></div></div></div>
+      <div class="slip"><h4>The postmaster reads it as</h4><div class="read" id="rd"></div><div id="iss" style="display:grid;gap:6px"></div>
+        <div class="row"><button class="btn" id="yes" type="button">Yes, stamp it</button><button class="btn alt" id="fix" type="button">Use the suggestion</button></div></div>
+    </div>
+    <div style="display:grid;gap:6px"><span class="chiplab">Try another card</span><div class="envs">${["x+2(x+3)", "(x+2)(x+3", "x2+5x+6", "(x+2)(x+3)", "(x+2)*(x+3)"].map((s) => `<button type="button">${s}</button>`).join("")}</div></div>`;
+  const input = $("#ri", booth); let sug = null;
+  const pretty = (s) => s.replace(/\^2/g, "²").replace(/\*/g, " · ").replace(/-/g, " − ").replace(/\+/g, " + ");
+  function analyse(raw) {
+    let s = raw.replace(/\s+/g, "").replace(/[−–]/g, "-"); const iss = []; let fix = null;
+    const o = (s.match(/\(/g) || []).length, c = (s.match(/\)/g) || []).length;
+    if (/x2(?!\d)/.test(s) && !s.includes("^")) { iss.push("“x2” could mean x² or x × 2. I read it as x²."); s = s.replace(/x2(?!\d)/g, "x^2"); }
+    if (o > c) { iss.push(`${o - c === 1 ? "A bracket is" : `${o - c} brackets are`} still open. I closed it at the end.`); s += ")".repeat(o - c); }
+    if (c > o) iss.push("There's an extra closing bracket.");
+    const m = /^(x[+-]\d+)\((x[+-]\d+)\)$/.exec(s);
+    if (m) { iss.push(`This reads as a sum, not two brackets multiplied. Did you mean (${pretty(m[1])})(${pretty(m[2])})?`); fix = `(${m[1]})(${m[2]})`; }
+    if (/\^2/.test(s) && !/\(/.test(s)) iss.push("This is the expression itself, not factorised.");
+    return { s, iss, fix };
+  }
+  function render() {
+    const r = analyse(input.value); sug = r.fix;
+    $("#rd", booth).textContent = pretty(r.s) || " ";
+    $("#iss", booth).innerHTML = r.iss.map((t) => `<span class="flag">${t}</span>`).join("");
+    $("#fix", booth).hidden = !r.fix;
+    if (!REDUCED && r.iss.length) gsap.from($$(".flag", booth), { opacity: 0, x: -8, stagger: .08, duration: .3 });
+    gsap.set("#pmk", { opacity: 0 });
+    return r;
+  }
+  input.addEventListener("input", render);
+  $$(".envs button", booth).forEach((b) => b.addEventListener("click", () => { input.value = b.textContent; const r = render(); api.note(`Wrote “${b.textContent}”: ${r.iss.length ? `${r.iss.length} thing${r.iss.length > 1 ? "s" : ""} to check` : "clear"}`, r.iss.length ? "warn" : ""); }));
+  $("#fix", booth).addEventListener("click", () => { if (!sug) return; input.value = sug; render(); api.note("Took the postmaster's suggestion: the student meant two brackets multiplied", "good"); });
+  $("#yes", booth).addEventListener("click", () => {
+    const r = analyse(input.value), ok = ["(x+2)(x+3)", "(x+3)(x+2)", "(x+2)*(x+3)", "(x+3)*(x+2)"].includes(r.s);
+    if (REDUCED) gsap.set("#pmk", { opacity: .85, rotation: -12 });
+    else gsap.timeline().fromTo("#pmk", { opacity: 0, scale: 2.4, rotation: -30 }, { opacity: .85, scale: 1, rotation: -12, duration: .28, ease: "power4.in" }).fromTo("#pc", { x: 0 }, { x: 4, yoyo: true, repeat: 3, duration: .05 });
+    api.noticed(r.iss.length ? `<b>Stamped, with ${r.iss.length} flag${r.iss.length > 1 ? "s" : ""}.</b> Lotus now marks what the student confirmed, ${ok ? "which is right" : "which isn't the factorisation"}. The typing problem is logged separately and never counted as a maths gap.` : `<b>Clear card.</b> ${ok ? "Right, and read exactly as intended." : "Read exactly as written, then marked as maths."}`);
+    api.note(`Stamped “${pretty(r.s)}”`, ok ? "good" : ""); api.learn("PAIR", .4, ok ? .85 : .6);
+  });
+  render();
+  return () => {};
+} };
+
+renderMap();
+Rangoli.render($("#rgMini"), false);
+(function boot() {
+  const id = (location.hash || "").slice(1);
+  if (id && GAMES[id]) openStall(id);
+})();
+</script>

@@ -1,6 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useInteractionObservation } from "@/lib/use-interaction-observation";
+import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
+import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
+import { LearnerSupport } from "@/components/learning/LearnerSupport";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -19,7 +23,7 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
+import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
@@ -30,7 +34,7 @@ const GAP_STUDENT: Record<LotusDemoGap, PilotStudentKey> = { signs: "aarav", gro
 import { getMockEnrollment, type MockStudentEnrollment } from "@/lib/mock-classroom";
 import { saveStoredLotusSession } from "@/lib/lotus-demo-store";
 import styles from "@/components/lotus.module.css";
-import { TileGame, type TileGameState } from "@/components/games/TileGame";
+import { TileGame, initialTilePicks, type TileGameState } from "@/components/games/TileGame";
 import { DiagnosticPuzzle } from "@/components/games/DiagnosticPuzzle";
 import { DetectiveLines, FireflyChoice, FishingSelect, ImpostorChoice } from "@/components/games/LotusGames";
 import gameStyles from "@/components/games/lotus-games.module.css";
@@ -38,7 +42,12 @@ import "@/components/lotus-themes/lotus-themes.css";
 import { ThemePicker } from "@/components/lotus-themes/ThemePicker";
 import { ThemeProgress } from "@/components/lotus-themes/ThemeProgress";
 import { ThemeFinish } from "@/components/lotus-themes/ThemeFinish";
-import { ThemedGame } from "@/components/lotus-themes/ThemedGame";
+import { sevenLeavesOutPrompt, ThemedGame } from "@/components/lotus-themes/ThemedGame";
+import { gameTitle } from "@/components/lotus-themes/themed-game-words";
+import { FirstWrongLine, OddOneOut, PickEvery } from "@/components/lotus-themes/SevenWaysGames";
+import { ThinkingPrint, ThinkingPrintPanel } from "@/components/lotus-themes/ThinkingPrint";
+import { printMarks, ringShare, SAMPLE_MARKS } from "@/components/lotus-themes/thinking-print";
+import sevenStyles from "@/components/lotus-themes/seven-ways.module.css";
 import { useLotusTheme } from "@/components/lotus-themes/use-lotus-theme";
 
 const CONFIDENCE_CHOICES = [
@@ -871,7 +880,8 @@ function UnseenPlanPanel({ sessionId, answeredCount }: { sessionId: string; answ
 }
 
 const SKILL_STATE_LABEL: Record<LotusSkillState, string> = {
-  SECURE: "secure",
+  OBSERVED: "successful observation — more evidence needed",
+  SECURE: "demonstrated on repeated direct checks",
   SUSPECTED: "one mistake, not confirmed",
   CONFIRMED: "confirmed gap",
   UNTESTED: "not tested",
@@ -879,7 +889,7 @@ const SKILL_STATE_LABEL: Record<LotusSkillState, string> = {
 };
 
 const SKILL_EVIDENCE_LABEL: Record<LotusSkillEvidence["kind"], string> = {
-  SECURE: "demonstrated securely",
+  SECURE: "successful observation",
   MISTAKE: "mistake observed",
   UNFINISHED: "method was unfinished",
   DID_NOT_KNOW: "asked for support",
@@ -1081,11 +1091,73 @@ function LotusPage() {
   const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
+  const submissionLock = useRef(false);
+  const [supportPaused, setSupportPaused] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [preparationTimedOut, setPreparationTimedOut] = useState(false);
   const [previewQuestion, setPreviewQuestion] = useState<LotusQuestion | null>(null);
   const [advancing, setAdvancing] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<LotusStudentResponse | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState("");
+  const recoveryStarted = useRef("");
+  const [recoveryChecked, setRecoveryChecked] = useState(false);
+  const recoveryReady = useRef(false);
+  const recoveryScope = `${topic}:${classroomAssignmentId ?? "self"}:${devFakeModel ? "fake" : "live"}`;
+  type Recovery = { session: LotusSessionView; answer: string; workingLines: string[]; confidence: number | null; didNotKnow: boolean; tiles: TileGameState | null; pending: LotusStudentResponse | null; startedAt: number };
+  function saveLotusRecovery(overrides: Partial<Recovery> = {}) {
+    if (!studentId || !session || !recoveryReady.current) return;
+    try {
+      if (session.status !== "ACTIVE") return;
+      writeRecovery(recoveryKey("LOTUS", studentId, recoveryScope), { session, answer, workingLines, confidence, didNotKnow, tiles, pending: pendingSubmission, startedAt: questionStartedAt, ...overrides });
+    } catch { setRecoveryMessage("This browser cannot restore drafts after refresh. Keep this page open until saving is confirmed."); }
+  }
+  useEffect(() => {
+    if (!studentId || recoveryStarted.current === `${studentId}:${recoveryScope}` && recoveryReady.current) return;
+    const activeKey = `${studentId}:${recoveryScope}`;
+    const switchedScope = Boolean(recoveryStarted.current && recoveryStarted.current !== activeKey);
+    recoveryStarted.current = activeKey;
+    recoveryReady.current = false; setRecoveryChecked(false);
+    if(switchedScope){setBusy(false);setSupportPaused(false);setSession(null);setPendingSubmission(null);setPreviewQuestion(null);setAnswer("");setWorkingLines(["","",""]);setConfidence(null);setTiles(null);setDidNotKnow(false);resumeRef.current=false;}
+    let cancelled=false;
+    void (async () => {
+      let confirmationFailed = false;
+      try {
+        const cached = readRecovery<Recovery>(recoveryKey("LOTUS", studentId, recoveryScope));
+        if (!cached?.session?.sessionId) return;
+        if (cached.session.studentId !== studentId || typeof cached.answer !== "string" || cached.answer.length > 10000 || !Array.isArray(cached.workingLines) || cached.workingLines.length > 6 || cached.workingLines.some(line => typeof line !== "string" || line.length > 10000) || !Number.isFinite(cached.startedAt) || (cached.confidence !== null && ![25,60,90].includes(cached.confidence)) || cached.pending && (!cached.pending.submissionId || typeof cached.pending.answer !== "string" || cached.pending.answer.length > 10000 || typeof cached.pending.working !== "string" || cached.pending.working.length > 60000 || typeof cached.pending.didNotKnow !== "boolean" || !Number.isFinite(cached.pending.responseTimeMs) || cached.pending.responseTimeMs < 0 || cached.pending.questionId !== cached.session.currentQuestion?.id || !validInteractionContext(cached.pending.interactionContext) || cached.pending.interactionContext.source !== "LOTUS" || cached.pending.interactionContext.questionId !== cached.pending.questionId)) throw new Error("Invalid recovery state");
+        const fresh = await api.getLotusSession(cached.session.sessionId);
+        if(cancelled)return;
+        if (fresh.studentId !== studentId) throw new Error("Session ownership changed");
+        if (fresh.status !== "ACTIVE") {setSession(fresh);setRecoveryMessage(cached.pending ? "This session is complete. Your earlier pending work is retained locally; review the saved record before starting again." : "This session is complete. Your saved results are available in the learning record.");return;}
+        const pending = cached.pending;
+        const sameQuestion = cached.session.currentQuestion?.id === fresh.currentQuestion?.id;
+        const committed = pending && fresh.audits.some(a => a.question.id === pending.questionId && a.response?.submissionId === pending.submissionId);
+        if (pending && !sameQuestion && !committed) { confirmationFailed=true; setRecoveryMessage("Your question changed. Your earlier pending work is retained locally and has not been applied to a different question. Reload to retry confirmation."); return; }
+        const originalQuestion = pending && committed ? fresh.audits.find(a=>a.question.id===pending.questionId)?.question : fresh.currentQuestion;
+        if(pending?.interaction){
+          const issued=originalQuestion?.interaction,picks=pending.interaction.picks;
+          if(!issued||pending.interaction.format!==issued.format||!Array.isArray(picks)||JSON.stringify(initialTilePicks(issued,{picks,changes:0,answer:null}))!==JSON.stringify(picks))throw new Error("Invalid pending tile recovery");
+        }
+        if(pending&&!originalQuestion)throw new Error("The pending question could not be confirmed");
+        setSession(pending ? { ...fresh, currentQuestion: originalQuestion??null } : fresh);
+        if (sameQuestion || pending) {
+          setAnswer(pending ? pending.answer : cached.answer); setWorkingLines(pending ? pending.working.split("\n") : cached.workingLines);
+          setWorkingOpen((pending ? pending.working.split("\n") : cached.workingLines).some(line=>line.trim().length>0));
+          setConfidence(cached.confidence); setDidNotKnow(pending?.didNotKnow ?? cached.didNotKnow);
+          const restoredInteraction = originalQuestion?.interaction;
+          const picks = pending?.interaction?.picks;
+          const restoredState = restoredInteraction ? {picks:initialTilePicks(restoredInteraction,picks?{picks,changes:pending?.interaction?.changes??0,answer:null}:cached.tiles),changes:pending?.interaction?.changes??cached.tiles?.changes??0,answer:null as string|null}:null;
+          if(restoredState && restoredInteraction)restoredState.answer=assembleTileAnswer(restoredInteraction,restoredState.picks);
+          setTiles(restoredState);
+          setQuestionStartedAt(cached.startedAt); setPendingSubmission(pending);
+          setRecoveryMessage(pending ? "Your previous answer needs confirmation. Retry saving it." : "Draft restored in this tab. It has not been checked yet.");
+        }
+      } catch { if(cancelled)return; confirmationFailed = true; setRecoveryMessage("Could not confirm the saved session. Your local draft is retained; reload to retry recovery."); }
+      finally { if(!cancelled){recoveryReady.current = !confirmationFailed; setRecoveryChecked(!confirmationFailed);} }
+    })();
+    return()=>{cancelled=true;};
+  }, [studentId, recoveryScope]);
+  useEffect(() => { saveLotusRecovery(); }, [studentId, session, answer, workingLines, confidence, didNotKnow, tiles, pendingSubmission]);
   const [error, setError] = useState("");
   const [skipping, setSkipping] = useState<LotusDemoGap | null>(null);
   const [liveProgress, setLiveProgress] = useState<LotusLiveProgress | null>(null);
@@ -1109,11 +1181,15 @@ function LotusPage() {
     const nextValue = formatTypedMath(`${field.value.slice(0, start)}${token}${field.value.slice(end)}`);
     const nextCursor = Math.min(nextValue.length, start + token.length);
     if (field.id === "lotus-answer") {
+      interaction.input(nextValue);
+      draftCheckpoints.record(nextValue);
       setAnswer(nextValue);
+      saveLotusRecovery({ answer: nextValue });
       setDidNotKnow(false);
     } else {
       const index = Number(field.dataset.workingIndex);
       if (Number.isInteger(index)) {
+        interaction.workingInput();
         setWorkingLines((lines) => lines.map((line, lineIndex) => lineIndex === index ? nextValue : line));
       }
     }
@@ -1163,12 +1239,12 @@ function LotusPage() {
   // "Carry on" from the class page: rejoin the session already started for this assignment.
   const resumeRef = useRef(false);
   useEffect(() => {
-    if (resumeRef.current || !classroomAssignmentId || searchParams.get("resume") !== "1" || !studentId || session) return;
+    if (!recoveryChecked || resumeRef.current || !classroomAssignmentId || searchParams.get("resume") !== "1" || !studentId || session) return;
     resumeRef.current = true;
     void start();
     // start() reads the current student and topic; it only needs to run once here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classroomAssignmentId, studentId, session]);
+  }, [classroomAssignmentId, studentId, session, recoveryChecked]);
 
   useEffect(() => {
     if (!session || session.status !== "ACTIVE") return;
@@ -1430,6 +1506,8 @@ function LotusPage() {
   }
 
   async function start() {
+    recoveryReady.current = true;
+    const requestScope = `${studentId}:${recoveryScope}`;
     setBusy(true);
     setError("");
     try {
@@ -1441,6 +1519,7 @@ function LotusPage() {
         : { studentId };
       // For a class assignment this may be the session already started for it (a refresh, another tab).
       const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined);
+      if(recoveryStarted.current !== requestScope)return;
       if (next.status === "COMPLETE" || next.reportPending) {
         openReport(next.sessionId);
         return;
@@ -1454,13 +1533,16 @@ function LotusPage() {
       saveStoredLotusSession({ session: next, studentName, enrollment: classEnrollment, savedAt: new Date().toISOString() });
       resetResponse();
     } catch (err) {
+      if(recoveryStarted.current!==requestScope)return;
       setError(err instanceof Error ? err.message : "Lotus could not start.");
     } finally {
-      setBusy(false);
+      if(recoveryStarted.current===requestScope)setBusy(false);
     }
   }
 
   async function submit() {
+    if (supportPaused || submissionLock.current) return;
+    const requestScope=`${studentId}:${recoveryScope}`;
     const tileGame = question?.interaction;
     const themedGame = question?.game;
     // A themed game's answer is rebuilt on the server from the play, so only a placeholder travels as text.
@@ -1481,6 +1563,7 @@ function LotusPage() {
       confidenceRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    const clickedAt = Date.now();
     // The brackets test ends at 20 minutes, so its staged question would be refused after that. The factorisation test has no time limit.
     const staged = isPlannedLotusTopic(session.topic) || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
       ? session.upcomingQuestions?.[0]
@@ -1489,7 +1572,8 @@ function LotusPage() {
       answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
       confidence: confidence ?? 60,
-      responseTimeMs: Date.now() - questionStartedAt,
+      responseTimeMs: clickedAt - questionStartedAt,
+      interactionContext: interaction.snapshot({ status: confidence !== null ? "REPORTED_BEFORE_ANSWER" : question?.requiresConfidenceProbe ? "SKIPPED" : "NOT_ASKED", value: confidence, scale: "ZERO_TO_HUNDRED" }),
       didNotKnow,
       submissionId: crypto.randomUUID(),
       questionId: session.currentQuestion?.id,
@@ -1497,7 +1581,12 @@ function LotusPage() {
       ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
       ...(themedGame && !didNotKnow && gamePlay ? { game: gamePlay } : {}),
     };
+    submissionLock.current = true;
+    setBusy(true);
+    setError("");
     if (!pendingSubmission) {
+      try { await draftCheckpoints.flushBeforeSubmit(); } catch { /* Answer submission remains available if evidence capture fails. */ }
+      saveLotusRecovery({ pending: submission });
       setPendingSubmission(submission);
       if (staged) {
         setPreviewQuestion(staged);
@@ -1506,16 +1595,16 @@ function LotusPage() {
         resetResponse();
       }
     }
-    setBusy(true);
-    setError("");
     if (!staged) {
       startPolling(session.sessionId, audits.length);
       watchForReport(session.sessionId);
     }
     try {
       const next = await submitWithRetry(session.sessionId, studentId, submission);
+      if(recoveryStarted.current!==requestScope)return;
       rememberSession(next);
     } catch (err) {
+      if(recoveryStarted.current!==requestScope)return;
       const message = err instanceof Error ? err.message : "";
       const sessionGone = message.toLowerCase().includes("session not found");
       setError(sessionGone
@@ -1524,9 +1613,8 @@ function LotusPage() {
           ? `Your last answer was not confirmed: ${message}. Retry saving it.`
           : "Your last answer was not confirmed. Retry saving it.");
     } finally {
-      stopPolling();
-      stopReportWatch();
-      setBusy(false);
+      submissionLock.current = false;
+      if(recoveryStarted.current===requestScope){stopPolling();stopReportWatch();setBusy(false);}
     }
   }
 
@@ -1554,13 +1642,15 @@ function LotusPage() {
   // A wrong answer code couldn't explain gets one "How did you get it?" tap before the next question.
   const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
+  const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
+  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && !question.game && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
   // Only sizes the pond map. The plan's length changes as Lotus adapts, so it
   // is never shown to the student as "of N". Don't derive it from the
   // currently exposed/prefetched list: later questions may still be generating.
   const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
-  const inputLocked = busy || Boolean(pendingSubmission);
+  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused;
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
     : [];
@@ -1641,6 +1731,9 @@ function LotusPage() {
     }
   }
 
+  const sevenWays = lotusTheme.settings.effective === "sevenways";
+  // The print sits beside a question being played, not over the preparing or finished screens.
+  const printBeside = sevenWays && !observer && session?.status === "ACTIVE" && !preparing && isPlannedLotusTopic(session.topic);
   return (
     <main className={styles.page} data-lotus-theme={lotusTheme.settings.effective}>
       <div className={styles.shell}>
@@ -1695,6 +1788,8 @@ function LotusPage() {
           </div>
         </header>
 
+        {recoveryMessage && <p role="status">{recoveryMessage}{!recoveryChecked&&<><button type="button" onClick={()=>window.location.reload()}>Retry session recovery</button><button type="button" onClick={()=>{try{sessionStorage.removeItem(recoveryKey("LOTUS",studentId,recoveryScope));}catch{}window.location.reload();}}>Discard this local recovery and start again</button></>}</p>}
+        {question && session?.status === "ACTIVE" && !observer && !pendingSubmission && !reasonFollowUp && <LearnerSupport key={`${session.sessionId}:${question.id}`} studentId={studentId} identity={{source:"LOTUS",sessionId:session.sessionId,questionId:question.id,questionVersion:null}} onPause={setSupportPaused} />}
         {!session ? (
           <div className={styles.layoutStudent}>
             <section className={styles.introCard}>
@@ -1727,8 +1822,14 @@ function LotusPage() {
                 </div>
               )}
               {!observer && <ThemePicker settings={lotusTheme.settings} ready={lotusTheme.ready} busy={lotusTheme.busy} onChoose={(theme) => void lotusTheme.choose(theme)} />}
+              {!observer && sevenWays && (
+                <div className={sevenStyles.startPrint}>
+                  <ThinkingPrint seed={studentId || "start"} marks={SAMPLE_MARKS} share={0.7} label="A sample thinking print" />
+                  <div><strong>Every answer draws on your thinking print.</strong><p>It shows what you thought and how sure you were. It never shows right or wrong, so there&apos;s nothing to win or lose.</p></div>
+                </div>
+              )}
               <div className={styles.actions} style={{ marginTop: "1.5rem" }}>
-                <button className="btn btn-primary" type="button" onClick={start} disabled={busy || !studentId || !status?.ready}>
+                <button className="btn btn-primary" type="button" onClick={start} disabled={busy || !studentId || !status?.ready || !recoveryChecked}>
                   {busy ? "Preparing your questions…" : `Start for ${studentName || "student"}`}
                 </button>
                 <Link className="btn btn-ghost" href="/student/home">Back home</Link>
@@ -1736,14 +1837,14 @@ function LotusPage() {
             </section>
           </div>
         ) : (
-          <div className={observer ? styles.layout : styles.layoutStudent}>
+          <div className={observer ? styles.layout : printBeside ? sevenStyles.studio : styles.layoutStudent}>
             <div className={styles.studentPane}>
             {session.status === "COMPLETE" ? (
               observer ? (
                 <FinalReport session={session} teachingHref={`/student/lotus/report?session=${session.sessionId}`} />
               ) : (
                 <section className={styles.introCard} style={{ textAlign: "center" }}>
-                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1.5rem" }}><ThemeFinish theme={lotusTheme.settings.effective} answered={session.audits.length} /></div>}
+                  {isPlannedLotusTopic(session.topic) && <div style={{ marginBottom: "1.5rem" }}><ThemeFinish theme={lotusTheme.settings.effective} answered={session.audits.length} print={{ seed: session.sessionId, marks: printMarks(session.audits) }} /></div>}
                   <h1>Your diagnostic is complete</h1>
                   <p style={{ marginTop: "0.75rem" }}>Your report is ready on its own page.</p>
                   <Link className="btn btn-primary" style={{ marginTop: "1.25rem" }} href={`/student/lotus/report?session=${session.sessionId}`}>
@@ -1828,16 +1929,21 @@ function LotusPage() {
                     )}
                     {/* No "of N": the plan grows and shrinks with the answers, so a total would change mid-test. */}
                     <strong className={styles.questionNumber}>Question {shownQuestionNumber}</strong>
-                    {isPlannedLotusTopic(session.topic) && (
+                    {sevenWays && question.game && <h2 className={sevenStyles.gameName}>{gameTitle(question.game.kind, lotusTheme.settings.effective)}</h2>}
+                    {sevenWays && question.presentation === "DETECTIVE" && <h2 className={sevenStyles.gameName}>Find the first wrong line</h2>}
+                    {sevenWays && question.presentation === "FISHING" && <h2 className={sevenStyles.gameName}>Pick every one that fits</h2>}
+                    {isPlannedLotusTopic(session.topic) && !sevenWays && (
                       <ThemeProgress theme={lotusTheme.settings.effective} answered={session.audits.length + (previewQuestion ? 1 : 0)} total={totalQuestions} compact />
                     )}
                   </div>
                   <div className={styles.cardBody}>
-                    <div className={styles.question}>
-                      {promptLines.map((line, index) => (
-                        <span key={`${line}-${index}`}>{line}</span>
-                      ))}
-                    </div>
+                    {!(sevenWays && question.game && sevenLeavesOutPrompt(question.game.kind)) && (
+                      <div className={styles.question}>
+                        {promptLines.map((line, index) => (
+                          <span key={`${line}-${index}`}>{line}</span>
+                        ))}
+                      </div>
+                    )}
                     {isPlannedLotusTopic(session.topic) && !previewQuestion && (
                       <button type="button" className={gameStyles.readAloud} onClick={() => void readAloud()} disabled={readingAloud || busy}>
                         {readingAloud ? "Reading…" : "🔈 Read it to me"}
@@ -1847,28 +1953,34 @@ function LotusPage() {
 
                     {question.game ? (
                       <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} disabled={inputLocked || didNotKnow} onRowChange={(row) => { gameRow.current = row; }}
-                        onChange={(play) => { if (play) setDidNotKnow(false); setGamePlay(play); }} />
+                        onChange={(play) => { if (play) { interaction.input(JSON.stringify(play), true); setDidNotKnow(false); } setGamePlay(play); }} />
                     ) : question.interaction ? (
                       question.interaction.format === "FACTOR_CROSSWORD" || question.interaction.format === "CUT_BUILD_STUDIO" ? (
-                        <DiagnosticPuzzle key={question.id} interaction={question.interaction} disabled={inputLocked || didNotKnow}
-                          onChange={(state) => { setTiles(state); setDidNotKnow(false); }} />
+                        <DiagnosticPuzzle key={question.id} initialState={tiles} interaction={question.interaction} disabled={inputLocked || didNotKnow}
+                          onChange={(state) => { interaction.input(JSON.stringify(state.picks), true); setTiles(state); setDidNotKnow(false); }} />
                       ) : (
-                      <TileGame
+                      <TileGame initialState={tiles}
                         key={question.id}
                         interaction={question.interaction}
                         look={question.presentation === "GARDEN" ? "garden" : question.presentation === "WORKSHOP" ? "workshop" : question.presentation === "CONSTELLATION" ? "constellation" : undefined}
                         disabled={inputLocked || didNotKnow}
-                        onChange={(state) => { setTiles(state); setDidNotKnow(false); }}
+                        onChange={(state) => { interaction.input(JSON.stringify(state.picks), true); setTiles(state); setDidNotKnow(false); }}
                       />
                       )
+                    ) : sevenWays && question.presentation === "IMPOSTOR" && question.options?.length ? (
+                      <OddOneOut key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
+                    ) : sevenWays && question.presentation === "DETECTIVE" && question.lines?.length && question.options?.length ? (
+                      <FirstWrongLine key={question.id} lines={question.lines} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
+                    ) : sevenWays && question.presentation === "FISHING" && question.options?.length ? (
+                      <PickEvery key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
                     ) : question.presentation === "FIREFLY" && question.options?.length ? (
-                      <FireflyChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                      <FireflyChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
                     ) : question.presentation === "IMPOSTOR" && question.options?.length ? (
-                      <ImpostorChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                      <ImpostorChoice key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
                     ) : question.presentation === "DETECTIVE" && question.lines?.length && question.options?.length ? (
-                      <DetectiveLines key={question.id} lines={question.lines} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                      <DetectiveLines key={question.id} lines={question.lines} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
                     ) : question.presentation === "FISHING" && question.options?.length ? (
-                      <FishingSelect key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { setAnswer(v); setDidNotKnow(false); }} />
+                      <FishingSelect key={question.id} options={question.options} value={answer} disabled={inputLocked} onChange={(v) => { interaction.input(v, true); setAnswer(v); setDidNotKnow(false); }} />
                     ) : question.type === "MULTIPLE_CHOICE" && question.options?.length ? (
                       <div className={styles.options}>
                         {question.options.map((option) => (
@@ -1878,7 +1990,7 @@ function LotusPage() {
                               name="lotus-answer"
                               value={option}
                               checked={answer === option}
-                              onChange={(event) => { setAnswer(event.target.value); setDidNotKnow(false); }}
+                              onChange={(event) => { interaction.input(event.target.value, true); draftCheckpoints.record(event.target.value); setAnswer(event.target.value); saveLotusRecovery({ answer: event.target.value }); setDidNotKnow(false); }}
                               disabled={inputLocked}
                             />
                             <span>{option}</span>
@@ -1903,12 +2015,16 @@ function LotusPage() {
                               if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                               activeMathFieldRef.current = event.currentTarget;
                             }}
-                            onKeyDown={(event) => handleMathKeyDown(event, (value) => setAnswer(value), exponentModeRef, suppressMathChangeRef)}
+                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
                             onChange={(event) => {
                               if (suppressMathChangeRef.current) { suppressMathChangeRef.current = false; return; }
+                              interaction.input(formatTypedMath(event.target.value));
+                              draftCheckpoints.record(formatTypedMath(event.target.value));
                               setAnswer(formatTypedMath(event.target.value));
+                              saveLotusRecovery({ answer: formatTypedMath(event.target.value) });
                               setDidNotKnow(false);
                             }}
+                            onBlur={() => draftCheckpoints.flush()}
                             disabled={inputLocked || didNotKnow}
                             placeholder="Type your answer"
                           />
@@ -1942,10 +2058,12 @@ function LotusPage() {
                                   setActiveWorkingIndex(index);
                                 }}
                                 onKeyDown={(event) => handleMathKeyDown(event, (value) => {
+                                  interaction.workingInput();
                                   setWorkingLines((lines) => lines.map((current, lineIndex) => lineIndex === index ? value : current));
                                 }, exponentModeRef, suppressMathChangeRef)}
                                 onChange={(event) => {
                                   if (suppressMathChangeRef.current) { suppressMathChangeRef.current = false; return; }
+                                  interaction.workingInput();
                                   const next = [...workingLines];
                                   next[index] = formatTypedMath(event.target.value);
                                   setWorkingLines(next);
@@ -2027,6 +2145,8 @@ function LotusPage() {
                 </section>
               ) : null}
             </div>
+
+            {printBeside && <ThinkingPrintPanel seed={session.sessionId} marks={printMarks(session.audits)} share={ringShare(printMarks(session.audits), totalQuestions)} answered={session.audits.length} />}
 
             {observer && (
               <aside className={styles.observerPane}>

@@ -12,6 +12,7 @@ import { getStoredLotusSessions, saveStoredLotusSession } from "@/lib/lotus-demo
 import { getStudent } from "@/lib/session";
 import styles from "./report.module.css";
 import { ThemeFinish } from "@/components/lotus-themes/ThemeFinish";
+import { printMarks } from "@/components/lotus-themes/thinking-print";
 import { useLotusTheme } from "@/components/lotus-themes/use-lotus-theme";
 import "@/components/lotus-themes/lotus-themes.css";
 
@@ -30,8 +31,8 @@ function plain(text: string): string {
 
 const STATE_GROUPS: Array<{ state: LotusSkillState[]; label: string; tone: string }> = [
   { state: ["CONFIRMED"], label: "Work on this", tone: "work" },
-  { state: ["SUSPECTED"], label: "Not sure yet", tone: "unsure" },
-  { state: ["SECURE"], label: "Secure", tone: "secure" },
+  { state: ["SUSPECTED", "OBSERVED"], label: "More evidence needed", tone: "unsure" },
+  { state: ["SECURE"], label: "Demonstrated in this check", tone: "secure" },
   { state: ["NOT_TESTED_DEPENDENCY", "UNTESTED"], label: "Not tested yet", tone: "untested" },
 ];
 
@@ -310,7 +311,7 @@ function Report({
     report.outcome === "SOLID_GAP"
       ? { title: `We found where to start${name}.`, lede: "One idea is worth sharpening before anything else, and your lesson is built for exactly that." }
       : report.outcome === "ADVANCEMENT"
-        ? { title: `You're ready for the next step${name}.`, lede: session.catchUp ? "Everything you were working on is secure now." : `Everything we tested looks secure. Your next practice can move on to harder ${(session.topic ? LOTUS_TOPIC_NAMES[session.topic] : "questions").toLowerCase()}.` }
+        ? { title: `You're ready for the next step${name}.`, lede: session.catchUp ? "You succeeded on repeated checks of your practice targets. We'll revisit them later." : "You demonstrated several skills in this check. Your next practice can build on those strengths." }
         : { title: `Thanks${name}. We need a little more to go on.`, lede: "Your answers didn't point clearly to one thing to work on, so we won't guess. Your teacher will check again with you." };
 
   const lessonState = lessonError
@@ -327,14 +328,14 @@ function Report({
     <div className={styles.report}>
       <section className={styles.hero}>
         {isPlannedLotusTopic(session.topic) && session.audits.length > 0 && (
-          <div className={styles.bloom}><ThemeFinish theme={theme} answered={session.audits.length} /></div>
+          <div className={styles.bloom}><ThemeFinish theme={theme} answered={session.audits.length} print={{ seed: session.sessionId, marks: printMarks(session.audits) }} /></div>
         )}
         <p className={styles.eyebrow}>Your diagnostic report</p>
         <h1>{heading.title}</h1>
         <p className={styles.lede}>{heading.lede}</p>
         <div className={styles.stats}>
           <div><strong>{stats.correct}<small>/{stats.answered}</small></strong><span>answered correctly</span></div>
-          <div><strong>{stats.secure}</strong><span>skills secure</span></div>
+          <div><strong>{stats.secure}</strong><span>skills demonstrated</span></div>
           <div><strong>{confirmed.length}</strong><span>{confirmed.length === 1 ? "idea to work on" : "ideas to work on"}</span></div>
           {stats.minutes && <div><strong>{stats.minutes}<small> min</small></strong><span>time taken</span></div>}
         </div>
@@ -363,7 +364,7 @@ function Report({
                 <p className={styles.lessonNote}>
                   {report.outcome === "SOLID_GAP"
                     ? "We don't have a video lesson for this one yet. Your teacher can see exactly what to work on and will pick your next step."
-                    : report.outcome === "ADVANCEMENT" ? "No lesson is needed: everything we tested is secure." : "Your teacher will pick your next step."}
+                    : report.outcome === "ADVANCEMENT" ? "Your teacher can build on the skills you demonstrated and plan a later review." : "Your teacher will pick your next step."}
                 </p>
                 {devMode && lesson?.abstainReason && <p className={styles.lessonNote}>Dev · {lesson.abstainReason}</p>}
                 {devMode && report.outcome === "SOLID_GAP" && PILOT_LESSON_STUDENTS.includes(studentId) && (
@@ -404,7 +405,7 @@ function Report({
                 {report.observedStrengths.slice(0, 6).map((line) => <li key={line}>{plain(line)}</li>)}
               </ul>
             ) : (
-              <p className={styles.muted}>Nothing was secure enough to count yet, and that's fine. This is where we begin.</p>
+              <p className={styles.muted}>We need more evidence before listing demonstrated strengths. Your answers help us choose what to check next.</p>
             )}
           </section>
           {report.uncertainAreas.length > 0 && (

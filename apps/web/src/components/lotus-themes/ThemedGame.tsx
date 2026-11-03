@@ -17,6 +17,7 @@ import {
   type LotusBracketSign,
   type LotusClaimVerdict,
   type LotusGameConfig,
+  type LotusGameKind,
   type LotusGameResponse,
   type LotusTheme,
   type SplitConfidenceGame,
@@ -30,6 +31,7 @@ import { GAME_WORDS, type TrueFalseWords } from "./themed-game-words";
 import { signed, Stepper } from "./themed-game-parts";
 import { CaseArt, Token, TwoNumbersArt } from "./themed-game-art";
 import { ChunkIt, FindEveryB, OrderSteps, RapidSet, Replay, TestClaim } from "./ThemedGameMore";
+import { ChipSplit, LockReels, SignQuadrant, SwipeDeck, TypingScreen } from "./SevenWaysGames";
 import styles from "./themed-game.module.css";
 
 /**
@@ -416,7 +418,7 @@ function useTypedRecord(onTyped: (value: string, history: EditHistorySample[]) =
     type(`${value.slice(0, at)}${token}${value.slice(to)}`);
     window.requestAnimationFrame(() => { box?.focus(); box?.setSelectionRange(at + token.length, at + token.length); });
   };
-  return { value, field, type, press };
+  return { value, field, type, press, history: history.current };
 }
 
 function TypedBox({ label, record, disabled, autoFocus }: { label: string; record: ReturnType<typeof useTypedRecord>; disabled?: boolean; autoFocus?: boolean }) {
@@ -446,14 +448,14 @@ function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: E
     <>
       <p className={styles.intro}>{words.intro}</p>
       <TypedBox label={words.input} record={record} disabled={disabled} />
-      <div className={`${styles.stage} ${styles.log}`}>
+      {theme === "sevenways" ? <TypingScreen value={record.value} history={record.history} drafts={drafts} draftWord={words.draft} /> : <div className={`${styles.stage} ${styles.log}`}>
         <span className={styles.label}>{words.log}</span>
         {drafts.length === 0 ? <p className={styles.logEmpty}>{words.empty}</p> : (
           <ol className={styles.logList}>
             {drafts.slice(-5).map((draft, i) => <li key={`${draft}-${i}`}><b>{words.draft} {Math.max(0, drafts.length - 5) + i + 1}</b> <s>{prettyAlgebra(draft)}</s></li>)}
           </ol>
         )}
-      </div>
+      </div>}
     </>
   );
 }
@@ -576,17 +578,26 @@ function Rectangle({ theme, game, disabled, onChange }: { theme: LotusTheme; gam
   );
 }
 
+/** In Seven Ways the expression stands alone above the play, unless the game has its own hero. The page then leaves out the sentence that repeats it. */
+export const SEVEN_HERO: ReadonlySet<LotusGameKind> = new Set<LotusGameKind>(["TWO_NUMBERS", "COMMIT_THEN_CHOOSE", "SPLIT_CONFIDENCE", "TWO_MOVES", "RECTANGLE", "ORDER_STEPS", "EDIT_HISTORY", "READBACK"]);
+
+/** The games whose own screen says everything the page's sentence would. */
+export const sevenLeavesOutPrompt = (kind: LotusGameKind) => SEVEN_HERO.has(kind) || kind === "FOUR_SIGNS";
+
 export function ThemedGame({ theme, game, disabled, onChange, onRowChange }: ThemedGameProps) {
   const words = GAME_WORDS[game.kind][theme];
+  const seven = theme === "sevenways";
   return (
     <section className={styles.game} data-game={game.kind} data-art={theme} aria-label={words.title}>
-      <h3 className={styles.title}>{words.title}</h3>
-      {game.kind === "TWO_NUMBERS" && <TwoNumbers theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {/* Seven Ways names the game in the card's header. */}
+      {!seven && <h3 className={styles.title}>{words.title}</h3>}
+      {seven && SEVEN_HERO.has(game.kind) && <p className={styles.sevenExpr}>{prettyAlgebra(game.expression)}</p>}
+      {game.kind === "TWO_NUMBERS" && (seven ? <LockReels game={game} disabled={disabled} onChange={onChange} /> : <TwoNumbers theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
       {game.kind === "COMMIT_THEN_CHOOSE" && <CommitThenChoose theme={theme} game={game} disabled={disabled} onChange={onChange} />}
-      {game.kind === "TRUE_FALSE" && <TrueFalse theme={theme} game={game} disabled={disabled} onChange={onChange} />}
-      {game.kind === "SPLIT_CONFIDENCE" && <SplitConfidence theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "TRUE_FALSE" && (seven ? <SwipeDeck game={game} disabled={disabled} onChange={onChange} /> : <TrueFalse theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
+      {game.kind === "SPLIT_CONFIDENCE" && (seven ? <ChipSplit game={game} disabled={disabled} onChange={onChange} /> : <SplitConfidence theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
       {game.kind === "TWO_MOVES" && <TwoMoves theme={theme} game={game} disabled={disabled} onChange={onChange} />}
-      {game.kind === "FOUR_SIGNS" && <FourSigns theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "FOUR_SIGNS" && (seven ? <SignQuadrant game={game} disabled={disabled} onChange={onChange} /> : <FourSigns theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
       {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "READBACK" && <Readback theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "RECTANGLE" && <Rectangle theme={theme} game={game} disabled={disabled} onChange={onChange} />}

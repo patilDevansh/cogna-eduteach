@@ -118,9 +118,11 @@ function Sequencer({ answered, steps }: ArtProps) {
 const RINGS = 14;
 const PADS = SEQ_COLS * SEQ_ROWS.length;
 /** How many pieces each look is drawn from. */
-const UNITS: Record<LotusTheme, number> = { drafting: FLOORS, cabinet: DRAWERS, studio: RINGS, soundlab: PADS };
+const UNITS: Record<LotusTheme, number> = { sevenways: RINGS, drafting: FLOORS, cabinet: DRAWERS, studio: RINGS, soundlab: PADS };
 
 const ART: Record<LotusTheme, (props: ArtProps) => ReactElement> = {
+  // Seven Ways draws the real thinking print (ThinkingPrint.tsx) where it has the answers; this is its stand-in for a preview.
+  sevenways: Print,
   drafting: Building,
   cabinet: Drawers,
   studio: Print,

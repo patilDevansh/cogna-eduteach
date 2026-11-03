@@ -3,14 +3,21 @@
  *
  * A theme only changes how questions are dressed (words, art, fonts, progress).
  * It never changes what is asked or how an answer is read, so the diagnosis is
- * identical in every theme. "studio" is the neutral, default one.
+ * identical in every theme. "sevenways" is the look Lotus is built around.
  */
-export const LOTUS_THEMES = ["studio", "drafting", "cabinet", "soundlab"] as const;
+export const LOTUS_THEMES = ["sevenways", "studio", "drafting", "cabinet", "soundlab"] as const;
 export type LotusTheme = (typeof LOTUS_THEMES)[number];
 
-export const DEFAULT_LOTUS_THEME: LotusTheme = "studio";
+/**
+ * The looks students and teachers can actually get. The other looks stay in the
+ * code and a saved choice of one stays stored, so offering it again brings it back.
+ */
+export const LOTUS_OFFERED_THEMES: readonly LotusTheme[] = ["sevenways"];
+
+export const DEFAULT_LOTUS_THEME: LotusTheme = "sevenways";
 
 export const LOTUS_THEME_NAMES: Record<LotusTheme, string> = {
+  sevenways: "Seven Ways",
   studio: "Studio",
   drafting: "Drafting Room",
   cabinet: "The Cabinet",
@@ -33,7 +40,8 @@ export interface LotusThemeSettings {
 
 /** A teacher's lock wins over the student's choice, which wins over the neutral default. */
 export function resolveLotusTheme(chosen: unknown, lockedThemes: readonly unknown[]): LotusThemeSettings {
-  const lockedTheme = lockedThemes.find(isLotusTheme) ?? null;
-  const own = isLotusTheme(chosen) ? chosen : null;
+  const offered = (value: unknown): value is LotusTheme => isLotusTheme(value) && LOTUS_OFFERED_THEMES.includes(value);
+  const lockedTheme = lockedThemes.find(offered) ?? null;
+  const own = offered(chosen) ? chosen : null;
   return { chosen: own, lockedTheme, effective: lockedTheme ?? own ?? DEFAULT_LOTUS_THEME };
 }

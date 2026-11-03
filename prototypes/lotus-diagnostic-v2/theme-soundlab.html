@@ -1,0 +1,1083 @@
+<title>Sound Lab Set</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=VT323&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<style>
+/* Shared structure. Every colour, font and radius comes from the theme's tokens. */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 16.5px/1.6 var(--f-ui); background: var(--bg); }
+button { font: inherit; color: inherit; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.m { font-family: var(--f-math); font-weight: 500; white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.page { position: relative; max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 30px 60px; display: grid; gap: 22px; }
+.top { display: grid; gap: 6px; }
+.top h1 { font: var(--h1); letter-spacing: var(--h1-track, .02em); }
+.top p { color: var(--soft); max-width: 66ch; }
+.label { font: 600 .72rem var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.index { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+.index ol { display: contents; list-style: none; }
+.index li { display: contents; }
+.index li button { flex: none; display: flex; align-items: center; gap: 8px; border: 1px solid var(--rule); background: var(--panel); border-radius: var(--r-tab, 999px); padding: 6px 14px 6px 10px; cursor: pointer; font-size: .9rem; color: var(--soft); transition: background .15s, border-color .15s, color .15s; }
+.index li button:hover { color: var(--ink); border-color: var(--line); }
+.index li button .no { font: 600 .74rem var(--f-math); color: var(--muted); }
+.index li button .dot { width: 7px; height: 7px; border-radius: 50%; }
+.index li button.done .dot { background: var(--accent); }
+.index li button[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg-solid); }
+.index li button[aria-current="true"] .no { color: var(--bg-solid); opacity: .7; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+.sheet { position: relative; background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-sheet, 16px); display: grid; min-width: 0; }
+.sheethead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 24px 32px 0; flex-wrap: wrap; }
+.sheethead h2 { font: var(--h2); letter-spacing: var(--h2-track, .01em); }
+.sheethead .sn { font: 600 .95rem var(--f-math); color: var(--accent); }
+.xlate { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 18px 32px 0; }
+.xlate div { background: var(--panel2); border-top: 2px solid var(--rule); border-radius: var(--r-sm, 8px); padding: 12px 14px; font-size: .94rem; color: var(--soft); line-height: 1.5; min-width: 0; }
+.xlate b { display: block; font: 600 .68rem var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.xlate .now { border-top-color: var(--accent); } .xlate .now b { color: var(--accent); }
+.xlate .kept { border-top-color: var(--ok); } .xlate .kept b { color: var(--ok); }
+@media (max-width: 700px) { .xlate { grid-template-columns: 1fr; } }
+.work { padding: 26px 32px 34px; display: grid; gap: 20px; min-height: 460px; align-content: start; }
+@media (max-width: 640px) { .work, .sheethead, .xlate { padding-left: 16px; padding-right: 16px; } }
+.q { font: var(--q-font); color: var(--ink); max-width: 68ch; }
+.q .m { font-size: .92em; color: var(--accent); }
+.q b { color: var(--accent); font-weight: 600; }
+.big { font-family: var(--f-math); font-size: clamp(1.5rem, 4.5vw, 2.1rem); text-align: center; font-weight: 500; letter-spacing: -.02em; }
+svg { display: block; overflow: visible; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 10px 18px; border-radius: var(--r-btn, 8px); font: var(--btn-font); letter-spacing: var(--btn-track, .04em); cursor: pointer; transition: background .15s, transform .1s; }
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { border-color: var(--bad); color: var(--bad); }
+.btn:disabled { opacity: .35; cursor: default; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-btn, 8px); overflow: hidden; }
+.seg button { min-width: 42px; height: 40px; border: 0; border-right: 1px solid var(--rule); background: transparent; font: 600 .95rem var(--f-math); cursor: pointer; padding: 0 8px; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.pick { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r-btn, 8px); overflow: hidden; }
+.pick button { width: 32px; height: 40px; border: 0; background: transparent; cursor: pointer; font-weight: 700; color: var(--soft); }
+.pick output { min-width: 2.8rem; text-align: center; font: 600 1.15rem var(--f-math); border-inline: 1px solid var(--rule); line-height: 40px; }
+.tog { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: var(--r-btn, 8px); background: transparent; cursor: pointer; font: 600 1.15rem var(--f-math); }
+.tog.set { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.brk { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font: 600 1.2rem var(--f-math); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--rule); background: transparent; padding: 5px 12px; border-radius: 999px; font-size: .88rem; color: var(--soft); cursor: pointer; }
+.chips button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.notice { font: var(--note-font); color: var(--ink); background: var(--note-bg); border-left: 3px solid var(--note-edge); border-radius: 0 var(--r-sm, 8px) var(--r-sm, 8px) 0; padding: 12px 16px; max-width: 72ch; }
+.notice b { color: var(--accent); }
+.notice .from { display: block; font: 600 .68rem var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--note-edge); margin-bottom: 2px; }
+.side { display: grid; gap: 22px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 18px); }
+@media (max-width: 900px) { .side { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .side { grid-template-columns: 1fr; } }
+.panel { position: relative; background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-sheet, 16px); padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.panel .cap { font-size: .88rem; color: var(--soft); line-height: 1.5; }
+.key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem; color: var(--soft); }
+.key i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: var(--c); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 300px; overflow-y: auto; font-size: .88rem; line-height: 1.45; }
+.log li { color: var(--soft); padding-left: 10px; border-left: 2px solid var(--rule); }
+.log li small { display: block; font: 500 .68rem var(--f-math); color: var(--muted); }
+.log li.warn { border-color: var(--bad); } .log li.good { border-color: var(--ok); }
+
+/* ---- generic widgets ---- */
+.g-alloc { position: relative; display: grid; gap: 16px; }
+.g-items { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .g-items { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.g-item { position: relative; border: 1px solid var(--rule); background: var(--panel2); border-radius: var(--r-sm, 10px); padding: 14px 8px 18px; cursor: pointer; display: grid; justify-items: center; gap: 8px; min-height: 140px; align-content: start; }
+.g-item:hover { border-color: var(--line); }
+.g-item.has { border-color: var(--accent); }
+.g-cnt { position: absolute; top: 6px; right: 8px; font: 700 .72rem var(--f-math); color: var(--accent); }
+.g-tray { justify-self: center; display: flex; align-items: center; gap: 12px; padding: 8px 16px; border: 1px dashed var(--rule); border-radius: 999px; }
+.g-tray span { color: var(--soft); font-size: .9rem; }
+.g-spot { width: 34px; height: 34px; border-radius: 50%; border: 1px dashed var(--rule); }
+.g-tokens { position: absolute; inset: 0; pointer-events: none; }
+.g-token { position: absolute; left: 0; top: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; border: 0; padding: 0; background: none; cursor: pointer; pointer-events: auto; display: grid; place-items: center; }
+.g-judge { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; align-items: start; }
+@media (max-width: 760px) { .g-judge { grid-template-columns: 1fr; } }
+.g-desk { position: relative; height: 230px; }
+.g-done { position: absolute; inset: 0; display: grid; place-items: center; color: var(--soft); border: 1px dashed var(--rule); border-radius: var(--r-sm, 10px); }
+.g-tally { display: grid; gap: 8px; }
+.g-tally span { display: flex; align-items: baseline; gap: 10px; color: var(--soft); font-size: .92rem; }
+.g-tally b { font: 600 1.4rem var(--f-math); color: var(--ink); min-width: 1.5ch; }
+.g-fams, .g-rules { display: grid; gap: 8px; }
+.g-fam, .g-rule { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; border: 1px solid var(--rule); border-radius: var(--r-sm, 8px); padding: 8px 12px; font-size: .9rem; }
+.g-fam p { grid-column: 1 / -1; color: var(--soft); font-size: .86rem; }
+.g-dots { display: flex; gap: 4px; } .g-dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--rule); }
+.g-dots i.hit { background: var(--bad); } .g-dots i.ok, .g-dots i.on { background: var(--ok); } .g-dots i.uns { background: var(--warn); }
+.g-rule.match { border-color: var(--accent); background: var(--panel2); font-weight: 600; }
+.g-tiles { width: 100%; height: auto; border-radius: var(--r-sm, 10px); background: var(--canvas); }
+.g-tiles text { font-family: var(--f-label); }
+.g-replay { position: relative; border-radius: var(--r-sm, 10px); overflow: hidden; background: var(--canvas); }
+.g-replay svg { width: 100%; height: auto; }
+.g-replay svg text { font-family: var(--f-math); }
+.g-replay svg text.g-step { font-family: var(--f-ui); }
+.g-cursor { fill: var(--accent); }
+.g-scrub { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.g-scrub input { width: 100%; accent-color: var(--accent); }
+.g-marks { position: relative; height: 14px; margin-left: 56px; font: 600 .66rem var(--f-math); color: var(--muted); }
+.g-marks span { position: absolute; translate: -50% 0; }
+.g-order { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 760px) { .g-order { grid-template-columns: 1fr; } }
+.g-slots { display: grid; gap: 8px; }
+.g-slots.rev { display: flex; flex-direction: column-reverse; }
+.g-slot { min-height: 58px; border: 1px dashed var(--rule); border-radius: var(--r-sm, 8px); display: grid; grid-template-columns: 5rem minmax(0, 1fr); align-items: center; }
+.g-slotlab { font: 600 .7rem var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-left: 10px; }
+.g-pool { display: grid; gap: 8px; align-content: start; }
+.g-piece { border: 1px solid var(--rule); background: var(--panel2); border-radius: var(--r-sm, 8px); padding: 10px 12px; text-align: left; cursor: pointer; }
+.g-piece .m { white-space: normal; }
+.g-slot .g-piece { border-color: var(--accent); }
+.g-dials { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; align-items: start; }
+@media (max-width: 860px) { .g-dials { grid-template-columns: 1fr; } }
+.g-vis { border-radius: var(--r-sm, 10px); background: var(--canvas); min-height: 240px; display: grid; place-items: center; padding: 10px; }
+.g-vis svg { width: 100%; height: auto; }
+.g-dctl { display: grid; gap: 14px; }
+.g-pq { display: flex; gap: 16px; flex-wrap: wrap; }
+.g-pqi { display: grid; gap: 4px; }
+.g-read { font: 600 1.1rem var(--f-math); text-align: center; border: 1px solid var(--rule); border-radius: var(--r-sm, 8px); padding: 8px; }
+.g-log { width: 100%; height: auto; border-radius: var(--r-sm, 8px); background: var(--canvas); }
+.g-log text { font-family: var(--f-ui); }
+.g-cmp { border-radius: var(--r-sm, 10px); background: var(--canvas); padding: 12px; }
+.g-cmp svg { width: 100%; height: auto; max-width: 640px; margin: 0 auto; }
+.g-xs { display: grid; gap: 4px; max-width: 540px; width: 100%; margin: 0 auto; }
+.g-xs input { width: 100%; accent-color: var(--accent); }
+.g-xl { display: flex; justify-content: space-between; font-size: .92rem; }
+.g-ticks { position: relative; height: 14px; }
+.g-ticks i { position: absolute; top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; }
+.g-ticks i.eq { background: var(--ok); } .g-ticks i.ne { background: var(--bad); }
+.g-verd { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.g-verd button { border: 1px solid var(--line); background: transparent; padding: 10px; border-radius: var(--r-btn, 8px); cursor: pointer; font-weight: 600; }
+.g-verd button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.g-moves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .g-moves { grid-template-columns: 1fr; } }
+.g-mv { border: 1px solid var(--rule); border-radius: var(--r-sm, 10px); padding: 12px; display: grid; gap: 8px; }
+.g-stage { border-radius: var(--r-sm, 10px); background: var(--canvas); min-height: 200px; padding: 14px; position: relative; overflow: hidden; }
+.g-layers { display: grid; gap: 8px; }
+.g-layer { border-radius: var(--r-sm, 8px); border: 2px solid var(--rule); background: var(--panel2); padding: 10px 14px; display: grid; gap: 2px; }
+.g-layer small { font: 600 .68rem var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.g-layer .m { white-space: normal; font-size: 1.05rem; }
+.g-layer .v { font-size: .86rem; font-weight: 600; }
+.g-layer.ok { border-color: var(--ok); } .g-layer.ok .v { color: var(--ok); }
+.g-layer.bad { border-color: var(--bad); } .g-layer.bad .v { color: var(--bad); }
+.g-quad { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.g-qc { border: 1px solid var(--rule); border-radius: var(--r-sm, 10px); padding: 12px; display: grid; justify-items: center; gap: 8px; transition: border-color .3s, background .3s; }
+.g-qc svg { width: 100%; max-width: 200px; height: auto; }
+.g-qc.lit { border-color: var(--accent); }
+.g-qname { font: 600 .72rem var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.g-qc .tog { width: 36px; height: 36px; }
+.g-guess { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 1.05rem; }
+.g-opts { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .g-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.g-opt { border: 1px solid var(--line); background: var(--panel2); border-radius: var(--r-sm, 10px); padding: 14px 8px; cursor: pointer; display: grid; justify-items: center; gap: 4px; }
+.g-opt[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.g-exp { font: 500 .76rem var(--f-math); color: var(--soft); min-height: 1.1em; }
+.g-exp s { color: var(--bad); }
+.g-cover { position: absolute; inset: -6px; z-index: 2; display: grid; place-items: center; text-align: center; padding: 12px; border-radius: var(--r-sm, 10px); background: var(--cover); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); color: var(--ink); }
+.g-rows { display: grid; gap: 8px; }
+.g-row { display: grid; grid-template-columns: 4.5rem 6rem minmax(0, 1fr) 120px; gap: 10px; align-items: center; border: 1px solid var(--rule); border-radius: var(--r-sm, 8px); padding: 8px 10px; }
+@media (max-width: 760px) { .g-row { grid-template-columns: 1fr; } }
+.g-rlab { font: 600 .72rem var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.g-rq { font-size: 1.05rem; }
+.g-ro { display: flex; gap: 6px; flex-wrap: wrap; }
+.g-ro button { border: 1px solid var(--line); background: transparent; border-radius: var(--r-btn, 6px); padding: 4px 9px; cursor: pointer; font: 500 .86rem var(--f-math); }
+.g-ro button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.g-rt { display: grid; gap: 2px; }
+.g-bar { display: block; height: 10px; width: 0; border-radius: 5px; background: var(--accent); }
+.g-row.trap .g-bar { background: var(--bad); }
+.g-in { flex: 1; min-width: 200px; font: 500 1.35rem var(--f-math); padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-btn, 8px); background: transparent; color: var(--ink); }
+.g-in:focus { outline: none; border-color: var(--accent); }
+.g-tape { border-radius: var(--r-sm, 10px); background: var(--canvas); padding: 14px; display: grid; gap: 10px; }
+.g-out { font: 500 1.5rem var(--f-math); min-height: 2.2rem; white-space: pre-wrap; word-break: break-all; }
+.g-out .del { color: var(--bad); text-decoration: line-through; }
+.g-out .cur { display: inline-block; width: 2px; height: 1.2em; background: var(--accent); vertical-align: -3px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.g-drafts { display: grid; gap: 6px; }
+.g-draft { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 2px 10px; align-items: baseline; padding: 6px 10px; border-left: 3px solid var(--ok); background: var(--panel2); border-radius: 0 6px 6px 0; }
+.g-draft.old { border-color: var(--bad); }
+.g-draft.old .m { text-decoration: line-through; color: var(--soft); }
+.g-draft small { grid-column: 2; color: var(--muted); font-size: .78rem; }
+.g-tl { position: relative; height: 22px; border-radius: 6px; background: var(--panel2); }
+.g-tl i { position: absolute; top: 4px; width: 2px; height: 14px; background: var(--soft); }
+.g-tl i.d { background: var(--bad); }
+.g-tl b { position: absolute; top: 2px; height: 18px; border-radius: 4px; background: color-mix(in srgb, var(--warn) 30%, transparent); }
+.g-line { width: 100%; height: auto; border-radius: var(--r-sm, 10px); background: var(--canvas); }
+.g-line .g-ft { font-family: var(--f-math); }
+.g-results { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .g-results { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.g-res { border: 1px solid var(--rule); border-radius: var(--r-sm, 8px); padding: 8px; display: grid; justify-items: center; gap: 4px; text-align: center; }
+.g-res svg { width: 100%; max-width: 90px; height: auto; }
+.g-res .m { font-size: .76rem; white-space: normal; }
+.g-res small { font-size: .72rem; color: var(--muted); }
+.g-res.hit { border-color: var(--accent); } .g-res.miss { border-style: dashed; border-color: var(--bad); }
+.g-chunk { display: inline-block; padding: 0 4px; border: 1.5px dashed transparent; border-radius: 6px; }
+.g-chunk.on { border-color: var(--accent); color: var(--accent); }
+.g-routes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 700px) { .g-routes { grid-template-columns: 1fr; } }
+.g-route { border: 1px solid var(--line); background: transparent; border-radius: var(--r-btn, 8px); padding: 10px; cursor: pointer; text-align: left; font-weight: 600; }
+.g-route[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.g-route:disabled { cursor: default; opacity: .45; } .g-route[aria-pressed="true"]:disabled { opacity: 1; }
+.g-modgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 760px) { .g-modgrid { grid-template-columns: 1fr; } }
+.g-steps { border: 1px solid var(--rule); border-radius: var(--r-sm, 10px); padding: 12px; display: grid; gap: 6px; min-height: 120px; align-content: start; }
+.g-steps div { font: 500 1.12rem var(--f-math); }
+.g-steps .eq { color: var(--muted); margin-right: 6px; }
+.g-modvis { border-radius: var(--r-sm, 10px); background: var(--canvas); min-height: 200px; display: grid; place-items: center; padding: 10px; }
+.g-modvis svg { width: 100%; height: auto; max-width: 320px; }
+.g-mental { border: 1px dashed var(--rule); border-radius: var(--r-sm, 10px); padding: 12px; display: grid; gap: 8px; }
+.g-nbq { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .g-nbq { grid-template-columns: 1fr; } }
+.g-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.g-table td, .g-table th { border-bottom: 1px solid var(--rule); padding: 7px 8px; text-align: left; }
+.g-table th { font: 600 .66rem var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.g-table .m { font-size: .8rem; }
+td.g-ig { width: 32%; } td.g-ig i { display: block; height: 10px; width: 0; border-radius: 5px; background: var(--accent); }
+.g-table tr.best td { background: var(--panel2); } .g-table tr.asked td { opacity: .45; }
+.g-tick { color: var(--accent); font-size: .85rem; }
+.g-bel { display: grid; gap: 6px; align-content: start; }
+.g-b { display: grid; grid-template-columns: minmax(0, 1fr) 3rem; gap: 2px 8px; font-size: .86rem; }
+.g-b .g-bb { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--rule); overflow: hidden; }
+.g-b .g-bb i { display: block; height: 100%; width: 0; background: var(--soft); }
+.g-b.lead { color: var(--accent); } .g-b.lead .g-bb i { background: var(--accent); }
+.g-b em { font-style: normal; font-family: var(--f-math); text-align: right; color: var(--muted); }
+.g-rb { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .g-rb { grid-template-columns: 1fr; } }
+.g-rbin, .g-rbout { position: relative; border: 1px solid var(--rule); border-radius: var(--r-sm, 10px); padding: 16px; display: grid; gap: 10px; min-height: 180px; align-content: start; }
+.g-read2 { font: 600 1.6rem var(--f-math); min-height: 2.2rem; }
+.g-flags { display: grid; gap: 6px; }
+.g-flag { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; font-size: .92rem; }
+.g-flag b { font: 700 .68rem var(--f-ui); letter-spacing: .08em; border: 1.5px solid var(--bad); color: var(--bad); padding: 1px 6px; border-radius: 10px; white-space: nowrap; }
+.g-stamp { position: absolute; right: 14px; bottom: 14px; opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .g-out .cur { animation: none; } }
+
+</style>
+<style>
+/* Layout: a studio desk. Tracks across the top, the active instrument on a matte panel, your 16-step track in the side column.
+   Single dark look: matte charcoal, one signal orange, phosphor-amber screens. Works fully on mute. */
+:root {
+  color-scheme: dark;
+  --bg-solid: #141416; --bg: radial-gradient(ellipse 80% 50% at 50% 0%, #232428, transparent 70%), #141416;
+  --panel: #222327; --panel2: #2a2b30; --canvas: #070707; --cover: rgba(20, 20, 22, .72);
+  --ink: #ecebe6; --soft: #b4b4b0; --muted: #85868b; --rule: #34353a; --line: #4a4b51; --hover: #2f3035;
+  --accent: #ff6a1a; --accent-ink: #1a0a00; --ok: #3ee0b4; --bad: #ff4f6b; --warn: #ffd23f;
+  --note-font: 500 1rem/1.6 "Manrope", "Helvetica Neue", Arial, sans-serif; --note-bg: rgba(255, 106, 26, .08); --note-edge: #ff6a1a;
+  --q-font: 500 1.1rem/1.6 "Manrope", "Helvetica Neue", Arial, sans-serif; --h1: 800 clamp(1.8rem, 4vw, 2.6rem)/1.05 "Manrope", Arial, sans-serif; --h1-track: -.02em; --h2: 800 1.4rem/1.1 "Manrope", Arial, sans-serif; --h2-track: 0;
+  --btn-font: 800 .78rem "Manrope", Arial, sans-serif; --btn-track: .16em;
+  --f-ui: "Manrope", "Helvetica Neue", Arial, sans-serif; --f-math: "IBM Plex Mono", ui-monospace, monospace; --f-label: "VT323", ui-monospace, monospace;
+  --r-sheet: 22px; --r-sm: 12px; --r-btn: 10px; --r-tab: 10px;
+  --t-sq: #ff6a1a; --t-sq-ink: #1a0a00; --t-bar: #3a3b40; --t-unit: #ffd23f; --t-line: #141416; --t-hole: #ff4f6b; --t-dim: #ff8a3d;
+  --r-ink: #ff8a3d; --r-soft: rgba(255, 138, 61, .6); --r-ok: #3ee0b4; --l-line: #3a3b40; --l-accent: #ff6a1a; --l-ok: #3ee0b4; --f-line: #85868b;
+}
+.sheet, .panel { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 24px 50px rgba(0, 0, 0, .45); }
+.index li button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn { box-shadow: 0 3px 0 #111; }
+.btn.primary { box-shadow: 0 3px 0 #8a3500; }
+.g-replay svg text, .g-tiles text, .g-line .g-ft { font-family: "VT323", ui-monospace, monospace; }
+.g-replay { box-shadow: inset 0 0 0 2px #000; background-image: repeating-linear-gradient(90deg, rgba(255, 138, 61, .06) 0 1px, transparent 1px 24px); }
+.g-cursor { fill: #ff8a3d; }
+/* sequencer (progress) */
+.seqrows { position: relative; display: grid; gap: 4px; }
+.srow { display: grid; grid-template-columns: 54px repeat(16, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.srow span { font-size: .62rem; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.pad { aspect-ratio: 1; border-radius: 3px; background: #303136; transition: background .2s, box-shadow .2s; }
+.pad.on { background: var(--c); box-shadow: 0 0 8px var(--c); }
+.pad.soft { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+.pad.hit { filter: brightness(1.9); }
+.ph { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0; pointer-events: none; }
+.seqctl { display: flex; gap: 8px; }
+/* faders */
+.mixer { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .mixer { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ch { background: var(--panel2); border-radius: 12px; padding: 12px 8px; display: grid; justify-items: center; gap: 8px; }
+.ch .m { font-size: .95rem; }
+.track { position: relative; width: 44px; height: 170px; border-radius: 8px; background: #111; box-shadow: inset 0 0 0 1px #333; }
+.track .lv { position: absolute; left: 6px; right: 6px; bottom: 6px; display: grid; gap: 4px; }
+.track .lv i { height: 34px; border-radius: 4px; background: #2a2b30; }
+.track .lv i.on { background: linear-gradient(#ffb36b, #ff6a1a); box-shadow: 0 0 10px rgba(255, 106, 26, .6); }
+.ch .pm { display: flex; gap: 6px; }
+.ch .pm button { width: 34px; height: 30px; border-radius: 8px; border: 0; background: #34353a; cursor: pointer; font-weight: 800; }
+.budget { font: 400 1.4rem var(--f-label); color: #ff8a3d; }
+.padcard { position: absolute; inset: 0; border-radius: 16px; background: #1b1c20; box-shadow: inset 0 0 0 2px #2f3035, 0 14px 30px rgba(0, 0, 0, .5); display: grid; place-items: center; text-align: center; padding: 18px; }
+.padcard .m { font-size: clamp(1.15rem, 4vw, 1.5rem); white-space: normal; color: #ff8a3d; }
+.padcard .num { position: absolute; top: 12px; left: 16px; font: 400 1.1rem var(--f-label); color: var(--muted); }
+.padcard .g-mark { position: absolute; top: 12px; right: 16px; font: 800 .8rem var(--f-ui); letter-spacing: .16em; opacity: 0; }
+.padcard .g-mark[data-v="true"] { color: var(--ok); } .padcard .g-mark[data-v="false"] { color: var(--bad); } .padcard .g-mark[data-v="null"] { color: var(--warn); }
+.g-piece { background: linear-gradient(90deg, rgba(255, 106, 26, .18), rgba(255, 106, 26, .06)); border-color: rgba(255, 106, 26, .35); }
+.g-qc { background: var(--panel2); }
+.g-qc.lit { box-shadow: 0 0 22px rgba(255, 106, 26, .35); }
+.export { border: 2px solid var(--ok); color: var(--ok); border-radius: 8px; padding: 6px 10px; font: 800 .78rem var(--f-ui); letter-spacing: .16em; }
+</style>
+
+<div class="page">
+  <header class="top"><h1>Sound Lab</h1><p>Sixteen instruments on one studio desk. Each game becomes something you mix, tune, record or arrange, and keeps the same evidence. Every answer lays down a step of your track. Works fully on mute.</p></header>
+  <nav class="index" aria-label="Instruments"><ol id="index"></ol></nav>
+  <div class="layout">
+    <article class="sheet">
+      <div class="sheethead"><h2 id="tTitle"></h2><span class="sn" id="tNo"></span></div>
+      <div class="xlate"><div><b>Was</b><span id="xWas"></span></div><div class="now"><b>Now</b><span id="xNow"></span></div><div class="kept"><b>Evidence kept</b><span id="xKept"></span></div></div>
+      <div class="work" id="work"></div>
+    </article>
+    <aside class="side">
+      <div class="panel"><span class="label">Your track · <b id="takes">0</b> steps</span><div class="seqrows" id="seq"><span class="ph" id="ph"></span></div>
+        <div class="seqctl"><button class="btn" id="snd" type="button" aria-pressed="false">♪ Sound off</button><button class="btn primary" id="play" type="button">▶ Play</button></div>
+        <p class="cap">Each answer lays down a step. A bright pad means a sure answer, an outlined pad a guess. Right and wrong sound the same.</p></div>
+      <div class="panel"><span class="label">What Lotus noticed</span><ol class="log" id="log"><li>Nothing yet.</li></ol></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Shared across every theme: helpers, the app shell, the evidence
+// readers (what an answer means), and generic game widgets that a
+// theme skins with its own words, art and CSS. The diagnosis is the
+// same in every theme; only the world around it changes.
+// ============================================================
+gsap.registerPlugin(Draggable, Flip);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS = "http://www.w3.org/2000/svg";
+const el = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+const html = (s) => { const t = document.createElement("template"); t.innerHTML = s.trim(); return t.content.firstElementChild; };
+const sgn = (n) => (n < 0 ? `−${-n}` : `${n}`);
+const pm = (n) => (n < 0 ? `− ${-n}` : `+ ${n}`);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function picker(id, v) { return `<span class="pick"><button type="button" data-np="${id}" data-d="-1" aria-label="less">‹</button><output id="${id}">${sgn(v)}</output><button type="button" data-np="${id}" data-d="1" aria-label="more">›</button></span>`; }
+function wirePickers(root, st, onChange, lo = -9, hi = 9) {
+  $$("[data-np]", root).forEach((b) => b.addEventListener("click", () => {
+    const id = b.dataset.np, d = +b.dataset.d; let v = st[id] + d; if (v === 0) v += d;
+    st[id] = Math.max(lo, Math.min(hi, v)); $(`#${id}`, root).textContent = sgn(st[id]);
+    if (!RM) gsap.fromTo($(`#${id}`, root), { y: -d * 8, opacity: .3 }, { y: 0, opacity: 1, duration: .25 });
+    onChange && onChange(id);
+  }));
+}
+
+// ---------- notes + app shell ----------
+const Notes = (() => {
+  let items = [];
+  function add(where, text, tone = "") {
+    items.unshift({ where, text, tone, t: new Date() });
+    const ol = $("#log"); if (!ol) return;
+    ol.innerHTML = items.slice(0, 60).map((i) => `<li class="${i.tone}"><small>${esc(i.where)} · ${i.t.toLocaleTimeString([], { minute: "2-digit", second: "2-digit" })}</small>${i.text}</li>`).join("");
+    if (!RM) gsap.from(ol.firstElementChild, { x: 10, opacity: 0, duration: .3 });
+  }
+  return { add };
+})();
+const App = (() => {
+  let SHEETS = [], GAMES = {}, Progress = null, cleanup = null, current = null, opts = {};
+  const done = new Set();
+  function renderIndex() {
+    $("#index").innerHTML = SHEETS.map((s, i) => `<li><button type="button" data-id="${s.id}" class="${done.has(s.id) ? "done" : ""}" aria-current="${s.id === current}"><span class="no">${String(i + 1).padStart(2, "0")}</span><span>${s.title}</span><span class="dot"></span></button></li>`).join("");
+    $$("#index button").forEach((b) => b.addEventListener("click", () => open(b.dataset.id)));
+    const cur = $('#index button[aria-current="true"]'), nav = $(".index");
+    if (cur && nav) nav.scrollTo({ left: cur.offsetLeft - nav.clientWidth / 2 + cur.clientWidth / 2, behavior: RM ? "auto" : "smooth" });
+  }
+  function open(id) {
+    const i = SHEETS.findIndex((s) => s.id === id), s = SHEETS[i];
+    if (!s || !GAMES[id]) return;
+    cleanup && cleanup(); cleanup = null; current = id;
+    gsap.killTweensOf($$("#work *"));
+    $("#xWas").textContent = s.was; $("#xNow").textContent = s.now; $("#xKept").textContent = s.kept;
+    $("#tTitle").textContent = s.title; $("#tNo").textContent = (opts.prefix || "") + String(i + 1).padStart(2, "0");
+    // A fresh container per sheet: any timer left over from the previous game touches only the detached old one.
+    const prev = $("#work"), work = prev.cloneNode(false); prev.replaceWith(work);
+    const api = {
+      note: (t, tone) => Notes.add(s.title, t, tone),
+      learn: (skill, cert) => { Progress.add(skill, cert); done.add(id); renderIndex(); },
+      noticed(t) { let n = $(".notice.final", work); if (!n) { n = html(`<div class="notice final"></div>`); work.appendChild(n); } n.innerHTML = `<span class="from">${opts.noticedLabel || "Lotus noticed"}</span>${t}`; if (!RM) gsap.fromTo(n, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: .4 }); },
+    };
+    cleanup = GAMES[id](work, api) || null;
+    renderIndex();
+    if (!RM) gsap.fromTo(".sheet", { opacity: .4 }, { opacity: 1, duration: .35 });
+    try { history.replaceState(null, "", `#${id}`); } catch {}
+  }
+  function init(sheets, games, progress, o = {}) { SHEETS = sheets; GAMES = games; Progress = progress; opts = o; const h = (location.hash || "").slice(1); open(GAMES[h] ? h : SHEETS[0].id); }
+  return { init, open };
+})();
+
+// ---------- the evidence readers (identical in every theme) ----------
+const E = {};
+E.PAIR_OPTS = [{ t: "(x − 3)(x − 1)", p: -3, q: -1, k: "ps", name: "product and sum swapped" }, { t: "(x − 1)(x + 4)", p: -1, q: 4, k: "right", name: "the right one" }, { t: "(x − 2)(x + 2)", p: -2, q: 2, k: "po", name: "right product, wrong sum" }, { t: "(x − 4)(x + 1)", p: -4, q: 1, k: "sw", name: "right numbers, signs flipped" }];
+E.pairsRead = (counts, noun = "tokens") => {
+  const PAIRS = { "right|sw": "the signs inside the brackets", "po|right": "whether the numbers must also add to 3", "ps|right": "which number is the product and which the sum", "po|sw": "both the sum and the signs", "ps|sw": "the product–sum rule itself", "po|ps": "the product–sum rule itself" };
+  const O = E.PAIR_OPTS, order = counts.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]), [[n1, i1], [, i2]] = order, shape = order.map(([v]) => v).filter(Boolean).join("–");
+  let text;
+  if (n1 === 4) text = O[i1].k === "right" ? `<b>All four ${noun} on the right answer.</b> Confident and correct.` : `<b>All four ${noun} on “${O[i1].name}”.</b> Confident, so this is a misconception and not a guess.`;
+  else if (shape === "2–2") text = `<b>Split 2–2.</b> The two answers differ only in <b>${PAIRS[[O[i1].k, O[i2].k].sort().join("|")]}</b>. That's exactly where the doubt is.`;
+  else if (shape === "3–1") text = `<b>Mostly “${O[i1].name}”</b>, with a doubt about “${O[i2].name}”.`;
+  else if (shape === "1–1–1–1") text = "<b>Spread evenly.</b> Doesn't know yet, which is not a misconception.";
+  else text = `<b>Leans “${O[i1].name}”</b>, but unsure.`;
+  return { text, shape, cert: shape === "4" ? .95 : shape === "3–1" ? .7 : shape === "2–2" ? .55 : .2 };
+};
+E.CLAIMS = [{ c: "x² − 9 = (x − 3)(x + 3)", truth: true }, { c: "(x + 5)² = x² + 25", truth: false }, { c: "x² + 2x − 8 = (x − 4)(x + 2)", truth: false }, { c: "(x + 2)² = x² + 4x + 4", truth: true }, { c: "x² + 9 = (x + 3)(x + 3)", truth: false }, { c: "x² − 2x − 8 = (x − 4)(x + 2)", truth: true }, { c: "(x − 4)² = x² − 16", truth: false }, { c: "x² − 6x + 9 = (x − 3)²", truth: true }];
+E.FAMS = { SPREAD: { name: "Squares a bracket term by term: (a + b)² = a² + b²", idx: [1, 3, 6], skill: "SQUARES" }, SIGN: { name: "Flips the signs into the brackets", idx: [2, 5], skill: "SIGNS" }, SUMSQ: { name: "Thinks x² + 9 factorises", idx: [4], skill: "SQUARES" }, DS: { name: "Control claims", idx: [0, 7], skill: "SQUARES" } };
+E.claimsRead = (answers, times) => {
+  const med = [...times].sort((a, b) => a - b)[Math.floor(times.length / 2)];
+  const rows = Object.entries(E.FAMS).map(([key, f]) => {
+    const hits = f.idx.map((k) => answers[k] === null ? "uns" : answers[k] === E.CLAIMS[k].truth ? "ok" : "hit"), nh = hits.filter((h) => h === "hit").length, n = f.idx.length;
+    const verdict = key === "DS" ? (nh ? "Missed a control, so read the rest with care." : "Both controls right, so the rest isn't random.") : nh === n && n >= 2 ? `Consistent: all ${n} match this mistake.` : nh === n ? "One points to this. Worth a second look." : nh ? `Matches ${nh} of ${n}. Could be a slip.` : hits.includes("uns") ? "Marked unsure: doesn't know yet." : "No sign of it.";
+    return { name: f.name, hits, verdict, skill: f.skill, cert: hits.includes("uns") ? .25 : .75 };
+  });
+  const slow = times.map((t, k) => [t, k]).filter(([t]) => t > med * 1.8).map(([, k]) => `number ${k + 1}`);
+  return { rows, slowText: slow.length ? `Took much longer on ${slow.join(", ")}.` : "Steady pace throughout." };
+};
+E.rectRead = (tries, fit) => {
+  const ordered = tries.every((t, k) => !k || Math.abs(t - tries[k - 1]) === 1);
+  const text = fit ? (tries.length === 1 ? "<b>Fitted on the first try.</b> Fluent with product and sum." : `<b>Fitted in ${tries.length} tries</b>, ${ordered ? "stepping one at a time: a systematic search" : "jumping around: the corner isn't linked to the 6 yet"}.`) : "<b>Settled on a shape that doesn't close.</b> The corner and the 6 aren't linked yet.";
+  return { text, cert: tries.length <= 1 ? .95 : ordered ? .75 : .4 };
+};
+E.TAPE = [{ label: "A", text: "x × x", term: "x²" }, { label: "B", text: "x × (+2)", term: "+ 2x" }, { label: "C", text: "(−3) × x", term: "− 3x" }, { label: "D", text: "(−3) × (+2)", term: "+ 6" }, { label: "E", text: "collect like terms", term: "− x" }, { label: "F", text: "Sam's answer", term: "x² − x + 6" }];
+E.stopRead = (label, late, text) => {
+  if (label === "D") return { text: `<b>Stopped at step D</b>, ${Math.max(0, late).toFixed(1)}s after −3 × +2 became +6. ${late < 1.2 ? "Fast: fluent." : "Got there, after a moment."}`, cert: .8, good: true };
+  if (label === "E" || label === "F") return { text: label === "E" && late < 2.8 ? `<b>Probably meant step D</b>, a little late (${late.toFixed(1)}s).` : `<b>Stopped at step ${label}</b> (${text}), not at D. Missed the sign error.`, cert: .55 };
+  return { text: `<b>False alarm at step ${label}</b> (${text}). That step looks wrong to them, which is a gap of its own.`, cert: .6 };
+};
+E.STEPS = [{ id: "L1", t: "(6xy − 4y) − (9x − 6)", ok: 0 }, { id: "D1", t: "(6xy − 4y) − (9x + 6)", bad: "kept the + inside after taking out −" }, { id: "L2", t: "2y(3x − 2) − 3(3x − 2)", ok: 1 }, { id: "D2", t: "2y(3x − 2) − 3(3x + 2)", bad: "didn't flip the sign when taking out −3" }, { id: "L3", t: "(3x − 2)(2y − 3)", ok: 2 }, { id: "D3", t: "(3x − 2)(2y + 3)", bad: "lost the minus in the last bracket" }];
+E.parsonsRead = (ids, ever) => {
+  const ch = ids.map((id) => E.STEPS.find((x) => x.id === id)), slips = ch.filter((c) => c.bad), set = ch.every((c) => c.ok !== undefined), ord = set && ch.every((c, k) => c.ok === k);
+  const fixed = [...ever].filter((id) => id.startsWith("D") && !ids.includes(id));
+  let text = ord ? "<b>All three steps right, in order.</b> As strong as typed working." : set ? "<b>Right steps, wrong order.</b> Knows the moves, not the shape of the method." : `<b>${slips.length} step${slips.length > 1 ? "s" : ""} with a slip:</b> ${slips.map((s) => s.bad).join("; ")}.`;
+  if (fixed.length) text += ` They also swapped out ${fixed.length} slip${fixed.length > 1 ? "s" : ""} before finishing, so they caught their own slip.`;
+  return { text, cert: ord ? .9 : .7, slips: slips.length };
+};
+E.LOCK = { TP: -12, TS: -1, expr: "x² − x − 12" };
+E.lockTry = (p, q) => { const pOK = p * q === E.LOCK.TP, slip = pOK && p + q === -E.LOCK.TS; return { pOK, slip, solved: pOK && p + q === E.LOCK.TS }; };
+E.lockFinal = (tries) => {
+  const on = tries.filter((t) => t.p * t.q === E.LOCK.TP).length, slip = tries.some((t) => t.p * t.q === E.LOCK.TP && t.p + t.q === -E.LOCK.TS);
+  const style = tries.length <= 2 ? "Straight there: fluent." : on / tries.length >= .5 ? `${on} of ${tries.length} tries had the right product: a systematic search.` : `Only ${on} of ${tries.length} tries had the right product: trial and error.`;
+  return { text: `<b>Solved: (x − 4)(x + 3).</b> ${style}${slip ? " On the way they hit 4 and −3 (the classic sign slip) and fixed it themselves." : ""}`, cert: tries.length <= 2 ? .95 : .7, slip };
+};
+E.auditRead = (pick, tested) => {
+  const n = tested.size, sawNe = [...tested.values()].includes(false);
+  if (pick === "always" && !sawNe) return { text: `<b>Checked only ${n === 1 ? "x = 0" : "values that happened to match"} and said always.</b> Checks one easy case and stops.`, cert: .8 };
+  if (pick === "always") return { text: "<b>Saw them differ and still said always.</b> Believes (a + b)² = a² + b² firmly enough to overrule the evidence.", cert: .95 };
+  if (pick === "never") return { text: tested.get(0) ? "<b>Saw them match at x = 0 but said never.</b> Doesn't count one case as “sometimes”." : "<b>Said never without checking x = 0.</b>", cert: .8 };
+  return { text: `<b>Sometimes, after checking ${n} value${n > 1 ? "s" : ""}.</b> ${n >= 3 && sawNe ? "Tested like a mathematician." : "Right, but checked very little."}`, cert: .8 };
+};
+E.xrayRead = (st) => {
+  const b1 = (st.s1 === "−" ? -1 : 1) * Math.abs(st.n1), b2 = (st.s2 === "−" ? -1 : 1) * Math.abs(st.n2);
+  const nR = st.n1 * st.n2 === -6 && st.n1 + st.n2 === -1, nS = st.n1 * st.n2 === -6 && st.n1 + st.n2 === 1, car = b1 === st.n1 && b2 === st.n2, fl = b1 === -st.n1 && b2 === -st.n2, fin = b1 * b2 === -6 && b1 + b2 === -1;
+  const layers = [
+    { lab: "What everyone sees: the answer", t: `(x ${pm(b1)})(x ${pm(b2)})`, v: fin ? "✓ expands to x² − x − 6" : "✗ doesn't expand to x² − x − 6", ok: fin },
+    { lab: "Move 2: into the brackets", t: car ? "signs carried straight in" : fl ? "both signs flipped on the way in" : "one carried, one flipped", v: car ? "✓ the taught method" : "✗ the signs changed on the way", ok: car },
+    { lab: "Move 1: the numbers", t: `${sgn(st.n1)} and ${sgn(st.n2)}`, v: nR ? "✓ multiply to −6, add to −1" : nS ? "✗ add to +1, not −1: a sign slip" : `✗ multiply to ${sgn(st.n1 * st.n2)}, add to ${sgn(st.n1 + st.n2)}`, ok: nR },
+  ];
+  const text = nR && car ? "<b>Sound all the way through.</b>" : nS && fl ? "<b>Two wrongs make a right.</b> The numbers had the wrong signs, and so did the bracket step, so they cancel. An answer-only check passes this every time. It fails when they split the middle term in Class 9." : nS ? "<b>A sign slip in move 1</b>, carried faithfully into the brackets." : nR && fl ? "<b>Flips the signs into the brackets.</b> The right numbers, lost in move 2." : "<b>Move 1 doesn't fit the product–sum rule.</b> Start there.";
+  return { b1, b2, layers, text, fin, double: nS && fl };
+};
+E.QUAD = [{ b: 5, c: 6, ok: ["+", "+"] }, { b: -5, c: 6, ok: ["−", "−"] }, { b: 1, c: -6, ok: ["−", "+"] }, { b: -1, c: -6, ok: ["+", "−"] }];
+E.RULES = [{ name: "The real rule: signs multiply to the last sign and add to the middle", pred: E.QUAD.map((c) => c.ok) }, { name: "Copy the middle sign into both brackets", pred: [["+", "+"], ["−", "−"], ["+", "+"], ["−", "−"]] }, { name: "The minus always goes on the smaller number", pred: [["+", "+"], ["−", "−"], ["−", "+"], ["−", "+"]] }, { name: "First bracket copies the middle sign, second the last", pred: [["+", "+"], ["−", "+"], ["+", "−"], ["−", "−"]] }, { name: "Flip every sign into the brackets", pred: E.QUAD.map((c) => c.ok.map((s) => (s === "+" ? "−" : "+"))) }];
+E.quadExpr = (i) => { const { b, c } = E.QUAD[i]; return `x² ${b < 0 ? "−" : "+"} ${Math.abs(b) === 1 ? "" : Math.abs(b)}x ${c < 0 ? "−" : "+"} ${Math.abs(c)}`; };
+E.quadRead = (picks) => {
+  const scores = E.RULES.map((r) => r.pred.map((p, i) => p[0] === picks[i][0] && p[1] === picks[i][1])), best = scores.map((s, k) => [s.filter(Boolean).length, k]).sort((a, b) => b[0] - a[0])[0];
+  const nR = picks.filter((p, i) => p[0] === E.QUAD[i].ok[0] && p[1] === E.QUAD[i].ok[1]).length;
+  const text = best[0] === 4 ? (best[1] === 0 ? "<b>All four follow the real rule.</b> Not a shortcut." : `<b>All four follow “${E.RULES[best[1]].name}”.</b> ${nR ? `${nR} of 4 came out right anyway, so a single question could have marked this student correct.` : "Consistent, so this is a misconception."}`) : `<b>No known rule fits all four</b> (closest ${best[0]} of 4). Guessing signs: doesn't know yet.`;
+  return { scores, best, text, cert: best[0] === 4 ? .9 : .35 };
+};
+E.TRACE = [{ t: "(x − 5)(x + 3)", e: "x² − 2x − 15", k: "flip" }, { t: "(x + 15)(x − 1)", e: "x² + 14x − 15", k: "prod" }, { t: "(x + 5)(x − 3)", e: "x² + 2x − 15", k: "right" }, { t: "(x − 15)(x + 1)", e: "x² − 14x − 15", k: "prod" }];
+E.traceRead = (pred, o) => {
+  const pk = pred.p1 * pred.p2 === -15 && pred.p1 + pred.p2 === 2 ? "right" : pred.p1 * pred.p2 === -15 && pred.p1 + pred.p2 === -2 ? "flip" : pred.p1 * pred.p2 === -15 ? "prod" : "other";
+  const text = pk === "right" && o.k === "right" ? "<b>Predicted it, then picked it.</b> Real factorising." : o.k === "right" ? "<b>The prediction was off, but the pick is right.</b> They most likely found it by checking the options. That's expanding, an easier skill." : pk === o.k ? `<b>The same mistake twice, independently</b> (${o.k === "flip" ? "signs flipped" : "right product, wrong sum"}). Strong evidence.` : "<b>Prediction and pick disagree, and both are wrong.</b> Doesn't know yet.";
+  return { text, pk, cert: o.k === "right" && pk === "right" ? .9 : .6 };
+};
+E.SWITCH = [{ q: "x² − 9", o: ["(x − 3)(x + 3)", "(x − 3)²", "(x − 9)(x + 1)"] }, { q: "x² − 25", o: ["(x − 5)²", "(x − 5)(x + 5)", "(x − 25)(x + 1)"] }, { q: "4x² − 1", o: ["(4x − 1)(x + 1)", "(2x − 1)²", "(2x − 1)(2x + 1)"] }, { q: "x² + 16", o: ["(x − 4)(x + 4)", "(x + 4)²", "Can't be factorised"], trap: true }];
+E.switchRead = (times, picks) => {
+  const base = (times[0] + times[1] + times[2]) / 3, ratio = times[3] / base, p = picks[3];
+  return p === 0 ? `<b>Autopilot on the fourth.</b> Carried the difference-of-squares pattern onto a plus sign${ratio < 1.4 ? `, at their usual pace (${ratio.toFixed(1)}×)` : ""}. Treat the first three with care.` : p === 1 ? "<b>Noticed the fourth was different</b>, but thinks x² + 16 = (x + 4)². A sum-of-squares belief." : ratio >= 1.4 ? `<b>Noticed the switch.</b> Slowed down (${ratio.toFixed(1)}× usual) and checked.` : "<b>Spotted the switch instantly.</b>";
+};
+E.REV = { RIGHT: ["(x+5)(x-2)", "(x-2)(x+5)"], BUGS: { "(x-5)(x+2)": "the sign-flipped answer", "(x+2)(x-5)": "the sign-flipped answer", "(x+10)(x-1)": "a right-product, wrong-sum answer", "(x-10)(x+1)": "a right-product, wrong-sum answer" } };
+E.norm = (s) => s.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
+E.script = (ops) => { const h = []; let t = 0, v = ""; for (const o of ops) { if (o.type) for (const ch of o.type) { t += o.d ?? .2; v += ch; h.push({ t, v }); } if (o.wait) t += o.wait; if (o.back) for (let k = 0; k < o.back; k++) { t += .1; v = v.slice(0, -1); h.push({ t, v }); } } return h; };
+E.SAMPLES = { fix: E.script([{ type: "(x-5)(x+2)" }, { wait: 2.6 }, { back: 8 }, { type: "+5)(x-2)" }]), clean: E.script([{ wait: 1.2 }, { type: "(x+5)(x-2)", d: .16 }]), stuck: E.script([{ type: "(x+" }, { wait: 4.2 }, { type: "10)(x-1)", d: .24 }]) };
+E.revRead = (h, draftWord = "draft") => {
+  const drafts = []; h.forEach((s, k) => { const nx = h[k + 1], pv = h[k - 1]; if (nx && nx.v.length < s.v.length && (!pv || pv.v.length <= s.v.length)) drafts.push(s); });
+  const fin = h.at(-1), buggy = drafts.map((d) => E.REV.BUGS[E.norm(d.v)]).filter(Boolean), right = E.REV.RIGHT.includes(E.norm(fin.v));
+  let lg = { gap: 0, at: "" }; h.forEach((s, k) => { const gap = s.t - (k ? h[k - 1].t : 0); if (gap > lg.gap) lg = { gap, at: k ? h[k - 1].v : "" }; });
+  let text = right && buggy.length ? `<b>Finished right, but the first ${draftWord} was ${buggy[0]}.</b> They caught it this time. The mistake is still live, so Lotus keeps watching for it.` : right && !drafts.length ? "<b>Straight through, no changes.</b> Fluent." : right ? `<b>Right, after ${drafts.length} discarded ${draftWord}${drafts.length > 1 ? "s" : ""}.</b> None matched a known mistake.` : E.REV.BUGS[E.norm(fin.v)] ? `<b>Finished with ${E.REV.BUGS[E.norm(fin.v)]}.</b>` : "<b>Finished with something that isn't the factorisation.</b>";
+  if (lg.gap > 1.5) text += ` Longest pause: ${lg.gap.toFixed(1)}s${lg.at ? ` after “${esc(lg.at)}”` : " before starting"}.`;
+  return { drafts, fin, buggy, text, cert: buggy.length ? .6 : .85 };
+};
+E.LOTS = { VALID: [-13, -8, -7, 7, 8, 13], PAIRS: { 13: [1, 12], 8: [2, 6], 7: [3, 4], "-13": [-1, -12], "-8": [-2, -6], "-7": [-3, -4] } };
+E.lotsRead = (picked) => {
+  const found = picked.filter((v) => E.LOTS.VALID.includes(v)), wrong = picked.filter((v) => !E.LOTS.VALID.includes(v)), neg = found.filter((v) => v < 0);
+  let text = found.length === 6 ? "<b>All six.</b>" : found.length === 3 && !neg.length ? "<b>Found 7, 8 and 13, and none of the negatives.</b> Forgets that two negatives also multiply to +12 (the “no negative pairs” mistake), now with solid evidence." : found.length <= 2 ? `<b>Found ${found.length}.</b> Knows an example, not the whole set.` : `<b>Found ${found.length} of 6.</b>`;
+  const pos = picked.filter((v) => v > 0 && E.LOTS.VALID.includes(v)).join(); if (pos === "13,8,7" || pos === "7,8,13") text += " Listed them in order, which is systematic.";
+  if (wrong.some((v) => [12, -12, 1, -1].includes(v))) text += " Picked 12 or 1, mixing up b with a factor of 12."; else if (wrong.length) text += ` ${wrong.length} that don't work: ${wrong.map(sgn).join(", ")}.`;
+  return { found, wrong, neg, text, cert: found.length === 6 ? .9 : .7 };
+};
+E.MODULE = {
+  block: { lines: ["(x + 3)² − 16", "A² − 4²", "(A − 4)(A + 4)", "(x + 3 − 4)(x + 3 + 4)", "(x − 1)(x + 7)"], t: "<b>Treated (x + 3) as one block.</b> Saw A² − 4². That's structure sense: spotting a difference of squares wherever it hides.", c: .9 },
+  expand: { lines: ["(x + 3)² − 16", "x² + 6x + 9 − 16", "x² + 6x − 7", "(x + 7)(x − 1)"], t: "<b>Right, the long way.</b> Four lines and a product–sum search. They can do it but didn't see the structure, and an answer-only check would call this full mastery.", c: .7 },
+  root: { lines: ["(x + 3)² − 16", "(x + 3) − 4", "x − 1"], t: "<b>Square-rooted each part.</b> Thinks √(a − b) = √a − √b. A different misconception, worth its own follow-up.", c: .85 },
+};
+E.mentalRead = (v, t) => v === "9800" && t <= 12 ? `<b>9800 in ${t.toFixed(0)}s.</b> That fast almost certainly means 98 × 100: the structure carries over to plain numbers.` : v === "9800" ? `<b>9800 after ${t.toFixed(0)}s.</b> Probably 9801 − 1, the long way.` : `<b>${esc(v) || "No answer"}.</b> Not 9800; check for an arithmetic slip first.`;
+E.nbq = (names) => {
+  const S = ["M", "FLIP", "PROD", "SWAP", "UNK"], NAMES = { M: "Knows it", FLIP: "Flips signs into the brackets", PROD: "Matches the product, ignores the sum", SWAP: "Mixes up product and sum", UNK: "Doesn't know yet" };
+  const u = (ks) => Object.fromEntries(ks.map((k) => [k, 1 / ks.length])), sl = (m, ks, p = .92) => Object.fromEntries(ks.map((k) => [k, k === m ? p : (1 - p) / (ks.length - 1)]));
+  const QS = [
+    { id: "alloc", name: names.alloc, sec: 30, L: { M: sl("right", ["right", "sw", "ps", "po"]), FLIP: sl("sw", ["right", "sw", "ps", "po"]), PROD: { right: .31, sw: .31, po: .31, ps: .07 }, SWAP: sl("ps", ["right", "sw", "ps", "po"]), UNK: u(["right", "sw", "ps", "po"]) } },
+    { id: "typed", name: names.typed, sec: 40, L: { M: { right: .92, other: .08 }, FLIP: { flip: .88, other: .12 }, PROD: { right: .5, prod: .45, other: .05 }, SWAP: { swap: .85, other: .15 }, UNK: { dunno: .5, other: .4, right: .1 } } },
+    { id: "quad", name: names.quad, sec: 60, L: { M: { all: .9, none: .1 }, FLIP: { flipped: .85, none: .15 }, PROD: { all: .4, none: .4, copy: .2 }, SWAP: { all: .3, none: .5, copy: .2 }, UNK: { none: .6, copy: .25, all: .1, flipped: .05 } } },
+    { id: "claims", name: names.claims, sec: 60, L: Object.fromEntries(S.map((s) => [s, { a: .5, b: .5 }])) },
+    { id: "lots", name: names.lots, sec: 45, L: { M: { ok: .9, no: .1 }, FLIP: { ok: .7, no: .3 }, PROD: { ok: .6, no: .4 }, SWAP: { ok: .5, no: .5 }, UNK: { ok: .25, no: .75 } } },
+    { id: "old", name: "Fireflies (today's game)", sec: 20, L: { M: sl("r", ["r", "s", "o", "p"]), FLIP: sl("r", ["r", "s", "o", "p"]), PROD: { r: .31, s: .31, o: .31, p: .07 }, SWAP: u(["r", "s", "o", "p"]), UNK: u(["r", "s", "o", "p"]) } },
+  ];
+  for (const q of QS) { const R = [...new Set(S.flatMap((s) => Object.keys(q.L[s])))]; for (const s of S) q.L[s] = Object.fromEntries(R.map((r) => [r, .94 * (q.L[s][r] ?? 0) + .06 / R.length])); }
+  const H = (d) => -Object.values(d).reduce((t, p) => t + (p > 0 ? p * Math.log2(p) : 0), 0);
+  const post = (b, q, r) => { const o = {}; let z = 0; for (const s of S) { o[s] = b[s] * (q.L[s][r] ?? 0); z += o[s]; } for (const s of S) o[s] = z ? o[s] / z : b[s]; return o; };
+  const eig = (b, q) => { const rs = [...new Set(S.flatMap((s) => Object.keys(q.L[s])))]; let e = 0; for (const r of rs) { const pr = S.reduce((t, s) => t + b[s] * (q.L[s][r] ?? 0), 0); if (pr > 0) e += pr * H(post(b, q, r)); } return Math.max(0, H(b) - e); };
+  return { S, NAMES, QS, PRIOR: { M: .35, FLIP: .2, PROD: .15, SWAP: .1, UNK: .2 }, post, eig };
+};
+E.pretty = (s) => s.replace(/\^2/g, "²").replace(/\*/g, " · ").replace(/-/g, " − ").replace(/\+/g, " + ");
+E.readback = (raw) => {
+  let s = raw.replace(/\s+/g, "").replace(/[−–]/g, "-"); const iss = []; let fix = null;
+  const o = (s.match(/\(/g) || []).length, c = (s.match(/\)/g) || []).length;
+  if (/x2(?!\d)/.test(s) && !s.includes("^")) { iss.push("“x2” could be x² or x × 2. Read as x²."); s = s.replace(/x2(?!\d)/g, "x^2"); }
+  if (o > c) { iss.push(`${o - c === 1 ? "A bracket is" : "Brackets are"} left open. Closed at the end.`); s += ")".repeat(o - c); }
+  if (c > o) iss.push("An extra closing bracket.");
+  const m = /^(x[+-]\d+)\((x[+-]\d+)\)$/.exec(s);
+  if (m) { iss.push(`This reads as a sum, not two brackets multiplied. Did you mean (${E.pretty(m[1])})(${E.pretty(m[2])})?`); fix = `(${m[1]})(${m[2]})`; }
+  if (/\^2/.test(s) && !/\(/.test(s)) iss.push("This is the expression itself, not factorised.");
+  return { s, iss, fix, ok: ["(x+2)(x+3)", "(x+3)(x+2)", "(x+2)*(x+3)", "(x+3)*(x+2)"].includes(s) };
+};
+
+// ============================================================
+// Generic game widgets. Each takes theme words + hooks for theme art;
+// all of them report through the shared evidence readers in E.
+// ============================================================
+const W = {};
+
+// ---- allocate four tokens across four answers ----
+W.allocate = (w, api, c) => {
+  const O = E.PAIR_OPTS;
+  w.innerHTML = `<p class="q">${c.prompt}</p><div class="big">x² + 3x − 4</div>
+    <div class="g-alloc" id="ga"><div class="g-items">${O.map((o, i) => `<button class="g-item" type="button" data-i="${i}">${c.item ? c.item(o, i) : `<span class="m">${o.t}</span>`}<span class="g-cnt"></span></button>`).join("")}</div>
+      <div class="g-tray"><span>${c.trayLabel}</span>${'<i class="g-spot"></i>'.repeat(4)}</div><div class="g-tokens"></div></div>
+    <div class="row"><button class="btn primary" id="gdone" type="button" disabled>${c.doneLabel}</button><span class="label" id="gleft">4 left</span></div>`;
+  const box = $("#ga", w), items = $$(".g-item", w), spots = $$(".g-spot", w), layer = $(".g-tokens", w);
+  const toks = Array.from({ length: 4 }, () => ({ at: -1, x: 0, y: 0, el: html(`<button class="g-token" type="button" aria-label="${c.noun}">${c.token}</button>`) }));
+  toks.forEach((t) => layer.appendChild(t.el));
+  const rel = (e) => { const a = e.getBoundingClientRect(), b = box.getBoundingClientRect(); return { x: a.left - b.left + a.width / 2, y: a.top - b.top + a.height / 2 }; };
+  const OFF = [[0, 0], [16, -10], [-16, -8], [2, -20]];
+  const target = (t) => { if (t.at < 0) return rel(spots[toks.filter((d) => d.at < 0).indexOf(t)]); const r = rel($(".g-anchor", items[t.at]) || items[t.at]), k = toks.filter((d) => d.at === t.at).indexOf(t); return { x: r.x + OFF[k][0], y: r.y + OFF[k][1] }; };
+  function fly(t, instant) {
+    const to = target(t); if (t.tw) { t.tw.kill(); t.x = gsap.getProperty(t.el, "x"); t.y = gsap.getProperty(t.el, "y"); }
+    const from = { x: t.x, y: t.y }; t.x = to.x; t.y = to.y;
+    if (instant || RM) return gsap.set(t.el, { x: to.x, y: to.y });
+    const ctrl = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 100 }, o = { p: 0 };
+    t.tw = gsap.to(o, { p: 1, duration: .6, ease: "power2.inOut", onUpdate() { const p = o.p, q = 1 - p; gsap.set(t.el, { x: q * q * from.x + 2 * q * p * ctrl.x + p * p * to.x, y: q * q * from.y + 2 * q * p * ctrl.y + p * p * to.y, rotation: c.spin ? p * 360 : 0 }); }, onComplete() { gsap.fromTo(t.el, { scaleY: .7, scaleX: 1.15 }, { scaleY: 1, scaleX: 1, duration: .5, ease: "elastic.out(1.1,.4)" }); c.onLand && t.at >= 0 && c.onLand(items[t.at]); } });
+  }
+  const layout = (i) => toks.forEach((t) => fly(t, i));
+  const counts = () => O.map((_, i) => toks.filter((t) => t.at === i).length);
+  function refresh() { const n = counts(), placed = n.reduce((a, b) => a + b, 0); items.forEach((it, i) => { it.classList.toggle("has", n[i] > 0); $(".g-cnt", it).textContent = n[i] ? `${n[i]}` : ""; }); $("#gdone", w).disabled = placed < 4; $("#gleft", w).textContent = placed < 4 ? `${4 - placed} left` : "All placed"; }
+  items.forEach((it, i) => it.addEventListener("click", () => { const t = toks.find((d) => d.at < 0); if (!t) return; t.at = i; api.note(`${c.verbPlace || "Placed"} on ${O[i].t}`); layout(); refresh(); }));
+  toks.forEach((t) => t.el.addEventListener("click", (e) => { e.stopPropagation(); if (t.at < 0) return; api.note(`Took one back from ${O[t.at].t}`, "warn"); t.at = -1; layout(); refresh(); }));
+  $("#gdone", w).addEventListener("click", () => { const r = E.pairsRead(counts(), c.noun); api.noticed(r.text); api.learn("PAIR", r.cert); });
+  requestAnimationFrame(() => { toks.forEach((t) => { const p = target(t); t.x = p.x; t.y = p.y - 40; }); layout(); });
+  const onR = () => layout(true); addEventListener("resize", onR);
+  return () => removeEventListener("resize", onR);
+};
+
+// ---- judge eight claims ----
+W.judge = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-judge"><div class="g-desk" id="gd"></div><div class="g-tally" id="gt">${c.buttons.map((b) => `<span data-v="${b.v}"><b>0</b>${b.label}</span>`).join("")}</div></div>
+    <div class="row g-jbtns">${c.buttons.map((b) => `<button class="btn ${b.cls || ""}" type="button" data-v="${b.v}">${b.label}</button>`).join("")}</div><div class="g-fams" id="gf"></div>`;
+  const desk = $("#gd", w), answers = [], times = []; let i = 0, shown = 0, busy = false, card = null;
+  function deal() {
+    if (i >= E.CLAIMS.length) return finish();
+    card = html(c.card(E.CLAIMS[i].c, i, E.CLAIMS.length)); desk.appendChild(card);
+    if (!RM) gsap.from(card, c.enter || { y: -30, opacity: 0, duration: .45, ease: "power3.out" });
+    shown = performance.now() + 400;
+  }
+  function decide(v) {
+    if (busy || !card) return; busy = true;
+    const t = Math.max(.2, (performance.now() - shown) / 1000); answers[i] = v; times[i] = t;
+    const b = c.buttons.find((x) => x.v === String(v)), mark = $(".g-mark", card);
+    if (mark) { mark.textContent = b.mark || b.label; mark.dataset.v = String(v); }
+    const tal = $(`#gt span[data-v="${String(v)}"] b`, w); tal.textContent = +tal.textContent + 1;
+    api.note(`Claim ${i + 1}: ${b.label.toLowerCase()} after ${t.toFixed(1)}s`);
+    const f = card; card = null;
+    const tl = gsap.timeline({ onComplete: () => f.remove() });
+    if (mark) tl.fromTo(mark, { opacity: 0, scale: 2 }, { opacity: 1, scale: 1, duration: RM ? 0 : .22, ease: "power4.in" });
+    tl.to(f, { ...(c.exit ? c.exit(v) : { x: v === null ? 0 : v ? 60 : -60, y: v === null ? 40 : 10, opacity: 0 }), duration: RM ? 0 : .45, delay: .3 });
+    setTimeout(() => { i++; busy = false; deal(); }, RM ? 50 : 850);
+  }
+  function finish() {
+    desk.innerHTML = `<div class="g-done">${c.doneText || "All done"}</div>`;
+    const r = E.claimsRead(answers, times);
+    $("#gf", w).innerHTML = r.rows.map((x) => `<div class="g-fam"><span>${x.name}</span><span class="g-dots">${x.hits.map((h) => `<i class="${h}"></i>`).join("")}</span><p>${x.verdict}</p></div>`).join("");
+    r.rows.forEach((x) => api.learn(x.skill, x.cert));
+    api.noticed(`Eight claims, grouped by the mistake each one tests. ${r.slowText}`);
+  }
+  $$(".g-jbtns button", w).forEach((b) => b.addEventListener("click", () => decide(b.dataset.v === "null" ? null : b.dataset.v === "true")));
+  deal();
+  return () => {};
+};
+
+// ---- tiles into a rectangle ----
+W.tiles = (w, api, c) => {
+  const X = 130, U = 32, OX = 80, OY = 64;
+  w.innerHTML = `<p class="q">${c.prompt}</p><svg viewBox="0 0 560 400" class="g-tiles" id="gtl"></svg>
+    <div class="row"><span class="label">${c.controlLabel}</span><div class="seg" id="gs">${[0, 1, 2, 3, 4, 5].map((n) => `<button type="button" data-n="${n}" aria-pressed="${n === 0}">${n}</button>`).join("")}</div><button class="btn primary" id="gk" type="button" disabled>${c.commitLabel}</button></div>`;
+  const svg = $("#gtl", w), V = (n) => css(n);
+  svg.innerHTML = `<g id="holes"></g>`;
+  el("rect", { x: OX, y: OY, width: X, height: X, rx: c.rx ?? 6, fill: V("--t-sq"), stroke: V("--t-line"), "stroke-width": 2 }, svg);
+  el("text", { x: OX + X / 2, y: OY + X / 2 + 8, "text-anchor": "middle", "font-size": 24, fill: V("--t-sq-ink") }, svg).textContent = "x²";
+  const bars = Array.from({ length: 5 }, () => el("rect", { x: OX, y: OY + X, width: X, height: U, rx: (c.rx ?? 6) / 2, fill: V("--t-bar"), stroke: V("--t-line"), "stroke-width": 1.5 }, svg));
+  const pool = (k) => ({ x: 450 + (k % 2) * 40, y: 64 + Math.floor(k / 2) * 40 });
+  const units = Array.from({ length: 6 }, (_, k) => el("rect", { ...pool(k), width: U, height: U, rx: (c.rx ?? 6) / 2, fill: V("--t-unit"), stroke: V("--t-line"), "stroke-width": 1.5 }, svg));
+  const dims = el("g", { opacity: 0 }, svg);
+  let cur = 0; const tries = [];
+  function lay(a, instant) {
+    const b = 5 - a, d = instant || RM ? 0 : 1;
+    bars.forEach((r, k) => gsap.to(r, { attr: k < a ? { x: OX + X + k * U, y: OY, width: U, height: X } : { x: OX, y: OY + X + (k - a) * U, width: X, height: U }, duration: (c.dur || .6) * d, delay: k * .05 * d, ease: c.ease || "power3.inOut" }));
+    const cells = []; for (let j = 0; j < b; j++) for (let i = 0; i < a; i++) cells.push({ x: OX + X + i * U, y: OY + X + j * U });
+    units.forEach((u, k) => gsap.to(u, { attr: k < cells.length ? cells[k] : pool(k - cells.length), duration: (c.dur || .55) * d, delay: (.3 + k * .05) * d, ease: c.ease || "power3.inOut" }));
+    const holes = $("#holes", svg); holes.innerHTML = "";
+    cells.slice(6).forEach((cc) => el("rect", { x: cc.x + 4, y: cc.y + 4, width: U - 8, height: U - 8, fill: "none", stroke: V("--t-hole"), "stroke-width": 1.5, "stroke-dasharray": "4 3" }, holes));
+    gsap.to(dims, { opacity: 0, duration: .15 });
+    if (a * b === 6) {
+      const ww = X + a * U, h = X + b * U, ink = V("--t-dim");
+      dims.innerHTML = `<line x1="${OX}" y1="${OY - 22}" x2="${OX + ww}" y2="${OY - 22}" stroke="${ink}"/><text x="${OX + ww / 2}" y="${OY - 30}" text-anchor="middle" font-size="19" fill="${ink}">x + ${a}</text><line x1="${OX - 22}" y1="${OY}" x2="${OX - 22}" y2="${OY + h}" stroke="${ink}"/><text transform="translate(${OX - 30} ${OY + h / 2}) rotate(-90)" text-anchor="middle" font-size="19" fill="${ink}">x + ${b}</text><text x="${OX + ww / 2}" y="${OY + h + 34}" text-anchor="middle" font-size="17" fill="${ink}">${c.fitLabel || ""}(x + ${a})(x + ${b})</text>`;
+      gsap.to(dims, { opacity: 1, duration: .5, delay: d });
+      c.onFit && c.onFit(svg, { OX, OY, ww, h }, d);
+    }
+  }
+  $$("#gs button", w).forEach((b) => b.addEventListener("click", () => {
+    const a = +b.dataset.n; if (a === cur) return; cur = a; lay(a); tries.push(a);
+    $$("#gs button", w).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    const need = a * (5 - a); api.note(`Split ${a} | ${5 - a}: ${need === 6 ? "closes" : need > 6 ? `${need - 6} gap${need - 6 > 1 ? "s" : ""}` : `${6 - need} spare`}`, need === 6 ? "good" : "");
+    $("#gk", w).disabled = false;
+  }));
+  $("#gk", w).addEventListener("click", () => { const r = E.rectRead(tries, cur * (5 - cur) === 6); api.noticed(r.text); api.learn("PAIR", r.cert); $("#gk", w).disabled = true; });
+  lay(0, true);
+  return () => gsap.killTweensOf([...bars, ...units, dims]);
+};
+
+// ---- replay Sam's working and stop at the error ----
+W.replay = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p><div class="g-replay"><svg viewBox="0 0 600 250" id="grs"></svg>${c.overlay || ""}</div>
+    <div class="g-scrub"><button class="btn" id="gpp" type="button" aria-label="${c.playLabel}">▶</button><input type="range" id="gsc" min="0" max="1000" value="0" aria-label="Scrub"></div><div class="g-marks" id="gmk"></div>
+    <div class="row"><button class="btn danger" id="gstop" type="button">${c.stopLabel}</button><button class="btn" id="gfine" type="button" disabled>${c.fineLabel}</button></div>`;
+  const svg = $("#grs", w), INK = css("--r-ink"), SOFT = css("--r-soft");
+  const T = (x, y, s, size = 30, fill = INK, extra = {}) => { const e = el("text", { x, y, "text-anchor": "middle", "font-size": size, fill, class: "g-rt", ...extra }, svg); e.textContent = s; return e; };
+  T(300, 70, "(x − 3)(x + 2)", 32);
+  const stepL = T(300, 26, "", 14, SOFT, { class: "g-step" });
+  const POS = [[140, 140], [225, 140], [325, 140], [425, 140]];
+  const terms = POS.map(([x, y], k) => T(x, y, E.TAPE[k].term, 30));
+  const eq = T(80, 140, "=", 30, SOFT), fin = T(300, 210, "= x² − x + 6", 30), tick = T(480, 210, "✓", 30, css("--r-ok"));
+  [...terms, eq, fin, tick].forEach((t) => gsap.set(t, { opacity: 0 }));
+  const cursor = c.cursor ? el("circle", { r: 6, cx: 60, cy: 150, class: "g-cursor" }, svg) : null;
+  const tl = gsap.timeline({ paused: true, onUpdate: () => ($("#gsc", w).value = Math.round(tl.progress() * 1000)), onComplete: () => { $("#gfine", w).disabled = false; $("#gpp", w).textContent = "↺"; } });
+  const steps = []; let t = .3;
+  tl.to(eq, { opacity: 1, duration: .3 }, t);
+  E.TAPE.slice(0, 4).forEach((s, k) => {
+    steps.push({ ...s, t }); tl.set(stepL, { textContent: `Step ${s.label} · ${s.text}` }, t);
+    if (cursor) tl.to(cursor, { attr: { cx: POS[k][0], cy: POS[k][1] + 10 }, duration: .5, ease: "power2.inOut" }, t);
+    tl.fromTo(terms[k], { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5, ease: "back.out(2)" }, t + .5);
+    t += 1.8;
+  });
+  steps.push({ ...E.TAPE[4], t }); tl.set(stepL, { textContent: `Step E · ${E.TAPE[4].text}` }, t).to([terms[1], terms[2]], { opacity: .25, duration: .4 }, t + .3);
+  if (cursor) tl.to(cursor, { attr: { cx: 300, cy: 220 }, duration: .5 }, t);
+  t += 1.6; steps.push({ ...E.TAPE[5], t }); tl.set(stepL, { textContent: "Step F · Sam's answer" }, t).fromTo(fin, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .5 }, t).to(tick, { opacity: 1, duration: .3 }, t + .6).to({}, { duration: .8 });
+  const D = tl.duration(); $("#gmk", w).innerHTML = steps.map((s) => `<span style="left:${(s.t / D) * 100}%">${s.label}</span>`).join("");
+  const stepAt = (x) => [...steps].reverse().find((s) => x >= s.t) ?? steps[0], dStart = steps.find((s) => s.label === "D").t;
+  $("#gpp", w).addEventListener("click", () => { if (tl.progress() >= 1) { tl.restart(); api.note("Replayed"); } else if (tl.paused() || !tl.isActive()) { tl.play(); api.note(tl.time() < .1 ? "Started" : "Resumed"); } else { tl.pause(); api.note(`Paused at ${tl.time().toFixed(1)}s`); } $("#gpp", w).textContent = tl.paused() ? "▶" : "❚❚"; c.onPlay && c.onPlay(!tl.paused()); });
+  $("#gsc", w).addEventListener("input", (e) => { tl.pause(); tl.progress(e.target.value / 1000); $("#gpp", w).textContent = "▶"; });
+  $("#gstop", w).addEventListener("click", () => { tl.pause(); $("#gpp", w).textContent = "▶"; c.onPlay && c.onPlay(false); const x = tl.time(), s = stepAt(x), r = E.stopRead(s.label, x - (dStart + .5), s.text); api.noticed(r.text); api.note(`${c.stopLabel} at ${x.toFixed(1)}s, step ${s.label}`, r.good ? "good" : "warn"); api.learn("CHECK", r.cert); });
+  $("#gfine", w).addEventListener("click", () => { api.noticed("<b>Said it all looks right.</b> Either they'd make Sam's sign slip themselves, or they don't check each part. One follow-up tells which."); api.note("Passed a wrong working", "warn"); api.learn("SIGNS", .75); });
+  return () => tl.kill();
+};
+
+// ---- order three steps from six ----
+W.order = (w, api, c) => {
+  const order = [3, 0, 5, 2, 1, 4];
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-order"><div class="g-slots ${c.reverse ? "rev" : ""}">${c.slotLabels.map((l, i) => `<div class="g-slot" data-s="${i}"><span class="g-slotlab">${l}</span></div>`).join("")}</div>
+      <div class="g-pool" id="gpool"><span class="label">${c.poolLabel}</span>${order.map((k) => `<button class="g-piece" type="button" data-id="${E.STEPS[k].id}"><span class="m">${E.STEPS[k].t}</span></button>`).join("")}</div></div>
+    <div class="row"><button class="btn primary" id="gok" type="button" disabled>${c.doneLabel}</button></div>`;
+  const pool = $("#gpool", w), slots = $$(".g-slot", w), ever = new Set();
+  w.addEventListener("click", (e) => {
+    const p = e.target.closest(".g-piece"); if (!p || !w.contains(p)) return;
+    const st = Flip.getState($$(".g-piece", w)), s = E.STEPS.find((x) => x.id === p.dataset.id);
+    if (p.parentElement.classList.contains("g-slot")) { pool.appendChild(p); api.note(`Took back ${s.t}`, s.bad ? "good" : "warn"); }
+    else { const free = slots.find((x) => !$(".g-piece", x)); if (!free) return; free.appendChild(p); ever.add(s.id); api.note(`${c.slotLabels[+free.dataset.s]}: ${s.t}`); }
+    Flip.from(st, { duration: RM ? 0 : .55, ease: "power3.inOut", absolute: true, scale: true });
+    $("#gok", w).disabled = slots.some((x) => !$(".g-piece", x));
+  });
+  $("#gok", w).addEventListener("click", () => { const r = E.parsonsRead(slots.map((x) => $(".g-piece", x).dataset.id), ever); c.onDone && c.onDone(w); api.noticed(r.text); api.learn("GROUP", r.cert); });
+  return () => {};
+};
+
+// ---- two numbers with live visual + search log ----
+W.dials = (w, api, c) => {
+  const st = { p: 1, q: 1 }, tries = []; let settle = null, solved = false;
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-dials"><div class="g-vis" id="gv"></div>
+      <div class="g-dctl"><div class="g-pq">${["p", "q"].map((k) => `<div class="g-pqi"><span class="label">${c.labels[k]}</span>${picker(k, 1)}</div>`).join("")}</div>
+        <div class="g-read" id="gr"></div><div class="g-logwrap"><span class="label">${c.logTitle}</span><svg viewBox="0 0 300 180" class="g-log" id="glog"></svg></div></div></div>`;
+  const log = $("#glog", w), mx = (s) => 30 + ((s + 18) / 36) * 260, my = (p) => 95 - (Math.max(-40, Math.min(40, p)) / 40) * 80, LC = css("--l-line"), LA = css("--l-accent");
+  log.innerHTML = `<line x1="30" y1="95" x2="290" y2="95" stroke="${LC}"/><line x1="160" y1="10" x2="160" y2="180" stroke="${LC}"/><line x1="30" y1="${my(-12)}" x2="290" y2="${my(-12)}" stroke="${LA}" stroke-dasharray="4 4"/><text x="34" y="${my(-12) + 14}" font-size="11" fill="${LA}">every pair that multiplies to −12</text><text x="288" y="90" text-anchor="end" font-size="11" fill="${LC}">sum →</text><circle cx="${mx(-1)}" cy="${my(-12)}" r="9" fill="none" stroke="${css("--l-ok")}" stroke-width="2"/><polyline id="gpath" fill="none" stroke="${LA}" stroke-width="1.6" points=""/><g id="gdots"></g>`;
+  function update() { $("#gr", w).innerHTML = c.readout ? c.readout(st.p, st.q) : `× ${sgn(st.p * st.q)} · + ${sgn(st.p + st.q)}`; c.visual($("#gv", w), st.p, st.q, solved); clearTimeout(settle); settle = setTimeout(record, 600); }
+  function record() {
+    if (solved) return; const { p, q } = st, last = tries.at(-1); if (last && last.p === p && last.q === q) return;
+    tries.push({ p, q }); $("#gpath", log).setAttribute("points", tries.map((t) => `${mx(t.p + t.q)},${my(t.p * t.q)}`).join(" "));
+    const d = el("circle", { cx: mx(p + q), cy: my(p * q), r: 4, fill: LA }, $("#gdots", log)); if (!RM) gsap.from(d, { attr: { r: 11 }, opacity: 0, duration: .4 });
+    const r = E.lockTry(p, q); api.note(`Tried ${sgn(p)} and ${sgn(q)}${r.slip ? ": the sign slip" : r.pOK ? ": right product" : ""}`, r.slip ? "warn" : r.pOK ? "good" : "");
+    if (r.solved) { solved = true; c.visual($("#gv", w), p, q, true); c.onSolve && c.onSolve($("#gv", w)); const f = E.lockFinal(tries); api.noticed(f.text); api.learn("PAIR", f.cert); if (f.slip) api.learn("SIGNS", .6); }
+  }
+  wirePickers(w, st, update, -9, 9); c.visual($("#gv", w), 1, 1, false, true); update();
+  return () => clearTimeout(settle);
+};
+
+// ---- compare two formulas as x changes ----
+W.compare = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p><div class="g-cmp" id="gc"></div>
+    <div class="g-xs"><div class="g-xl"><span>x = <b class="m" id="gxv">0</b></span><span class="label">values checked</span></div><input type="range" id="gx" min="${c.min ?? 0}" max="${c.max ?? 8}" step="1" value="0" aria-label="x"><div class="g-ticks" id="gtk"></div></div>
+    <div class="g-verd">${c.verdicts.map((v) => `<button type="button" data-v="${v.v}" aria-pressed="false">${v.label}</button>`).join("")}</div>
+    <div class="row"><button class="btn primary" id="gsign" type="button" disabled>${c.signLabel}</button></div>`;
+  const tested = new Map(); let pick = null; const lo = c.min ?? 0, hi = c.max ?? 8;
+  function show(x) {
+    const A = (x + 3) ** 2, B = x * x + 9; $("#gxv", w).textContent = sgn(x); c.visual($("#gc", w), x, A, B);
+    if (!tested.has(x)) { tested.set(x, A === B); $("#gtk", w).insertAdjacentHTML("beforeend", `<i class="${A === B ? "eq" : "ne"}" style="left:${((x - lo) / (hi - lo)) * 100}%"></i>`); api.note(`Checked x = ${sgn(x)}: ${A} ${A === B ? "=" : "≠"} ${B}`); }
+  }
+  $("#gx", w).addEventListener("input", (e) => show(+e.target.value));
+  $$(".g-verd button", w).forEach((b) => b.addEventListener("click", () => { pick = b.dataset.v; $$(".g-verd button", w).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("#gsign", w).disabled = false; }));
+  $("#gsign", w).addEventListener("click", () => { const r = E.auditRead(pick, tested); api.noticed(r.text); api.learn("SQUARES", r.cert); });
+  c.visual($("#gc", w), 0, 9, 9, true); show(0);
+  return () => {};
+};
+
+// ---- two moves, then reveal the hidden layers ----
+W.twoMoves = (w, api, c) => {
+  const st = { n1: 1, n2: 1, s1: null, s2: null };
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-moves"><div class="g-mv"><span class="label">Move 1 · two numbers that multiply to −6 and add to −1</span><div class="row">${picker("n1", 1)}<span>and</span>${picker("n2", 1)}</div></div>
+      <div class="g-mv"><span class="label">Move 2 · set each bracket's sign</span><span class="brk">(x <button class="tog" id="s1" type="button">?</button> <span id="m1">1</span>)(x <button class="tog" id="s2" type="button">?</button> <span id="m2">1</span>)</span></div></div>
+    <div class="row"><button class="btn primary" id="gperf" type="button" disabled>${c.performLabel}</button><button class="btn danger" id="grev" type="button" disabled>${c.revealLabel}</button></div>
+    <div class="g-stage" id="gstg"></div>
+    <div style="display:grid;gap:6px"><span class="label">Or watch a student who…</span><div class="chips" id="gas"><button type="button" data-p="right">does it properly</button><button type="button" data-p="double">makes two slips that cancel</button><button type="button" data-p="slip">slips in move 1 only</button><button type="button" data-p="flip">only flips signs</button></div></div>`;
+  const mags = () => { $("#m1", w).textContent = Math.abs(st.n1); $("#m2", w).textContent = Math.abs(st.n2); };
+  const ready = () => ($("#gperf", w).disabled = !(st.s1 && st.s2));
+  wirePickers(w, st, () => { mags(); api.note(`Move 1: ${sgn(st.n1)} and ${sgn(st.n2)}`); }, -6, 6);
+  ["s1", "s2"].forEach((k) => $(`#${k}`, w).addEventListener("click", (e) => { st[k] = st[k] === "+" ? "−" : "+"; e.currentTarget.textContent = st[k]; e.currentTarget.classList.add("set"); api.note(`Move 2: bracket ${k === "s1" ? 1 : 2} gets ${st[k]}`); ready(); }));
+  const perform = () => { const r = E.xrayRead(st); c.surface($("#gstg", w), r); $("#grev", w).disabled = false; api.note(`Finished: (x ${pm(r.b1)})(x ${pm(r.b2)})`); };
+  const reveal = () => { const r = E.xrayRead(st); c.reveal($("#gstg", w), r); api.noticed(r.text); api.note(`Revealed: move 1 ${r.layers[2].ok ? "✓" : "✗"}, move 2 ${r.layers[1].ok ? "✓" : "✗"}, answer ${r.fin ? "✓" : "✗"}`, r.double ? "warn" : "good"); api.learn("PAIR", .85); if (!r.layers[2].ok || !r.layers[1].ok) api.learn("SIGNS", .85); };
+  $("#gperf", w).addEventListener("click", perform); $("#grev", w).addEventListener("click", reveal);
+  const PRE = { right: [-3, 2, "−", "+"], double: [3, -2, "−", "+"], slip: [3, -2, "+", "−"], flip: [-3, 2, "+", "−"] };
+  $$("#gas button", w).forEach((b) => b.addEventListener("click", () => {
+    $$("#gas button", w).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    const [n1, n2, s1, s2] = PRE[b.dataset.p]; Object.assign(st, { n1, n2, s1, s2 });
+    $("#n1", w).textContent = sgn(n1); $("#n2", w).textContent = sgn(n2);
+    [["s1", s1], ["s2", s2]].forEach(([k, v]) => { const e = $(`#${k}`, w); e.textContent = v; e.classList.add("set"); });
+    mags(); ready(); perform(); setTimeout(reveal, RM ? 0 : 700);
+  }));
+  c.empty && c.empty($("#gstg", w));
+  return () => {};
+};
+W.layerCards = (box, r) => {
+  box.innerHTML = `<div class="g-layers">${r.layers.map((L) => `<div class="g-layer ${L.ok ? "ok" : "bad"}"><small>${L.lab}</small><span class="m">${L.t}</span><span class="v">${L.v}</span></div>`).join("")}</div>`;
+  if (!RM) gsap.from($$(".g-layer", box), { y: (i) => -i * 30, opacity: 0, stagger: .12, duration: .5, ease: "power3.out" });
+};
+
+// ---- four sign cases ----
+W.quad = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-quad">${E.QUAD.map((_, i) => `<div class="g-qc" data-i="${i}">${c.art ? c.art(i) : ""}<span class="g-qname">${c.names[i]}</span><span class="m">${E.quadExpr(i)}</span><span class="brk">(x <button class="tog" type="button" data-c="${i}" data-k="0">?</button> 2)(x <button class="tog" type="button" data-c="${i}" data-k="1">?</button> 3)</span></div>`).join("")}</div>
+    <div class="row"><button class="btn primary" id="gchk" type="button" disabled>${c.checkLabel}</button></div><div class="g-rules" id="grl"></div>`;
+  const picks = E.QUAD.map(() => [null, null]);
+  $$(".g-qc .tog", w).forEach((b) => b.addEventListener("click", () => {
+    const i = +b.dataset.c, k = +b.dataset.k; picks[i][k] = picks[i][k] === "+" ? "−" : "+"; b.textContent = picks[i][k]; b.classList.add("set");
+    if (!picks[i].includes(null)) { const card = $(`.g-qc[data-i="${i}"]`, w); if (!card.classList.contains("lit")) { card.classList.add("lit"); c.onLit && c.onLit(card); } api.note(`${c.names[i]}: (x ${picks[i][0]} 2)(x ${picks[i][1]} 3)`); }
+    $("#gchk", w).disabled = picks.some((p) => p.includes(null));
+  }));
+  $("#gchk", w).addEventListener("click", () => {
+    const r = E.quadRead(picks);
+    $("#grl", w).innerHTML = `<span class="label">${c.rulesTitle}</span>` + E.RULES.map((ru, k) => `<div class="g-rule" data-k="${k}"><span>${ru.name}</span><span class="g-dots">${r.scores[k].map((o) => `<i class="${o ? "on" : ""}"></i>`).join("")}</span></div>`).join("");
+    if (!RM) gsap.from($$(".g-rule", w), { x: -14, opacity: 0, stagger: .08, duration: .35 });
+    if (r.best[0] === 4) setTimeout(() => $(`.g-rule[data-k="${r.best[1]}"]`, w).classList.add("match"), RM ? 0 : 700);
+    api.noticed(r.text); api.learn("SIGNS", r.cert);
+  });
+  return () => {};
+};
+
+// ---- predict, then pick ----
+W.predict = (w, api, c) => {
+  const st = { p1: 1, p2: 1 };
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-guess">${c.guessLabel} (x + ${picker("p1", 1)})(x + ${picker("p2", 1)})<button class="btn primary" id="gcm" type="button">${c.commitLabel}</button></div>
+    <div class="g-opts" id="gop"><div class="g-cover" id="gcov">${c.coverText}</div>${E.TRACE.map((o, i) => `<button class="g-opt" type="button" data-i="${i}" disabled aria-pressed="false"><span class="m">${o.t}</span><span class="g-exp"></span></button>`).join("")}</div>
+    <div class="row"><button class="btn" id="gpk" type="button">▶ ${c.peekLabel}</button></div>`;
+  wirePickers(w, st, null, -15, 15);
+  let pred = null, tl = null;
+  $("#gcm", w).addEventListener("click", () => { pred = { ...st }; $("#gcm", w).disabled = true; $$("[data-np]", w).forEach((b) => (b.disabled = true)); api.note(`Predicted (x ${pm(pred.p1)})(x ${pm(pred.p2)}) first`, "good"); c.uncover ? c.uncover($("#gcov", w), $$(".g-opt", w)) : gsap.to("#gcov", { opacity: 0, duration: RM ? 0 : .7, onComplete: () => ($("#gcov", w).hidden = true) }); $$(".g-opt", w).forEach((b) => (b.disabled = false)); });
+  $$(".g-opt", w).forEach((b) => b.addEventListener("click", () => { $$(".g-opt", w).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); const o = E.TRACE[+b.dataset.i], r = E.traceRead(pred, o); api.noticed(r.text); api.note(`Picked ${o.t} (prediction was ${r.pk})`); api.learn("PAIR", r.cert); }));
+  $("#gpk", w).addEventListener("click", () => {
+    $("#gcov", w).hidden = true; tl && tl.kill(); const os = $$(".g-opt", w); os.forEach((o) => ($(".g-exp", o).innerHTML = "")); tl = gsap.timeline();
+    E.TRACE.slice(0, 3).forEach((o, i) => tl.to(os[i], { y: -6, duration: .25 }).call(() => ($(".g-exp", os[i]).innerHTML = o.k === "right" ? `= ${o.e} ✓` : `<s>= ${o.e}</s>`)).to({}, { duration: .55 }).to(os[i], { y: 0, duration: .2 }));
+    tl.call(() => api.noticed("That's checking the options: expand each until one matches. The tick lands on the right answer, and no factorising happened."));
+  });
+  return () => tl && tl.kill();
+};
+
+// ---- four quick ones, the last a look-alike ----
+W.rows = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p><div class="g-rows" id="grw"></div>`;
+  const box = $("#grw", w), times = [], picks = []; let i = 0, shown = 0;
+  function next() {
+    if (i >= E.SWITCH.length) { api.noticed(E.switchRead(times, picks)); api.learn("SQUARES", .85); return; }
+    const r = E.SWITCH[i], row = html(`<div class="g-row ${r.trap ? "trap" : ""}"><span class="g-rlab">${c.rowLabel(i)}</span><span class="m g-rq">${r.q}</span><div class="g-ro">${r.o.map((o, k) => `<button type="button" data-k="${k}" aria-pressed="false">${o}</button>`).join("")}</div><span class="g-rt"><i class="g-bar"></i><small class="m"></small></span></div>`);
+    box.appendChild(row); if (!RM) gsap.from(row, c.enter || { x: 40, opacity: 0, duration: .4, ease: "power3.out" });
+    shown = performance.now();
+    $$(".g-ro button", row).forEach((b) => b.addEventListener("click", () => {
+      const t = Math.max(.3, (performance.now() - shown) / 1000); times.push(t); picks.push(+b.dataset.k);
+      $$(".g-ro button", row).forEach((x) => { x.disabled = true; x.setAttribute("aria-pressed", String(x === b)); });
+      gsap.to($(".g-bar", row), { width: `${Math.min(100, (t / 8) * 100)}%`, duration: .6, ease: "power3.out" }); $("small", row).textContent = `${t.toFixed(1)}s`;
+      api.note(`${c.rowLabel(i)}: ${r.o[+b.dataset.k]} in ${t.toFixed(1)}s`, r.trap ? "warn" : ""); c.onAnswer && c.onAnswer(row, t); i++; setTimeout(next, RM ? 0 : 350);
+    }));
+  }
+  next();
+  return () => {};
+};
+
+// ---- typing, replayed ----
+W.typed = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="row"><input class="g-in" id="gin" autocomplete="off" spellcheck="false" placeholder="(x + ?)(x − ?)" aria-label="Your answer"><button class="btn primary" id="gsub" type="button">${c.submitLabel}</button></div>
+    <div class="g-tape" id="gtape"><span class="label">${c.outTitle}</span><div class="g-out" id="gout"></div><div class="g-drafts" id="gdr"></div><div class="g-tl" id="gtline"></div></div>
+    <div style="display:grid;gap:6px"><span class="label">${c.samplesLabel}</span><div class="chips" id="gsm"><button type="button" data-p="fix">they fixed a sign</button><button type="button" data-p="clean">they went straight through</button><button type="button" data-p="stuck">they stalled</button></div></div>`;
+  const input = $("#gin", w); let hist = [], t0 = null, tl = null;
+  input.addEventListener("input", () => { const n = performance.now(); if (t0 === null) t0 = n; hist.push({ t: (n - t0) / 1000, v: input.value }); });
+  function play(h, who) {
+    tl && tl.kill();
+    const out = $("#gout", w), dr = $("#gdr", w), line = $("#gtline", w), T = Math.max(1, h.at(-1).t + .5); out.innerHTML = ""; dr.innerHTML = ""; line.innerHTML = "";
+    h.forEach((s, k) => { const p = k ? h[k - 1] : { t: 0, v: "" }, gap = s.t - p.t; if (gap > 1.5) line.insertAdjacentHTML("beforeend", `<b style="left:${(p.t / T) * 100}%;width:${(gap / T) * 100}%"></b>`); line.insertAdjacentHTML("beforeend", `<i class="${s.v.length < p.v.length ? "d" : ""}" style="left:${(s.t / T) * 100}%"></i>`); });
+    const tape = []; tl = gsap.timeline();
+    h.forEach((s, k) => { const prev = k ? h[k - 1].v : ""; tl.call(() => { let pre = 0; while (pre < prev.length && pre < s.v.length && prev[pre] === s.v[pre]) pre++; for (let n = prev.length - pre; n > 0; n--) for (let j = tape.length - 1; j >= 0; j--) if (!tape[j].del) { tape[j].del = true; break; } for (const ch of s.v.slice(pre)) tape.push({ ch }); out.innerHTML = tape.map((x) => (x.del ? `<span class="del">${esc(x.ch)}</span>` : esc(x.ch))).join("") + `<span class="cur"></span>`; c.onKey && c.onKey(w); }, null, RM ? 0 : s.t / 1.4); });
+    tl.call(() => {
+      const r = E.revRead(h, c.draftWord);
+      dr.innerHTML = [...r.drafts.map((d) => ({ ...d, old: true })), { ...r.fin, old: false }].map((d, k) => `<div class="g-draft ${d.old ? "old" : ""}"><b>${c.draftWord[0].toUpperCase() + c.draftWord.slice(1)} ${k + 1}</b><span class="m">${esc(d.v)}</span><small>${d.t.toFixed(1)}s · ${d.old ? (E.REV.BUGS[E.norm(d.v)] ? `discarded · ${E.REV.BUGS[E.norm(d.v)]}` : "discarded") : "kept"}</small></div>`).join("");
+      if (!RM) gsap.from($$(".g-draft", dr), { y: 8, opacity: 0, stagger: .12, duration: .35 });
+      api.noticed(r.text); api.note(`${who}: ${r.drafts.length} discarded ${c.draftWord}${r.drafts.length === 1 ? "" : "s"}${r.buggy.length ? ", one matched a known mistake" : ""}`, r.buggy.length ? "warn" : "good"); api.learn("PAIR", r.cert);
+    }, null, RM ? 0 : T / 1.4);
+  }
+  $("#gsub", w).addEventListener("click", () => (hist.length ? play(hist, "Your answer") : input.focus()));
+  $$("#gsm button", w).forEach((b) => b.addEventListener("click", () => { $$("#gsm button", w).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); play(E.SAMPLES[b.dataset.p], `Someone where ${b.textContent}`); }));
+  return () => tl && tl.kill();
+};
+
+// ---- find every b ----
+W.findAll = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p><svg viewBox="0 0 640 110" class="g-line" id="gln"></svg>
+    <div class="row"><button class="btn primary" id="gfd" type="button" disabled>${c.doneLabel}</button><span class="label" id="gfc">None yet</span></div><div class="g-results" id="gres"></div>`;
+  const svg = $("#gln", w), X = (v) => 20 + ((v + 15) / 30) * 600, LI = css("--f-line");
+  let s = `<line x1="14" y1="64" x2="626" y2="64" stroke="${LI}" stroke-width="2"/>`;
+  for (let v = -15; v <= 15; v++) { const big = v % 5 === 0; s += `<line x1="${X(v)}" y1="58" x2="${X(v)}" y2="${big ? 74 : 68}" stroke="${LI}"/>${big ? `<text x="${X(v)}" y="92" text-anchor="middle" font-size="12" fill="${LI}" class="g-ft">${v}</text>` : ""}`; if (v) s += `<rect class="g-hit" data-v="${v}" x="${X(v) - 9}" y="20" width="18" height="60" fill="transparent" tabindex="0" role="button" aria-label="b = ${v}"/>`; }
+  svg.innerHTML = s + `<g id="gmk2"></g>`;
+  const picked = [];
+  function draw() { $("#gmk2", svg).innerHTML = picked.map((v, k) => `<g transform="translate(${X(v)} 64)" class="g-mkr">${c.marker(k + 1)}</g>`).join(""); $("#gfc", w).textContent = picked.length ? `${picked.length} picked` : "None yet"; $("#gfd", w).disabled = !picked.length; }
+  function toggle(v) { const i = picked.indexOf(v); if (i >= 0) { picked.splice(i, 1); api.note(`Removed b = ${sgn(v)}`, "warn"); } else { picked.push(v); api.note(`Picked b = ${sgn(v)}`); } draw(); if (i < 0 && !RM) gsap.from($("#gmk2 g:last-child", svg), { y: -20, opacity: 0, duration: .35, ease: "back.out(2)" }); }
+  $$(".g-hit", svg).forEach((r) => { r.addEventListener("click", () => toggle(+r.dataset.v)); r.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(+r.dataset.v); } }); });
+  $("#gfd", w).addEventListener("click", () => {
+    $("#gfd", w).disabled = true; const r = E.lotsRead(picked);
+    $("#gres", w).innerHTML = E.LOTS.VALID.map((v) => { const [p, q] = E.LOTS.PAIRS[v], hit = r.found.includes(v); return `<div class="g-res ${hit ? "hit" : "miss"}"><b class="m">b = ${sgn(v)}</b>${c.resultArt ? c.resultArt(v, p, q, hit) : ""}<span class="m">(x ${pm(p)})(x ${pm(q)})</span><small>${hit ? "found" : "missed"}</small></div>`; }).join("");
+    if (!RM) gsap.from($$(".g-res", w), { y: 12, opacity: 0, stagger: .1, duration: .4 });
+    api.noticed(r.text); api.learn("PAIR", r.cert); if (!r.neg.length) api.learn("SIGNS", .8);
+  });
+  return () => {};
+};
+
+// ---- see the structure ----
+W.module = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p><div class="big"><span class="g-chunk" id="gck">(x + 3)</span>² − 16</div>
+    <div class="g-routes">${Object.keys(E.MODULE).map((k) => `<button class="g-route" type="button" data-k="${k}" aria-pressed="false">${c.routes[k]}</button>`).join("")}</div>
+    <div class="g-modgrid"><div class="g-steps" id="gstp"><span class="label">Working</span></div><div class="g-modvis" id="gmv"></div></div>
+    <div class="g-mental" id="gmn" hidden><p class="q">Now in your head: <span class="m">99² − 1</span> = ?</p><div class="row"><input id="gmi" class="g-in" inputmode="numeric" autocomplete="off" aria-label="99 squared minus 1" style="max-width:10rem"><button class="btn primary" id="gms" type="button">Done</button></div></div>`;
+  let tl = null, start = 0, chosen = null;
+  $$(".g-route", w).forEach((b) => b.addEventListener("click", () => {
+    $$(".g-route", w).forEach((x) => { x.setAttribute("aria-pressed", String(x === b)); x.disabled = true; });
+    chosen = b.dataset.k; const p = E.MODULE[chosen], steps = $("#gstp", w);
+    steps.innerHTML = `<span class="label">Working</span>` + p.lines.map((l, k) => `<div>${k ? '<span class="eq">=</span>' : ""}${chosen === "block" && c.blockWord ? l.replace(/A/g, c.blockWord) : l}</div>`).join("");
+    const rows = $$("div", steps); gsap.set(rows, { opacity: 0, x: -10 }); tl && tl.kill(); tl = gsap.timeline();
+    if (chosen === "block") { $("#gck", w).classList.add("on"); c.blockVisual && tl.add(c.blockVisual($("#gmv", w))); }
+    rows.forEach((r) => tl.to(r, { opacity: 1, x: 0, duration: RM ? 0 : .4 }, RM ? 0 : ">.15"));
+    tl.call(() => { api.noticed(p.t); $("#gmn", w).hidden = false; start = performance.now(); }); if (RM) tl.progress(1);
+    api.note(`First move: ${c.routes[chosen]} (${p.lines.length} lines)`, chosen === "block" ? "good" : chosen === "root" ? "warn" : ""); api.learn("SQUARES", p.c);
+  }));
+  $("#gms", w).addEventListener("click", () => { const v = $("#gmi", w).value.replace(/[^\d-]/g, ""), t = (performance.now() - start) / 1000; api.noticed(`${E.MODULE[chosen].t}<br><br>${E.mentalRead(v, t)}`); api.note(`99² − 1 → ${v || "blank"} in ${t.toFixed(1)}s`); $("#gms", w).disabled = true; });
+  c.idle && c.idle($("#gmv", w));
+  return () => tl && tl.kill();
+};
+
+// ---- what Lotus asks next ----
+W.nbq = (w, api, c) => {
+  const N = E.nbq(c.names);
+  w.innerHTML = `<p class="q">${c.prompt}</p><div class="chips" id="ghid">${N.S.map((s) => `<button type="button" data-s="${s}" aria-pressed="${s === "FLIP"}">${N.NAMES[s]}</button>`).join("")}</div>
+    <div class="g-nbq"><table class="g-table"><thead><tr><th>${c.colName}</th><th>Expected · per min</th><th class="g-ig">Value</th><th></th></tr></thead><tbody id="git"></tbody></table><div id="gbel" class="g-bel"></div></div>
+    <div class="row"><button class="btn primary" id="gask" type="button">${c.askLabel}</button><button class="btn" id="grs" type="button">Start again</button></div>`;
+  let hidden = "FLIP", belief = { ...N.PRIOR }, asked = [], done = false, resp = {};
+  function draw() {
+    const lead = N.S.reduce((a, s) => (belief[s] > belief[a] ? s : a), N.S[0]);
+    $("#gbel", w).innerHTML = `<span class="label">What Lotus believes</span>` + N.S.map((s) => `<div class="g-b ${s === lead ? "lead" : ""}"><span>${N.NAMES[s]}</span><em>${Math.round(belief[s] * 100)}%</em><span class="g-bb"><i data-w="${belief[s]}"></i></span></div>`).join("");
+    $$(".g-bb i", w).forEach((i) => gsap.to(i, { width: `${+i.dataset.w * 100}%`, duration: .7 }));
+    const sc = N.QS.map((q) => { const g = N.eig(belief, q); return { q, g, pm: g / (q.sec / 60) }; }), best = sc.filter((x) => !asked.includes(x.q.id)).sort((a, b) => b.pm - a.pm)[0], mx = Math.max(.01, ...sc.map((x) => x.pm));
+    $("#git", w).innerHTML = sc.map((x) => `<tr class="${x === best && !done ? "best" : ""} ${asked.includes(x.q.id) ? "asked" : ""}"><td>${x.q.name}</td><td class="m">${x.g.toFixed(2)} · ${x.pm.toFixed(2)}</td><td class="g-ig"><i data-w="${x.pm / mx}"></i></td><td class="g-tick">${resp[x.q.id] ? `✓ “${resp[x.q.id]}”` : ""}</td></tr>`).join("");
+    $$("td.g-ig i", w).forEach((i) => gsap.to(i, { width: `${+i.dataset.w * 100}%`, duration: .7 }));
+    return { best, lead };
+  }
+  function ask() {
+    if (done) return; const { best } = draw(); if (!best || best.g < .05) return stop("Nothing left is worth the student's time.");
+    const L = best.q.L[hidden]; let x = Math.random(), acc = 0, r = Object.keys(L).at(-1); for (const [k, p] of Object.entries(L)) { acc += p; if (x <= acc) { r = k; break; } }
+    belief = N.post(belief, best.q, r); asked.push(best.q.id); resp[best.q.id] = r; api.note(`Chose ${best.q.name} (${best.g.toFixed(2)} bits expected): “${r}”`);
+    const { lead } = draw();
+    if (belief[lead] >= .85 && (lead === "M" || lead === "UNK" || asked.length >= 2)) stop(`Sure enough: “${N.NAMES[lead]}” at ${Math.round(belief[lead] * 100)}% after ${asked.length} game${asked.length > 1 ? "s" : ""}.${lead === hidden ? " That's the hidden student." : " Not the hidden student: answers include slips. Start again to retry."}`);
+  }
+  function stop(why) { done = true; draw(); $("#gask", w).disabled = true; api.noticed(`<b>Lotus stops.</b> ${why} A named mistake always needs a second, different game first.`); }
+  function reset() { belief = { ...N.PRIOR }; asked = []; resp = {}; done = false; $("#gask", w).disabled = false; $(".notice.final", w)?.remove(); draw(); }
+  $$("#ghid button", w).forEach((b) => b.addEventListener("click", () => { hidden = b.dataset.s; $$("#ghid button", w).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); reset(); }));
+  $("#gask", w).addEventListener("click", ask); $("#grs", w).addEventListener("click", reset); draw();
+  return () => {};
+};
+
+// ---- read back before marking ----
+W.readback = (w, api, c) => {
+  w.innerHTML = `<p class="q">${c.prompt}</p>
+    <div class="g-rb"><div class="g-rbin"><span class="label">${c.inputLabel}</span><input class="g-in" id="grbi" autocomplete="off" spellcheck="false" value="x+2(x+3)" aria-label="Your answer"><div class="chips" id="grbs">${["x+2(x+3)", "(x+2)(x+3", "x2+5x+6", "(x+2)(x+3)", "(x+2)*(x+3)"].map((s) => `<button type="button">${s}</button>`).join("")}</div></div>
+      <div class="g-rbout"><span class="label">${c.readTitle}</span><div class="g-read2" id="grd"></div><div id="gfl" class="g-flags"></div><div class="row"><button class="btn primary" id="gyes" type="button">${c.confirmLabel}</button><button class="btn" id="gfix" type="button">${c.fixLabel}</button></div><div class="g-stamp" id="gst">${c.stampHTML}</div></div></div>`;
+  const input = $("#grbi", w); let sug = null;
+  function render() {
+    const r = E.readback(input.value); sug = r.fix; $("#grd", w).textContent = E.pretty(r.s) || " ";
+    $("#gfl", w).innerHTML = r.iss.map((t, k) => `<div class="g-flag"><b>${c.flagLabel}-${k + 1}</b><span>${t}</span></div>`).join("");
+    $("#gfix", w).hidden = !r.fix; gsap.set("#gst", { opacity: 0 }); if (!RM && r.iss.length) gsap.from($$(".g-flag", w), { opacity: 0, x: -8, stagger: .08, duration: .3 }); return r;
+  }
+  input.addEventListener("input", render);
+  $$("#grbs button", w).forEach((b) => b.addEventListener("click", () => { input.value = b.textContent; const r = render(); api.note(`Wrote “${b.textContent}”: ${r.iss.length ? `${r.iss.length} flag${r.iss.length > 1 ? "s" : ""}` : "clear"}`, r.iss.length ? "warn" : ""); }));
+  $("#gfix", w).addEventListener("click", () => { if (!sug) return; input.value = sug; render(); api.note("Took the suggestion: they meant two brackets multiplied", "good"); });
+  $("#gyes", w).addEventListener("click", () => {
+    const r = E.readback(input.value);
+    gsap.fromTo("#gst", { opacity: 0, scale: 2 }, { opacity: 1, scale: 1, rotation: -8, duration: RM ? 0 : .28, ease: "power4.in" });
+    api.noticed(r.iss.length ? `<b>Confirmed with ${r.iss.length} flag${r.iss.length > 1 ? "s" : ""} answered.</b> Lotus marks what the student confirmed, ${r.ok ? "which is right" : "which isn't the factorisation"}. The typing problem is logged separately, never as a maths gap.` : `<b>Clean.</b> ${r.ok ? "Right, and read exactly as intended." : "Read exactly as written, then marked as maths."}`);
+    api.learn("PAIR", r.ok ? .85 : .6);
+  });
+  render();
+  return () => {};
+};
+
+// ===== Sound Lab: progress = a 16-step track, one row per skill. Sound is off until switched on. =====
+const SK = [["PAIR", "x²+bx+c", "#ff6a1a"], ["SIGNS", "Signs", "#ffd23f"], ["SQUARES", "Squares", "#ff4f8b"], ["CHECK", "Checking", "#3ee0b4"], ["GROUP", "Grouping", "#6ab0ff"]];
+const Snd = (() => {
+  let ac = null, on = false;
+  function blip(f, d = .12, type = "triangle", g = .06) { if (!on || !ac) return; const o = ac.createOscillator(), v = ac.createGain(); o.type = type; o.frequency.value = f; v.gain.setValueAtTime(g, ac.currentTime); v.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + d); o.connect(v).connect(ac.destination); o.start(); o.stop(ac.currentTime + d + .02); }
+  $("#snd").addEventListener("click", () => { on = !on; try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch { on = false; } $("#snd").setAttribute("aria-pressed", String(on)); $("#snd").textContent = on ? "♪ Sound on" : "♪ Sound off"; blip(440); });
+  return { blip };
+})();
+const Progress = (() => {
+  const seq = $("#seq"); let col = 0, takes = 0;
+  seq.insertAdjacentHTML("beforeend", SK.map(([k, n, c]) => `<div class="srow" data-k="${k}" style="--c:${c}"><span>${n}</span>${'<i class="pad"></i>'.repeat(16)}</div>`).join(""));
+  function add(skill, cert) {
+    const row = $(`.srow[data-k="${skill}"]`, seq), pads = $$(".pad", row), p = pads[col % 16];
+    p.classList.add(cert >= .55 ? "on" : "soft"); if (!RM) gsap.fromTo(p, { scale: 1.6 }, { scale: 1, duration: .5, ease: "elastic.out(1,.4)" });
+    Snd.blip(220 * Math.pow(2, (SK.findIndex((s) => s[0] === skill) * 2) / 12), .15);
+    col++; takes++; $("#takes").textContent = takes;
+  }
+  const SCALE = [261.6, 293.7, 329.6, 392, 440];
+  $("#play").addEventListener("click", () => {
+    const ph = $("#ph"), rows = $$(".srow", seq), base = seq.getBoundingClientRect(), tl = gsap.timeline();
+    tl.set(ph, { opacity: 1 });
+    for (let s = 0; s < 16; s++) tl.call(() => {
+      const r = $$(".pad", rows[0])[s].getBoundingClientRect(); gsap.set(ph, { x: r.left - base.left + r.width / 2 });
+      rows.forEach((row, ri) => { const p = $$(".pad", row)[s]; if (p.classList.contains("on") || p.classList.contains("soft")) { p.classList.add("hit"); setTimeout(() => p.classList.remove("hit"), 140); Snd.blip(SCALE[ri] * (p.classList.contains("on") ? 1 : .5), .18, p.classList.contains("on") ? "sawtooth" : "sine", p.classList.contains("on") ? .04 : .025); } });
+    }, null, s * .16);
+    tl.to(ph, { opacity: 0, duration: .2 }, 16 * .16);
+  });
+  return { add };
+})();
+
+const SHEETS = [
+  { id: "padgrid", title: "Pad grid", was: "Build the rectangle", now: "Light up a rectangle of pads: one big pad, five strips and six small pads. The edges are the factors.", kept: "First split, order of splits, gaps vs spare pads." },
+  { id: "mixer", title: "Mixing desk", was: "Split your chips", now: "Four channels, four levels of volume to share. Push one fader all the way if sure; split the levels if torn.", kept: "The split: a 2–2 mix names the exact doubt." },
+  { id: "keepdrop", title: "Keep or drop", was: "Swipe the claims", now: "Each pad holds a claim. Keep it (true), drop it (false), or mark it ? (not sure).", kept: "Mistake families across 8 claims, plus time on each." },
+  { id: "scrub", title: "Scrub the take", was: "Stop the tape", now: "Sam's working plays back like a recorded take. Hit STOP on the wrong beat.", kept: "Which step they stop at, and how fast after the slip." },
+  { id: "arrange", title: "Arrange the track", was: "Assemble the working", now: "Drop three of six clips into bars 1, 2 and 3. Three clips carry a slip.", kept: "Which slip clip, the order, and clips swapped out." },
+  { id: "tune", title: "Tune two oscillators", was: "Crack the lock", now: "Two knobs. Tune both waves onto their ghost waves: one is the product, one the sum.", kept: "The search path on the XY log; the sign slip caught live." },
+  { id: "ab", title: "A/B compare", was: "Always, sometimes, never", now: "Two signals, (x + 3)² and x² + 9, on level meters as x changes.", kept: "Which values they checked before deciding." },
+  { id: "stems", title: "Solo the stems", was: "X-ray the answer", now: "The mix (your answer) plays; then solo each stem to hear the two moves underneath.", kept: "Two slips that cancel, exposed stem by stem." },
+  { id: "pads4", title: "Four pads", was: "Sign quadrant", now: "Four drum pads, each set by two sign switches; then the pattern is matched to known rules.", kept: "The pattern across four sign cases." },
+  { id: "hum", title: "Hum it first", was: "Predict, then pick", now: "Record your take before the presets unlock.", kept: "Take vs pick: found by checking, or by factorising." },
+  { id: "beat", title: "Keep the beat", was: "The switch-up", now: "Four quick ones on the beat. The fourth is a look-alike.", kept: "Autopilot vs noticing the switch." },
+  { id: "takes", title: "Take history", was: "Typing replay", now: "Every edit becomes a take; discarded takes stay in the history.", kept: "Discarded takes matched to known mistakes, and pauses." },
+  { id: "notes", title: "Find every note", was: "Find them all", now: "Light every key b that works on a 30-key strip.", kept: "Completeness, order, missing negatives." },
+  { id: "bus", title: "Bus it", was: "See the structure", now: "Route (x + 3) to a single bus and treat it as one signal.", kept: "The route chosen, plus 99² − 1." },
+  { id: "producer", title: "Producer's next track", was: "Next best question", now: "The producer picks which instrument to try next, and stops when sure.", kept: "Lotus's side, not a student game." },
+  { id: "export", title: "Export check", was: "Check what we read", now: "Before export, the engineer reads back what you typed and flags anything that would clip.", kept: "Typing problems kept apart from maths." },
+];
+
+// The mixer is Sound Lab's own take on the four-token split: levels instead of tokens.
+function mixer(w, api) {
+  const O = E.PAIR_OPTS, lv = [0, 0, 0, 0];
+  w.innerHTML = `<p class="q">Which channel is the same as <span class="m">x² + 3x − 4</span>? You have four levels of volume to share. Push one fader all the way if you're sure, or split the levels if you're torn.</p>
+    <div class="mixer">${O.map((o, i) => `<div class="ch"><span class="label">CH ${i + 1}</span><div class="track"><div class="lv">${'<i></i>'.repeat(4)}</div></div><div class="pm"><button type="button" data-i="${i}" data-d="-1" aria-label="down">−</button><button type="button" data-i="${i}" data-d="1" aria-label="up">+</button></div><span class="m">${o.t}</span></div>`).join("")}</div>
+    <div class="row"><span class="budget" id="bud">4 levels left</span><button class="btn primary" id="mx" type="button" disabled>Print the mix</button></div>`;
+  function draw(i) {
+    $$(".ch", w).forEach((ch, k) => $$(".lv i", ch).forEach((b, j) => b.classList.toggle("on", 3 - j < lv[k])));
+    const left = 4 - lv.reduce((a, b) => a + b, 0); $("#bud", w).textContent = left ? `${left} level${left > 1 ? "s" : ""} left` : "Mix full"; $("#mx", w).disabled = !!left;
+    if (i !== undefined && !RM) gsap.fromTo($$(".ch", w)[i].querySelector(".track"), { scaleY: 1.04 }, { scaleY: 1, duration: .4, ease: "elastic.out(1,.4)" });
+  }
+  $$(".pm button", w).forEach((b) => b.addEventListener("click", () => {
+    const i = +b.dataset.i, d = +b.dataset.d, used = lv.reduce((a, c) => a + c, 0);
+    if (d > 0 && (used >= 4 || lv[i] >= 4)) return; if (d < 0 && !lv[i]) return;
+    lv[i] += d; Snd.blip(330 + lv[i] * 60, .08); api.note(`${d > 0 ? "Raised" : "Lowered"} CH ${i + 1} (${O[i].t}) to ${lv[i]}`, d < 0 ? "warn" : ""); draw(i);
+  }));
+  $("#mx", w).addEventListener("click", () => { const r = E.pairsRead(lv, "levels"); api.noticed(r.text); api.learn("PAIR", r.cert); });
+  draw();
+}
+const sine = (y0, amp, f, w = 300) => { let d = ""; for (let x = 0; x <= w; x += 3) d += `${x ? "L" : "M"}${10 + x} ${y0 + Math.sin((x / w) * Math.PI * 2 * f) * amp} `; return d; };
+const GAMES = {
+  padgrid: (w, api) => W.tiles(w, api, { prompt: "Light up one rectangle of pads with area <span class=\"m\">x² + 5x + 6</span>. How many strip pads go down the side?", controlLabel: "Strip pads down the side", commitLabel: "Lock the pattern", rx: 4, onFit: (svg) => Snd.blip(523, .2) }),
+  mixer,
+  keepdrop: (w, api) => W.judge(w, api, { prompt: "Each pad holds a claim. <b>Keep</b> it if it's always true, <b>drop</b> it if it isn't, or mark it <b>?</b> if you're not sure.", card: (c, i, n) => `<div class="padcard"><span class="num">PAD ${String(i + 1).padStart(2, "0")}/${n}</span><span class="m">${c}</span><span class="g-mark"></span></div>`, buttons: [{ v: "false", label: "Drop", mark: "DROPPED" }, { v: "null", label: "?", mark: "NOT SURE" }, { v: "true", label: "Keep", mark: "KEPT" }], exit: (v) => ({ x: v === null ? 0 : v ? 200 : -200, y: v === null ? 120 : 0, scale: .6, opacity: 0 }), enter: { scale: .85, opacity: 0, duration: .3, ease: "back.out(2)" }, doneText: "All pads played" }),
+  scrub: (w, api) => W.replay(w, api, { prompt: "Sam's check of <span class=\"m\">x² − x − 6</span> plays back like a recorded take. Hit <b>STOP</b> on the beat where it goes wrong.", playLabel: "Play the take", stopLabel: "STOP", fineLabel: "Take sounds right", cursor: true, onPlay: (p) => p && Snd.blip(392, .1) }),
+  arrange: (w, api) => W.order(w, api, { prompt: "Factorise <span class=\"m\">6xy − 4y − 9x + 6</span> by grouping. Drop three clips into bars 1–3, in order. Three of the six clips carry a slip.", slotLabels: ["Bar 1", "Bar 2", "Bar 3"], poolLabel: "Clip library", doneLabel: "Bounce the arrangement", onDone: () => Snd.blip(523, .25, "sawtooth", .04) }),
+  tune: (w, api) => W.dials(w, api, { prompt: "Tune two oscillators for <span class=\"m\">x² − x − 12</span>. One wave shows your numbers multiplied, the other added. Lock both onto their ghost waves.", labels: { p: "Knob A", q: "Knob B" }, logTitle: "XY log: every setting you tried",
+    readout: (p, q) => `A × B = ${sgn(p * q)} <span style="color:var(--muted)">(ghost −12)</span> · A + B = ${sgn(p + q)} <span style="color:var(--muted)">(ghost −1)</span>`,
+    visual(box, p, q, solved, first) {
+      if (first || !$("svg", box)) box.innerHTML = `<svg viewBox="0 0 320 210"><path d="${sine(55, 30, 12 / 2)}" fill="none" stroke="rgba(255,138,61,.22)" stroke-width="6"/><path id="wP" fill="none" stroke="#ff8a3d" stroke-width="2"/><path d="${sine(155, 30, 1.5)}" fill="none" stroke="rgba(255,138,61,.22)" stroke-width="6"/><path id="wS" fill="none" stroke="#ff8a3d" stroke-width="2"/><text x="12" y="18" font-size="16" fill="#ff8a3d" font-family="VT323">× WAVE</text><text x="12" y="118" font-size="16" fill="#ff8a3d" font-family="VT323">+ WAVE</text></svg>`;
+      const fp = Math.abs(p * q) / 2 || .25, fs = Math.abs(p + q) + .5, okP = p * q === -12, okS = p + q === -1;
+      $("#wP", box).setAttribute("d", sine(55, p * q < 0 ? 30 : -30, fp)); $("#wS", box).setAttribute("d", sine(155, p + q < 0 ? 30 : -30, fs));
+      $("#wP", box).setAttribute("stroke", okP ? "#fff3e6" : "#ff8a3d"); $("#wS", box).setAttribute("stroke", okS ? "#fff3e6" : "#ff8a3d");
+      if (!first) Snd.blip(180 * Math.pow(2, Math.min(24, Math.abs(p * q)) / 12), .08);
+    }, onSolve: () => Snd.blip(660, .3, "sawtooth", .04) }),
+  ab: (w, api) => W.compare(w, api, { prompt: "Two signals claim to be the same: <span class=\"m\">(x + 3)²</span> and <span class=\"m\">x² + 9</span>. Change x and watch the meters. Always equal?", min: -6, max: 6, verdicts: [{ v: "always", label: "Always equal" }, { v: "sometimes", label: "Sometimes equal" }, { v: "never", label: "Never equal" }], signLabel: "Log the verdict",
+    visual(box, x, A, B, first) {
+      const seg = (v) => Math.round((v / 81) * 20);
+      if (first || !$(".meters", box)) box.innerHTML = `<div class="meters" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;justify-items:center;padding:8px 0"><div style="display:grid;gap:6px;justify-items:center"><span class="label">A · (x + 3)²</span><div class="mt" id="mA" style="display:grid;gap:3px;width:60px"></div><b class="m" id="vA" style="color:#ff8a3d;font-size:1.4rem"></b></div><div style="display:grid;gap:6px;justify-items:center"><span class="label">B · x² + 9</span><div class="mt" id="mB" style="display:grid;gap:3px;width:60px"></div><b class="m" id="vB" style="color:#ff8a3d;font-size:1.4rem"></b></div></div><p id="eqm" style="text-align:center;font:400 1.6rem VT323,monospace"></p>`;
+      const fill = (id, v) => { const n = seg(v); $(id, box).innerHTML = Array.from({ length: 20 }, (_, k) => { const lvl = 19 - k, on = lvl < n; return `<i style="display:block;height:7px;border-radius:2px;background:${on ? (lvl > 15 ? "#ff4f6b" : lvl > 11 ? "#ffd23f" : "#3ee0b4") : "#2a2b30"}"></i>`; }).join(""); };
+      fill("#mA", A); fill("#mB", B); $("#vA", box).textContent = A; $("#vB", box).textContent = B;
+      const e = $("#eqm", box); e.textContent = A === B ? "A = B · LOCKED" : "A ≠ B"; e.style.color = A === B ? "#3ee0b4" : "#ff4f6b";
+      if (!first) Snd.blip(220 + A * 4, .08, "sine");
+    } }),
+  stems: (w, api) => W.twoMoves(w, api, { prompt: "Factorise <span class=\"m\">x² − x − 6</span> in two moves. Bounce the mix, then solo each stem to hear what's underneath.", performLabel: "Bounce the mix", revealLabel: "Solo the stems",
+    empty: (box) => (box.innerHTML = `<p style="text-align:center;color:var(--muted);padding:40px 0;font:400 1.3rem VT323,monospace">NO MIX YET</p>`),
+    surface: (box, r) => { box.innerHTML = `<div style="display:grid;justify-items:center;gap:8px;padding:24px 0"><span class="label">Master mix</span><span class="m" style="font-size:2rem;color:#ff8a3d">(x ${pm(r.b1)})(x ${pm(r.b2)})</span><span style="font:400 1.3rem VT323,monospace;color:${r.fin ? "#3ee0b4" : "#ff4f6b"}">${r.fin ? "MASTER CHECK: OK" : "MASTER CHECK: OFF"}</span></div>`; Snd.blip(r.fin ? 523 : 311, .25); },
+    reveal: (box, r) => { W.layerCards(box, r); $$(".g-layer", box).forEach((l, i) => { l.insertAdjacentHTML("afterbegin", `<small style="color:#ff8a3d">SOLO ${["MASTER", "STEM 2", "STEM 1"][i]}</small>`); }); r.layers.forEach((L, i) => setTimeout(() => Snd.blip(L.ok ? 440 : 233, .2, L.ok ? "triangle" : "square", .04), i * 300)); } }),
+  pads4: (w, api) => W.quad(w, api, { prompt: "Each pad factorises with the numbers 2 and 3. Flip the two sign switches to arm it.", names: ["Pad 1", "Pad 2", "Pad 3", "Pad 4"], art: (i) => `<svg viewBox="0 0 120 70"><rect class="dp" x="20" y="8" width="80" height="54" rx="10" fill="#2a2b30" stroke="#3a3b40" stroke-width="2"/><circle cx="60" cy="35" r="10" fill="#1b1c20"/></svg>`, onLit: (card) => { gsap.to($(".dp", card), { attr: { fill: "#ff6a1a" }, duration: .3 }); Snd.blip(196 + Math.random() * 200, .15, "square", .04); }, checkLabel: "Play the pattern", rulesTitle: "Patterns students play" }),
+  hum: (w, api) => W.predict(w, api, { prompt: "Factorise <span class=\"m\">x² + 2x − 15</span>. Record your take first. The presets unlock after.", guessLabel: "Your take:", commitLabel: "● Record take", coverText: "Presets locked until you record your take.", peekLabel: "Watch someone audition every preset" }),
+  beat: (w, api) => W.rows(w, api, { prompt: "Four quick ones, on the beat. Factorise each, or say it can't be done.", rowLabel: (i) => `Beat ${i + 1}`, enter: { x: 60, opacity: 0, duration: .25, ease: "power4.out" }, onAnswer: () => Snd.blip(330, .06, "square", .04) }),
+  takes: (w, api) => W.typed(w, api, { prompt: "Type the factorisation of <span class=\"m\">x² + 3x − 10</span> (use - for minus). Every edit becomes a take.", submitLabel: "Stop recording", outTitle: "Take history", draftWord: "take", samplesLabel: "Or play back someone else's session", onKey: () => Snd.blip(880, .03, "square", .02) }),
+  notes: (w, api) => W.findAll(w, api, { prompt: "<span class=\"m\">x² + bx + 12</span> factorises into two brackets with whole numbers. Light <b>every</b> key b that works.", doneLabel: "Play every note", marker: (n) => `<rect x="-8" y="-40" width="16" height="30" rx="3" fill="#ff6a1a"/><text y="-20" text-anchor="middle" font-size="11" fill="#1a0a00" font-family="IBM Plex Mono">${n}</text>`,
+    resultArt: (v, p, q, hit) => { const B = 36, k = 2, ww = Math.max(3, B + p * k), hh = Math.max(3, B + q * k); return `<svg viewBox="0 0 80 80"><rect x="10" y="10" width="${B}" height="${B}" rx="3" fill="none" stroke="#4a4b51" stroke-dasharray="3 3"/><rect x="10" y="10" width="${ww}" height="${hh}" rx="3" fill="${hit ? "rgba(255,106,26,.3)" : "none"}" stroke="${hit ? "#ff6a1a" : "#ff4f6b"}" stroke-width="2" ${hit ? "" : 'stroke-dasharray="4 3"'}/></svg>`; } }),
+  bus: (w, api) => W.module(w, api, { prompt: "Factorise this. What's your first move?", routes: { block: "Route (x + 3) to one bus", expand: "Expand the bracket first", root: "Square-root each part" },
+    idle: (box) => (box.innerHTML = `<p style="font:400 1.3rem VT323,monospace;color:var(--muted)">ROUTING VIEW</p>`),
+    blockVisual(box) { box.innerHTML = `<svg viewBox="0 0 300 170"><rect x="14" y="30" width="70" height="34" rx="6" fill="#2a2b30" stroke="#4a4b51"/><text x="49" y="52" text-anchor="middle" font-size="14" fill="#ecebe6" font-family="IBM Plex Mono">x</text><rect x="14" y="100" width="70" height="34" rx="6" fill="#2a2b30" stroke="#4a4b51"/><text x="49" y="122" text-anchor="middle" font-size="14" fill="#ecebe6" font-family="IBM Plex Mono">+ 3</text><path id="c1" d="M84 47 C140 47 140 85 190 85" fill="none" stroke="#ff6a1a" stroke-width="3"/><path id="c2" d="M84 117 C140 117 140 85 190 85" fill="none" stroke="#ff6a1a" stroke-width="3"/><rect x="190" y="62" width="96" height="46" rx="8" fill="#ff6a1a"/><text x="238" y="91" text-anchor="middle" font-size="18" fill="#1a0a00" font-family="VT323">BUS A</text></svg>`;
+      const L1 = $("#c1", box).getTotalLength(); return gsap.timeline().fromTo(["#c1", "#c2"], { strokeDasharray: L1, strokeDashoffset: L1 }, { strokeDashoffset: 0, duration: .8, ease: "power2.inOut" }).from($$("rect", box).at(-1), { scale: .6, transformOrigin: "50% 50%", opacity: 0, duration: .4, ease: "back.out(2)" }).call(() => Snd.blip(392, .2)); } }),
+  producer: (w, api) => W.nbq(w, api, { prompt: "This is Lotus's side, not a student game. Pick a hidden student. The producer tries whichever instrument will reveal the most, and stops when sure.", names: { alloc: "Mixing desk", typed: "Take history", quad: "Four pads", claims: "Keep or drop", lots: "Find every note" }, colName: "Instrument", askLabel: "Try the best instrument" }),
+  export: (w, api) => W.readback(w, api, { prompt: "Type the factorisation of <span class=\"m\">x² + 5x + 6</span>. Before export, the engineer reads it back and flags anything that would clip.", inputLabel: "Your input", readTitle: "The engineer hears", flagLabel: "CLIP", confirmLabel: "Export", fixLabel: "Take the engineer's fix", stampHTML: `<span class="export">EXPORTED ✓</span>` }),
+};
+App.init(SHEETS, GAMES, Progress, { prefix: "T-" });
+</script>

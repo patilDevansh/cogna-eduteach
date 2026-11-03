@@ -50,6 +50,18 @@
   --ok-seal: #3ee0b4; --no-seal: #ff4f6b; --maybe-seal: #ffd23f;
 }
 
+.game[data-art="sevenways"] {
+  --stage: var(--raise); --stage-line: transparent; --stage-r: 18px;
+  --choice-bg: var(--raise); --choice-line: var(--line); --choice-hover: var(--raise);
+  --btn-r: 999px; --btn-font: 700 .98rem var(--font-display); --btn-bg: var(--accent);
+  --label-font: var(--font-body); --label-size: var(--text-xs); --label-track: 0;
+  --readout-bg: var(--surface);
+  --sq: var(--accent-deep); --sq-ink: #fff; --bar: var(--violet); --bar-line: #fff; --unit: var(--gold); --unit-line: #fff; --tile-gap: var(--coral); --dim: var(--ink);
+  --intro-font: 500 var(--text-md)/1.55 var(--font-body);
+  --sheet-bg: var(--surface); --sheet-ink: var(--ink); --sheet-soft: var(--ink-faint); --sheet-r: 22px; --sheet-shadow: var(--theme-card-shadow);
+  --ok-seal: var(--teal); --no-seal: var(--coral); --maybe-seal: var(--gold);
+}
+
 /* ---------- the frame every game shares ---------- */
 .title { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; line-height: 1.2; color: var(--ink); }
 .game[data-art="cabinet"] .title { letter-spacing: .06em; color: var(--accent); }
@@ -367,6 +379,87 @@
 .workingList li:nth-child(3) { animation-delay: .2s; }
 .workingList li:nth-child(4) { animation-delay: .3s; }
 
+/* ---------- Seven Ways: what the shared games wear (the rest are in seven-ways.module.css) ---------- */
+.game[data-art="sevenways"] .label { font-weight: 600; text-transform: none; color: var(--ink-soft); }
+.game[data-art="sevenways"] :is(.math, .heroMath, .choice, .stepValue, .readout, .readText, .editInput, .mathKey, .orderCard, .bedClaim, .bedText, .key, .workingList, .pickedRow b, .sliderHead b, .fourExpr, .tileLabel, .tileDim, .plateText, .segBtn, .signToggle, .logList) { font-family: var(--font-math); }
+.sevenExpr { margin: 4px 0 18px; text-align: center; font-family: var(--font-math); font-size: var(--text-math); font-weight: 500; letter-spacing: -.01em; color: var(--ink); overflow-wrap: anywhere; }
+.game[data-art="sevenways"] .primary { color: #fff; }
+.game[data-art="sevenways"] .secondary { border-color: var(--line); background: var(--raise); color: var(--ink); }
+.game[data-art="sevenways"] .choice { border-width: 2px; }
+.game[data-art="sevenways"] .choice:hover:not(:disabled) { border-color: var(--ink-faint); }
+.game[data-art="sevenways"] .choice[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-wash); box-shadow: none; }
+.game[data-art="sevenways"] .stepRow { border-width: 2px; border-color: var(--line); border-radius: 12px; background: var(--surface); }
+.game[data-art="sevenways"] .stepBtn { background: var(--raise); color: var(--ink-soft); font-weight: 800; }
+.game[data-art="sevenways"] .stepValue { border: 0; min-width: 3rem; }
+.game[data-art="sevenways"] .signToggle { border: 2px solid var(--line); background: var(--surface); }
+.game[data-art="sevenways"] .signToggle[data-set] { border-color: var(--blue); background: var(--blue-wash); color: var(--ink); }
+/* X-ray: two numbered moves */
+.game[data-art="sevenways"] .movesGrid { grid-template-columns: minmax(0, 1fr); }
+.game[data-art="sevenways"] .moves { counter-reset: move; }
+.game[data-art="sevenways"] .moveCard { position: relative; padding: 12px 12px 12px 58px; border: 0; border-radius: 16px; background: var(--raise); counter-increment: move; }
+.game[data-art="sevenways"] .moveCard::before { content: counter(move); position: absolute; left: 12px; top: 12px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; }
+.game[data-art="sevenways"] .plate { min-height: 0; padding: 12px; background: none; }
+/* Rectangle */
+.game[data-art="sevenways"] .stage { background: none; padding: 8px 0; }
+.game[data-art="sevenways"] .tileSquare { rx: 6px; }
+.game[data-art="sevenways"] .segRow { justify-content: center; }
+.game[data-art="sevenways"] .seg { border: 1px solid var(--line); border-radius: 14px; background: var(--raise); }
+.game[data-art="sevenways"] .segBtn { border-right: 0; }
+.game[data-art="sevenways"] .segBtn[aria-pressed="true"], .game[data-art="sevenways"] .segBtn[aria-pressed="true"]:hover:not(:disabled) { background: var(--teal); }
+/* Assemble the working */
+.game[data-art="sevenways"] .orderSlot { min-height: 54px; border: 2px dashed var(--line); border-radius: 14px; }
+.game[data-art="sevenways"] .orderSlot[data-filled] { border-style: dashed; border-color: var(--line); }
+.game[data-art="sevenways"] .orderCard { box-shadow: 0 2px 0 var(--line); background: var(--surface); border-color: var(--line); }
+.game[data-art="sevenways"] [data-slotcard] { box-shadow: none; background: var(--blue-wash); border-color: transparent; }
+/* Predict, then pick */
+.game[data-art="sevenways"] .cover { background: color-mix(in srgb, var(--raise) 55%, transparent); border: 0; backdrop-filter: blur(9px); font-weight: 700; color: var(--ink-soft); }
+.game[data-art="sevenways"] .options { padding: 14px; background: var(--raise); }
+.game[data-art="sevenways"] .choiceGrid .choice { background: var(--surface); }
+.game[data-art="sevenways"] .guessRow .primary { min-width: 200px; }
+.game[data-art="sevenways"] .guessRow .stepValue { min-width: 3.4rem; }
+/* The switch-up: cards arrive on a belt */
+.game[data-art="sevenways"][data-game="RAPID_SET"] .stage { position: relative; overflow: hidden; padding: 18px 18px 30px; border-radius: 20px; background: var(--raise); }
+.game[data-art="sevenways"][data-game="RAPID_SET"] .stage::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14px; background: repeating-linear-gradient(90deg, var(--line) 0 18px, transparent 18px 30px); }
+.game[data-art="sevenways"] .rapidPast { display: none; }
+.game[data-art="sevenways"] .rapidTrail li { height: 6px; }
+.game[data-art="sevenways"] .rapidNow { width: min(100%, 460px); margin: 0 auto; padding: 14px; border-radius: 18px; background: var(--surface); box-shadow: var(--theme-card-shadow); animation: beltIn .45s cubic-bezier(.2, .9, .3, 1); }
+.game[data-art="sevenways"] .rapidNow .heroMath { font-size: 1.6rem; }
+.game[data-art="sevenways"] .rapidNow .choice { background: var(--raise); min-height: 48px; }
+@keyframes beltIn { from { transform: translateX(70%); } to { transform: none; } }
+/* Find them all: one number line. The question above already says what to do. */
+.game[data-art="sevenways"][data-game="FIND_EVERY_B"] .intro { display: none; }
+.game[data-art="sevenways"][data-game="FIND_EVERY_B"] [role="group"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 44px 0 28px; }
+.game[data-art="sevenways"] .ruleRow { position: relative; display: flex; grid-template-columns: none; gap: 0; }
+.game[data-art="sevenways"] .ruleRow + .ruleRow { margin-top: 0; }
+.game[data-art="sevenways"] .ruleRow::before { content: ""; position: absolute; left: 0; right: 0; top: 16px; height: 2px; background: var(--line); }
+.game[data-art="sevenways"] .key { flex: 1 1 0; min-width: 0; min-height: 52px; padding: 5px 0 4px; align-content: start; font-size: .68rem; }
+.game[data-art="sevenways"] .key i { position: relative; width: 22px; height: 22px; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--surface); transition: background .2s, border-color .2s; }
+.game[data-art="sevenways"] .key[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
+.game[data-art="sevenways"] .key[aria-pressed="true"] i { border-color: var(--violet); background: var(--violet); }
+/* Stop the tape */
+.game[data-art="sevenways"] .bed { padding: 18px; border: 0; background: var(--raise); }
+.game[data-art="sevenways"] .bedClaim { font-weight: 550; }
+.game[data-art="sevenways"] .transport .primary:not(.stopBtn) { width: 44px; min-height: 44px; padding: 0; overflow: hidden; border-radius: 50%; white-space: nowrap; }
+.game[data-art="sevenways"] .stopBtn { background: var(--coral); color: #fff; box-shadow: none; }
+.game[data-art="sevenways"] .rail li { height: 6px; }
+.game[data-art="sevenways"] .stamp { border: 0; border-radius: 999px; background: var(--accent-wash); color: var(--accent-deep); transform: none; text-transform: none; letter-spacing: 0; font-size: .92rem; }
+/* Check what we read, and see the structure */
+.game[data-art="sevenways"] .readGrid { grid-template-columns: minmax(0, 1fr); }
+.game[data-art="sevenways"] .readGrid .stage { padding: 14px; border-radius: 16px; background: var(--raise); }
+.game[data-art="sevenways"] .readText { font-size: 1.8rem; font-weight: 550; }
+.game[data-art="sevenways"] .flag { border: 0; border-radius: 10px; background: var(--gold-wash); }
+.game[data-art="sevenways"] .flag b { color: var(--gold); }
+.game[data-art="sevenways"] .editInput { border: 2px solid var(--line) !important; border-radius: 14px; background: var(--surface) !important; font-weight: 500; }
+.game[data-art="sevenways"] .editInput:focus-visible { border-color: var(--blue) !important; outline: none; }
+.game[data-art="sevenways"] .chunkHero { padding: 8px 0; }
+.game[data-art="sevenways"] .routes .choice { font-family: var(--font-body); text-align: left; }
+.game[data-art="sevenways"] .chunkGrid .stage { padding: 14px; border-radius: 16px; background: var(--raise); }
+/* Always, sometimes, never */
+.game[data-art="sevenways"] .slider::-webkit-slider-thumb { background: var(--blue); border-color: #fff; }
+.game[data-art="sevenways"] .slider::-moz-range-thumb { background: var(--blue); border-color: #fff; }
+.game[data-art="sevenways"] .sliderTried i { background: var(--teal); }
+.game[data-art="sevenways"] .verdictGrid .choice { font-family: var(--font-body); }
+
 /* Movement only: a card must stay visible even where animations never start. */
 @keyframes dealIn { from { transform: translateY(10px) scale(.98); } to { transform: none; } }
 @keyframes canisterIn { from { transform: translateY(-28px); } to { transform: none; } }
@@ -384,6 +477,10 @@
   .deckRow { grid-template-columns: minmax(0, 1fr); }
   .tally { grid-auto-flow: column; justify-content: start; gap: 18px; }
   .ruleRow { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 8px; }
+  .game[data-art="sevenways"][data-game="FIND_EVERY_B"] [role="group"] { grid-template-columns: minmax(0, 1fr); padding: 12px 0; }
+  .game[data-art="sevenways"] .ruleRow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 8px; }
+  .game[data-art="sevenways"] .ruleRow::before { display: none; }
+  .game[data-art="sevenways"] .key { min-height: 56px; font-size: .84rem; }
   .game[data-art="drafting"] .ruleRow { gap: 0; }
   .bedBtn { grid-template-columns: 62px minmax(0, 1fr); }
   .bedStop { display: none; }

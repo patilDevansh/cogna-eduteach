@@ -1,0 +1,67 @@
+<title>Studio Set</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&family=Geist+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<style>
+/* Layout: no theme. Big quiet type, white cards, one cobalt accent, springy physics. The reference version every themed set is measured against. Light and dark. */
+:root {
+  --bg-solid: #f6f6f3; --bg: #f6f6f3; --panel: #ffffff; --panel2: #f4f4f1; --canvas: #f6f6f3; --cover: rgba(246, 246, 243, .7);
+  --ink: #111214; --soft: #4c4e55; --muted: #7b7d84; --rule: #e6e6e1; --line: #c9cac4; --hover: #f0f0ec;
+  --accent: #2747ff; --accent-ink: #ffffff; --ok: #0f9d6b; --bad: #e0442f; --warn: #d98a00;
+  --note-font: 400 1.02rem/1.6 "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif; --note-bg: #eef1ff; --note-edge: #2747ff;
+  --q-font: 500 1.15rem/1.55 "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif; --h1: 800 clamp(2rem, 5vw, 3.4rem)/1 "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif; --h1-track: -.03em; --h2: 800 1.6rem/1.1 "Schibsted Grotesk", Arial, sans-serif; --h2-track: -.02em;
+  --btn-font: 700 .95rem "Schibsted Grotesk", Arial, sans-serif; --btn-track: 0;
+  --f-ui: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif; --f-math: "Geist Mono", ui-monospace, "SFMono-Regular", monospace; --f-label: "Geist Mono", ui-monospace, monospace;
+  --r-sheet: 24px; --r-sm: 14px; --r-btn: 999px; --r-tab: 999px;
+  --t-sq: #2747ff; --t-sq-ink: #ffffff; --t-bar: #c9d1ff; --t-unit: #ffffff; --t-line: #2747ff; --t-hole: #2747ff; --t-dim: #111214;
+  --r-ink: #111214; --r-soft: #7b7d84; --r-ok: #0f9d6b; --l-line: #c9cac4; --l-accent: #2747ff; --l-ok: #0f9d6b; --f-line: #7b7d84;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg-solid: #0e0f12; --bg: #0e0f12; --panel: #17181c; --panel2: #1e1f24; --canvas: #121317; --cover: rgba(14, 15, 18, .7);
+  --ink: #f2f2f0; --soft: #b6b8bf; --muted: #868891; --rule: #2a2b31; --line: #3d3f46; --hover: #22232a;
+  --accent: #7088ff; --accent-ink: #0e0f12; --ok: #3ddc97; --bad: #ff6b57; --warn: #ffb43d; --note-bg: #1b2142; --note-edge: #7088ff;
+  --t-sq: #7088ff; --t-sq-ink: #0e0f12; --t-bar: #34408a; --t-unit: #23252c; --t-line: #7088ff; --t-hole: #7088ff; --t-dim: #f2f2f0;
+  --r-ink: #f2f2f0; --r-soft: #868891; --r-ok: #3ddc97; --l-line: #3d3f46; --l-accent: #7088ff; --l-ok: #3ddc97; --f-line: #868891; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg-solid: #0e0f12; --bg: #0e0f12; --panel: #17181c; --panel2: #1e1f24; --canvas: #121317; --cover: rgba(14, 15, 18, .7);
+  --ink: #f2f2f0; --soft: #b6b8bf; --muted: #868891; --rule: #2a2b31; --line: #3d3f46; --hover: #22232a;
+  --accent: #7088ff; --accent-ink: #0e0f12; --ok: #3ddc97; --bad: #ff6b57; --warn: #ffb43d; --note-bg: #1b2142; --note-edge: #7088ff;
+  --t-sq: #7088ff; --t-sq-ink: #0e0f12; --t-bar: #34408a; --t-unit: #23252c; --t-line: #7088ff; --t-hole: #7088ff; --t-dim: #f2f2f0;
+  --r-ink: #f2f2f0; --r-soft: #868891; --r-ok: #3ddc97; --l-line: #3d3f46; --l-accent: #7088ff; --l-ok: #3ddc97; --f-line: #868891; color-scheme: dark; }
+.sheet, .panel { border: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 30px rgba(0, 0, 0, .05); }
+.index li button { border: 0; background: var(--panel); }
+.xlate div { border-top: 0; background: var(--panel2); }
+.xlate .now, .xlate .kept { border-top: 0; }
+.notice { border-left: 0; border-radius: 14px; }
+.g-item, .g-opt, .g-piece, .g-qc, .g-mv, .g-fam, .g-rule, .g-row, .g-res, .g-rbin, .g-rbout, .g-steps { border: 0; background: var(--panel2); }
+.g-slot { border-style: solid; border-color: var(--rule); }
+.cardx { position: absolute; inset: 0; border-radius: 20px; background: var(--panel); box-shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 14px 40px rgba(0, 0, 0, .1); display: grid; place-items: center; text-align: center; padding: 20px; }
+.cardx .m { font-size: clamp(1.2rem, 4vw, 1.6rem); white-space: normal; }
+.cardx .num { position: absolute; top: 14px; left: 18px; font-size: .75rem; color: var(--muted); }
+.cardx .g-mark { position: absolute; top: 16px; right: 18px; font: 800 .9rem var(--f-ui); color: var(--accent); opacity: 0; }
+.tokdot { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent); }
+.printwrap { position: relative; aspect-ratio: 1; width: 100%; }
+.printwrap canvas { position: absolute; inset: 5%; width: 90%; height: 90%; border-radius: 50%; background: var(--panel2); }
+.printwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.okpill { background: var(--ok); color: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 800; }
+</style>
+
+<div class="page">
+  <header class="top"><h1>Studio</h1><p>No theme: just the maths objects, done well. This is the plain version that every themed set is measured against, so a student who picks Studio gets the same evidence with no decoration.</p></header>
+  <nav class="index" aria-label="Games"><ol id="index"></ol></nav>
+  <div class="layout">
+    <article class="sheet">
+      <div class="sheethead"><h2 id="tTitle"></h2><span class="sn" id="tNo"></span></div>
+      <div class="xlate"><div><b>Was</b><span id="xWas"></span></div><div class="now"><b>Now</b><span id="xNow"></span></div><div class="kept"><b>Evidence kept</b><span id="xKept"></span></div></div>
+      <div class="work" id="work"></div>
+    </article>
+    <aside class="side">
+      <div class="panel"><span class="label">Your print</span><div class="printwrap"><svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" fill="none" stroke="var(--rule)" stroke-width="3"/><circle id="ring" cx="100" cy="100" r="96" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" transform="rotate(-90 100 100)"/></svg><canvas id="print"></canvas></div>
+        <p class="cap">Each answer adds strokes: crisp when sure, soft when guessing. The ring fills as Lotus learns. It never shows right or wrong.</p></div>
+      <div class="panel"><span class="label">What Lotus noticed</span><ol class="log" id="log"><li>Nothing yet.</li></ol></div>
+    </aside>
+  </div>
+</div>

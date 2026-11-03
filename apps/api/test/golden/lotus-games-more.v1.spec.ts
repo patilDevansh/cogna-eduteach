@@ -57,10 +57,10 @@ describe("game questions: built and checked by code", () => {
     const make = () => codeGameProbeFor({ spec, purpose: "BASE", variation: "same", avoid: [] }, ALL);
     assert.deepEqual(make(), make());
   });
-  it("about half of the requests a game fits get one; the rest go to the question the plan would have asked", () => {
+  it("every request a game fits gets one", () => {
     const spec = FACTORISATION_SLOTS.find((s) => s.slot === 12)!;
-    const got = Array.from({ length: 80 }, (_, i) => codeGameProbeFor({ spec, purpose: "BASE", variation: `half${i}`, avoid: [] }, {})).filter(Boolean).length;
-    assert.ok(got > 20 && got < 60, `saw ${got} of 80`);
+    const got = Array.from({ length: 80 }, (_, i) => codeGameProbeFor({ spec, purpose: "BASE", variation: `every${i}`, avoid: [] }, {})).filter(Boolean).length;
+    assert.equal(got, 80);
   });
   it("is off with the kill switches, for a required opener, and for a skill no game fits", () => {
     const spec = FACTORISATION_SLOTS.find((s) => s.slot === 12)!;

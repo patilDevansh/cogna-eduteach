@@ -301,6 +301,7 @@ export function ChunkArt({ theme, chunk }: { theme: LotusTheme; chunk: string })
   const box = theme === "cabinet" ? { fill: "#6b4423", line: "#c9a24a", ink: "#f4dc92" }
     : theme === "soundlab" ? { fill: "#2a2b30", line: "#ff6a1a", ink: "#ff8a3d" }
     : theme === "drafting" ? { fill: "rgba(255,209,102,.12)", line: "var(--accent)", ink: "var(--accent)" }
+    : theme === "sevenways" ? { fill: "var(--violet-wash)", line: "var(--violet)", ink: "var(--violet)" }
     : { fill: "var(--accent)", line: "var(--accent)", ink: "#fff" };
   return (
     <svg viewBox="0 0 240 180" className={styles.art} role="img" aria-label={`(${chunk}) treated as one block, A`}>

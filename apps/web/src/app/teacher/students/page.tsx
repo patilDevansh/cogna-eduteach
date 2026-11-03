@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { LOTUS_THEMES, LOTUS_THEME_NAMES, isLotusTheme, type LotusTheme } from "@cogna/shared";
+import { LOTUS_OFFERED_THEMES, LOTUS_THEME_NAMES, isLotusTheme, type LotusTheme } from "@cogna/shared";
 import { api, ApiError, type ClassRosterStudent, type ClassroomRunReport } from "@/lib/api";
 import { studentStatus } from "@/lib/teacher-status";
 import { useTeacherClasses } from "@/lib/teacher-classes";
@@ -77,13 +77,13 @@ export default function TeacherStudentsPage() {
 
       <ClassTabs classes={classes} selectedId={selectedId} onSelect={(id) => void select(id)} />
 
-      {selected && (
+      {selected && LOTUS_OFFERED_THEMES.length > 1 && (
         <section className={styles.emptyCard} aria-label="Look of the quick check">
           <label htmlFor="class-look"><strong>Look of the quick check for {selected.name}</strong></label>
           <p>Students can pick a look for their quick check. The questions, the maths and your report are the same in every look. Lock the class to one look, for example the plain Studio look before an exam.</p>
           <select id="class-look" value={selected.lockedTheme ?? "choose"} onChange={(event) => void setLook(event.target.value)}>
             <option value="choose">Students choose</option>
-            {LOTUS_THEMES.map((theme) => <option key={theme} value={theme}>{theme === "studio" ? "Everyone: Studio (plain)" : `Everyone: ${LOTUS_THEME_NAMES[theme]}`}</option>)}
+            {LOTUS_OFFERED_THEMES.map((theme) => <option key={theme} value={theme}>{theme === "studio" ? "Everyone: Studio (plain)" : `Everyone: ${LOTUS_THEME_NAMES[theme]}`}</option>)}
           </select>
         </section>
       )}

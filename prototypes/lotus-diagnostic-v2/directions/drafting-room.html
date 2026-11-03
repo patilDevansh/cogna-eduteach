@@ -1,0 +1,152 @@
+<title>Drafting Room</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+/* Layout: one blueprint sheet. Plan on the left, the student's growing building + title block on the right. Single look: blueprint blue. */
+:root {
+  color-scheme: dark;
+  --bp: #0d3563; --bp2: #0a2a50; --ink: #f4f8ff; --line: rgba(244, 248, 255, .9); --soft: rgba(244, 248, 255, .62); --faint: rgba(244, 248, 255, .2); --grid: rgba(244, 248, 255, .06);
+  --red: #ff7b66; --amber: #ffd166; --mint: #7cf2c9; --sky: #9ad1ff; --lilac: #c9b6ff;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; --hand: "Architects Daughter", "Comic Sans MS", cursive; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 16px/1.5 var(--cond); background: var(--bp);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px), linear-gradient(rgba(244,248,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(244,248,255,.1) 1px, transparent 1px);
+  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px; }
+.sheet { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 40px; display: grid; gap: 16px; }
+.frame { border: 2px solid var(--line); outline: 1px solid var(--faint); outline-offset: 5px; padding: 18px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 22px; }
+@media (max-width: 860px) { .frame { grid-template-columns: 1fr; } }
+header.top { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--faint); padding-bottom: 10px; }
+h1 { margin: 0; font: 700 clamp(1.6rem, 4vw, 2.4rem)/1 var(--cond); letter-spacing: .14em; text-transform: uppercase; }
+.top p { margin: 0; color: var(--soft); font-family: var(--hand); }
+.label { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--soft); font-weight: 600; }
+.q { font-family: var(--hand); font-size: 1.15rem; margin: 0; }
+.q .m { font-family: var(--mono); font-size: 1.05em; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--hand); }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); }
+.seg button { width: 44px; height: 40px; border: 0; border-right: 1px solid var(--faint); background: transparent; color: var(--ink); font: 600 1rem var(--mono); cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bp); }
+.btn { border: 1.5px solid var(--line); background: transparent; color: var(--ink); padding: 10px 18px; font: 700 .9rem var(--cond); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.btn.solid { background: var(--ink); color: var(--bp); }
+.btn:disabled { opacity: .35; cursor: default; }
+.redline { font-family: var(--hand); color: var(--red); font-size: 1.05rem; border-left: 2px solid var(--red); padding-left: 12px; min-height: 1.6em; }
+.site { display: grid; gap: 10px; align-content: start; }
+.tblock { display: grid; grid-template-columns: auto 1fr; border: 1.5px solid var(--line); font-size: .82rem; }
+.tblock span { padding: 5px 8px; border-bottom: 1px solid var(--faint); }
+.tblock span:nth-child(odd) { border-right: 1px solid var(--faint); color: var(--soft); letter-spacing: .12em; text-transform: uppercase; font-size: .7rem; align-self: stretch; display: flex; align-items: center; }
+.tblock span:nth-last-child(-n+2) { border-bottom: 0; }
+.tblock b { font-family: var(--mono); font-weight: 600; }
+.key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem; color: var(--soft); }
+.key i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 30%, transparent); vertical-align: -1px; }
+:focus-visible { outline: 2px dashed var(--amber); outline-offset: 3px; }
+</style>
+
+<div class="sheet">
+  <header class="top"><h1>Drafting Room</h1><p>Direction A · the theme is the maths: every factorisation is a floor plan.</p></header>
+  <div class="frame">
+    <section style="display:grid;gap:12px;min-width:0">
+      <span class="label">Sheet 01 · Floor plan</span>
+      <p class="q">Draw one rectangular room with area <span class="m">x² + 5x + 6</span>. How many strips go along the east wall?</p>
+      <svg viewBox="0 0 560 400" id="plan" aria-label="Floor plan"></svg>
+      <div class="controls"><span class="label">East wall strips</span><div class="seg" id="seg"></div><button class="btn solid" id="ink" type="button" disabled>Ink the drawing</button></div>
+      <p class="redline" id="note">Try a split. Gaps show as red dashed boxes, spare pieces go to the margin.</p>
+    </section>
+    <aside class="site">
+      <span class="label">Your building</span>
+      <svg viewBox="-200 -230 400 330" id="bld" aria-label="Your building"></svg>
+      <div class="key"><span style="--c:var(--amber)"><i></i>x² + bx + c</span><span style="--c:var(--red)"><i></i>Signs</span><span style="--c:var(--sky)"><i></i>Squares</span><span style="--c:var(--mint)"><i></i>Checking</span><span style="--c:var(--lilac)"><i></i>Grouping</span></div>
+      <p class="q" style="font-size:.95rem;color:var(--soft)">Every answer adds a room. Inked lines mean a sure answer, pencil sketch means a guess. Right and wrong look the same.</p>
+      <button class="btn" id="demo" type="button">+ Add 5 sample answers</button>
+      <div class="tblock"><span>Project</span><span>Factorisation check</span><span>Drawn by</span><span>Aarav · 8B</span><span>Scale</span><span>1 : 50</span><span>Rooms</span><span><b id="rooms">0</b></span></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s), NS = "http://www.w3.org/2000/svg", RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const el = (t, a, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+$("#seg").innerHTML = [0, 1, 2, 3, 4, 5].map((n) => `<button type="button" data-n="${n}" aria-pressed="${n === 0}">${n}</button>`).join("");
+
+// ---------- plan ----------
+const plan = $("#plan"), X = 130, U = 32, OX = 80, OY = 70, W = "rgba(244,248,255,.9)";
+plan.innerHTML = `<defs>
+  <pattern id="h1" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="rgba(244,248,255,.28)" stroke-width="1.2"/></pattern>
+  <pattern id="h2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="6" stroke="rgba(244,248,255,.18)" stroke-width="1"/></pattern>
+  <pattern id="h3" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 0 L6 6 M6 0 L0 6" stroke="rgba(255,209,102,.45)" stroke-width="1"/></pattern></defs>
+  <text x="470" y="40" font-size="13" fill="rgba(244,248,255,.6)" text-anchor="middle">margin</text><line x1="430" y1="50" x2="430" y2="380" stroke="rgba(244,248,255,.2)" stroke-dasharray="4 6"/>
+  <g id="holes"></g>
+  <g transform="translate(500 340)"><circle r="16" fill="none" stroke="${W}" stroke-width="1.2"/><path d="M0 -14 L5 4 L0 0 L-5 4Z" fill="${W}"/><text y="-22" text-anchor="middle" font-size="12" fill="${W}">N</text></g>`;
+el("rect", { x: OX, y: OY, width: X, height: X, fill: "url(#h1)", stroke: W, "stroke-width": 2 }, plan);
+el("text", { x: OX + X / 2, y: OY + X / 2 + 6, "text-anchor": "middle", "font-size": 22, fill: W }, plan).textContent = "x²";
+const strips = Array.from({ length: 5 }, () => el("rect", { x: OX, y: OY + X, width: X, height: U, fill: "url(#h2)", stroke: W, "stroke-width": 1.5 }, plan));
+const units = Array.from({ length: 6 }, () => el("rect", { x: 450, y: 70, width: U, height: U, fill: "url(#h3)", stroke: "#ffd166", "stroke-width": 1.5 }, plan));
+const dims = el("g", { opacity: 0, fill: W, stroke: W }, plan);
+const pool = (k) => ({ x: 446 + (k % 2) * 38, y: 70 + Math.floor(k / 2) * 38 });
+let cur = 0; const tries = [];
+function lay(a, instant) {
+  const b = 5 - a, d = instant || RM ? 0 : 1;
+  strips.forEach((s, k) => gsap.to(s, { attr: k < a ? { x: OX + X + k * U, y: OY, width: U, height: X } : { x: OX, y: OY + X + (k - a) * U, width: X, height: U }, duration: .6 * d, delay: k * .05 * d, ease: "power3.inOut" }));
+  const cells = []; for (let j = 0; j < b; j++) for (let i = 0; i < a; i++) cells.push({ x: OX + X + i * U, y: OY + X + j * U });
+  units.forEach((u, k) => gsap.to(u, { attr: k < cells.length ? cells[k] : pool(k - cells.length), duration: .55 * d, delay: (.3 + k * .05) * d, ease: "power3.inOut" }));
+  const holes = $("#holes"); holes.innerHTML = "";
+  cells.slice(6).forEach((c) => el("rect", { x: c.x + 4, y: c.y + 4, width: U - 8, height: U - 8, fill: "none", stroke: "#ff7b66", "stroke-width": 1.5, "stroke-dasharray": "4 3" }, holes));
+  gsap.to(dims, { opacity: 0, duration: .15 });
+  if (a * b === 6) {
+    const w = X + a * U, h = X + b * U, t = (x, y) => `<path d="M${x - 5} ${y + 5} L${x + 5} ${y - 5}" stroke-width="1.6"/>`;
+    dims.innerHTML = `<line x1="${OX}" y1="${OY - 24}" x2="${OX + w}" y2="${OY - 24}" stroke-width="1"/>${t(OX, OY - 24)}${t(OX + w, OY - 24)}<line x1="${OX}" y1="${OY - 32}" x2="${OX}" y2="${OY - 4}" stroke-width=".8"/><line x1="${OX + w}" y1="${OY - 32}" x2="${OX + w}" y2="${OY - 4}" stroke-width=".8"/>
+      <text x="${OX + w / 2}" y="${OY - 32}" text-anchor="middle" font-size="20" stroke="none">x + ${a}</text>
+      <line x1="${OX - 24}" y1="${OY}" x2="${OX - 24}" y2="${OY + h}" stroke-width="1"/>${t(OX - 24, OY)}${t(OX - 24, OY + h)}<line x1="${OX - 32}" y1="${OY}" x2="${OX - 4}" y2="${OY}" stroke-width=".8"/><line x1="${OX - 32}" y1="${OY + h}" x2="${OX - 4}" y2="${OY + h}" stroke-width=".8"/>
+      <text transform="translate(${OX - 32} ${OY + h / 2}) rotate(-90)" text-anchor="middle" font-size="20" stroke="none">x + ${b}</text>
+      <text x="${OX + w / 2}" y="${OY + h + 34}" text-anchor="middle" font-size="16" stroke="none">ROOM 01 · (x + ${a})(x + ${b})</text>`;
+    gsap.to(dims, { opacity: 1, duration: .5, delay: 1 * d });
+  }
+}
+function choose(a) {
+  if (a === cur) return; cur = a; lay(a);
+  document.querySelectorAll("#seg button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.n === a)));
+  const b = 5 - a, need = a * b; tries.push(a);
+  $("#note").textContent = need === 6 ? "Fits. Ink it when you're happy." : need > 6 ? `${need - 6} gap${need - 6 > 1 ? "s" : ""} in the corner.` : `${6 - need} piece${6 - need > 1 ? "s" : ""} left in the margin.`;
+  $("#ink").disabled = false;
+}
+document.querySelectorAll("#seg button").forEach((b) => b.addEventListener("click", () => choose(+b.dataset.n)));
+units.forEach((u, k) => u.setAttribute("x", pool(k).x) || u.setAttribute("y", pool(k).y));
+lay(0, true);
+
+// ---------- building ----------
+const bld = $("#bld"), rooms = [], SPOTS = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [2, 0, 0], [0, 1, 1], [2, 1, 0], [1, 1, 1], [0, 0, 2], [1, 0, 2], [2, 0, 1], [0, 2, 0], [1, 2, 0]];
+const COL = { PAIR: "--amber", SIGNS: "--red", SQUARES: "--sky", CHECK: "--mint", GROUP: "--lilac" };
+const iso = (x, y, z) => [(x - y) * 44, (x + y) * 25 - z * 50];
+function drawBuilding(animateLast) {
+  bld.innerHTML = `<ellipse cx="0" cy="58" rx="170" ry="40" fill="none" stroke="rgba(244,248,255,.15)" stroke-dasharray="3 6"/>`;
+  const order = rooms.map((r, i) => ({ ...r, i, s: SPOTS[i % SPOTS.length] })).sort((a, b) => (a.s[0] + a.s[1]) - (b.s[0] + b.s[1]) || a.s[2] - b.s[2]);
+  for (const r of order) {
+    const [x, y, z] = r.s, c = css(COL[r.skill]), p = (dx, dy, dz) => iso(x + dx, y + dy, z + dz).join(",");
+    const g = el("g", { "data-i": r.i }, bld);
+    const sure = r.cert >= .55, sk = sure ? { stroke: "#f4f8ff", "stroke-width": 1.6 } : { stroke: "#f4f8ff", "stroke-width": 1.1, "stroke-dasharray": "3 2.5", opacity: .8 };
+    el("polygon", { points: [p(0, 0, 1), p(1, 0, 1), p(1, 1, 1), p(0, 1, 1)].join(" "), fill: c, "fill-opacity": sure ? .45 : .14, ...sk }, g);
+    el("polygon", { points: [p(0, 1, 0), p(1, 1, 0), p(1, 1, 1), p(0, 1, 1)].join(" "), fill: c, "fill-opacity": sure ? .25 : .08, ...sk }, g);
+    el("polygon", { points: [p(1, 0, 0), p(1, 1, 0), p(1, 1, 1), p(1, 0, 1)].join(" "), fill: c, "fill-opacity": sure ? .15 : .05, ...sk }, g);
+    if (animateLast && r.i === rooms.length - 1 && !RM) gsap.from(g, { y: -60, opacity: 0, duration: .8, ease: "bounce.out" });
+  }
+  $("#rooms").textContent = rooms.length;
+}
+function addRoom(skill, cert) { rooms.push({ skill, cert }); drawBuilding(true); }
+$("#ink").addEventListener("click", () => {
+  const fit = (cur * (5 - cur)) === 6;
+  addRoom("PAIR", tries.length <= 1 ? .95 : tries.length <= 3 ? .7 : .4);
+  $("#note").textContent = `Lotus noticed: ${fit ? `fitted after ${tries.length} ${tries.length === 1 ? "try" : "tries"}${tries.length > 1 && tries.every((t, k) => !k || Math.abs(t - tries[k - 1]) === 1) ? ", stepping one at a time" : ""}.` : "inked a plan that doesn't close. The corner and the 6 aren't linked yet."}`;
+  $("#ink").disabled = true;
+});
+$("#demo").addEventListener("click", () => {
+  const sk = Object.keys(COL);
+  for (let i = 0; i < 5; i++) setTimeout(() => addRoom(sk[Math.floor(Math.random() * 5)], Math.random() > .35 ? .9 : .3), i * 380);
+});
+drawBuilding(false);
+</script>

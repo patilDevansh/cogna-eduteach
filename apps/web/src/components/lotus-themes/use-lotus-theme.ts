@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_LOTUS_THEME, LOTUS_THEMES, type LotusTheme, type LotusThemeSettings } from "@cogna/shared";
+import { DEFAULT_LOTUS_THEME, LOTUS_OFFERED_THEMES, type LotusTheme, type LotusThemeSettings } from "@cogna/shared";
 import { api } from "@/lib/api";
 
 const NEUTRAL: LotusThemeSettings = { chosen: null, lockedTheme: null, effective: DEFAULT_LOTUS_THEME };
@@ -11,7 +11,7 @@ const SEEN_KEY = "cogna_lotus_theme_seen";
 function lastSeenTheme(): LotusTheme | null {
   try {
     const seen = localStorage.getItem(SEEN_KEY);
-    return LOTUS_THEMES.find((theme) => theme === seen) ?? null;
+    return LOTUS_OFFERED_THEMES.find((theme) => theme === seen) ?? null;
   } catch {
     return null;
   }

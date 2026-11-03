@@ -72,215 +72,77 @@ describe("Lotus themed games: issuing", () => {
       const game = chooseLotusGame(q, { turn: 2, repurposed: false }, {});
       if (game) seen++;
       assert.deepEqual(game, chooseLotusGame(question(`pick-${i}`, "easy"), { turn: 2, repurposed: false }, {}));
-      assert.ok([undefined, "EDIT_HISTORY", "READBACK"].includes(chooseLotusGame(q, { turn: 3, repurposed: false }, {})?.kind), "a typed turn stays typed");
-      assert.ok(!["EDIT_HISTORY", "READBACK"].includes(game?.kind ?? ""), "a typing box never takes a tile game's turn");
+      assert.ok(!["EDIT_HISTORY", "READBACK"].includes(chooseLotusGame(q, { turn: 3, repurposed: false }, {})?.kind ?? ""), "a two-bracket item is played, not typed, on any turn");
+      assert.ok(!["EDIT_HISTORY", "READBACK"].includes(game?.kind ?? ""));
       assert.equal(chooseLotusGame(q, { turn: 2, repurposed: false }, { COGNA_THEMED_GAMES: "off" }), undefined);
       assert.equal(chooseLotusGame(q, { turn: 2, repurposed: false }, { COGNA_GAME_FORMATS: "off" }), undefined);
     }
-    assert.ok(seen > 5 && seen < 35, `about half of the eligible items become a game (saw ${seen})`);
-    const installed = Array.from({ length: 40 }, (_, i) => withLotusInteraction(question(`pick-${i}`, "easy"), { turn: 2, repurposed: false }, {})).find((q) => q.game)!;
-    assert.equal(installed.asksForWorking, false);
-    assert.equal(installed.interaction, undefined);
-  });
-});
-
-describe("Lotus themed games: the answer is rebuilt on the server", () => {
-  it("TWO_NUMBERS: marks the locked-in pair, ignoring the typed answer", () => {
-    const q = withGame("TWO_NUMBERS");
-    const right = play(q, { kind: "TWO_NUMBERS", tries: [{ p: 4, q: -1 }], final: { p: -1, q: 4 } });
-    assert.equal(status(q, right), "VERIFIED_CORRECT");
-    const wrong = play(q, { kind: "TWO_NUMBERS", tries: [], final: { p: -4, q: 1 } });
-    assert.equal(status(q, wrong), "VERIFIED_INCORRECT");
-    assert.equal(wrong.answer, "(x - 4)(x + 1)");
-  });
-  it("COMMIT_THEN_CHOOSE: marks the chosen option", () => {
-    const q = withGame("COMMIT_THEN_CHOOSE");
-    const options = (q.game as { options: string[] }).options;
-    const right = play(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: options.indexOf("(x + 4)(x - 1)") });
-    assert.equal(status(q, right), "VERIFIED_CORRECT");
-    const wrong = play(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: options.indexOf("(x - 4)(x + 1)") });
-    assert.equal(status(q, wrong), "VERIFIED_INCORRECT");
-  });
-  it("TRUE_FALSE: a false claim called true is the answer given; the true ones called true are the right answer", () => {
-    const q = withGame("TRUE_FALSE");
-    const claims = (q.game as { claims: string[] }).claims;
-    const truth = claims.map((c) => ["(x + 4)(x - 1)", "(x - 1)(x + 4)"].includes(c));
-    const verdicts = (f: (isTrue: boolean, i: number) => string) => claims.map((_, i) => f(truth[i]!, i));
-    assert.equal(status(q, play(q, { kind: "TRUE_FALSE", verdicts: verdicts((t) => (t ? "true" : "false")) })), "VERIFIED_CORRECT");
-    const believes = play(q, { kind: "TRUE_FALSE", verdicts: verdicts((t, i) => (t ? "true" : i === claims.findIndex((c) => c === "(x - 4)(x + 1)") ? "true" : "false")) });
-    assert.equal(believes.answer, "(x - 4)(x + 1)");
-    assert.equal(status(q, believes), "VERIFIED_INCORRECT");
-    const none = play(q, { kind: "TRUE_FALSE", verdicts: verdicts(() => "false") });
-    assert.equal(none.didNotKnow, false);
-    assert.notEqual(status(q, none), "VERIFIED_CORRECT");
-    const unsure = play(q, { kind: "TRUE_FALSE", verdicts: verdicts(() => "unsure") });
-    assert.equal(unsure.didNotKnow, true);
-  });
-});
-
-describe("Lotus themed games: the reading is the same in every theme", () => {
-  const scenarios: Array<[string, LotusGameKind, (q: LotusQuestion) => unknown]> = [
-    ["a search that tried the sign-flipped pair then fixed it", "TWO_NUMBERS", () => ({ kind: "TWO_NUMBERS", tries: [{ p: 1, q: 1, atMs: 900 }, { p: -4, q: 1, atMs: 3000 }, { p: 4, q: -1, atMs: 6000 }], final: { p: 4, q: -1 } })],
-    ["a guess then a pick", "COMMIT_THEN_CHOOSE", (q) => ({ kind: "COMMIT_THEN_CHOOSE", guess: { p: -4, q: 1 }, pick: (q.game as { options: string[] }).options.indexOf("(x - 4)(x + 1)"), chooseMs: 4000 })],
-    ["a split of four tokens", "SPLIT_CONFIDENCE", (q) => ({ kind: "SPLIT_CONFIDENCE", counts: (q.game as { options: string[] }).options.map((_, i) => (i === 0 ? 3 : i === 1 ? 1 : 0)) })],
-    ["two moves", "TWO_MOVES", () => ({ kind: "TWO_MOVES", numbers: { n1: -4, n2: 1 }, signs: ["+", "-"] })],
-    ["four sign cases", "FOUR_SIGNS", () => ({ kind: "FOUR_SIGNS", picks: [["+", "+"], ["-", "-"], ["+", "+"], ["-", "-"]] })],
-    ["a tiles search", "RECTANGLE", () => ({ kind: "RECTANGLE", tries: [0, 1, 2], final: 2 })],
-    ["a typed readback", "READBACK", () => ({ kind: "READBACK", history: [{ t: 300, v: "x+4(x-1)" }, { t: 900, v: "(x+4)(x-1)" }], tookSuggestion: true })],
-    ["an edit history", "EDIT_HISTORY", () => ({ kind: "EDIT_HISTORY", history: [{ t: 500, v: "(x - 4)(x + 1)" }, { t: 4000, v: "(x - 4)" }, { t: 6000, v: "(x + 4)(x - 1)" }] })],
-    ["eight verdicts", "TRUE_FALSE", (q) => ({ kind: "TRUE_FALSE", verdicts: (q.game as { claims: string[] }).claims.map((c, i) => (i % 2 ? "true" : c.includes("- 4") ? "unsure" : "false")), cardMs: (q.game as { claims: string[] }).claims.map((_, i) => 1200 + i * 700) })],
-  ];
-  for (const [name, kind, payload] of scenarios) {
-    it(`reads ${name} identically in all four themes`, () => {
-      const q = withGame(kind);
-      const readings = LOTUS_THEMES.map((theme) => {
-        const sent = { ...(payload(q) as object), theme } as unknown as LotusGameResponse;
-        const r = resolveLotusResponse(q, { ...base(), game: sent });
-        assert.equal(JSON.stringify(r).includes(theme), false, "the theme never reaches the stored response");
-        return { answer: r.answer, game: r.game, reading: r.gameReading };
-      });
-      for (const r of readings) assert.deepEqual(r, readings[0]);
-      assert.ok(readings[0]!.reading!.summary.length > 10);
-      assert.equal(readings[0]!.reading!.skillId, "FAC_MONIC_TRINOMIAL");
-    });
-  }
-});
-
-describe("Lotus themed games: what the readers notice", () => {
-  it("TWO_NUMBERS names a corrected sign slip, a systematic search and trial and error", () => {
-    const q = withGame("TWO_NUMBERS");
-    const slip = readLotusGame(q, { kind: "TWO_NUMBERS", tries: [{ p: -4, q: 1 }, { p: 4, q: -1 }], final: { p: 4, q: -1 } }).reading;
-    assert.ok(slip.signals.includes("hit_sign_slip") && slip.signals.includes("fixed_sign_slip") && slip.signals.includes("final_right"));
-    const straight = readLotusGame(q, { kind: "TWO_NUMBERS", tries: [{ p: 4, q: -1 }], final: { p: 4, q: -1 } }).reading;
-    assert.ok(straight.signals.includes("straight_there"));
-    assert.equal(straight.certainty, 0.95);
-    const hunt = readLotusGame(q, { kind: "TWO_NUMBERS", tries: [{ p: 1, q: 1 }, { p: 2, q: 3 }, { p: 5, q: 5 }, { p: 4, q: -1 }], final: { p: 4, q: -1 } }).reading;
-    assert.ok(hunt.signals.includes("trial_and_error"));
-    const systematic = readLotusGame(q, { kind: "TWO_NUMBERS", tries: [{ p: 1, q: -4 }, { p: 2, q: -2 }, { p: 4, q: -1 }], final: { p: 4, q: -1 } }).reading;
-    assert.ok(systematic.signals.includes("systematic_search"));
-    const prod = readLotusGame(q, { kind: "TWO_NUMBERS", tries: [], final: { p: 2, q: -2 } }).reading;
-    assert.ok(prod.signals.includes("final_prod"));
-  });
-  it("COMMIT_THEN_CHOOSE tells predicting from checking the options", () => {
-    const q = withGame("COMMIT_THEN_CHOOSE");
-    const options = (q.game as { options: string[] }).options;
-    const at = (text: string) => options.indexOf(text);
-    assert.ok(readLotusGame(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: at("(x + 4)(x - 1)") }).reading.signals.includes("predicted_then_picked"));
-    assert.ok(readLotusGame(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 1, q: 1 }, pick: at("(x + 4)(x - 1)") }).reading.signals.includes("checked_options"));
-    assert.ok(readLotusGame(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: -4, q: 1 }, pick: at("(x - 4)(x + 1)") }).reading.signals.includes("same_mistake_twice"));
-    assert.ok(readLotusGame(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: at("(x - 4)(x + 1)") }).reading.signals.includes("changed_a_right_guess"));
-    assert.ok(readLotusGame(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 2, q: 3 }, pick: at("(x - 4)(x + 1)") }).reading.signals.includes("guess_and_pick_disagree"));
-  });
-  it("TRUE_FALSE groups false claims by the mistake they test and flags a missed control", () => {
-    const q = withGame("TRUE_FALSE");
-    const claims = (q.game as { claims: string[] }).claims;
-    const verdicts = claims.map((c) => (c === "(x - 4)(x + 1)" ? "true" : "false"));
-    const r = readLotusGame(q, { kind: "TRUE_FALSE", verdicts: verdicts as never }).reading;
-    assert.ok(r.signals.some((s) => s.includes("SIGNS_FLIPPED")), "the family is the predicted mistake");
-    assert.ok(r.signals.includes("missed_control"), "calling both true claims false is flagged");
-    assert.equal(r.certainty, 0.75);
-  });
-});
-
-describe("Lotus themed games: tampered payloads are rejected", () => {
-  const rejects = (q: LotusQuestion, game: unknown) => assert.throws(() => play(q, game), TileAnswerError);
-  it("TWO_NUMBERS", () => {
-    const q = withGame("TWO_NUMBERS");
-    const range = (q.game as { range: number }).range;
-    rejects(q, { kind: "TWO_NUMBERS", tries: [], final: { p: 0, q: 3 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: [], final: { p: range + 1, q: 3 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: [], final: { p: 1.5, q: 3 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: [], final: { p: "4", q: 3 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: [{ p: 99, q: 1 }], final: { p: 4, q: -1 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: Array.from({ length: 41 }, () => ({ p: 1, q: 1 })), final: { p: 4, q: -1 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: "lots", final: { p: 4, q: -1 } });
-    rejects(q, { kind: "TWO_NUMBERS", tries: [] });
-  });
-  it("COMMIT_THEN_CHOOSE", () => {
-    const q = withGame("COMMIT_THEN_CHOOSE");
-    rejects(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: 99 });
-    rejects(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: -1 });
-    rejects(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: 0.5 });
-    rejects(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 0, q: -1 }, pick: 0 });
-    rejects(q, { kind: "COMMIT_THEN_CHOOSE", pick: 0 });
-  });
-  it("TRUE_FALSE", () => {
-    const q = withGame("TRUE_FALSE");
-    const n = (q.game as { claims: string[] }).claims.length;
-    rejects(q, { kind: "TRUE_FALSE", verdicts: Array(n - 1).fill("true") });
-    rejects(q, { kind: "TRUE_FALSE", verdicts: Array(n + 1).fill("true") });
-    rejects(q, { kind: "TRUE_FALSE", verdicts: Array(n).fill("maybe") });
-    rejects(q, { kind: "TRUE_FALSE", verdicts: Array(n).fill(true) });
-    rejects(q, { kind: "TRUE_FALSE", verdicts: Array(n).fill(null) });
-    rejects(q, { kind: "TRUE_FALSE", verdicts: "true" });
-  });
-  it("a payload for a different game, or for a question that is not a game, is rejected", () => {
-    const q = withGame("TWO_NUMBERS");
-    rejects(q, { kind: "TRUE_FALSE", verdicts: ["true"] });
-    rejects(q, { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: 0 });
-    rejects(question(), { kind: "TWO_NUMBERS", tries: [], final: { p: 4, q: -1 } });
-    assert.equal(play(q, null).game, undefined, "no game payload means a typed answer, which is still marked normally");
-  });
-  it("a forged reading is discarded and a game payload is dropped when the student says they do not know", () => {
-    const q = withGame("TWO_NUMBERS");
-    const forged = { gameReading: { kind: "TWO_NUMBERS", summary: "Perfect", signals: ["final_right"], certainty: 1, skillId: "X", facts: {} } };
-    const r = play(q, { kind: "TWO_NUMBERS", tries: [], final: { p: -4, q: 1 } }, forged as Partial<LotusStudentResponse>);
-    assert.notEqual(r.gameReading?.summary, "Perfect");
-    assert.ok(r.gameReading?.signals.includes("final_flip"));
-    const dk = play(q, { kind: "TWO_NUMBERS", tries: [], final: { p: 4, q: -1 } }, { didNotKnow: true, answer: "I don't know", ...forged } as Partial<LotusStudentResponse>);
-    assert.equal(dk.game, undefined);
-    assert.equal(dk.gameReading, undefined);
-  });
-  it("a replayed submission resolves to the same stored response", () => {
-    const q = withGame("COMMIT_THEN_CHOOSE");
-    const game = { kind: "COMMIT_THEN_CHOOSE", guess: { p: 4, q: -1 }, pick: 1, chooseMs: 1234.7 };
-    assert.deepEqual(play(q, game), play(q, game));
-  });
-});
-
-describe("Lotus themed games, second batch: issuing", () => {
-  it("Four sign cases: only with two different numbers, and the question is one of the four cases", () => {
-    const game = buildLotusGame(question(), "FOUR_SIGNS");
-    assert.ok(game && game.kind === "FOUR_SIGNS");
-    assert.deepEqual(game.numbers, [1, 4]);
-    assert.equal(new Set(game.cases).size, 4);
-    assert.ok(game.cases.includes("x^2 + 3x - 4"));
-    const q = question();
-    q.answerKey.canonicalAnswer = "(x - 4)(x + 4)";
-    q.answerKey.diagnostics!.expression = "x^2 - 16";
-    assert.equal(buildLotusGame(q, "FOUR_SIGNS"), undefined, "x² − 16 has no four distinct cases");
-    assert.ok(buildLotusGame(q, "TWO_MOVES"), "but two moves still fits");
-  });
-  it("Edit history fits any checked factorising question; the two-bracket games don't", () => {
-    const q = question();
-    q.answerKey.canonicalAnswer = "2(x + 12)";
-    q.answerKey.diagnostics!.expression = "2x + 24";
-    assert.equal(buildLotusGame(q, "EDIT_HISTORY")?.kind, "EDIT_HISTORY");
-    for (const kind of ["TWO_NUMBERS", "SPLIT_CONFIDENCE", "TWO_MOVES", "FOUR_SIGNS"] as const) assert.equal(buildLotusGame(q, kind), undefined);
+    assert.equal(seen, 40, "every eligible item becomes a game");
+    const q = question("pick-unchecked", "easy");
     q.answerKey.canonicalAnswer = "wrong";
     assert.equal(buildLotusGame(q, "EDIT_HISTORY"), undefined, "an item whose key doesn't check gets no game");
   });
-  it("a typed game dresses a typed turn and keeps its working; other items keep their tile game", () => {
-    const typed = withLotusInteraction(question("edit-typed", "hard"), { turn: 3, repurposed: false }, { COGNA_THEMED_GAMES: "all" });
-    assert.ok(["EDIT_HISTORY", "READBACK"].includes(typed.game?.kind ?? ""));
-    assert.equal(typed.asksForWorking, true);
-    const other = question("edit-other", "hard");
-    other.answerKey.canonicalAnswer = "2(x + 12)";
-    other.answerKey.diagnostics!.expression = "2x + 24";
-    const tile = withLotusInteraction(other, { turn: 2, repurposed: false }, { COGNA_THEMED_GAMES: "all" });
-    assert.equal(tile.game, undefined);
-    assert.ok(tile.interaction);
+  it("an item that isn't two brackets shares chips or is typed in a game, and never falls back to a tile game", () => {
+    const other = (id: string) => {
+      const q = question(id, "hard");
+      q.answerKey.canonicalAnswer = "2(x + 12)";
+      q.answerKey.diagnostics!.expression = "2x + 24";
+      q.answerKey.diagnostics!.predictedMistakes = [{ answer: "2(x + 24)", mistake: "DIVIDED_FIRST_TERM_ONLY" }, { answer: "x(2 + 24)", mistake: "WRONG_COMMON_FACTOR" }];
+      return q;
+    };
+    const opening = withLotusInteraction(other("gcf-1"), { turn: 1, repurposed: false }, {});
+    assert.equal(opening.game?.kind, "SPLIT_CONFIDENCE", "the test opens on something to do");
+    assert.equal(opening.interaction, undefined);
+    assert.equal(opening.asksForWorking, false);
+    const typed = withLotusInteraction(other("gcf-2"), { turn: 2, repurposed: false }, {});
+    assert.equal(typed.game?.kind, "READBACK");
+    assert.equal(typed.asksForWorking, true, "a typed game keeps its working");
+    assert.equal(withLotusInteraction(other("gcf-3"), { turn: 3, repurposed: false }, {}).game?.kind, "SPLIT_CONFIDENCE");
+    assert.equal(withLotusInteraction(other("gcf-5"), { turn: 4, repurposed: false }, {}).game?.kind, "EDIT_HISTORY");
+    const thin = other("gcf-4");
+    thin.answerKey.canonicalAnswer = "x(x + 12)";
+    thin.answerKey.diagnostics!.expression = "x^2 + 12x";
+    thin.answerKey.diagnostics!.predictedMistakes = [{ answer: "1", mistake: "DIVIDED_FIRST_TERM_ONLY" }];
+    assert.equal(withLotusInteraction(thin, { turn: 1, repurposed: false }, {}).game?.kind, "READBACK", "too few real options for chips, and a bare number is not one");
+    const made = other("gcf-6");
+    made.answerKey.diagnostics!.predictedMistakes = [];
+    assert.deepEqual([...(withLotusInteraction(made, { turn: 1, repurposed: false }, {}).game as { options: string[] }).options].sort(), ["2(x + 12)", "2(x + 24)", "2(x - 12)"], "look-alikes fill in for a common factor");
   });
-  it("about half of the questions the crossword would take become a game; the rest keep the crossword", () => {
-    const placed = Array.from({ length: 60 }, (_, i) => withLotusInteraction(question(`puzzle-${i}`, "medium"), { turn: 3, repurposed: false }, {}));
-    const games = placed.filter((q) => q.game).length;
-    assert.ok(games > 15 && games < 45, `saw ${games} of 60`);
-    for (const q of placed) {
-      assert.equal(!!q.game !== !!q.interaction, true, "one or the other, never both");
-      if (q.game) { assert.ok(!["EDIT_HISTORY", "READBACK"].includes(q.game.kind), "a typing box never takes a puzzle's turn"); assert.equal(q.asksForWorking, false); }
-      else assert.equal(q.interaction?.format, "FACTOR_CROSSWORD");
+  it("chips over a non-bracket item are read like any other: the marked answer, the mistake it predicts, and how sure", () => {
+    const q = question("gcf-read", "hard");
+    q.answerKey.canonicalAnswer = "2(x + 12)";
+    q.answerKey.diagnostics!.expression = "2x + 24";
+    q.answerKey.diagnostics!.predictedMistakes = [{ answer: "2(x + 24)", mistake: "DIVIDED_FIRST_TERM_ONLY" }, { answer: "x(2 + 24)", mistake: "WRONG_COMMON_FACTOR" }];
+    const game = withLotusInteraction(q, { turn: 1, repurposed: false }, {}).game as { options: string[] };
+    assert.doesNotMatch(JSON.stringify(game), /canonical|correct|mistake|truth/i);
+    const counts = (on: string, n: number, rest?: string) => game.options.map((o) => (o === on ? n : o === rest ? 4 - n : 0));
+    const right = game.options.find((o) => o.startsWith("2(x + 12"))!;
+    const wrong = game.options.find((o) => o.startsWith("2(x + 24"))!;
+    const sure = play(q, { kind: "SPLIT_CONFIDENCE", counts: counts(right, 4) });
+    assert.equal(sure.answer, right);
+    assert.equal(sure.confidence, 90);
+    assert.equal(sure.gameReading?.diagnosis?.effect, "NEEDS_ANOTHER");
+    const held = play(q, { kind: "SPLIT_CONFIDENCE", counts: counts(wrong, 4) });
+    assert.equal(held.answer, wrong);
+    assert.equal(held.gameReading?.diagnosis?.effect, "MISTAKE");
+    const torn = play(q, { kind: "SPLIT_CONFIDENCE", counts: counts(right, 2, wrong) });
+    assert.equal(torn.answer, wrong, "a tie marks the wrong answer it includes");
+    assert.throws(() => play(q, { kind: "SPLIT_CONFIDENCE", counts: counts(right, 3) }), /Place all/);
+  });
+  it("the same format doesn't come round twice running when another fits", () => {
+    for (let i = 0; i < 60; i++) {
+      const first = chooseLotusGame(question(`seq-${i}`, "easy"), { turn: 2, repurposed: false }, {})!;
+      const next = chooseLotusGame(question(`seq-${i}`, "easy"), { turn: 3, repurposed: false, previousKind: first.kind }, {})!;
+      assert.notEqual(next.kind, first.kind);
     }
-    assert.equal(withLotusInteraction(question("puzzle-off", "medium"), { turn: 3, repurposed: false }, { COGNA_THEMED_GAMES: "off" }).game, undefined);
+  });
+  it("the crossword no longer takes a turn while the new games are on, and comes back with them off", () => {
+    const on = withLotusInteraction(question("puzzle-on", "medium"), { turn: 3, repurposed: false }, {});
+    assert.ok(on.game);
+    assert.equal(on.interaction, undefined);
+    const off = withLotusInteraction(question("puzzle-off", "medium"), { turn: 3, repurposed: false }, { COGNA_THEMED_GAMES: "off" });
+    assert.equal(off.game, undefined);
+    assert.equal(off.interaction?.format, "FACTOR_CROSSWORD");
   });
   it("sharing tokens replaces the separate how-sure question", () => {
     const pick = Array.from({ length: 200 }, (_, i) => { const q = question(`split-${i}`, "easy"); q.requiresConfidenceProbe = true; return withLotusInteraction(q, { turn: 2, repurposed: true }, {}); }).find((q) => q.game?.kind === "SPLIT_CONFIDENCE");
@@ -618,14 +480,6 @@ describe("Lotus themed games, third batch", () => {
     });
   });
 
-  it("typed turns are dressed as Edit history or Confirm your input, and keep their working", () => {
-    const kinds = new Set<string>();
-    for (let i = 0; i < 80; i++) {
-      const q = withLotusInteraction(question(`typed-${i}`, "hard"), { turn: 3, repurposed: false }, { COGNA_THEMED_GAMES: "all" });
-      if (q.game) { kinds.add(q.game.kind); assert.equal(q.asksForWorking, true); }
-    }
-    assert.deepEqual([...kinds].sort(), ["EDIT_HISTORY", "READBACK"]);
-  });
   it("Tiles can take a tile game's turn, and both games are in every theme's words", () => {
     const seen = new Set<string>();
     for (let i = 0; i < 80; i++) { const g = chooseLotusGame(positive(`tile-${i}`), { turn: 2, repurposed: false }, { COGNA_THEMED_GAMES: "all" }); if (g) seen.add(g.kind); }

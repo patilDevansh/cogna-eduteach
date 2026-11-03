@@ -4,6 +4,7 @@ import { algebraicallyEqual, classifyFactorisation, factorisationDefect, normali
 import { skillName, type SlotSpec } from "./lotus-factorisation-catalogue";
 import { checkWrittenItem, type WriteRequest } from "./lotus-question-factory";
 import { buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
+import { themedGamesEnabled } from "./lotus-game-core";
 
 /**
  * Game questions for the Lotus diagnostic, built and checked by code.
@@ -128,7 +129,7 @@ function impostor(spec: SlotSpec, req: WriteRequest, rand: () => number): Item |
   if (!equalForms.every((f) => algebraicallyEqual(f, expr)) || algebraicallyEqual(impostorForm, expr)) return null;
   const options = shuffle(rand, [impostorForm, ...equalForms]).map(pretty);
   return {
-    ...base(spec, req, `Three of these are ${pretty(expr)} in disguise. Which one is the impostor?`),
+    ...base(spec, req, `Three of these are ${pretty(expr)} in disguise. Which one is the odd one out?`),
     type: "MULTIPLE_CHOICE", asksForWorking: false, options, presentation: "IMPOSTOR",
     answerKey: {
       kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(impostorForm),
@@ -157,7 +158,7 @@ function detective(spec: SlotSpec, req: WriteRequest, rand: () => number): Item 
   if (!algebraicallyEqual(lines[1]!, lines[0]!) || algebraicallyEqual(lines[2]!, lines[1]!) || !algebraicallyEqual(lines[3]!, lines[2]!)) return null;
   const options = ["Line 1", "Line 2", "Line 3", "Nothing is wrong"];
   return {
-    ...base(spec, req, "Detective: this working takes out a negative factor. Which line is the first one that goes wrong?"),
+    ...base(spec, req, "This working takes out a negative factor. Which line is the first one that goes wrong?"),
     type: "MULTIPLE_CHOICE", asksForWorking: false, options, presentation: "DETECTIVE", lines: lines.map(pretty),
     answerKey: {
       kind: "MULTIPLE_CHOICE", canonicalAnswer: "Line 2",
@@ -192,7 +193,7 @@ function fishing(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | 
   const options = fish.map((f) => pretty(f.text));
   const key = finished.map(pretty).sort().join(LOTUS_SELECT_SEPARATOR);
   return {
-    ...base(spec, req, "Fishing: net every fish that is fully factorised. Leave the others swimming."),
+    ...base(spec, req, "Pick every expression that is fully factorised. Leave the others."),
     type: "MULTIPLE_CHOICE", asksForWorking: false, options, presentation: "FISHING",
     answerKey: {
       kind: "MULTIPLE_CHOICE", canonicalAnswer: key,
@@ -240,6 +241,88 @@ function garden(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | n
   return { ...item, interaction };
 }
 
+/** Division probe: divides every term by the common factor vs dividing only the first term. (FAC_DIVIDE_TERMS) */
+function divisionProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | null {
+  const g = pick(rand, [2, 3, 4, 5]);
+  const a = pick(rand, [1, 2, 3]);
+  const b = pick(rand, [1, 2, 3, 5]);
+  if (gcd(a, b) !== 1) return null;
+  const expr = `${g * a === 1 ? "" : g * a}x + ${g * b}`;
+  const correct = `${g}(${a === 1 ? "" : a}x + ${b})`;
+  const wrongDivFirstOnly = `${g}(${a === 1 ? "" : a}x + ${g * b})`;
+  const wrongCommonNotHighest = g >= 4 && g % 2 === 0 ? `2(${a * (g / 2) === 1 ? "" : a * (g / 2)}x + ${b * (g / 2)})` : `${g}(${a === 1 ? "" : a}x + ${b + 1})`;
+  const options = shuffle(rand, [
+    { text: pretty(correct) },
+    { text: pretty(wrongDivFirstOnly), mistake: "DIVIDED_FIRST_TERM_ONLY" },
+    { text: pretty(wrongCommonNotHighest), mistake: "COMMON_NOT_HIGHEST" },
+    { text: pretty(`${g}(${a === 1 ? "" : a}x)`), mistake: "DIVIDED_FIRST_TERM_ONLY" },
+  ]);
+  if (new Set(options.map((o) => o.text)).size !== 4) return null;
+  return {
+    ...base(spec, req, `Factorise completely: divide every term by the common factor in ${pretty(expr)}.`),
+    type: "MULTIPLE_CHOICE", asksForWorking: false, options: options.map((o) => o.text), presentation: "WORKSHOP",
+    answerKey: {
+      kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(correct),
+      workedSolution: [`The common factor is ${g}`, `Divide both terms by ${g}: ${g * a}x/${g} = ${a === 1 ? "" : a}x, and ${g * b}/${g} = ${b}`, pretty(correct)],
+      diagnostics: diagnostics(spec, "CHOICE", 3, options.filter((o) => o.mistake).map((o) => ({ answer: o.text, mistake: o.mistake! }))),
+    },
+  };
+}
+
+/** Difference of squares probe: distinguishes (a+b)(a-b) from (a-b)² identity confusion. (FAC_DIFF_SQUARES) */
+function identityProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | null {
+  const k = pick(rand, [2, 3, 4, 5, 6, 7, 8, 9]);
+  const expr = `x^2 - ${k * k}`;
+  const correct = `(${lin(-k)})(${lin(k)})`;
+  const wrongSquareMinus = `(${lin(-k)})^2`;
+  const wrongSquarePlus = `(${lin(k)})^2`;
+  const wrongDroppedSquare = `(${lin(-k)})`;
+  const options = shuffle(rand, [
+    { text: pretty(correct) },
+    { text: pretty(wrongSquareMinus), mistake: "WROTE_PERFECT_SQUARE" },
+    { text: pretty(wrongSquarePlus), mistake: "WROTE_PERFECT_SQUARE" },
+    { text: pretty(wrongDroppedSquare), mistake: "DROPPED_SQUARE" },
+  ]);
+  if (new Set(options.map((o) => o.text)).size !== 4) return null;
+  return {
+    ...base(spec, req, `Factorise using identity: which form correctly factorises ${pretty(expr)}?`),
+    type: "MULTIPLE_CHOICE", asksForWorking: false, options: options.map((o) => o.text), presentation: "IMPOSTOR",
+    answerKey: {
+      kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(correct),
+      workedSolution: [`This matches a² - b² = (a - b)(a + b) with a = x and b = ${k}`, pretty(correct)],
+      diagnostics: diagnostics(spec, "CHOICE", 2, options.filter((o) => o.mistake).map((o) => ({ answer: o.text, mistake: o.mistake! }))),
+    },
+  };
+}
+
+/** Cancellation probe: cancels factors, never additive terms. (FAC_CANCEL_COMMON_FACTOR) */
+function cancellationProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): Item | null {
+  const g = pick(rand, [2, 3, 4, 5]);
+  const a = pick(rand, [2, 3]);
+  const b = pick(rand, [1, 5, 7]);
+  const num = `${g * a}x + ${g * b}`;
+  const correct = `${a}x + ${b}`;
+  const wrongCancelOne = `${a}x + ${g * b}`;
+  const wrongCancelSecond = `${g * a}x + ${b}`;
+  const wrongSubtract = `${a}x + ${g * b - g}`;
+  const options = shuffle(rand, [
+    { text: pretty(correct) },
+    { text: pretty(wrongCancelOne), mistake: "DIVIDED_ONE_TERM_ONLY" },
+    { text: pretty(wrongCancelSecond), mistake: "TERMS_VS_FACTORS" },
+    { text: pretty(wrongSubtract), mistake: "DIVIDED_ONE_TERM_ONLY" },
+  ]);
+  if (new Set(options.map((o) => o.text)).size !== 4) return null;
+  return {
+    ...base(spec, req, `Simplify (${pretty(num)}) / ${g}. Which working is mathematically valid?`),
+    type: "MULTIPLE_CHOICE", asksForWorking: false, options: options.map((o) => o.text), presentation: "DETECTIVE",
+    answerKey: {
+      kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(correct),
+      workedSolution: [`Factor the numerator first: ${g}(${a}x + ${b}) / ${g}`, `Cancel the common factor ${g}: ${pretty(correct)}`],
+      diagnostics: diagnostics(spec, "CHOICE", 2, options.filter((o) => o.mistake).map((o) => ({ answer: o.text, mistake: o.mistake! }))),
+    },
+  };
+}
+
 type Builder = (spec: SlotSpec, req: WriteRequest, rand: () => number) => Item | null;
 
 /** Which slot gets which game, and for which requests. Everything else stays with the AI writer. */
@@ -252,12 +335,19 @@ const PROBES: Array<{ skillId: string; build: Builder; when: (req: WriteRequest)
   { skillId: "FAC_FACTOR_FULLY", build: fishing, when: (req) => req.purpose === "CHECK" && (!req.targetMistake || req.targetMistake === "INCOMPLETE_FACTORISATION") },
   // An easy trinomial, or one rewritten to avoid a sign gap: positive numbers only.
   { skillId: "FAC_MONIC_TRINOMIAL", build: garden, when: (req) => (req.purpose === "BASE" && req.spec.level === "easy") || (req.purpose === "AVOID" && /SIGN/.test(req.avoidSkill ?? "")) },
+  // Discriminating probes for CUR-003:
+  { skillId: "FAC_DIVIDE_TERMS", build: divisionProbe, when: (req) => !req.targetMistake || req.targetMistake === "DIVIDED_FIRST_TERM_ONLY" || req.targetMistake === "COMMON_NOT_HIGHEST" },
+  { skillId: "FAC_DIFF_SQUARES", build: identityProbe, when: (req) => !req.targetMistake || req.targetMistake === "WROTE_PERFECT_SQUARE" || req.targetMistake === "DROPPED_SQUARE" },
+  { skillId: "FAC_CANCEL_COMMON_FACTOR", build: cancellationProbe, when: () => true },
+  { skillId: "FAC_MEANING", build: cancellationProbe, when: (req) => req.spec.mistakes.includes("TERMS_VS_FACTORS") || req.spec.mistakes.includes("DIVIDED_ONE_TERM_ONLY") },
 ];
 
 /** A checked game question for this request, or null to let the AI writer handle it. */
 export function codeProbeFor(req: WriteRequest, env: NodeJS.ProcessEnv = process.env): Item | null {
   if (!gameFormatsEnabled(env) || req.requiredExpression) return null;
-  const probe = PROBES.find((p) => p.skillId === req.spec.skillId && p.when(req));
+  // With the new games on, the fireflies and the garden are retired: the plan's request goes to a new game or the writer.
+  const retired = themedGamesEnabled(env) ? [firefly, garden] : [];
+  const probe = PROBES.find((p) => p.skillId === req.spec.skillId && p.when(req) && !retired.includes(p.build));
   if (!probe) return null;
   const avoid = new Set(req.avoid.map((a) => normalizeMathText(a).toLowerCase()));
   for (let attempt = 0; attempt < 6; attempt++) {

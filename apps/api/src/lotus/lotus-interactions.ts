@@ -1,6 +1,6 @@
-import type { LotusGameConfig, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
+import type { LotusGameConfig, LotusGameKind, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
-import { chooseLotusGame, chooseLotusGameOverPuzzle, isTypedGame, LotusGameError, readLotusGame } from "./lotus-games";
+import { chooseLotusGame, isTypedGame, LotusGameError, readLotusGame, themedGamesEnabled } from "./lotus-games";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
 
@@ -46,16 +46,19 @@ function withGame(question: LotusQuestion, game: LotusGameConfig): LotusQuestion
 }
 
 /** Attaches a tile game to the question when one applies. Mutates and returns the question. */
-export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
+export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
   // A game probe (e.g. garden fences) already carries its own checked tiles.
   // A game probe (garden fences, a rapid set) already carries its own checked game.
   if (question.interaction || question.game) {
     question.asksForWorking = false;
     return question;
   }
+  // The new games are how Lotus asks. Whatever none of them fits stays typed; the older games only return with the switch off.
+  if (themedGamesEnabled(env)) {
+    const game = chooseLotusGame(question, context, env);
+    return game ? withGame(question, game) : question;
+  }
   const puzzle = gameFormatsEnabled(env) && !context.repurposed ? buildLotusPuzzle(question) : undefined;
-  const gameOverPuzzle = puzzle ? chooseLotusGameOverPuzzle(question, env) : undefined;
-  if (gameOverPuzzle) return withGame(question, gameOverPuzzle);
   if (puzzle) {
     question.interaction = puzzle.interaction;
     question.asksForWorking = false;
@@ -70,9 +73,6 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
     }
     return question;
   }
-  // A themed game takes the place of a tile game on some items, and dresses some typed ones.
-  const game = chooseLotusGame(question, context, env);
-  if (game) return withGame(question, game);
   const interaction = chooseLotusInteraction(question, context, env);
   if (interaction) {
     question.interaction = interaction;

@@ -8,9 +8,9 @@ import { findSkill } from "./lotus-factorisation-catalogue";
 export class LotusGameError extends Error {}
 
 /**
- * The single switch for themed games. Off only when explicitly turned off (or
- * when all game formats are off). "all" skips the half-of-items rule so a test
- * run can reach a game quickly; it never changes how a game is read.
+ * The single switch for themed games. On, they are how Lotus asks: the older
+ * tile games and puzzles only come back when this is explicitly turned off (or
+ * when all game formats are off). It never changes how a game is read.
  */
 export function themedGamesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return gameFormatsEnabled(env) && (env.COGNA_THEMED_GAMES ?? "on").toLowerCase() !== "off";

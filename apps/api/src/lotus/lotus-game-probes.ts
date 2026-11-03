@@ -173,19 +173,16 @@ const GAME_PROBES: GameProbe[] = [
 
 /**
  * A checked game question for this request, or null to let the question the
- * plan would have asked (a firefly, an impostor, the AI writer) take it. About
- * half of the requests a game fits go to a game, and which game depends only on
- * the request, never on the student's theme.
+ * plan would have asked (an impostor, the AI writer) take it. Every request a
+ * game fits goes to a game, and which game depends only on the request, never
+ * on the student's theme.
  */
 export function codeGameProbeFor(req: WriteRequest, env: NodeJS.ProcessEnv = process.env): Item | null {
   if (!themedGamesEnabled(env) || req.requiredExpression) return null;
   const fits = GAME_PROBES.filter((p) => p.skillId === req.spec.skillId && p.when(req));
   if (!fits.length) return null;
   const h = hashOf(`${req.variation ?? ""}|${req.spec.slot}|${req.purpose}|game-probe`);
-  const everything = (env.COGNA_THEMED_GAMES ?? "").toLowerCase() === "all";
-  const index = h % (everything ? fits.length : fits.length + 1);
-  const probe = fits[index];
-  if (!probe) return null;
+  const probe = fits[h % fits.length]!;
   const avoid = new Set(req.avoid.map((a) => normalizeMathText(a).toLowerCase()));
   for (let attempt = 0; attempt < 8; attempt++) {
     const rand = seededRandom(`${req.variation ?? ""}|${req.spec.slot}|${req.purpose}|${probe.skillId}|${attempt}`);

@@ -31,7 +31,7 @@ import { gameFormatsEnabled, tidyAlgebra } from "../interaction-formats/tile-bui
 import { algebraicallyEqual, classifyFactorisation, isReadable, normalizeMathText } from "./lotus-algebra";
 import { findSkill } from "./lotus-factorisation-catalogue";
 import { buildOrderSteps, isMoreGameKind, readMoreGame } from "./lotus-games-more";
-import { clampMs, equalSafe, hashOf, isInt, LotusGameError, ownMistake, shuffled, themedGamesEnabled, type Read } from "./lotus-game-core";
+import { clampMs, equalSafe, hashOf, isInt, LotusGameError, mistakeWith, ownMistake, shuffled, themedGamesEnabled, type Read } from "./lotus-game-core";
 
 export { LotusGameError, themedGamesEnabled };
 
@@ -45,8 +45,8 @@ export { LotusGameError, themedGamesEnabled };
  * (theme) the student played in: the theme is not even an input here.
  *
  * Most games apply to a monic trinomial whose answer is two brackets,
- * (x + p)(x + q). "Edit history" is typed, so it fits any factorising question.
- * Anything else stays a tile game or typed.
+ * (x + p)(x + q). "Edit history" and "Read back" are typed, and sharing chips
+ * works over any item's predicted mistakes, so they fit any factorising question.
  */
 
 interface Pair { p: number; q: number }
@@ -236,40 +236,57 @@ export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): Lo
 }
 
 /**
- * Which game, if any, a question is played as. On the tile-game turns (the
- * opening, every repurposed turn, every second coverage turn) about half of the
- * two-bracket items become a game. On the typed turns about half of the items
- * become "Edit history", which is still typed and still asks for working: it
- * only adds the deleted drafts. The choice depends only on the question, so it
- * never depends on the student's theme.
+ * Which game a factorising question is played as. A two-bracket item takes one
+ * of the two-bracket games. Any other factorising item shares chips across its
+ * options when it has enough of them, and otherwise is typed in a game that
+ * still keeps the drafts. The rotation puts chips on the opening turn, so the test
+ * starts with something to do rather than a box to type in. The choice never
+ * depends on the student's theme.
  */
-export function chooseLotusGame(question: LotusQuestion, context: { turn: number; repurposed: boolean }, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
+export function chooseLotusGame(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind }, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
   if (!themedGamesEnabled(env)) return undefined;
   const h = hashOf(question.id);
-  if (h % 2 === 0 && (env.COGNA_THEMED_GAMES ?? "").toLowerCase() !== "all") return undefined;
-  if (!(context.turn === 1 || context.repurposed || context.turn % 2 === 0)) return buildLotusGame(question, TYPED_TURN_KINDS[(h >>> 3) % TYPED_TURN_KINDS.length]!);
-  return twoBracketGame(question, h);
+  const twoBracket = twoBracketGame(question, h, context.previousKind);
+  if (twoBracket) return twoBracket;
+  const chips = buildOptionChips(question);
+  const typed = (kind: LotusGameKind) => buildLotusGame(question, kind);
+  // Chips every other turn, the typed games taking turns between, so the same format doesn't come round twice running.
+  const rotation: Array<() => LotusGameConfig | undefined> = [() => chips, () => typed("READBACK"), () => chips, () => typed("EDIT_HISTORY")];
+  const offered = rotation.map((_, i) => rotation[(context.turn - 1 + i) % rotation.length]!()).filter((game): game is LotusGameConfig => !!game);
+  return offered.find((game) => game.kind !== context.previousKind) ?? offered[0];
 }
 
-function twoBracketGame(question: LotusQuestion, h: number): LotusGameConfig | undefined {
+/** For 2(3x + 8): the look-alikes from dividing only the first term, and from flipping the inside sign. */
+function nearMisses(answer: string): string[] {
+  const m = /^(\d+)\((\d*)([a-z])([+-])(\d+)\)$/.exec(normalizeMathText(answer).toLowerCase());
+  if (!m) return [];
+  const [, factor, a, letter, sign, b] = m;
+  return [`${factor}(${a}${letter} ${sign} ${Number(factor) * Number(b)})`, `${factor}(${a}${letter} ${sign === "+" ? "-" : "+"} ${b})`];
+}
+
+/** Chips over the right answer and the mistakes the item predicts, for an item that is not two monic brackets. */
+function buildOptionChips(question: LotusQuestion): SplitConfidenceGame | undefined {
+  if (!isCheckedFactorising(question) || targetOf(question)) return undefined;
+  const d = question.answerKey.diagnostics!;
+  const chosen = [question.answerKey.canonicalAnswer];
+  for (const answer of [...d.predictedMistakes.map((m) => m.answer), ...nearMisses(question.answerKey.canonicalAnswer)]) {
+    if (chosen.length >= 4) break;
+    // A bare number can't pass for a factorisation, so it can't sit beside one.
+    if (/[a-z]/i.test(answer) && isReadable(answer) && !chosen.some((c) => equalSafe(c, answer) || normalizeMathText(c) === normalizeMathText(answer))) chosen.push(answer);
+  }
+  if (chosen.length < 3) return undefined;
+  return { version: 1, kind: "SPLIT_CONFIDENCE", expression: tidyAlgebra(d.expression!), options: shuffled(`${question.id}|CHIPS`, chosen.map(tidyAlgebra)) };
+}
+
+function twoBracketGame(question: LotusQuestion, h: number, previousKind?: LotusGameKind): LotusGameConfig | undefined {
   const start = (h >>> 1) % TILE_TURN_KINDS.length;
+  let repeat: LotusGameConfig | undefined;
   for (let i = 0; i < TILE_TURN_KINDS.length; i++) {
     const game = buildLotusGame(question, TILE_TURN_KINDS[(start + i) % TILE_TURN_KINDS.length]!);
-    if (game) return game;
+    if (game && game.kind !== previousKind) return game;
+    repeat ??= game;
   }
-  return undefined;
-}
-
-/**
- * The crossword and cut-and-build take the two-bracket questions on any turn,
- * which would leave these games none. About half of those questions are played
- * as a themed game instead. Null keeps the puzzle.
- */
-export function chooseLotusGameOverPuzzle(question: LotusQuestion, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
-  if (!themedGamesEnabled(env)) return undefined;
-  const h = hashOf(question.id);
-  if (h % 2 === 0 && (env.COGNA_THEMED_GAMES ?? "").toLowerCase() !== "all") return undefined;
-  return twoBracketGame(question, h);
+  return repeat;
 }
 
 // ---------- reading ----------
@@ -468,18 +485,24 @@ const TORN_OVER: Record<string, string> = {
   "prod|swap": "the product–sum rule itself",
 };
 
-function readSplit(question: LotusQuestion, t: Target, game: SplitConfidenceGame, raw: SplitConfidenceResponse): Read {
+function readSplit(question: LotusQuestion, t: Target | null, game: SplitConfidenceGame, raw: SplitConfidenceResponse): Read {
   const counts = raw.counts;
   if (!Array.isArray(counts) || counts.length !== game.options.length || counts.some((n) => !isInt(n) || n < 0) || counts.reduce((a, b) => a + b, 0) !== LOTUS_SPLIT_TOKENS) {
     throw new LotusGameError(`Place all ${LOTUS_SPLIT_TOKENS} tokens before submitting.`);
   }
-  const kinds = game.options.map((o) => { const pair = parseMonicPair(o); return pair ? classifyPair(pair, t) : "other" as PairKind; });
+  // An item that isn't two brackets has no pair to classify: its options are the right answer and the mistakes it predicts.
+  const predicted = question.answerKey.diagnostics!.predictedMistakes;
+  const kinds = game.options.map((o): PairKind => {
+    if (!t) return equalSafe(o, question.answerKey.canonicalAnswer) ? "right" : "other";
+    const pair = parseMonicPair(o);
+    return pair ? classifyPair(pair, t) : "other";
+  });
   const order = counts.map((n, i) => ({ n, i })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n || a.i - b.i);
   const top = order[0]!;
   const shape = order.map((x) => x.n).join("–");
   const tied = order.filter((x) => x.n === top.n);
   const signals = [`shape_${order.map((x) => x.n).join("_")}`];
-  const nameOf = (i: number) => KIND_NAMES[kinds[i]!];
+  const nameOf = (i: number) => (t || kinds[i] === "right" ? KIND_NAMES[kinds[i]!] : tidyAlgebra(game.options[i]!));
   let summary: string;
   let certainty: number;
   if (top.n === LOTUS_SPLIT_TOKENS) {
@@ -514,10 +537,13 @@ function readSplit(question: LotusQuestion, t: Target, game: SplitConfidenceGame
   const markedKind = kinds[marked.i]!;
   // One token more on an answer than on the others is a lean, not a belief: it shows neither that they know it nor a mistake.
   const leaning = signals.includes("leans");
+  const wrongNote = signals.includes("torn") ? "Was torn between two answers, and one of them was wrong." : "Put most of their confidence on a wrong answer.";
   const diagnosis: LotusGameDiagnosis = markedKind === "right"
     ? (leaning ? { effect: "NO_EVIDENCE", note: "Leaned towards the right answer, but was unsure." } : { effect: "NEEDS_ANOTHER", note: "Put most of their confidence on the right answer." })
     : leaning ? { effect: "DOESNT_KNOW", note: "Leaned towards a wrong answer, but was unsure." }
-    : mistakeOf(question, markedKind, signals.includes("torn") ? "Was torn between two answers, and one of them was wrong." : "Put most of their confidence on a wrong answer.");
+    : t
+      ? mistakeOf(question, markedKind, wrongNote)
+      : mistakeWith(question, predicted.find((m) => equalSafe(m.answer, game.options[marked.i]!))?.mistake, wrongNote);
   return { answer: game.options[marked.i]!, confidence: top.n === LOTUS_SPLIT_TOKENS ? 90 : top.n === 3 ? 60 : 25, game: clean, reading: { ...reading, diagnosis } };
 }
 
@@ -756,6 +782,7 @@ export function readLotusGame(question: LotusQuestion, response: LotusGameRespon
     return game.kind === "EDIT_HISTORY" ? readEditHistory(question, response as EditHistoryResponse) : readReadback(question, response as ReadbackResponse);
   }
   const t = targetOf(question);
+  if (!t && game.kind === "SPLIT_CONFIDENCE" && isCheckedFactorising(question)) return readSplit(question, null, game, response as SplitConfidenceResponse);
   if (!t) throw new LotusGameError("That doesn't match the game on screen.");
   switch (game.kind) {
     case "TWO_NUMBERS": return readTwoNumbers(question, t, game, response as TwoNumbersResponse);

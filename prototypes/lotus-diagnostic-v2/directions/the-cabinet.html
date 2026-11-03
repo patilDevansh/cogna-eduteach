@@ -1,0 +1,145 @@
+<title>The Cabinet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<style>
+/* Layout: a single mechanical cabinet under lamp light. Mechanism on top, a gear train at the side, a row of drawers below (the progress). Single look: walnut and brass. */
+:root {
+  color-scheme: dark;
+  --wood: #2e1b0f; --wood2: #3d2716; --lacquer: #1b120c; --brass: #c9a24a; --brass2: #8a6420; --brasshi: #f4dc92; --glass: rgba(255, 240, 210, .08);
+  --ink: #f3e6cc; --soft: #bfa983; --ember: #ffb35c;
+  --engr: "Cinzel", "Trajan Pro", Georgia, serif; --body: "Spectral", Georgia, serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 17px/1.55 var(--body);
+  background: radial-gradient(ellipse 70% 55% at 50% 12%, rgba(255, 190, 110, .22), transparent 70%), repeating-linear-gradient(91deg, #3a2414 0 7px, #33200f 7px 10px, #3e2817 10px 18px), var(--wood); }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 26px 44px; display: grid; gap: 18px; }
+header { text-align: center; display: grid; gap: 4px; }
+h1 { margin: 0; font: 700 clamp(1.8rem, 5vw, 2.8rem)/1 var(--engr); letter-spacing: .12em; color: var(--brasshi); text-shadow: 0 1px 0 #000, 0 0 30px rgba(255, 200, 110, .25); }
+header p { margin: 0; color: var(--soft); font-style: italic; }
+.cab { position: relative; border-radius: 14px; padding: 22px; background: linear-gradient(180deg, #24170e, var(--lacquer)); box-shadow: inset 0 0 0 3px var(--brass2), inset 0 0 0 6px #120b06, inset 0 0 0 8px var(--brass), 0 30px 60px rgba(0, 0, 0, .6); display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 18px; }
+@media (max-width: 680px) { .cab { grid-template-columns: 1fr; } .gears { display: none; } }
+.plaque { justify-self: center; padding: 8px 26px; border-radius: 6px; background: linear-gradient(180deg, var(--brasshi), var(--brass) 45%, var(--brass2)); color: #2a1906; font: 700 1.3rem var(--mono); box-shadow: 0 3px 8px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .6); }
+.plaque small { display: block; font: 500 .62rem var(--engr); letter-spacing: .2em; text-align: center; }
+.mech { display: grid; gap: 16px; justify-items: center; }
+.gaugerow { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.gauge { width: 150px; display: grid; justify-items: center; gap: 2px; }
+.gauge svg { width: 150px; height: 104px; }
+.gauge span { font: 500 .66rem var(--engr); letter-spacing: .2em; color: var(--soft); }
+.gauge b { font: 600 1.2rem var(--mono); color: var(--ink); }
+.dialrow { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; justify-content: center; }
+.dialwrap { display: grid; justify-items: center; gap: 8px; }
+.dial { position: relative; width: 150px; height: 150px; }
+.dial .face { position: absolute; inset: 0; cursor: grab; touch-action: none; }
+.dial .face:active { cursor: grabbing; }
+.dial .pointer { position: absolute; top: -12px; left: 50%; translate: -50% 0; width: 0; height: 0; border: 9px solid transparent; border-top: 14px solid var(--ember); filter: drop-shadow(0 0 6px var(--ember)); }
+.dialwrap .read { font: 600 1.4rem var(--mono); }
+.nudge { display: flex; gap: 6px; }
+.nudge button { width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--brass2); background: rgba(0, 0, 0, .3); color: var(--brasshi); cursor: pointer; }
+.lever { display: grid; justify-items: center; gap: 6px; }
+.lever button { border: 0; background: none; padding: 0; cursor: pointer; }
+.lever svg { width: 70px; height: 130px; }
+.lever span { font: 500 .66rem var(--engr); letter-spacing: .2em; color: var(--soft); }
+.gears svg { width: 110px; height: 100%; min-height: 380px; }
+.drawers { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; perspective: 600px; }
+@media (max-width: 680px) { .drawers { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.drawer { position: relative; height: 92px; border-radius: 6px; background: linear-gradient(180deg, #2a1a0e, #1d120a); box-shadow: inset 0 0 0 2px var(--brass2); overflow: hidden; }
+.drawer .front { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(180deg, #3b2616, #26170c); box-shadow: inset 0 0 0 2px var(--brass2); z-index: 2; }
+.drawer .front i { width: 34px; height: 9px; border-radius: 9px; background: linear-gradient(var(--brasshi), var(--brass2)); }
+.drawer .gem { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; translate: -50% -50%; transform: rotate(45deg); border-radius: 4px; }
+.drawer .lbl { position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font: 500 .58rem var(--engr); letter-spacing: .14em; color: var(--soft); }
+.card { justify-self: center; max-width: 620px; background: #f6ecd6; color: #2a1906; padding: 14px 18px; border-radius: 3px; box-shadow: 0 12px 26px rgba(0, 0, 0, .5); font-style: italic; transform: rotate(-.6deg); }
+.card b { font-style: normal; font-family: var(--engr); letter-spacing: .1em; font-size: .78rem; display: block; color: #7a4a10; }
+.foot { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn { border: 1px solid var(--brass); background: rgba(0, 0, 0, .3); color: var(--brasshi); padding: 9px 16px; border-radius: 6px; font: 500 .78rem var(--engr); letter-spacing: .16em; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+</style>
+
+<div class="wrap">
+  <header><h1>The Cabinet</h1><p>Direction B. Every answer turns the mechanism. The cabinet opens drawer by drawer, whatever the answer.</p></header>
+  <div class="cab">
+    <div class="gears"><svg viewBox="0 0 110 380" id="gears" aria-hidden="true"></svg></div>
+    <div class="mech">
+      <div class="plaque"><small>FACTORISE</small>x² + 5x + 6</div>
+      <div class="gaugerow">
+        <div class="gauge"><svg viewBox="0 0 150 104" id="gP"></svg><span>PRODUCT · SEEKS 6</span><b id="vP">1</b></div>
+        <div class="gauge"><svg viewBox="0 0 150 104" id="gS"></svg><span>SUM · SEEKS 5</span><b id="vS">2</b></div>
+      </div>
+      <div class="dialrow">
+        <div class="dialwrap"><div class="dial"><span class="pointer"></span><svg class="face" viewBox="0 0 150 150" id="d1" aria-label="First number dial"></svg></div><div class="nudge"><button type="button" data-d="1" data-s="-1" aria-label="previous">‹</button><span class="read" id="r1">1</span><button type="button" data-d="1" data-s="1" aria-label="next">›</button></div></div>
+        <div class="dialwrap"><div class="dial"><span class="pointer"></span><svg class="face" viewBox="0 0 150 150" id="d2" aria-label="Second number dial"></svg></div><div class="nudge"><button type="button" data-d="2" data-s="-1" aria-label="previous">‹</button><span class="read" id="r2">1</span><button type="button" data-d="2" data-s="1" aria-label="next">›</button></div></div>
+        <div class="lever"><button type="button" id="lever" aria-label="Pull the lever to record your answer"><svg viewBox="0 0 70 130"><rect x="28" y="70" width="14" height="56" rx="4" fill="#5a3a1e"/><g id="arm" style="transform-origin:35px 100px"><rect x="31" y="20" width="8" height="82" rx="4" fill="url(#brassg)"/><circle cx="35" cy="18" r="13" fill="#7a1a12" stroke="#c9a24a" stroke-width="2"/></g><circle cx="35" cy="100" r="9" fill="#c9a24a"/><defs><linearGradient id="brassg" x1="0" x2="1"><stop offset="0" stop-color="#8a6420"/><stop offset=".5" stop-color="#f4dc92"/><stop offset="1" stop-color="#8a6420"/></linearGradient></defs></svg></button><span>PULL TO RECORD</span></div>
+      </div>
+    </div>
+    <div class="drawers" id="drawers"></div>
+  </div>
+  <div class="card" id="card"><b>LOTUS NOTICED</b>Turn the dials. The needles show what your two numbers multiply and add to. Pull the lever when you're ready. Any answer turns the gears.</div>
+  <div class="foot"><button class="btn" id="demo" type="button">Open 4 more drawers (sample answers)</button></div>
+</div>
+
+<script>
+gsap.registerPlugin(Draggable);
+const $ = (s) => document.querySelector(s), RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const GEM = { PAIR: "#ffb35c", SIGNS: "#e0533f", SQUARES: "#c77dff", CHECK: "#4fd1a5", GROUP: "#6aa8ff" };
+// dial faces: numbers 1–12 engraved around a brass disc
+function face(svg) {
+  let s = `<defs><radialGradient id="rg${svg.id}" cx="40%" cy="35%"><stop offset="0" stop-color="#f4dc92"/><stop offset=".55" stop-color="#c9a24a"/><stop offset="1" stop-color="#6b4a14"/></radialGradient></defs><circle cx="75" cy="75" r="72" fill="url(#rg${svg.id})" stroke="#4a3008" stroke-width="2"/><circle cx="75" cy="75" r="50" fill="none" stroke="#6b4a14" stroke-width="1"/>`;
+  for (let k = 1; k <= 12; k++) { const a = (k - 1) * 30 * Math.PI / 180; s += `<text x="${75 + Math.sin(a) * 60}" y="${75 - Math.cos(a) * 60 + 5}" text-anchor="middle" font-family="IBM Plex Mono" font-weight="600" font-size="13" fill="#2a1906">${k}</text><line x1="${75 + Math.sin(a + .26) * 66}" y1="${75 - Math.cos(a + .26) * 66}" x2="${75 + Math.sin(a + .26) * 71}" y2="${75 - Math.cos(a + .26) * 71}" stroke="#4a3008"/>`; }
+  s += `<circle cx="75" cy="75" r="22" fill="#2a1906"/><circle cx="75" cy="75" r="16" fill="url(#rg${svg.id})"/>`;
+  svg.innerHTML = s;
+}
+face($("#d1")); face($("#d2"));
+function gauge(svg, target) {
+  let s = `<path d="M15 95 A60 60 0 0 1 135 95" fill="${"rgba(255,240,210,.06)"}" stroke="#8a6420" stroke-width="3"/>`;
+  for (let v = 0; v <= 24; v += 2) { const a = (-120 + v * 10) * Math.PI / 180; s += `<line x1="${75 + Math.sin(a) * 50}" y1="${95 - Math.cos(a) * 50}" x2="${75 + Math.sin(a) * (v % 6 ? 55 : 58)}" y2="${95 - Math.cos(a) * (v % 6 ? 55 : 58)}" stroke="#bfa983" stroke-width="${v % 6 ? 1 : 2}"/>`; }
+  const ta = (-120 + target * 10) * Math.PI / 180;
+  s += `<line x1="${75 + Math.sin(ta) * 44}" y1="${95 - Math.cos(ta) * 44}" x2="${75 + Math.sin(ta) * 62}" y2="${95 - Math.cos(ta) * 62}" stroke="#ffb35c" stroke-width="3"/><line class="ndl" x1="75" y1="95" x2="75" y2="42" stroke="#f3e6cc" stroke-width="2.5" stroke-linecap="round"/><circle cx="75" cy="95" r="6" fill="#c9a24a"/>`;
+  svg.innerHTML = s;
+}
+gauge($("#gP"), 6); gauge($("#gS"), 5);
+const val = { 1: 1, 2: 1 }, tries = [];
+const setNeedle = (svg, v) => gsap.to($(`#${svg} .ndl`), { rotation: -120 + Math.min(24, v) * 10, svgOrigin: "75 95", duration: 1.1, ease: "elastic.out(1,.35)" });
+function update() {
+  const p = val[1] * val[2], s = val[1] + val[2];
+  $("#r1").textContent = val[1]; $("#r2").textContent = val[2]; $("#vP").textContent = p; $("#vS").textContent = s;
+  setNeedle("gP", p); setNeedle("gS", s); spinGears(.25);
+}
+const dials = [1, 2].map((n) => Draggable.create(`#d${n}`, { type: "rotation", liveSnap: (r) => Math.round(r / 30) * 30,
+  onDrag() { const k = (((Math.round(-this.rotation / 30)) % 12) + 12) % 12 + 1; if (k !== val[n]) { val[n] = k; update(); } } })[0]);
+document.querySelectorAll(".nudge button").forEach((b) => b.addEventListener("click", () => {
+  const n = +b.dataset.d; val[n] = ((val[n] - 1 + +b.dataset.s + 12) % 12) + 1;
+  gsap.to(`#d${n}`, { rotation: -(val[n] - 1) * 30, duration: .5, ease: "back.out(2)", onComplete: () => dials[n - 1].update() }); update();
+}));
+// gear train
+const gears = $("#gears");
+function gearPath(cx, cy, teeth, r1, r2) { let d = ""; for (let i = 0; i < teeth * 2; i++) { const a = (i / (teeth * 2)) * Math.PI * 2, r = i % 2 ? r1 : r2, a2 = ((i + 1) / (teeth * 2)) * Math.PI * 2; d += `${i ? "L" : "M"}${cx + Math.cos(a) * r} ${cy + Math.sin(a) * r} L${cx + Math.cos(a2) * r} ${cy + Math.sin(a2) * r} `; } return d + "Z"; }
+const G = [[55, 70, 12, 34, 40], [55, 160, 8, 22, 28], [55, 240, 14, 40, 46], [55, 335, 9, 24, 30]];
+gears.innerHTML = G.map(([x, y, t, a, b], i) => `<g class="gear" data-i="${i}"><path d="${gearPath(x, y, t, a, b)}" fill="${i % 2 ? "#8a6420" : "#c9a24a"}" stroke="#4a3008"/><circle cx="${x}" cy="${y}" r="${a * .45}" fill="#2a1906"/><circle cx="${x}" cy="${y}" r="5" fill="#f4dc92"/></g>`).join("");
+let turn = 0;
+function spinGears(amount) { turn += amount; document.querySelectorAll(".gear").forEach((g, i) => gsap.to(g, { rotation: (i % 2 ? -1 : 1) * turn * 360 / G[i][2] * 4, svgOrigin: `${G[i][0]} ${G[i][1]}`, duration: 1.2, ease: "power2.out" })); }
+// drawers = progress
+const drawers = $("#drawers"), opened = [];
+drawers.innerHTML = Array.from({ length: 6 }, (_, i) => `<div class="drawer" data-i="${i}"><span class="gem"></span><span class="lbl">DRAWER ${["I", "II", "III", "IV", "V", "VI"][i]}</span><div class="front"><i></i></div></div>`).join("");
+function openDrawer(skill, cert) {
+  const i = opened.length; if (i >= 6) return; opened.push({ skill, cert });
+  const d = drawers.children[i], gem = d.querySelector(".gem");
+  gem.style.background = cert >= .55 ? `linear-gradient(135deg, #fff8, ${GEM[skill]} 45%, #0006)` : "transparent";
+  gem.style.border = cert >= .55 ? "none" : `2px dashed ${GEM[skill]}`;
+  gem.style.boxShadow = cert >= .55 ? `0 0 18px ${GEM[skill]}` : "none";
+  spinGears(1.5);
+  gsap.to(d.querySelector(".front"), { y: "105%", duration: RM ? 0 : .9, ease: "power3.inOut", delay: RM ? 0 : .3 });
+  if (!RM) gsap.from(gem, { scale: 0, duration: .6, delay: .9, ease: "back.out(3)" });
+}
+$("#lever").addEventListener("click", () => {
+  const p = val[1] * val[2], s = val[1] + val[2]; tries.push([val[1], val[2]]);
+  if (!RM) gsap.timeline().to("#arm", { rotation: 70, duration: .35, ease: "power2.in" }).to("#arm", { rotation: 0, duration: .9, ease: "elastic.out(1,.4)" });
+  const right = p === 6 && s === 5;
+  $("#card").innerHTML = `<b>LOTUS NOTICED</b>Recorded ${val[1]} and ${val[2]}: they multiply to ${p} and add to ${s}. ${right ? "Both needles on their marks." : p === 6 ? "Product right, sum off: a hint the sum isn't being checked." : s === 5 ? "Sum right, product off." : "Neither mark yet."} The drawer opens either way.`;
+  openDrawer("PAIR", right ? .9 : .5);
+});
+$("#demo").addEventListener("click", () => { const k = Object.keys(GEM); for (let i = 0; i < 4; i++) setTimeout(() => openDrawer(k[Math.floor(Math.random() * 5)], Math.random() > .35 ? .9 : .3), i * 500); });
+update();
+</script>
