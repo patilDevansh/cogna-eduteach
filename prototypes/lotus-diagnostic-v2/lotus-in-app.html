@@ -1,0 +1,517 @@
+<title>Lotus Pond Preview</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a faithful mock of the Lotus student screen (Cogna "quiet classroom" tokens), with a demo rail above it. Single light look, as in the product. */
+:root {
+  color-scheme: light;
+  --bg: #f4f7f3; --ink: #16241d; --ink-soft: #51635a; --ink-faint: #7d8c84;
+  --accent: #0e6b54; --accent-deep: #08463a; --accent-wash: #e3efe9;
+  --surface: #ffffff; --line: #dce4dd; --line-strong: #b9c6bc;
+  --petal: #e07ba0; --petal-deep: #c2557e; --petal-wash: #fbe3ec;
+  --gold: #f2c14e; --chalk: #24372f; --wood: #8a6a46;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-math: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --radius: 10px; --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --shadow-soft: 0 1px 2px rgba(22,36,29,.05), 0 8px 28px rgba(22,36,29,.07);
+}
+* { box-sizing: border-box; }
+body { background: radial-gradient(circle at 80% 0%, rgba(14,107,84,.09), transparent 32rem), var(--bg); color: var(--ink); font: 16px/1.55 var(--font-body); }
+.shell { max-width: 900px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px; display: grid; gap: 16px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: -0.015em; line-height: 1.12; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* demo rail (not part of the product) */
+.rail { padding-block: 20px 4px; display: grid; gap: 10px; }
+.rail .kicker { font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--petal-deep); }
+.rail h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.rail p { color: var(--ink-soft); max-width: 70ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: .88rem; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip.play { background: var(--petal-wash); border-color: var(--petal); font-weight: 700; }
+.chip.play[aria-pressed="true"] { background: var(--petal-deep); border-color: var(--petal-deep); color: #fff; }
+.sep { width: 1px; height: 22px; background: var(--line-strong); }
+
+/* product frame */
+.device { margin: 0 auto; width: 100%; transition: max-width .5s var(--ease); }
+.device.phone { max-width: 400px; }
+.appbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+.brand small { font-family: var(--font-body); font-weight: 500; color: var(--ink-soft); font-size: .88rem; }
+.who { font-size: .85rem; color: var(--ink-soft); }
+.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-soft); overflow: hidden; }
+.cardTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 26px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #fbfdfb, var(--accent-wash)); }
+.qnum { color: var(--accent-deep); font-size: .9rem; font-weight: 700; }
+.gameName { font-size: .78rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); }
+.cardBody { padding: 22px 26px 26px; display: grid; gap: 20px; }
+.device.phone .cardBody { padding: 18px 16px 20px; }
+.device.phone .cardTop { padding: 14px 16px; }
+.toast { position: absolute; z-index: 3; top: 14px; right: 14px; padding: .4rem .75rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent-deep); font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; animation: toast 1.1s ease both; }
+@keyframes toast { 0% { opacity: 0; transform: translateY(-6px); } 20%, 75% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.arrive { animation: arrive .45s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes arrive { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+
+/* the pond */
+.pond { display: grid; gap: 6px; }
+.pond svg { width: 100%; height: auto; display: block; border-radius: 14px; }
+.pondCap { display: flex; justify-content: space-between; gap: 10px; font-size: .84rem; color: var(--ink-soft); flex-wrap: wrap; }
+.pondCap b { color: var(--accent-deep); }
+.drift { animation: drift 9s ease-in-out infinite alternate; }
+.drift.slow { animation-duration: 13s; animation-direction: alternate-reverse; }
+@keyframes drift { from { transform: translateX(-14px); } to { transform: translateX(14px); } }
+.mist { transition: opacity 1.6s ease; }
+.petalg { transition: transform 1.2s var(--ease); }
+.glow { transition: opacity 1.2s ease; }
+.ripple { transform-box: fill-box; transform-origin: center; animation: ripple 1.6s ease-out forwards; }
+@keyframes ripple { from { transform: scale(.3); opacity: .9; } to { transform: scale(3); opacity: 0; } }
+.shimmer { animation: shimmer 6s linear infinite; }
+@keyframes shimmer { from { transform: translateX(0); } to { transform: translateX(-60px); } }
+
+/* question text and shared controls */
+.prompt { font-family: var(--font-math); font-size: clamp(1.1rem, 1.8vw, 1.4rem); line-height: 1.55; letter-spacing: -0.01em; }
+.prompt .plain { font-family: var(--font-body); font-size: 1.05rem; display: block; color: var(--ink); letter-spacing: 0; }
+.big { font-family: var(--font-math); font-size: clamp(1.6rem, 5vw, 2.3rem); font-weight: 500; text-align: center; letter-spacing: -0.02em; }
+.read { justify-self: start; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: .85rem; color: var(--ink-soft); cursor: pointer; }
+.tier { display: grid; gap: 8px; animation: rise .35s ease-out both; }
+.tier > span { color: var(--ink-soft); font-size: .94rem; font-weight: 650; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.conf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.conf button { min-height: 46px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink-soft); font-weight: 650; cursor: pointer; }
+.conf button:hover { border-color: var(--accent); }
+.conf button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); color: var(--accent-deep); box-shadow: inset 0 0 0 1px var(--accent); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.submit { border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; padding: 13px 22px; cursor: pointer; transition: background .2s, opacity .2s; }
+.submit:hover:not(:disabled) { background: var(--accent-deep); }
+.submit:disabled { opacity: .4; cursor: default; }
+.dunno { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 12px; padding: 12px 16px; color: var(--ink-soft); font-weight: 600; cursor: pointer; }
+.pick { border: 2px solid var(--line); background: #fbfcfb; border-radius: 14px; padding: 12px 14px; cursor: pointer; text-align: left; transition: border-color .15s, background .15s, transform .2s var(--ease), box-shadow .2s; }
+.pick:hover { border-color: var(--line-strong); }
+.pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(14,107,84,.14); }
+.list { display: grid; gap: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+/* A — doors */
+.doors { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.device.phone .doors, .doors.narrow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.door { position: relative; min-height: 132px; display: grid; align-content: end; justify-items: center; padding: 14px 6px 16px; border-radius: 60px 60px 12px 12px; border: 2px solid var(--line-strong); background: linear-gradient(180deg, #f3f8f4, #e4efe8); cursor: pointer; font-family: var(--font-math); font-size: 1.02rem; font-weight: 500; transition: transform .25s var(--ease), border-color .2s, box-shadow .25s; }
+.door::before { content: ""; position: absolute; top: 18px; left: 50%; width: 46%; height: 42%; transform: translateX(-50%); border-radius: 40px 40px 6px 6px; border: 2px solid var(--line); }
+.door::after { content: ""; position: absolute; right: 18%; top: 58%; width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.door:hover { border-color: var(--accent); }
+.door[aria-pressed="true"] { border-color: var(--accent); background: linear-gradient(180deg, #fff9df, #e3efe9); transform: translateY(-4px); box-shadow: 0 10px 22px rgba(14,107,84,.16); }
+.door[aria-pressed="true"]::after { background: var(--gold); }
+
+/* B — slates */
+.slates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.device.phone .slates { grid-template-columns: 1fr; }
+.slate { background: var(--chalk); color: #eef5ef; border-radius: 12px; border: 6px solid var(--wood); padding: 12px 14px; display: grid; gap: 4px; box-shadow: inset 0 0 30px rgba(0,0,0,.25); }
+.slate b { font-size: .8rem; letter-spacing: .08em; color: #f6d9a6; }
+.slate .eq { font-family: var(--font-math); font-size: 1.02rem; }
+.slate .face { font-size: .85rem; color: #c9dbd0; font-style: italic; }
+
+/* C — working */
+.work { display: grid; gap: 4px; font-family: var(--font-math); font-size: 1.12rem; }
+.wl { display: grid; grid-template-columns: 1.6rem 1.4rem minmax(0, 1fr); align-items: center; border: 2px solid transparent; background: none; border-radius: 10px; padding: 6px 8px; text-align: left; cursor: pointer; }
+.wl:disabled { cursor: default; }
+.wl:hover:not(:disabled) { border-color: var(--line); background: #fbfcfb; }
+.wl .no { font-family: var(--font-body); font-size: .78rem; color: var(--ink-faint); }
+.wl .txt { position: relative; }
+.wl[aria-pressed="true"] { border-color: var(--petal); background: var(--petal-wash); }
+.wl[aria-pressed="true"] .txt::after { content: ""; position: absolute; left: -2px; right: -2px; top: 52%; height: 2px; background: var(--petal-deep); transform-origin: left; animation: strike .35s ease-out both; }
+@keyframes strike { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.fixes { display: flex; flex-wrap: wrap; gap: 8px; }
+.fixes .pick { font-family: var(--font-math); font-size: 1rem; }
+
+/* D — fishing (kept game, calmer) */
+.fishpond { position: relative; height: 250px; border-radius: 14px; background: linear-gradient(180deg, #d6eee8, #a9dbe0); overflow: hidden; }
+.fishpond .net { position: absolute; left: 10px; bottom: 8px; font-size: .78rem; font-weight: 700; color: var(--accent-deep); background: rgba(255,255,255,.75); border-radius: 999px; padding: 2px 10px; }
+.fish { position: absolute; display: flex; align-items: center; gap: 6px; border: 2px solid transparent; background: rgba(255,255,255,.85); border-radius: 999px; padding: 4px 12px 4px 6px; cursor: pointer; font-family: var(--font-math); font-size: .98rem; animation: swim var(--d) ease-in-out infinite alternate; animation-delay: var(--delay); transition: background .2s, border-color .2s; }
+.fish svg { flex: none; }
+.fish[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-wash); animation-play-state: paused; }
+@keyframes swim { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
+
+/* E — area grid */
+.agrid { display: grid; grid-template-columns: 3.4rem repeat(2, minmax(0, 1fr)); gap: 6px; max-width: 380px; width: 100%; margin: 0 auto; font-family: var(--font-math); font-size: 1.1rem; }
+.agrid .h { display: grid; place-items: center; min-height: 2.6rem; color: var(--ink-soft); }
+.agrid .cell { display: grid; place-items: center; min-height: 4.3rem; border-radius: 10px; background: #eef2ef; border: 1px dashed var(--line-strong); transition: background .35s, border-color .35s; }
+.agrid .cell.pos { background: var(--accent-wash); border: 1px solid #bfd9cc; }
+.agrid .cell.neg { background: var(--petal-wash); border: 1px solid #f0bfd1; }
+.agrid .cell.pop { animation: pop .35s ease-out; }
+@keyframes pop { 50% { transform: scale(1.06); } }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-weight: 700; line-height: 1; }
+.stepper output { min-width: 2.4rem; text-align: center; font-weight: 600; color: var(--accent-deep); }
+.sumline { text-align: center; font-family: var(--font-math); font-size: 1.05rem; color: var(--ink-soft); }
+.sumline b { color: var(--ink); font-weight: 600; }
+
+/* G — make your own */
+.builder { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-math); font-size: 1.35rem; }
+.tog { border: 2px solid var(--line-strong); background: var(--surface); border-radius: 8px; width: 2.2rem; height: 2.4rem; cursor: pointer; font-family: var(--font-math); font-size: 1.2rem; font-weight: 600; }
+.numbox { display: inline-flex; flex-direction: column; align-items: center; border: 2px solid var(--line-strong); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.numbox button { border: 0; background: #f3f6f4; width: 2.6rem; height: 1.3rem; cursor: pointer; font-size: .7rem; color: var(--ink-soft); }
+.numbox output { font-family: var(--font-math); font-size: 1.25rem; font-weight: 600; padding: 2px 0; }
+
+/* end */
+.bloom { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 10px 0 6px; }
+.bloom h2 { font-size: 1.6rem; }
+.bloom p { color: var(--ink-soft); max-width: 42ch; }
+
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; font-size: .9rem; color: var(--ink-soft); }
+.notes b { display: block; color: var(--ink); font-family: var(--font-display); font-size: 1rem; margin-bottom: 2px; }
+@media (max-width: 720px) { .notes { grid-template-columns: 1fr; } .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); } .slates { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .drift, .shimmer, .fish, .ripple, .arrive, .tier { animation: none !important; } .mist, .petalg { transition: none; } }
+</style>
+
+<div class="shell">
+  <div class="rail">
+    <span class="kicker">Prototype · how it looks inside Lotus</span>
+    <h1>The misty pond, and every new game, on the real student screen</h1>
+    <p>This is the Lotus question card as students see it today, with the frog strip replaced by the pond. Answer for real, jump to any game, or press "Watch a student play" to run through all seven on its own. Nothing tells the student right or wrong. The mist lifts as Lotus learns, and "I don't know yet" lifts it too.</p>
+    <div class="controls" id="controls"></div>
+  </div>
+
+  <div class="device" id="device">
+    <div class="appbar">
+      <div class="brand">
+        <svg width="30" height="22" viewBox="-14 -6 88 62" aria-hidden="true"><ellipse cx="30" cy="50" rx="24" ry="5" fill="#5fae7d"/><g fill="#f6b3c8" stroke="#e07ba0" stroke-width="1.2"><ellipse cx="30" cy="24" rx="7" ry="17" transform="rotate(-50 30 46)"/><ellipse cx="30" cy="24" rx="7" ry="17" transform="rotate(-18 30 46)"/><ellipse cx="30" cy="24" rx="7" ry="17" transform="rotate(18 30 46)"/><ellipse cx="30" cy="24" rx="7" ry="17" transform="rotate(50 30 46)"/></g><circle cx="30" cy="44" r="4" fill="#f2c14e"/></svg>
+        Lotus <small>Factorisation check</small>
+      </div>
+      <span class="who">Aarav · Class 8B</span>
+    </div>
+    <section class="card" id="card"></section>
+  </div>
+
+  <div class="notes">
+    <p><b>Why the mist and not the frog</b>The frog moved one pad per answer, which only counts questions, and the count changes as Lotus adapts. The mist shows how much Lotus has learned about each skill, so progress is honest even when the length changes.</p>
+    <p><b>Why it never feels like a score</b>A confident wrong answer clears the mist as fast as a right one, and "I don't know yet" clears it too. A guess clears a little. Buds open because Lotus understands them, not because the student got them right.</p>
+    <p><b>Where the motion goes</b>Motion only marks evidence: a ripple to the skill the answer was about, mist drifting away, a bud opening. The games stay calm. No timers, no lives, no confetti on right answers.</p>
+  </div>
+</div>
+
+<script>
+// ---------------- skills on the pond ----------------
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+
+const SKILLS = [
+  { id: "PAIR", label: "x² + bx + c" },
+  { id: "VERIFY", label: "Checking" },
+  { id: "NEG", label: "Negative factor" },
+  { id: "FULLY", label: "Fully factorised" },
+  { id: "MEANING", label: "What factorised means" },
+];
+const clarity = Object.fromEntries(SKILLS.map((s) => [s.id, 0]));
+// How much one answer settles a skill. A confident answer, right or wrong, says a lot; "I don't know yet" is
+// a clean signal too; a guess says little. (In Lotus this comes from the evidence model, not from correctness.)
+const GAIN = { sure: 0.55, some: 0.42, guess: 0.22, dunno: 0.45, build: 0.5, multi: 0.6 };
+
+const W = 720, H = 150, XS = [80, 225, 370, 515, 650], NPET = 9;
+// One pond for the whole check: built once, then updated in place so buds open and mist lifts smoothly.
+const pondEl = el("div", "pond", `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Pond: how much Lotus has learned so far"></svg><div class="pondCap"></div>`);
+const petalTransform = (cx, cy, i, open) => `translate(${cx}px, ${cy}px) rotate(${(-80 + (160 * i) / (NPET - 1)) * (0.18 + open * 0.82)}deg) scale(${0.62 + open * 0.38}, ${0.7 + open * 0.3})`;
+(function buildPond() {
+  const svg = pondEl.querySelector("svg");
+  let s = `<defs>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dff1ec"/><stop offset="1" stop-color="#9fd1cf"/></linearGradient>
+    <radialGradient id="gl"><stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="softer" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="16"/></filter>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#water)"/>
+  <g class="shimmer" opacity=".35" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round">${Array.from({ length: 16 }, (_, i) => `<line x1="${i * 60 + 10}" y1="${40 + (i % 4) * 22}" x2="${i * 60 + 34}" y2="${40 + (i % 4) * 22}"/>`).join("")}</g>`;
+  SKILLS.forEach((k, i) => {
+    const cx = XS[i], cy = 84;
+    s += `<ellipse cx="${cx}" cy="${cy + 9}" rx="46" ry="12" fill="#5fae7d"/><path d="M${cx} ${cy + 9} L${cx + 40} ${cy + 3} A46 12 0 0 1 ${cx + 44} ${cy + 12} Z" fill="#9fd1cf" opacity=".9"/>
+      <circle class="glow" id="glow${k.id}" cx="${cx}" cy="${cy - 10}" r="38" fill="url(#gl)" style="opacity:0"/>`;
+    for (let j = 0; j < NPET; j++) s += `<g class="petalg" id="pet${k.id}${j}" style="transform:${petalTransform(cx, cy, j, 0)}"><ellipse cx="0" cy="-16" rx="6.5" ry="18" fill="${j % 2 ? "#f6b3c8" : "#f3a3bf"}" stroke="#e07ba0" stroke-width="1"/></g>`;
+    s += `<circle id="core${k.id}" cx="${cx}" cy="${cy - 3}" r="4" fill="#f2c14e" style="opacity:.4;transition:opacity 1.2s"/>
+      <text x="${cx}" y="${H - 10}" text-anchor="middle" font-family="Instrument Sans, sans-serif" font-size="11.5" font-weight="700" fill="#08463a">${k.label}</text>`;
+  });
+  s += `<g class="mist drift slow" id="mistAll" filter="url(#softer)"><ellipse cx="200" cy="70" rx="260" ry="40" fill="#fff"/><ellipse cx="560" cy="60" rx="240" ry="38" fill="#fff"/></g>`;
+  SKILLS.forEach((k, i) => {
+    s += `<g class="mist drift" id="mist${k.id}" style="animation-delay:-${i * 1.7}s" filter="url(#soft)"><ellipse cx="${XS[i]}" cy="70" rx="64" ry="34" fill="#fff"/><ellipse cx="${XS[i] + 24}" cy="56" rx="38" ry="22" fill="#fff"/><ellipse cx="${XS[i] - 26}" cy="62" rx="30" ry="18" fill="#fff"/></g>`;
+  });
+  s += `<g id="ripples"></g>`;
+  svg.innerHTML = s;
+})();
+function drawPond(rippleOn) {
+  const q = (id) => pondEl.querySelector(`#${id}`);
+  SKILLS.forEach((k, i) => {
+    const c = clarity[k.id];
+    for (let j = 0; j < NPET; j++) q(`pet${k.id}${j}`).style.transform = petalTransform(XS[i], 84, j, c);
+    q(`mist${k.id}`).style.opacity = (0.92 * (1 - c)).toFixed(2);
+    q(`glow${k.id}`).style.opacity = c >= 0.85 ? 1 : 0;
+    q(`core${k.id}`).style.opacity = (0.4 + c * 0.6).toFixed(2);
+  });
+  const avg = SKILLS.reduce((t, k) => t + clarity[k.id], 0) / SKILLS.length;
+  q("mistAll").style.opacity = (0.55 * (1 - avg)).toFixed(2);
+  if (rippleOn != null) {
+    const cx = XS[SKILLS.findIndex((k) => k.id === rippleOn)];
+    const r = q("ripples");
+    r.innerHTML = `<circle class="ripple" cx="${cx}" cy="94" r="16" fill="none" stroke="#fff" stroke-width="2"/><circle class="ripple" style="animation-delay:.3s" cx="${cx}" cy="94" r="16" fill="none" stroke="#fff" stroke-width="1.5"/>`;
+    setTimeout(() => (r.innerHTML = ""), 2000);
+  }
+  const settled = SKILLS.filter((k) => clarity[k.id] >= 0.85).length;
+  pondEl.querySelector(".pondCap").innerHTML = settled === SKILLS.length
+    ? `<span><b>The pond is clear.</b> Lotus has its picture of how you think.</span>`
+    : `<span>The mist lifts as Lotus learns how you think. Every answer helps, even “I don't know yet”.</span><span><b>${settled}</b> of ${SKILLS.length} lotuses open</span>`;
+}
+function settle(skill, kind) {
+  clarity[skill] = Math.min(1, clarity[skill] + (1 - clarity[skill]) * GAIN[kind] + 0.12);
+  if (clarity[skill] > 0.97) clarity[skill] = 1;
+}
+
+// ---------------- helpers ----------------
+function group(container, buttons, onPick) {
+  buttons.forEach((b) => b.addEventListener("click", () => { buttons.forEach((x) => x.setAttribute("aria-pressed", String(x === b))); onPick(b.dataset.k); }));
+  buttons.forEach((b) => b.setAttribute("aria-pressed", "false"));
+}
+function confidence(state, onChange) {
+  const t = el("div", "tier", `<span>How sure are you?</span>`);
+  const c = el("div", "conf");
+  const btns = [["guess", "Not sure"], ["some", "Somewhat sure"], ["sure", "Very sure"]].map(([k, l]) => { const b = el("button", "", l); b.type = "button"; b.dataset.k = k; c.appendChild(b); return b; });
+  group(c, btns, (k) => { state.conf = k; onChange(); });
+  t.appendChild(c);
+  return t;
+}
+
+// ---------------- the seven questions ----------------
+// Each: { skill, name, build(body, state, ready) , auto: [[selector, delayMs], ...], gain(state) }
+const QUESTIONS = [
+  {
+    skill: "PAIR", name: "Bracket doors",
+    build(body, st, ready) {
+      body.append(el("div", "prompt", `<span class="plain">Which door is the same as</span>`), el("div", "big", "x² + 3x − 4"));
+      const wrap = el("div", "doors");
+      const btns = ["(x − 3)(x − 1)", "(x − 1)(x + 4)", "(x − 2)(x + 2)", "(x − 4)(x + 1)"].map((t, i) => { const b = el("button", "door", t); b.type = "button"; b.dataset.k = i; wrap.appendChild(b); return b; });
+      group(wrap, btns, (k) => { st.pick = k; ready(); });
+      body.append(wrap, confidence(st, ready));
+    },
+    ok: (st) => st.pick != null && st.conf,
+    auto: [[".door:nth-child(4)", 900], [".conf button:nth-child(3)", 800]],
+    gain: (st) => st.conf,
+  },
+  {
+    skill: "VERIFY", name: "Riya vs Sam",
+    build(body, st, ready) {
+      body.append(el("div", "slates", `<div class="slate"><b>RIYA</b><span class="eq">x² + x − 6 = (x + 3)(x − 2)</span><span class="face">“I'm sure about mine.”</span></div><div class="slate"><b>SAM</b><span class="eq">x² + x − 6 = (x − 3)(x + 2)</span><span class="face">“No, mine's right!”</span></div>`));
+      body.append(el("div", "prompt", `<span class="plain">Who is right?</span>`));
+      const g = el("div", "grid2");
+      const btns = ["Only Riya", "Only Sam", "Both", "Neither"].map((t) => { const b = el("button", "pick", t); b.type = "button"; b.dataset.k = t; g.appendChild(b); return b; });
+      const why = el("div", "tier", `<span>How did you decide?</span>`); why.hidden = true;
+      const wl = el("div", "list");
+      const wb = ["I multiplied out all four parts", "I checked the x² and the number at the end", "The signs looked right", "I guessed"].map((t) => { const b = el("button", "pick", t); b.type = "button"; b.dataset.k = t; wl.appendChild(b); return b; });
+      why.appendChild(wl);
+      const conf = confidence(st, ready); conf.hidden = true;
+      group(g, btns, (k) => { st.pick = k; why.hidden = false; ready(); });
+      group(wl, wb, (k) => { st.why = k; conf.hidden = false; ready(); });
+      body.append(g, why, conf);
+    },
+    ok: (st) => st.pick && st.why && st.conf,
+    auto: [[".grid2 .pick:nth-child(3)", 1000], [".list .pick:nth-child(2)", 900], [".conf button:nth-child(3)", 700]],
+    gain: (st) => st.conf,
+  },
+  {
+    skill: "NEG", name: "Find it, fix it",
+    build(body, st, ready) {
+      body.append(el("div", "prompt", `<span class="plain">Kabir took out −3. Tap the first line that goes wrong.</span>`));
+      const work = el("div", "work");
+      const lines = ["−6x − 9", "(−3)(2x) + (−3)(3)", "−3(2x − 3)", "−6x + 9"];
+      const fix = el("div", "tier", `<span>What should that line be?</span>`); fix.hidden = true;
+      const fx = el("div", "fixes");
+      const fb = ["−3(2x + 3)", "−3(−2x − 3)", "−3(−2x + 3)"].map((t) => { const b = el("button", "pick", t); b.type = "button"; b.dataset.k = t; fx.appendChild(b); return b; });
+      fix.appendChild(fx);
+      const conf = confidence(st, ready); conf.hidden = true;
+      const btns = lines.map((t, i) => { const b = el("button", "wl", `<span class="no">${i || ""}</span><span>${i ? "=" : ""}</span><span class="txt">${t}</span>`); b.type = "button"; b.disabled = i === 0; b.dataset.k = i; work.appendChild(b); return b; });
+      group(work, btns.slice(1), (k) => { st.line = k; st.fix = null; fx.querySelectorAll(".pick").forEach((x) => x.setAttribute("aria-pressed", "false")); fix.querySelector("span").textContent = `What should line ${k} be?`; fix.hidden = false; conf.hidden = true; ready(); });
+      group(fx, fb, (k) => { st.fix = k; conf.hidden = false; ready(); });
+      body.append(work, fix, conf);
+    },
+    ok: (st) => st.line && st.fix && st.conf,
+    auto: [[".wl:nth-child(3)", 1100], [".fixes .pick:nth-child(2)", 1000], [".conf button:nth-child(2)", 700]],
+    gain: (st) => st.conf,
+  },
+  {
+    skill: "FULLY", name: "Fishing (kept)",
+    build(body, st, ready) {
+      body.append(el("div", "prompt", `<span class="plain">Net every fish that is fully factorised. Leave the others swimming.</span>`));
+      const pond = el("div", "fishpond");
+      const fish = ["3(x − 2)(x + 2)", "(x + 2)(x + 5)", "3(x² − 4)", "2x(x + 5)", "(2x + 10)(x + 2)"];
+      st.netted = new Set();
+      const count = el("span", "net", "0 netted");
+      fish.forEach((t, i) => {
+        const b = el("button", "fish", `<svg width="26" height="16" viewBox="0 0 40 24" aria-hidden="true"><path d="M2 12 L10 4 L10 20 Z" fill="#f08a5d"/><ellipse cx="24" cy="12" rx="14" ry="9" fill="#f6a96b"/><circle cx="31" cy="10" r="2" fill="#16241d"/></svg>${t}`);
+        b.type = "button"; b.setAttribute("aria-pressed", "false");
+        b.style.cssText = `top:${12 + i * 44}px;left:${6 + ((i * 17) % 30)}%;--d:${6 + (i % 3) * 2}s;--delay:-${i * 1.4}s;--dx:${i % 2 ? 60 : -40}px`;
+        b.addEventListener("click", () => { const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); on ? st.netted.add(t) : st.netted.delete(t); count.textContent = `${st.netted.size} netted`; ready(); });
+        pond.appendChild(b);
+      });
+      pond.appendChild(count);
+      body.append(pond);
+    },
+    ok: (st) => st.netted && st.netted.size > 0,
+    auto: [[".fish:nth-child(1)", 900], [".fish:nth-child(2)", 700], [".fish:nth-child(3)", 700], [".fish:nth-child(4)", 700]],
+    gain: () => "multi",
+  },
+  {
+    skill: "PAIR", name: "Area grid",
+    build(body, st, ready) {
+      body.append(el("div", "prompt", `<span class="plain">Choose the two missing sides so the rectangle makes</span>`), el("div", "big", "x² + 2x − 15"));
+      st.a = 0; st.b = 0; st.tries = [];
+      const g = el("div", "agrid");
+      const step = (key) => `<div class="stepper"><button type="button" data-s="${key}" data-d="-1" aria-label="down">−</button><output id="o${key}">?</output><button type="button" data-s="${key}" data-d="1" aria-label="up">+</button></div>`;
+      g.innerHTML = `<div class="h">×</div><div class="h">x</div><div class="h">${step("a")}</div><div class="h">x</div><div class="cell pos">x²</div><div class="cell" id="cA"></div><div class="h">${step("b")}</div><div class="cell" id="cB"></div><div class="cell" id="cAB"></div>`;
+      const sum = el("p", "sumline", "Your rectangle makes: x² + …");
+      const fmt = (n) => (n < 0 ? `− ${-n}` : `+ ${n}`);
+      const xt = (n) => `${n < 0 ? "−" : ""}${Math.abs(n) === 1 ? "" : Math.abs(n)}x`;
+      function paint() {
+        const set = (id, txt, n) => { const c = g.querySelector(id); c.textContent = txt; c.className = `cell ${n ? (n < 0 ? "neg" : "pos") : ""} pop`; };
+        g.querySelector("#oa").textContent = st.a ? fmt(st.a) : "?"; g.querySelector("#ob").textContent = st.b ? fmt(st.b) : "?";
+        set("#cA", st.a ? xt(st.a) : "", st.a); set("#cB", st.b ? xt(st.b) : "", st.b);
+        if (st.a && st.b) {
+          set("#cAB", `${st.a * st.b < 0 ? "−" : ""}${Math.abs(st.a * st.b)}`, st.a * st.b);
+          const m = st.a + st.b;
+          sum.innerHTML = `Your rectangle makes: <b>x²${m ? ` ${m < 0 ? "−" : "+"} ${Math.abs(m) === 1 ? "" : Math.abs(m)}x` : ""} ${st.a * st.b < 0 ? "−" : "+"} ${Math.abs(st.a * st.b)}</b>`;
+          st.tries.push([st.a, st.b]);
+        } else set("#cAB", "", 0);
+        ready();
+      }
+      g.querySelectorAll(".stepper button").forEach((b) => b.addEventListener("click", () => {
+        const k = b.dataset.s; let v = st[k] + Number(b.dataset.d); if (v === 0) v += Number(b.dataset.d); st[k] = Math.max(-9, Math.min(9, v)); paint();
+      }));
+      body.append(g, sum);
+    },
+    ok: (st) => st.a && st.b,
+    auto: [[".stepper:nth-of-type(1) button[data-d='1']", 500], ...Array(4).fill([".agrid .h:nth-child(3) button[data-d='1']", 380]), [".agrid .h:nth-child(7) button[data-d='-1']", 600], [".agrid .h:nth-child(7) button[data-d='-1']", 380], [".agrid .h:nth-child(7) button[data-d='-1']", 380]],
+    gain: () => "build",
+  },
+  {
+    skill: "MEANING", name: "Is it finished? Why?",
+    build(body, st, ready) {
+      body.append(el("div", "prompt", `<span class="plain">Is this fully factorised?</span>`), el("div", "big", "2y(x + 1) + 3(x + 1)"));
+      const g = el("div", "grid2");
+      const btns = ["Yes", "No: it's (x + 1)(2y + 3)", "No: it's 5y(x + 1)", "No: it's (x + 1)²(2y + 3)"].map((t) => { const b = el("button", "pick", t.replace(/(\(.*)$/, '<span style="font-family:var(--font-math)">$1</span>').replace("5y(x + 1)", '<span style="font-family:var(--font-math)">5y(x + 1)</span>')); b.type = "button"; b.dataset.k = t; g.appendChild(b); return b; });
+      const why = el("div", "tier", `<span>Why?</span>`); why.hidden = true;
+      const wl = el("div", "list");
+      const wb = ["Factorised means one product. This is still two terms added", "Everything is already inside brackets", "2y and 3 can be added together", "I'm not sure, I guessed"].map((t) => { const b = el("button", "pick", t); b.type = "button"; b.dataset.k = t; wl.appendChild(b); return b; });
+      why.appendChild(wl);
+      const conf = confidence(st, ready); conf.hidden = true;
+      group(g, btns, (k) => { st.pick = k; why.hidden = false; ready(); });
+      group(wl, wb, (k) => { st.why = k; conf.hidden = false; ready(); });
+      body.append(g, why, conf);
+    },
+    ok: (st) => st.pick && st.why && st.conf,
+    auto: [[".grid2 .pick:nth-child(1)", 1000], [".list .pick:nth-child(2)", 900], [".conf button:nth-child(3)", 700]],
+    gain: (st) => st.conf,
+  },
+  {
+    skill: "PAIR", name: "Make your own",
+    build(body, st, ready) {
+      body.append(el("div", "prompt", `<span class="plain">Make up your own! Build one that factorises as <span style="font-family:var(--font-math)">(x + a)(x − b)</span>, then show the brackets.</span>`));
+      Object.assign(st, { s1: "+", b: 2, s2: "−", c: 8, A: 4, B: 2, touched: false });
+      const nb = (k) => `<span class="numbox"><button type="button" data-n="${k}" data-d="1" aria-label="up">▲</button><output id="n${k}">${st[k]}</output><button type="button" data-n="${k}" data-d="-1" aria-label="down">▼</button></span>`;
+      const tg = (k) => `<button type="button" class="tog" data-t="${k}" id="t${k}">${st[k]}</button>`;
+      const box = el("div", "", "");
+      box.style.cssText = "display:grid;gap:14px";
+      box.innerHTML = `<div class="builder">x² ${tg("s1")} ${nb("b")}x ${tg("s2")} ${nb("c")}</div><div class="builder" style="font-size:1.15rem">= (x + ${nb("A")})(x − ${nb("B")})</div>`;
+      box.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("click", () => { const k = b.dataset.n; st[k] = Math.max(k === "b" ? 0 : 1, Math.min(k === "c" ? 40 : 12, st[k] + Number(b.dataset.d))); box.querySelector(`#n${k}`).textContent = st[k]; st.touched = true; ready(); }));
+      box.querySelectorAll("[data-t]").forEach((b) => b.addEventListener("click", () => { const k = b.dataset.t; st[k] = st[k] === "+" ? "−" : "+"; b.textContent = st[k]; st.touched = true; ready(); }));
+      body.append(box);
+    },
+    ok: (st) => st.touched,
+    auto: [["[data-n='c'][data-d='1']", 700], ["[data-n='c'][data-d='1']", 350], ["[data-n='c'][data-d='1']", 350], ["[data-n='c'][data-d='1']", 350], ["[data-n='A'][data-d='1']", 600], ["[data-n='A'][data-d='1']", 350]],
+    gain: () => "build",
+  },
+];
+
+// ---------------- flow ----------------
+let index = 0, autoplay = false, timers = [], flowTimer = null;
+const card = document.getElementById("card");
+function render(i, { advancing = false } = {}) {
+  index = i;
+  card.innerHTML = "";
+  if (i >= QUESTIONS.length) return renderEnd();
+  const q = QUESTIONS[i], st = {};
+  const top = el("div", "cardTop", `<strong class="qnum">Question ${i + 1}</strong><span class="gameName">${q.name}</span>`);
+  const body = el("div", "cardBody arrive");
+  body.appendChild(pondEl);
+  body.appendChild(el("button", "read", "🔈 Read it to me"));
+  const game = el("div", "", ""); game.style.cssText = "display:grid;gap:18px";
+  const actions = el("div", "actions");
+  const submit = el("button", "submit", "Submit answer"); submit.type = "button"; submit.disabled = true;
+  const dunno = el("button", "dunno", "I don't know yet"); dunno.type = "button";
+  actions.append(submit, dunno);
+  const ready = () => { submit.disabled = !q.ok(st); };
+  q.build(game, st, ready);
+  body.append(game, actions);
+  card.append(top, body);
+  if (advancing) card.appendChild(el("div", "toast", "Next question"));
+  drawPond();
+  submit.addEventListener("click", () => next(q, GAIN[q.gain(st)] != null ? q.gain(st) : "some"));
+  dunno.addEventListener("click", () => next(q, "dunno"));
+  markJump();
+  if (autoplay) runAuto(q, game, submit);
+}
+function next(q, kind) {
+  settle(q.skill, kind);
+  drawPond(q.skill);
+  card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  flowTimer = setTimeout(() => render(index + 1, { advancing: true }), 1300);
+}
+function renderEnd() {
+  SKILLS.forEach((k) => (clarity[k.id] = 1));
+  const top = el("div", "cardTop", `<strong class="qnum">All done</strong><span class="gameName">Check complete</span>`);
+  const body = el("div", "cardBody arrive");
+  body.append(pondEl);
+  body.append(el("div", "bloom", `<h2>The pond is clear</h2><p>Thanks, Aarav. Lotus now knows how you think about factorising. Your teacher will see what to work on next. There's no score here.</p>`));
+  const again = el("button", "submit", "Start the demo again"); again.type = "button"; again.style.justifySelf = "center";
+  again.addEventListener("click", restart);
+  body.append(again);
+  card.append(top, body);
+  requestAnimationFrame(() => requestAnimationFrame(() => drawPond()));
+  markJump();
+  stopAuto();
+}
+function restart() { clearTimeout(flowTimer); SKILLS.forEach((k) => (clarity[k.id] = 0)); render(0); }
+
+// ---------------- autoplay: a student plays every game ----------------
+function runAuto(q, game, submit) {
+  let t = 600;
+  const steps = [...q.auto];
+  const fire = (sel) => { const b = game.querySelector(sel); if (b && !b.disabled) { b.focus({ preventScroll: true }); b.click(); } };
+  steps.forEach(([sel, d]) => { t += d; timers.push(setTimeout(() => autoplay && fire(sel), t)); });
+  timers.push(setTimeout(() => { if (autoplay && !submit.disabled) submit.click(); }, t + 900));
+}
+function stopAuto() { autoplay = false; timers.forEach(clearTimeout); timers = []; const b = document.getElementById("autoBtn"); if (b) { b.setAttribute("aria-pressed", "false"); b.textContent = "▶ Watch a student play"; } }
+
+// ---------------- controls ----------------
+const controls = document.getElementById("controls");
+const autoBtn = el("button", "chip play", "▶ Watch a student play"); autoBtn.id = "autoBtn"; autoBtn.type = "button"; autoBtn.setAttribute("aria-pressed", "false");
+autoBtn.addEventListener("click", () => {
+  if (autoplay) return stopAuto();
+  timers.forEach(clearTimeout); timers = []; clearTimeout(flowTimer);
+  autoplay = true; autoBtn.setAttribute("aria-pressed", "true"); autoBtn.textContent = "■ Stop";
+  SKILLS.forEach((k) => (clarity[k.id] = 0)); render(0);
+});
+controls.append(autoBtn, el("span", "sep"));
+const jumps = QUESTIONS.map((q, i) => {
+  const b = el("button", "chip", q.name); b.type = "button";
+  b.addEventListener("click", () => { stopAuto(); clearTimeout(flowTimer); render(i); });
+  controls.appendChild(b); return b;
+});
+const endBtn = el("button", "chip", "Finished"); endBtn.type = "button"; endBtn.addEventListener("click", () => { stopAuto(); render(QUESTIONS.length); }); controls.appendChild(endBtn);
+controls.appendChild(el("span", "sep"));
+const phone = el("button", "chip", "📱 Phone width"); phone.type = "button"; phone.setAttribute("aria-pressed", "false");
+phone.addEventListener("click", () => { const on = phone.getAttribute("aria-pressed") !== "true"; phone.setAttribute("aria-pressed", String(on)); document.getElementById("device").classList.toggle("phone", on); });
+const reset = el("button", "chip", "Reset mist"); reset.type = "button"; reset.addEventListener("click", () => { stopAuto(); restart(); });
+controls.append(phone, reset);
+function markJump() { jumps.forEach((b, i) => b.setAttribute("aria-pressed", String(i === index))); endBtn.setAttribute("aria-pressed", String(index >= QUESTIONS.length)); }
+
+// Open on a pond that's partly clear, so the first frame shows what the mist does.
+clarity.MEANING = 0.9; clarity.VERIFY = 0.45;
+render(0);
+</script>

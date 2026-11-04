@@ -1,4 +1,5 @@
-import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestionAudit, type LotusPhase, type LotusTopic } from "@cogna/shared";
+import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestion, type LotusQuestionAudit, type LotusPhase, type LotusStudentResponse, type LotusTopic } from "@cogna/shared";
+import { formatGuideForPrompt, formatsUsedForPrompt } from "./lotus-format-guide";
 import { curriculumFor } from "./lotus-factorisation-catalogue";
 
 export const LOTUS_POLICY = `
@@ -15,7 +16,7 @@ Assessment rules:
 - Do not teach, hint, reveal an answer, or repair the student's method during the diagnostic.
 - Prefer short, diagnostically discriminating questions. A rich item may cover more than one subtopic.
 - Ask one clear student task at a time, normally in 28 words or fewer. Put multiple-choice options only in the options array. Do not make the student compare two long calculations in one item.
-- Every question must include an answerKey. For arithmetic, put the exact machine-readable arithmetic in answerKey.expression. Never infer a misconception from an answer that deterministic verification marks correct.
+- Every question must include an answerKey. For arithmetic, put the exact machine-readable arithmetic in answerKey.expression. Never infer a misconception from a final answer that deterministic verification marks correct; but if the student's working on a correct answer contains a false step (for example two errors that cancel), report that step as firstWrongStep.
 - A next question must add new evidence. Do not reuse the same expression, merely change its wording, or ask more than two consecutive items about the same hypothesis. Branch to a different representation or exit uncertain.
 - The soft coverage spine is order of operations, brackets/grouping, expression interpretation or construction, and equivalence/structural meaning. It is not necessary to test every subtopic when the diagnostic goal is already met.
 - EXPLORE gathers breadth; DIAGNOSE investigates the strongest candidate gap; CONFIRM uses fresh evidence, tests an alternative explanation, or locates an advancement frontier. You may move between phases.
@@ -331,6 +332,7 @@ Return JSON only:
   },
   "firstWrongStep": "number of the FIRST step in the question's workedSolution where the student's work departs from it (1-based), or null if the work is correct",
   "mistakeDescription": "the mistake in plain words, as you see it — not limited to any list of codes; empty if none",
+  "mistakeKind": "MISUNDERSTANDING if the work shows the student doesn't know or misapplies the method (the same error would recur); SLIP if the method shown is right and a sign, digit or bracket was miscopied or mis-added at the end; GUESS if there is no method and the answer looks like a guess; UNREADABLE if the answer can't be read as maths but the work shows the right idea; null when firstWrongStep is null",
   "exitDiagnostic": false,
   "report": {
     "outcome": "SOLID_GAP|ADVANCEMENT|INSUFFICIENT_OR_CONFLICTING",
@@ -345,3 +347,120 @@ Return JSON only:
 
 Rules for fields: when action is ASK, exitDiagnostic must be false, nextQuestion is required, and report must be omitted. When action is an EXIT action, exitDiagnostic must be true, report is required, and nextQuestion must be omitted.`;
 }
+
+/**
+ * C1 (Cogna Project Hub): one read of the whole finished test. Code has
+ * already decided right/wrong and which gaps are confirmed; this review adds
+ * an overall view and openly lists anything it reads differently, without
+ * changing any fact.
+ */
+export function overallReviewPrompt(args: {
+  audits: LotusQuestionAudit[];
+  codeRecord: string[];
+  topic?: LotusTopic;
+}): string {
+  return `${lotusPolicy(args.topic)}
+You are the closing reviewer. The test is finished and every answer has been marked by code. Read the whole test once and give a short overall view of what this student can and can't do yet.
+
+The code's record is authoritative for facts: which answers were right or wrong, and which skills are confirmed gaps, possible gaps, secure, or untested. Never contradict a code-checked right/wrong. You may notice patterns the code's rules can't see (for example the same idea going wrong across several skills, mistakes that look like slips, a correct answer reached by faulty working, answers getting rushed late in the test). List those as noticed, not confirmed. If your reading of a skill differs from the code's record, say so plainly under disagreements, with the question numbers.
+
+Describe knowledge and skills only. Never comment on intelligence, personality, effort as character, or emotional state.
+
+All answers, in order (facts):
+${evidenceLogForPrompt(args.audits)}
+
+Per-answer reviews so far (interpretation, revisable):
+${hypothesisLedgerForPrompt(args.audits)}
+
+The code's record:
+${args.codeRecord.join("\n")}
+
+Return JSON only:
+{
+  "view": "2 to 4 plain sentences a teacher can read in 20 seconds",
+  "noticed": ["pattern noticed but not confirmed, with question numbers"],
+  "disagreements": ["skill: what the code says, what you read instead, and why, with question numbers"]
+}`;
+}
+
+/**
+ * Unified single-call answer review prompt: replaces the 4-call debate pipeline
+ * with a single high-performing model read of the student's working against the
+ * worked solution steps.
+ */
+export function singleReviewPrompt(args: {
+  audits: LotusQuestionAudit[];
+  currentQuestion: LotusQuestion;
+  currentResponse: LotusStudentResponse;
+  currentVerification: LotusMathVerification;
+  elapsedSeconds: number;
+  answeredCount: number;
+  phase: LotusPhase;
+  topic?: LotusTopic;
+  planningContext?: string;
+}): string {
+  return `${lotusPolicy(args.topic)}
+You are the expert diagnostic reviewer for Cogna Lotus.
+Evaluate the student's latest answer and written working directly against the question's answer key and worked solution.
+
+Current question:
+${JSON.stringify({
+  phase: args.phase,
+  subtopic: args.currentQuestion.subtopic,
+  prompt: args.currentQuestion.prompt,
+  options: args.currentQuestion.options,
+  answerKey: args.currentQuestion.answerKey,
+})}
+
+Student response:
+${JSON.stringify({
+  answer: args.currentResponse.answer,
+  working: args.currentResponse.working,
+  confidence: args.currentResponse.confidence,
+  responseTimeMs: args.currentResponse.responseTimeMs,
+  didNotKnow: args.currentResponse.didNotKnow,
+  studentSaidHowTheyGotIt: args.audits.at(-1)?.reasonCheck?.chosenId,
+  format: args.currentQuestion.game?.kind ?? (args.currentQuestion.options?.length ? "OPTIONS" : "TYPED"),
+  whatThePlayShowed: args.currentResponse.gameReading?.summary,
+  playSignals: args.currentResponse.gameReading?.signals,
+})}
+
+Deterministic verification (authoritative):
+${JSON.stringify(args.currentVerification)}
+
+Prior answered questions in this session:
+${evidenceLogForPrompt(args.audits)}
+
+Question formats you can ask for next:
+${formatGuideForPrompt()}
+Formats this student has already seen, oldest first: ${formatsUsedForPrompt(args.audits)}.
+
+${args.planningContext ? `Remaining plan (server-owned; any recommendation must name the earliest safe slot and preserve the pinned item):\n${args.planningContext}` : ""}
+
+Review tasks:
+1. Compare the student's written working line by line against the question's workedSolution.
+2. If the work is incorrect or unfinished, output the 1-based index of the FIRST step where the student went wrong as "firstWrongStep".
+3. Describe the mistake in plain words as "mistakeDescription".
+4. Classify "mistakeKind": MISUNDERSTANDING if the method is misapplied; SLIP if the method is sound and a sign or number was miscopied; GUESS if ungrounded; UNREADABLE if poorly formatted; or null if the work is correct.
+5. If the work is correct, firstWrongStep must be null, mistakeDescription empty, and mistakeKind null.
+6. Choose the action: ASK (continue) or an exit action (EXIT_GAP | EXIT_ADVANCE | EXIT_UNCERTAIN).
+7. If the action is ASK, set "nextFormat" to the one format above that would best settle what is still unclear about this student, and say why in "nextFormatReason" in one short sentence. Pick for what it would reveal, not for variety. Use null if the answer left nothing unclear. The server checks your choice and may keep the question as it is; it never changes the maths.
+
+Return JSON only:
+{
+  "verdict": "ACCEPTED|ACCEPTED_WITH_UNCERTAINTY",
+  "conclusion": "brief observable-evidence conclusion",
+  "evidenceState": "SUPPORTED|PARTIAL|INSUFFICIENT",
+  "uncertainty": [],
+  "phase": "${args.phase}",
+  "action": "ASK|EXIT_GAP|EXIT_ADVANCE|EXIT_UNCERTAIN",
+  "selectionReason": "brief reasoning explaining this diagnostic step",
+  "firstWrongStep": null,
+  "mistakeDescription": "",
+  "mistakeKind": null,
+  "nextFormat": null,
+  "nextFormatReason": "",
+  "exitDiagnostic": false
+}`;
+}
+

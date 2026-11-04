@@ -1,0 +1,30 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const host='http://127.0.0.1:4313',f=await(await fetch(`${host}/fixture`)).json(),checks=[];
+const browser=await chromium.launch({headless:true});let page;
+try{
+ const c=await browser.newContext();await c.addInitScript(f=>localStorage.setItem('cogna_student',JSON.stringify({studentId:f.studentId,name:'Tile learner',token:f.token})),f);
+ page=await c.newPage();await page.route(url=>/^\/(?:api\/)?(lotus|learning-evidence)(\/|$)/.test(url.pathname),async r=>{const u=new URL(r.request().url());const response=await r.fetch({url:host+u.pathname.replace(/^\/api/,'')+u.search});await r.fulfill({response});});
+ await page.goto('http://127.0.0.1:4310/student/lotus?topic=brackets&assignment=tile-recovery&resume=1',{waitUntil:'networkidle',timeout:120000});
+ await page.getByRole('button',{name:'Box 1, empty',exact:true}).waitFor();
+ await page.locator('[class*="bank"] button:not([disabled])').first().click();
+ const selected=await page.getByRole('button',{name:/^Box 1:/}).getAttribute('aria-label');
+ await page.reload({waitUntil:'networkidle'});
+ assert.equal(await page.getByRole('button',{name:/^Box 1:/}).getAttribute('aria-label'),selected);checks.push('partially built tile answer restores visibly');
+ for(let i=0;i<10&&await page.getByRole('button',{name:/^Box \d+, empty$/}).count();i++)await page.locator('[class*="bank"] button:not([disabled])').first().click();
+ const filled=await page.locator('button[data-filled="true"]').count();assert.ok(filled>0);
+ await page.route('**/api/lotus/sessions/*/answers',r=>r.abort('failed'));
+ await page.getByRole('button',{name:'Submit answer',exact:true}).click();
+ await page.getByRole('button',{name:'Retry saving previous answer',exact:true}).waitFor({timeout:60000});
+ await page.reload({waitUntil:'networkidle'});
+ assert.equal(await page.locator('button[data-filled="true"]').count(),filled);checks.push('frozen pending tile picks restore instead of cleared staged-preview state');
+ const storage=await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.includes('LOTUS')).map(k=>JSON.parse(sessionStorage.getItem(k))).find(v=>v.state?.pending));
+ assert.ok(storage.state.pending.interaction.picks.some(p=>p!==null));checks.push('restored visible picks correspond to original pending request');
+ await page.unroute('**/api/lotus/sessions/*/answers');
+ await page.getByRole('button',{name:'Retry saving previous answer',exact:true}).click();
+ await page.getByRole('button',{name:'Very sure',exact:true}).waitFor();
+ const s=await(await fetch(`${host}/fixture/state`)).json();assert.equal(s.lotus.payload.audits.length,1);assert.deepEqual(s.lotus.payload.audits[0].response.interaction.picks,storage.state.pending.interaction.picks);checks.push('tile retry commits one answer with exact original picks');
+ await page.screenshot({path:'delivery/december-2026/evidence/tile-recovery.png',fullPage:true});
+ const result={passed:checks.length,checks};await writeFile('delivery/december-2026/evidence/tile-recovery-browser.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+}catch(error){if(page)console.error((await page.locator('body').innerText()).slice(-2500));throw error;}finally{await browser.close();}

@@ -1,0 +1,135 @@
+<title>Drafting Room Set</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<style>
+/* Layout: a drawing set with room to breathe. Sheet tabs across the top; the active sheet gets the width; the building + redlines in a narrow column.
+   Blueprint grid across the page, faded toward the edges; sheets are translucent panels framed by corner marks. Condensed sans for the interface, hand lettering for prompts and notes. Single dark look. */
+:root {
+  color-scheme: dark;
+  --page: #0c315c; --panel: rgba(8, 34, 66, .58); --panel2: rgba(242, 246, 252, .045); --drawing: rgba(8, 34, 66, .45);
+  --ink: #f4f8ff; --soft: rgba(244, 248, 255, .8); --muted: rgba(244, 248, 255, .6); --rule: rgba(244, 248, 255, .16); --line: rgba(244, 248, 255, .8); --faint: rgba(244, 248, 255, .28);
+  --red: #ff8a76; --amber: #ffd166; --mint: #7cf2c9; --sky: #9ad1ff; --lilac: #c9b6ff;
+  --cond: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; --hand: "Architects Daughter", "Comic Sans MS", cursive; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); font: 400 16.5px/1.6 var(--cond); background: radial-gradient(ellipse 90% 60% at 50% 0%, #11406f, transparent 75%), var(--page); }
+/* the blueprint grid: kept, but fainter and fading toward the edges */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(rgba(244,248,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(244,248,255,.045) 1px, transparent 1px), linear-gradient(rgba(244,248,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(244,248,255,.08) 1px, transparent 1px);
+  background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 35%, #000 35%, transparent 100%); mask-image: radial-gradient(ellipse 75% 70% at 50% 35%, #000 35%, transparent 100%); }
+button { font: inherit; color: inherit; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.m { font-family: var(--mono); font-weight: 500; white-space: nowrap; }
+:focus-visible { outline: 2px dashed var(--amber); outline-offset: 3px; }
+.page { position: relative; max-width: 1240px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); padding-block: 30px 60px; display: grid; gap: 22px; }
+.top { display: grid; gap: 6px; }
+.top h1 { font: 700 clamp(1.5rem, 3.2vw, 2.1rem)/1.15 var(--cond); letter-spacing: .16em; text-transform: uppercase; }
+.top p { font: 400 1.08rem/1.55 var(--hand); color: var(--soft); max-width: 66ch; }
+.label { font: 600 .72rem var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+
+/* sheet tabs */
+.index { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+.index h3 { display: none; }
+.index ol { display: contents; list-style: none; }
+.index li { display: contents; }
+.index li button { flex: none; display: flex; align-items: center; gap: 8px; border: 1px solid var(--rule); background: var(--panel); border-radius: 4px; padding: 6px 14px 6px 10px; cursor: pointer; font: 500 .9rem var(--cond); color: var(--soft); transition: background .15s, border-color .15s, color .15s; }
+.index li button:hover { border-color: var(--faint); color: var(--ink); }
+.index li button .no { font: 600 .74rem var(--mono); color: var(--muted); }
+.index li button .dot { width: 7px; height: 7px; border-radius: 50%; }
+.index li button.done .dot { background: var(--amber); }
+.index li button[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: #0c315c; }
+.index li button[aria-current="true"] .no { color: #0c315c; opacity: .7; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+/* the sheet: a translucent panel framed by corner marks */
+.sheet { position: relative; background: var(--panel); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); border: 1px solid var(--rule); display: grid; min-width: 0; }
+.sheet::before { content: ""; position: absolute; inset: -9px; pointer-events: none;
+  background: linear-gradient(var(--line), var(--line)) top left / 18px 1.5px no-repeat, linear-gradient(var(--line), var(--line)) top left / 1.5px 18px no-repeat,
+    linear-gradient(var(--line), var(--line)) top right / 18px 1.5px no-repeat, linear-gradient(var(--line), var(--line)) top right / 1.5px 18px no-repeat,
+    linear-gradient(var(--line), var(--line)) bottom left / 18px 1.5px no-repeat, linear-gradient(var(--line), var(--line)) bottom left / 1.5px 18px no-repeat,
+    linear-gradient(var(--line), var(--line)) bottom right / 18px 1.5px no-repeat, linear-gradient(var(--line), var(--line)) bottom right / 1.5px 18px no-repeat; }
+.sheethead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 24px 32px 0; flex-wrap: wrap; }
+.sheethead h2 { font: 700 1.45rem/1.2 var(--cond); letter-spacing: .1em; text-transform: uppercase; }
+.sheethead .sn { font: 600 .95rem var(--mono); color: var(--amber); }
+.xlate { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 18px 32px 0; }
+.xlate div { background: var(--panel2); border-top: 2px solid var(--rule); padding: 12px 14px; font-size: .95rem; color: var(--soft); line-height: 1.5; min-width: 0; }
+.xlate b { display: block; font: 600 .68rem var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.xlate .now { border-top-color: var(--amber); } .xlate .now b { color: var(--amber); }
+.xlate .kept { border-top-color: var(--mint); } .xlate .kept b { color: var(--mint); }
+@media (max-width: 700px) { .xlate { grid-template-columns: 1fr; } }
+.work { padding: 26px 32px 34px; display: grid; gap: 20px; min-height: 460px; align-content: start; }
+@media (max-width: 640px) { .work, .sheethead, .xlate { padding-left: 16px; padding-right: 16px; } }
+.tblock { display: none; }
+.q { font: 400 1.22rem/1.6 var(--hand); color: var(--ink); max-width: 66ch; letter-spacing: .01em; }
+.q .m { font-size: .86em; color: var(--amber); }
+.q b { color: var(--amber); font-weight: 400; }
+.big { font-family: var(--mono); font-size: clamp(1.5rem, 4.5vw, 2.1rem); text-align: center; font-weight: 500; letter-spacing: -.02em; }
+svg { display: block; overflow: visible; }
+svg text { font-family: var(--hand); }
+/* drawings get their own sharper grid on a slightly deeper ground */
+#plan, #ps, #room, #au, #sv, #ls, #rule, #rooms2, #log2 { background-color: var(--drawing); background-image: linear-gradient(rgba(244,248,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(244,248,255,.06) 1px, transparent 1px); background-size: 20px 20px; border: 1px solid var(--rule); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { border: 1.5px solid var(--line); background: transparent; color: var(--ink); padding: 10px 18px; font: 700 .84rem var(--cond); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+.btn:hover:not(:disabled) { background: rgba(244, 248, 255, .1); }
+.btn.solid { background: var(--ink); color: #0c315c; }
+.btn.red { border-color: var(--red); color: var(--red); }
+.btn:disabled { opacity: .3; cursor: default; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); }
+.seg button { min-width: 42px; height: 40px; border: 0; border-right: 1px solid var(--faint); background: transparent; font: 600 .95rem var(--mono); cursor: pointer; padding: 0 8px; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #0c315c; }
+.pick { display: inline-flex; align-items: center; border: 1.5px solid var(--line); }
+.pick button { width: 32px; height: 40px; border: 0; background: transparent; cursor: pointer; font-weight: 700; color: var(--soft); }
+.pick output { min-width: 2.8rem; text-align: center; font: 600 1.15rem var(--mono); border-inline: 1px solid var(--faint); line-height: 40px; }
+.tog { width: 40px; height: 40px; border: 1.5px solid var(--line); background: transparent; cursor: pointer; font: 600 1.15rem var(--mono); }
+.tog.set { background: var(--amber); color: #0c315c; border-color: var(--amber); }
+.brk { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font: 600 1.2rem var(--mono); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--faint); background: transparent; padding: 5px 12px; font: 500 .9rem var(--cond); color: var(--soft); cursor: pointer; }
+.chips button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+.redline { font: 400 1.1rem/1.6 var(--hand); color: var(--ink); background: rgba(255, 138, 118, .07); border-left: 2px solid var(--red); padding: 12px 16px; max-width: 70ch; }
+.redline b { color: var(--amber); font-weight: 400; }
+.redline .from { display: block; font: 600 .68rem var(--cond); letter-spacing: .16em; text-transform: uppercase; color: var(--red); margin-bottom: 2px; }
+
+/* side: building + redline log */
+.side { display: grid; gap: 22px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 18px); }
+@media (max-width: 900px) { .side { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .side { grid-template-columns: 1fr; } }
+.panel { position: relative; background: var(--panel); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); border: 1px solid var(--rule); padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.panel svg { width: 100%; height: auto; }
+.panel .cap { font: 400 .95rem/1.5 var(--hand); color: var(--soft); }
+.key { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem; color: var(--soft); }
+.key i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 30%, transparent); vertical-align: -1px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 320px; overflow-y: auto; font: 400 .98rem/1.45 var(--hand); }
+.log li { color: var(--soft); padding-left: 10px; border-left: 2px solid var(--rule); }
+.log li small { display: block; font: 500 .68rem var(--mono); color: var(--muted); }
+.log li.warn { border-color: var(--red); color: var(--red); } .log li.good { border-color: var(--mint); color: var(--mint); }
+</style>
+
+<div class="page">
+  <header class="top"><h1>Drafting Room · Drawing Set</h1><p>Sixteen sheets. Each game is redrawn as something an architect does, and keeps the same evidence. Every sheet says what changed.</p></header>
+  <nav class="index" aria-label="Sheets"><h3>Sheet index</h3><ol id="index"></ol></nav>
+  <div class="layout">
+    <article class="sheet">
+      <div class="sheethead"><h2 id="tTitle"></h2><span class="sn" id="tNo"></span></div>
+      <div class="xlate"><div><b>Was</b><span id="xWas"></span></div><div class="now"><b>Now</b><span id="xNow"></span></div><div class="kept"><b>Evidence kept</b><span id="xKept"></span></div></div>
+      <div class="work" id="work"></div>
+      <div class="tblock"></div>
+    </article>
+    <aside class="side">
+      <div class="panel"><span class="label">Your building · <b id="rooms">0</b> rooms</span><svg viewBox="-200 -250 400 340" id="bld" aria-label="Your building"></svg>
+        <div class="key"><span style="--c:var(--amber)"><i></i>x² + bx + c</span><span style="--c:var(--red)"><i></i>Signs</span><span style="--c:var(--sky)"><i></i>Squares</span><span style="--c:var(--mint)"><i></i>Checking</span><span style="--c:var(--lilac)"><i></i>Grouping</span></div>
+        <p class="cap">One room per answer. Solid for a sure answer, dashed for a guess. Right and wrong look the same.</p></div>
+      <div class="panel"><span class="label">What Lotus noticed</span><ol class="log" id="log"><li>Nothing yet. Every pin, stamp and revision gets noted here.</li></ol></div>
+    </aside>
+  </div>
+</div>

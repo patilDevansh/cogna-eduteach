@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { LOTUS_OFFERED_THEMES, LOTUS_THEME_NAMES, isLotusTheme, type LotusTheme } from "@cogna/shared";
 import { api, ApiError, type ClassRosterStudent, type ClassroomRunReport } from "@/lib/api";
 import { studentStatus } from "@/lib/teacher-status";
 import { useTeacherClasses } from "@/lib/teacher-classes";
@@ -11,7 +12,7 @@ import { ClassTabs } from "../class-tabs";
 import styles from "../teacher.module.css";
 
 export default function TeacherStudentsPage() {
-  const { sample, classes, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
+  const { sample, classes, setClasses, selectedId, selected, select, loaded, error: loadError } = useTeacherClasses();
   const [roster, setRoster] = useState<ClassRosterStudent[]>([]);
   const [report, setReport] = useState<ClassroomRunReport | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -47,6 +48,19 @@ export default function TeacherStudentsPage() {
     }
   }
 
+  /** "choose" lets each student pick; a theme name locks the whole class to it. Studio is the neutral one. */
+  async function setLook(value: string) {
+    setError("");
+    if (sample) return setError(SAMPLE_ACTION_NOTE);
+    const lockedTheme: LotusTheme | null = isLotusTheme(value) ? value : null;
+    try {
+      await api.lockClassTheme(selectedId, lockedTheme);
+      setClasses((prev) => prev.map((c) => (c.id === selectedId ? { ...c, lockedTheme } : c)));
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Could not change the look for this class.");
+    }
+  }
+
   const rows = new Map((report?.classReport.students ?? []).map((row) => [row.studentId, row]));
   const checkTitle = report ? `${report.run.title}${report.run.status === "LIVE" ? " · still running" : ""}` : "No quick check yet";
 
@@ -62,6 +76,17 @@ export default function TeacherStudentsPage() {
       </div>
 
       <ClassTabs classes={classes} selectedId={selectedId} onSelect={(id) => void select(id)} />
+
+      {selected && LOTUS_OFFERED_THEMES.length > 1 && (
+        <section className={styles.emptyCard} aria-label="Look of the quick check">
+          <label htmlFor="class-look"><strong>Look of the quick check for {selected.name}</strong></label>
+          <p>Students can pick a look for their quick check. The questions, the maths and your report are the same in every look. Lock the class to one look, for example the plain Studio look before an exam.</p>
+          <select id="class-look" value={selected.lockedTheme ?? "choose"} onChange={(event) => void setLook(event.target.value)}>
+            <option value="choose">Students choose</option>
+            {LOTUS_OFFERED_THEMES.map((theme) => <option key={theme} value={theme}>{theme === "studio" ? "Everyone: Studio (plain)" : `Everyone: ${LOTUS_THEME_NAMES[theme]}`}</option>)}
+          </select>
+        </section>
+      )}
 
       {(error || loadError) && <section className={styles.emptyCard}><strong>{error === SAMPLE_ACTION_NOTE ? "Sample data" : "That didn\u2019t work"}</strong><p>{error || loadError}</p></section>}
 

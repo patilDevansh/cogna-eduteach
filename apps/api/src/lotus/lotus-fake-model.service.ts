@@ -235,6 +235,9 @@ export class FakeLotusModelService {
     if (waitMs) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
     return { ...closure(), firstWrongStep: configuredFirstWrongStep() };
   }
+  async singleReview(prompt?: string): Promise<LotusDebateClosure> {
+    return this.challengerClosure();
+  }
   async reviseQuestion(): Promise<Omit<LotusQuestion, "id">> {
     throw new Error("fake e2e model: reviseQuestion is not used by the factorisation E2E suite");
   }

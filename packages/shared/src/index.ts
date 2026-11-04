@@ -25,13 +25,17 @@ export * from "./contracts/practice-recommender";
 export * from "./contracts/diagnostic-v2";
 // Experimental AI-only diagnostic lab (isolated from diagnostic-v2)
 export * from "./contracts/lotus";
+export * from "./contracts/lotus-themes";
 // Personalized video production path
 export * from "./contracts/personalized-videos";
 export * from "./contracts/authored-lessons";
 // Game-like answer formats (diagnostic, exit, practice)
 export * from "./contracts/interaction-formats";
+export * from "./contracts/lotus-games";
+export * from "./contracts/lotus-readback";
 // Targeted micro-lessons (code-built, narrated)
 export * from "./contracts/micro-lessons";
+export * from "./contracts/lesson-evidence";
 // Voice / safe text
 export * from "./voice/forbidden-terms";
 export * from "./voice/safe-text";
@@ -107,3 +111,4 @@ export interface LearningLoopContext {
   currentDifficulty?: number;
 }
 export * from "./rate-limit";
+export * from "./contracts/interaction-context";

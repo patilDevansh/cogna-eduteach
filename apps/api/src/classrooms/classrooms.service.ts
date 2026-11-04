@@ -7,7 +7,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { PersonalizedVideosService } from "../personalized-videos/personalized-videos.service";
 import { findTopic } from "./topic-catalogue";
 import type { LotusQuestionAudit } from "@cogna/shared";
-import { confirmedByDepth, foldLedger } from "../lotus/lotus-factorisation";
+import { foldLedger, teachingStart } from "../lotus/lotus-factorisation";
 import { buildClassReport, type StudentEvidence } from "./class-report";
 import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
 import { checkKindOf, checkStudentIds, type CheckRows } from "./topic-flow";
@@ -1017,7 +1017,7 @@ export class ClassroomsService {
           ? {
               outcome: payload.finalReport.outcome,
               ...(() => {
-                const start = payload.finalReport.outcome === "SOLID_GAP" ? confirmedByDepth(foldLedger(audits))[0] : undefined;
+                const start = payload.finalReport.outcome === "SOLID_GAP" ? teachingStart(foldLedger(audits)) : undefined;
                 return { startingSkillId: start?.skillId, startingNotLearned: Boolean(start?.confirmedBySupport) };
               })(),
               skills: payload.finalReport.skills ?? [],

@@ -1,5 +1,20 @@
 # Build care
 
+## Teacher AI Studio access — 3 November 2026
+
+- Observer access uses the current classroom owner, active enrollment and diagnostic assignment, including in-progress saved sessions. A teacher who loses class ownership or enrollment access loses the read. Standalone demo diagnostics are visible only to the named local demo teacher outside production; they cannot use teacher override on those sessions.
+- Saved student answers and AI interpretations are shown separately from uncertainty. This view must not describe provisional observations as measured attention, memory or retention.
+- API and web TypeScript, `git diff --check`, one isolated PostgreSQL authorization test and a local teacher browser walkthrough passed. No paid model call or production data was used.
+
+## MVP 10.0 diagnostic evidence qualification — 2026-10-26
+
+- The planner's existing `SECURE` signals remain provisional. Reports require two distinct, verified, directly targeted successes before exposing a demonstrated strength. Supporting tags and unscoped legacy evidence cannot qualify one; copied expressions/variable-only renaming count once. The threshold is a product rule, not a validated psychometric cutoff.
+- `OBSERVED` is an additive report state. `evidenceAssessment` is optional for historical report compatibility; current reports include source turns and explicitly leave retention unmeasured. Existing persisted reports are not rewritten or retrospectively validated.
+- Advancement/catch-up report outcomes use qualified strengths. Student copy no longer states that everything tested is secure or that no teaching is needed.
+- `teachingStart` chooses an existing confirmed ledger entry. It cannot invent a confirmed sign-multiplication prerequisite from errors on two different skills. Common-cause hypotheses need their own check.
+- Verification: shared build and API/web TypeScript pass; 218 focused tests pass, including seven new evidence-qualification regressions and existing diagnostic/session/lesson/video tests. Full golden was attempted but blocked from the listening local PostgreSQL server by sandbox connectivity and stopped after repeated connection failures. No database cleanup, live-model call, browser acceptance, or student-data evaluation was performed.
+- The original diagnostic slot planning and provisional evidence transitions remain unchanged. This reporting repair does not close the empirical validation, prerequisite-design, or internal-routing backlog.
+
 ## MVP 10.0 workflow review fixes — 2026-10-15
 
 - A student who says "I don't know this yet" on two questions about a skill (or once alongside a mistake) now has that skill confirmed as "not learned yet". Lotus drops to its foundations, ends early, names a starting point, and makes a lesson; the teacher roster says "teach from the basics". One "I don't know" alone still only earns an easier question. "I don't know" answers count as lesson evidence (`SAID_NOT_KNOWN`).
@@ -48,3 +63,50 @@
 - `git diff --check` passes.
 - Runtime acceptance remains unverified: current checks show no PostgreSQL response on `/tmp:5432` and no web/API listener on `localhost:3000` or `localhost:4000`. Docker is not installed, and an isolated local Postgres cluster under `/tmp` cannot initialize because this sandbox blocks the required shared-memory syscall. The visible `localhost:3002/student/home` instance is running from `/Users/dp/eduTeach/.claude/worktrees/cogna-teacher-report-528ac3/apps/web`, not from this active checkout, and therefore returns 404 for the new `/student/classroom/live` route. The checked-in migration has not been verified against a running database. Do not treat passing builds or mocked service tests as proof of the cross-device classroom workflow.
 - Nonfatal build warning still present: the Next personalized-video proxy route imports the API service implementation, which pulls Nest internals into that route bundle. The build succeeds, but a cleaner future shape is to call the API over HTTP or split shared service code away from Nest exceptions.
+
+## Shared AI delivery coordination (2026-10-28)
+
+- Follow AGENTS.md for the active era; obsolete Cursor/operations guidance must not direct new work to an archived era.
+- Preserve other chats' unfinished edits. Use one owner per task, one implementation writer per checkout and serialized edits to shared tracking/contracts.
+- The public code repository must not receive private release planning. Local coordination tests are not product, live-model or scientific-validation evidence.
+- GitHub Project fields are not atomic locks: use the designated coordinator for assignments; do not infer distributed locking from an owner field.
+
+## Teaching-first contract amendment (2026-10-28)
+
+The default pilot already auto-advances per student; class-wide diagnostic gates apply only when autoAdvance is false. Do not remove either mode when adding module learning. Preserve existing exit counts/attempt sealing and the five UI actions.
+
+## Verified local staging during provider outage (2026-10-28)
+
+Provider failure must gate model calls, not validated local content. Preserve content-exhaustion backoff, item verification, required-expression constraints and disable switches. Fresh-session assertReady and preparation limits still apply; do not promise complete outage operation from this staging fix.
+
+
+## Typed-practice evidence and recovery — 29 October 2026
+
+Use immutable-content hashes excluding progress; retain null/UNKNOWN context rather than inventing no help or retention. Preserve the assignment-row lock for both receipt and legacy aggregate writes. A lost acknowledgement must replay the same committed receipt. Browser pending storage is tab-scoped, bounded and not full offline support. Verification used actual UI/proxy/controller/service with disposable PostgreSQL, not production bootstrap; never run test harnesses against real students.
+
+
+### Unsubmitted practice refresh correction — 29 October 2026
+
+Draft storage must be namespaced by learner/assignment/item/content and bound to the last checked event. Pending immutable submissions take precedence. Never count locally recovered drafts as submitted learning evidence.
+
+
+### Exercise and Lotus interaction context — 30 October 2026
+
+Never treat hidden/offline time as attention or sum overlapping durations. No-input is null. Prior reason prompts and disabled previews must not start question clocks. Re-shown questions get fresh partial observations. New analysis must prefer actual confidence provenance over legacy Lotus60/idle0 defaults.
+
+
+### Recovery, joined history and contextual support —30October2026
+
+Preserve authoritative current delivery and answer reservations under the same session advisory lock/CAS. Do not replay stale cached teaching as authority. Quarantine permanent presentation failures without blocking valid later events. Bind support offer/choice/delivery/recheck to exact content; delivery retry must not issue new help. Withhold exit correctness until all required items seal; historical receipts cannot inherit changed prompts.
+
+### Draft-process review correction — 2 November 2026
+
+Draft checkpoints are ungraded, may be missing after rapid close/network failure, and can reflect notebook pauses or typing exploration. Keep local draft recovery separate from server evidence. Do not infer frustration, attention or mastery from edit counts or wall time; independently verified later maths and explicit learner reports are separate.
+
+### Teaching-first reference module — 2 November 2026
+
+The new path requires `MODULE_LEARNING_ENABLED=true` on the API and `NEXT_PUBLIC_MODULE_LEARNING_ENABLED=true` for home links; disabling creation preserves existing run reads/actions. Its `PRESENTED` receipt is a learner-client report, not proof of attention or comprehension. The server locks the run's start event before transitions; event IDs and expected revisions prevent duplicate advance. Keep exact content/package versions and preserve the old diagnostic flow. The browser keeps an unsaved answer and immutable pending action locally, but this is not general offline synchronisation. Use reviewed static slides during provider loss; never serve unchecked math.
+
+Reserve independent items under a learner-scoped transaction lock; a repeat must not silently reuse the prior exit. If no reviewed item remains, report exhaustion and retain earlier work. Recheck current classroom ownership before teacher read/control actions; do not rely only on the original assigning teacher ID.
+
+Class assignment uses one transaction across its target learners, with student locks acquired in sorted order. A depleted target rolls back the entire launch rather than leaving partial teacher work.

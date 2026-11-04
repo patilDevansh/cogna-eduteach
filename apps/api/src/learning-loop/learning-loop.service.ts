@@ -1,3 +1,4 @@
+import { assertInteractionContext, assertSameInteractionSubmission } from "../learning-evidence/interaction-context";
 import {
   Injectable,
   Logger,
@@ -62,6 +63,7 @@ export class LearningLoopService {
   ) {}
 
   async processAnswer(event: AnswerSubmittedEvent): Promise<AnswerSubmittedResponse> {
+    assertInteractionContext(event.interactionContext, "EXERCISE", event.questionId, event.questionVersion, event.selfRatedConfidence);
     const loopStarted = Date.now();
     let stageStarted = loopStarted;
     const logStage = (stage: string, extra?: Record<string, unknown>) => {
@@ -83,6 +85,11 @@ export class LearningLoopService {
       where: { eventId: event.eventId },
     });
 
+    if (existing) {
+      if (existing.studentId !== event.studentId || existing.sessionId !== event.sessionId || existing.questionId !== event.questionId || existing.questionVersion !== event.questionVersion) throw new BadRequestException("Submission belongs to a different question or learner.");
+      const original = await this.prisma.rawEvent.findUnique({ where: { eventId: event.eventId } });
+      assertSameInteractionSubmission(original?.payload, event);
+    }
     if (existing?.storedResponse) {
       logStage("tx0_idempotent_hit", { totalMs: Date.now() - loopStarted });
       return existing.storedResponse as unknown as AnswerSubmittedResponse;
@@ -102,6 +109,12 @@ export class LearningLoopService {
       },
     });
 
+    if (event.interactionContext && !existing) {
+      if(session.status !== "ACTIVE") throw new BadRequestException("The session has ended.");
+      const issued = await this.prisma.rawEvent.findUnique({ where: { eventId: `current-delivery-${event.sessionId}` } });
+      const next = (issued?.payload as any)?.next;
+      if (!next || next.decision?.uiAction !== "SHOW_QUESTION" || next.payload?.id !== event.questionId || next.payload?.version !== event.questionVersion) throw new BadRequestException("The issued question changed. Reload the session.");
+    }
     let attempt: Attempt;
     let grade: Grade;
     let isCorrect: boolean;
@@ -134,42 +147,55 @@ export class LearningLoopService {
       });
 
       // Tx1 — evidence (durable even if later stages fail)
-      await this.prisma.rawEvent.upsert({
-        where: { eventId: event.eventId },
-        create: {
-          eventId: event.eventId,
-          eventType: event.eventType,
-          studentId: event.studentId,
-          sessionId: event.sessionId,
-          payload: event as unknown as object,
-        },
-        update: {},
-      });
+      const writeEvidence = async (db: Pick<PrismaService, "rawEvent" | "attempt" | "$queryRaw">) => {
+        if(event.interactionContext){
+          await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${event.studentId}:${event.sessionId}`}, 0))::text AS locked`;
+          const delivery=await db.rawEvent.findUnique({where:{eventId:`current-delivery-${event.sessionId}`}});
+          const payload=delivery?.payload as any;
+          if(payload?.next?.payload?.id!==event.questionId||payload?.next?.payload?.version!==event.questionVersion||payload?.pendingAnswerEventId&&payload.pendingAnswerEventId!==event.eventId)throw new BadRequestException("The current question changed before the answer was saved.");
+          await db.rawEvent.update({where:{eventId:`current-delivery-${event.sessionId}`},data:{payload:{...payload,pendingAnswerEventId:event.eventId}}});
+        }
+        const storedEvent = await db.rawEvent.upsert({
+          where: { eventId: event.eventId },
+          create: {
+            eventId: event.eventId,
+            eventType: event.eventType,
+            studentId: event.studentId,
+            sessionId: event.sessionId,
+            payload: event as unknown as object,
+          },
+          update: {},
+        });
 
-      attempt = await this.prisma.attempt.upsert({
-        where: { eventId: event.eventId },
-        create: {
-          eventId: event.eventId,
-          studentId: event.studentId,
-          sessionId: event.sessionId,
-          questionId: event.questionId,
-          questionVersion: event.questionVersion,
-          submittedAnswer: event.submittedAnswer,
-          grade,
-          isCorrect,
-          timeToFirstResponseMs: event.timeToFirstResponseMs,
-          totalTimeMs: event.totalTimeMs,
-          idleTimeMs: event.idleTimeMs,
-          attemptNumber: event.attemptNumber,
-          hintCount: event.hintCount,
-          highestHintLevel: event.highestHintLevel,
-          selfRatedConfidence: event.selfRatedConfidence ?? undefined,
-          inferredConfidence,
-          answerChangedBeforeSubmit: event.answerChangedBeforeSubmit,
-          processingStatus: ProcessingStatus.GRADED,
-        },
-        update: {},
-      });
+        assertSameInteractionSubmission(storedEvent.payload, event);
+        return db.attempt.upsert({
+          where: { eventId: event.eventId },
+          create: {
+            eventId: event.eventId,
+            studentId: event.studentId,
+            sessionId: event.sessionId,
+            questionId: event.questionId,
+            questionVersion: event.questionVersion,
+            submittedAnswer: event.submittedAnswer,
+            grade,
+            isCorrect,
+            timeToFirstResponseMs: event.timeToFirstResponseMs,
+            totalTimeMs: event.totalTimeMs,
+            idleTimeMs: event.idleTimeMs,
+            attemptNumber: event.attemptNumber,
+            hintCount: event.hintCount,
+            highestHintLevel: event.highestHintLevel,
+            selfRatedConfidence: event.selfRatedConfidence ?? undefined,
+            inferredConfidence,
+            answerChangedBeforeSubmit: event.answerChangedBeforeSubmit,
+            processingStatus: ProcessingStatus.GRADED,
+          },
+          update: {},
+        });
+      };
+      attempt = event.interactionContext
+        ? await this.prisma.$transaction((tx) => writeEvidence(tx as unknown as Pick<PrismaService, "rawEvent" | "attempt" | "$queryRaw">))
+        : await writeEvidence(this.prisma);
     }
 
     logStage("tx1_graded", { grade, isCorrect, attemptId: attempt.id });
@@ -463,6 +489,7 @@ export class LearningLoopService {
       event.studentId,
       event.sessionId,
       sessionForNext,
+      event.eventId,
     );
 
     await this.persistSelectionReasoning(savedDecision.id, next.studentMessage);
@@ -758,6 +785,8 @@ export class LearningLoopService {
   }
 
   async processSkip(event: QuestionSkippedEvent): Promise<QuestionSkippedResponse> {
+    const pendingDelivery=await this.prisma.rawEvent.findUnique({where:{eventId:`current-delivery-${event.sessionId}`}});
+    if((pendingDelivery?.payload as any)?.pendingAnswerEventId)throw new BadRequestException("Confirm the pending answer before skipping this question.");
     const existing = await this.prisma.rawEvent.findUnique({
       where: { eventId: event.eventId },
     });
@@ -906,6 +935,9 @@ export class LearningLoopService {
       throw new NotFoundException("Session not found.");
     }
 
+    const pendingDelivery=await this.prisma.rawEvent.findUnique({where:{eventId:`current-delivery-${sessionId}`}});
+    if((pendingDelivery?.payload as any)?.pendingAnswerEventId)return (pendingDelivery!.payload as any).next;
+
     const remediation = await this.prisma.misconceptionRemediationState.findFirst({
       where: { studentId, conceptId: session.activeConceptId ?? undefined },
       orderBy: { updatedAt: "desc" },
@@ -1036,6 +1068,21 @@ export class LearningLoopService {
   }
 
   private async resolveContent(
+    decision: LearningDecision, studentId: string, sessionId: string,
+    session?: { sessionMode: string; baselineSlotIndex: number }, completionEventId?: string,
+  ): Promise<PracticeNextResponse> {
+    const before = await this.prisma.rawEvent.findUnique({where:{eventId:`current-delivery-${sessionId}`}});
+    if((before?.payload as any)?.pendingAnswerEventId && (before!.payload as any).pendingAnswerEventId!==completionEventId)throw new BadRequestException("Confirm the pending answer before selecting another question.");
+    const next = await this.computeContent(decision, studentId, sessionId, session);
+    await this.prisma.$transaction(async tx=>{
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${studentId}:${sessionId}`}, 0))::text AS locked`;
+      const current=await tx.rawEvent.findUnique({where:{eventId:`current-delivery-${sessionId}`}});
+      if(JSON.stringify(current?.payload??null)!==JSON.stringify(before?.payload??null)||(current?.payload as any)?.pendingAnswerEventId&&(current!.payload as any).pendingAnswerEventId!==completionEventId)throw new BadRequestException("The current question changed while content was being prepared.");
+      await tx.rawEvent.upsert({ where: { eventId: `current-delivery-${sessionId}` }, create: { eventId: `current-delivery-${sessionId}`, eventType: "EXERCISE_CURRENT_DELIVERY", studentId, sessionId, payload: { next } as unknown as object }, update: { payload: { next } as unknown as object } });
+    });
+    return next;
+  }
+  private async computeContent(
     decision: LearningDecision,
     studentId: string,
     sessionId: string,

@@ -12,6 +12,9 @@ import { exitInteraction, PersonalizedVideosService } from "../../src/personaliz
 import { VideoRendererAdapter } from "../../src/personalized-videos/video-renderer.adapter";
 
 process.env.COGNA_SESSION_SECRET = process.env.COGNA_SESSION_SECRET || "test-session-secret";
+// These are the older tile games and probes, which only run with the new games switched off.
+process.env.COGNA_THEMED_GAMES = "off";
+const OLD = { COGNA_THEMED_GAMES: "off" };
 
 /** The picks a student who knows the answer would make. */
 function rightPicks(interaction: TileBuildInteraction, pieces: string[]): Array<number | null> {
@@ -118,26 +121,26 @@ describe("tile games in the Lotus diagnostic", () => {
     assert.ok(chooseLotusInteraction(factoriseItem(), { turn: 6, repurposed: false }, {}));
     assert.ok(chooseLotusInteraction(factoriseItem(), { turn: 2, repurposed: false }, {}), "interactive coverage starts early");
     assert.equal(chooseLotusInteraction(factoriseItem(), { turn: 3, repurposed: false }, {}), undefined, "alternate coverage turns stay typed with working");
-    const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, {});
+    const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, OLD);
     assert.equal(q.asksForWorking, false);
     assert.equal(q.interaction?.format, "BRACKET_BRIDGE");
   });
 
   it("varies tile scenes without changing the verified question or its answer", () => {
-    const q = withLotusInteraction(factoriseItem(), { turn: 2, repurposed: false }, {});
+    const q = withLotusInteraction(factoriseItem(), { turn: 2, repurposed: false }, OLD);
     assert.equal(q.presentation, "CONSTELLATION");
     assert.equal(q.prompt, factoriseItem().prompt);
     assert.deepEqual(q.answerKey, factoriseItem().answerKey);
     const built = assembleTileAnswer(q.interaction!, rightPicks(q.interaction!, ["x + 5", "x - 3"]));
     assert.equal(classifyFactorisation(built!, q.answerKey.diagnostics!.expression!), "CORRECT");
-    const preserved = withLotusInteraction({ ...factoriseItem(), presentation: "GARDEN" }, { turn: 2, repurposed: false }, {});
+    const preserved = withLotusInteraction({ ...factoriseItem(), presentation: "GARDEN" }, { turn: 2, repurposed: false }, OLD);
     assert.equal(preserved.presentation, "GARDEN", "an authored game is preserved");
     const workshop = factoriseItem();
     workshop.answerKey = {
       kind: "OPEN_RESPONSE", canonicalAnswer: "2x(x + 5)", workedSolution: ["2x(x + 5)"],
       diagnostics: { ...workshop.answerKey.diagnostics!, expression: "2x^2 + 10x", predictedMistakes: [] },
     };
-    withLotusInteraction(workshop, { turn: 4, repurposed: false }, {});
+    withLotusInteraction(workshop, { turn: 4, repurposed: false }, OLD);
     assert.equal(workshop.presentation, "WORKSHOP");
     const answer = assembleTileAnswer(workshop.interaction!, rightPicks(workshop.interaction!, ["2x", "(x + 5)"]));
     assert.equal(classifyFactorisation(answer!, "2x^2 + 10x"), "CORRECT");
@@ -154,7 +157,7 @@ describe("tile games in the Lotus diagnostic", () => {
   });
 
   it("marks the answer the picks build, not the text the browser sent", () => {
-    const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, {});
+    const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, OLD);
     const picks = rightPicks(q.interaction!, ["x - 5", "x + 3"]);
     const resolved = resolveLotusResponse(q, {
       answer: "(x + 5)(x - 3)", // the browser claims the right answer…
@@ -169,7 +172,7 @@ describe("tile games in the Lotus diagnostic", () => {
   });
 
   it("rejects incomplete picks and tile answers to typed questions, and still accepts typing", () => {
-    const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, {});
+    const q = withLotusInteraction(factoriseItem(), { turn: 1, repurposed: false }, OLD);
     const base = { answer: "x", working: "", confidence: 60, responseTimeMs: 1, didNotKnow: false };
     assert.throws(() => resolveLotusResponse(q, { ...base, interaction: { format: "BRACKET_BRIDGE", picks: [0, null] } }), TileAnswerError);
     assert.throws(() => resolveLotusResponse(factoriseItem(), { ...base, interaction: { format: "BRACKET_BRIDGE", picks: [0, 1] } }), TileAnswerError);
@@ -283,17 +286,17 @@ describe("game questions in the Lotus diagnostic (code-built probes)", async () 
     for (let seed = 0; seed < 60; seed++) {
       for (const n of [5, 6, 12, 13]) {
         const req = { spec: slot(n), purpose: "BASE" as const, variation: `variety-${seed}`, avoid: [] };
-        const item = codeProbeFor(req, {});
+        const item = codeProbeFor(req, OLD);
         assert.ok(item, `slot ${n}, seed ${seed}: game available before later rechecks`);
         assert.deepEqual(checkWrittenItem(req, item), [], `slot ${n}: passes installation checks`);
       }
     }
-    assert.equal(codeProbeFor({ spec: slot(5), purpose: "CHECK", targetMistake: "FLIPPED_ONE_SIGN", variation: "other-sign", avoid: [] }, {}), null);
+    assert.equal(codeProbeFor({ spec: slot(5), purpose: "CHECK", targetMistake: "FLIPPED_ONE_SIGN", variation: "other-sign", avoid: [] }, OLD), null);
   });
   for (const c of cases) {
     it(`${c.name}: passes the writer's own checks, marks right as SECURE and a predicted wrong pick as its mistake`, () => {
       const req = { spec: slot(c.slot), purpose: c.purpose, targetMistake: c.targetMistake, variation: `test-${c.slot}`, avoid: [] };
-      const item = codeProbeFor(req, {})!;
+      const item = codeProbeFor(req, OLD)!;
       assert.ok(item, "a probe is built");
       assert.equal(item.presentation, c.presentation);
       assert.equal(item.answerKey.diagnostics?.origin, "CODE");
@@ -311,7 +314,7 @@ describe("game questions in the Lotus diagnostic (code-built probes)", async () 
   }
 
   it("fishing accepts the netted fish in any order, and leaving one out is not correct", () => {
-    const item = codeProbeFor({ spec: slot(6), purpose: "BASE", variation: "order", avoid: [] }, {})!;
+    const item = codeProbeFor({ spec: slot(6), purpose: "BASE", variation: "order", avoid: [] }, OLD)!;
     const q = { ...item, id: "fish" };
     const keyParts = item.answerKey.canonicalAnswer.split(" | ");
     assert.equal(instantVerdict(q, respond([...keyParts].reverse().join(" | "))).verification.status, "VERIFIED_CORRECT");
@@ -321,14 +324,14 @@ describe("game questions in the Lotus diagnostic (code-built probes)", async () 
   });
 
   it("leaves the medium and hard trinomials and every opener to the AI writer, and has the kill switch", () => {
-    assert.equal(codeProbeFor({ spec: slot(14), purpose: "BASE", variation: "v", avoid: [] }, {}), null);
-    assert.equal(codeProbeFor({ spec: slot(12), purpose: "BASE", variation: "v", avoid: [], requiredExpression: "x^2 + 5x + 6" }, {}), null);
+    assert.equal(codeProbeFor({ spec: slot(14), purpose: "BASE", variation: "v", avoid: [] }, OLD), null);
+    assert.equal(codeProbeFor({ spec: slot(12), purpose: "BASE", variation: "v", avoid: [], requiredExpression: "x^2 + 5x + 6" }, OLD), null);
     assert.equal(codeProbeFor({ spec: slot(12), purpose: "BASE", variation: "v", avoid: [] }, { COGNA_GAME_FORMATS: "off" }), null);
   });
 
   it("never puts the answer in what the student is sent", () => {
     for (const c of cases) {
-      const item = codeProbeFor({ spec: slot(c.slot), purpose: c.purpose, targetMistake: c.targetMistake, variation: "leak", avoid: [] }, {})!;
+      const item = codeProbeFor({ spec: slot(c.slot), purpose: c.purpose, targetMistake: c.targetMistake, variation: "leak", avoid: [] }, OLD)!;
       const shown = JSON.stringify({ prompt: item.prompt, options: item.options, lines: item.lines, interaction: item.interaction });
       if (c.presentation !== "FISHING" && c.presentation !== "GARDEN") assert.ok(item.options?.includes(item.answerKey.canonicalAnswer), "the key is one of the options, like any choice");
       assert.doesNotMatch(shown, /canonical|predicted|mistake/i);
@@ -479,7 +482,7 @@ describe("typed questions: working prompt and the verify-by-expanding check", as
   it("every re-check of checking-by-expanding is an impostor question, named after the mistake being checked", () => {
     const spec = FACTORISATION_SLOTS.find((s) => s.skillId === "FAC_VERIFY_EXPAND")!;
     for (const targetMistake of ["EXPAND_CHECK_FAIL", "CHECKED_FIRST_TERM_ONLY"]) {
-      const item = codeProbeFor({ spec, purpose: "CHECK", targetMistake, avoid: [], variation: "t" } as never, {});
+      const item = codeProbeFor({ spec, purpose: "CHECK", targetMistake, avoid: [], variation: "t" } as never, OLD);
       assert.equal(item?.presentation, "IMPOSTOR", targetMistake);
       assert.ok(item!.answerKey.diagnostics!.predictedMistakes.every((p) => p.mistake === targetMistake));
     }

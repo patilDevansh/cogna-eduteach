@@ -196,6 +196,7 @@ async function upsertLotusAnswerEvidence(
     metadata: {
       questionId,
       didNotKnow: audit.response?.didNotKnow ?? false,
+      interactionContext: audit.response?.interactionContext ?? null,
       mathJudgment: audit.gpt?.mathJudgment ?? null,
       review: {
         queuePosition: audit.analysisQueuePosition ?? null,

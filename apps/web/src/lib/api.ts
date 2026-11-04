@@ -1,5 +1,7 @@
 import { lotusModelMode, setFakeModel } from "./dev-mode";
 import type {
+  LotusTheme,
+  LotusThemeSettings,
   PracticeAnswer,
   PracticeCheckResult,
   PracticeSetView,
@@ -30,6 +32,8 @@ import type {
   TileBuildResponse,
   MicroCheckResult,
   MicroLessonView,
+  LessonEvidenceRequest,
+  LessonEvidenceReceipt,
 } from "@cogna/shared";
 import { LOTUS_PLANNED_TOPICS } from "@cogna/shared";
 import {
@@ -50,6 +54,19 @@ export class ApiError extends Error {
     this.status = status;
     this.path = path;
   }
+}
+
+export interface LotusStudioSessionSummary {
+  sessionId: string;
+  classroomAssignmentId: string | null;
+  studentId: string;
+  studentName: string;
+  rollNumber: string | null;
+  status: string;
+  phase: string;
+  topic: LotusTopic | null;
+  answered: number;
+  startedAt: string;
 }
 
 export function isNotFound(err: unknown): boolean {
@@ -490,6 +507,8 @@ export interface ProductionClassroom {
   subjectId: string;
   joinCode: string;
   isDemo: boolean;
+  /** Set when the teacher locked the class to one Lotus theme; null lets students choose. */
+  lockedTheme?: LotusTheme | null;
   _count?: { enrollments: number };
   /** Newest first (up to 12), so runs[0] is the latest check. */
   runs?: Array<{ id: string; title: string; phase: string; status: string; createdAt: string; startedAt?: string | null; completedAt?: string | null }>;
@@ -661,7 +680,21 @@ export interface ClassroomRunReport {
   students: Array<{ assignmentId: string; studentId: string; studentName: string; kind: ClassroomAssignmentKind; status: ClassroomAssignmentStatus; result?: Record<string, unknown> | null }>;
 }
 
+export interface ModuleRunView {
+  identity: { runId: string; flow: "MODULE_LEARNING_V1"; studentId: string; source: "SELF_DIRECTED" | "TEACHER_ASSIGNED"; moduleId: string; packageId: string; packageVersion: string; classroomId: string | null; repeatOfRunId: string | null };
+  state: { revision: number; stage: string; paused: boolean; teacherPaused: boolean; workflow: "ACTIVE" | "COMPLETE" | "UNRESOLVED"; lastResult: { itemId: string; verdict: string; assistance: string } | null; independentResult: { itemId: string; verdict: string } | null; supportTarget: string | null };
+  asset: { exposureTag: string; segmentId: string; purpose: string; staticSlides: Array<{ step: number; title: string; explanation: string; equations: string[] }> } | null;
+  question: { id: string; prompt: string; options: string[] | null; independent: boolean } | null;
+}
+
 export const api = {
+  moduleRuns: () => apiFetch<ModuleRunView[]>("/module-learning/for-student"),
+  moduleRun: (id: string) => apiFetch<ModuleRunView>(`/module-learning/runs/${encodeURIComponent(id)}`),
+  startSelfModule: (requestId: string) => apiFetch<ModuleRunView>("/module-learning/runs", { method: "POST", body: JSON.stringify({ flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId }) }),
+  assignClassModule: (classroomId: string, requestId: string, studentIds?: string[]) => apiFetch<{ flow: string; classroomId: string; runs: ModuleRunView[] }>("/module-learning/classroom-assignments", { method: "POST", body: JSON.stringify({ flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", classroomId, requestId, studentIds }) }),
+  moduleAction: (id: string, eventId: string, expectedRevision: number, action: Record<string, unknown>) => apiFetch<ModuleRunView>(`/module-learning/runs/${encodeURIComponent(id)}/actions`, { method: "POST", body: JSON.stringify({ eventId, expectedRevision, action }) }),
+  recordLearnerObservation: (body: unknown) => apiFetch<{ eventId: string; receivedAt: string; interpretation: string; next?: PracticeNextResponse | null; checkStatus?: string; offer: { policyVersion: string; reason: string; options: string[]; message: string } | null }>("/learning-evidence/observations", { method: "POST", body: JSON.stringify(body) }),
+  learnerHistory: (cursor?: string) => apiFetch<any>(`/learning-evidence/history${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
   /** Dev-only demo login credentials. The API omits them in production/staging, so fail with a clear message. */
   health: async () => {
     const health = await apiFetch<{ devStudentId?: string; devAccessCode?: string }>("/health");
@@ -686,6 +719,16 @@ export const api = {
   },
 
   listClassrooms: () => classroomFetch<ProductionClassroom[]>("/classrooms", { headers: teacherAuthHeaders() }),
+
+  /** The look the signed-in student takes Lotus in: a teacher's lock, else their own choice, else the neutral one. */
+  getLotusTheme: () => classroomFetch<LotusThemeSettings>("/classrooms/student/theme"),
+
+  chooseLotusTheme: (theme: LotusTheme) =>
+    classroomFetch<LotusThemeSettings>("/classrooms/student/theme", { method: "PUT", body: JSON.stringify({ theme }) }),
+
+  /** A teacher locks a class to one theme (Studio is the neutral one), or passes null to let students choose. */
+  lockClassTheme: (classroomId: string, lockedTheme: LotusTheme | null) =>
+    classroomFetch<{ classroomId: string; lockedTheme: LotusTheme | null }>(`/classrooms/${encodeURIComponent(classroomId)}/theme`, { method: "PUT", headers: teacherAuthHeaders(), body: JSON.stringify({ lockedTheme }) }),
 
   createClassroom: (input: { name: string; grade: number; subjectId: string; joinCode?: string; isDemo?: boolean }) =>
     classroomFetch<ProductionClassroom>("/classrooms", { method: "POST", headers: teacherAuthHeaders(), body: JSON.stringify(input) }),
@@ -873,6 +916,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ accessCode }),
     }),
+
+  getLearningSession: (sessionId: string) => apiFetch<{ id: string; studentId: string; status: string; startedAt: string; currentDelivery: PracticeNextResponse | null; issuedHints?: Array<{eventId:string;questionId:string;level:number}>; attempts: Array<{ eventId: string; questionId: string; storedResponse?: unknown }> }>(`/sessions/${encodeURIComponent(sessionId)}`),
 
   createSession: (studentId: string, sessionMode: "BASELINE" | "ADAPTIVE_PRACTICE") =>
     apiFetch<{ sessionId: string; sessionMode: string; next: PracticeNextResponse }>(
@@ -1164,6 +1209,12 @@ export const api = {
   getLotusObserverSession: (sessionId: string) =>
     lotusObserverFetch<LotusSessionView>(`/sessions/${sessionId}/observer`),
 
+  listLotusStudioSessions: (classroomId: string) =>
+    lotusObserverFetch<LotusStudioSessionSummary[]>(`/studio/classrooms/${encodeURIComponent(classroomId)}/sessions`),
+
+  listLotusDemoStudioSessions: () =>
+    lotusObserverFetch<LotusStudioSessionSummary[]>("/studio/demo-sessions"),
+
   /** Server computes the demo answer now that the answer key isn't shipped to the client while a diagnostic is active. Demo student ids only. */
   demoFillLotusResponse: (sessionId: string, studentId: string, gap?: string) =>
     lotusFetch<{ answer: string; working: string; confidence: number }>(
@@ -1171,8 +1222,8 @@ export const api = {
     ),
 
   /** The current question, spoken by the server's voice (base64 MP3). */
-  readLotusAloud: (sessionId: string, studentId: string) =>
-    lotusFetch<{ audio: string; format: "mp3" }>(`/sessions/${sessionId}/read-aloud?studentId=${encodeURIComponent(studentId)}`),
+  readLotusAloud: (sessionId: string, studentId: string, row?: number) =>
+    lotusFetch<{ audio: string; format: "mp3" }>(`/sessions/${sessionId}/read-aloud?studentId=${encodeURIComponent(studentId)}${row === undefined ? "" : `&row=${row}`}`),
 
   submitLotusAnswer: (
     sessionId: string,
@@ -1237,6 +1288,11 @@ export const api = {
     personalizedVideoFetch<PersonalizedLessonAnimationView>(`/assignments/${id}/animation?theme=${encodeURIComponent(theme)}`),
 
   getPracticeSet: (id: string) => personalizedVideoFetch<PracticeSetView>(`/assignments/${id}/practice`),
+
+  recordPracticeEvidence: (id: string, event: LessonEvidenceRequest) =>
+    personalizedVideoFetch<LessonEvidenceReceipt>(`/assignments/${id}/practice-evidence`, {
+      method: "POST", body: JSON.stringify(event),
+    }),
 
   /** The narrated 20-second lesson on the student's own mistake, or null when none fits. */
   getMicroLesson: (id: string, theme?: string) =>

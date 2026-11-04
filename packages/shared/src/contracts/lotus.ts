@@ -1,3 +1,5 @@
+import type { StudentInteractionContext } from "./interaction-context";
+import type { LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
  *
@@ -108,6 +110,12 @@ export interface LotusQuestion {
    */
   interaction?: TileBuildInteraction;
   /**
+   * When set, the student answers by playing a themed game (see lotus-games.ts)
+   * instead of typing. Built on the server from the checked question; carries
+   * no answer. The answer is rebuilt on the server from the game payload.
+   */
+  game?: LotusGameConfig;
+  /**
    * How the question is staged as a game. A skin only: marking follows the
    * item kind. FIREFLY and IMPOSTOR stage a CHOICE item, DETECTIVE a CHOICE
    * over `lines`, FISHING a SELECT item, GARDEN and BRIDGE a tile question.
@@ -157,6 +165,7 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
   confidence: number;
@@ -169,6 +178,10 @@ export interface LotusStudentResponse {
   nextQuestionId?: string;
   /** Tile picks when the question was shown as a tile game; the server rebuilds `answer` from them. */
   interaction?: TileBuildResponse;
+  /** The play of a themed game; the server rebuilds `answer` from it and records `gameReading`. */
+  game?: LotusGameResponse;
+  /** Server-only: what the server read from `game`. Anything sent by the browser is discarded. */
+  gameReading?: LotusGameReading;
 }
 
 export interface LotusMathVerification {
@@ -273,15 +286,29 @@ export interface LotusFinalReport {
   notTested?: string[];
   /** Per-skill outcome, for the teacher and observer. */
   skills?: LotusSkillSummary[];
+  /** C1: the AI's read of the whole test; never changes the facts above. */
+  overallReview?: LotusOverallReview;
 }
 
-export type LotusSkillState = "UNTESTED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
+export type LotusSkillState = "UNTESTED" | "OBSERVED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
+
+/** Diagnostic evidence only: this does not establish delayed retention or a causal misconception. */
+export interface LotusSkillEvidenceAssessment {
+  policyVersion: "diagnostic-evidence-v1";
+  directSuccessTurns: number[];
+  supportingSuccessTurns: number[];
+  unscopedSuccessTurns: number[];
+  distinctDirectSuccessCount: number;
+  retention: "NOT_MEASURED";
+}
 
 export interface LotusSkillSummary {
   skillId: string;
   name: string;
   state: LotusSkillState;
   evidence: string[];
+  /** Absent on historical reports; absence must not be treated as validated mastery. */
+  evidenceAssessment?: LotusSkillEvidenceAssessment;
 }
 
 export interface LotusSkillEvidence {
@@ -334,6 +361,42 @@ export interface LotusDebateClosure {
   firstWrongStep?: number | null;
   /** The mistake in plain words, as the analyser sees it. Not limited to any list of codes. */
   mistakeDescription?: string;
+  /**
+   * What kind of mistake firstWrongStep points at. Only MISUNDERSTANDING is
+   * evidence toward a gap; a slip, a guess or an unreadable answer is kept as
+   * the analyser's note but never counted against the skill. Absent on older
+   * records and models, which are treated as before (counted).
+   */
+  mistakeKind?: LotusMistakeKind | null;
+  /** The format the reviewer thinks would show most next. A suggestion: the server checks it and may not use it. */
+  nextFormat?: string | null;
+  nextFormatReason?: string;
+}
+
+/** Which format was chosen for an upcoming question and why, and whether it really happened. Hidden from the student. */
+export interface LotusFormatDecision {
+  source: "AI" | "EVIDENCE";
+  /** What the model asked for, including one that was refused. */
+  proposed?: string;
+  reason: string;
+  chosen?: LotusGameKind;
+  targetTurn?: number;
+  status: "APPLIED" | "WAITING_FOR_WRITE" | "NOT_APPLIED";
+}
+
+export type LotusMistakeKind = "MISUNDERSTANDING" | "SLIP" | "GUESS" | "UNREADABLE";
+
+/**
+ * C1: one AI read of the whole finished test, once every per-answer review
+ * is in. It never changes the code's facts (right/wrong, confirmed gaps);
+ * it adds a plain overall view, patterns noticed but not confirmed, and any
+ * place its reading differs from the code's record, shown openly.
+ */
+export interface LotusOverallReview {
+  view: string;
+  noticed: string[];
+  disagreements: string[];
+  createdAt: string;
 }
 
 /**
@@ -546,6 +609,8 @@ export interface LotusQuestionAudit {
   analysisFailureReason?: string;
   /** The validated planning decision made from this turn, if one was needed. */
   adaptiveDecision?: LotusAdaptiveDecision;
+  /** The format this answer led to for an upcoming question. */
+  formatDecision?: LotusFormatDecision;
   /** What this turn told us about each skill. Hidden from the student while the diagnostic is active. */
   skillEvidence?: LotusSkillEvidence[];
   stageAgreement?: LotusStageAgreement | null;

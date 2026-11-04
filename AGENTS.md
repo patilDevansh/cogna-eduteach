@@ -1,5 +1,14 @@
 # AGENTS.md — Cogna / eduTeach
 
+## Shared release coordination (all AI tools and chats)
+
+- Before release work, read the README and live task fields in the [private Cogna Project](https://github.com/users/patilDevansh/projects/2). It is the only writable delivery board. Local starting guide: `/Users/dp/eduTeach/delivery/december-2026/START_HERE.md`.
+- The user or one designated coordinating chat serialises assignments. Record a unique chat/tool owner, worktree/branch, evidence, verification and a concrete handoff. GitHub fields are not automatic locks; do not race to claim or steal tasks.
+- Local board files are read-only exports. Never create another writable board in a worktree or cloud job. If Project access is unavailable, report that and obtain the authoritative handoff before implementation.
+- The delivery board does not replace the active canonical implementation contract below. Resolve proposed-flow conflicts explicitly before runtime changes and preserve others' uncommitted edits.
+- Release planning is private; this code repository is public. Do not publish private task bodies/release documents or create public task issues. Follow the Project README and local REMOTE.md for access and coordination.
+- The active-era table below takes precedence over historical era labels in older repository-operation guides. Preserve the applicable four-file tracking discipline without copying private planning into public tracking.
+
 ## Dual era (read this first)
 
 | Era | Spec | Tracking | Status |
@@ -15,7 +24,7 @@
 - **Do not implement from** `/docs/mvp-5.0/` until that era's README status is Canonical / Frozen **and** this table marks it **Active**.
 - **Repo / GitHub ops:** [`COGNA 2.0/REPO_AND_GITHUB.md`](./COGNA%202.0/REPO_AND_GITHUB.md) (3.0/4.0/5.0 folders point here).
 - **Live agentic (current workstream):** [`COGNA/LIVE_AGENTIC_PLAN.md`](./COGNA/LIVE_AGENTIC_PLAN.md) · [`testUI-claude/`](./testUI-claude/) design reference · Flags `LIVE_AGENTIC_GENERATE` / `LIVE_AGENTIC_SERVE_GENERATED`.
-- **Production classroom (active workstream):** [`docs/mvp-10.0/README.md`](./docs/mvp-10.0/README.md). This is the canonical contract for teacher-owned classrooms, real enrollment, assignment orchestration, class reports, personalized teaching, and independent exit evidence.
+- **Production classroom (active workstream):** [`docs/mvp-10.0/README.md`](./docs/mvp-10.0/README.md). This is the canonical contract for teacher-owned classrooms, real enrollment, assignment orchestration, class reports, personalized teaching, and independent exit evidence. Follow its amendment precedence: `PILOT_FLOW.md` covers existing per-student auto-advance; `MODULE_LEARNING.md` is the canonical teaching-first extension with runtime implementation pending.
 
 ## MVP 5.0 — Complete (engineering)
 

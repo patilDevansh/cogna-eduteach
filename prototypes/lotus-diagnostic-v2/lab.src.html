@@ -1,0 +1,811 @@
+<title>Lotus Question Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+<style>
+/* Layout: one reading column; each prototype is a two-pane bench (play | what Lotus concludes); a sticky pond strip tracks evidence. */
+:root {
+  --paper: #f7faf8;
+  --card: #ffffff;
+  --ink: #16241d;
+  --muted: #55675e;
+  --line: #d9e4de;
+  --pond: #176648;
+  --pond-soft: #dff3e9;
+  --water-a: #cfe9e3;
+  --water-b: #9fd1cf;
+  --petal: #d9668f;
+  --petal-soft: #f9dbe6;
+  --old: #a49a8c;
+  --old-soft: #efe9e1;
+  --warn: #b24d2b;
+  --warn-soft: #fae5df;
+  --mist: rgba(255,255,255,0.92);
+  --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --math: "Source Serif 4", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #0f1915; --card: #15231d; --ink: #e5efe9; --muted: #9db1a7; --line: #2a3d34;
+  --pond: #5cc39a; --pond-soft: #1b3a2e; --water-a: #163a39; --water-b: #0e2b2e;
+  --petal: #f08fb3; --petal-soft: #43202d; --old: #9a8f82; --old-soft: #2c2822;
+  --warn: #f08a66; --warn-soft: #3d2219; --mist: rgba(20,34,29,0.93); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #0f1915; --card: #15231d; --ink: #e5efe9; --muted: #9db1a7; --line: #2a3d34;
+  --pond: #5cc39a; --pond-soft: #1b3a2e; --water-a: #163a39; --water-b: #0e2b2e;
+  --petal: #f08fb3; --petal-soft: #43202d; --old: #9a8f82; --old-soft: #2c2822;
+  --warn: #f08a66; --warn-soft: #3d2219; --mist: rgba(20,34,29,0.93); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.6 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0; }
+.read { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.6rem, 3.6vw, 2.1rem); font-weight: 600; }
+h3 { font-size: 1.25rem; font-weight: 600; }
+p { margin: 0; }
+.eyebrow { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pond); }
+.muted { color: var(--muted); }
+.m { font-family: var(--math); font-size: 1.08em; white-space: nowrap; }
+section { padding-block: 56px 8px; display: grid; gap: 20px; }
+a { color: var(--pond); }
+:focus-visible { outline: 3px solid var(--petal); outline-offset: 2px; }
+
+/* hero */
+.hero { padding-block: 48px 8px; display: grid; gap: 18px; }
+.hero .lede { font-size: 1.2rem; max-width: 60ch; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { border-top: 3px solid var(--pond); padding-top: 10px; display: grid; gap: 2px; }
+.stat b { font-family: var(--display); font-size: 2rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat b s { color: var(--old); font-weight: 400; text-decoration-thickness: 2px; }
+.stat span { color: var(--muted); font-size: 0.92rem; }
+@media (max-width: 640px) { .stats { grid-template-columns: 1fr; } }
+
+/* pond */
+.pondbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--paper); padding-block: 8px; border-bottom: 1px solid var(--line); }
+.pond { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 14px; align-items: center; }
+.pond svg { width: 100%; height: auto; display: block; border-radius: 14px; }
+.pondtext { display: grid; gap: 4px; font-size: 0.92rem; }
+.pondtext strong { font-family: var(--display); font-size: 1.15rem; }
+.pondreset { justify-self: start; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 2px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; }
+@media (max-width: 700px) { .pond { grid-template-columns: 1fr; gap: 4px; } .pondtext { grid-template-columns: 1fr auto; align-items: center; } .pondtext span { display: none; } }
+.ripple { transform-box: fill-box; transform-origin: center; animation: ripple 1.4s ease-out forwards; }
+@keyframes ripple { from { transform: scale(0.3); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
+.bud .pet { transition: transform 0.9s cubic-bezier(.2,.8,.2,1); transform-box: view-box; }
+.mistc { transition: opacity 1.1s ease; }
+@media (prefers-reduced-motion: reduce) { .ripple { display: none; } .bud .pet, .mistc { transition: none; } }
+
+/* findings */
+.findings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.finding { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.finding h3 { font-size: 1.05rem; }
+.finding code { font-size: 0.82rem; color: var(--muted); }
+@media (max-width: 700px) { .findings { grid-template-columns: 1fr; } }
+
+/* rules */
+.rules { display: grid; gap: 0; counter-reset: rule; border-top: 1px solid var(--line); }
+.rule { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr) minmax(0, 0.9fr); gap: 14px; padding-block: 12px; border-bottom: 1px solid var(--line); }
+.rule::before { counter-increment: rule; content: counter(rule); font-family: var(--display); font-size: 1.5rem; color: var(--pond); line-height: 1; }
+.rule .src { color: var(--muted); font-size: 0.86rem; }
+@media (max-width: 700px) { .rule { grid-template-columns: 2rem minmax(0, 1fr); } .rule .src { grid-column: 2; } }
+
+/* prototype bench */
+.bench { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.bench header { padding: 16px 18px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.bench header .tag { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--petal); }
+.panes { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+.play { padding: 18px; display: grid; gap: 14px; align-content: start; border-right: 1px solid var(--line); }
+.verdict { padding: 18px; display: grid; gap: 12px; align-content: start; background: color-mix(in srgb, var(--pond-soft) 35%, var(--card)); }
+@media (max-width: 760px) { .panes { grid-template-columns: 1fr; } .play { border-right: 0; border-bottom: 1px solid var(--line); } }
+.q { font-size: 1.05rem; }
+.big { font-family: var(--math); font-size: 1.7rem; text-align: center; padding-block: 4px; }
+.opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.opt { font: inherit; text-align: left; background: var(--paper); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.opt:hover { border-color: var(--pond); }
+.opt[aria-pressed="true"] { border-color: var(--pond); background: var(--pond-soft); transform: translateY(-1px); }
+.opt .m { font-size: 1.15rem; }
+.opts.one { grid-template-columns: 1fr; }
+.tier { display: grid; gap: 8px; animation: rise .35s ease-out; }
+.tier > p { font-weight: 700; font-size: 0.95rem; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.conf { display: flex; gap: 8px; flex-wrap: wrap; }
+.conf .opt { padding: 6px 14px; border-radius: 999px; }
+.go { justify-self: start; font: inherit; font-weight: 700; background: var(--pond); color: var(--card); border: 0; border-radius: 999px; padding: 9px 20px; cursor: pointer; }
+.go:disabled { opacity: 0.35; cursor: default; }
+.ghost { font: inherit; font-size: 0.88rem; background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.ghost[aria-pressed="true"] { border-color: var(--petal); background: var(--petal-soft); }
+
+/* verdict pane */
+.vtitle { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.post { display: grid; gap: 6px; }
+.prow { display: grid; grid-template-columns: minmax(0, 1fr) 3.2rem; gap: 2px 8px; font-size: 0.88rem; align-items: center; }
+.prow .bar { grid-column: 1 / -1; height: 7px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.prow .bar i { display: block; height: 100%; background: var(--pond); border-radius: 4px; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.prow.top .bar i { background: var(--petal); }
+.prow.top { font-weight: 700; }
+.prow em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.call { font-family: var(--display); font-size: 1.1rem; line-height: 1.3; }
+.call.unsure { color: var(--muted); }
+.why { font-size: 0.9rem; color: var(--muted); }
+.versus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.vcol { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 6px; align-content: start; font-size: 0.88rem; }
+.vcol.oldc { background: var(--old-soft); }
+.vcol h4 { margin: 0; font-size: 0.75rem; letter-spacing: 0.07em; text-transform: uppercase; }
+.vcol .said { font-style: italic; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.empty { color: var(--muted); font-size: 0.92rem; border: 1px dashed var(--line); border-radius: 10px; padding: 12px; }
+
+/* detective lines */
+.work { font-family: var(--math); font-size: 1.2rem; display: grid; gap: 4px; }
+.wl { display: grid; grid-template-columns: 1.6rem 1.2rem minmax(0, 1fr); align-items: center; background: none; border: 2px solid transparent; border-radius: 10px; padding: 4px 8px; text-align: left; color: var(--ink); font: inherit; cursor: pointer; }
+.wl:hover:not(:disabled) { border-color: var(--line); }
+.wl[aria-pressed="true"] { border-color: var(--warn); background: var(--warn-soft); }
+.wl[aria-pressed="true"] .txt { text-decoration: line-through; text-decoration-color: var(--warn); }
+.wl:disabled { cursor: default; }
+.wl .no { font-family: var(--body); font-size: 0.8rem; color: var(--muted); }
+
+/* slates (Riya vs Sam) */
+.slates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.slate { background: #24372f; color: #eef5ef; border-radius: 12px; padding: 12px; display: grid; gap: 4px; border: 6px solid #8a6a46; }
+.slate b { font-family: var(--body); font-size: 0.85rem; letter-spacing: 0.05em; color: #f6d9a6; }
+.slate .m { font-size: 1.05rem; white-space: normal; }
+
+/* area grid */
+.grid2 { display: grid; grid-template-columns: 3.2rem repeat(2, minmax(0, 1fr)); gap: 6px; max-width: 360px; margin: 0 auto; font-family: var(--math); font-size: 1.15rem; }
+.grid2 .h { display: grid; place-items: center; min-height: 2.6rem; color: var(--muted); }
+.grid2 .cell { display: grid; place-items: center; min-height: 4.2rem; border-radius: 10px; background: var(--line); transition: background .4s, transform .3s; }
+.grid2 .cell.pos { background: var(--pond-soft); }
+.grid2 .cell.neg { background: var(--petal-soft); }
+.grid2 .cell.pop { animation: pop .35s ease-out; }
+@keyframes pop { 50% { transform: scale(1.06); } }
+.grid2 select { font: inherit; font-family: var(--math); background: var(--card); color: var(--ink); border: 2px solid var(--pond); border-radius: 8px; padding: 2px 4px; }
+.sumline { text-align: center; font-family: var(--math); font-size: 1.15rem; }
+.trail { display: flex; flex-wrap: wrap; gap: 6px; }
+.trail span { font-family: var(--math); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 1px 10px; font-size: 0.95rem; }
+
+/* make your own */
+.builder { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; font-family: var(--math); font-size: 1.4rem; }
+.builder select, .builder input { font: inherit; font-family: var(--math); font-size: 1.15rem; width: 3.6rem; background: var(--card); color: var(--ink); border: 2px solid var(--line); border-radius: 8px; padding: 2px 4px; text-align: center; }
+.builder select { width: auto; }
+
+/* charts & tables */
+.chart { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart svg text { fill: var(--ink); font-family: var(--body); }
+.chart svg .tick { fill: var(--muted); font-size: 11px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; min-width: 560px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+td.n { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.bad { color: var(--warn); font-weight: 700; }
+.good { color: var(--pond); font-weight: 700; }
+.callout { border-left: 4px solid var(--petal); padding: 4px 0 4px 14px; }
+
+/* works / doesn't */
+.split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.split ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 8px; }
+.split h3 { margin-bottom: 8px; }
+@media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+.steps { margin: 0; padding-left: 1.3rem; display: grid; gap: 10px; }
+footer { padding-block: 40px 56px; color: var(--muted); font-size: 0.85rem; display: grid; gap: 6px; }
+footer ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 3px; }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Lotus diagnostic · factorisation · prototype</p>
+    <h1>Lotus Question Lab</h1>
+    <p class="lede">Today's Lotus games show whether a student got it right. These new question formats are built to show <em>why</em> they got it wrong, and to tell a real misconception apart from a guess. Play them below. Each one shows what Lotus would conclude from your answer, next to what today's version would conclude.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+</div>
+
+<div class="pondbar" id="pondbar">
+  <div class="wrap">
+    <div class="pond">
+      <svg id="pond" viewBox="0 0 640 120" role="img" aria-label="Pond progress"></svg>
+      <div class="pondtext">
+        <strong id="pondHead">Morning mist on the pond</strong>
+        <span id="pondSub" class="muted">Replaces the frog. Each bud is a skill. Answers clear the mist, right or wrong.</span>
+        <button class="pondreset" id="pondReset" type="button">Reset pond</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="miss">
+    <p class="eyebrow">What today's questions miss</p>
+    <h2>The games look different, but they all ask the same multiple-choice question</h2>
+    <div class="findings">
+      <div class="finding">
+        <h3>The games are decoration</h3>
+        <p>Fireflies, critters and fish are drawn over an ordinary multiple-choice question. The maths the student does is the same with or without the game. The code says so itself: "These are skins only".</p>
+        <code>LotusGames.tsx:9</code>
+      </div>
+      <div class="finding">
+        <h3>Different wrong answers record the same mistake</h3>
+        <p>All three wrong critters in Spot the Impostor are logged as one mistake. Someone who checks only the first and last terms, and someone who is guessing, both pick a random critter. Lotus can't tell them apart.</p>
+        <code>lotus-probes.ts:129</code>
+      </div>
+      <div class="finding">
+        <h3>Right answer, wrong reason</h3>
+        <p>In Detective, a student who keeps every sign the same would write a different line 2. So they flag line 2, the correct answer, and get recorded as knowing it. Fireflies has the same problem. Its number pairs are right for a student who then flips the signs inside the brackets, which is one of the most common factorising mistakes.</p>
+        <code>lotus-probes.ts:147, :93</code>
+      </div>
+      <div class="finding">
+        <h3>Confidence is asked for but not used</h3>
+        <p>On re-check turns the student says how sure they are. That goes to the AI as a hint, but the code that decides whether a gap is real never reads it. A confident wrong answer and a shrugging guess count the same.</p>
+        <code>lotus.service.ts:2381</code>
+      </div>
+    </div>
+  </section>
+
+  <section id="rules">
+    <p class="eyebrow">What the research says</p>
+    <h2>Seven rules for questions that diagnose</h2>
+    <div class="rules">
+      <div class="rule"><p><strong>Every wrong answer points to one mistake.</strong> If two wrong options mean the same thing, one of them is wasted. A student who picks option A should have a different gap from one who picks C.</p><p class="src">Eedi Diagnostic Questions (Craig Barton): each distractor maps to a single misconception, and you can't get it right while holding the key misconception.</p></div>
+      <div class="rule"><p><strong>Choose numbers that make mistakes show.</strong> Pick the instance so that each known mistake produces a <em>different</em> answer. Then the answer names the mistake.</p><p class="src">Brown &amp; Burton (1978), BUGGY: mistakes are small, consistent edits to the right procedure, so they can be predicted and tested for.</p></div>
+      <div class="rule"><p><strong>Ask how sure they are, and use it.</strong> A confident wrong answer suggests a misconception. An unsure wrong answer suggests they don't know yet. These two need different teaching.</p><p class="src">Three-tier diagnostic tests: in one study the misconception rate fell from 56% on answers alone to 18% once reasons and confidence were added. Answer-only tests overestimate misconceptions.</p></div>
+      <div class="rule"><p><strong>Ask why, as a second choice.</strong> A short reason choice after the answer catches the student who is right by luck or by a broken rule.</p><p class="src">Treagust's two-tier tests. The "correct answer trap" (Imran &amp; Bulathwela 2026, Eedi data): flawed reasoning hidden behind correct answers.</p></div>
+      <div class="rule"><p><strong>Make the student find and fix errors.</strong> Spotting a wrong step and choosing its fix shows what the student thinks the right step is.</p><p class="src">Booth, Lange, Koedinger &amp; Newton (2013): incorrect examples reduce misconceptions in algebra.</p></div>
+      <div class="rule"><p><strong>Let them make their own example.</strong> "Build one that works" can't be guessed, and the example a student builds shows what they think the rule is.</p><p class="src">Watson &amp; Mason (2005), learner-generated examples: the examples a learner can build show how far their understanding reaches.</p></div>
+      <div class="rule"><p><strong>Make the game the maths.</strong> When the game action is the maths itself, children learn more and play longer. The path they take to the answer is extra evidence.</p><p class="src">Habgood &amp; Ainsworth (2011), Zombie Division: the integrated version gave more learning and 7× more voluntary play. PISA uses the path students take (log data) to tell apart strategies that end in the same answer.</p></div>
+    </div>
+  </section>
+
+  <section id="lab">
+    <p class="eyebrow">The prototypes</p>
+    <h2>Play them as yourself, or as a student with a hidden mistake</h2>
+    <p class="read muted">Answer a question and the right-hand pane shows what Lotus would conclude. Or tap "Play as" to pick a student type. The page then answers the new question and today's version as that student would, and shows both conclusions. Draw again to see a different random answer. Prototypes A to D use the same numbers as the proof further down.</p>
+    <div id="benches" style="display:grid;gap:22px"></div>
+  </section>
+
+  <section id="proof">
+    <p class="eyebrow">The proof</p>
+    <h2>Same skills, same simulated students: the new questions find the mistake about three times as often</h2>
+    <p class="read">I simulated 20,000 students. Each one holds a hidden state for each skill: they know it, they hold one specific mistake, or they don't know it yet. Every student makes careless slips 8% of the time. Today's questions are copied from the code, with the same numbers and options. For each option I worked out from the maths which students would pick it. Then I asked one question: after the answers, can Lotus name the mistake correctly?</p>
+    <div class="chart">
+      <h3>How much one answer tells Lotus</h3>
+      <p class="muted" style="font-size:.9rem">Bits of information about the student's hidden state from a single answer. The faint end of each track is the most a perfect question could give.</p>
+      <div id="chartBits"></div>
+      <div class="legend"><span><i style="background:var(--old)"></i>Today</span><span><i style="background:color-mix(in srgb,var(--pond) 45%,var(--card))"></i>New, no confidence tap</span><span><i style="background:var(--pond)"></i>New, with confidence tap</span></div>
+    </div>
+    <div class="chart">
+      <h3>A whole check: mistakes named correctly vs. minutes spent</h3>
+      <p class="muted" style="font-size:.9rem">Four skills. Each point is a battery of 1, 2 or 3 questions per skill. A mistake counts as named only when Lotus picks the exact mistake the student holds, with at least 60% certainty.</p>
+      <div id="chartBattery"></div>
+      <div class="legend"><span><i style="background:var(--old)"></i>Today's formats</span><span><i style="background:var(--pond)"></i>New formats</span></div>
+    </div>
+    <div class="tablewrap"><table id="tblBattery"></table></div>
+    <h3>Where today's questions go blind</h3>
+    <div class="tablewrap"><table id="tblBlind"></table></div>
+    <div class="callout read">
+      <p><strong>Where the new formats lose.</strong> Today's one-step "Is it fully factorised?" question was already well built: each wrong option means one thing. It gives more information per minute than its two-step replacement (<span id="meaningBpm"></span>). The two-step version is worth it because it halves false alarms, not because it is faster. Asking the extra step on every question would cost time for little gain, so keep it to multiple-choice questions, where guessing is possible.</p>
+    </div>
+    <div class="callout read">
+      <p><strong>If the confidence assumption is wrong.</strong> The simulation assumes students with a misconception feel surer than students who are guessing, as the research reports. I re-ran it with that difference mostly removed. With one question per skill, the new formats still name the right mistake <b id="sensNamed"></b> of the time, against <b id="oldNamed"></b> for today's formats. Most of the gain comes from how the questions are built, not from the confidence tap.</p>
+    </div>
+    <div class="callout read">
+      <p><strong>What this does not prove yet.</strong> These are simulated students with clean, consistent mistakes, and real children are messier. The time per question is my estimate. The next step is a real comparison in a pilot class: half the class gets today's question in four slots and half gets the new one. Then check both against a short follow-up interview with each student. If the gap shrinks with real students, we learn which rule matters most.</p>
+    </div>
+  </section>
+
+  <section id="games">
+    <p class="eyebrow">Game design</p>
+    <h2>What will work in a diagnostic, and what won't</h2>
+    <div class="split">
+      <div>
+        <h3 class="good">Works</h3>
+        <ul>
+          <li><strong>Building games where the build is the answer.</strong> The area grid, tile bridges and crossword. The order of tries tells Lotus about strategy.</li>
+          <li><strong>Sorting and netting.</strong> Fishing gives several yes/no answers on one screen, so a real mistake shows up again and again while a slip shows up once. Keep it.</li>
+          <li><strong>Two characters who disagree.</strong> "Riya says, Sam says" turns a check into a judgement. Students argue with characters more readily than with the test.</li>
+          <li><strong>Make your own.</strong> Open enough to be fun, and it can't be guessed.</li>
+          <li><strong>Calm, meaningful motion.</strong> Motion that marks evidence (the pond) or confirms a build (tiles snapping in). Never motion that marks right or wrong.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="bad">Won't work</h3>
+        <ul>
+          <li><strong>Timers and speed rounds.</strong> These measure speed and stress, not understanding. Anxiety uses up working memory, and the students most affected are the ones we most need to read clearly.</li>
+          <li><strong>Lives, points, streaks.</strong> Losing a life makes guessing feel safer than saying "I don't know". That swaps a clean "doesn't know yet" for noise.</li>
+          <li><strong>A new skin on the same multiple-choice question.</strong> Fireflies and critters. Novelty wears off after a few questions, and the evidence is no better than before.</li>
+          <li><strong>True / false.</strong> A 50% guess rate. One answer barely tells you anything.</li>
+          <li><strong>Fiddly dragging on phones.</strong> A missed drop looks like a wrong answer. Use taps and pickers.</li>
+          <li><strong>Long story questions.</strong> Reading load hides the maths gap we're trying to see.</li>
+          <li><strong>Showing right or wrong during the check.</strong> It teaches during the test, so later answers stop being a clean reading.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="next">
+    <p class="eyebrow">If you want this in Lotus</p>
+    <h2>A sensible order to build it in</h2>
+    <ol class="steps read">
+      <li><strong>Fix the two blind games first.</strong> Replace Fireflies with bracket doors, where each wrong door is a different mistake. Replace Spot the Impostor with Riya vs Sam. Both are code-built and checked by the algebra engine, the same way the current probes are.</li>
+      <li><strong>Let confidence count in the gap rules.</strong> A confident wrong answer that matches a known mistake counts as strong evidence. An unsure one counts as "doesn't know yet" and never as a named misconception. This fits your recent change that stopped slips and guesses counting toward a gap.</li>
+      <li><strong>Add the "why?" step to multiple-choice slots only.</strong> Detective becomes find-and-fix, and the "Is it fully factorised?" question gets reasons.</li>
+      <li><strong>Swap the frog for the misty pond.</strong> Progress comes from how much the evidence has settled, so an adaptive test with an uncertain length still shows honest progress.</li>
+      <li><strong>Pilot the area grid and make-your-own</strong> as two new code-built formats, recording the path the student takes, not just the final answer.</li>
+      <li><strong>Run the class comparison</strong> described above before rolling out further.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>Simulation: <code>prototypes/lotus-diagnostic-v2/simulate.mjs</code> in the eduTeach repo. Re-run it with <code>node simulate.mjs</code>. Prototypes E and F use illustrative weights and are not part of the proof.</p>
+    <ol>
+      <li><a href="https://shura.shu.ac.uk/3556/" target="_blank" rel="noopener">Habgood &amp; Ainsworth (2011), Motivating children to learn effectively, J. Learning Sciences</a></li>
+      <li><a href="https://eedi.substack.com/p/what-do-4-million-students-responses" target="_blank" rel="noopener">Eedi, What do 4 million students' responses tell us</a></li>
+      <li><a href="https://www.cem.org/blog/guess-the-misconception" target="_blank" rel="noopener">Craig Barton, Guess the misconception</a></li>
+      <li><a href="https://open.metu.edu.tr/bitstream/handle/11511/35144/index.pdf" target="_blank" rel="noopener">Three-tier diagnostic test (METU), misconceptions vs lack of knowledge</a></li>
+      <li><a href="https://eepro.naaee.org/research/eeresearch/new-diagnostic-test-measures-misconceptions" target="_blank" rel="noopener">NAAEE summary: one- and two-tier tests overestimate misconceptions (56% → 18%)</a></li>
+      <li><a href="https://arxiv.org/abs/2605.23925" target="_blank" rel="noopener">Imran &amp; Bulathwela, Catching the Correct Answer Trap (AIED 2026)</a></li>
+      <li><a href="https://serpinstitute.org/algebra-by-example/research" target="_blank" rel="noopener">Booth et al. (2013), Algebra by Example research</a></li>
+      <li><a href="https://oro.open.ac.uk/792" target="_blank" rel="noopener">Watson &amp; Mason (2005), Learners generating examples</a></li>
+      <li><a href="https://tecfaetu.unige.ch/staf/staf-d/krige/staf11/buggy.html" target="_blank" rel="noopener">Brown &amp; Burton (1978), BUGGY</a></li>
+      <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9846743/" target="_blank" rel="noopener">PISA 2012 process data: same answer, different strategies</a></li>
+      <li><a href="https://mrbartonmaths.com/research/anxiety.html" target="_blank" rel="noopener">Maths anxiety and working memory research summary</a></li>
+    </ol>
+  </footer>
+</div>
+
+<script>
+const DATA = /*RESULTS*/null;
+
+// ---------------- names in plain English ----------------
+const NAMES = {
+  M: "Knows it",
+  UNK: "Doesn't know yet",
+  SIGNS_SWAPPED: "Flips the signs into the brackets",
+  PRODUCT_SUM_SWAPPED: "Mixes up product and sum",
+  PRODUCT_ONLY: "Matches the product, ignores the sum",
+  FIRST_LAST_ONLY: "Checks only the first and last terms",
+  FLIPPED_ONE_SIGN: "Flips only the first sign",
+  KEPT_ORIGINAL_SIGNS: "Keeps every sign as it was",
+  SUM_ACCEPTED: "Thinks 'all in brackets' means finished",
+  COMBINED_UNLIKE: "Adds unlike terms (2y + 3 → 5y)",
+  UNSURE: "Not sure yet",
+};
+const CONF_TEXT = { sure: "Sure", think: "Think so", guess: "Guessing" };
+const SKILL_LABEL = { PAIR: "x² + bx + c", VERIFY: "Checking", NEGATIVE: "Negative factor", MEANING: "Fully factorised?" };
+const item = (id) => DATA.items.find((i) => i.id === id);
+const pct = (x) => `${Math.round(x * 100)}%`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function posterior(table, key, prior) {
+  const p = prior ?? table.prior;
+  const out = {};
+  let z = 0;
+  for (const s of Object.keys(p)) { out[s] = p[s] * (table.L[s][key] ?? 0); z += out[s]; }
+  if (!z) return { ...p };
+  for (const s in out) out[s] /= z;
+  return out;
+}
+function verdictOf(post) {
+  let best = null, bp = 0;
+  for (const [s, p] of Object.entries(post)) if (p > bp) { bp = p; best = s; }
+  return bp >= 0.6 ? { state: best, p: bp } : { state: "UNSURE", p: bp, lean: best };
+}
+function sample(dist) {
+  let u = Math.random(), acc = 0;
+  for (const [k, p] of Object.entries(dist)) { acc += p; if (u <= acc) return k; }
+  return Object.keys(dist).at(-1);
+}
+function renderPost(el, post, note) {
+  const v = verdictOf(post);
+  const rows = Object.entries(post).sort((a, b) => b[1] - a[1]);
+  el.innerHTML = `
+    <p class="vtitle">What Lotus concludes</p>
+    <p class="call ${v.state === "UNSURE" ? "unsure" : ""}">${v.state === "UNSURE" ? `Not sure yet. Leaning “${esc(NAMES[v.lean])}” at ${pct(v.p)}.` : `“${esc(NAMES[v.state])}”, ${pct(v.p)} sure.`}</p>
+    <div class="post">${rows.map(([s, p], i) => `<div class="prow ${i === 0 ? "top" : ""}"><span>${esc(NAMES[s])}</span><em>${pct(p)}</em><span class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></span></div>`).join("")}</div>
+    ${note ? `<p class="why">${note}</p>` : ""}`;
+}
+function miniVerdict(post) {
+  const v = verdictOf(post);
+  return v.state === "UNSURE" ? `<span class="muted">Not sure (leans “${esc(NAMES[v.lean])}”, ${pct(v.p)})</span>` : `<strong>“${esc(NAMES[v.state])}”</strong> ${pct(v.p)}`;
+}
+
+// ---------------- the pond (replaces the frog) ----------------
+const POND_SKILLS = ["PAIR", "VERIFY", "NEGATIVE", "MEANING"];
+const pond = { post: {}, answers: 0 };
+function pondReset() {
+  for (const s of POND_SKILLS) pond.post[s] = { ...DATA.skills[s].states };
+  pond.answers = 0;
+  drawPond();
+}
+const entropy = (d) => -Object.values(d).reduce((t, p) => t + (p > 0 ? p * Math.log2(p) : 0), 0);
+function clarity(skill) { // 0 = all mist, 1 = Lotus is settled about this skill
+  const h0 = entropy(DATA.skills[skill].states), h = entropy(pond.post[skill]);
+  return Math.max(0, Math.min(1, 1 - h / h0));
+}
+function pondEvidence(skill, table, key) {
+  pond.post[skill] = posterior(table, key, pond.post[skill]);
+  pond.answers++;
+  drawPond(skill);
+}
+function pondEvidenceLik(skill, lik) {
+  const p = pond.post[skill]; let z = 0; const out = {};
+  for (const s in p) { out[s] = p[s] * (lik[s] ?? 0.01); z += out[s]; }
+  for (const s in out) out[s] /= z;
+  pond.post[skill] = out; pond.answers++; drawPond(skill);
+}
+const PAD_X = [90, 240, 400, 550];
+function drawPond(rippleSkill) {
+  const svg = document.getElementById("pond");
+  const petals = (cx, cy, open, settled) => {
+    const n = 7, out = [];
+    for (let i = 0; i < n; i++) {
+      const a = -75 + (150 * i) / (n - 1);
+      const lift = 6 + open * 12, spread = 0.35 + open * 0.65;
+      out.push(`<g transform="translate(${cx} ${cy}) rotate(${a * spread})"><ellipse class="pet" cx="0" cy="${-lift}" rx="${3.4 + open * 2.6}" ry="${7 + open * 8}" fill="var(--petal)" fill-opacity="${0.55 + open * 0.45}" stroke="var(--card)" stroke-width="0.8"/></g>`);
+    }
+    return out.join("") + `<circle cx="${cx}" cy="${cy - 2}" r="${2.5 + open * 2}" fill="#f2c14e"/>`;
+  };
+  let body = `<defs>
+      <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--water-a)"/><stop offset="1" stop-color="var(--water-b)"/></linearGradient>
+      <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+    </defs>
+    <rect x="0" y="0" width="640" height="120" fill="url(#wg)"/>`;
+  POND_SKILLS.forEach((s, i) => {
+    const cx = PAD_X[i], cy = 70, c = clarity(s), v = verdictOf(pond.post[s]);
+    body += `<ellipse cx="${cx}" cy="${cy + 8}" rx="44" ry="11" fill="var(--pond)" fill-opacity="0.55"/>
+      <g class="bud">${petals(cx, cy, c, v.state !== "UNSURE")}</g>
+      <text x="${cx}" y="112" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)" font-family="Atkinson Hyperlegible, sans-serif">${SKILL_LABEL[s]}</text>`;
+  });
+  // Mist: a soft cloud over each bud, thinning as evidence settles.
+  POND_SKILLS.forEach((s, i) => {
+    const op = (1 - clarity(s)) * 0.8;
+    body += `<g class="mistc" style="opacity:${op.toFixed(2)}" filter="url(#blur)"><ellipse cx="${PAD_X[i]}" cy="58" rx="62" ry="34" fill="var(--mist)"/><ellipse cx="${PAD_X[i] + 26}" cy="48" rx="34" ry="20" fill="var(--mist)"/></g>`;
+  });
+  if (rippleSkill) {
+    const cx = PAD_X[POND_SKILLS.indexOf(rippleSkill)];
+    body += `<circle class="ripple" cx="${cx}" cy="78" r="18" fill="none" stroke="var(--card)" stroke-width="2"/><circle class="ripple" style="animation-delay:.25s" cx="${cx}" cy="78" r="18" fill="none" stroke="var(--card)" stroke-width="1.5"/>`;
+  }
+  svg.innerHTML = body;
+  const clear = POND_SKILLS.filter((s) => verdictOf(pond.post[s]).state !== "UNSURE");
+  const avg = POND_SKILLS.reduce((t, s) => t + clarity(s), 0) / POND_SKILLS.length;
+  document.getElementById("pondHead").textContent = pond.answers === 0 ? "Morning mist on the pond"
+    : clear.length === POND_SKILLS.length ? "The pond is clear. Lotus has its picture."
+    : `${clear.length} of ${POND_SKILLS.length} areas clear · mist ${Math.round((1 - avg) * 100)}%`;
+}
+
+// ---------------- benches ----------------
+const benches = document.getElementById("benches");
+function bench({ tag, title, sub }) {
+  const el = document.createElement("article");
+  el.className = "bench";
+  el.innerHTML = `<header><span class="tag">${tag}</span><h3>${title}</h3><p class="muted" style="font-size:.93rem">${sub}</p></header>
+    <div class="panes"><div class="play"></div><div class="verdict"><p class="empty">Answer, or pick a student under “Play as”, to see what Lotus learns.</p></div></div>`;
+  benches.appendChild(el);
+  return { play: el.querySelector(".play"), verdict: el.querySelector(".verdict") };
+}
+function choiceGroup(options, { one = false, cls = "" } = {}, onPick) {
+  const wrap = document.createElement("div");
+  wrap.className = `opts ${one ? "one" : ""} ${cls}`;
+  wrap.setAttribute("role", "group");
+  options.forEach(({ key, html }) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "opt"; b.innerHTML = html; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      wrap.querySelectorAll(".opt").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      onPick(key);
+    });
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+function confGroup(onPick) {
+  const t = document.createElement("div");
+  t.className = "tier";
+  t.innerHTML = `<p>How sure are you?</p>`;
+  const g = choiceGroup(Object.entries(CONF_TEXT).map(([key, label]) => ({ key, html: label })), { cls: "conf" }, onPick);
+  g.classList.remove("opts"); g.classList.add("conf");
+  t.appendChild(g);
+  return t;
+}
+function playAs({ states, onPlay }) {
+  const row = document.createElement("div");
+  row.style.cssText = "display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:12px";
+  row.innerHTML = `<p class="vtitle">Play as a student who…</p>`;
+  const chips = document.createElement("div");
+  chips.className = "chips";
+  let current = null;
+  states.forEach((s) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ghost"; b.textContent = NAMES[s]; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => { current = s; chips.querySelectorAll(".ghost").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); onPlay(s); again.hidden = false; });
+    chips.appendChild(b);
+  });
+  const again = document.createElement("button");
+  again.type = "button"; again.className = "ghost"; again.style.justifySelf = "start"; again.textContent = "↻ Draw again"; again.hidden = true;
+  again.addEventListener("click", () => current && onPlay(current));
+  row.appendChild(chips); row.appendChild(again);
+  return row;
+}
+function versus(verdictEl, { state, oldId, newId, describeOld, describeNew }) {
+  const o = item(oldId), n = item(newId);
+  const ko = sample(o.table.L[state]), kn = sample(n.table.L[state]);
+  const po = posterior(o.table, ko), pn = posterior(n.table, kn);
+  const hit = (p) => verdictOf(p).state === state;
+  verdictEl.innerHTML = `<p class="vtitle">Hidden student: ${esc(NAMES[state])}</p>
+    <div class="versus">
+      <div class="vcol oldc"><h4>Today's version</h4><p class="said">${describeOld(ko)}</p><p>${miniVerdict(po)}</p><p class="${hit(po) ? "good" : "bad"}">${hit(po) ? "Found it" : "Missed"}</p></div>
+      <div class="vcol"><h4>New version</h4><p class="said">${describeNew(kn)}</p><p>${miniVerdict(pn)}</p><p class="${hit(pn) ? "good" : "bad"}">${hit(pn) ? "Found it" : "Missed"}</p></div>
+    </div>
+    <p class="why">Answers are drawn at random from how that student behaves, including slips and guesses. Draw again a few times. Over many draws today's version finds this student ${pct(o.perState[state][state] ?? 0)} of the time, and the new one ${pct(n.perState[state][state] ?? 0)}.</p>`;
+}
+const pretty = (t) => t.replace(/\(x([+−])(\d+)\)/g, "(x $1 $2)");
+
+// ---- A: Bracket doors ----
+(function () {
+  const it = item("new-doors"), d = DATA.doors;
+  const { play, verdict } = bench({ tag: "A · replaces Fireflies", title: "Bracket doors: every wrong door is a different mistake",
+    sub: "The numbers are chosen by code so that each common mistake leads to its own door. Fireflies asks for the number pair, which a student who flips the signs gets right. This asks for the brackets, where that mistake shows up." });
+  const opts = [d.right, d.sw, d.ps, d.po];
+  const order = [2, 0, 3, 1].map((i) => opts[i]);
+  play.innerHTML = `<p class="q">Which door is the same as</p><p class="big">${it.exprText}</p>`;
+  let ans = null, conf = null;
+  const go = document.createElement("button"); go.className = "go"; go.type = "button"; go.textContent = "Lock in"; go.disabled = true;
+  play.appendChild(choiceGroup(order.map((o) => ({ key: o, html: `<span class="m">${pretty(o)}</span>` })), {}, (k) => { ans = k; go.disabled = !(ans && conf); }));
+  play.appendChild(confGroup((k) => { conf = k; go.disabled = !(ans && conf); }));
+  play.appendChild(go);
+  go.addEventListener("click", () => {
+    const key = `${ans}|${conf}`;
+    const why = { [d.right]: "Expanding gives back the expression.", [d.sw]: "This door is what you get when you find 4 and −1 correctly and then flip them into the brackets.", [d.ps]: "This door's numbers multiply to 3 and add to −4. That's the product and sum swapped.", [d.po]: "This door's numbers multiply to −4 but don't add to 3." }[ans];
+    renderPost(verdict, posterior(it.table, key), `${why} ${conf === "guess" ? "You said you were guessing, so Lotus won't name a mistake from this." : ""}`);
+    pondEvidence("PAIR", it.table, key);
+  });
+  const fire = { right: "Picks “−3 and 5”", sign: "Picks “3 and −5”", other: "Picks “1 and −15”", prod: "Picks “−2 and 4”" };
+  play.appendChild(playAs({ states: Object.keys(it.table.prior), onPlay: (s) => versus(verdict, { state: s, oldId: "old-firefly", newId: "new-doors",
+    describeOld: (k) => fire[k], describeNew: (k) => { const [o, c] = k.split("|"); return `Picks ${pretty(o)}, “${CONF_TEXT[c]}”`; } }) }));
+})();
+
+// ---- B: Riya vs Sam ----
+(function () {
+  const it = item("new-riyasam");
+  const { play, verdict } = bench({ tag: "B · replaces Spot the Impostor", title: "Riya vs Sam: two answers that match on the first and last terms",
+    sub: "Both claims have the same x² and the same −6, so only expanding everything tells them apart. A student who checks only the ends says “both”. That's an answer of its own, where today the same student just guesses." });
+  play.innerHTML = `<div class="slates"><div class="slate"><b>RIYA</b><span class="m">x² + x − 6 = (x + 3)(x − 2)</span></div><div class="slate"><b>SAM</b><span class="m">x² + x − 6 = (x − 3)(x + 2)</span></div></div><p class="q">Who is right?</p>`;
+  let a = null, r = null, c = null;
+  const go = document.createElement("button"); go.className = "go"; go.type = "button"; go.textContent = "Lock in"; go.disabled = true;
+  const upd = () => (go.disabled = !(a && r && c));
+  play.appendChild(choiceGroup([["onlyRiya", "Only Riya"], ["onlySam", "Only Sam"], ["both", "Both"], ["neither", "Neither"]].map(([key, html]) => ({ key, html })), {}, (k) => { a = k; upd(); }));
+  const t = document.createElement("div"); t.className = "tier"; t.innerHTML = "<p>How did you decide?</p>";
+  t.appendChild(choiceGroup([["expandedAll", "I multiplied out all four parts"], ["firstLast", "I checked the x² and the number at the end"], ["signsLook", "The signs looked right"], ["guessed", "I guessed"]].map(([key, html]) => ({ key, html })), { one: true }, (k) => { r = k; upd(); }));
+  play.appendChild(t);
+  play.appendChild(confGroup((k) => { c = k; upd(); }));
+  play.appendChild(go);
+  go.addEventListener("click", () => { const key = `${a}|${r}|${c}`; renderPost(verdict, posterior(it.table, key)); pondEvidence("VERIFY", it.table, key); });
+  const imp = { impostor: "Picks (x − 2)(x − 3), the real impostor", eq1: "Picks (x + 2)(x + 3)", eq2: "Picks (x + 3)(x + 2)", eq3: "Picks x² + 2x + 3x + 6" };
+  const A = { onlyRiya: "Only Riya", onlySam: "Only Sam", both: "Both", neither: "Neither" }, R = { expandedAll: "multiplied it all out", firstLast: "checked x² and the end", signsLook: "signs looked right", guessed: "guessed" };
+  play.appendChild(playAs({ states: Object.keys(it.table.prior), onPlay: (s) => versus(verdict, { state: s, oldId: "old-impostor", newId: "new-riyasam",
+    describeOld: (k) => imp[k], describeNew: (k) => { const [x, y, z] = k.split("|"); return `“${A[x]}”, because they ${R[y]}. “${CONF_TEXT[z]}”`; } }) }));
+})();
+
+// ---- C: Find it, fix it ----
+(function () {
+  const it = item("new-findfix");
+  const { play, verdict } = bench({ tag: "C · upgrades Detective", title: "Find it, then fix it",
+    sub: "Today Detective stops once the line is flagged. So a student who keeps every sign flags the correct line and looks like they know it. Asking for the fix shows what they think the line should be." });
+  const lines = ["−6x − 9", "(−3)(2x) + (−3)(3)", "−3(2x − 3)", "−6x + 9"];
+  play.innerHTML = `<p class="q">Kabir took out −3. Tap the first line that goes wrong.</p>`;
+  const work = document.createElement("div"); work.className = "work";
+  let line = null, fix = null, conf = null;
+  const fixTier = document.createElement("div"); fixTier.className = "tier"; fixTier.hidden = true;
+  fixTier.innerHTML = "<p>What should line 2 be?</p>";
+  fixTier.appendChild(choiceGroup([["fixRight", "−3(2x + 3)"], ["fixKept", "−3(−2x − 3)"], ["fixOther", "−3(−2x + 3)"]].map(([key, t]) => ({ key, html: `<span class="m">${t}</span>` })), { one: false }, (k) => { fix = k; upd(); }));
+  const go = document.createElement("button"); go.className = "go"; go.type = "button"; go.textContent = "Lock in"; go.disabled = true;
+  const upd = () => (go.disabled = !(line && conf && (line !== "L2" || fix)));
+  const btns = [];
+  lines.forEach((t, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "wl"; b.disabled = i === 0; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<span class="no">${i || ""}</span><span>${i ? "=" : ""}</span><span class="txt">${t}</span>`;
+    b.addEventListener("click", () => { line = `L${i}`; btns.forEach((x) => x.setAttribute("aria-pressed", String(x === b))); nothing.setAttribute("aria-pressed", "false"); fixTier.hidden = line !== "L2"; fixTier.querySelector("p").textContent = `What should line ${i} be?`; upd(); });
+    btns.push(b); work.appendChild(b);
+  });
+  const nothing = document.createElement("button"); nothing.type = "button"; nothing.className = "ghost"; nothing.textContent = "Nothing is wrong"; nothing.setAttribute("aria-pressed", "false");
+  nothing.addEventListener("click", () => { line = "nothing"; btns.forEach((x) => x.setAttribute("aria-pressed", "false")); nothing.setAttribute("aria-pressed", "true"); fixTier.hidden = true; upd(); });
+  play.appendChild(work); play.appendChild(nothing); play.appendChild(fixTier);
+  play.appendChild(confGroup((k) => { conf = k; upd(); }));
+  play.appendChild(go);
+  go.addEventListener("click", () => { const key = line === "L2" ? `L2|${fix}|${conf}` : `${line}|-|${conf}`; renderPost(verdict, posterior(it.table, key)); pondEvidence("NEGATIVE", it.table, key); });
+  const L = { L1: "Flags line 1", L2: "Flags line 2", L3: "Flags line 3", nothing: "Says nothing is wrong" };
+  const F = { fixRight: "fixes it to −3(2x + 3)", fixKept: "fixes it to −3(−2x − 3)", fixOther: "fixes it to −3(−2x + 3)" };
+  play.appendChild(playAs({ states: Object.keys(it.table.prior), onPlay: (s) => versus(verdict, { state: s, oldId: "old-detective", newId: "new-findfix",
+    describeOld: (k) => L[k], describeNew: (k) => { const [l, f, c] = k.split("|"); return `${L[l]}${f !== "-" ? `, ${F[f]}` : ""}. “${CONF_TEXT[c]}”`; } }) }));
+})();
+
+// ---- D: Is it finished? Why? ----
+(function () {
+  const it = item("new-meaning");
+  const { play, verdict } = bench({ tag: "D · adds a reason step to an AI question", title: "Is it finished? Why?",
+    sub: "Today's single-step version is already decent. The reason step and the confidence tap mostly cut false alarms: a guess that happens to land on “Yes” no longer gets recorded as a misconception." });
+  play.innerHTML = `<p class="q">Is this fully factorised?</p><p class="big">2y(x + 1) + 3(x + 1)</p>`;
+  let a = null, r = null, c = null;
+  const go = document.createElement("button"); go.className = "go"; go.type = "button"; go.textContent = "Lock in"; go.disabled = true;
+  const upd = () => (go.disabled = !(a && r && c));
+  play.appendChild(choiceGroup([["yes", "Yes"], ["noRight", "No: it's <span class='m'>(x + 1)(2y + 3)</span>"], ["noCombined", "No: it's <span class='m'>5y(x + 1)</span>"], ["noSquared", "No: it's <span class='m'>(x + 1)²(2y + 3)</span>"]].map(([key, html]) => ({ key, html })), {}, (k) => { a = k; upd(); }));
+  const t = document.createElement("div"); t.className = "tier"; t.innerHTML = "<p>Why?</p>";
+  t.appendChild(choiceGroup([["oneProduct", "Factorised means one product. This is still two terms added"], ["allBrackets", "Everything is already inside brackets"], ["addLike", "2y and 3 can be added together"], ["guessed", "I'm not sure, I guessed"]].map(([key, html]) => ({ key, html })), { one: true }, (k) => { r = k; upd(); }));
+  play.appendChild(t);
+  play.appendChild(confGroup((k) => { c = k; upd(); }));
+  play.appendChild(go);
+  go.addEventListener("click", () => { const key = `${a}|${r}|${c}`; renderPost(verdict, posterior(it.table, key)); pondEvidence("MEANING", it.table, key); });
+  const A = { yes: "“Yes”", noRight: "“No: (x + 1)(2y + 3)”", noCombined: "“No: 5y(x + 1)”", noSquared: "“No: (x + 1)²(2y + 3)”" };
+  const R = { oneProduct: "it's still a sum", allBrackets: "all in brackets", addLike: "2y + 3 adds up", guessed: "guessed" };
+  play.appendChild(playAs({ states: Object.keys(it.table.prior), onPlay: (s) => versus(verdict, { state: s, oldId: "old-meaning", newId: "new-meaning",
+    describeOld: (k) => `Picks ${A[k]}`, describeNew: (k) => { const [x, y, z] = k.split("|"); return `${A[x]}, because ${R[y]}. “${CONF_TEXT[z]}”`; } }) }));
+})();
+
+// ---- E: Area grid ----
+(function () {
+  const { play, verdict } = bench({ tag: "E · new game: the play is the maths", title: "Area grid: build the rectangle",
+    sub: "The grid fills itself as the student picks the sides, and shows what the rectangle adds up to. The student decides when it matches. Every attempt is recorded, and the order of attempts shows the strategy." });
+  const B = 2, C = -15; // x² + 2x − 15 = (x + 5)(x − 3)
+  play.innerHTML = `<p class="q">Pick the two missing sides so the rectangle is</p><p class="big">x² + 2x − 15</p>`;
+  const nums = [-9, -8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const sel = (id) => `<select id="${id}" aria-label="missing side">${["<option value=''>?</option>", ...nums.map((n) => `<option value="${n}">${n < 0 ? "−" + -n : "+" + n}</option>`)].join("")}</select>`;
+  const g = document.createElement("div"); g.className = "grid2";
+  g.innerHTML = `<div class="h">×</div><div class="h">x</div><div class="h">${sel("gridA")}</div>
+    <div class="h">x</div><div class="cell pos" id="c00">x²</div><div class="cell" id="c01"></div>
+    <div class="h">${sel("gridB")}</div><div class="cell" id="c10"></div><div class="cell" id="c11"></div>`;
+  play.appendChild(g);
+  const sum = document.createElement("p"); sum.className = "sumline"; sum.textContent = "Your rectangle adds up to: x² + …";
+  const trail = document.createElement("div"); trail.className = "trail";
+  const go = document.createElement("button"); go.className = "go"; go.type = "button"; go.textContent = "This is it"; go.disabled = true;
+  play.append(sum, trail, go);
+  const tries = [];
+  const sgn = (n) => (n < 0 ? `− ${-n}` : `+ ${n}`);
+  const term = (n, v = "") => (n === 0 ? "" : ` ${n < 0 ? "−" : "+"} ${Math.abs(n) === 1 && v ? "" : Math.abs(n)}${v}`);
+  function update() {
+    const a = Number(play.querySelector("#gridA").value), b = Number(play.querySelector("#gridB").value);
+    const set = (id, txt, n) => { const c = play.querySelector(id); c.textContent = txt; c.className = `cell ${n == null ? "" : n < 0 ? "neg" : "pos"} pop`; };
+    if (a) set("#c01", `${a < 0 ? "−" : ""}${Math.abs(a) === 1 ? "" : Math.abs(a)}x`, a); else set("#c01", "", null);
+    if (b) set("#c10", `${b < 0 ? "−" : ""}${Math.abs(b) === 1 ? "" : Math.abs(b)}x`, b); else set("#c10", "", null);
+    if (a && b) {
+      set("#c11", `${a * b < 0 ? "−" : ""}${Math.abs(a * b)}`, a * b);
+      sum.textContent = `Your rectangle adds up to: x²${term(a + b, "x")}${term(a * b)}`;
+      const last = tries.at(-1);
+      if (!last || last[0] !== a || last[1] !== b) { tries.push([a, b]); trail.innerHTML = tries.map(([u, v]) => `<span>(x ${sgn(u)})(x ${sgn(v)})</span>`).join(""); }
+      go.disabled = false;
+    }
+  }
+  play.querySelector("#gridA").addEventListener("change", update);
+  play.querySelector("#gridB").addEventListener("change", update);
+  go.addEventListener("click", () => {
+    const kind = ([a, b]) => a * b === C && a + b === B ? "right" : a * b === C && a + b === -B ? "flip" : a * b === C ? "prodOnly" : a + b === C && a * b === B ? "swap" : a + b === B ? "sumOnly" : "other";
+    const first = kind(tries[0]), final = kind(tries.at(-1));
+    const productFirst = tries.filter(([a, b]) => a * b === C).length;
+    const lik = {
+      right: { M: 0.75, SIGNS_SWAPPED: 0.1, PRODUCT_SUM_SWAPPED: 0.05, PRODUCT_ONLY: 0.12, UNK: 0.05 },
+      flip: { M: 0.06, SIGNS_SWAPPED: 0.7, PRODUCT_SUM_SWAPPED: 0.05, PRODUCT_ONLY: 0.2, UNK: 0.1 },
+      prodOnly: { M: 0.06, SIGNS_SWAPPED: 0.1, PRODUCT_SUM_SWAPPED: 0.05, PRODUCT_ONLY: 0.55, UNK: 0.15 },
+      swap: { M: 0.02, SIGNS_SWAPPED: 0.03, PRODUCT_SUM_SWAPPED: 0.7, PRODUCT_ONLY: 0.03, UNK: 0.05 },
+      sumOnly: { M: 0.04, SIGNS_SWAPPED: 0.04, PRODUCT_SUM_SWAPPED: 0.15, PRODUCT_ONLY: 0.04, UNK: 0.2 },
+      other: { M: 0.07, SIGNS_SWAPPED: 0.03, PRODUCT_SUM_SWAPPED: 0.05, PRODUCT_ONLY: 0.06, UNK: 0.45 },
+    }[first];
+    const prior = DATA.skills.PAIR.states; const post = {}; let z = 0;
+    for (const s in prior) { post[s] = prior[s] * lik[s]; z += post[s]; }
+    for (const s in post) post[s] /= z;
+    const words = { right: "right on the first try", flip: "the right numbers with the signs flipped", prodOnly: "a pair with the right product but the wrong sum", swap: "numbers that add to −15 and multiply to 2", sumOnly: "a pair with the right sum but the wrong product", other: "an unrelated pair" };
+    renderPost(verdict, post, `First attempt: ${words[first]}. ${tries.length} attempt${tries.length > 1 ? "s" : ""}, ${productFirst} of them with the right product (${productFirst >= tries.length - 1 ? "a systematic search" : "a scattered search"}). Final grid: ${final === "right" ? "matches" : "doesn't match"}. These weights are illustrative and not part of the proof.`);
+    pondEvidenceLik("PAIR", lik);
+  });
+})();
+
+// ---- F: Make your own ----
+(function () {
+  const { play, verdict } = bench({ tag: "F · new game: can't be guessed", title: "Make your own",
+    sub: "The student builds a trinomial that factorises into one plus bracket and one minus bracket, then gives the brackets. Code checks it with the expansion rule. What they build shows what they think the rule is." });
+  // Count the answer space honestly.
+  let valid = 0, total = 0;
+  for (let b = -9; b <= 9; b++) for (let c = -30; c <= 30; c++) { if (!c) continue; total++; for (let r = 1; r <= 30; r++) if (c % r === 0 && c < 0 && (r + c / r === b || -r - c / r === b)) { valid++; break; } }
+  play.innerHTML = `<p class="q">Build one that factorises as <span class="m">(x + a)(x − b)</span>, with a and b positive whole numbers that are different.</p>`;
+  const opt = (id, vals) => `<select id="${id}">${vals.map((v) => `<option>${v}</option>`).join("")}</select>`;
+  const box = document.createElement("div"); box.style.cssText = "display:grid;gap:10px";
+  box.innerHTML = `<div class="builder">x² ${opt("mkS1", ["+", "−"])}<input id="mkB" type="number" min="0" max="9" value="2" aria-label="middle number">x ${opt("mkS2", ["+", "−"])}<input id="mkC" type="number" min="1" max="30" value="8" aria-label="last number"></div>
+    <div class="builder" style="font-size:1.2rem">= (x + <input id="mkA" type="number" min="1" max="30" value="4" aria-label="a">)(x − <input id="mkD" type="number" min="1" max="30" value="2" aria-label="b">)</div>
+    <p class="muted" style="font-size:.88rem">Only ${valid} of the ${total.toLocaleString()} possible trinomials here work. Add the brackets and a lucky guess becomes very unlikely.</p>`;
+  play.appendChild(box);
+  const go = document.createElement("button"); go.className = "go"; go.type = "button"; go.textContent = "Check my build"; play.appendChild(go);
+  go.addEventListener("click", () => {
+    const v = (id) => Number(play.querySelector(id).value);
+    const b = (play.querySelector("#mkS1").value === "−" ? -1 : 1) * v("#mkB"), c = (play.querySelector("#mkS2").value === "−" ? -1 : 1) * v("#mkC");
+    const a = v("#mkA"), d = v("#mkD");
+    const expands = a - d === b && -a * d === c;
+    let outcome, why;
+    if (expands && a !== d && c < 0) { outcome = "valid"; why = "It works. The brackets expand to the trinomial, and the signs are opposite because the last number is negative."; }
+    else if (c > 0) { outcome = "signWrong"; why = "The last number is positive. But a plus bracket times a minus bracket always gives a negative number, so this can't work. That points to a sign-rule gap."; }
+    else if (-a * d === c && a - d !== b) { outcome = "sumWrong"; why = "The brackets multiply to the right last number, but the middle doesn't match. Product right, sum wrong."; }
+    else { outcome = "other"; why = "The brackets and the trinomial don't match."; }
+    const lik = { valid: { M: 0.9, SIGNS_SWAPPED: 0.3, PRODUCT_SUM_SWAPPED: 0.2, PRODUCT_ONLY: 0.25, UNK: 0.05 },
+      signWrong: { M: 0.03, SIGNS_SWAPPED: 0.5, PRODUCT_SUM_SWAPPED: 0.1, PRODUCT_ONLY: 0.1, UNK: 0.3 },
+      sumWrong: { M: 0.04, SIGNS_SWAPPED: 0.1, PRODUCT_SUM_SWAPPED: 0.4, PRODUCT_ONLY: 0.5, UNK: 0.35 },
+      other: { M: 0.03, SIGNS_SWAPPED: 0.1, PRODUCT_SUM_SWAPPED: 0.3, PRODUCT_ONLY: 0.15, UNK: 0.3 } }[outcome];
+    const prior = DATA.skills.PAIR.states; const post = {}; let z = 0;
+    for (const s in prior) { post[s] = prior[s] * lik[s]; z += post[s]; }
+    for (const s in post) post[s] /= z;
+    renderPost(verdict, post, `${why} These weights are illustrative and not part of the proof.`);
+    pondEvidenceLik("PAIR", lik);
+  });
+})();
+
+// ---------------- proof: charts and tables ----------------
+(function stats() {
+  const b = DATA.batteries, old1 = b.find((x) => x.era === "old" && x.perSkill === 1), old3 = b.find((x) => x.era === "old" && x.perSkill === 3), new1 = b.find((x) => x.era === "new" && x.perSkill === 1);
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><b><s>${pct(old1.namedRate)}</s> → ${pct(new1.namedRate)}</b><span>of hidden mistakes named correctly, one question per skill</span></div>
+    <div class="stat"><b>${pct(new1.namedRate)} vs ${pct(old3.namedRate)}</b><span>new formats at ${new1.minutes} min beat today's at ${old3.minutes} min (three questions per skill)</span></div>
+    <div class="stat"><b><s>${pct(old1.unknownSpotted)}</s> → ${pct(new1.unknownSpotted)}</b><span>of "doesn't know yet" students recognised as such, not mislabelled</span></div>`;
+  const sens = DATA.sensitivity.batteries.find((x) => x.perSkill === 1);
+  document.getElementById("sensNamed").textContent = pct(sens.namedRate);
+  document.getElementById("oldNamed").textContent = pct(old1.namedRate);
+  const om = item("old-meaning"), nm = item("new-meaning");
+  document.getElementById("meaningBpm").textContent = `${om.bitsPerMin} vs ${nm.bitsPerMin} bits per minute`;
+})();
+
+(function chartBits() {
+  const skills = ["PAIR", "VERIFY", "NEGATIVE", "MEANING"];
+  const rows = skills.map((s) => ({ s, old: DATA.items.find((i) => i.skill === s && i.era === "old"), mid: DATA.items.find((i) => i.skill === s && i.era === "new*"), neu: DATA.items.find((i) => i.skill === s && i.era === "new") }));
+  const W = 640, left = 150, right = 40, rowH = 66, H = rows.length * rowH + 30, max = 2.4;
+  const x = (v) => left + (v / max) * (W - left - right);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bits per answer by skill">`;
+  for (let t = 0; t <= 2.0001; t += 0.5) s += `<line x1="${x(t)}" x2="${x(t)}" y1="6" y2="${H - 22}" stroke="var(--line)"/><text class="tick" x="${x(t)}" y="${H - 6}" text-anchor="middle">${t.toFixed(1)}</text>`;
+  rows.forEach((r, i) => {
+    const y = 14 + i * rowH;
+    s += `<text x="0" y="${y + 22}" font-size="13" font-weight="700">${SKILL_LABEL[r.s]}</text><text class="tick" x="0" y="${y + 38}">max ${r.old.maxBits} bits</text>`;
+    s += `<rect x="${x(0)}" y="${y}" width="${x(r.old.maxBits) - x(0)}" height="48" fill="var(--line)" opacity="0.35" rx="4"/>`;
+    const bars = [[r.old, "var(--old)"], ...(r.mid ? [[r.mid, "color-mix(in srgb,var(--pond) 45%,var(--card))"]] : []), [r.neu, "var(--pond)"]];
+    const bh = 48 / bars.length - 3;
+    bars.forEach(([it, col], j) => {
+      const yy = y + j * (bh + 3) + 1.5;
+      s += `<rect x="${x(0)}" y="${yy}" width="${Math.max(1, x(it.bits) - x(0))}" height="${bh}" fill="${col}" rx="3"/><text x="${x(it.bits) + 5}" y="${yy + bh / 2 + 4}" font-size="11.5" font-variant-numeric="tabular-nums">${it.bits.toFixed(2)}</text>`;
+    });
+  });
+  document.getElementById("chartBits").innerHTML = s + "</svg>";
+})();
+
+(function chartBattery() {
+  const W = 640, H = 300, L = 46, R = 20, T = 14, B = 40, maxX = 5;
+  const x = (m) => L + (m / maxX) * (W - L - R), y = (p) => T + (1 - p) * (H - T - B);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mistakes named vs minutes">`;
+  for (let p = 0; p <= 1.0001; p += 0.25) s += `<line x1="${L}" x2="${W - R}" y1="${y(p)}" y2="${y(p)}" stroke="var(--line)"/><text class="tick" x="${L - 8}" y="${y(p) + 4}" text-anchor="end">${Math.round(p * 100)}%</text>`;
+  for (let m = 0; m <= maxX; m++) s += `<text class="tick" x="${x(m)}" y="${H - B + 18}" text-anchor="middle">${m} min</text>`;
+  for (const [era, col] of [["old", "var(--old)"], ["new", "var(--pond)"]]) {
+    const pts = DATA.batteries.filter((b) => b.era === era);
+    s += `<polyline points="${pts.map((b) => `${x(b.minutes)},${y(b.namedRate)}`).join(" ")}" fill="none" stroke="${col}" stroke-width="2.5"/>`;
+    pts.forEach((b) => { s += `<circle cx="${x(b.minutes)}" cy="${y(b.namedRate)}" r="6" fill="${col}" stroke="var(--card)" stroke-width="2"/><text x="${x(b.minutes)}" y="${y(b.namedRate) - 12}" text-anchor="middle" font-size="11.5">${b.perSkill}/skill · ${pct(b.namedRate)}</text>`; });
+  }
+  document.getElementById("chartBattery").innerHTML = s + "</svg>";
+})();
+
+(function tables() {
+  const rows = DATA.batteries.map((b) => `<tr><td>${b.era === "old" ? "Today's formats" : "New formats"}</td><td class="n">${b.perSkill}</td><td class="n">${b.minutes} min</td><td class="n">${pct(b.namedRate)}</td><td class="n">${pct(b.unknownSpotted)}</td><td class="n">${pct(b.falseRate)}</td></tr>`).join("");
+  document.getElementById("tblBattery").innerHTML = `<thead><tr><th>Battery</th><th class="n">Questions per skill</th><th class="n">Time (est.)</th><th class="n">Mistake named correctly</th><th class="n">"Doesn't know yet" spotted</th><th class="n">False alarm</th></tr></thead><tbody>${rows}</tbody>`;
+  const blind = [
+    ["old-firefly", "SIGNS_SWAPPED", "A student who flips signs into the brackets finds the right pair, so the game can't see the mistake."],
+    ["old-firefly", "M", "Even a right answer can't separate knowing it from flipping signs later, so Lotus learns almost nothing."],
+    ["old-impostor", "FIRST_LAST_ONLY", "All four critters pass a first-and-last check. The student guesses, and looks the same as one who doesn't know."],
+    ["old-detective", "KEPT_ORIGINAL_SIGNS", "Flags the correct line for the wrong reason and gets recorded as knowing it."],
+    ["old-meaning", "UNK", "A guess that lands on “Yes” gets read as the 'all in brackets' misconception."],
+  ];
+  const newFor = { "old-firefly": "new-doors", "old-impostor": "new-riyasam", "old-detective": "new-findfix", "old-meaning": "new-meaning" };
+  const top = (tally) => Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  document.getElementById("tblBlind").innerHTML = `<thead><tr><th>Today's question</th><th>Hidden student</th><th>What Lotus usually concludes today</th><th>What the new version usually concludes</th><th>Why</th></tr></thead><tbody>${blind.map(([id, s, why]) => {
+    const o = item(id), n = item(newFor[id]);
+    const [ov, op] = top(o.perState[s]), [nv, np] = top(n.perState[s]);
+    const okO = ov === s, okN = nv === s;
+    return `<tr><td>${esc(o.label.split(":")[0])}</td><td>${esc(NAMES[s])}</td><td class="${okO ? "good" : "bad"}">${esc(NAMES[ov])} (${pct(op)})</td><td class="${okN ? "good" : nv === "UNSURE" ? "" : "bad"}">${esc(NAMES[nv])} (${pct(np)})</td><td>${why}</td></tr>`;
+  }).join("")}</tbody>`;
+})();
+
+document.getElementById("pondReset").addEventListener("click", pondReset);
+pondReset();
+</script>

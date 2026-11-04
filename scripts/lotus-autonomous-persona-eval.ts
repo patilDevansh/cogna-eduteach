@@ -27,7 +27,7 @@ import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
-import { PERSONA_CATALOGUE, chooseResponse, type PersonaProfile, type PersonaQuestionLike } from "../apps/api/test/fixtures/lotus-factorisation-personas";
+import { MESSY_PERSONA_CATALOGUE, PERSONA_CATALOGUE, chooseResponse, type PersonaProfile, type PersonaQuestionLike } from "../apps/api/test/fixtures/lotus-factorisation-personas";
 
 const REPO_ROOT = new URL("..", import.meta.url).pathname;
 // Fixed 3107/3108 ports caused an old Next process to be mistaken for the
@@ -125,7 +125,8 @@ async function startFactorisation(page: any): Promise<string> {
     const button = page.getByRole("button", { name: /^Start for/ });
     await waitEnabled(button, 30_000);
     await button.click();
-    await page.getByText(/Question 1 of 25/).waitFor({ state: "visible", timeout: 300_000 });
+    // The card shows "Question 1" with no total: the plan can grow or shrink mid-test.
+    await page.getByText(/^Question 1$/).first().waitFor({ state: "visible", timeout: 300_000 });
     for (let attempt = 0; attempt < 20 && !sessionId; attempt += 1) await sleep(100);
     if (!sessionId) throw new Error("session-start response did not include sessionId");
     return sessionId;
@@ -179,6 +180,56 @@ function confidenceLabelForBand(band: readonly [number, number]): RegExp {
   return label;
 }
 
+/**
+ * LOTUS_AUTONOMOUS_EVAL_SUBMIT=api: post each answer to the same route the
+ * student page uses, from inside the logged-in page, instead of clicking the
+ * answer controls. The page now shows many game-style formats (tiles, puzzles,
+ * fireflies, detective…) this runner can't operate; API mode still measures
+ * Lotus's judgement and cost, but not that each game control works.
+ */
+const SUBMIT_VIA_API = process.env.LOTUS_AUTONOMOUS_EVAL_SUBMIT === "api";
+/** An 8 GB machine running the API, Next dev and a browser can take minutes to boot. */
+const SERVER_START_TIMEOUT_MS = positiveInteger(process.env.LOTUS_AUTONOMOUS_EVAL_START_TIMEOUT_MS, 300_000);
+const API_ANSWER_PAUSE_MS = positiveInteger(process.env.LOTUS_AUTONOMOUS_EVAL_ANSWER_PAUSE_MS, MODEL_MODE === "live" ? 15_000 : 1);
+
+async function submitViaApi(
+  page: any,
+  sessionId: string,
+  question: Awaited<ReturnType<typeof privateQuestion>>,
+  plan: ReturnType<typeof chooseResponse>,
+  paceMs: number,
+  confidenceBand: readonly [number, number],
+): Promise<{ status?: string }> {
+  const body = {
+    answer: plan.didNotKnow ? "" : plan.answer,
+    working: plan.didNotKnow ? "" : plan.working,
+    confidence: Math.round((confidenceBand[0] + confidenceBand[1]) / 2),
+    responseTimeMs: paceMs,
+    didNotKnow: plan.didNotKnow,
+    submissionId: randomUUID(),
+    questionId: question.id,
+  };
+  // A real child takes tens of seconds per item, and the live writer needs a
+  // few seconds per staged question; answering in milliseconds outruns it.
+  await sleep(API_ANSWER_PAUSE_MS);
+  const result = await page.evaluate(async ({ id, payload }: { id: string; payload: Record<string, unknown> }) => {
+    const raw = localStorage.getItem("cogna_student");
+    const student = raw ? JSON.parse(raw) : null;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (student?.studentId && student?.token) {
+      headers["X-Cogna-Role"] = "student";
+      headers["X-Cogna-Student-Id"] = student.studentId;
+      headers["X-Cogna-Student-Token"] = student.token;
+    }
+    const response = await fetch(`/api/lotus/sessions/${id}/answers`, {
+      method: "POST", headers, body: JSON.stringify({ studentId: student?.studentId, ...payload }),
+    });
+    return { ok: response.ok, status: response.status, view: await response.json().catch(() => ({})) };
+  }, { id: sessionId, payload: body });
+  if (!result.ok) throw new Error(`answer commit failed: HTTP ${result.status} ${JSON.stringify(result.view).slice(0, 400)}`);
+  return { status: result.view?.status };
+}
+
 async function submitPersonaResponse(
   page: any,
   question: Awaited<ReturnType<typeof privateQuestion>>,
@@ -209,9 +260,15 @@ async function submitPersonaResponse(
 
   if (!plan.didNotKnow && question.asksForWorking) {
     const lines = plan.working.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 6);
+    // Working can be optional and folded behind "+ Add working (optional)",
+    // and the page may start with fewer empty steps than the profile writes:
+    // open it and add steps only when the next field isn't there yet.
+    const openWorking = page.getByRole("button", { name: /Add working \(optional\)/ });
+    if (await openWorking.isVisible().catch(() => false)) await openWorking.click();
     for (let index = 0; index < lines.length; index += 1) {
-      if (index >= 3) await page.getByRole("button", { name: /Add another step/ }).click();
-      await page.getByLabel(`Working step ${index + 1}`).fill(lines[index]!);
+      const field = page.getByLabel(`Working step ${index + 1}`);
+      if (!await field.isVisible().catch(() => false)) await page.getByRole("button", { name: /Add another step/ }).click();
+      await field.fill(lines[index]!);
     }
   }
 
@@ -318,15 +375,26 @@ function scoreTranscript(persona: PersonaProfile, view: any): { pass: boolean; f
     if (decision.implementation === "QUEUED_FOR_GENERATION") metrics.queuedActions += 1;
     if (decision.action === "TARGETED_PROBE" || decision.action === "EASIER_PREREQUISITE") {
       if (!decision.targetSkill || !decision.targetTurn) failures.push(`turn ${index + 1}: ${decision.action} lacks a target skill or turn`);
-      else if (decision.targetTurn > index + 9 || decision.targetTurn >= 24) failures.push(`turn ${index + 1}: ${decision.action} was placed too late at Q${decision.targetTurn}`);
+      // A rewrite of an existing later question ("Rewritten to test X without
+      // needing Y") is placed where that question already was; only a fresh
+      // check or an easier prerequisite has to land near the evidence. Late in
+      // a test, nothing nearer than 9 questions may be left, which is fine.
+      else if (!/^Rewritten to test/.test(decision.rationale ?? "") && decision.targetTurn > index + 9) failures.push(`turn ${index + 1}: ${decision.action} was placed too late at Q${decision.targetTurn}`);
       else metrics.nearTermTargets += 1;
     }
   });
 
   if (metrics.explicitDecisions !== audits.length) failures.push("not every answered turn has an explicit decision");
   if (persona.id === "P08_EXPLICIT_SUPPORT_NEED") {
-    const confirmed = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED");
-    if (confirmed.length) failures.push(`support persona falsely confirmed ${confirmed.map((skill: any) => skill.skillId).join(", ")}`);
+    // Current rule (lotus-factorisation.ts foldLedger): one "I don't know" is a
+    // support signal; two on a skill, or one alongside a mistake, confirm it so
+    // the child is taught from the foundations. Anything less is a false confirm.
+    const signals = new Map<string, number>();
+    for (const audit of audits) for (const ev of audit.skillEvidence ?? []) {
+      if (ev.kind !== "SECURE") signals.set(ev.skillId, (signals.get(ev.skillId) ?? 0) + 1);
+    }
+    const unsupported = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED" && (signals.get(skill.skillId) ?? 0) < 2);
+    if (unsupported.length) failures.push(`support persona confirmed on fewer than two signals: ${unsupported.map((skill: any) => skill.skillId).join(", ")}`);
   }
   if (persona.id === "P01_SECURE_ADVANCED" || persona.id === "P10_LOW_CONFIDENCE_CORRECT") {
     const unsupported = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED" || skill.state === "SUSPECTED");
@@ -336,6 +404,31 @@ function scoreTranscript(persona: PersonaProfile, view: any): { pass: boolean; f
     const state = reportSkills.get(persona.misconception!.skillId)?.state;
     if (state === "CONFIRMED") failures.push(`one-off slip falsely confirmed ${persona.misconception!.skillId}`);
   }
+  if (persona.messy) {
+    const states = [...reportSkills.values()] as any[];
+    if (persona.messy.mayConfirm) {
+      const extra = states.filter((skill) => skill.state === "CONFIRMED" && !persona.messy!.mayConfirm!.includes(skill.skillId));
+      if (extra.length) failures.push(`messy persona: confirmed a gap from slips or typing: ${extra.map((skill) => skill.skillId).join(", ")}`);
+    }
+    const guessedSecure = states.filter((skill) => skill.state === "SECURE" && persona.messy!.guessSkills?.includes(skill.skillId));
+    if (guessedSecure.length) failures.push(`guessing persona reported SECURE on guessed skills: ${guessedSecure.map((skill) => skill.skillId).join(", ")}`);
+    if (persona.messy.expectOutcome && view.finalReport?.outcome !== persona.messy.expectOutcome) {
+      failures.push(`expected outcome ${persona.messy.expectOutcome}, got ${view.finalReport?.outcome}`);
+    }
+    if (persona.messy.expectSignRoot && !/sign/i.test(view.finalReport?.startingPoint ?? "")) {
+      failures.push(`expected signs with negative numbers as the starting point, got: ${view.finalReport?.startingPoint}`);
+    }
+  }
+  // Scorecard (Cogna Project Hub, C5): gaps found, missed and invented, per persona.
+  const confirmedSkills = [...reportSkills.values()].filter((skill: any) => skill.state === "CONFIRMED").map((skill: any) => skill.skillId as string);
+  const expectedGaps = [
+    ...(persona.misconception && persona.id !== "P09_ONE_OFF_SLIP" ? [persona.misconception.skillId] : []),
+    ...(persona.supportSkills ?? []).filter((id) => confirmedSkills.includes(id)),
+  ];
+  const allowed = new Set([...expectedGaps, ...(persona.messy?.mayConfirm ?? []), ...(persona.messy?.guessSkills ?? []), ...(persona.messy?.signSkills ?? [])]);
+  (metrics as any).gapsExpected = expectedGaps.length;
+  (metrics as any).gapsFound = expectedGaps.filter((id) => confirmedSkills.includes(id) || reportSkills.get(id)?.state === "SUSPECTED").length;
+  (metrics as any).falseGaps = persona.messy?.mayConfirm || !persona.messy ? confirmedSkills.filter((id) => !allowed.has(id)).length : 0;
   if (persona.misconception && persona.id !== "P09_ONE_OFF_SLIP") {
     const state = reportSkills.get(persona.misconception.skillId)?.state;
     if (state !== "CONFIRMED" && state !== "SUSPECTED") failures.push(`declared misconception ${persona.misconception.skillId} was neither suspected nor confirmed`);
@@ -351,10 +444,13 @@ async function runPersona(page: any, persona: PersonaProfile, pace: "normal" | "
   let sessionStatus = "ACTIVE";
   while (answered < 25 && sessionStatus === "ACTIVE") {
     const question = await privateQuestion(sessionId);
-    await assertRenderedQuestionMatchesServer(page, question, answered + 1);
+    if (!SUBMIT_VIA_API) await assertRenderedQuestionMatchesServer(page, question, answered + 1);
     const plan = chooseResponse(persona, question, answered + 1);
-    const paceMs = pace === "fast" ? Math.min(...persona.paceMsBand) : Math.max(...persona.paceMsBand);
-    const committed = await submitPersonaResponse(page, question, plan, paceMs, persona.confidenceBand);
+    const tired = persona.messy?.tiredFromTurn !== undefined && answered + 1 >= persona.messy.tiredFromTurn;
+    const paceMs = tired ? 3_000 : pace === "fast" ? Math.min(...persona.paceMsBand) : Math.max(...persona.paceMsBand);
+    const committed = SUBMIT_VIA_API
+      ? await submitViaApi(page, sessionId, question, plan, paceMs, persona.confidenceBand)
+      : await submitPersonaResponse(page, question, plan, paceMs, persona.confidenceBand);
     answered += 1;
     sessionStatus = committed.status ?? "ACTIVE";
   }
@@ -363,7 +459,9 @@ async function runPersona(page: any, persona: PersonaProfile, pace: "normal" | "
 }
 
 async function main(): Promise<void> {
-  const selected = PERSONA_CATALOGUE.filter((persona) => PERSONA_IDS.size === 0 || PERSONA_IDS.has(persona.id));
+  // Messy personas run only when named, so the default run stays the tidy ten.
+  const selected = [...PERSONA_CATALOGUE, ...MESSY_PERSONA_CATALOGUE].filter((persona) =>
+    PERSONA_IDS.size === 0 ? !persona.messy : PERSONA_IDS.has(persona.id));
   if (!selected.length) throw new Error("No requested persona IDs matched the catalogue");
   if (!PACES.length) throw new Error("LOTUS_AUTONOMOUS_EVAL_PACES must contain normal and/or fast");
 
@@ -386,9 +484,14 @@ async function main(): Promise<void> {
     API_URL,
   });
   const results: any[] = [];
+  const scorecard = () => {
+    const scored = results.filter((r) => r.score?.metrics);
+    const sum = (k: string) => scored.reduce((t, r) => t + (r.score.metrics[k] ?? 0), 0);
+    return { sessions: scored.length, gapsExpected: sum("gapsExpected"), gapsFound: sum("gapsFound"), falseGaps: sum("falseGaps"), passed: scored.filter((r) => r.score.pass).length };
+  };
   try {
-    if (!await waitForReady(`${API_URL}/lotus/status`, 90_000)) throw new Error(`API did not start\n${api.output()}`);
-    if (!await waitForReady(WEB_URL, 90_000)) throw new Error(`Web did not start\n${web.output()}`);
+    if (!await waitForReady(`${API_URL}/lotus/status`, SERVER_START_TIMEOUT_MS)) throw new Error(`API did not start\n${api.output()}`);
+    if (!await waitForReady(WEB_URL, SERVER_START_TIMEOUT_MS)) throw new Error(`Web did not start\n${web.output()}`);
     const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
@@ -431,9 +534,12 @@ async function main(): Promise<void> {
     plannedSessions: planned,
     passedSessions: results.filter((result) => result.score.pass).length,
     failedSessions: results.filter((result) => !result.score.pass).length,
+    scorecard: scorecard(),
     results,
   };
   console.log(JSON.stringify(report, null, 2));
+  const card = report.scorecard;
+  log("scorecard", `${card.passed}/${card.sessions} sessions passed · gaps found ${card.gapsFound}/${card.gapsExpected} · false gaps ${card.falseGaps}`);
   if (REPORT_PATH) await writeFile(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   if (report.failedSessions > 0) process.exitCode = 1;
 }

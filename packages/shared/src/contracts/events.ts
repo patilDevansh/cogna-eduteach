@@ -1,7 +1,9 @@
+import type { StudentInteractionContext } from "./interaction-context";
 import type { EventType, Grade, ProcessingStatus, SelfRatedConfidence } from "./enums";
 import type { LearningDecision, PracticeNextResponse } from "./learning-decision";
 
 export interface AnswerSubmittedEvent {
+  interactionContext?: StudentInteractionContext;
   eventId: string;
   eventType: "ANSWER_SUBMITTED";
   studentId: string;
@@ -21,6 +23,7 @@ export interface AnswerSubmittedEvent {
 }
 
 export interface HintRequestedEvent {
+  questionVersion?: number;
   eventId: string;
   eventType: "HINT_REQUESTED";
   studentId: string;

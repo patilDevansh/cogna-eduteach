@@ -1,0 +1,2069 @@
+<title>Seven Ways to Ask</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..1000,0..1,0..1,0..1&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<style>
+/* Layout: a studio. Left: the live question stage. Right: the thinking print (new progress) + what the question captures + a live evidence feed.
+   Type: Recursive throughout — casual axis for headings, mono axis for maths. Colour follows algebra-tile convention: teal = positive x, gold = units, coral = negative/mistake. */
+:root {
+  --bg: #eef0f5; --surface: #ffffff; --raise: #f6f7fb; --ink: #191c33; --soft: #5d6283; --faint: #9297b3; --line: #dfe2ec;
+  --teal: #0f9d86; --teal-wash: #d8f3ee; --coral: #e8473e; --coral-wash: #fde1df; --gold: #e99a0c; --gold-wash: #fdefd3;
+  --violet: #6b5bd6; --violet-wash: #e6e2fb; --blue: #2f6fdf; --blue-wash: #dde8fb; --x2: #4b57c9;
+  --shadow: 0 1px 2px rgba(25,28,51,.06), 0 14px 36px rgba(25,28,51,.09);
+  --f: "Recursive", ui-sans-serif, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f111d; --surface: #171a2b; --raise: #1d2136; --ink: #e9ebf7; --soft: #a1a6c8; --faint: #6d7294; --line: #2a2f4a;
+  --teal: #2fc6aa; --teal-wash: #133a36; --coral: #ff6b62; --coral-wash: #43201f; --gold: #ffb83d; --gold-wash: #3d2e10;
+  --violet: #9a8cff; --violet-wash: #29244d; --blue: #6c9cff; --blue-wash: #1b2a4a; --x2: #7d88f0;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 14px 36px rgba(0,0,0,.35); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f111d; --surface: #171a2b; --raise: #1d2136; --ink: #e9ebf7; --soft: #a1a6c8; --faint: #6d7294; --line: #2a2f4a;
+  --teal: #2fc6aa; --teal-wash: #133a36; --coral: #ff6b62; --coral-wash: #43201f; --gold: #ffb83d; --gold-wash: #3d2e10;
+  --violet: #9a8cff; --violet-wash: #29244d; --blue: #6c9cff; --blue-wash: #1b2a4a; --x2: #7d88f0;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 14px 36px rgba(0,0,0,.35); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.55 var(--f); font-variation-settings: "CASL" 0.2; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 56px; }
+h1, h2, h3 { margin: 0; line-height: 1.08; text-wrap: balance; font-variation-settings: "CASL" 1; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 850; letter-spacing: -0.02em; }
+h2 { font-size: clamp(1.35rem, 2.6vw, 1.8rem); font-weight: 780; letter-spacing: -0.01em; }
+h3 { font-size: .78rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--soft); font-variation-settings: "CASL" 0; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+.m { font-variation-settings: "MONO" 1, "CASL" 0; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; }
+:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+.top { padding-block: 34px 18px; display: grid; gap: 12px; }
+.top .lede { color: var(--soft); max-width: 72ch; font-size: 1.05rem; }
+.nav { display: flex; gap: 8px; overflow-x: auto; padding-block: 6px 10px; scrollbar-width: thin; }
+.nav button { flex: none; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px 7px 8px; cursor: pointer; font-weight: 650; font-size: .92rem; transition: border-color .2s, background .2s, transform .2s; }
+.nav button i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: .78rem; font-weight: 800; background: var(--raise); color: var(--soft); }
+.nav button:hover { border-color: var(--faint); }
+.nav button[aria-current="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.nav button[aria-current="true"] i { background: var(--gold); color: #1b1300; }
+
+.studio { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; align-items: start; }
+@media (max-width: 940px) { .studio { grid-template-columns: 1fr; } }
+.stagecard { background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; min-width: 0; }
+.stagehead { padding: 20px 26px 16px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); background:
+  radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 1.2px) 0 0 / 18px 18px, var(--surface); }
+.stagehead .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill { font-size: .74rem; font-weight: 750; letter-spacing: .04em; border-radius: 999px; padding: 2px 10px; background: var(--raise); color: var(--soft); }
+.pill.rep { background: var(--coral-wash); color: var(--coral); }
+.pill.sk { background: var(--teal-wash); color: var(--teal); }
+.stagehead .why { color: var(--soft); font-size: .95rem; max-width: 70ch; }
+.stage { padding: 24px 26px 28px; display: grid; gap: 18px; min-height: 520px; align-content: start; }
+@media (max-width: 560px) { .stage, .stagehead { padding-left: 16px; padding-right: 16px; } }
+.ask { font-size: 1.05rem; font-weight: 550; }
+.expr { font-size: clamp(1.7rem, 5vw, 2.5rem); text-align: center; font-variation-settings: "MONO" 1; font-weight: 520; letter-spacing: -0.03em; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { border: 0; border-radius: 12px; padding: 11px 20px; font-weight: 750; cursor: pointer; background: var(--ink); color: var(--surface); transition: transform .15s, opacity .2s; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn.ghost { background: var(--raise); color: var(--ink); border: 1px solid var(--line); }
+.btn.coral { background: var(--coral); color: #fff; }
+.readout { border-radius: 14px; background: var(--raise); padding: 12px 14px; font-size: .95rem; min-height: 3.2em; }
+.readout b { font-variation-settings: "CASL" 1; }
+
+/* side */
+.side { display: grid; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 940px) { .side { position: static; } }
+.panel { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow); padding: 16px 18px; display: grid; gap: 10px; }
+.printbox { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: center; }
+.printwrap { position: relative; width: 120px; height: 120px; }
+.printwrap canvas { position: absolute; inset: 10px; width: 100px; height: 100px; border-radius: 50%; background: var(--raise); }
+.printwrap svg { position: absolute; inset: 0; }
+.printbox p { font-size: .86rem; color: var(--soft); }
+.printbox strong { display: block; font-size: 1rem; color: var(--ink); font-variation-settings: "CASL" 1; margin-bottom: 2px; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .74rem; color: var(--soft); }
+.keys span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 5px; }
+.caps { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; font-size: .9rem; }
+.caps b { font-variation-settings: "CASL" 1; }
+.grounded { font-size: .78rem; color: var(--faint); }
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 300px; overflow-y: auto; font-size: .86rem; }
+.feed li { display: grid; grid-template-columns: 3.1rem minmax(0, 1fr); gap: 6px; padding: 6px 8px; border-radius: 10px; background: var(--raise); }
+.feed li time { font-variation-settings: "MONO" 1; color: var(--faint); font-size: .78rem; padding-top: 1px; }
+.feed li.key { background: var(--gold-wash); }
+.feed li.warn { background: var(--coral-wash); }
+.feed li.good { background: var(--teal-wash); }
+.feed .empty { display: block; color: var(--faint); background: none; padding: 4px 0; }
+
+/* 1 — chip split */
+.chipstage { position: relative; display: grid; gap: 16px; }
+.answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 1100px) { .answers { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.ans { position: relative; min-height: 132px; border: 2px solid var(--line); background: var(--raise); border-radius: 18px; cursor: pointer; display: grid; align-content: start; justify-items: center; padding: 14px 6px; transition: border-color .2s, background .2s; }
+.ans:hover { border-color: var(--faint); }
+.ans.has { border-color: var(--gold); background: var(--gold-wash); }
+.ans .m { font-size: 1.05rem; }
+.ans .cnt { position: absolute; top: 44px; font-size: .75rem; color: var(--soft); font-weight: 700; }
+.tray { display: flex; align-items: center; gap: 14px; justify-content: center; border: 2px dashed var(--line); border-radius: 18px; padding: 12px; min-height: 72px; }
+.tray span { font-size: .85rem; color: var(--soft); font-weight: 650; }
+.tray .slots { display: flex; gap: 10px; }
+.tray .slot { width: 40px; height: 40px; border-radius: 50%; background: var(--raise); }
+.chiplayer { position: absolute; inset: 0; pointer-events: none; }
+.chip { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 0; pointer-events: auto; cursor: pointer;
+  background: radial-gradient(circle at 35% 30%, #ffe3a3, var(--gold) 55%, #b26f00); box-shadow: 0 3px 0 #a86400, 0 6px 14px rgba(0,0,0,.18); }
+.chip::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; border: 2px dashed rgba(255,255,255,.65); }
+
+/* 2 — swipe deck */
+.deckwrap { display: grid; gap: 16px; justify-items: center; }
+.deck { position: relative; width: min(100%, 420px); height: 250px; touch-action: none; }
+.card { position: absolute; inset: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); display: grid; place-items: center; padding: 20px; cursor: grab; user-select: none; will-change: transform; }
+.card:active { cursor: grabbing; }
+.card .m { font-size: clamp(1.25rem, 4.6vw, 1.7rem); white-space: normal; text-align: center; }
+.card .num { position: absolute; top: 14px; left: 18px; font-size: .75rem; color: var(--faint); font-weight: 700; }
+.stamp { position: absolute; top: 22px; padding: 4px 12px; border: 3px solid; border-radius: 10px; font-weight: 900; font-size: 1.1rem; letter-spacing: .08em; opacity: 0; font-variation-settings: "CASL" 1; }
+.stamp.t { left: 20px; color: var(--teal); transform: rotate(-12deg); }
+.stamp.f { right: 20px; color: var(--coral); transform: rotate(12deg); }
+.stamp.u { bottom: 18px; top: auto; left: 50%; translate: -50% 0; color: var(--gold); }
+.swipebtns { display: flex; gap: 12px; }
+.swipebtns button { width: 62px; height: 62px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); cursor: pointer; font-size: 1.4rem; font-weight: 800; box-shadow: var(--shadow); transition: transform .15s; }
+.swipebtns button:hover { transform: scale(1.06); }
+.swipebtns .f { color: var(--coral); } .swipebtns .t { color: var(--teal); } .swipebtns .u { color: var(--gold); width: 50px; height: 50px; align-self: center; font-size: 1.1rem; }
+.summary { width: 100%; display: grid; gap: 8px; }
+.fam { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 10px 12px; border-radius: 12px; background: var(--raise); font-size: .92rem; }
+.fam .dots { display: flex; gap: 4px; }
+.fam .dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.fam .dots i.hit { background: var(--coral); } .fam .dots i.ok { background: var(--teal); } .fam .dots i.uns { background: var(--gold); }
+.fam p { grid-column: 1 / -1; color: var(--soft); font-size: .86rem; }
+
+/* 3 — tiles */
+.tiles svg { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto; overflow: visible; }
+.tiles text { font-family: var(--f); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--raise); }
+.seg button { border: 0; background: none; padding: 9px 15px; cursor: pointer; font-weight: 750; font-variation-settings: "MONO" 1; }
+.seg button[aria-pressed="true"] { background: var(--teal); color: #fff; }
+.trail { display: flex; flex-wrap: wrap; gap: 6px; }
+.trail span { font-size: .82rem; border-radius: 999px; padding: 2px 10px; background: var(--raise); font-variation-settings: "MONO" 1; }
+.trail span.fit { background: var(--teal-wash); color: var(--teal); font-weight: 700; }
+
+/* 4 — stop the tape */
+.tape svg { width: 100%; height: auto; display: block; background: var(--raise); border-radius: 18px; }
+.tape text { font-family: var(--f); }
+.scrub { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.scrub input { width: 100%; accent-color: var(--ink); }
+.playbtn { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--ink); color: var(--surface); cursor: pointer; font-size: 1rem; }
+.ticks { position: relative; height: 16px; margin-left: 56px; font-size: .7rem; color: var(--faint); font-weight: 700; }
+.ticks span { position: absolute; translate: -50% 0; }
+
+/* 5 — parsons */
+.parsons { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 680px) { .parsons { grid-template-columns: 1fr; } }
+.col { display: grid; gap: 8px; align-content: start; }
+.col > h3 { margin-bottom: 2px; }
+.pslot { min-height: 54px; border: 2px dashed var(--line); border-radius: 14px; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); align-items: center; padding: 4px 6px 4px 10px; gap: 4px; }
+.pslot .n { font-weight: 800; color: var(--faint); font-size: .85rem; }
+.pool { display: grid; gap: 8px; min-height: 60px; }
+.pcard { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 12px; text-align: left; cursor: pointer; box-shadow: 0 2px 0 var(--line); font-size: 1rem; }
+.pcard:hover { border-color: var(--faint); }
+.pslot .pcard { box-shadow: none; background: var(--blue-wash); border-color: transparent; }
+.pcard .m { white-space: normal; }
+
+/* 6 — lock */
+.lock { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; align-items: center; }
+@media (max-width: 680px) { .lock { grid-template-columns: 1fr; justify-items: center; } }
+.reels { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 22px; background: var(--ink); }
+.reel { display: grid; gap: 6px; justify-items: center; }
+.reel button { width: 64px; border: 0; border-radius: 8px; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; font-size: .8rem; padding: 3px 0; }
+.win { position: relative; width: 74px; height: 156px; overflow: hidden; border-radius: 12px; background: #fff; touch-action: none; cursor: grab; }
+.win::before, .win::after { content: ""; position: absolute; left: 0; right: 0; height: 52px; z-index: 2; pointer-events: none; }
+.win::before { top: 0; background: linear-gradient(#fff, rgba(255,255,255,.4)); }
+.win::after { bottom: 0; background: linear-gradient(rgba(255,255,255,.4), #fff); }
+.win .band { position: absolute; left: 0; right: 0; top: 52px; height: 52px; border-block: 2px solid #191c33; z-index: 1; pointer-events: none; }
+.list { position: absolute; left: 0; right: 0; top: 0; }
+.list div { height: 52px; display: grid; place-items: center; font-variation-settings: "MONO" 1; font-weight: 650; font-size: 1.45rem; color: #191c33; }
+.times { color: #fff; font-weight: 800; font-size: 1.2rem; }
+.gauges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.gauge { background: var(--raise); border-radius: 16px; padding: 10px; display: grid; justify-items: center; gap: 2px; }
+.gauge svg { width: 100%; max-width: 190px; height: auto; }
+.gauge .lab { font-size: .8rem; color: var(--soft); font-weight: 700; }
+.gauge .val { font-variation-settings: "MONO" 1; font-size: 1.3rem; font-weight: 650; }
+.lockpath { background: var(--raise); border-radius: 16px; padding: 10px; }
+.lockpath svg { width: 100%; height: auto; display: block; }
+
+/* nav group label */
+.navlabel { flex: none; align-self: center; font-size: .72rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--coral); padding: 0 4px 0 10px; border-left: 2px solid var(--line); margin-left: 4px; }
+
+/* shared pickers */
+.numpick { display: inline-flex; align-items: center; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.numpick button { border: 0; background: var(--raise); width: 34px; height: 40px; cursor: pointer; font-weight: 800; color: var(--soft); }
+.numpick output { min-width: 3rem; text-align: center; font-variation-settings: "MONO" 1; font-weight: 650; font-size: 1.2rem; }
+.sg { width: 38px; height: 40px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); cursor: pointer; font-variation-settings: "MONO" 1; font-size: 1.25rem; font-weight: 700; transition: background .2s, border-color .2s, transform .2s; }
+.sg:hover { border-color: var(--faint); }
+.sg.set { border-color: var(--blue); background: var(--blue-wash); }
+.sg.pop { animation: sgpop .3s ease-out; }
+@keyframes sgpop { 50% { transform: scale(1.15); } }
+.brk { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-variation-settings: "MONO" 1; font-size: 1.35rem; font-weight: 550; }
+
+/* 8 — X-ray */
+.xsteps { display: grid; gap: 12px; }
+.xstep { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px; border-radius: 16px; background: var(--raise); }
+.xstep > b { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--surface); font-variation-settings: "CASL" 1; }
+.xstep p { font-size: .95rem; margin-bottom: 8px; color: var(--soft); }
+.xresult { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 16px; align-items: center; }
+@media (max-width: 680px) { .xresult { grid-template-columns: 1fr; } }
+.oldmark { border-radius: 18px; background: var(--raise); padding: 16px; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.oldmark h3 { font-size: .72rem; }
+.oldmark .stampbig { font-size: 3.4rem; line-height: 1; font-weight: 900; }
+.xray { perspective: 1100px; height: 310px; position: relative; }
+.layers { position: absolute; inset: 0; transform-style: preserve-3d; }
+.layer { position: absolute; left: 6%; right: 6%; top: 105px; height: 92px; border-radius: 16px; border: 2px solid var(--line); background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 10px 14px; display: grid; gap: 2px; align-content: center; box-shadow: var(--shadow); backface-visibility: hidden; }
+.layer small { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.layer .m { font-size: 1.05rem; white-space: normal; }
+.layer .v { font-size: .86rem; font-weight: 700; }
+.layer.ok { border-color: var(--teal); } .layer.ok .v { color: var(--teal); }
+.layer.bad { border-color: var(--coral); } .layer.bad .v { color: var(--coral); }
+.scan { position: absolute; left: 4%; right: 4%; height: 4px; border-radius: 4px; background: var(--blue); box-shadow: 0 0 18px 6px color-mix(in srgb, var(--blue) 45%, transparent); opacity: 0; top: 100px; z-index: 5; }
+.playas { display: grid; gap: 6px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.playas .chips2 { display: flex; flex-wrap: wrap; gap: 6px; }
+.playas button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: .86rem; cursor: pointer; }
+.playas button:hover { border-color: var(--faint); }
+.playas button[aria-pressed="true"] { background: var(--violet-wash); border-color: var(--violet); }
+
+/* 9 — sign quadrant */
+.quad { display: grid; grid-template-columns: 28px repeat(2, minmax(0, 1fr)); grid-template-rows: auto repeat(2, auto); gap: 10px; }
+.quad .ax { font-size: .74rem; font-weight: 800; color: var(--faint); letter-spacing: .06em; text-transform: uppercase; display: grid; place-items: center; }
+.quad .ax.v { writing-mode: vertical-rl; transform: rotate(180deg); }
+.qcard { border-radius: 18px; background: var(--raise); padding: 14px 10px; display: grid; gap: 10px; justify-items: center; border: 2px solid transparent; transition: border-color .3s, background .3s; }
+.qcard .m { font-size: 1.1rem; }
+.qcard .brk { font-size: 1.1rem; gap: 4px; }
+.qcard .sg { width: 34px; height: 36px; font-size: 1.1rem; }
+.qcard.right { border-color: var(--teal); } .qcard.wrong { border-color: var(--coral); background: var(--coral-wash); }
+.rulemx { display: grid; gap: 6px; }
+.rulerow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px; background: var(--raise); font-size: .9rem; transition: background .3s, outline-color .3s; outline: 2px solid transparent; }
+.rulerow .dots { display: flex; gap: 5px; }
+.rulerow .dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--line); }
+.rulerow .dots i.on { background: var(--violet); }
+.rulerow.match { outline-color: var(--violet); background: var(--violet-wash); font-weight: 700; }
+
+/* 10 — predict then pick */
+.frost { position: relative; border-radius: 18px; padding: 14px; background: var(--raise); }
+.frost .opts4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.opt4 { border: 2px solid var(--line); background: var(--surface); border-radius: 14px; padding: 12px 10px; cursor: pointer; display: grid; gap: 4px; justify-items: center; transition: border-color .2s, background .2s; }
+.opt4[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-wash); }
+.opt4 .exp { font-size: .82rem; color: var(--soft); min-height: 1.2em; font-variation-settings: "MONO" 1; }
+.opt4 .exp s { color: var(--coral); }
+.opt4.found { border-color: var(--teal); }
+.glass { position: absolute; inset: 0; border-radius: 18px; display: grid; place-items: center; text-align: center; padding: 20px; font-weight: 700; color: var(--soft); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); background: color-mix(in srgb, var(--raise) 55%, transparent); z-index: 2; }
+
+/* 11 — switch-up */
+.conveyor { position: relative; height: 230px; overflow: hidden; border-radius: 20px; background: var(--raise); }
+.belt { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; background: repeating-linear-gradient(90deg, var(--line) 0 18px, transparent 18px 30px); }
+.scard { position: absolute; left: 50%; top: 18px; width: min(88%, 440px); translate: -50% 0; background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 14px; display: grid; gap: 10px; justify-items: center; }
+.scard .m.big { font-size: 1.6rem; }
+.scard .o3 { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.scard .o3 button { border: 2px solid var(--line); background: var(--raise); border-radius: 12px; padding: 8px 12px; cursor: pointer; font-variation-settings: "MONO" 1; font-weight: 550; }
+.scard .o3 button:hover { border-color: var(--faint); }
+.rhythm svg { width: 100%; height: auto; display: block; }
+
+/* 12 — typing replay */
+.typebox { display: grid; gap: 8px; }
+.typebox input { font: inherit; font-variation-settings: "MONO" 1; font-size: 1.4rem; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); width: 100%; }
+.typebox input:focus { border-color: var(--blue); outline: none; }
+.screen { border-radius: 18px; background: #12152a; color: #e9ebf7; padding: 18px; display: grid; gap: 14px; }
+.screen .line { font-variation-settings: "MONO" 1; font-size: 1.5rem; min-height: 2.2rem; white-space: pre; overflow-x: auto; }
+.screen .line .del { color: #ff7b72; text-decoration: line-through; }
+.screen .line .cur { display: inline-block; width: 2px; height: 1.3em; background: #ffb83d; vertical-align: -4px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.tline { position: relative; height: 26px; border-radius: 8px; background: rgba(255,255,255,.07); }
+.tline i { position: absolute; top: 5px; width: 3px; height: 16px; border-radius: 2px; background: #c7cbe6; }
+.tline i.d { background: #ff7b72; }
+.tline b { position: absolute; top: 3px; height: 20px; border-radius: 6px; background: rgba(255,184,61,.35); border: 1px solid #ffb83d; }
+.tline .head { position: absolute; top: -3px; width: 2px; height: 32px; background: #fff; }
+.screen .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .76rem; color: #a1a6c8; }
+
+/* blind spot catalogue */
+.blind { margin-top: 36px; display: grid; gap: 16px; }
+.blind > p { color: var(--soft); max-width: 74ch; }
+.bgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 980px) { .bgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .bgrid { grid-template-columns: 1fr; } }
+.bcard { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 16px; display: grid; gap: 8px; align-content: start; }
+.bcard .bt { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bcard h4 { margin: 0; font-size: 1.05rem; line-height: 1.2; font-variation-settings: "CASL" 1; font-weight: 780; }
+.bcard .no { font-variation-settings: "MONO" 1; font-size: .78rem; color: var(--faint); }
+.bcard .ex { font-size: .88rem; background: var(--raise); border-radius: 10px; padding: 8px 10px; }
+.bcard .ex .m { white-space: normal; }
+.bcard dl { margin: 0; display: grid; gap: 4px; font-size: .88rem; }
+.bcard dt { font-weight: 800; font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); margin-top: 4px; }
+.bcard dd { margin: 0; }
+.bcard .go2 { justify-self: start; margin-top: 4px; border: 0; background: var(--ink); color: var(--surface); border-radius: 999px; padding: 6px 14px; font-weight: 750; font-size: .85rem; cursor: pointer; }
+.bcard .tagm { justify-self: start; margin-top: 4px; font-size: .76rem; font-weight: 750; border-radius: 999px; padding: 3px 10px; background: var(--violet-wash); color: var(--violet); }
+.bsrc { font-size: .8rem; color: var(--faint); }
+
+/* 13 — find them all */
+.fline svg { width: 100%; height: auto; display: block; overflow: visible; }
+.fline .dot { cursor: pointer; }
+.fline .dot circle { transition: fill .2s, stroke .2s; }
+.fline .dot:hover circle { stroke: var(--ink); }
+.fline .dot:focus-visible { outline: none; }
+.fline .dot:focus-visible circle { stroke: var(--blue); stroke-width: 3; }
+
+/* 14 — structure */
+.moves { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .moves { grid-template-columns: 1fr; } }
+.move { border: 2px solid var(--line); background: var(--raise); border-radius: 14px; padding: 12px; cursor: pointer; font-weight: 650; text-align: left; transition: border-color .2s, background .2s; }
+.move:hover:not(:disabled) { border-color: var(--faint); }
+.move[aria-pressed="true"] { border-color: var(--violet); background: var(--violet-wash); }
+.move:disabled { cursor: default; opacity: .55; }
+.move[aria-pressed="true"]:disabled { opacity: 1; }
+.slines { display: grid; gap: 8px; min-height: 60px; padding: 14px; border-radius: 16px; background: var(--raise); }
+.sline { font-variation-settings: "MONO" 1; font-size: 1.3rem; font-weight: 520; }
+.sline .eqs { color: var(--faint); margin-right: 8px; }
+.chunk { display: inline-block; border-radius: 8px; padding: 0 4px; position: relative; }
+.chunk[data-l]::after { content: attr(data-l); position: absolute; top: -14px; right: -6px; font-size: .7rem; font-weight: 800; color: #fff; background: var(--violet); border-radius: 6px; padding: 0 5px; font-variation-settings: "MONO" 0, "CASL" 1; }
+.mental { display: grid; gap: 8px; padding: 14px; border-radius: 16px; border: 2px dashed var(--line); }
+.mental input { font: inherit; font-variation-settings: "MONO" 1; font-size: 1.3rem; width: 9rem; padding: 6px 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); }
+
+/* 15 — next best question */
+.nbq { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 16px; }
+@media (max-width: 720px) { .nbq { grid-template-columns: 1fr; } }
+.beliefs { display: grid; gap: 7px; padding: 14px; border-radius: 16px; background: var(--raise); align-content: start; }
+.brow { display: grid; grid-template-columns: minmax(0, 1fr) 3rem; gap: 2px 8px; font-size: .88rem; }
+.brow .bb { grid-column: 1 / -1; height: 9px; border-radius: 5px; background: var(--line); overflow: hidden; }
+.brow .bb i { display: block; height: 100%; width: 0; border-radius: 5px; background: var(--blue); }
+.brow.lead { font-weight: 750; } .brow.lead .bb i { background: var(--violet); }
+.brow em { font-style: normal; text-align: right; font-variation-settings: "MONO" 1; color: var(--soft); }
+.cands { display: grid; gap: 7px; }
+.cand { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 9px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font-size: .9rem; transition: border-color .3s, background .3s; }
+.cand .ig { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.cand .ig i { display: block; height: 100%; width: 0; background: var(--gold); border-radius: 3px; }
+.cand small { color: var(--soft); font-variation-settings: "MONO" 1; white-space: nowrap; }
+.cand.best { border-color: var(--gold); background: var(--gold-wash); }
+.cand.asked { opacity: .5; }
+.hist { display: flex; flex-wrap: wrap; gap: 6px; }
+.hist span { font-size: .8rem; padding: 2px 10px; border-radius: 999px; background: var(--raise); }
+
+/* 16 — read-back */
+.rb { display: grid; gap: 10px; }
+.rb input { font: inherit; font-variation-settings: "MONO" 1; font-size: 1.35rem; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); width: 100%; }
+.rb input:focus { border-color: var(--blue); outline: none; }
+.readas { border-radius: 16px; background: var(--raise); padding: 14px; display: grid; gap: 8px; }
+.readas .big { font-variation-settings: "MONO" 1; font-size: 1.8rem; font-weight: 550; min-height: 2.4rem; }
+.issue { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: .9rem; padding: 8px 10px; border-radius: 10px; background: var(--gold-wash); }
+.issue b { color: var(--gold); }
+.samples { display: flex; flex-wrap: wrap; gap: 6px; }
+.samples button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-variation-settings: "MONO" 1; font-size: .88rem; cursor: pointer; }
+
+/* deeper catalogue + blueprint */
+.themes { display: grid; gap: 22px; }
+.theme h3 { color: var(--ink); font-size: .82rem; margin-bottom: 10px; }
+.theme h3 span { color: var(--soft); font-weight: 600; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.blue { margin-top: 40px; display: grid; gap: 16px; }
+.blue > p { color: var(--soft); max-width: 74ch; }
+.parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .parts { grid-template-columns: 1fr; } }
+.part { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; display: grid; gap: 8px; align-content: start; }
+.part h4 { margin: 0; font-size: 1.1rem; font-variation-settings: "CASL" 1; font-weight: 780; display: flex; gap: 10px; align-items: baseline; }
+.part h4 i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--ink); color: var(--surface); font-size: .8rem; flex: none; }
+.part ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; font-size: .92rem; }
+.part .now { font-size: .82rem; color: var(--soft); border-top: 1px dashed var(--line); padding-top: 8px; }
+.road { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .road { grid-template-columns: 1fr; } }
+.stagecol { border-radius: 18px; padding: 16px; display: grid; gap: 8px; align-content: start; background: var(--surface); box-shadow: var(--shadow); border-top: 5px solid var(--c); }
+.stagecol h4 { margin: 0; font-variation-settings: "CASL" 1; font-weight: 780; }
+.stagecol p { font-size: .82rem; color: var(--soft); }
+.stagecol ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 5px; font-size: .9rem; }
+
+/* thinking print demo */
+.pdemo { margin-top: 36px; display: grid; gap: 16px; }
+.pdlede { color: var(--soft); max-width: 74ch; }
+.pdgrid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 22px; align-items: start; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); padding: 22px; }
+@media (max-width: 820px) { .pdgrid { grid-template-columns: 1fr; } }
+.pdstage { display: grid; justify-items: center; gap: 8px; }
+.pdwrap { position: relative; width: min(100%, 340px); aspect-ratio: 1; max-width: 100%; }
+.pdwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 1; pointer-events: none; }
+.pdwrap canvas { position: absolute; inset: 3.5%; width: 93%; height: 93%; border-radius: 50%; background: var(--raise); }
+.pdwrap.sm { width: min(100%, 260px); }
+.pdcount { font-variation-settings: "MONO" 1; font-size: .85rem; color: var(--soft); }
+.pdctl { display: grid; gap: 14px; min-width: 0; }
+.pdq { display: grid; gap: 6px; }
+.pdq > span { font-weight: 700; font-size: .92rem; }
+.pdchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pdchips button { border: 2px solid var(--line); background: var(--raise); border-radius: 999px; padding: 5px 13px; cursor: pointer; font-weight: 650; font-size: .88rem; display: inline-flex; align-items: center; gap: 6px; }
+.pdchips button i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.pdchips button[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); }
+.pdrules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .pdrules { grid-template-columns: 1fr; } }
+.pdrules div { background: var(--surface); border-radius: 14px; padding: 12px 14px; font-size: .9rem; color: var(--soft); box-shadow: var(--shadow); }
+.pdrules b { display: block; color: var(--ink); font-variation-settings: "CASL" 1; margin-bottom: 2px; }
+.pdpair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 620px) { .pdpair { grid-template-columns: 1fr; } }
+.pdpair figure { margin: 0; background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); padding: 18px; display: grid; justify-items: center; gap: 12px; }
+.pdpair figcaption { display: grid; gap: 4px; text-align: center; font-size: .92rem; color: var(--soft); max-width: 40ch; }
+.pdpair figcaption b { color: var(--ink); font-size: 1.1rem; font-variation-settings: "CASL" 1; }
+.pdnote { text-align: center; color: var(--soft); font-size: .92rem; }
+
+/* 7 — sometimes */
+.claim { text-align: center; font-size: clamp(1.5rem, 4.6vw, 2.2rem); font-variation-settings: "MONO" 1; font-weight: 550; }
+.versus { display: grid; grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr); gap: 10px; align-items: end; }
+.side2 { display: grid; gap: 6px; justify-items: center; }
+.barbox { width: 100%; max-width: 160px; height: 170px; display: flex; align-items: flex-end; background: var(--raise); border-radius: 14px; overflow: hidden; }
+.bar { width: 100%; height: 10%; border-radius: 12px 12px 0 0; }
+.side2 .v { font-variation-settings: "MONO" 1; font-size: 1.8rem; font-weight: 650; }
+.side2 .e { font-size: .9rem; color: var(--soft); }
+.rel { display: grid; place-items: center; height: 170px; font-size: 3rem; font-weight: 800; font-variation-settings: "MONO" 1; }
+.xslide { display: grid; gap: 6px; }
+.xslide input { width: 100%; accent-color: var(--blue); }
+.xslide .lbl { display: flex; justify-content: space-between; font-size: .9rem; }
+.tested { position: relative; height: 22px; margin-inline: 8px; }
+.tested i { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; }
+.asn { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.asn button { border: 2px solid var(--line); background: var(--raise); border-radius: 14px; padding: 12px 6px; font-weight: 750; cursor: pointer; }
+.asn button[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-wash); }
+
+.foot { margin-top: 26px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; font-size: .9rem; color: var(--soft); }
+.foot b { display: block; color: var(--ink); font-variation-settings: "CASL" 1; margin-bottom: 3px; }
+@media (max-width: 760px) { .foot { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Seven Ways to Ask</h1>
+    <p class="lede">Seven question formats for the factorisation check where the motion is the maths, not decoration. Each one records more than a final answer: how a student splits their certainty, the order they search in, the moment they spot an error, and the slip they fixed on their own. Watch the evidence feed on the right fill up as you play. The round print above it replaces the frog. It grows from what Lotus learns, never from right or wrong (<a href="#printdemo">see how it works</a>). Below the studio, <a href="#blind">twelve blind spots</a> list the ways a right answer can hide wrong thinking. Five of them have playable fixes, at the end of the row of prototypes. <a href="#deeper">Sixteen more</a> go deeper (effort, language, foundations, and the health of the questions themselves), followed by <a href="#blueprint">six changes</a> that would make Lotus sharper, in the order to build them.</p>
+    <nav class="nav" id="nav" aria-label="Prototypes"></nav>
+  </header>
+
+  <div class="studio">
+    <article class="stagecard">
+      <div class="stagehead">
+        <div class="meta"><span class="pill rep" id="hRep"></span><span class="pill sk" id="hSkill"></span></div>
+        <h2 id="hName"></h2>
+        <p class="why" id="hWhy"></p>
+      </div>
+      <div class="stage" id="stage"></div>
+    </article>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="printbox">
+          <div class="printwrap">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56" fill="none" stroke="var(--line)" stroke-width="4"/><circle id="ring" cx="60" cy="60" r="56" fill="none" stroke="var(--ink)" stroke-width="4" stroke-linecap="round" stroke-dasharray="351.9" stroke-dashoffset="351.9" transform="rotate(-90 60 60)"/></svg>
+            <canvas id="print" width="200" height="200" aria-label="Thinking print"></canvas>
+          </div>
+          <p><strong>Thinking print</strong>Replaces the frog. Each answer adds strokes in that skill's colour. A sure answer draws crisp lines, a guess draws soft ones. The ring fills as Lotus learns. Every student's print is different.</p>
+        </div>
+        <div class="keys"><span style="--c:var(--gold)">x² + bx + c</span><span style="--c:var(--violet)">Squares</span><span style="--c:var(--coral)">Signs</span><span style="--c:var(--teal)">Checking</span><span style="--c:var(--blue)">Grouping</span></div>
+      </div>
+      <div class="panel">
+        <h3>How Lotus reads it</h3>
+        <ul class="caps" id="caps"></ul>
+        <p class="grounded" id="grounded"></p>
+      </div>
+      <div class="panel">
+        <h3>Live evidence</h3>
+        <ol class="feed" id="feed"></ol>
+      </div>
+    </aside>
+  </div>
+
+  <section class="pdemo" id="printdemo">
+    <h2>How the thinking print works</h2>
+    <p class="pdlede">The print takes the frog's place. It never shows right or wrong. It shows how much Lotus has learned about the student, and where. Build an answer below and add it. Then try the same answer as right and as wrong: the strokes look the same.</p>
+    <div class="pdgrid">
+      <div class="pdstage">
+        <div class="pdwrap">
+          <svg viewBox="0 0 340 340" aria-hidden="true" id="pdsvg"><circle cx="170" cy="170" r="164" fill="none" stroke="var(--line)" stroke-width="6"/><circle id="pdRing" cx="170" cy="170" r="164" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" transform="rotate(-90 170 170)"/></svg>
+          <canvas id="pdCanvas" aria-label="Demo thinking print"></canvas>
+        </div>
+        <p class="pdcount" id="pdCount">0 answers · ring 0% full</p>
+      </div>
+      <div class="pdctl">
+        <div class="pdq"><span>1 · Which skill was the question about?</span><div class="pdchips" id="pdSkill"></div></div>
+        <div class="pdq"><span>2 · How sure was the student?</span><div class="pdchips" id="pdCert"></div></div>
+        <div class="pdq"><span>3 · How much did the answer tell Lotus?</span><div class="pdchips" id="pdStr"></div></div>
+        <div class="pdq"><span>4 · Was it right?</span><div class="pdchips" id="pdRight"></div></div>
+        <div class="row"><button class="btn" id="pdAdd" type="button">Add this answer</button><button class="btn ghost" id="pdBurst" type="button">Add 8 random answers</button><button class="btn ghost" id="pdClear" type="button">Clear</button></div>
+        <div class="readout" id="pdRead">Choose an answer and add it to the print.</div>
+      </div>
+    </div>
+    <div class="pdrules">
+      <div><b style="color:var(--gold)">Colour</b>The skill the question was about.</div>
+      <div><b>Where</b>Each skill starts in its own part of the circle, then the strokes flow outward.</div>
+      <div><b>Crisp or soft</b>How sure the answer was. Guesses draw wide, faint strokes.</div>
+      <div><b>How many strokes</b>How much Lotus learned from that one answer.</div>
+      <div><b>The ring</b>Everything Lotus has learned so far. The check can end once it's full enough.</div>
+      <div><b style="color:var(--coral)">Right or wrong</b>Makes no difference to the print, on purpose. Students can't read their score from it.</div>
+    </div>
+    <h3 style="margin-top:8px">Two students, ten answers each</h3>
+    <div class="pdpair">
+      <figure><div class="pdwrap sm"><svg viewBox="0 0 260 260" aria-hidden="true"><circle cx="130" cy="130" r="124" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="pdAr" cx="130" cy="130" r="124" fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round" transform="rotate(-90 130 130)"/></svg><canvas id="pdA"></canvas></div>
+        <figcaption><b>Asha</b><span id="pdAc">Sure of herself. She holds one sign mistake firmly, so Lotus keeps asking about signs.</span></figcaption></figure>
+      <figure><div class="pdwrap sm"><svg viewBox="0 0 260 260" aria-hidden="true"><circle cx="130" cy="130" r="124" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="pdBr" cx="130" cy="130" r="124" fill="none" stroke="var(--ink)" stroke-width="5" stroke-linecap="round" transform="rotate(-90 130 130)"/></svg><canvas id="pdB"></canvas></div>
+        <figcaption><b>Ravi</b><span id="pdBc">Unsure almost everywhere, so most of his answers are guesses.</span></figcaption></figure>
+    </div>
+    <div class="row" style="justify-content:center"><button class="btn" id="pdPlay" type="button">▶ Play both checks</button></div>
+    <p class="pdnote" id="pdNote">Students see only the picture. The teacher sees what it means.</p>
+  </section>
+
+  <section class="blind" id="blind">
+    <h2>Twelve ways an answer misleads</h2>
+    <p>A right answer isn't proof of right thinking, and a wrong one isn't proof of a misconception. These are the cases where marking only the final answer gets the student wrong, each with a factorisation example and how Lotus can catch it. Five have new playable fixes in the studio above. The rest need a change to how Lotus reads evidence, not a new question.</p>
+    <div class="bgrid">
+      <article class="bcard"><div class="bt"><h4>Two wrongs make a right</h4><span class="no">01</span></div>
+        <p class="ex">For <span class="m">x² − x − 6</span>: picks 3 and −2 (they add to +1, a sign slip), then flips the signs into the brackets: <span class="m">(x − 3)(x + 2)</span>. Correct.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>A right answer. These two slips always cancel, so no amount of final-answer questions will ever catch them.</dd><dt>Catch it by</dt><dd>Recording the middle step. It breaks later, when they split the middle term in Class 9.</dd></dl>
+        <button class="go2" type="button" data-go="7">Try the fix: X-ray the answer →</button></article>
+      <article class="bcard"><div class="bt"><h4>A wrong rule that happens to work</h4><span class="no">02</span></div>
+        <p class="ex">"Both brackets copy the middle sign" gets <span class="m">x² + 5x + 6</span> and <span class="m">x² − 5x + 6</span> right, and fails every time the last number is negative.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Mastery, if every question it asked had a positive last number.</dd><dt>Catch it by</dt><dd>Covering every sign case, and choosing numbers where the wrong rules disagree with the right one.</dd></dl>
+        <button class="go2" type="button" data-go="8">Try the fix: Sign quadrant →</button></article>
+      <article class="bcard"><div class="bt"><h4>Solving the options, not the question</h4><span class="no">03</span></div>
+        <p class="ex">On a multiple-choice factorise question, the student expands each option until one matches. Expanding is a different, easier skill.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Factorising they can't yet do.</dd><dt>Catch it by</dt><dd>Asking for a prediction before the options appear, then comparing.</dd></dl>
+        <button class="go2" type="button" data-go="9">Try the fix: Predict, then pick →</button></article>
+      <article class="bcard"><div class="bt"><h4>Autopilot from the last question</h4><span class="no">04</span></div>
+        <p class="ex">After three differences of squares, <span class="m">x² + 16</span> gets <span class="m">(x − 4)(x + 4)</span> in two seconds.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>A run of right answers that were pattern-copying, not choosing a method.</dd><dt>Catch it by</dt><dd>Mixing question types and planting a look-alike. Timing shows whether they noticed.</dd></dl>
+        <button class="go2" type="button" data-go="10">Try the fix: The switch-up →</button></article>
+      <article class="bcard"><div class="bt"><h4>The mistake they fixed before submitting</h4><span class="no">05</span></div>
+        <p class="ex">Types <span class="m">(x − 5)(x + 2)</span>, pauses, deletes it, and submits <span class="m">(x + 5)(x − 2)</span>.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>A clean right answer. The sign mistake is still there. They just caught it this time.</dd><dt>Catch it by</dt><dd>Keeping the edit history and checking deleted drafts against known mistakes.</dd></dl>
+        <button class="go2" type="button" data-go="11">Try the fix: Typing replay →</button></article>
+      <article class="bcard"><div class="bt"><h4>Same right answer, very different fluency</h4><span class="no">06</span></div>
+        <p class="ex">One student cracks <span class="m">x² − x − 12</span> in one try. Another takes nine scattered tries.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Two identical ticks.</dd><dt>Catch it by</dt><dd>Recording tries and time. Fluency counts as evidence, separately from correctness.</dd></dl>
+        <button class="go2" type="button" data-go="5">See it: Crack the lock →</button></article>
+      <article class="bcard"><div class="bt"><h4>A slip that looks like a misconception</h4><span class="no">07</span></div>
+        <p class="ex">Writes <span class="m">(x + 2)(x + 4)</span> for <span class="m">x² + 5x + 6</span> once, and never again.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>A gap, if it treats one wrong answer as a diagnosis.</dd><dt>Catch it by</dt><dd>Naming a mistake only when it shows up again, from a different angle.</dd></dl>
+        <button class="go2" type="button" data-go="1">See it: Swipe the claims →</button></article>
+      <article class="bcard"><div class="bt"><h4>The mistake that changes shape</h4><span class="no">08</span></div>
+        <p class="ex">Monday: <span class="m">(x − 3)(x + 2)</span>. Wednesday: <span class="m">(x + 3)(x + 2)</span>. Different wrong answers, but the same missing piece: not knowing what the minus in −6 means.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Random slips, because the wrong answers keep changing.</dd><dt>Catch it by</dt><dd>Grouping wrong answers by the missing idea behind them, not by how they look (VanLehn's "bug migration").</dd></dl>
+        <span class="tagm">Change to how Lotus reads evidence</span></article>
+      <article class="bcard"><div class="bt"><h4>Steps given, plan missing</h4><span class="no">09</span></div>
+        <p class="ex">"First take out the common factor, then factorise <span class="m">2x² − 18</span>." Gets it. Without the hint, they stop at <span class="m">2(x² − 9)</span>.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Success that came from the hint.</dd><dt>Catch it by</dt><dd>Asking "what would you do first?" before any steps, and giving hints only after a miss.</dd></dl>
+        <span class="tagm">Change to the question order</span></article>
+      <article class="bcard"><div class="bt"><h4>Knows the symbols, not the meaning</h4><span class="no">10</span></div>
+        <p class="ex">Factorises <span class="m">x² + 5x + 6</span> fine, but can't say which rectangle it is, or cancels the <span class="m">x</span>'s in <span class="m">(x² + 5x)/x</span> term by term.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Mastery of a procedure, which isn't the same as understanding.</dd><dt>Catch it by</dt><dd>Asking the same idea in a second form: tiles, area, or a fraction to simplify.</dd></dl>
+        <button class="go2" type="button" data-go="2">See it: Build the rectangle →</button></article>
+      <article class="bcard"><div class="bt"><h4>Remembering the textbook example</h4><span class="no">11</span></div>
+        <p class="ex"><span class="m">x² + 5x + 6</span> is in every textbook. <span class="m">6 + y² + 5y</span> is the same question in disguise. Only the skill transfers. A memorised example doesn't.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>Recall of a familiar question, not the skill.</dd><dt>Catch it by</dt><dd>Varying the surface in code: another letter, terms in a different order, the same numbers in disguise.</dd></dl>
+        <span class="tagm">Change to how questions are written</span></article>
+      <article class="bcard"><div class="bt"><h4>Right here, wrong as a rule</h4><span class="no">12</span></div>
+        <p class="ex">Says <span class="m">(x + 3)² = x² + 9</span> is true after trying only <span class="m">x = 0</span>, the one value where it is.</p>
+        <dl><dt>Answer-only marking sees</dt><dd>A correct check on one case.</dd><dt>Catch it by</dt><dd>Recording which cases they tested before deciding.</dd></dl>
+        <button class="go2" type="button" data-go="6">See it: Always, sometimes, never →</button></article>
+    </div>
+    <p class="bsrc">Research behind this: Brown &amp; VanLehn's repair theory and "bug migration" (mistakes change shape between tests); Tatsuoka's rule-space work (read patterns across many answers, because one answer can come from a wrong rule); Rohrer's interleaving studies (mixed practice makes students choose a method; blocked practice lets them skip choosing); Imran &amp; Bulathwela's "correct answer trap" (flawed reasoning hidden behind right answers in Eedi data); and keystroke and process-data research (PISA, EDM 2026), which treats revisions and pauses as evidence.</p>
+  </section>
+
+  <section class="blind" id="deeper">
+    <h2>Sixteen more, from deeper down</h2>
+    <p>The first twelve are about the maths in the answer. These go further: whether the student was really trying, whether the screen or the language got in the way, whether the real gap sits below factorising, and whether the question itself was fair, healthy and worth asking. Four have new playable prototypes, at the end of the row above.</p>
+    <div class="themes">
+      <div class="theme"><h3>The student, not the maths <span>effort, gaming, confidence, fatigue</span></h3><div class="bgrid">
+        <article class="bcard"><div class="bt"><h4>Not really trying</h4><span class="no">13</span></div>
+          <p class="ex">A factorise question answered in 1.4 seconds. Nobody can read and solve it that fast.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>A wrong answer, and a gap that may not exist.</dd><dt>Catch it by</dt><dd>Setting a minimum believable time for each question. Faster answers count as rapid guesses: left out of the diagnosis, followed by a gentle "take your time" (Wise &amp; Kong's response-time effort).</dd></dl>
+          <span class="tagm">Change to how Lotus reads evidence</span></article>
+        <article class="bcard"><div class="bt"><h4>Gaming "I don't know"</h4><span class="no">14</span></div>
+          <p class="ex">A student learns that "I don't know yet" brings easier questions, and taps it within three seconds every time.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Lots of honest gaps.</dd><dt>Catch it by</dt><dd>Treating a fast "I don't know" differently from a slow one, and following it with "what would you try first?". That still counts if they really don't know (Baker's "gaming the system" research).</dd></dl>
+          <span class="tagm">Change to how Lotus reads evidence</span></article>
+        <article class="bcard"><div class="bt"><h4>Confident and wrong, everywhere</h4><span class="no">15</span></div>
+          <p class="ex">"Very sure" on eight answers, three of them right.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Maths gaps only.</dd><dt>Catch it by</dt><dd>Measuring calibration (how well confidence matches correctness) as its own result for the teacher. Low performers tend to be overconfident, and that pattern stays put without help.</dd></dl>
+          <button class="go2" type="button" data-go="0">See it: Split your chips →</button></article>
+        <article class="bcard"><div class="bt"><h4>Running out of steam</h4><span class="no">16</span></div>
+          <p class="ex">Sign slips start appearing in question 18 and not before.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>A sign gap.</dd><dt>Catch it by</dt><dd>Putting the deciding questions early, watching for a late-test drop, and not naming a mistake from late answers alone. PISA finds items get harder as they appear later in a test, more so for less persistent students.</dd></dl>
+          <span class="tagm">Change to the question order</span></article>
+      </div></div>
+
+      <div class="theme"><h3>The screen and the language <span>typing, vocabulary, medium of instruction</span></h3><div class="bgrid">
+        <article class="bcard"><div class="bt"><h4>A typing problem, marked as maths</h4><span class="no">17</span></div>
+          <p class="ex">Types <span class="m">x+2(x+3)</span> meaning <span class="m">(x + 2)(x + 3)</span>, or <span class="m">x2</span> for <span class="m">x²</span>.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>A wrong factorisation.</dd><dt>Catch it by</dt><dd>Showing "here's what we read" before marking, and letting the student confirm. Typing slips stay separate from maths (the STACK approach: check what was typed before marking it).</dd></dl>
+          <button class="go2" type="button" data-go="15">Try the fix: Check what we read →</button></article>
+        <article class="bcard"><div class="bt"><h4>A vocabulary gap, not a maths gap</h4><span class="no">18</span></div>
+          <p class="ex">Asked to <i>factorise</i>, the student expands, every time. In a Hindi-medium class, "factorise" may never have been the word they used.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>A wrong answer on every question.</dd><dt>Catch it by</dt><dd>Spotting "did the reverse operation" as its own pattern, adding a tap-to-see glossary in the student's medium, and keeping wording short. Wordy items measure language as well as maths (Abedi &amp; Lord).</dd></dl>
+          <span class="tagm">Change to how questions are written</span></article>
+      </div></div>
+
+      <div class="theme"><h3>The real gap is somewhere else <span>foundations underneath factorising</span></h3><div class="bgrid">
+        <article class="bcard"><div class="bt"><h4>The gap is lower down</h4><span class="no">19</span></div>
+          <p class="ex">For <span class="m">x² + 11x + 28</span>, writes <span class="m">(x + 3)(x + 8)</span>. The method is right, but they think 3 × 8 = 28.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>A factorising gap.</dd><dt>Catch it by</dt><dd>Reading the arithmetic inside the wrong answer: a sum that matches with a product that's slightly off points to a times-table slip. Then probe one step down the skill map (knowledge-space theory, as used in ALEKS).</dd></dl>
+          <span class="tagm">Change to how Lotus reads evidence</span></article>
+        <article class="bcard"><div class="bt"><h4>Letters as objects</h4><span class="no">20</span></div>
+          <p class="ex">Thinks <span class="m">3a</span> means "3 apples", so <span class="m">a + b</span> can't be simplified further, and factorising feels like rearranging labels.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Random-looking algebra errors.</dd><dt>Catch it by</dt><dd>A short question family on what letters mean: "When is L + M + N = L + P + N true? Always, never, or sometimes?" (Küchemann's CSMS levels).</dd></dl>
+          <span class="tagm">New question family</span></article>
+        <article class="bcard"><div class="bt"><h4>"=" means "do something"</h4><span class="no">21</span></div>
+          <p class="ex">Sees <span class="m">x² + 5x + 6 = (x + 2)(x + 3)</span> and tries to solve for x, not seeing it's true for every x.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Nothing, until identities and equations get mixed up later.</dd><dt>Catch it by</dt><dd>"Is this true when x = 10? Why?" Students who see "=" as a relationship solve equations better (Knuth, Stephens, McNeil &amp; Alibali 2006).</dd></dl>
+          <span class="tagm">New question family</span></article>
+        <article class="bcard"><div class="bt"><h4>Can do it, can't see it</h4><span class="no">22</span></div>
+          <p class="ex">Factorises <span class="m">x² − 16</span> instantly, but expands <span class="m">(x + 3)² − 16</span> into a trinomial first. Works out <span class="m">99² − 1</span> the long way.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Right answers, so no gap.</dd><dt>Catch it by</dt><dd>Questions where seeing the structure makes them short and missing it makes them long. Record the route taken (Hoch &amp; Dreyfus's "structure sense").</dd></dl>
+          <button class="go2" type="button" data-go="13">Try the fix: See the structure →</button></article>
+        <article class="bcard"><div class="bt"><h4>Knows one answer, not the whole set</h4><span class="no">23</span></div>
+          <p class="ex">For which b does <span class="m">x² + bx + 12</span> factorise? Finds 7, 8 and 13, and never thinks of −7, −8 or −13.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Three right answers.</dd><dt>Catch it by</dt><dd>"Find them all" questions. How complete the list is, and the order they found things in, show whether they understand the full set of answers or know a few examples.</dd></dl>
+          <button class="go2" type="button" data-go="12">Try the fix: Find them all →</button></article>
+        <article class="bcard"><div class="bt"><h4>A different method, marked as a mistake</h4><span class="no">24</span></div>
+          <p class="ex">The class was taught splitting the middle term: <span class="m">x² + 5x + 6 = x² + 2x + 3x + 6</span>. Lotus expects the product–sum shortcut, so the working looks off.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Odd working, or a false mistake.</dd><dt>Catch it by</dt><dd>Recognising every valid method students are taught (NCERT's included) and diagnosing within the method the student actually used.</dd></dl>
+          <span class="tagm">Change to marking</span></article>
+      </div></div>
+
+      <div class="theme"><h3>The question itself <span>broken, unfair, copied, or wasted</span></h3><div class="bgrid">
+        <article class="bcard"><div class="bt"><h4>The question is broken</h4><span class="no">25</span></div>
+          <p class="ex">An AI-written option that nobody ever picks, or a question that strong students get wrong more often than weak ones.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Normal results.</dd><dt>Catch it by</dt><dd>Checking question health after every class: options picked by fewer than 5% of students are dead (one medical-education study found about half of distractors were), and questions where strong students do worse get flagged for review.</dd></dl>
+          <span class="tagm">Quality check after each class</span></article>
+        <article class="bcard"><div class="bt"><h4>The question is unfair to some students</h4><span class="no">26</span></div>
+          <p class="ex">English-medium and Hindi-medium students with the same overall result score very differently on one question.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>A gap in one group.</dd><dt>Catch it by</dt><dd>Comparing students of equal overall ability across groups, a standard fairness check called differential item functioning. If the groups differ on one question, the wording is the problem, not the students.</dd></dl>
+          <span class="tagm">Quality check after each class</span></article>
+        <article class="bcard"><div class="bt"><h4>Copied answers</h4><span class="no">27</span></div>
+          <p class="ex">Two neighbours with the same unusual wrong answers, in the same order.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>Two students with the same gap.</dd><dt>Catch it by</dt><dd>Giving every student their own numbers (same skill, different instance). Copying stops helping, and identical answers to different questions stand out.</dd></dl>
+          <span class="tagm">Change to how questions are written</span></article>
+        <article class="bcard"><div class="bt"><h4>The wasted question</h4><span class="no">28</span></div>
+          <p class="ex">Lotus is torn between "flips signs" and "knows it", then asks a question that both kinds of student answer the same way.</p>
+          <dl><dt>Answer-only marking sees</dt><dd>One more answer, and nothing learned.</dd><dt>Catch it by</dt><dd>Choosing each next question by how much it's expected to separate the explanations still in play, and stopping when Lotus is sure enough (Bayesian adaptive testing).</dd></dl>
+          <button class="go2" type="button" data-go="14">Try the fix: Next best question →</button></article>
+      </div></div>
+    </div>
+    <p class="bsrc">Research behind this: Wise &amp; Kong (2005) on response-time effort; Baker et al. on gaming intelligent tutors; Händel &amp; Dresel, and Erickson &amp; Heit, on overconfidence in maths; Debeer &amp; Janssen and later PISA work on item-position effects; Sangwin's STACK on checking input before marking; Abedi &amp; Lord (2001) on language load in maths items; Falmagne &amp; Doignon's knowledge-space theory (ALEKS); Küchemann's CSMS study of what letters mean; Knuth et al. (2006) on the equal sign; Hoch &amp; Dreyfus on structure sense; Tarrant et al. (2009) on non-functioning distractors; differential-item-functioning studies of language groups; and work on mutual-information question selection in diagnostic adaptive testing.</p>
+  </section>
+
+  <section class="blue" id="blueprint">
+    <h2>How Lotus gets sharper: six changes</h2>
+    <p>All 28 blind spots come back to six parts of Lotus. Each part below lists what to change, in plain terms, and which blind spots it closes.</p>
+    <div class="parts">
+      <article class="part"><h4><i>1</i>Record more than the answer</h4>
+        <ul><li>Keep the middle steps, not only the final text.</li><li>Keep the edit history, time to first action, total time and pauses.</li><li>Keep confidence or the chip split, take-backs and revisits.</li><li>Record whether the student confirmed "what we read" before marking.</li></ul>
+        <p class="now">Closes 01, 05, 06, 13, 17. Mostly recording, with no new questions needed.</p></article>
+      <article class="part"><h4><i>2</i>Read evidence more carefully</h4>
+        <ul><li>Set aside rapid guesses and typing problems before diagnosing.</li><li>Name a mistake only when it shows up again from a second angle.</li><li>Group wrong answers by the missing idea behind them.</li><li>Trace wrong arithmetic down to the prerequisite it points to.</li><li>Accept every valid taught method.</li></ul>
+        <p class="now">Closes 07, 08, 13, 14, 19, 24.</p></article>
+      <article class="part"><h4><i>3</i>Choose the next question by what it will reveal</h4>
+        <ul><li>Pick the question expected to best separate the explanations still in play, and stop when sure.</li><li>Cover every sign case before calling a skill secure.</li><li>Mix question types, and plant a look-alike now and then.</li><li>Ask the deciding questions early, before fatigue sets in.</li><li>Ask "what would you do first?" before giving any hint.</li></ul>
+        <p class="now">Closes 02, 04, 09, 16, 28.</p></article>
+      <article class="part"><h4><i>4</i>Write questions that separate students</h4>
+        <ul><li>Have code choose numbers so each mistake gives a different answer, with each option standing for one mistake.</li><li>Add near-miss twins, structure questions, "find them all" questions, and question families on what letters and "=" mean.</li><li>Use plain, short wording, with a glossary in the student's medium.</li><li>Vary the surface, and give every student their own numbers.</li></ul>
+        <p class="now">Closes 03, 10, 11, 18, 20, 21, 22, 23, 27.</p></article>
+      <article class="part"><h4><i>5</i>Check question health after every class</h4>
+        <ul><li>Track how often each option is picked, and replace dead ones.</li><li>Flag questions where strong students do worse than weak ones.</li><li>Run fairness checks by medium of instruction and by gender.</li><li>Send AI-written questions that misbehave to a review queue.</li></ul>
+        <p class="now">Closes 25 and 26, and keeps every other fix honest over time.</p></article>
+      <article class="part"><h4><i>6</i>Show the teacher five kinds of gap, not one</h4>
+        <ul><li><b>Maths misconception:</b> "flips signs into brackets".</li><li><b>Foundation gap:</b> "times tables to 12".</li><li><b>Language:</b> "doesn't know the word factorise".</li><li><b>Confidence:</b> "sure when wrong".</li><li><b>Engagement:</b> "rushed the last third".</li></ul>
+        <p class="now">Each needs a different response from the teacher. Lumping them together as "weak at factorising" hides all five.</p></article>
+    </div>
+    <h2 style="margin-top:10px">When to build each part</h2>
+    <div class="road">
+      <div class="stagecol" style="--c:var(--teal)"><h4>Before the Dec 1 showcase</h4><p>Cheap: mostly recording and rules, no new data needed.</p>
+        <ul><li>Rapid-guess filter (13)</li><li>"Here's what we read" before marking (17)</li><li>Record steps, edits and timing (01, 05, 06)</li><li>Every student gets their own numbers (27)</li><li>Sign-case coverage in the plan (02)</li><li>Bracket doors and Riya vs Sam in place of the two blind games</li></ul></div>
+      <div class="stagecol" style="--c:var(--gold)"><h4>During the pilot</h4><p>Needs real classes, but no long history.</p>
+        <ul><li>Dead-option and broken-question report (25)</li><li>Prerequisite trace-back from wrong arithmetic (19)</li><li>Follow-up after a fast "I don't know" (14)</li><li>Confidence calibration in the teacher report (15)</li><li>Structure and "find them all" questions (22, 23)</li><li>The half-class comparison against today's questions</li></ul></div>
+      <div class="stagecol" style="--c:var(--violet)"><h4>After the pilot</h4><p>Needs data from many students to tune.</p>
+        <ul><li>Next-best-question picker that replaces the fixed plan (28)</li><li>Fairness checks by medium and gender (26)</li><li>Grouping mistakes by missing idea, learned from real answers (08)</li><li>Letter-meaning and "=" question families (20, 21)</li><li>Recognising every taught method (24)</li></ul></div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p><b>Today a question records one thing</b>The final option the student picked. That's one data point, often a coin toss between "doesn't know" and "has a misconception".</p>
+    <p><b>These record the student's path</b>Where they hesitate, what they take back, how they split their certainty, and when they spot an error. The same minutes give several times the evidence.</p>
+    <p><b>Still no score</b>Nothing on screen says right or wrong. The motion responds to what the student does (tiles snapping, chips landing, a lock opening), never to whether the answer was correct.</p>
+  </div>
+</div>
+
+<script>
+gsap.registerPlugin(Draggable, Flip);
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const minus = (n) => (n < 0 ? `− ${-n}` : `+ ${n}`);
+const signed = (n) => (n < 0 ? `−${-n}` : `${n}`);
+
+// ======================= Thinking print (replaces the frog) =======================
+// One print engine; the sidebar, the demo and the two-student comparison each get their own.
+function makePrint(canvas, ring, { size = 200 } = {}) {
+  const ctx = canvas.getContext("2d");
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  const S = size, k = S / 200;
+  canvas.width = S * DPR; canvas.height = S * DPR; ctx.scale(DPR, DPR);
+  const C = 2 * Math.PI * +ring.getAttribute("r");
+  ring.setAttribute("stroke-dasharray", C); ring.setAttribute("stroke-dashoffset", C);
+  const seed = Math.random() * 1000;
+  let parts = [], running = false, total = 0;
+  const field = (x, y) => Math.sin(x / k * 0.021 + seed) * 1.7 + Math.cos(y / k * 0.019 - seed * 0.7) * 1.7 + Math.sin((x + y) / k * 0.008 + seed * 1.3);
+  function step() {
+    for (let n = 0; n < 2; n++) for (const p of parts) {
+      const a = field(p.x, p.y) + p.turn;
+      const nx = p.x + Math.cos(a) * p.speed, ny = p.y + Math.sin(a) * p.speed;
+      if (Math.hypot(nx - S / 2, ny - S / 2) > S / 2 - 3) { p.life = 0; continue; }
+      ctx.strokeStyle = p.color; ctx.globalAlpha = p.alpha; ctx.lineWidth = p.width;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nx, ny); ctx.stroke();
+      p.x = nx; p.y = ny; p.life--;
+    }
+    parts = parts.filter((p) => p.life > 0);
+  }
+  function frame() { step(); if (parts.length) requestAnimationFrame(frame); else running = false; }
+  function add(skill, strength = 0.6, certainty = 0.7) {
+    const color = css(PRINT_COLOR[skill]);
+    const ang = (PRINT_ANCHOR[skill] / 5) * Math.PI * 2 + Math.random() * 0.8;
+    const n = Math.round(26 + 60 * strength), width = (0.5 + (1 - certainty) * 2.6) * Math.max(1, k * .8), alpha = 0.12 + certainty * 0.38;
+    for (let i = 0; i < n; i++) {
+      const r = (18 + Math.random() * 40) * k;
+      parts.push({ x: S / 2 + Math.cos(ang) * r * Math.random() + (Math.random() - .5) * 30 * k, y: S / 2 + Math.sin(ang) * r * Math.random() + (Math.random() - .5) * 30 * k,
+        speed: (0.7 + Math.random() * 0.6) * k, turn: (Math.random() - .5) * 0.6, life: 50 + Math.random() * 90, color, width, alpha });
+    }
+    // Learning depends on how much the answer said and how sure it was: guesses teach Lotus little.
+    total = Math.min(1, total + (0.03 + strength * 0.08) * (0.35 + 0.65 * certainty));
+    gsap.to(ring, { attr: { "stroke-dashoffset": C * (1 - total) }, duration: 1.2, ease: "power3.out" });
+    if (REDUCED) { while (parts.length) step(); } else if (!running) { running = true; requestAnimationFrame(frame); }
+    return { n, width, alpha, total };
+  }
+  function clear() { parts = []; ctx.clearRect(0, 0, S, S); total = 0; gsap.to(ring, { attr: { "stroke-dashoffset": C }, duration: .6 }); }
+  return { add, clear, total: () => total };
+}
+const PRINT_ANCHOR = { PAIR: 0, SQUARES: 1, SIGNS: 2, CHECK: 3, GROUP: 4 };
+const PRINT_COLOR = { PAIR: "--gold", SQUARES: "--violet", SIGNS: "--coral", CHECK: "--teal", GROUP: "--blue" };
+const Print = makePrint($("#print"), $("#ring"));
+
+// ======================= Evidence feed =======================
+const Feed = (() => {
+  const el = $("#feed");
+  let items = [], t0 = performance.now();
+  function reset() { items = []; t0 = performance.now(); draw(); }
+  function log(text, tone = "") {
+    const t = (performance.now() - t0) / 1000;
+    items.unshift({ t, text, tone });
+    items = items.slice(0, 40);
+    draw(true);
+  }
+  function draw(fresh) {
+    el.innerHTML = items.length ? items.map((i) => `<li class="${i.tone}"><time>${i.t.toFixed(1)}s</time><span>${i.text}</span></li>`).join("")
+      : `<li class="empty">Nothing yet. Every tap, change and take-back will show up here.</li>`;
+    if (fresh && !REDUCED) gsap.from(el.firstElementChild, { opacity: 0, y: -8, duration: .35, ease: "power2.out" });
+  }
+  return { reset, log };
+})();
+
+// ======================= Prototypes =======================
+const PROTOS = [];
+
+// ---------- 1. Split your chips ----------
+PROTOS.push({
+  name: "Split your chips", rep: "Replaces: Fireflies + the confidence buttons", skill: "x² + bx + c",
+  why: "One tap gives you an answer. Four chips give you a picture of the student's certainty. A 2–2 split between the right answer and the sign-flipped one shows exactly what they're unsure about, which neither a single answer nor a confidence button can show.",
+  caps: ["<b>All 4 on one answer:</b> confident. If it's a wrong door, it names the mistake.",
+    "<b>2–2 split:</b> the two answers differ in one way only (signs, or product vs sum). That difference is the gap.",
+    "<b>Spread 1–1–1–1:</b> doesn't know yet. Lotus will never call that a misconception.",
+    "<b>Chips taken back:</b> each one is logged, so second thoughts become evidence too."],
+  grounded: "Grounded in partial-knowledge scoring for multiple choice (Coombs 1956; Ben-Simon, Budescu & Nevo 1997) and Eedi-style answer options, where each wrong door is a different mistake.",
+  mount(stage) {
+    const OPTS = [
+      { t: "(x − 3)(x − 1)", k: "ps", name: "product and sum swapped" },
+      { t: "(x − 1)(x + 4)", k: "right", name: "the correct one" },
+      { t: "(x − 2)(x + 2)", k: "po", name: "right product, wrong sum" },
+      { t: "(x − 4)(x + 1)", k: "sw", name: "right numbers, signs flipped" },
+    ];
+    const PAIR = { "right|sw": "the signs inside the brackets", "po|right": "whether the numbers must also add to 3", "ps|right": "which number is the product and which is the sum",
+      "po|sw": "both the sum and the signs", "ps|sw": "the product–sum rule itself", "po|ps": "the product–sum rule itself" };
+    stage.innerHTML = `<p class="ask">Which is the same as this? Share your 4 chips: all on one if you're sure, split them if you're torn.</p>
+      <div class="expr">x² + 3x − 4</div>
+      <div class="chipstage" id="cs">
+        <div class="answers">${OPTS.map((o, i) => `<button class="ans" type="button" data-i="${i}"><span class="m">${o.t}</span><span class="cnt"></span></button>`).join("")}</div>
+        <div class="tray"><span>Your chips</span><div class="slots">${"<i class='slot'></i>".repeat(4)}</div></div>
+        <div class="chiplayer"></div>
+      </div>
+      <div class="readout" id="ro">Tap an answer to drop a chip on it. Tap a chip to take it back.</div>
+      <div class="row"><button class="btn" id="lock" type="button" disabled>Lock in</button></div>`;
+    const cs = $("#cs", stage), layer = $(".chiplayer", stage), ans = $$(".ans", stage), slots = $$(".slot", stage);
+    const chips = Array.from({ length: 4 }, (_, i) => ({ at: -1, el: Object.assign(document.createElement("button"), { className: "chip", type: "button", ariaLabel: "chip" }), x: 0, y: 0 }));
+    chips.forEach((c) => layer.appendChild(c.el));
+    const rel = (el) => { const a = el.getBoundingClientRect(), b = cs.getBoundingClientRect(); return { x: a.left - b.left + a.width / 2, y: a.top - b.top + a.height / 2, h: a.height }; };
+    function target(c) {
+      if (c.at < 0) { const free = chips.filter((d) => d.at < 0); return rel(slots[free.indexOf(c)]); }
+      const on = chips.filter((d) => d.at === c.at), r = rel(ans[c.at]);
+      return { x: r.x, y: r.y + r.h / 2 - 38 - on.indexOf(c) * 9 };
+    }
+    function fly(c, instant) {
+      const to = target(c), from = { x: c.x, y: c.y };
+      c.x = to.x; c.y = to.y;
+      if (instant || REDUCED) return gsap.set(c.el, { x: to.x, y: to.y });
+      const ctrl = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 90 }, o = { p: 0 };
+      gsap.killTweensOf(o);
+      gsap.to(o, { p: 1, duration: .6, ease: "power2.inOut", onUpdate() { const p = o.p, q = 1 - p; gsap.set(c.el, { x: q * q * from.x + 2 * q * p * ctrl.x + p * p * to.x, y: q * q * from.y + 2 * q * p * ctrl.y + p * p * to.y, rotation: p * 360 }); },
+        onComplete() { gsap.fromTo(c.el, { scaleX: 1.25, scaleY: .7 }, { scaleX: 1, scaleY: 1, duration: .6, ease: "elastic.out(1.1,.35)" }); } });
+    }
+    const layout = (instant) => chips.forEach((c) => fly(c, instant));
+    function readout() {
+      const counts = OPTS.map((_, i) => chips.filter((c) => c.at === i).length);
+      ans.forEach((a, i) => { a.classList.toggle("has", counts[i] > 0); $(".cnt", a).textContent = counts[i] ? `${counts[i]} chip${counts[i] > 1 ? "s" : ""}` : ""; });
+      const placed = counts.reduce((a, b) => a + b, 0);
+      $("#lock", stage).disabled = placed < 4;
+      if (placed < 4) { $("#ro", stage).innerHTML = `Place all four chips. <span style="color:var(--soft)">${4 - placed} left.</span>`; return null; }
+      const order = counts.map((n, i) => [n, i]).sort((a, b) => b[0] - a[0]);
+      const [[n1, i1], [n2, i2]] = order;
+      const shape = order.map(([n]) => n).filter(Boolean).join("–");
+      let text;
+      if (n1 === 4) text = OPTS[i1].k === "right" ? `<b>All in on the right answer.</b> Confident and correct.` : `<b>All in on “${OPTS[i1].name}”.</b> Confident, so this is a misconception and not a guess.`;
+      else if (shape === "2–2") { const key = [OPTS[i1].k, OPTS[i2].k].sort().join("|"); text = `<b>Torn between two.</b> They differ only in <b>${PAIR[key]}</b>. That's the exact gap, which a single-answer question can't show.`; }
+      else if (shape === "3–1") text = `<b>Leans “${OPTS[i1].name}”</b>, with a doubt about “${OPTS[i2].name}”.`;
+      else if (shape === "1–1–1–1") text = `<b>Spread evenly: doesn't know yet.</b> Lotus won't label a misconception from this.`;
+      else text = `<b>Leans “${OPTS[i1].name}”</b>, but unsure.`;
+      $("#ro", stage).innerHTML = text;
+      return { shape, counts, i1 };
+    }
+    ans.forEach((a, i) => a.addEventListener("click", () => {
+      const c = chips.find((d) => d.at < 0);
+      if (!c) return Feed.log("Tried to add a fifth chip (all four are placed)");
+      c.at = i; Feed.log(`Chip → <span class="m">${OPTS[i].t}</span>`); layout(); readout();
+    }));
+    chips.forEach((c) => c.el.addEventListener("click", () => {
+      if (c.at < 0) return;
+      Feed.log(`Took a chip back from <span class="m">${OPTS[c.at].t}</span>`, "warn");
+      c.at = -1; layout(); readout();
+    }));
+    $("#lock", stage).addEventListener("click", () => {
+      const r = readout();
+      Feed.log(`Locked in: ${r.shape} split`, "key");
+      const cert = r.shape === "4" ? .95 : r.shape === "3–1" ? .7 : r.shape === "2–2" ? .55 : .2;
+      Print.add("PAIR", .8, cert); if (r.counts[3]) Print.add("SIGNS", .4, cert);
+    });
+    requestAnimationFrame(() => { chips.forEach((c) => { const t = target(c); c.x = t.x; c.y = t.y + 40; }); layout(); });
+    const onResize = () => layout(true);
+    addEventListener("resize", onResize);
+    return () => removeEventListener("resize", onResize);
+  },
+});
+
+// ---------- 2. Swipe the claims ----------
+PROTOS.push({
+  name: "Swipe the claims", rep: "Replaces: Spot the Impostor", skill: "Squares and signs",
+  why: "Eight quick claims, swiped right for true, left for false, or down for not sure. One true/false answer is a coin toss. Eight answers that hit the same mistake from different sides form a pattern, and each card's timing shows where the student hesitated.",
+  caps: ["<b>Same mistake on every card in a family:</b> a consistent misconception (e.g. 3 of 3 say (a + b)² = a² + b²).",
+    "<b>Mixed answers within a family:</b> slips or guessing, not a misconception.",
+    "<b>Swiped down:</b> an honest “doesn't know yet”, kept separate from wrong answers.",
+    "<b>Slow cards:</b> hesitation is logged, so Lotus knows which ideas are shaky even when they're answered right."],
+  grounded: "Grounded in item families that test one misconception from several sides (cognitive diagnosis), and in response-time evidence from computer-based testing (PISA log data).",
+  mount(stage) {
+    const CARDS = [
+      { c: "x² − 9 = (x − 3)(x + 3)", truth: true, fam: "DS" },
+      { c: "(x + 5)² = x² + 25", truth: false, fam: "SPREAD" },
+      { c: "x² + 2x − 8 = (x − 4)(x + 2)", truth: false, fam: "SIGN" },
+      { c: "(x + 2)² = x² + 4x + 4", truth: true, fam: "SPREAD" },
+      { c: "x² + 9 = (x + 3)(x + 3)", truth: false, fam: "SUMSQ" },
+      { c: "x² − 2x − 8 = (x − 4)(x + 2)", truth: true, fam: "SIGN" },
+      { c: "(x − 4)² = x² − 16", truth: false, fam: "SPREAD" },
+      { c: "x² − 6x + 9 = (x − 3)²", truth: true, fam: "DS" },
+    ];
+    // What a student holding each mistake would swipe.
+    const FAMS = {
+      SPREAD: { name: "Squares a bracket term by term: (a + b)² = a² + b²", bug: [true, false, true], idx: [1, 3, 6], skill: "SQUARES" },
+      SIGN: { name: "Flips the signs into the brackets", bug: [true, false], idx: [2, 5], skill: "SIGNS" },
+      SUMSQ: { name: "Thinks x² + 9 factorises", bug: [true], idx: [4], skill: "SQUARES" },
+      DS: { name: "Difference of squares and perfect squares (controls)", bug: [false, false], idx: [0, 7], skill: "SQUARES" },
+    };
+    stage.innerHTML = `<p class="ask">True or false? Swipe right if it's always true, left if it isn't, down if you're not sure. Or use the buttons or arrow keys.</p>
+      <div class="deckwrap"><div class="deck" id="deck" tabindex="0" aria-label="Claim cards. Left arrow false, right arrow true, down arrow not sure."></div>
+      <div class="swipebtns"><button class="f" type="button" aria-label="False">✕</button><button class="u" type="button" aria-label="Not sure">?</button><button class="t" type="button" aria-label="True">✓</button></div>
+      <div class="summary" id="sum"></div></div>`;
+    const deck = $("#deck", stage);
+    const answers = [], times = [];
+    let i = 0, shownAt = performance.now(), drag = null, busy = false;
+    function build() {
+      deck.innerHTML = "";
+      for (let k = Math.min(CARDS.length - 1, i + 2); k >= i; k--) {
+        const d = document.createElement("div");
+        d.className = "card"; d.dataset.k = k;
+        d.innerHTML = `<span class="num">Card ${k + 1} of ${CARDS.length}</span><span class="m">${CARDS[k].c}</span><span class="stamp t">TRUE</span><span class="stamp f">FALSE</span><span class="stamp u">NOT SURE</span>`;
+        deck.appendChild(d);
+        gsap.set(d, { y: (k - i) * 14, scale: 1 - (k - i) * .05, opacity: k - i > 2 ? 0 : 1 });
+      }
+      const top = deck.lastElementChild;
+      if (!top) return finish();
+      shownAt = performance.now();
+      drag = Draggable.create(top, { type: "x,y", zIndexBoost: false,
+        onDrag() { gsap.set(top, { rotation: this.x / 14 }); $(".stamp.t", top).style.opacity = Math.max(0, this.x / 110); $(".stamp.f", top).style.opacity = Math.max(0, -this.x / 110); $(".stamp.u", top).style.opacity = Math.max(0, this.y / 90); },
+        onRelease() { if (this.x > 110) decide(true); else if (this.x < -110) decide(false); else if (this.y > 90) decide(null); else gsap.to(top, { x: 0, y: 0, rotation: 0, duration: .7, ease: "elastic.out(1,.45)", onUpdate: () => $$(".stamp", top).forEach((s) => (s.style.opacity = 0)) }); } })[0];
+    }
+    function decide(v) {
+      if (busy || i >= CARDS.length) return;
+      busy = true;
+      const top = deck.lastElementChild, t = (performance.now() - shownAt) / 1000;
+      answers[i] = v; times[i] = t;
+      Feed.log(`Card ${i + 1}: <b>${v === null ? "not sure" : v ? "true" : "false"}</b> · ${t.toFixed(1)}s`, v === null ? "" : "");
+      drag && drag.kill();
+      const dir = v === null ? 0 : v ? 1 : -1;
+      const st = v === null ? ".u" : v ? ".t" : ".f";
+      $(`.stamp${st}`, top).style.opacity = 1;
+      gsap.to(top, { x: dir * 520, y: v === null ? 380 : gsap.getProperty(top, "y") + 60, rotation: dir * 28, opacity: 0, duration: .5, ease: "power2.in" });
+      $$(".card", deck).slice(0, -1).reverse().forEach((c, k) => gsap.to(c, { y: k * 14, scale: 1 - k * .05, opacity: k > 1 ? 0 : 1, duration: .45, ease: "back.out(1.6)", delay: .08 }));
+      setTimeout(() => { i++; busy = false; build(); }, 520);
+    }
+    function finish() {
+      deck.innerHTML = `<div class="card" style="cursor:default"><span class="m" style="font-variation-settings:'CASL' 1;font-weight:750">All 8 swiped</span></div>`;
+      const med = [...times].sort((a, b) => a - b)[4];
+      const out = Object.entries(FAMS).map(([key, f]) => {
+        const hits = f.idx.map((k, j) => answers[k] === null ? "uns" : answers[k] === f.bug[j] && answers[k] !== CARDS[k].truth ? "hit" : answers[k] === CARDS[k].truth ? "ok" : "hit");
+        const nHit = hits.filter((h) => h === "hit").length, n = f.idx.length;
+        let verdict;
+        if (key === "DS") verdict = nHit ? "Missed a control card. Treat the other families with care." : "Both control cards right, so the other answers aren't random.";
+        else if (nHit === n && n >= 2) verdict = `<b>Consistent:</b> all ${n} cards match this mistake. Strong evidence.`;
+        else if (nHit === n) verdict = "One card points to this. Lotus would check again with a different question.";
+        else if (nHit) verdict = `Matches on ${nHit} of ${n}. Could be a slip, so not enough to name it.`;
+        else if (hits.includes("uns")) verdict = "Unsure here: doesn't know yet.";
+        else verdict = "No sign of this mistake.";
+        if (key !== "DS" && nHit === n && n >= 2) Print.add(f.skill, .9, .9); else Print.add(f.skill, .4, hits.includes("uns") ? .25 : .6);
+        return `<div class="fam"><span>${f.name}</span><span class="dots">${hits.map((h) => `<i class="${h}"></i>`).join("")}</span><p>${verdict}</p></div>`;
+      });
+      const slow = times.map((t, k) => [t, k]).filter(([t]) => t > med * 1.8).map(([, k]) => `card ${k + 1}`);
+      $("#sum", stage).innerHTML = out.join("") + `<div class="fam"><span>Hesitation</span><span></span><p>${slow.length ? `Took much longer on ${slow.join(", ")}. Shaky even if answered right.` : "Steady pace throughout."} Typical card: ${med.toFixed(1)}s.</p></div>`;
+      if (!REDUCED) gsap.from(".fam", { opacity: 0, y: 10, stagger: .08, duration: .4 });
+      Feed.log("Deck finished: patterns summarised", "key");
+    }
+    const [bf, bu, bt] = $$(".swipebtns button", stage);
+    bf.onclick = () => decide(false); bt.onclick = () => decide(true); bu.onclick = () => decide(null);
+    const key = (e) => { if (e.key === "ArrowLeft") decide(false); else if (e.key === "ArrowRight") decide(true); else if (e.key === "ArrowDown") { e.preventDefault(); decide(null); } };
+    deck.addEventListener("keydown", key);
+    build();
+    return () => drag && drag.kill();
+  },
+});
+
+// ---------- 3. Build the rectangle ----------
+PROTOS.push({
+  name: "Build the rectangle", rep: "Replaces: Garden fences", skill: "x² + bx + c",
+  why: "The student splits the five x-bars between the side and the bottom. The unit tiles pour into the corner, and either fit, leave holes, or spill over. When it fits, the edges measure themselves and the factors appear. The order of their splits is logged, which shows how they search.",
+  caps: ["<b>First split fits:</b> fluent with the product–sum idea.",
+    "<b>Splits tried in order (0|5, 1|4, 2|3):</b> systematic search, knows what to check.",
+    "<b>Jumping around, revisiting splits:</b> doesn't yet link the corner to the constant.",
+    "<b>Holes vs spills:</b> whether they adjust in the right direction shows if they see a × b as the corner."],
+  grounded: "Grounded in algebra-tile area models and intrinsic integration (Habgood & Ainsworth 2011): the game action is the factorising.",
+  mount(stage) {
+    const X = 120, U = 30, OX = 56, OY = 52, UNITS = 6, BARS = 5;
+    stage.innerHTML = `<p class="ask">Make a rectangle from these tiles. How many x-bars go down the side?</p>
+      <div class="expr">x² + 5x + 6</div>
+      <div class="tiles"><svg viewBox="0 0 520 360" id="tsvg" aria-label="Algebra tiles"></svg></div>
+      <div class="row" style="justify-content:center"><span style="color:var(--soft);font-size:.9rem">Bars down the side</span><div class="seg" id="seg">${[0, 1, 2, 3, 4, 5].map((n) => `<button type="button" data-n="${n}" aria-pressed="false">${n}</button>`).join("")}</div></div>
+      <div class="trail" id="trail"></div>`;
+    const svg = $("#tsvg", stage);
+    const NS = "http://www.w3.org/2000/svg";
+    const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; };
+    const holes = mk("g", {});
+    const sq = mk("rect", { x: OX, y: OY, width: X, height: X, rx: 6, fill: css("--x2"), opacity: .92 });
+    mk("text", { x: OX + X / 2, y: OY + X / 2 + 8, "text-anchor": "middle", fill: "#fff", "font-size": 24, "font-weight": 700 }).textContent = "x²";
+    const bars = Array.from({ length: BARS }, (_, k) => mk("rect", { x: 300, y: 300, width: X, height: U, rx: 5, fill: css("--teal"), stroke: css("--surface"), "stroke-width": 2 }));
+    const units = Array.from({ length: UNITS }, () => mk("rect", { x: 420, y: 60, width: U, height: U, rx: 4, fill: css("--gold"), stroke: css("--surface"), "stroke-width": 2 }));
+    const outline = mk("rect", { x: OX, y: OY, width: X, height: X, rx: 8, fill: "none", stroke: css("--ink"), "stroke-width": 3, opacity: 0 });
+    const dimT = mk("g", { opacity: 0 }), dimS = mk("g", { opacity: 0 });
+    const ans = mk("text", { x: 430, y: 190, "text-anchor": "middle", "font-size": 24, "font-weight": 700, fill: css("--ink"), opacity: 0 });
+    const tries = [];
+    let cur = -1;
+    const pool = (k) => ({ x: 440 + (k % 2) * 36, y: 60 + Math.floor(k / 2) * 36 });
+    function set(a) {
+      if (a === cur) return;
+      cur = a;
+      const b = BARS - a, need = a * b;
+      $$("#seg button", stage).forEach((bt) => bt.setAttribute("aria-pressed", String(+bt.dataset.n === a)));
+      bars.forEach((bar, k) => {
+        const side = k < a;
+        const to = side ? { x: OX + X + k * U, y: OY, width: U, height: X } : { x: OX, y: OY + X + (k - a) * U, width: X, height: U };
+        gsap.to(bar, { attr: to, duration: .6, delay: k * .05, ease: "back.out(1.3)" });
+      });
+      const cells = [];
+      for (let j = 0; j < b; j++) for (let i2 = 0; i2 < a; i2++) cells.push({ x: OX + X + i2 * U, y: OY + X + j * U });
+      units.forEach((u, k) => {
+        gsap.killTweensOf(u);
+        if (k < cells.length) gsap.to(u, { attr: cells[k], rotation: 0, duration: .55, delay: .35 + k * .06, ease: "back.out(1.6)", transformOrigin: "50% 50%" });
+        else { const p = pool(k - cells.length); gsap.to(u, { attr: p, duration: .6, delay: .35 + k * .05, ease: "bounce.out" }); if (!REDUCED) gsap.to(u, { rotation: 8, yoyo: true, repeat: -1, duration: .35, delay: 1.1, ease: "sine.inOut", transformOrigin: "50% 50%" }); }
+      });
+      gsap.killTweensOf([...holes.children]); holes.innerHTML = "";
+      cells.slice(UNITS).forEach((c, k) => {
+        const h = document.createElementNS(NS, "rect");
+        Object.entries({ x: c.x + 2, y: c.y + 2, width: U - 4, height: U - 4, rx: 4, fill: "none", stroke: css("--coral"), "stroke-width": 2, "stroke-dasharray": "4 3" }).forEach(([k2, v]) => h.setAttribute(k2, v));
+        holes.appendChild(h);
+        gsap.fromTo(h, { opacity: 0 }, { opacity: 1, duration: .3, delay: .9 + k * .05, onComplete: () => !REDUCED && gsap.to(h, { opacity: .3, yoyo: true, repeat: -1, duration: .6 }) });
+      });
+      const fits = need === UNITS;
+      gsap.to([outline, dimT, dimS, ans], { opacity: 0, duration: .2 });
+      if (fits) {
+        const w = X + a * U, hgt = X + b * U;
+        gsap.set(outline, { attr: { width: w, height: hgt } });
+        dimT.innerHTML = `<line x1="${OX}" y1="${OY - 14}" x2="${OX + w}" y2="${OY - 14}" stroke="${css("--ink")}" stroke-width="2"/><line x1="${OX}" y1="${OY - 20}" x2="${OX}" y2="${OY - 8}" stroke="${css("--ink")}" stroke-width="2"/><line x1="${OX + w}" y1="${OY - 20}" x2="${OX + w}" y2="${OY - 8}" stroke="${css("--ink")}" stroke-width="2"/><text x="${OX + w / 2}" y="${OY - 22}" text-anchor="middle" font-size="18" font-weight="700" fill="${css("--ink")}">x + ${a}</text>`;
+        dimS.innerHTML = `<line x1="${OX - 14}" y1="${OY}" x2="${OX - 14}" y2="${OY + hgt}" stroke="${css("--ink")}" stroke-width="2"/><line x1="${OX - 20}" y1="${OY}" x2="${OX - 8}" y2="${OY}" stroke="${css("--ink")}" stroke-width="2"/><line x1="${OX - 20}" y1="${OY + hgt}" x2="${OX - 8}" y2="${OY + hgt}" stroke="${css("--ink")}" stroke-width="2"/><text transform="translate(${OX - 24} ${OY + hgt / 2}) rotate(-90)" text-anchor="middle" font-size="18" font-weight="700" fill="${css("--ink")}">x + ${b}</text>`;
+        ans.textContent = `(x + ${a})(x + ${b})`;
+        gsap.timeline({ delay: 1.1 })
+          .to(outline, { opacity: 1, duration: .3 })
+          .fromTo(dimT, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: .45, ease: "power3.out" })
+          .fromTo(dimS, { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: .45, ease: "power3.out" }, "<.1")
+          .fromTo(ans, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .5, ease: "back.out(2)" });
+      }
+      const verdict = fits ? "fits exactly" : need > UNITS ? `${need - UNITS} hole${need - UNITS > 1 ? "s" : ""}` : `${UNITS - need} left over`;
+      tries.push({ a, b, fits });
+      $("#trail", stage).innerHTML = tries.map((t) => `<span class="${t.fits ? "fit" : ""}">${t.a}|${t.b}</span>`).join("");
+      Feed.log(`Split ${a} | ${b} → corner needs ${need}: <b>${verdict}</b>`, fits ? "good" : "");
+      if (fits) {
+        const ordered = tries.every((t, k) => k === 0 || Math.abs(t.a - tries[k - 1].a) === 1);
+        const read = tries.length === 1 ? "Fit on the first try: fluent." : ordered ? `Found it in ${tries.length} tries, stepping one at a time: a systematic search.` : `Found it in ${tries.length} tries, jumping around: not yet linking the corner to 6.`;
+        Feed.log(read, "key");
+        Print.add("PAIR", .8, tries.length === 1 ? .95 : ordered ? .75 : .45);
+      }
+    }
+    $$("#seg button", stage).forEach((bt) => bt.addEventListener("click", () => set(+bt.dataset.n)));
+    // Start with everything at the bottom, so the first view already shows spilled units.
+    units.forEach((u, k) => gsap.set(u, { attr: pool(k) }));
+    bars.forEach((bar, k) => gsap.set(bar, { attr: { x: OX, y: OY + X + k * U } }));
+    cur = 0; $$("#seg button", stage)[0].setAttribute("aria-pressed", "true");
+    return () => gsap.killTweensOf([...units, ...bars, outline, dimT, dimS, ans]);
+  },
+});
+
+// ---------- 4. Stop the tape ----------
+PROTOS.push({
+  name: "Stop the tape", rep: "Replaces: Detective", skill: "Checking by expanding",
+  why: "Sam's expansion plays like a short film, with arcs drawn between terms and products flying into place. The student hits Stop at the moment it goes wrong. Where they stop shows which step they think is wrong, and how long after the mistake they react shows how fluent they are.",
+  caps: ["<b>Stops in step D, soon after it appears:</b> spotted the sign error, and fast. That's real fluency.",
+    "<b>Stops in A–C:</b> a false alarm, so that operation itself looks wrong to them.",
+    "<b>Stops at E (combining):</b> missed D, but thinks 2x − 3x isn't −x. A different gap.",
+    "<b>Lets it finish:</b> holds the same sign rule as Sam, or doesn't check every part."],
+  grounded: "Grounded in error-analysis tasks (Booth et al. 2013) and reaction time as fluency evidence. Unlike Detective, the error appears in time, so where the student stops is evidence.",
+  mount(stage) {
+    stage.innerHTML = `<p class="ask">Sam checks <span class="m">x² − x − 6</span> by expanding. Watch, and press <b>Stop!</b> the moment something goes wrong.</p>
+      <div class="tape"><svg viewBox="0 0 560 250" id="tsv"></svg></div>
+      <div class="scrub"><button class="playbtn" id="pp" type="button" aria-label="Play">▶</button><input type="range" id="sc" min="0" max="1000" value="0" aria-label="Scrub the film"></div>
+      <div class="ticks" id="ticks"></div>
+      <div class="row"><button class="btn coral" id="stop" type="button">Stop! That's wrong</button><button class="btn ghost" id="fine" type="button" disabled>Looks right to me</button></div>
+      <div class="readout" id="ro">Press play. You can scrub back to the exact moment before you confirm.</div>`;
+    const svg = $("#tsv", stage), NS = "http://www.w3.org/2000/svg";
+    const ink = css("--ink"), soft = css("--soft");
+    const T = (x, y, s, size = 32, fill = ink, extra = {}) => { const e = document.createElementNS(NS, "text"); Object.entries({ x, y, "text-anchor": "middle", "font-size": size, fill, "font-weight": 520, style: "font-variation-settings:'MONO' 1", ...extra }).forEach(([k, v]) => e.setAttribute(k, v)); e.textContent = s; svg.appendChild(e); return e; };
+    const P = (d, color) => { const e = document.createElementNS(NS, "path"); e.setAttribute("d", d); e.setAttribute("fill", "none"); e.setAttribute("stroke", color); e.setAttribute("stroke-width", 3); e.setAttribute("stroke-linecap", "round"); svg.appendChild(e); const L = e.getTotalLength(); e.style.strokeDasharray = L; e.style.strokeDashoffset = L; return e; };
+    const stepLabel = T(280, 30, "", 15, soft, { "font-weight": 650, style: "font-variation-settings:'MONO' 0" });
+    [["(", 182], [")", 280], ["(", 312], [")", 412]].forEach(([s, x]) => T(x, 100, s, 34, soft));
+    const F = { a1: T(205, 100, "x", 34), a2: T(250, 100, "−3", 34), b1: T(337, 100, "x", 34), b2: T(384, 100, "+2", 34) };
+    const line = document.createElementNS(NS, "line"); Object.entries({ x1: 100, x2: 460, y1: 150, y2: 150, stroke: css("--line"), "stroke-width": 2 }).forEach(([k, v]) => line.setAttribute(k, v)); svg.appendChild(line);
+    const terms = { s1: T(0, 0, "x²"), s2: T(0, 0, "+ 2x"), s3: T(0, 0, "− 3x"), s4: T(0, 0, "+ 6"), comb: T(0, 0, "− x"), check: T(430, 205, "✓", 34, css("--teal")) };
+    Object.values(terms).forEach((t) => gsap.set(t, { opacity: 0 }));
+    const COLORS = [css("--blue"), css("--teal"), css("--violet"), css("--gold")];
+    const arcs = [["a1", "b1"], ["a1", "b2"], ["a2", "b1"], ["a2", "b2"]].map(([p, q], k) => {
+      const x1 = +F[p].getAttribute("x"), x2 = +F[q].getAttribute("x");
+      return P(`M${x1} 70 Q${(x1 + x2) / 2} ${8 - k * 4} ${x2} 70`, COLORS[k]);
+    });
+    const tl = gsap.timeline({ paused: true, onUpdate: () => { $("#sc", stage).value = Math.round(tl.progress() * 1000); }, onComplete: () => { $("#fine", stage).disabled = false; $("#pp", stage).textContent = "↺"; } });
+    const steps = [];
+    function mult(label, text, p, q, term, x, k, t) {
+      steps.push({ label, text, t });
+      tl.addLabel(label, t)
+        .set(stepLabel, { textContent: `Step ${label}: ${text}` }, t)
+        .to(arcs[k], { strokeDashoffset: 0, duration: .6, ease: "power2.inOut" }, t)
+        .to([F[p], F[q]], { fill: COLORS[k], duration: .2 }, t)
+        .fromTo(term, { attr: { x: (+F[p].getAttribute("x") + +F[q].getAttribute("x")) / 2, y: 60 }, opacity: 0 }, { opacity: 1, duration: .25 }, t + .6)
+        .to(term, { attr: { x, y: 205 }, duration: .75, ease: "power3.inOut" }, t + .8)
+        .to(arcs[k], { opacity: 0, duration: .3 }, t + 1.5)
+        .to([F[p], F[q]], { fill: ink, duration: .3 }, t + 1.5);
+    }
+    mult("A", "x × x", "a1", "b1", terms.s1, 140, 0, .5);
+    mult("B", "x × (+2)", "a1", "b2", terms.s2, 230, 1, 2.5);
+    mult("C", "(−3) × x", "a2", "b1", terms.s3, 320, 2, 4.5);
+    mult("D", "(−3) × (+2)", "a2", "b2", terms.s4, 410, 3, 6.5); // Sam's slip: should be −6
+    steps.push({ label: "E", text: "collect the x terms", t: 8.5 });
+    tl.addLabel("E", 8.5).set(stepLabel, { textContent: "Step E: collect the x terms" }, 8.5)
+      .to([terms.s2, terms.s3], { attr: { x: 275 }, duration: .6, ease: "power3.in" }, 8.6)
+      .to([terms.s2, terms.s3], { opacity: 0, duration: .15 }, 9.15)
+      .fromTo(terms.comb, { attr: { x: 275, y: 205 }, opacity: 0 }, { opacity: 1, duration: .3, ease: "back.out(3)" }, 9.2);
+    steps.push({ label: "F", text: "Sam's answer", t: 10.2 });
+    tl.addLabel("F", 10.2).set(stepLabel, { textContent: "Step F: Sam's answer, x² − x + 6" }, 10.2)
+      .to(terms.s1, { attr: { x: 190 }, duration: .5, ease: "power2.inOut" }, 10.2)
+      .to(terms.comb, { attr: { x: 265 }, duration: .5, ease: "power2.inOut" }, 10.2)
+      .to(terms.s4, { attr: { x: 340 }, duration: .5, ease: "power2.inOut" }, 10.2)
+      .fromTo(terms.check, { opacity: 0, attr: { y: 215 } }, { opacity: 1, attr: { y: 205 }, duration: .4, ease: "back.out(3)" }, 10.8)
+      .to({}, { duration: .8 });
+    const D = tl.duration();
+    $("#ticks", stage).innerHTML = steps.map((s) => `<span style="left:${(s.t / D) * 100}%">${s.label}</span>`).join("");
+    let firstStop = null, scrubs = 0, plays = 0;
+    const stepAt = (t) => [...steps].reverse().find((s) => t >= s.t) ?? steps[0];
+    $("#pp", stage).addEventListener("click", () => {
+      if (tl.progress() >= 1) { tl.restart(); plays++; Feed.log("Replayed the film"); }
+      else if (tl.paused() || !tl.isActive()) { tl.play(); plays++; Feed.log(plays === 1 ? "Started the film" : "Resumed"); }
+      else { tl.pause(); Feed.log(`Paused at ${tl.time().toFixed(1)}s`); }
+      $("#pp", stage).textContent = tl.paused() ? "▶" : "❚❚";
+    });
+    $("#sc", stage).addEventListener("input", (e) => { tl.pause(); tl.progress(e.target.value / 1000); $("#pp", stage).textContent = "▶"; });
+    $("#sc", stage).addEventListener("change", () => { scrubs++; Feed.log(`Scrubbed to step ${stepAt(tl.time()).label}`); });
+    $("#stop", stage).addEventListener("click", () => {
+      tl.pause(); $("#pp", stage).textContent = "▶";
+      const t = tl.time(), s = stepAt(t);
+      if (firstStop === null) firstStop = t;
+      const dStart = 6.5, late = t - (dStart + .6);
+      let read, tone = "key", cert = .8;
+      if (s.label === "D") read = `<b>Spotted the sign error in step D</b>, ${Math.max(0, late).toFixed(1)}s after the product appeared. ${late < 1.2 ? "Fast: this is fluent." : "Got there, but it took a moment."}`;
+      else if (s.label === "E" || s.label === "F") { read = s.label === "E" && late < 2.6 ? `<b>Probably meant step D</b>, just a little late (${late.toFixed(1)}s). Worth one quick re-check.` : `<b>Objected to step ${s.label}</b> (${s.text}) but not to D. Missed the sign error, or thinks combining is wrong.`; tone = "warn"; cert = .55; }
+      else { read = `<b>False alarm at step ${s.label}</b> (${s.text}). That operation looks wrong to them, which is a gap of its own.`; tone = "warn"; cert = .6; }
+      $("#ro", stage).innerHTML = `${read} <span style="color:var(--soft)">Scrub to adjust, then press Stop again to confirm.</span>`;
+      Feed.log(`Stopped at ${t.toFixed(1)}s, step ${s.label}${scrubs ? ` (after ${scrubs} scrub${scrubs > 1 ? "s" : ""})` : ""}`, tone);
+      Print.add("CHECK", .6, cert); if (s.label === "D") Print.add("SIGNS", .5, cert);
+    });
+    $("#fine", stage).addEventListener("click", () => {
+      $("#ro", stage).innerHTML = "<b>Didn't catch the error.</b> Either they'd make the same sign slip as Sam, or they don't check every part. Lotus asks one follow-up to tell which.";
+      Feed.log("Said the working looks right", "warn"); Print.add("CHECK", .6, .75); Print.add("SIGNS", .5, .7);
+    });
+    return () => tl.kill();
+  },
+});
+
+// ---------- 5. Assemble the working ----------
+PROTOS.push({
+  name: "Assemble the working", rep: "Replaces: typed working for grouping", skill: "Grouping with a minus",
+  why: "Six step cards, but only three belong in the working. The other three each contain a classic slip. The student builds the solution by tapping cards into place, and the cards glide between columns. The slip they pick, and at which stage, names the mistake without any typing.",
+  caps: ["<b>Picks a card with the bracket sign kept:</b> doesn't flip the sign when taking out −3. It's the same mistake whether it shows at the grouping step or the factor step.",
+    "<b>Right cards, wrong order:</b> knows the moves but not the structure of the method.",
+    "<b>Swaps a slip card out before locking in:</b> noticed their own slip. Logged as fragile but improving.",
+    "<b>All three correct:</b> as strong as typed working, and much faster to give."],
+  grounded: "Grounded in Parsons problems (Parsons & Haden 2006), which have strong evidence from computing education. Distractor steps turn them into a diagnostic.",
+  mount(stage) {
+    const CARDS = [
+      { id: "L1", t: "= (6xy − 4y) − (9x − 6)", ok: 0 },
+      { id: "D1", t: "= (6xy − 4y) − (9x + 6)", bad: "kept the + inside after taking out −" },
+      { id: "L2", t: "= 2y(3x − 2) − 3(3x − 2)", ok: 1 },
+      { id: "D2", t: "= 2y(3x − 2) − 3(3x + 2)", bad: "didn't flip the sign when taking out −3" },
+      { id: "L3", t: "= (3x − 2)(2y − 3)", ok: 2 },
+      { id: "D3", t: "= (3x − 2)(2y + 3)", bad: "lost the minus in the final bracket" },
+    ];
+    const order = [3, 0, 5, 2, 1, 4];
+    stage.innerHTML = `<p class="ask">Factorise by grouping. Tap the steps into your working, in order. Careful: three of these have a slip in them.</p>
+      <div class="expr">6xy − 4y − 9x + 6</div>
+      <div class="parsons">
+        <div class="col"><h3>Your working</h3>${[1, 2, 3].map((n) => `<div class="pslot" data-s="${n - 1}"><span class="n">${n}</span></div>`).join("")}</div>
+        <div class="col"><h3>Step cards</h3><div class="pool" id="pool">${order.map((k) => `<button class="pcard" type="button" data-id="${CARDS[k].id}"><span class="m">${CARDS[k].t}</span></button>`).join("")}</div></div>
+      </div>
+      <div class="row"><button class="btn" id="lock" type="button" disabled>Lock in</button></div>
+      <div class="readout" id="ro">Tap a card to move it into the next empty line. Tap it again to send it back.</div>`;
+    const pool = $("#pool", stage), slots = $$(".pslot", stage);
+    const everPlaced = new Set();
+    function move(card) {
+      const state = Flip.getState($$(".pcard", stage));
+      const inSlot = card.parentElement.classList.contains("pslot");
+      const c = CARDS.find((x) => x.id === card.dataset.id);
+      if (inSlot) { pool.appendChild(card); Feed.log(`Took back <span class="m">${c.t.slice(2)}</span>`, c.bad ? "good" : "warn"); }
+      else {
+        const free = slots.find((s) => !s.querySelector(".pcard"));
+        if (!free) return Feed.log("All three lines are full");
+        free.appendChild(card); everPlaced.add(c.id);
+        Feed.log(`Line ${+free.dataset.s + 1} ← <span class="m">${c.t.slice(2)}</span>`);
+      }
+      Flip.from(state, { duration: REDUCED ? 0 : .55, ease: "power3.inOut", absolute: true, scale: true });
+      $("#lock", stage).disabled = slots.some((s) => !s.querySelector(".pcard"));
+    }
+    stage.addEventListener("click", (e) => { const card = e.target.closest(".pcard"); if (card && stage.contains(card)) move(card); });
+    $("#lock", stage).addEventListener("click", () => {
+      const chosen = slots.map((s) => CARDS.find((c) => c.id === s.querySelector(".pcard").dataset.id));
+      const slips = chosen.filter((c) => c.bad);
+      const rightSet = chosen.every((c) => c.ok !== undefined);
+      const rightOrder = rightSet && chosen.every((c, k) => c.ok === k);
+      const fixed = [...everPlaced].filter((id) => id.startsWith("D") && !chosen.some((c) => c.id === id));
+      let read;
+      if (rightOrder) read = "<b>All correct, in order.</b> As strong as typed working.";
+      else if (rightSet) read = "<b>Right steps, wrong order.</b> Knows the moves, not yet the structure of the method.";
+      else if (slips.length) read = `<b>Picked ${slips.length} slip${slips.length > 1 ? "s" : ""}:</b> ${slips.map((s) => s.bad).join("; ")}. ${slips.length > 1 && slips.every((s) => s.id !== "D3") ? "The same sign mistake, at two different stages: consistent." : ""}`;
+      if (fixed.length) read += ` They also swapped out ${fixed.length} slip card${fixed.length > 1 ? "s" : ""} before locking in, so they caught their own slip.`;
+      $("#ro", stage).innerHTML = read;
+      Feed.log(`Locked in: ${chosen.map((c) => c.id).join(" → ")}`, "key");
+      Print.add("GROUP", .8, rightOrder ? .9 : .7); if (slips.length) Print.add("SIGNS", .6, .8);
+    });
+    return () => {};
+  },
+});
+
+// ---------- 6. Crack the lock ----------
+PROTOS.push({
+  name: "Crack the lock", rep: "Replaces: Fireflies (sign version)", skill: "x² + bx + c with negatives",
+  why: "Two number reels. The gauges swing to show the product and the sum, and the lock opens when both are right. Every combination tried is plotted on a map of product against sum, so you can see how the student searched, not just whether they found it.",
+  caps: ["<b>Path runs along the product line:</b> fixes the product first, then hunts the sum. Systematic.",
+    "<b>Hits 4 and −3 first (sum +1):</b> the classic sign slip, caught in the act, then corrected.",
+    "<b>Path scattered across the map:</b> trial and error, no strategy yet.",
+    "<b>Number of tries and time:</b> fluency, separate from correctness."],
+  grounded: "Grounded in PISA process-data research, where the path a student takes separates strategies that end in the same answer.",
+  mount(stage) {
+    const NUMS = [...Array.from({ length: 12 }, (_, k) => k - 12), ...Array.from({ length: 12 }, (_, k) => k + 1)];
+    const ROW = 52, TP = -12, TS = -1;
+    stage.innerHTML = `<p class="ask">Crack the lock for <span class="m">x² − x − 12</span>: find two numbers that multiply to <b>−12</b> and add to <b>−1</b>.</p>
+      <div class="lock">
+        <div class="reels">
+          ${["p", "q"].map((r, k) => `${k ? '<span class="times">&amp;</span>' : ""}<div class="reel"><button type="button" data-r="${r}" data-d="-1" aria-label="up">▲</button><div class="win" id="w${r}"><div class="band"></div><div class="list" id="l${r}">${NUMS.map((n) => `<div>${signed(n)}</div>`).join("")}</div></div><button type="button" data-r="${r}" data-d="1" aria-label="down">▼</button></div>`).join("")}
+          <svg width="54" height="70" viewBox="0 0 54 70" aria-hidden="true"><path id="shackle" d="M14 34 V20 a13 13 0 0 1 26 0 V34" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/><rect x="6" y="32" width="42" height="34" rx="8" fill="${css("--gold")}"/><circle cx="27" cy="47" r="5" fill="#191c33"/><rect x="25" y="49" width="4" height="9" rx="2" fill="#191c33"/></svg>
+        </div>
+        <div style="display:grid;gap:10px;min-width:0">
+          <div class="gauges">
+            ${[["prod", "multiply", TP, 60], ["sum", "add", TS, 24]].map(([id, lab, tgt, R]) => `<div class="gauge"><span class="lab">${lab} → target ${signed(tgt)}</span><svg viewBox="0 0 200 112"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="${css("--line")}" stroke-width="12" stroke-linecap="round"/><line x1="100" y1="100" x2="${100 + 80 * Math.sin((tgt / R) * Math.PI / 2)}" y2="${100 - 80 * Math.cos((tgt / R) * Math.PI / 2)}" stroke="${css("--gold")}" stroke-width="4" stroke-dasharray="2 4"/><line id="n${id}" x1="100" y1="100" x2="100" y2="30" stroke="${css("--ink")}" stroke-width="4" stroke-linecap="round"/><circle cx="100" cy="100" r="7" fill="${css("--ink")}"/></svg><span class="val" id="v${id}">0</span></div>`).join("")}
+          </div>
+          <div class="lockpath"><svg viewBox="0 0 300 170" id="map"></svg></div>
+        </div>
+      </div>
+      <div class="readout" id="ro">Drag the reels or tap the arrows.</div>`;
+    const map = $("#map", stage), NS = "http://www.w3.org/2000/svg";
+    const mx = (s) => 30 + ((s + 24) / 48) * 260, my = (p) => 85 - (Math.max(-40, Math.min(40, p)) / 40) * 72;
+    map.innerHTML = `<line x1="30" y1="85" x2="290" y2="85" stroke="${css("--line")}"/><line x1="160" y1="10" x2="160" y2="160" stroke="${css("--line")}"/>
+      <line x1="30" y1="${my(TP)}" x2="290" y2="${my(TP)}" stroke="${css("--gold")}" stroke-dasharray="4 4"/><text x="34" y="${my(TP) + 14}" font-size="10" fill="${css("--soft")}">every pair with product −12</text>
+      <text x="290" y="81" text-anchor="end" font-size="10" fill="${css("--faint")}">sum →</text><text x="164" y="18" font-size="10" fill="${css("--faint")}">product</text>
+      <circle cx="${mx(TS)}" cy="${my(TP)}" r="9" fill="none" stroke="${css("--gold")}" stroke-width="2.5"/><polyline id="path" fill="none" stroke="${css("--blue")}" stroke-width="2" stroke-linejoin="round" points=""/><g id="dots"></g>`;
+    const idx = { p: NUMS.indexOf(1), q: NUMS.indexOf(1) };
+    const tries = [];
+    let settleTimer = null, solved = false;
+    const val = (r) => NUMS[idx[r]];
+    function needle(id, v, R) { const ang = Math.max(-1, Math.min(1, v / R)) * 90; gsap.to(`#n${id}`, { rotation: ang, svgOrigin: "100 100", duration: 1, ease: "elastic.out(1,.4)" }); $(`#v${id}`, stage).textContent = signed(v); }
+    function update() {
+      const p = val("p"), q = val("q");
+      needle("prod", p * q, 60); needle("sum", p + q, 24);
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => settle(p, q), 550);
+    }
+    function settle(p, q) {
+      if (solved) return;
+      const last = tries.at(-1);
+      if (last && last.p === p && last.q === q) return;
+      tries.push({ p, q });
+      $("#path", map).setAttribute("points", tries.map((t) => `${mx(t.p + t.q)},${my(t.p * t.q)}`).join(" "));
+      const dot = document.createElementNS(NS, "circle");
+      Object.entries({ cx: mx(p + q), cy: my(p * q), r: 4, fill: css("--blue") }).forEach(([k, v]) => dot.setAttribute(k, v));
+      $("#dots", map).appendChild(dot);
+      gsap.from(dot, { attr: { r: 10 }, opacity: 0, duration: .5, ease: "back.out(3)" });
+      const prodOK = p * q === TP, sumOK = p + q === TS;
+      Feed.log(`Tried ${signed(p)} &amp; ${signed(q)} → ×${signed(p * q)}, +${signed(p + q)}${prodOK && p + q === -TS ? " · <b>sign slip (sum is +1)</b>" : prodOK ? " · on the product line" : ""}`, prodOK && p + q === -TS ? "warn" : prodOK ? "good" : "");
+      if (prodOK && sumOK) {
+        solved = true;
+        const onLine = tries.filter((t) => t.p * t.q === TP).length;
+        const slip = tries.some((t) => t.p * t.q === TP && t.p + t.q === -TS);
+        gsap.timeline().to("#shackle", { y: -12, duration: .35, ease: "back.out(3)" }).to("#shackle", { rotation: 35, svgOrigin: "40 34", duration: .5, ease: "elastic.out(1,.5)" });
+        const style = tries.length <= 2 ? "Straight there: fluent." : onLine / tries.length >= .5 ? `${onLine} of ${tries.length} tries on the product line: a systematic search.` : `Only ${onLine} of ${tries.length} tries on the product line: trial and error.`;
+        $("#ro", stage).innerHTML = `<b>Unlocked: (x − 4)(x + 3)</b> is what this builds. ${style} ${slip ? "They hit 4 and −3 on the way, the classic sign slip, and fixed it themselves." : ""}`;
+        Feed.log(style, "key");
+        Print.add("PAIR", .8, tries.length <= 2 ? .95 : .7); if (slip) Print.add("SIGNS", .6, .6);
+      }
+    }
+    const drags = ["p", "q"].map((r) => {
+      const list = $(`#l${r}`, stage);
+      gsap.set(list, { y: ROW - idx[r] * ROW });
+      return Draggable.create(list, { type: "y", trigger: $(`#w${r}`, stage), bounds: { minY: ROW - (NUMS.length - 1) * ROW, maxY: ROW }, liveSnap: { y: (v) => Math.round(v / ROW) * ROW },
+        onDrag() { idx[r] = Math.round((ROW - this.y) / ROW); update(); } })[0];
+    });
+    $$(".reel button", stage).forEach((b) => b.addEventListener("click", () => {
+      const r = b.dataset.r; idx[r] = Math.max(0, Math.min(NUMS.length - 1, idx[r] + +b.dataset.d));
+      gsap.to(`#l${r}`, { y: ROW - idx[r] * ROW, duration: .35, ease: "back.out(2)", onComplete: () => drags[r === "p" ? 0 : 1].update() });
+      update();
+    }));
+    needle("prod", 1, 60); needle("sum", 2, 24);
+    return () => { drags.forEach((d) => d.kill()); clearTimeout(settleTimer); };
+  },
+});
+
+// ---------- 7. Always, sometimes, never ----------
+PROTOS.push({
+  name: "Always, sometimes, never", rep: "Replaces: the “Is Riya right?” choice", skill: "Squares + checking",
+  why: "The claim (x + 3)² = x² + 9 is true for exactly one value of x, and the slider starts there. As the student tests values, the bars grow and the equals sign changes to ≠. The values they tried before deciding show how they check. The answer shows what they believe.",
+  caps: ["<b>“Always” after testing only x = 0:</b> checks one easy value and stops. The same habit as checking only the first and last terms.",
+    "<b>“Always” even after seeing ≠:</b> believes (a + b)² = a² + b² so firmly the numbers didn't change their mind. A deep misconception.",
+    "<b>“Never”:</b> didn't notice x = 0 works, or doesn't count it.",
+    "<b>“Sometimes”, after testing widely:</b> tests claims the way a mathematician does."],
+  grounded: "Grounded in Malcolm Swan's “always, sometimes, never” tasks (Improving Learning in Mathematics, 2005) and Watson & Mason on testing examples.",
+  mount(stage) {
+    stage.innerHTML = `<p class="ask">Is this true? Try some values of x, then decide.</p>
+      <div class="claim">(x + 3)² = x² + 9</div>
+      <div class="versus">
+        <div class="side2"><span class="v" id="va">9</span><div class="barbox"><div class="bar" id="ba" style="background:var(--violet)"></div></div><span class="e m">(x + 3)²</span></div>
+        <div class="rel" id="rel">=</div>
+        <div class="side2"><span class="v" id="vb">9</span><div class="barbox"><div class="bar" id="bb" style="background:var(--teal)"></div></div><span class="e m">x² + 9</span></div>
+      </div>
+      <div class="xslide"><div class="lbl"><span>x = <b class="m" id="xv">0</b></span><span style="color:var(--soft)">values you've tried below</span></div><input type="range" id="xs" min="-6" max="6" step="1" value="0" aria-label="x"><div class="tested" id="tested"></div></div>
+      <div class="asn">${["Always true", "Sometimes true", "Never true"].map((t) => `<button type="button" data-a="${t}" aria-pressed="false">${t}</button>`).join("")}</div>
+      <div class="row"><button class="btn" id="lock" type="button" disabled>Lock in</button></div>
+      <div class="readout" id="ro">The slider starts at x = 0.</div>`;
+    const tested = new Map();
+    const A = { a: { v: 9 }, b: { v: 9 } };
+    let pick = null;
+    function show(x) {
+      const a = (x + 3) ** 2, b = x * x + 9;
+      $("#xv", stage).textContent = signed(x);
+      gsap.to(A.a, { v: a, duration: .5, ease: "power2.out", onUpdate: () => ($("#va", stage).textContent = Math.round(A.a.v)) });
+      gsap.to(A.b, { v: b, duration: .5, ease: "power2.out", onUpdate: () => ($("#vb", stage).textContent = Math.round(A.b.v)) });
+      gsap.to("#ba", { height: `${Math.max(4, (a / 81) * 100)}%`, duration: .7, ease: "elastic.out(1,.55)" });
+      gsap.to("#bb", { height: `${Math.max(4, (b / 81) * 100)}%`, duration: .7, ease: "elastic.out(1,.55)" });
+      const rel = $("#rel", stage), sym = a === b ? "=" : "≠";
+      if (rel.textContent !== sym) gsap.timeline().to(rel, { rotationY: 90, duration: .15 }).set(rel, { textContent: sym, color: a === b ? css("--teal") : css("--coral") }).to(rel, { rotationY: 0, duration: .25, ease: "back.out(2)" });
+      if (!tested.has(x)) {
+        tested.set(x, a === b);
+        const dot = document.createElement("i");
+        dot.style.left = `${((x + 6) / 12) * 100}%`; dot.style.background = a === b ? css("--teal") : css("--coral");
+        $("#tested", stage).appendChild(dot);
+        gsap.from(dot, { scale: 0, duration: .4, ease: "back.out(3)" });
+        Feed.log(`Tested x = ${signed(x)}: ${a} ${a === b ? "=" : "≠"} ${b}`, a === b ? "" : "");
+      }
+    }
+    $("#xs", stage).addEventListener("input", (e) => show(+e.target.value));
+    $$(".asn button", stage).forEach((b) => b.addEventListener("click", () => { pick = b.dataset.a; $$(".asn button", stage).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("#lock", stage).disabled = false; }));
+    $("#lock", stage).addEventListener("click", () => {
+      const n = tested.size, sawNe = [...tested.values()].includes(false);
+      let read, cert = .8;
+      if (pick === "Always true" && !sawNe) read = `<b>Checked ${n === 1 ? "only x = 0" : "only values that happened to agree"} and stopped.</b> The check-one-easy-case habit.`;
+      else if (pick === "Always true") { read = "<b>Saw ≠ and still said always.</b> Believes (a + b)² = a² + b² firmly enough to overrule the numbers. A deep misconception, worth a teacher's attention."; cert = .95; }
+      else if (pick === "Never true") read = tested.get(0) ? "<b>Saw x = 0 work, but said never.</b> Doesn't count one case as “sometimes”, which is a language gap more than an algebra one." : "<b>Said never without testing x = 0.</b> Didn't look for the case where it works.";
+      else read = `<b>Sometimes true, after ${n} value${n > 1 ? "s" : ""}.</b> ${n >= 3 && sawNe ? "Tested like a mathematician." : "Right, but tested very little. Lotus would ask when it's true."}`;
+      $("#ro", stage).innerHTML = read;
+      Feed.log(`Locked in “${pick}” after testing ${n} value${n > 1 ? "s" : ""}`, "key");
+      Print.add("SQUARES", .7, cert); Print.add("CHECK", .5, cert);
+    });
+    tested.set(0, true);
+    const d0 = document.createElement("i"); d0.style.left = "50%"; d0.style.background = css("--teal"); $("#tested", stage).appendChild(d0);
+    gsap.set("#ba", { height: `${(9 / 81) * 100}%` }); gsap.set("#bb", { height: `${(9 / 81) * 100}%` }); $("#rel", stage).style.color = css("--teal");
+    return () => {};
+  },
+});
+
+// ======================= Blind-spot fixes =======================
+// Shared: a number picker (‹ value ›) that skips zero.
+function numpick(id, v) { return `<span class="numpick"><button type="button" data-np="${id}" data-d="-1" aria-label="less">‹</button><output id="${id}">${signed(v)}</output><button type="button" data-np="${id}" data-d="1" aria-label="more">›</button></span>`; }
+function wirePicks(root, state, onChange, lo = -9, hi = 9) {
+  $$("[data-np]", root).forEach((b) => b.addEventListener("click", () => {
+    const id = b.dataset.np, d = +b.dataset.d;
+    let v = state[id] + d; if (v === 0) v += d;
+    state[id] = Math.max(lo, Math.min(hi, v));
+    const out = $(`#${id}`, root); out.textContent = signed(state[id]);
+    if (!REDUCED) gsap.fromTo(out, { y: d * -8, opacity: .3 }, { y: 0, opacity: 1, duration: .3, ease: "back.out(3)" });
+    onChange && onChange(id);
+  }));
+}
+const bracketPair = (p, q) => `(x ${minus(p)})(x ${minus(q)})`;
+const norm = (s) => s.replace(/\s+/g, "").replace(/[−–]/g, "-").toLowerCase();
+
+// ---------- 8. X-ray the answer ----------
+PROTOS.push({
+  name: "X-ray the answer", group: "fix", rep: "Fixes: two wrongs make a right", skill: "x² + bx + c with negatives",
+  why: "The student factorises in two visible moves: pick the numbers, then write the brackets. Answer-only marking looks at the last layer. The X-ray opens all three. For x² − x − 6, a sign slip in move 1 and a sign flip in move 2 always cancel, so the final answer is right and the thinking is wrong twice.",
+  caps: ["<b>Numbers right, signs carried straight:</b> genuinely right.",
+    "<b>Numbers 3 and −2, then flipped into the brackets:</b> two wrongs make a right. Invisible to any final-answer question, ever.",
+    "<b>Only one of the two slips:</b> a wrong answer, and the X-ray shows which move caused it.",
+    "<b>One check before labelling:</b> 3 and −2 are the roots, so a student finding roots on purpose is fine. Lotus asks “why these numbers?” once before naming it."],
+  grounded: "Grounded in step-level diagnosis (Brown & Burton's BUGGY; model tracing in Cognitive Tutors), which marks each step rather than only the result. Combining mistakes is what makes answer-only diagnosis ambiguous.",
+  mount(stage) {
+    const st = { n1: 1, n2: 1, s1: null, s2: null };
+    stage.innerHTML = `<p class="ask">Factorise <span class="m">x² − x − 6</span> in two moves.</p>
+      <div class="xsteps">
+        <div class="xstep"><b>1</b><div><p>Pick two numbers that multiply to −6 and add to −1.</p><div class="row">${numpick("n1", 1)}<span>and</span>${numpick("n2", 1)}</div></div></div>
+        <div class="xstep"><b>2</b><div><p>Put them in the brackets. Tap to set each sign.</p><div class="brk">(x <button class="sg" id="s1" type="button">?</button> <span id="m1">1</span>)(x <button class="sg" id="s2" type="button">?</button> <span id="m2">1</span>)</div></div></div>
+      </div>
+      <div class="row"><button class="btn" id="lock" type="button" disabled>Lock in</button></div>
+      <div class="xresult" id="xres" hidden>
+        <div class="oldmark"><h3>Answer-only marking</h3><span class="stampbig" id="oldv"></span><span id="oldt" style="font-size:.9rem;color:var(--soft)"></span></div>
+        <div class="xray"><div class="scan" id="scan"></div><div class="layers" id="layers"></div></div>
+      </div>
+      <div class="readout" id="ro">Set the numbers, then the signs.</div>
+      <div class="playas"><h3>Play as a student who…</h3><div class="chips2">
+        <button type="button" data-p="right">does it properly</button><button type="button" data-p="double">makes two slips that cancel</button><button type="button" data-p="slip">only slips in move 1</button><button type="button" data-p="flip">only flips the signs</button></div></div>`;
+    const ready = () => ($("#lock", stage).disabled = !(st.s1 && st.s2));
+    function syncMags() { $("#m1", stage).textContent = Math.abs(st.n1); $("#m2", stage).textContent = Math.abs(st.n2); }
+    wirePicks(stage, st, () => { syncMags(); Feed.log(`Move 1: numbers ${signed(st.n1)} and ${signed(st.n2)}`); }, -6, 6);
+    ["s1", "s2"].forEach((k) => $(`#${k}`, stage).addEventListener("click", (e) => {
+      st[k] = st[k] === "+" ? "−" : "+"; e.target.textContent = st[k]; e.target.classList.add("set");
+      e.target.classList.remove("pop"); void e.target.offsetWidth; e.target.classList.add("pop");
+      Feed.log(`Move 2: bracket ${k === "s1" ? 1 : 2} sign ${st[k]}`); ready();
+    }));
+    function analyse() {
+      const b1 = (st.s1 === "−" ? -1 : 1) * Math.abs(st.n1), b2 = (st.s2 === "−" ? -1 : 1) * Math.abs(st.n2);
+      const numsRight = st.n1 * st.n2 === -6 && st.n1 + st.n2 === -1;
+      const numsSlip = st.n1 * st.n2 === -6 && st.n1 + st.n2 === 1;
+      const carried = b1 === st.n1 && b2 === st.n2, flipped = b1 === -st.n1 && b2 === -st.n2;
+      const finalRight = b1 * b2 === -6 && b1 + b2 === -1;
+      const L1 = { t: `${signed(st.n1)} and ${signed(st.n2)}`, v: numsRight ? "✓ multiply to −6, add to −1" : numsSlip ? "✗ add to +1, not −1: a sign slip" : `✗ multiply to ${signed(st.n1 * st.n2)}, add to ${signed(st.n1 + st.n2)}`, ok: numsRight };
+      const L2 = { t: carried ? "carried each number's sign straight into its bracket" : flipped ? "flipped both signs going into the brackets" : "mixed: one sign carried, one flipped", ok: carried };
+      const L3 = { t: `${bracketPair(b1, b2)}`, v: finalRight ? "✓ expands to x² − x − 6" : "✗ doesn't expand to x² − x − 6", ok: finalRight };
+      let read, tone = "key";
+      if (numsRight && carried) read = "<b>Right, properly.</b> Every layer checks out.";
+      else if (numsSlip && flipped) { read = "<b>Two wrongs make a right.</b> The numbers have the wrong signs, and so does the bracket step, so they cancel. Answer-only marking will call this student correct on every question like this. It breaks when they split the middle term (Class 9): <span class='m'>x² + 3x − 2x − 6</span> is <span class='m'>x² + x − 6</span>."; tone = "warn"; }
+      else if (numsSlip) read = "<b>Sign slip in move 1</b>, carried faithfully into the brackets. The bracket step itself is fine.";
+      else if (numsRight && flipped) read = "<b>Flips the signs into the brackets.</b> Found the right numbers, then lost them in move 2.";
+      else read = "<b>Something else.</b> Lotus would look at move 1 first: the numbers don't fit the product–sum rule.";
+      return { L1, L2, L3, finalRight, read, tone, double: numsSlip && flipped };
+    }
+    function reveal() {
+      const r = analyse();
+      $("#xres", stage).hidden = false;
+      $("#oldv", stage).textContent = r.finalRight ? "✓" : "✗";
+      $("#oldv", stage).style.color = r.finalRight ? css("--teal") : css("--coral");
+      $("#oldt", stage).textContent = r.finalRight ? "Marked correct. Nothing more recorded." : "Marked wrong. No idea why.";
+      const layers = $("#layers", stage);
+      layers.innerHTML = [["Move 1 · the numbers", r.L1], ["Move 2 · into the brackets", { t: r.L2.t, v: r.L2.ok ? "✓ the taught method" : "✗ the signs changed on the way in", ok: r.L2.ok }], ["Final answer", r.L3]]
+        .map(([lab, L]) => `<div class="layer ${L.ok ? "ok" : "bad"}"><small>${lab}</small><span class="m">${L.t}</span><span class="v">${L.v}</span></div>`).join("");
+      const els = $$(".layer", layers);
+      gsap.set(layers, { rotationX: 0, rotationZ: 0 });
+      gsap.set(els, { z: 0, y: 0, opacity: (i) => (i === 2 ? 1 : 0) });
+      if (REDUCED) { gsap.set(layers, { rotationX: 18, rotationZ: -3 }); gsap.set(els, { opacity: 1, z: (i) => (i - 1) * 40, y: (i) => (1 - i) * 100 }); }
+      else gsap.timeline()
+        .fromTo("#scan", { opacity: 1, y: 0 }, { y: 92, duration: .8, ease: "power1.inOut" })
+        .to("#scan", { opacity: 0, duration: .2 })
+        .to(els, { opacity: 1, duration: .01 })
+        .to(layers, { rotationX: 18, rotationZ: -3, duration: .9, ease: "power3.inOut" })
+        .to(els, { z: (i) => (i - 1) * 40, y: (i) => (1 - i) * 100, duration: .9, ease: "power3.inOut", stagger: .07 }, "<");
+      $("#ro", stage).innerHTML = r.read;
+      Feed.log(`Final layer ${r.finalRight ? "right" : "wrong"}; X-ray: move 1 ${r.L1.ok ? "✓" : "✗"}, move 2 ${r.L2.ok ? "✓" : "✗"}`, r.tone);
+      Print.add("PAIR", .7, r.double ? .9 : .75); if (!r.L1.ok || !r.L2.ok) Print.add("SIGNS", .7, .85);
+    }
+    $("#lock", stage).addEventListener("click", reveal);
+    const PRESETS = { right: [-3, 2, "−", "+"], double: [3, -2, "−", "+"], slip: [3, -2, "+", "−"], flip: [-3, 2, "+", "−"] };
+    $$(".playas button", stage).forEach((b) => b.addEventListener("click", () => {
+      $$(".playas button", stage).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      const [n1, n2, s1, s2] = PRESETS[b.dataset.p];
+      Object.assign(st, { n1, n2, s1, s2 });
+      $("#n1", stage).textContent = signed(n1); $("#n2", stage).textContent = signed(n2);
+      [["s1", s1], ["s2", s2]].forEach(([k, v]) => { const e = $(`#${k}`, stage); e.textContent = v; e.classList.add("set"); });
+      syncMags(); ready();
+      Feed.log(`Playing as: ${b.textContent}`);
+      reveal();
+    }));
+    return () => {};
+  },
+});
+
+// ---------- 9. Sign quadrant ----------
+PROTOS.push({
+  name: "Sign quadrant", group: "fix", rep: "Fixes: a wrong rule that happens to work", skill: "Signs in trinomials",
+  why: "The same numbers, 2 and 3, in all four sign cases. The student only chooses the signs. One question can't tell a real rule from a shortcut that works on that question. Four questions together can: the pattern of choices is matched against the rules students actually use, and the matching rule lights up.",
+  caps: ["<b>All four right:</b> knows the sign rule, not a shortcut.",
+    "<b>Right on +6, wrong on both −6 cards:</b> “copy the middle sign”. One +6 question would have marked them correct.",
+    "<b>Every card exactly flipped:</b> flips signs into the brackets, consistently.",
+    "<b>No rule matches:</b> guessing signs. That means “doesn't know yet”, not a misconception."],
+  grounded: "Grounded in Tatsuoka's rule-space method (match the pattern of answers to known rules, because one answer can come from a wrong rule) and in Marton's variation theory (change one thing and keep the rest fixed).",
+  mount(stage) {
+    const CARDS = [{ b: 5, c: 6, ok: ["+", "+"] }, { b: -5, c: 6, ok: ["−", "−"] }, { b: 1, c: -6, ok: ["−", "+"] }, { b: -1, c: -6, ok: ["+", "−"] }];
+    const RULES = [
+      { name: "The real rule: the signs multiply to the last sign and add to the middle", pred: CARDS.map((c) => c.ok) },
+      { name: "Copy the middle sign into both brackets", pred: [["+", "+"], ["−", "−"], ["+", "+"], ["−", "−"]] },
+      { name: "Minus always goes on the smaller number", pred: [["+", "+"], ["−", "−"], ["−", "+"], ["−", "+"]] },
+      { name: "First bracket copies the middle sign, second copies the last", pred: [["+", "+"], ["−", "+"], ["+", "−"], ["−", "−"]] },
+      { name: "Flips every sign into the brackets", pred: CARDS.map((c) => c.ok.map((s) => (s === "+" ? "−" : "+"))) },
+    ];
+    const pos = [[1, 1], [2, 1], [1, 2], [2, 2]];
+    const t = (b, c) => `x² ${b < 0 ? "−" : "+"} ${Math.abs(b) === 1 ? "" : Math.abs(b)}x ${c < 0 ? "−" : "+"} ${Math.abs(c)}`;
+    stage.innerHTML = `<p class="ask">The numbers are always 2 and 3. Choose the signs for each one.</p>
+      <div class="quad">
+        <span></span><span class="ax">middle +</span><span class="ax">middle −</span>
+        <span class="ax v" style="grid-row:2">last +</span><span class="ax v" style="grid-row:3">last −</span>
+        ${CARDS.map((c, i) => `<div class="qcard" data-i="${i}" style="grid-column:${pos[i][0] + 1};grid-row:${pos[i][1] + 1}"><span class="m">${t(c.b, c.c)}</span><span class="brk">(x <button class="sg" type="button" data-c="${i}" data-k="0">?</button> 2)(x <button class="sg" type="button" data-c="${i}" data-k="1">?</button> 3)</span></div>`).join("")}
+      </div>
+      <div class="row"><button class="btn" id="lock" type="button" disabled>See the pattern</button></div>
+      <div class="rulemx" id="mx"></div>
+      <div class="readout" id="ro">Fill in all eight signs.</div>`;
+    const picks = CARDS.map(() => [null, null]);
+    $$(".qcard .sg", stage).forEach((b) => b.addEventListener("click", () => {
+      const i = +b.dataset.c, k = +b.dataset.k;
+      picks[i][k] = picks[i][k] === "+" ? "−" : "+";
+      b.textContent = picks[i][k]; b.classList.add("set"); b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop");
+      $("#lock", stage).disabled = picks.some((p) => p.includes(null));
+      if (!picks[i].includes(null)) Feed.log(`${t(CARDS[i].b, CARDS[i].c)} → (x ${picks[i][0]} 2)(x ${picks[i][1]} 3)`);
+    }));
+    $("#lock", stage).addEventListener("click", () => {
+      const right = picks.map((p, i) => p[0] === CARDS[i].ok[0] && p[1] === CARDS[i].ok[1]);
+      $$(".qcard", stage).forEach((q, i) => { q.classList.toggle("right", right[i]); q.classList.toggle("wrong", !right[i]); });
+      const scores = RULES.map((r) => r.pred.map((p, i) => p[0] === picks[i][0] && p[1] === picks[i][1]));
+      const best = scores.map((s, k) => [s.filter(Boolean).length, k]).sort((a, b) => b[0] - a[0])[0];
+      $("#mx", stage).innerHTML = RULES.map((r, k) => `<div class="rulerow" data-k="${k}"><span>${r.name}</span><span class="dots">${scores[k].map((on) => `<i class="${on ? "on" : ""}"></i>`).join("")}</span></div>`).join("");
+      if (!REDUCED) gsap.from($$(".rulerow", stage), { opacity: 0, x: -12, stagger: .07, duration: .35 });
+      if (!REDUCED) gsap.from($$(".rulerow .dots i.on", stage), { scale: 0, stagger: .03, duration: .3, delay: .4, ease: "back.out(3)" });
+      const nRight = right.filter(Boolean).length;
+      let read;
+      if (best[0] === 4) {
+        setTimeout(() => $(`.rulerow[data-k="${best[1]}"]`, stage).classList.add("match"), REDUCED ? 0 : 900);
+        read = best[1] === 0 ? "<b>All four right.</b> This is the real rule, not a shortcut." :
+          `<b>Matches “${RULES[best[1]].name}” on all four cards.</b> ${nRight ? `It got ${nRight} of 4 right, so a single question ${nRight >= 2 ? "with a +6 " : ""}could easily have marked this student correct.` : "Consistent, so this is a misconception, not a slip."}`;
+      } else read = `<b>No known rule fits all four</b> (closest: ${best[0]} of 4). ${nRight}/4 right. Looks like guessing signs, so Lotus reads it as “doesn't know yet”.`;
+      $("#ro", stage).innerHTML = read;
+      Feed.log(`Pattern: ${nRight}/4 right; best rule match ${best[0]}/4 (${best[0] === 4 ? RULES[best[1]].name : "none"})`, best[0] === 4 && best[1] !== 0 ? "warn" : "key");
+      Print.add("SIGNS", .9, best[0] === 4 ? .9 : .35);
+    });
+    return () => {};
+  },
+});
+
+// ---------- 10. Predict, then pick ----------
+PROTOS.push({
+  name: "Predict, then pick", group: "fix", rep: "Fixes: solving the options, not the question", skill: "x² + bx + c",
+  why: "A multiple-choice factorise question can be answered by expanding each option until one matches. That tests expanding, not factorising. Here the options stay frosted until the student commits a prediction. If the prediction was wrong but the pick is right, they found it by checking, and Lotus credits expanding, not factorising.",
+  caps: ["<b>Prediction right, pick matches:</b> they factorised it.",
+    "<b>Prediction wrong, pick right:</b> found it by expanding the options. Credit expanding, not factorising.",
+    "<b>Prediction and pick both sign-flipped:</b> the same mistake twice, independently. Strong evidence.",
+    "<b>Pick differs from prediction, both wrong:</b> unsure. Doesn't know yet."],
+  grounded: "Grounded in research on answer-format effects: multiple choice lets students work backwards from the options (common SAT/ACT “backsolving” coaching), which a constructed answer doesn't allow.",
+  mount(stage) {
+    const OPTS = [{ t: "(x − 5)(x + 3)", e: "x² − 2x − 15", k: "flip" }, { t: "(x + 15)(x − 1)", e: "x² + 14x − 15", k: "prod" }, { t: "(x + 5)(x − 3)", e: "x² + 2x − 15", k: "right" }, { t: "(x − 15)(x + 1)", e: "x² − 14x − 15", k: "prod2" }];
+    const st = { p1: 1, p2: 1 };
+    stage.innerHTML = `<p class="ask">Factorise <span class="m">x² + 2x − 15</span>. First, your prediction, before you see any answers:</p>
+      <div class="row" style="justify-content:center"><span class="brk">(x + ${numpick("p1", 1)})(x + ${numpick("p2", 1)})</span></div>
+      <div class="row" style="justify-content:center"><button class="btn" id="commit" type="button">Commit my prediction</button></div>
+      <div class="frost"><div class="glass" id="glass">The answers appear after you commit.</div>
+        <div class="opts4">${OPTS.map((o, i) => `<button class="opt4" type="button" data-i="${i}" disabled><span class="m">${o.t}</span><span class="exp"></span></button>`).join("")}</div></div>
+      <div class="row"><button class="btn ghost" id="watch" type="button">▶ Watch how options get backsolved</button></div>
+      <div class="readout" id="ro">Your prediction is recorded. The options stay hidden until you commit.</div>`;
+    wirePicks(stage, st, null, -15, 15);
+    let pred = null, tl = null;
+    $("#commit", stage).addEventListener("click", () => {
+      pred = { p1: st.p1, p2: st.p2 };
+      Feed.log(`Predicted <span class="m">${bracketPair(st.p1, st.p2)}</span>`, "key");
+      $("#commit", stage).disabled = true; $$("[data-np]", stage).forEach((b) => (b.disabled = true));
+      $$(".opt4", stage).forEach((b) => (b.disabled = false));
+      gsap.to("#glass", { opacity: 0, duration: REDUCED ? 0 : .8, ease: "power2.out", onComplete: () => ($("#glass", stage).style.display = "none") });
+      if (!REDUCED) gsap.from(".opt4", { scale: .94, opacity: .4, stagger: .07, duration: .5, ease: "back.out(2)" });
+    });
+    $$(".opt4", stage).forEach((b) => b.addEventListener("click", () => {
+      $$(".opt4", stage).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      const o = OPTS[+b.dataset.i];
+      const pk = pred.p1 * pred.p2 === -15 && pred.p1 + pred.p2 === 2 ? "right" : pred.p1 * pred.p2 === -15 && pred.p1 + pred.p2 === -2 ? "flip" : pred.p1 * pred.p2 === -15 ? "prod" : "other";
+      let read, tone = "key";
+      if (pk === "right" && o.k === "right") read = "<b>Predicted it, then confirmed.</b> Real factorising.";
+      else if (o.k === "right") { read = "<b>Prediction was off, but the pick is right.</b> They most likely found it by checking the options. That's expanding, not factorising. Today's version would credit factorising they can't yet do."; tone = "warn"; }
+      else if (pk === o.k || (pk === "prod" && o.k.startsWith("prod"))) { read = `<b>The same mistake twice, independently</b> (${o.k === "flip" ? "signs flipped" : "right product, wrong sum"}). Strong evidence for it.`; tone = "warn"; }
+      else read = "<b>Prediction and pick disagree, and both are wrong.</b> Unsure, so “doesn't know yet”.";
+      $("#ro", stage).innerHTML = read;
+      Feed.log(`Picked <span class="m">${o.t}</span> (prediction was ${pk})`, tone);
+      Print.add("PAIR", .7, o.k === "right" && pk === "right" ? .9 : .6);
+    }));
+    $("#watch", stage).addEventListener("click", () => {
+      $("#glass", stage).style.display = "none"; gsap.set("#glass", { opacity: 0 });
+      const cards = $$(".opt4", stage);
+      cards.forEach((c) => { $(".exp", c).innerHTML = ""; c.classList.remove("found"); });
+      tl && tl.kill();
+      tl = gsap.timeline();
+      OPTS.forEach((o, i) => {
+        if (i > 2) return;
+        tl.to(cards[i], { scale: 1.05, duration: .25 })
+          .call(() => ($(".exp", cards[i]).innerHTML = `= ${o.e}`))
+          .from($(".exp", cards[i]), { opacity: 0, y: -6, duration: .3 })
+          .to({}, { duration: .5 })
+          .call(() => { if (o.k === "right") { cards[i].classList.add("found"); $(".exp", cards[i]).innerHTML = `= ${o.e} ✓`; } else $(".exp", cards[i]).innerHTML = `<s>= ${o.e}</s>`; })
+          .to(cards[i], { scale: 1, duration: .25 });
+      });
+      tl.call(() => { $("#ro", stage).innerHTML = "That's backsolving: expand each option until one matches. The tick lands on the right answer, and no factorising happened."; Feed.log("Demo: backsolved by expanding options"); });
+    });
+    return () => tl && tl.kill();
+  },
+});
+
+// ---------- 11. The switch-up ----------
+PROTOS.push({
+  name: "The switch-up", group: "fix", rep: "Fixes: autopilot from the last question", skill: "Choosing the method",
+  why: "Three differences of squares in a row, then x² + 16, which can't be factorised. A student on autopilot carries the pattern straight over. The rhythm chart shows the timing: a student who notices slows down on the switch card, and a student on autopilot doesn't.",
+  caps: ["<b>Picks (x − 4)(x + 4) at their usual pace:</b> autopilot. The first three right answers were pattern-copying.",
+    "<b>Picks (x + 4)²:</b> noticed something was different, but thinks a sum of squares factorises.",
+    "<b>“Can't be factorised”, after slowing down:</b> noticed the switch and checked. Real method choice.",
+    "<b>Runs of the same type inflate scores:</b> Lotus should mix question types throughout, not only here."],
+  grounded: "Grounded in Rohrer's interleaving studies (mixed problem types make students choose a method; in a classroom study, 61% vs 38% on a later test) and Luchins' Einstellung effect (people repeat a method that worked, even when it no longer fits).",
+  mount(stage) {
+    const CARDS = [
+      { q: "x² − 9", o: ["(x − 3)(x + 3)", "(x − 3)²", "(x − 9)(x + 1)"], r: 0 },
+      { q: "x² − 25", o: ["(x − 5)²", "(x − 5)(x + 5)", "(x − 25)(x + 1)"], r: 1 },
+      { q: "4x² − 1", o: ["(4x − 1)(x + 1)", "(2x − 1)²", "(2x − 1)(2x + 1)"], r: 2 },
+      { q: "x² + 16", o: ["(x − 4)(x + 4)", "(x + 4)²", "It can't be factorised"], r: 2, sw: true },
+    ];
+    stage.innerHTML = `<p class="ask">Quick ones. Factorise each, or say it can't be done.</p>
+      <div class="conveyor" id="conv"><div class="belt"></div></div>
+      <div class="rhythm"><svg viewBox="0 0 520 140" id="rh"></svg></div>
+      <div class="readout" id="ro">Four cards. Lotus records the timing as well as the answer.</div>`;
+    const conv = $("#conv", stage), rh = $("#rh", stage);
+    const times = [], picks = [];
+    let i = 0, shown = 0, belt;
+    if (!REDUCED) belt = gsap.to($(".belt", stage), { backgroundPositionX: "-30px", duration: .6, ease: "none", repeat: -1 });
+    function drawRhythm() {
+      const max = Math.max(4, ...times) * 1.15;
+      rh.innerHTML = `<line x1="40" y1="110" x2="510" y2="110" stroke="${css("--line")}"/>` + CARDS.map((c, k) => {
+        const x = 70 + k * 115, h = times[k] ? (times[k] / max) * 90 : 0;
+        const col = c.sw ? css("--coral") : css("--blue");
+        return `<rect x="${x - 22}" y="${110 - h}" width="44" height="${h}" rx="6" fill="${col}" opacity="${times[k] ? 1 : 0}" class="rb" data-k="${k}"/>
+          <text x="${x}" y="128" text-anchor="middle" font-size="11" fill="${css("--soft")}" style="font-variation-settings:'MONO' 1">${c.q}</text>
+          ${times[k] ? `<text x="${x}" y="${104 - h}" text-anchor="middle" font-size="12" font-weight="700" fill="${css("--ink")}">${times[k].toFixed(1)}s</text>` : ""}`;
+      }).join("") + `<text x="40" y="16" font-size="11" fill="${css("--faint")}">seconds per card</text>`;
+      const last = $(`.rb[data-k="${times.length - 1}"]`, rh);
+      if (last && !REDUCED) gsap.from(last, { attr: { height: 0, y: 110 }, duration: .7, ease: "elastic.out(1,.5)" });
+    }
+    function next() {
+      if (i >= CARDS.length) return finish();
+      const c = CARDS[i];
+      const el = document.createElement("div");
+      el.className = "scard";
+      el.innerHTML = `<span style="font-size:.75rem;color:var(--faint);font-weight:700">Card ${i + 1}</span><span class="m big">${c.q}</span><div class="o3">${c.o.map((o, k) => `<button type="button" data-k="${k}">${o}</button>`).join("")}</div>`;
+      conv.appendChild(el);
+      gsap.fromTo(el, { x: 520 }, { x: 0, duration: REDUCED ? 0 : .55, ease: "power3.out", onComplete: () => (shown = performance.now()) });
+      shown = performance.now() + 550;
+      $$(".o3 button", el).forEach((b) => b.addEventListener("click", () => {
+        const t = Math.max(.3, (performance.now() - shown) / 1000);
+        times.push(t); picks.push(+b.dataset.k);
+        $$(".o3 button", el).forEach((x) => (x.disabled = true));
+        b.style.borderColor = css("--blue");
+        Feed.log(`${c.q} → <span class="m">${c.o[+b.dataset.k]}</span> · ${t.toFixed(1)}s`, c.sw ? "key" : "");
+        drawRhythm();
+        gsap.to(el, { x: -560, duration: REDUCED ? 0 : .5, ease: "power2.in", delay: .25, onComplete: () => el.remove() });
+        i++; setTimeout(next, REDUCED ? 50 : 520);
+      }));
+    }
+    function finish() {
+      belt && belt.pause();
+      const base = (times[0] + times[1] + times[2]) / 3, ratio = times[3] / base, pick = picks[3];
+      let read, tone = "key";
+      if (pick === 0) { read = `<b>Autopilot.</b> Carried the difference-of-squares pattern onto a plus sign${ratio < 1.4 ? `, at their usual pace (${ratio.toFixed(1)}× their average)` : ""}. Treat the first three right answers with caution.`; tone = "warn"; }
+      else if (pick === 1) { read = "<b>Noticed something was different</b>, but thinks x² + 16 = (x + 4)². A sum-of-squares misconception, not autopilot."; tone = "warn"; }
+      else read = ratio >= 1.4 ? `<b>Noticed the switch.</b> Slowed down (${ratio.toFixed(1)}× their usual) and checked. Real method choice.` : "<b>Spotted it instantly.</b> Chose the method from the question itself.";
+      $("#ro", stage).innerHTML = read;
+      Feed.log(`Switch card: ${["autopilot", "sum-of-squares belief", "noticed"][pick]} (${ratio.toFixed(1)}× usual time)`, tone);
+      Print.add("SQUARES", .8, pick === 2 ? .85 : .8);
+      conv.insertAdjacentHTML("beforeend", `<div class="scard" style="top:60px"><span class="m" style="font-variation-settings:'CASL' 1;font-weight:750;font-size:1.1rem">All four done</span></div>`);
+    }
+    drawRhythm(); next();
+    return () => belt && belt.kill();
+  },
+});
+
+// ---------- 12. Typing replay ----------
+PROTOS.push({
+  name: "Typing replay", group: "fix", rep: "Fixes: the mistake they fixed before submitting", skill: "x² + bx + c",
+  why: "A typed answer arrives as finished text, and every draft before it is lost. Here Lotus keeps the edit history and can replay it: deletions in red, long pauses marked on the timeline. If a deleted draft matches a known mistake, Lotus knows the mistake is still there. The student just caught it this time.",
+  caps: ["<b>Deleted draft matches a known mistake:</b> the mistake is still there. Lotus watches for it again rather than counting it as fixed.",
+    "<b>Long pause before a sign:</b> hesitation at exactly the point that's shaky.",
+    "<b>Straight through, no edits:</b> fluent.",
+    "<b>Costs the student nothing:</b> no extra questions, just recording what happened while they typed."],
+  grounded: "Grounded in keystroke and revision research (Conijn et al. 2021 on extracting revisions; EDM 2026 work on keystrokes in maths problem solving) and PISA process data.",
+  mount(stage) {
+    const RIGHT = ["(x+5)(x-2)", "(x-2)(x+5)"], BUGS = { "(x-5)(x+2)": "the sign-flipped answer", "(x+2)(x-5)": "the sign-flipped answer", "(x+10)(x-1)": "a right-product, wrong-sum answer", "(x-10)(x+1)": "a right-product, wrong-sum answer" };
+    stage.innerHTML = `<p class="ask">Factorise <span class="m">x² + 3x − 10</span>. Type your answer (use - for minus).</p>
+      <div class="typebox"><input id="ti" autocomplete="off" spellcheck="false" placeholder="(x + ?)(x − ?)" aria-label="Your answer"><div class="row"><button class="btn" id="sub" type="button">Submit</button><button class="btn ghost" id="rep" type="button" disabled>▶ Replay the typing</button></div></div>
+      <div class="screen"><div class="line" id="ln"><span class="cur"></span></div><div class="tline" id="tl"><span class="head" id="hd" style="left:0"></span></div>
+        <div class="legend"><span>▮ typing</span><span style="color:#ff7b72">▮ deleting</span><span style="color:#ffb83d">▬ pause over 1.5s</span></div></div>
+      <div class="readout" id="ro">Type an answer, or watch a sample student's replay.</div>
+      <div class="playas"><h3>Replay a sample student who…</h3><div class="chips2"><button type="button" data-p="fix">fixed a sign before submitting</button><button type="button" data-p="clean">typed it straight through</button><button type="button" data-p="stuck">stalled, then wrote the wrong pair</button></div></div>`;
+    const input = $("#ti", stage);
+    let hist = [], t0 = null, replayTl = null;
+    input.addEventListener("input", () => { const now = performance.now(); if (t0 === null) t0 = now; hist.push({ t: (now - t0) / 1000, v: input.value }); });
+    function script(ops) { const h = []; let t = 0, v = ""; for (const op of ops) { if (op.type) for (const ch of op.type) { t += op.d ?? .18; v += ch; h.push({ t, v }); } if (op.wait) t += op.wait; if (op.back) for (let k = 0; k < op.back; k++) { t += .09; v = v.slice(0, -1); h.push({ t, v }); } } return h; }
+    const SAMPLES = {
+      fix: script([{ type: "(x-5)(x+2)" }, { wait: 2.6 }, { back: 8 }, { type: "+5)(x-2)" }]),
+      clean: script([{ wait: 1.2 }, { type: "(x+5)(x-2)", d: .15 }]),
+      stuck: script([{ type: "(x+" }, { wait: 4.2 }, { type: "10)(x-1)", d: .22 }]),
+    };
+    function analyse(h) {
+      const fin = norm(h.at(-1)?.v ?? "");
+      const drafts = [];
+      h.forEach((s, k) => { const nx = h[k + 1]; if (nx && nx.v.length < s.v.length) drafts.push(norm(s.v)); });
+      const buggy = [...new Set(drafts)].map((d) => BUGS[d]).filter(Boolean);
+      const dels = h.filter((s, k) => k && s.v.length < h[k - 1].v.length).length;
+      let longest = { gap: 0, at: "" };
+      h.forEach((s, k) => { const gap = s.t - (k ? h[k - 1].t : 0); if (gap > longest.gap) longest = { gap, at: k ? h[k - 1].v : "(before typing)" }; });
+      const right = RIGHT.includes(fin), finBug = BUGS[fin];
+      let read, tone = "key";
+      if (right && buggy.length) { read = `<b>Right answer, but the first draft was ${buggy[0]}.</b> They caught it this time. The mistake is still there, so Lotus keeps watching for it instead of marking the skill secure.`; tone = "warn"; }
+      else if (right && !dels) read = "<b>Typed straight through.</b> Fluent and confident.";
+      else if (right) read = `<b>Right, after ${dels} deletion${dels > 1 ? "s" : ""}.</b> Edits, but none matched a known mistake.`;
+      else if (finBug) { read = `<b>Submitted ${finBug}.</b>`; tone = "warn"; }
+      else read = "<b>Not the right factorisation.</b>";
+      if (longest.gap > 1.5) read += ` Longest pause: ${longest.gap.toFixed(1)}s, after typing <span class="m">${longest.at || "nothing"}</span>.`;
+      return { read, tone, right, buggy, dels, longest };
+    }
+    function replay(h) {
+      replayTl && replayTl.kill();
+      const T = Math.max(1, h.at(-1).t + .6), tline = $("#tl", stage), ln = $("#ln", stage);
+      tline.querySelectorAll("i,b").forEach((e) => e.remove());
+      h.forEach((s, k) => {
+        const prev = k ? h[k - 1] : { t: 0, v: "" }, gap = s.t - prev.t;
+        if (gap > 1.5) tline.insertAdjacentHTML("beforeend", `<b style="left:${(prev.t / T) * 100}%;width:${(gap / T) * 100}%"></b>`);
+        tline.insertAdjacentHTML("beforeend", `<i class="${s.v.length < prev.v.length ? "d" : ""}" style="left:${(s.t / T) * 100}%"></i>`);
+      });
+      if (!REDUCED) gsap.from(tline.querySelectorAll("i,b"), { scaleY: 0, stagger: .01, duration: .2 });
+      replayTl = gsap.timeline();
+      replayTl.fromTo("#hd", { left: "0%" }, { left: "100%", duration: T / 1.4, ease: "none" }, 0);
+      let ghost = "";
+      h.forEach((s, k) => {
+        const prev = k ? h[k - 1].v : "";
+        replayTl.call(() => {
+          if (s.v.length < prev.length) ghost = prev.slice(s.v.length) + ghost;
+          ln.innerHTML = `${esc(s.v)}<span class="cur"></span>${ghost ? `<span class="del">${esc(ghost)}</span>` : ""}`;
+        }, null, s.t / 1.4);
+      });
+      replayTl.call(() => (ln.innerHTML = `${esc(h.at(-1).v)}<span class="cur"></span>${ghost ? `  <span class="del" style="font-size:.8em">${esc(ghost)}</span>` : ""}`), null, T / 1.4);
+    }
+    const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    function report(h, who) {
+      const r = analyse(h);
+      $("#ro", stage).innerHTML = r.read;
+      Feed.log(`${who}: ${r.dels} deletion${r.dels === 1 ? "" : "s"}, longest pause ${r.longest.gap.toFixed(1)}s${r.buggy.length ? ", deleted a known mistake" : ""}`, r.tone);
+      Print.add("PAIR", .6, r.buggy.length ? .6 : .85); if (r.buggy.length) Print.add("SIGNS", .5, .7);
+    }
+    $("#sub", stage).addEventListener("click", () => { if (!hist.length) return; report(hist, "Your typing"); $("#rep", stage).disabled = false; replay(hist); });
+    $("#rep", stage).addEventListener("click", () => replay(hist));
+    $$(".playas button", stage).forEach((b) => b.addEventListener("click", () => {
+      $$(".playas button", stage).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      const h = SAMPLES[b.dataset.p]; replay(h); report(h, `Sample (${b.textContent})`);
+    }));
+    return () => replayTl && replayTl.kill();
+  },
+});
+
+// ======================= Going deeper =======================
+
+// ---------- 13. Find them all ----------
+PROTOS.push({
+  name: "Find them all", group: "deep", rep: "Fixes: knows one answer, not the whole set", skill: "Factor pairs, with negatives",
+  why: "One right answer can come from one memorised example. A “find every one” question shows whether the student understands the whole set of answers. Lotus sees how complete the list is, the order they found things in, and which part of the set they never looked at.",
+  caps: ["<b>Found 7, 8, 13 but no negatives:</b> forgets negative factor pairs, a named mistake Lotus already tracks.",
+    "<b>Found them in order (13, 8, 7):</b> listing pairs systematically. Real understanding.",
+    "<b>Stopped after one or two:</b> knows an example, not the set.",
+    "<b>Included 12 or 1:</b> mixing up the middle number with a factor of the last."],
+  grounded: "Grounded in Watson & Mason's example spaces (how many examples a student can produce shows how far their understanding reaches) and in completeness as evidence in open-ended tasks.",
+  mount(stage) {
+    const VALID = [-13, -8, -7, 7, 8, 13];
+    const PAIR = { 13: "1 × 12", 8: "2 × 6", 7: "3 × 4", "-13": "−1 × −12", "-8": "−2 × −6", "-7": "−3 × −4" };
+    stage.innerHTML = `<p class="ask"><span class="m">x² + bx + 12</span> factorises into two brackets with whole numbers. Find <b>every</b> value of b that works. Tap them on the line.</p>
+      <div class="fline"><svg viewBox="0 0 660 190" id="fl" aria-label="Number line from −15 to 15"></svg></div>
+      <div class="row"><button class="btn" id="done" type="button" disabled>I've found them all</button><span id="cnt" style="color:var(--soft);font-size:.9rem">None picked yet</span></div>
+      <div class="readout" id="ro">There's no right or wrong shown while picking. Lotus is watching the order and the coverage.</div>`;
+    const svg = $("#fl", stage), NS = "http://www.w3.org/2000/svg";
+    const X = (v) => 30 + ((v + 15) / 30) * 600, Y = 130;
+    let h = `<line x1="20" y1="${Y}" x2="640" y2="${Y}" stroke="${css("--line")}" stroke-width="3" stroke-linecap="round"/><g id="arcs"></g><g id="orders"></g>`;
+    for (let v = -15; v <= 15; v++) {
+      if (v === 0) { h += `<text x="${X(0)}" y="${Y + 30}" text-anchor="middle" font-size="12" fill="${css("--faint")}">0</text>`; continue; }
+      h += `<g class="dot" data-v="${v}" tabindex="0" role="button" aria-label="b = ${v}"><circle cx="${X(v)}" cy="${Y}" r="9" fill="${css("--surface")}" stroke="${css("--line")}" stroke-width="2"/>${v % 5 === 0 || Math.abs(v) <= 1 ? `<text x="${X(v)}" y="${Y + 30}" text-anchor="middle" font-size="12" fill="${css("--soft")}">${signed(v)}</text>` : ""}</g>`;
+    }
+    svg.innerHTML = h;
+    const picked = [];
+    function toggle(g) {
+      const v = +g.dataset.v, c = $("circle", g), at = picked.indexOf(v);
+      if (at >= 0) { picked.splice(at, 1); gsap.to(c, { attr: { r: 9 }, fill: css("--surface"), duration: .25 }); Feed.log(`Removed b = ${signed(v)}`, "warn"); }
+      else {
+        picked.push(v);
+        gsap.fromTo(c, { attr: { r: 15 } }, { attr: { r: 9 }, duration: .5, ease: "elastic.out(1,.4)" }); gsap.to(c, { fill: css("--ink"), duration: .2 });
+        const rip = document.createElementNS(NS, "circle");
+        Object.entries({ cx: X(v), cy: Y, r: 9, fill: "none", stroke: css("--blue"), "stroke-width": 2 }).forEach(([k, val]) => rip.setAttribute(k, val));
+        svg.appendChild(rip);
+        gsap.to(rip, { attr: { r: 30 }, opacity: 0, duration: .7, ease: "power2.out", onComplete: () => rip.remove() });
+        Feed.log(`Picked b = ${signed(v)} (pick ${picked.length})`);
+      }
+      $("#orders", svg).innerHTML = picked.map((p, k) => `<text x="${X(p)}" y="${Y - 18}" text-anchor="middle" font-size="11" font-weight="800" fill="${css("--blue")}">${k + 1}</text>`).join("");
+      $("#cnt", stage).textContent = picked.length ? `${picked.length} picked` : "None picked yet";
+      $("#done", stage).disabled = !picked.length;
+    }
+    $$(".dot", svg).forEach((g) => { g.addEventListener("click", () => toggle(g)); g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(g); } }); });
+    $("#done", stage).addEventListener("click", () => {
+      const found = picked.filter((v) => VALID.includes(v)), wrong = picked.filter((v) => !VALID.includes(v));
+      const pos = found.filter((v) => v > 0), neg = found.filter((v) => v < 0);
+      const arcs = $("#arcs", svg);
+      arcs.innerHTML = VALID.map((v) => {
+        const hit = found.includes(v);
+        return `<g class="arc" opacity="0"><path d="M${X(v) - 16} ${Y - 30} Q${X(v)} ${Y - 70} ${X(v) + 16} ${Y - 30}" fill="none" stroke="${hit ? css("--teal") : css("--coral")}" stroke-width="2" ${hit ? "" : 'stroke-dasharray="4 4"'}/><text x="${X(v)}" y="${Y - 62}" text-anchor="middle" font-size="11" font-weight="700" fill="${hit ? css("--teal") : css("--coral")}">${PAIR[v]}</text></g>`;
+      }).join("") + wrong.map((v) => `<g class="arc" opacity="0"><text x="${X(v)}" y="${Y + 5}" text-anchor="middle" font-size="16" font-weight="900" fill="${css("--coral")}">×</text></g>`).join("");
+      gsap.to($$(".arc", arcs), { opacity: 1, y: 0, stagger: .12, duration: .4, ease: "back.out(2)", startAt: { y: 8 } });
+      const posOrder = picked.filter((v) => v > 0 && VALID.includes(v));
+      const ordered = posOrder.length >= 3 && (posOrder.join() === "13,8,7" || posOrder.join() === "7,8,13");
+      const bits = [];
+      if (found.length === 6) bits.push("<b>All six.</b>");
+      else if (pos.length === 3 && !neg.length) bits.push("<b>Found the three positive values, no negatives.</b> Forgets that two negatives also multiply to +12. That's a named mistake (negative factor pairs), now with solid evidence.");
+      else if (found.length <= 2) bits.push(`<b>Found ${found.length}.</b> Knows an example, not the set.`);
+      else bits.push(`<b>Found ${found.length} of 6.</b>`);
+      if (ordered) bits.push("Listed the pairs in order, which is systematic.");
+      if (wrong.some((v) => [12, -12, 1, -1].includes(v))) bits.push("Picked 12 or 1, mixing up the middle number with a factor of 12.");
+      else if (wrong.length) bits.push(`${wrong.length} value${wrong.length > 1 ? "s" : ""} that don't work: ${wrong.map(signed).join(", ")}.`);
+      $("#ro", stage).innerHTML = bits.join(" ");
+      Feed.log(`Done: ${found.length}/6 found, ${wrong.length} wrong, negatives ${neg.length ? "included" : "missing"}`, "key");
+      Print.add("PAIR", .8, found.length === 6 ? .9 : .7); if (!neg.length) Print.add("SIGNS", .6, .8);
+      $("#done", stage).disabled = true;
+    });
+    return () => {};
+  },
+});
+
+// ---------- 14. See the structure ----------
+PROTOS.push({
+  name: "See the structure", group: "deep", rep: "Fixes: can do it, can't see it", skill: "Structure sense",
+  why: "(x + 3)² − 16 is a difference of squares in disguise. Seeing the structure makes it two lines. Missing it means expanding and then factorising a trinomial, which still ends in a right answer. Here the student chooses the first move and the route plays out. Then 99² − 1 in their head, which takes seconds if they see (99 − 1)(99 + 1).",
+  caps: ["<b>Treats (x + 3) as one block:</b> sees the structure, which is the deep skill behind factorising.",
+    "<b>Expands first:</b> still gets it right, the long way. Can do it but can't see it, and an answer-only check would miss that.",
+    "<b>Square-roots each part:</b> thinks √(a − b) = √a − √b. A separate misconception.",
+    "<b>99² − 1 fast and right:</b> the structure carries over to plain numbers."],
+  grounded: "Grounded in Hoch & Dreyfus's “structure sense” (seeing a compound expression as a single block, separate from manipulation skill). Brackets help students see structure, so the disguise here is deliberate.",
+  mount(stage) {
+    const PATHS = {
+      expand: { label: "Expand the bracket first", lines: [["(x + 3)² − 16"], ["x² + 6x + 9 − 16"], ["x² + 6x − 7"], ["(x + 7)(x − 1)"]],
+        read: "<b>Right, the long way.</b> Four lines and a product–sum search. They can do it but didn't see the difference of squares. An answer-only check would mark this as full mastery.", cert: .7 },
+      block: { label: "See (x + 3) as one block", lines: [["<span class='chunk' data-l='A'>(x + 3)</span>² − 16"], ["A² − 4²"], ["(A − 4)(A + 4)"], ["(x + 3 − 4)(x + 3 + 4)"], ["(x − 1)(x + 7)"]],
+        read: "<b>Saw the structure.</b> Treated (x + 3) as one thing, A² − 4². This is the skill behind recognising a difference of squares wherever it shows up.", cert: .9 },
+      root: { label: "Square-root each part", lines: [["(x + 3)² − 16"], ["(x + 3) − 4"], ["x − 1"]],
+        read: "<b>Square-rooted each part separately.</b> Thinks √(a − b) = √a − √b. That's a different misconception from the structure question, and worth its own follow-up.", cert: .85 },
+    };
+    stage.innerHTML = `<p class="ask">Factorise <span class="m">(x + 3)² − 16</span>. What's your first move?</p>
+      <div class="moves">${Object.entries(PATHS).map(([k, p]) => `<button class="move" type="button" data-k="${k}">${p.label}</button>`).join("")}</div>
+      <div class="slines" id="sl"><span style="color:var(--faint);font-size:.9rem">Your route will play out here. In Lotus the student writes each step. Here it plays so you can compare the routes.</span></div>
+      <div class="readout" id="ro">Choose a first move.</div>
+      <div class="mental" id="mn" hidden><p class="ask" style="font-size:1rem">Now in your head: <span class="m">99² − 1</span> = ?</p><div class="row"><input id="mi" inputmode="numeric" autocomplete="off" aria-label="99 squared minus 1"><button class="btn" id="ms" type="button">Done</button></div></div>`;
+    let tl = null, mentalStart = 0;
+    $$(".move", stage).forEach((b) => b.addEventListener("click", () => {
+      $$(".move", stage).forEach((x) => { x.setAttribute("aria-pressed", String(x === b)); x.disabled = true; });
+      const p = PATHS[b.dataset.k], sl = $("#sl", stage);
+      sl.innerHTML = p.lines.map((l, k) => `<div class="sline">${k ? '<span class="eqs">=</span>' : ""}${l[0]}</div>`).join("");
+      const rows = $$(".sline", sl);
+      gsap.set(rows, { opacity: 0, x: -14 });
+      tl && tl.kill();
+      tl = gsap.timeline();
+      rows.forEach((r, k) => tl.to(r, { opacity: 1, x: 0, duration: .45, ease: "power3.out" }, k * .7));
+      const ch = $(".chunk", sl);
+      if (ch) tl.fromTo(ch, { backgroundColor: "rgba(0,0,0,0)" }, { backgroundColor: css("--violet-wash"), duration: .4, repeat: 1, yoyo: true }, .3).to(ch, { backgroundColor: css("--violet-wash"), duration: .3 });
+      tl.call(() => { $("#ro", stage).innerHTML = p.read; $("#mn", stage).hidden = false; mentalStart = performance.now(); if (!REDUCED) gsap.from("#mn", { opacity: 0, y: 10, duration: .4 }); }, null, rows.length * .7 + .2);
+      Feed.log(`First move: ${p.label} (${p.lines.length} lines to the answer)`, b.dataset.k === "block" ? "good" : b.dataset.k === "root" ? "warn" : "key");
+      Print.add("SQUARES", .7, p.cert);
+    }));
+    $("#ms", stage).addEventListener("click", () => {
+      const v = $("#mi", stage).value.replace(/[^\d-]/g, ""), t = (performance.now() - mentalStart) / 1000;
+      let read;
+      if (v === "9800" && t <= 12) read = `<b>9800 in ${t.toFixed(0)}s.</b> That speed almost certainly means they saw (99 − 1)(99 + 1) = 98 × 100. The structure carries over to plain numbers.`;
+      else if (v === "9800") read = `<b>9800, after ${t.toFixed(0)}s.</b> Right, probably via 99 × 99 = 9801. Correct arithmetic, with no sign they used the structure.`;
+      else read = `<b>${v || "No answer"}.</b> Not 9800. Lotus would check whether it's an arithmetic slip or a misread before reading anything into it.`;
+      $("#ro", stage).innerHTML += `<br>${read}`;
+      Feed.log(`99² − 1 → ${v || "blank"} in ${t.toFixed(1)}s`, v === "9800" && t <= 12 ? "good" : "key");
+      $("#ms", stage).disabled = true;
+    });
+    return () => tl && tl.kill();
+  },
+});
+
+// ---------- 15. Next best question ----------
+PROTOS.push({
+  name: "Next best question", group: "deep", rep: "Fixes: the wasted question", skill: "How Lotus chooses",
+  why: "Lotus holds several explanations for a student at once. Each possible next question is scored by how much it's expected to separate those explanations, per minute of the student's time. The best one gets asked, beliefs update, and the scores change. Lotus stops as soon as it's sure enough. Pick a hidden student and watch.",
+  caps: ["<b>Gold bar:</b> how much the question is expected to reveal, given what Lotus already believes.",
+    "<b>Fireflies scores near zero</b> once the student has answered it, because it can't separate a sign-flipper from a student who knows it.",
+    "<b>The swipe deck scores zero here:</b> a good question, but it's about squares, not this skill.",
+    "<b>Stops early:</b> once one explanation passes 85%, further questions would waste the student's time. A named mistake still needs a second, different question first (blind spot 07)."],
+  grounded: "Grounded in Bayesian adaptive testing and diagnostic adaptive testing (choosing items by expected information or mutual information outperforms fixed forms, especially in short tests).",
+  mount(stage) {
+    const S = ["M", "FLIP", "PROD", "SWAP", "UNK"];
+    const NAMES = { M: "Knows it", FLIP: "Flips signs into the brackets", PROD: "Matches the product, ignores the sum", SWAP: "Mixes up product and sum", UNK: "Doesn't know yet" };
+    const u = (keys) => Object.fromEntries(keys.map((k) => [k, 1 / keys.length]));
+    const sl = (main, keys, p = .92) => Object.fromEntries(keys.map((k) => [k, k === main ? p : (1 - p) / (keys.length - 1)]));
+    const QS = [
+      { id: "fire", name: "Fireflies: which two numbers?", sec: 20, L: { M: sl("right", ["right", "sign", "other", "prod"]), FLIP: sl("right", ["right", "sign", "other", "prod"]), PROD: { right: .31, sign: .31, other: .31, prod: .07 }, SWAP: u(["right", "sign", "other", "prod"]), UNK: u(["right", "sign", "other", "prod"]) } },
+      { id: "doors", name: "Bracket doors (x² + 3x − 4)", sec: 30, L: { M: sl("right", ["right", "sw", "ps", "po"]), FLIP: sl("sw", ["right", "sw", "ps", "po"]), PROD: { right: .31, sw: .31, po: .31, ps: .07 }, SWAP: sl("ps", ["right", "sw", "ps", "po"]), UNK: u(["right", "sw", "ps", "po"]) } },
+      { id: "typed", name: "Typed: x² + 5x + 6", sec: 40, L: { M: { right: .92, other: .08 }, FLIP: { flip: .88, other: .12 }, PROD: { right: .5, prod: .45, other: .05 }, SWAP: { swap: .85, other: .15 }, UNK: { dunno: .5, other: .4, right: .1 } } },
+      { id: "quad", name: "Sign quadrant (4 cards)", sec: 60, L: { M: { all: .9, none: .1 }, FLIP: { flipped: .85, none: .15 }, PROD: { all: .4, none: .4, copy: .2 }, SWAP: { all: .3, none: .5, copy: .2 }, UNK: { none: .6, copy: .25, all: .1, flipped: .05 } } },
+      { id: "swipe", name: "Swipe deck (squares)", sec: 60, L: Object.fromEntries(S.map((s) => [s, { a: .5, b: .5 }])) },
+      { id: "pairs", name: "Factor pairs of 12", sec: 15, L: { M: { ok: .95, no: .05 }, FLIP: { ok: .95, no: .05 }, PROD: { ok: .9, no: .1 }, SWAP: { ok: .85, no: .15 }, UNK: { ok: .5, no: .5 } } },
+    ];
+    // Real students slip: every answer stays possible for every kind of student.
+    for (const q of QS) {
+      const R = [...new Set(S.flatMap((st) => Object.keys(q.L[st])))];
+      for (const st of S) q.L[st] = Object.fromEntries(R.map((r) => [r, .94 * (q.L[st][r] ?? 0) + .06 / R.length]));
+    }
+    const PRIOR = { M: .35, FLIP: .2, PROD: .15, SWAP: .1, UNK: .2 };
+    stage.innerHTML = `<div class="playas" style="border:0;padding:0"><h3>Hidden student</h3><div class="chips2" id="hid">${S.map((s) => `<button type="button" data-s="${s}" aria-pressed="${s === "FLIP"}">${NAMES[s]}</button>`).join("")}</div></div>
+      <div class="nbq">
+        <div class="beliefs" id="bel"><h3>What Lotus believes</h3></div>
+        <div style="display:grid;gap:8px;align-content:start"><h3>Possible next questions <span style="text-transform:none;letter-spacing:0;font-weight:600">· expected bits, and bits per minute</span></h3><div class="cands" id="cands"></div></div>
+      </div>
+      <div class="row"><button class="btn" id="ask" type="button">Ask the best question</button><button class="btn ghost" id="rs" type="button">Start over</button></div>
+      <div class="hist" id="hist"></div>
+      <div class="readout" id="ro">Lotus starts unsure. Press “Ask the best question”.</div>`;
+    let hidden = "FLIP", belief = { ...PRIOR }, asked = [], done = false;
+    const H = (d) => -Object.values(d).reduce((t, p) => t + (p > 0 ? p * Math.log2(p) : 0), 0);
+    function post(b, q, r) { const o = {}; let z = 0; for (const s of S) { o[s] = b[s] * (q.L[s][r] ?? 0); z += o[s]; } for (const s of S) o[s] = z ? o[s] / z : b[s]; return o; }
+    function eig(b, q) {
+      const rs = [...new Set(S.flatMap((s) => Object.keys(q.L[s])))];
+      let exp = 0;
+      for (const r of rs) { const pr = S.reduce((t, s) => t + b[s] * (q.L[s][r] ?? 0), 0); if (pr > 0) exp += pr * H(post(b, q, r)); }
+      return Math.max(0, H(b) - exp);
+    }
+    function draw(chosen) {
+      const lead = S.reduce((a, s) => (belief[s] > belief[a] ? s : a), S[0]);
+      $("#bel", stage).innerHTML = `<h3>What Lotus believes</h3>` + S.map((s) => `<div class="brow ${s === lead ? "lead" : ""}"><span>${NAMES[s]}</span><em>${Math.round(belief[s] * 100)}%</em><span class="bb"><i data-w="${belief[s]}"></i></span></div>`).join("");
+      $$(".bb i", stage).forEach((i) => gsap.to(i, { width: `${+i.dataset.w * 100}%`, duration: .8, ease: "power3.out" }));
+      const scored = QS.map((q) => ({ q, g: eig(belief, q) })).map((x) => ({ ...x, pm: x.g / (x.q.sec / 60) }));
+      const best = scored.filter((x) => !asked.includes(x.q.id)).sort((a, b) => b.pm - a.pm)[0];
+      const maxG = Math.max(.01, ...scored.map((x) => x.g));
+      $("#cands", stage).innerHTML = scored.map((x) => `<div class="cand ${x === best && !done ? "best" : ""} ${asked.includes(x.q.id) ? "asked" : ""}" data-id="${x.q.id}"><span>${x.q.name}</span><small>${x.g.toFixed(2)} bits · ${x.pm.toFixed(2)}/min</small><span class="ig"><i data-w="${x.g / maxG}"></i></span></div>`).join("");
+      $$(".ig i", stage).forEach((i) => gsap.to(i, { width: `${+i.dataset.w * 100}%`, duration: .8, ease: "power3.out" }));
+      if (chosen && !REDUCED) gsap.fromTo(`.cand[data-id="${chosen}"]`, { scale: 1.04 }, { scale: 1, duration: .5, ease: "back.out(2)" });
+      return { best, lead };
+    }
+    function ask() {
+      if (done) return;
+      const { best } = draw();
+      if (!best || best.g < .05) return stop("No remaining question is worth the student's time.");
+      const L = best.q.L[hidden];
+      let u2 = Math.random(), acc = 0, r = Object.keys(L).at(-1);
+      for (const [k, p] of Object.entries(L)) { acc += p; if (u2 <= acc) { r = k; break; } }
+      belief = post(belief, best.q, r); asked.push(best.q.id);
+      $("#hist", stage).insertAdjacentHTML("beforeend", `<span>${asked.length}. ${best.q.name.split(":")[0].split(" (")[0]} → “${r}”</span>`);
+      Feed.log(`Asked ${best.q.name} (${best.g.toFixed(2)} bits expected); answer “${r}”`, "key");
+      const { lead } = draw(best.q.id);
+      // A named mistake needs a second angle (blind spot 07); "knows it" and "doesn't know yet" don't.
+      if (belief[lead] >= .85 && (lead === "M" || lead === "UNK" || asked.length >= 2)) return stop(`Sure enough: “${NAMES[lead]}” at ${Math.round(belief[lead] * 100)}%, after ${asked.length} question${asked.length > 1 ? "s" : ""}.${lead === hidden ? " That's the hidden student." : " Not the hidden student: answers are drawn at random, slips included. Start over to try again."}`);
+      $("#ro", stage).innerHTML = `Asked <b>${best.q.name}</b>. The beliefs moved, so the scores were recalculated.`;
+    }
+    function stop(why) { done = true; draw(); $("#ro", stage).innerHTML = `<b>Lotus stops.</b> ${why} A fixed plan would keep asking.`; Feed.log("Stopped: sure enough", "good"); Print.add("PAIR", .8, .9); }
+    function reset() { belief = { ...PRIOR }; asked = []; done = false; $("#hist", stage).innerHTML = ""; $("#ro", stage).textContent = "Lotus starts unsure. Press “Ask the best question”."; draw(); }
+    $$("#hid button", stage).forEach((b) => b.addEventListener("click", () => { hidden = b.dataset.s; $$("#hid button", stage).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); Feed.log(`Hidden student: ${NAMES[hidden]}`); reset(); }));
+    $("#ask", stage).addEventListener("click", ask);
+    $("#rs", stage).addEventListener("click", reset);
+    draw();
+    return () => {};
+  },
+});
+
+// ---------- 16. Check what we read ----------
+PROTOS.push({
+  name: "Check what we read", group: "deep", rep: "Fixes: a typing problem marked as maths", skill: "Typed answers",
+  why: "Before Lotus marks a typed answer, it shows the student what it read, nicely set out, and flags anything ambiguous: an open bracket, “x2”, or a bracket in the wrong place. The student confirms or fixes it. Typing slips stop being counted as maths mistakes, and how often they happen becomes its own small signal.",
+  caps: ["<b>“x2”:</b> probably x², but ask. Never mark it wrong silently.",
+    "<b>Open bracket:</b> show what it reads as when closed, and let the student confirm.",
+    "<b>x+2(x+3):</b> reads as a sum, not a product. The student may mean (x + 2)(x + 3), so check before marking a maths error.",
+    "<b>Confirmed answers only</b> go to marking, so every maths diagnosis is built on what the student meant."],
+  grounded: "Grounded in Sangwin's STACK, which checks and shows the student its reading of an answer before marking, so students are assessed on maths and not on typing conventions.",
+  mount(stage) {
+    stage.innerHTML = `<p class="ask">Factorise <span class="m">x² + 5x + 6</span>, typed the way a student on a phone might.</p>
+      <div class="rb"><input id="ri" autocomplete="off" spellcheck="false" placeholder="Type your answer" aria-label="Typed answer" value="x+2(x+3)">
+        <div class="samples">${["x+2(x+3)", "(x+2)(x+3", "x2+5x+6", "(x+2)(x+3)", "(x+2)*(x+3)"].map((s) => `<button type="button">${s}</button>`).join("")}</div></div>
+      <div class="readas"><h3>We read this as</h3><div class="big" id="rd"></div><div id="iss" style="display:grid;gap:6px"></div>
+        <div class="row"><button class="btn" id="yes" type="button">Yes, that's what I meant</button><button class="btn ghost" id="fix" type="button">Use the suggestion</button></div></div>
+      <div class="readout" id="ro">Nothing gets marked until the student confirms.</div>`;
+    const input = $("#ri", stage);
+    let suggestion = null;
+    const pretty = (s) => s.replace(/\^2/g, "²").replace(/\*/g, " · ").replace(/-/g, " − ").replace(/\+/g, " + ").replace(/\)\(/g, ")(");
+    function analyse(raw) {
+      let s = raw.replace(/\s+/g, "").replace(/[−–]/g, "-");
+      const issues = []; let fix = null;
+      const open = (s.match(/\(/g) || []).length, close = (s.match(/\)/g) || []).length;
+      if (/x2(?!\d)/.test(s) && !s.includes("^")) { issues.push("“x2” could mean x² or x × 2. We read it as x²."); s = s.replace(/x2(?!\d)/g, "x^2"); }
+      if (open > close) { issues.push(`${open - close} bracket${open - close > 1 ? "s are" : " is"} still open. We closed it at the end.`); s += ")".repeat(open - close); }
+      if (close > open) issues.push("There's an extra closing bracket.");
+      const m = /^(x[+-]\d+)\((x[+-]\d+)\)$/.exec(s);
+      if (m) { issues.push(`This reads as x ${m[1].slice(1, 2) === "+" ? "+" : "−"} ${m[1].slice(2)} × (${pretty(m[2])}): a sum, not a product of two brackets. Did you mean (${pretty(m[1])})(${pretty(m[2])})?`); fix = `(${m[1]})(${m[2]})`; }
+      if (/\^2/.test(s) && !/\(/.test(s)) issues.push("This is the expression itself, not factorised. Is that what you meant to submit?");
+      return { s, issues, fix };
+    }
+    function render() {
+      const r = analyse(input.value); suggestion = r.fix;
+      const rd = $("#rd", stage);
+      rd.textContent = pretty(r.s) || " ";
+      if (!REDUCED) gsap.fromTo(rd, { opacity: .4, y: 4 }, { opacity: 1, y: 0, duration: .25 });
+      $("#iss", stage).innerHTML = r.issues.map((t) => `<div class="issue"><b>!</b><span>${t}</span></div>`).join("");
+      $("#fix", stage).hidden = !r.fix;
+      return r;
+    }
+    input.addEventListener("input", render);
+    $$(".samples button", stage).forEach((b) => b.addEventListener("click", () => { input.value = b.textContent; const r = render(); Feed.log(`Typed <span class="m">${b.textContent}</span>: ${r.issues.length ? `${r.issues.length} thing${r.issues.length > 1 ? "s" : ""} to check` : "clear"}`, r.issues.length ? "warn" : ""); }));
+    $("#yes", stage).addEventListener("click", () => {
+      const r = analyse(input.value);
+      const ok = ["(x+2)(x+3)", "(x+3)(x+2)", "(x+2)*(x+3)", "(x+3)*(x+2)"].includes(r.s);
+      $("#ro", stage).innerHTML = r.issues.length
+        ? `<b>Confirmed with ${r.issues.length} flag${r.issues.length > 1 ? "s" : ""}.</b> Lotus now marks what the student confirmed, ${ok ? "which is right" : "which isn't the factorisation"}. The typing issue is logged separately and never counted as a maths gap.`
+        : `<b>Clear.</b> ${ok ? "Right, and read exactly as intended." : "Read exactly as typed. Marked as maths."}`;
+      Feed.log(`Confirmed <span class="m">${pretty(r.s)}</span>`, ok ? "good" : "key");
+      Print.add("PAIR", .4, ok ? .85 : .6);
+    });
+    $("#fix", stage).addEventListener("click", () => { if (!suggestion) return; input.value = suggestion; render(); Feed.log("Took the suggestion: the student meant a product of two brackets", "good"); });
+    render();
+    return () => {};
+  },
+});
+
+// ======================= Thinking print demo =======================
+(function printDemo() {
+  const big = makePrint($("#pdCanvas"), $("#pdRing"), { size: 316 });
+  const SK = { PAIR: ["x² + bx + c", "--gold"], SQUARES: ["Squares", "--violet"], SIGNS: ["Signs", "--coral"], CHECK: ["Checking", "--teal"], GROUP: ["Grouping", "--blue"] };
+  const CERT = { sure: [.95, "Very sure"], some: [.65, "Somewhat sure"], guess: [.2, "Guessing"], dunno: [.7, "“I don't know yet”"] };
+  const STR = { little: [.25, "A little"], some: [.55, "Some"], lot: [.9, "A lot"] };
+  const RIGHT = { right: [1, "Right"], wrong: [0, "Wrong"] };
+  const sel = { skill: "SIGNS", cert: "sure", str: "some", right: "right" };
+  let count = 0;
+  // Faint skill labels around the ring: "where" each skill starts.
+  const svg = $("#pdsvg");
+  Object.entries(SK).forEach(([k, [name, col]]) => {
+    const a = (PRINT_ANCHOR[k] / 5) * Math.PI * 2 + .4;
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    Object.entries({ x: 170 + Math.cos(a) * 120, y: 170 + Math.sin(a) * 120 + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 800, fill: css(col), opacity: .55 }).forEach(([a2, v]) => t.setAttribute(a2, v));
+    t.style.fontFamily = "var(--f)"; t.textContent = name; svg.appendChild(t);
+  });
+  function group(id, opts, key, color) {
+    const el = $(id);
+    el.innerHTML = Object.entries(opts).map(([k, v]) => `<button type="button" data-k="${k}" aria-pressed="${sel[key] === k}" ${color ? `style="--c:var(${v[1]})"` : ""}>${color ? "<i></i>" : ""}${color ? v[0] : v[1]}</button>`).join("");
+    $$("button", el).forEach((b) => b.addEventListener("click", () => { sel[key] = b.dataset.k; $$("button", el).forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
+  }
+  group("#pdSkill", SK, "skill", true); group("#pdCert", CERT, "cert"); group("#pdStr", STR, "str"); group("#pdRight", RIGHT, "right");
+  function updateCount() { $("#pdCount").textContent = `${count} answer${count === 1 ? "" : "s"} · ring ${Math.round(big.total() * 100)}% full`; }
+  $("#pdAdd").addEventListener("click", () => {
+    const c = CERT[sel.cert][0], st = STR[sel.str][0];
+    const r = big.add(sel.skill, st, c);
+    count++; updateCount();
+    const crisp = r.width < 1.4 ? "crisp" : r.width < 2.4 ? "medium" : "soft and wide";
+    $("#pdRead").innerHTML = `<b>${r.n} strokes</b> in ${SK[sel.skill][0]}'s colour, ${crisp} (line ${r.width.toFixed(1)}, opacity ${r.alpha.toFixed(2)}). ` +
+      (sel.cert === "dunno" ? "An honest “I don't know yet” draws clearly: it's real information. " : sel.cert === "guess" ? "A guess tells Lotus little, so it draws faintly. " : "") +
+      `<b>${RIGHT[sel.right][1]}</b> made no difference: a ${sel.right === "right" ? "wrong" : "right"} answer would draw exactly the same.`;
+    Feed.log(`Print demo: ${SK[sel.skill][0]}, ${CERT[sel.cert][1].replace(/[“”]/g, "")}, ${RIGHT[sel.right][1].toLowerCase()} → ${r.n} strokes`);
+  });
+  $("#pdBurst").addEventListener("click", () => {
+    const keys = Object.keys(SK), certs = Object.keys(CERT), strs = Object.keys(STR);
+    for (let i = 0; i < 8; i++) setTimeout(() => { big.add(keys[Math.floor(Math.random() * 5)], STR[strs[Math.floor(Math.random() * 3)]][0], CERT[certs[Math.floor(Math.random() * 4)]][0]); count++; updateCount(); }, i * 260);
+    $("#pdRead").textContent = "Eight answers with random skills and certainty. Watch where each colour gathers.";
+  });
+  $("#pdClear").addEventListener("click", () => { big.clear(); count = 0; updateCount(); $("#pdRead").textContent = "Cleared."; });
+
+  const A = makePrint($("#pdA"), $("#pdAr"), { size: 240 }), B = makePrint($("#pdB"), $("#pdBr"), { size: 240 });
+  const ASHA = [["PAIR", .6, .95], ["SQUARES", .5, .9], ["SIGNS", .6, .9], ["SIGNS", .8, .92], ["CHECK", .5, .9], ["SIGNS", .9, .95], ["GROUP", .5, .85], ["SIGNS", .8, .9], ["PAIR", .5, .95], ["SQUARES", .4, .9]];
+  const RAVI = [["PAIR", .3, .2], ["SQUARES", .25, .2], ["SIGNS", .3, .25], ["CHECK", .2, .15], ["PAIR", .35, .3], ["GROUP", .25, .2], ["PAIR", .5, .7], ["SQUARES", .3, .25], ["SIGNS", .3, .2], ["CHECK", .25, .2]];
+  let timers = [];
+  $("#pdPlay").addEventListener("click", () => {
+    timers.forEach(clearTimeout); timers = [];
+    A.clear(); B.clear();
+    $("#pdAc").textContent = "Sure of herself. She holds one sign mistake firmly, so Lotus keeps asking about signs.";
+    $("#pdBc").textContent = "Unsure almost everywhere, so most of his answers are guesses.";
+    ASHA.forEach((a, i) => timers.push(setTimeout(() => { A.add(...a); B.add(...RAVI[i]); }, 300 + i * 650)));
+    timers.push(setTimeout(() => {
+      $("#pdAc").innerHTML = `Crisp lines, heaviest in coral. Lotus asked about signs four times because that's where the evidence pointed. Ring <b>${Math.round(A.total() * 100)}%</b> full: Lotus is sure about her.`;
+      $("#pdBc").innerHTML = `Soft, wide strokes almost everywhere. Each answer taught Lotus less, so the ring is only <b>${Math.round(B.total() * 100)}%</b> full and his check would keep going. One crisper patch: his honest “I don't know yet”.`;
+    }, 300 + 10 * 650 + 600));
+  });
+  updateCount();
+})();
+
+// ======================= Studio shell =======================
+let cleanup = null, active = -1;
+const nav = $("#nav"), stage = $("#stage");
+PROTOS.forEach((p, i) => {
+  if (p.group && p.group !== (PROTOS[i - 1] || {}).group) nav.insertAdjacentHTML("beforeend", `<span class="navlabel">${{ fix: "Blind-spot fixes", deep: "Going deeper" }[p.group]}</span>`);
+  const b = document.createElement("button");
+  b.type = "button"; b.innerHTML = `<i>${i + 1}</i>${p.name}`;
+  b.addEventListener("click", () => show(i));
+  nav.appendChild(b);
+});
+function show(i) {
+  if (i === active) return;
+  cleanup && cleanup();
+  gsap.killTweensOf(stage.querySelectorAll("*"));
+  active = i;
+  const p = PROTOS[i];
+  $$("button", nav).forEach((b, k) => b.setAttribute("aria-current", String(k === i)));
+  $("#hRep").textContent = p.rep; $("#hSkill").textContent = p.skill; $("#hName").textContent = p.name; $("#hWhy").textContent = p.why;
+  $("#caps").innerHTML = p.caps.map((c) => `<li>${c}</li>`).join("");
+  $("#grounded").textContent = p.grounded;
+  Feed.reset();
+  stage.innerHTML = "";
+  cleanup = p.mount(stage);
+  if (!REDUCED) gsap.from(stage.children, { opacity: 0, y: 14, stagger: .05, duration: .45, ease: "power2.out", clearProps: "opacity,transform" });
+  try { localStorage.setItem("seven-ways-tab", String(i)); } catch {}
+}
+$$("[data-go]").forEach((b) => b.addEventListener("click", () => { show(+b.dataset.go); $(".studio").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" }); }));
+let start = 0;
+try { start = Math.min(PROTOS.length - 1, Math.max(0, +(localStorage.getItem("seven-ways-tab") ?? 0))); } catch {}
+show(start);
+// A first faint print, so the panel isn't empty before the first answer.
+setTimeout(() => Print.add("PAIR", .15, .3), 300);
+</script>

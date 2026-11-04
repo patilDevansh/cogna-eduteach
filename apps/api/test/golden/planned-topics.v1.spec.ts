@@ -150,15 +150,17 @@ describe("catch-up tests", () => {
     for (const n of [1, 2]) {
       const item = { ...(await factory.write({ spec, purpose: "BASE", variation: `cu:${n}`, avoid: [] })).item!, id: `c${n}` } as LotusQuestion;
       const right = item.answerKey.canonicalAnswer;
-      audits.push({ question: item, response: answer(right), skillEvidence: instantVerdict(item, answer(right)).evidence } as never);
+      const verdict = instantVerdict(item, answer(right));
+      audits.push({ question: item, response: answer(right), skillEvidence: verdict.evidence, verification: verdict.verification } as never);
     }
     const report = buildFactorisationReport({
       ledger: foldLedger(audits),
       state: { topic: "ALGEBRAIC_EXPRESSIONS", focusSkills: ["AE_BINOMIAL_BINOMIAL"], planTurn: 2, turns: [], answeredTurns: [1, 2], handledConfirmed: [], handledBroadened: [], fastSkips: 0 },
       pendingAnalyses: 0,
+      audits: audits as never,
     });
     assert.equal(report.outcome, "ADVANCEMENT");
-    assert.match(report.startingPoint, /Caught up: multiplying two binomials is now secure/);
+    assert.match(report.startingPoint, /Repeated direct checks succeeded for multiplying two binomials/);
   });
 });
 

@@ -281,6 +281,8 @@ export interface PersonaProfile {
   supportSkills?: string[];
   /** Turn indices (1-based, in the order the persona actually answers them) that this persona deliberately answers wrong even though the skill is not their declared misconception — used only by the "one-off slip" profile. */
   slipOnTurn?: number;
+  /** Messy, unpredicted behaviour on otherwise-correct answers (MESSY_PERSONA_CATALOGUE only). */
+  messy?: PersonaMessiness;
   confidenceBand: [number, number];
   paceMsBand: [number, number];
   workingStyle: "full-steps" | "final-answer-only" | "terse" | "hesitant";
@@ -418,11 +420,43 @@ export const PERSONA_CATALOGUE: PersonaProfile[] = [
 // tests (both call this "the browser never has it" server-side read).
 // ---------------------------------------------------------------------------
 
+/**
+ * How a messy persona departs from a tidy one. These answers are deliberately
+ * NOT the question's predicted wrong answers, so code can't explain them and
+ * the AI review has to read them — the behaviour the tidy catalogue never
+ * exercises (Cogna Project Hub, core problem C8).
+ */
+export interface PersonaMessiness {
+  /** Right working, then one sign or digit miscopied in the final answer. */
+  copySlipTurns?: number[];
+  /** Right working, final answer with its last closing bracket missing. */
+  unreadableTurns?: number[];
+  /** On these skills the persona guesses: no method, a made-up answer. */
+  guessSkills?: string[];
+  /** Report boundary the runner scores: only these skills may be confirmed. */
+  mayConfirm?: string[];
+  /** Right answers whose working has one false step that the next step cancels out. */
+  cancellingTurns?: number[];
+  /** A sign misconception that shows on every question these skills touch (predicted SIGN mistakes). */
+  signSkills?: string[];
+  /** From this answer on: fast (about 3 s) and wrong. Careful and right before it. */
+  tiredFromTurn?: number;
+  /** Every answer fast and wrong, like tapping at random. */
+  randomTapper?: boolean;
+  /** Right answers with working that takes a different valid route (checks by expanding). */
+  differentMethod?: boolean;
+  /** Scored outcome, when the persona's truth is about the whole report. */
+  expectOutcome?: "SOLID_GAP" | "ADVANCEMENT" | "INSUFFICIENT_OR_CONFLICTING";
+  /** The report should name signs with negative numbers as the starting point. */
+  expectSignRoot?: boolean;
+}
+
 export interface PersonaQuestionLike {
   answerKey: {
     canonicalAnswer: string;
     workedSolution?: string[];
     diagnostics?: {
+      itemKind?: string;
       skillId: string;
       taggedSkills: string[];
       predictedMistakes: Array<{ answer: string; mistake: string }>;
@@ -498,6 +532,8 @@ export function chooseResponse(
       };
     }
   }
+  const messy = persona.messy && messyResponse(persona.messy, question, turnIndex);
+  if (messy) return messy;
   return {
     answer: question.answerKey.canonicalAnswer,
     working: workingForCorrect(question),
@@ -505,6 +541,191 @@ export function chooseResponse(
     isDeliberateMistake: false,
   };
 }
+
+/** Typed answers only: a slip or a missing bracket can't happen on a multiple-choice tap. */
+function isTyped(question: PersonaQuestionLike): boolean {
+  const kind = question.answerKey.diagnostics?.itemKind;
+  return kind === "FACTORISE" || kind === "SIMPLIFY" || kind === "EXPAND";
+}
+
+/** Miscopy one sign (the last one) or, with no sign to flip, bump the last digit. */
+function copySlip(answer: string): string {
+  const lastSign = Math.max(answer.lastIndexOf(" + "), answer.lastIndexOf(" - "));
+  if (lastSign > 0) return `${answer.slice(0, lastSign)} ${answer[lastSign + 1] === "+" ? "-" : "+"} ${answer.slice(lastSign + 3)}`;
+  const digit = answer.search(/\d(?!.*\d)/);
+  return digit >= 0 ? `${answer.slice(0, digit)}${(Number(answer[digit]) + 1) % 10}${answer.slice(digit + 1)}` : `${answer} + 1`;
+}
+
+/** A predicted wrong answer to give, preferring a sign mistake when asked. */
+function predictedWrong(question: PersonaQuestionLike, preferSign = false): { answer: string; mistake: string } | undefined {
+  const predicted = question.answerKey.diagnostics?.predictedMistakes ?? [];
+  return (preferSign ? predicted.find((p) => /SIGN/.test(p.mistake)) : undefined) ?? predicted.find((p) => p.answer !== question.answerKey.canonicalAnswer);
+}
+
+function messyResponse(m: PersonaMessiness, question: PersonaQuestionLike, turnIndex: number): PersonaResponsePlan | null {
+  const diagnostics = question.answerKey.diagnostics;
+  const correct = question.answerKey.canonicalAnswer;
+  const wrongOrSlip = (): PersonaResponsePlan => {
+    const wrong = predictedWrong(question);
+    const answer = wrong?.answer ?? (isTyped(question) ? copySlip(correct) : correct);
+    return { answer, working: "quick", didNotKnow: false, isDeliberateMistake: true };
+  };
+  if (m.randomTapper) return wrongOrSlip();
+  if (m.tiredFromTurn !== undefined && turnIndex >= m.tiredFromTurn) return wrongOrSlip();
+  const touchesSignSkill = !!diagnostics && [diagnostics.skillId, ...diagnostics.taggedSkills].some((s) => m.signSkills?.includes(s));
+  if (touchesSignSkill) {
+    const sign = predictedWrong(question, true);
+    if (sign && /SIGN/.test(sign.mistake)) {
+      return { answer: sign.answer, working: "I kept the signs the way they were when I took the number out.", didNotKnow: false, isDeliberateMistake: true };
+    }
+  }
+  if (m.cancellingTurns?.includes(turnIndex) && isTyped(question)) {
+    // One false middle line (a flipped sign), then the right final answer.
+    const steps = question.answerKey.workedSolution?.filter(Boolean) ?? [];
+    const middle = steps.length >= 2 ? copySlip(steps.at(-2)!) : copySlip(correct);
+    return { answer: correct, working: `${middle}\n${correct}`, didNotKnow: false, isDeliberateMistake: true };
+  }
+  if (m.differentMethod && isTyped(question)) {
+    return { answer: correct, working: `I guessed the brackets and checked by expanding them back: ${correct} gives the original expression.`, didNotKnow: false, isDeliberateMistake: false };
+  }
+  // A child who can't do a skill can't answer any question that needs it, not only its headline one.
+  const needsGuessedSkill = !!diagnostics && [diagnostics.skillId, ...diagnostics.taggedSkills].some((s) => m.guessSkills?.includes(s));
+  if (needsGuessedSkill) {
+    // Choices: pick an option that isn't the answer. Typed: a made-up bracket.
+    const wrongOption = question.answerKey.diagnostics?.predictedMistakes.find((p) => p.answer !== correct)?.answer;
+    const answer = isTyped(question) ? "(x + 1)(x + 2)" : wrongOption ?? "Yes";
+    return { answer: answer === correct ? "x + 1" : answer, working: "idk, just guessing", didNotKnow: false, isDeliberateMistake: true };
+  }
+  if (!isTyped(question)) return null;
+  if (m.copySlipTurns?.includes(turnIndex)) {
+    const slipped = copySlip(correct);
+    return { answer: slipped, working: `${workingForCorrect(question)}\nso ${slipped}`, didNotKnow: false, isDeliberateMistake: true };
+  }
+  if (m.unreadableTurns?.includes(turnIndex)) {
+    const cut = correct.lastIndexOf(")");
+    const scruffy = cut >= 0 ? correct.slice(0, cut) + correct.slice(cut + 1) : `(${correct}`;
+    return { answer: scruffy, working: workingForCorrect(question), didNotKnow: false, isDeliberateMistake: true };
+  }
+  return null;
+}
+
+/**
+ * Messy learners for the live-model runner (not the golden suite). Written
+ * for the Oct 2026 core testing, not taken from real children: they model
+ * how children really answer — careless copying, guessing, scruffy typing —
+ * with answers code can't predict, so the AI review has to do the reading.
+ */
+export const MESSY_PERSONA_CATALOGUE: PersonaProfile[] = [
+  {
+    id: "X01_CARELESS_COPIER",
+    displayName: "Careless copier",
+    summary: "Knows every skill and shows correct working, but miscopies one sign or digit in the final answer on several typed questions.",
+    messy: { copySlipTurns: [2, 4, 7, 10, 13, 16, 19], mayConfirm: [] },
+    confidenceBand: [70, 90],
+    paceMsBand: [10_000, 25_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "Slips reach the AI review (they aren't predicted wrong answers) and come back as SLIP, so they never become gap evidence.",
+    expectedReportBoundary: "No confirmed gap. Slips may appear as notes but no skill is CONFIRMED.",
+    expectedAdaptiveBehaviorNote: "Mostly KEEP; a re-check after a slip is acceptable.",
+  },
+  {
+    id: "X02_GUESSER_WHEN_HARD",
+    displayName: "Guesses on anything hard",
+    summary: "Secure on common factors; on grouping, the identities and trinomials writes a made-up answer with no method.",
+    messy: { guessSkills: ["FAC_GROUP_TERMS", "FAC_GROUP_SIGN", "FAC_DIFF_SQUARES", "FAC_PERFECT_SQUARE_PLUS", "FAC_PERFECT_SQUARE_MINUS", "FAC_PAIR_PRODUCT_SUM", "FAC_MONIC_TRINOMIAL", "FAC_FACTOR_FULLY"] },
+    confidenceBand: [10, 30],
+    paceMsBand: [4_000, 10_000],
+    workingStyle: "terse",
+    expectedEvidenceNote: "Guesses come back as GUESS from the AI review.",
+    expectedReportBoundary: "A guessed skill must never be reported SECURE: the child cannot do it. Confirmed, suspected or not tested are all honest; secure is not.",
+    expectedAdaptiveBehaviorNote: "Descending to easier prerequisites is expected.",
+  },
+  {
+    id: "X03_REAL_GAP_PLUS_SLIPS",
+    displayName: "One real gap plus careless slips",
+    summary: "A genuine misconception taking out a negative factor (keeps the original signs), plus copying slips on two unrelated typed questions.",
+    misconception: { skillId: "FAC_GCF_NEGATIVE", mistakeCode: "KEPT_ORIGINAL_SIGNS" },
+    messy: { copySlipTurns: [9, 15], mayConfirm: ["FAC_GCF_NEGATIVE", "FND_SIGN_MUL_DIV"] },
+    confidenceBand: [55, 80],
+    paceMsBand: [12_000, 30_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "The misconception is caught by code (predicted answer); the two slips go to the AI review and come back as SLIP.",
+    expectedReportBoundary: "FAC_GCF_NEGATIVE confirmed or suspected; no other skill confirmed.",
+    expectedAdaptiveBehaviorNote: "Re-checks on FAC_GCF_NEGATIVE expected.",
+  },
+  {
+    id: "X04_SCRUFFY_TYPIST",
+    displayName: "Right method, scruffy typing",
+    summary: "Knows every skill but leaves the final bracket unclosed on several typed answers.",
+    messy: { unreadableTurns: [3, 6, 11, 14, 18], mayConfirm: [] },
+    confidenceBand: [70, 90],
+    paceMsBand: [8_000, 20_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "Unreadable answers go to the AI review and come back as UNREADABLE.",
+    expectedReportBoundary: "No confirmed gap.",
+    expectedAdaptiveBehaviorNote: "Mostly KEEP.",
+  },
+  {
+    id: "X05_CANCELLING_ERRORS",
+    displayName: "Right answers through mistakes that cancel",
+    summary: "Gets the final answer right on several typed questions, but the working has a false step the next step happens to cancel.",
+    messy: { cancellingTurns: [2, 5, 8, 11, 14, 17, 20] },
+    confidenceBand: [60, 85],
+    paceMsBand: [15_000, 35_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "Right answers with a false working step go to the AI review (C3) instead of straight to secure.",
+    expectedReportBoundary: "With the real AI, skills reached only through faulty working shouldn't be reported secure from those answers alone.",
+    expectedAdaptiveBehaviorNote: "Reviews on the flagged answers; otherwise KEEP.",
+  },
+  {
+    id: "X06_SIGNS_EVERYWHERE",
+    displayName: "Negative numbers trip them everywhere",
+    summary: "One sign misconception that shows wherever a negative appears: taking out a negative, product-and-sum pairs, grouping with a minus.",
+    messy: { signSkills: ["FAC_GCF_NEGATIVE", "FAC_PAIR_PRODUCT_SUM", "FAC_MONIC_TRINOMIAL", "FAC_GROUP_SIGN", "FAC_PERFECT_SQUARE_MINUS"], expectSignRoot: true, mayConfirm: ["FAC_GCF_NEGATIVE", "FAC_PAIR_PRODUCT_SUM", "FAC_MONIC_TRINOMIAL", "FAC_GROUP_SIGN", "FAC_PERFECT_SQUARE_MINUS", "FND_SIGN_MUL_DIV", "FND_SIGN_ADD_SUB"] },
+    confidenceBand: [60, 85],
+    paceMsBand: [15_000, 35_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "Predicted sign mistakes across several skills.",
+    expectedReportBoundary: "The report starts with signs with negative numbers, naming the gaps they explain.",
+    expectedAdaptiveBehaviorNote: "Checks and descents on the sign skills.",
+  },
+  {
+    id: "X07_TIRED_HALFWAY",
+    displayName: "Careful, then tired",
+    summary: "Careful and right for the first half, then fast and wrong from question 13.",
+    messy: { tiredFromTurn: 13, mayConfirm: [] },
+    confidenceBand: [70, 90],
+    paceMsBand: [20_000, 40_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "Late answers are fast (about 3 s) and wrong.",
+    expectedReportBoundary: "No confirmed gap from the tired part; the report says the answers sped up and may be tiredness.",
+    expectedAdaptiveBehaviorNote: "Any change is fine; the report is what's scored.",
+  },
+  {
+    id: "X08_RANDOM_TAPPER",
+    displayName: "Not really trying",
+    summary: "Answers everything fast and wrong, as if tapping at random.",
+    messy: { randomTapper: true, expectOutcome: "INSUFFICIENT_OR_CONFLICTING" },
+    confidenceBand: [10, 30],
+    paceMsBand: [2_000, 3_000],
+    workingStyle: "terse",
+    expectedEvidenceNote: "Every answer fast and wrong.",
+    expectedReportBoundary: "The report says the test was too rushed to act on and suggests no lesson.",
+    expectedAdaptiveBehaviorNote: "Any; the report is what's scored.",
+  },
+  {
+    id: "X09_DIFFERENT_METHOD",
+    displayName: "Right, by a different route",
+    summary: "Knows every skill; writes a different but valid method (guess and check by expanding) instead of the worked steps.",
+    messy: { differentMethod: true, mayConfirm: [] },
+    confidenceBand: [70, 90],
+    paceMsBand: [15_000, 30_000],
+    workingStyle: "full-steps",
+    expectedEvidenceNote: "Valid working that isn't the worked solution must not be treated as a mistake.",
+    expectedReportBoundary: "No confirmed gap.",
+    expectedAdaptiveBehaviorNote: "Mostly KEEP.",
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Self-check: every persona's declared misconception must actually resolve
@@ -516,7 +737,7 @@ export function chooseResponse(
 import { FACTORISATION_SKILLS } from "../../src/lotus/lotus-factorisation-catalogue";
 
 const SKILL_MISTAKES = new Map(FACTORISATION_SKILLS.map((s) => [s.id, new Set(s.mistakes)]));
-for (const persona of PERSONA_CATALOGUE) {
+for (const persona of [...PERSONA_CATALOGUE, ...MESSY_PERSONA_CATALOGUE]) {
   if (!persona.misconception) continue;
   const { skillId, mistakeCode } = persona.misconception;
   const mistakes = SKILL_MISTAKES.get(skillId);

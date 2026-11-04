@@ -16,8 +16,10 @@ function question(studio = false, seed = "puzzle"): LotusQuestion {
         predictedMistakes: [{ answer: studio ? "(x - 4)^2" : "(x + 3)(x + 4)", mistake: studio ? "WROTE_PERFECT_SQUARE" : "SIGNS_SWAPPED" }] } } };
 }
 const context = { turn: 3, repurposed: false };
+// These tests pin the puzzles; themed games taking some of their questions are covered in lotus-games.v1.spec.ts.
+const puzzlesOnly = { COGNA_THEMED_GAMES: "off" };
 const response = (answer = ""): LotusStudentResponse => ({ answer, working: "", confidence: 60, responseTimeMs: 20000, didNotKnow: false });
-function installed(studio = false) { return withLotusInteraction(question(studio), context, {}); }
+function installed(studio = false) { return withLotusInteraction(question(studio), context, puzzlesOnly); }
 function correctPicks(q: LotusQuestion): number[] {
   const interaction = q.interaction!;
   if (interaction.format === "CUT_BUILD_STUDIO") return ["x + 4", "x - 4"].map((part) => interaction.tiles.indexOf(part));
@@ -38,14 +40,14 @@ describe("Lotus diagnostic crossword and cut-and-build", () => {
   });
   it("preserves targeted checks, easy Garden, written hard items, and the kill switch", () => {
     for (const studio of [false, true]) {
-      assert.notEqual(withLotusInteraction(question(studio), { ...context, repurposed: true }, {}).interaction?.format, studio ? "CUT_BUILD_STUDIO" : "FACTOR_CROSSWORD");
+      assert.notEqual(withLotusInteraction(question(studio), { ...context, repurposed: true }, puzzlesOnly).interaction?.format, studio ? "CUT_BUILD_STUDIO" : "FACTOR_CROSSWORD");
       assert.equal(withLotusInteraction(question(studio), context, { COGNA_GAME_FORMATS: "off" }).interaction, undefined);
     }
     for (const level of ["easy", "hard"] as const) { const q = question(); q.answerKey.diagnostics!.level = level; assert.equal(buildLotusPuzzle(q), undefined); }
   });
   it("is deterministic and carries no ordered solution in public interaction data", () => {
     for (let seed = 0; seed < 40; seed++) {
-      const q = withLotusInteraction(question(false, `seed-${seed}`), context, {});
+      const q = withLotusInteraction(question(false, `seed-${seed}`), context, puzzlesOnly);
       assert.deepEqual(buildLotusPuzzle(question(false, `seed-${seed}`)), buildLotusPuzzle(question(false, `seed-${seed}`)));
       assert.equal(instantVerdict(q, resolveLotusResponse(q, { ...response("forged answer"), interaction: { format: "FACTOR_CROSSWORD", picks: correctPicks(q) } })).verification.status, "VERIFIED_CORRECT");
       assert.doesNotMatch(JSON.stringify(q.interaction), /canonical|answer|solution|correct|mistake/i);

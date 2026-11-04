@@ -2,17 +2,17 @@
 
 import { useRef, useState, type PointerEvent } from "react";
 import { assembleTileAnswer, INTERACTION_FORMATS, type TileBuildInteraction } from "@cogna/shared";
-import { prettyAlgebra, type TileGameState } from "./TileGame";
+import { prettyAlgebra, initialTilePicks, type TileGameState } from "./TileGame";
 import styles from "./diagnostic-puzzles.module.css";
 
 /** No correctness checks here: the scene records choices, never teaches the solution. Remount per question ID. */
-export function DiagnosticPuzzle({ interaction, disabled = false, onChange }: {
-  interaction: TileBuildInteraction; disabled?: boolean; onChange: (state: TileGameState) => void;
+export function DiagnosticPuzzle({ interaction, disabled = false, onChange, initialState }: {
+  interaction: TileBuildInteraction; initialState?: TileGameState | null; disabled?: boolean; onChange: (state: TileGameState) => void;
 }) {
-  const [picks, setPicks] = useState<Array<number | null>>(() => Array(interaction.slots).fill(null));
+  const [picks, setPicks] = useState<Array<number | null>>(() => initialTilePicks(interaction, initialState));
   const [active, setActive] = useState(0);
   const [focusClue, setFocusClue] = useState<number | null>(null);
-  const changes = useRef(0);
+  const changes = useRef(initialState?.changes ?? 0);
   const dragged = useRef<number | null>(null);
   const crossword = interaction.format === "FACTOR_CROSSWORD";
   const spec = INTERACTION_FORMATS[interaction.format];

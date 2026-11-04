@@ -1,5 +1,7 @@
-import type { LotusQuestion, LotusStudentResponse } from "@cogna/shared";
+import type { LotusGameConfig, LotusGameKind, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
+import { chooseLotusGame, gameOfPreferredKind, isTypedGame, LotusGameError, readLotusGame, themedGamesEnabled } from "./lotus-games";
+import { DRESSABLE_KINDS } from "./lotus-format-guide";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
 
@@ -35,12 +37,27 @@ export function chooseLotusInteraction(
   }) ?? undefined;
 }
 
+function withGame(question: LotusQuestion, game: LotusGameConfig): LotusQuestion {
+  question.game = game;
+  // A typed game is typed like any other answer, so its working stays.
+  if (!isTypedGame(game.kind)) question.asksForWorking = false;
+  // Sharing the tokens already says how sure the student is; don't ask again.
+  if (game.kind === "SPLIT_CONFIDENCE") question.requiresConfidenceProbe = false;
+  return question;
+}
+
 /** Attaches a tile game to the question when one applies. Mutates and returns the question. */
-export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
+export function withLotusInteraction(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind; preferredKinds?: readonly LotusGameKind[] }, env: NodeJS.ProcessEnv = process.env): LotusQuestion {
   // A game probe (e.g. garden fences) already carries its own checked tiles.
-  if (question.interaction) {
+  // A game probe (garden fences, a rapid set) already carries its own checked game.
+  if (question.interaction || question.game) {
     question.asksForWorking = false;
     return question;
+  }
+  // The new games are how Lotus asks. Whatever none of them fits stays typed; the older games only return with the switch off.
+  if (themedGamesEnabled(env)) {
+    const game = chooseLotusGame(question, context, env);
+    return game ? withGame(question, game) : question;
   }
   const puzzle = gameFormatsEnabled(env) && !context.repurposed ? buildLotusPuzzle(question) : undefined;
   if (puzzle) {
@@ -68,6 +85,21 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
   return question;
 }
 
+/**
+ * This question in another format, or undefined if it can't be: a question built
+ * for its own game keeps it, as does a staged choice. A new id, because a browser
+ * may already hold the old version and must still be able to submit it.
+ */
+export function redressedQuestion(question: LotusQuestion, kinds: readonly LotusGameKind[], previousKind: LotusGameKind | undefined, newId: string): LotusQuestion | undefined {
+  if (question.presentation || question.interaction) return undefined;
+  if (question.game && !DRESSABLE_KINDS.includes(question.game.kind)) return undefined;
+  const game = gameOfPreferredKind(question, kinds, previousKind);
+  if (!game || game.kind === question.game?.kind) return undefined;
+  const next = withGame({ ...structuredClone(question), id: newId }, game);
+  if (isTypedGame(game.kind)) next.asksForWorking = true;
+  return next;
+}
+
 export class TileAnswerError extends Error {}
 
 /**
@@ -77,8 +109,31 @@ export class TileAnswerError extends Error {}
  * may switch to typing).
  */
 export function resolveLotusResponse(question: LotusQuestion, response: LotusStudentResponse): LotusStudentResponse {
+  // A reading is something the server writes; one sent by the browser is never kept.
+  const { gameReading: _reading, ...sent } = response;
+  response = sent;
+  if (response.game && !response.didNotKnow) {
+    // A game's answer is rebuilt, and its process read, from the payload against the game this server issued.
+    let read: ReturnType<typeof readLotusGame>;
+    try {
+      read = readLotusGame(question, response.game);
+    } catch (err) {
+      if (err instanceof LotusGameError) throw new TileAnswerError(err.message);
+      throw err;
+    }
+    const { interaction: _tiles, ...rest } = response;
+    return {
+      ...rest,
+      answer: read.answer,
+      working: response.working ?? "",
+      didNotKnow: read.didNotKnow ?? response.didNotKnow,
+      ...(read.confidence !== undefined ? { confidence: read.confidence } : {}),
+      game: read.game,
+      gameReading: read.reading,
+    };
+  }
   if (!response.interaction || response.didNotKnow) {
-    const { interaction: _unused, ...typed } = response;
+    const { interaction: _unused, game: _game, ...typed } = response;
     return typed;
   }
   if (!question.interaction) throw new TileAnswerError("This question isn't a tile question.");

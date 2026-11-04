@@ -23,8 +23,11 @@ export type InteractionStage = "DIAGNOSTIC" | "EXIT" | "PRACTICE";
  */
 export type TileBuildFormat = "BRACKET_BRIDGE" | "FACTOR_BUILDER" | "TERM_BUILDER" | "FACTOR_CROSSWORD" | "CUT_BUILD_STUDIO";
 
+/** Every answer format: the tile games, and the themed games (see lotus-games.ts). */
+export type InteractionFormatId = TileBuildFormat | "THEMED_GAME";
+
 export interface InteractionFormatSpec {
-  id: TileBuildFormat;
+  id: InteractionFormatId;
   /** Student-facing name of the game. */
   title: string;
   /** One line telling the student what to do. */
@@ -34,7 +37,12 @@ export interface InteractionFormatSpec {
   constructed: boolean;
 }
 
-export const INTERACTION_FORMATS: Record<TileBuildFormat, InteractionFormatSpec> = {
+export const INTERACTION_FORMATS: Record<InteractionFormatId, InteractionFormatSpec> = {
+  THEMED_GAME: {
+    id: "THEMED_GAME", title: "Themed game",
+    instruction: "Play the game in the look you picked. The answer is read from your play.",
+    stages: ["DIAGNOSTIC"], constructed: false,
+  },
   FACTOR_CROSSWORD: {
     id: "FACTOR_CROSSWORD", title: "Factor crossword",
     instruction: "Place four factors so each crossing makes the expression inside it.",

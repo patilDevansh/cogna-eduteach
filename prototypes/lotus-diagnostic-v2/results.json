@@ -1,0 +1,2051 @@
+{
+  "slip": 0.08,
+  "doors": {
+    "b": 3,
+    "c": -4,
+    "right": "(x−1)(x+4)",
+    "sw": "(x−4)(x+1)",
+    "ps": "(x−3)(x−1)",
+    "po": "(x−2)(x+2)"
+  },
+  "skills": {
+    "PAIR": {
+      "name": "Monic trinomials (x² + bx + c)",
+      "states": {
+        "M": 0.35,
+        "SIGNS_SWAPPED": 0.2,
+        "PRODUCT_SUM_SWAPPED": 0.1,
+        "PRODUCT_ONLY": 0.15,
+        "UNK": 0.2
+      }
+    },
+    "VERIFY": {
+      "name": "Checking a factorisation by expanding",
+      "states": {
+        "M": 0.4,
+        "FIRST_LAST_ONLY": 0.35,
+        "UNK": 0.25
+      }
+    },
+    "NEGATIVE": {
+      "name": "Taking out a negative factor",
+      "states": {
+        "M": 0.35,
+        "FLIPPED_ONE_SIGN": 0.25,
+        "KEPT_ORIGINAL_SIGNS": 0.15,
+        "UNK": 0.25
+      }
+    },
+    "MEANING": {
+      "name": "What 'fully factorised' means",
+      "states": {
+        "M": 0.4,
+        "SUM_ACCEPTED": 0.25,
+        "COMBINED_UNLIKE": 0.1,
+        "UNK": 0.25
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "old-firefly",
+      "skill": "PAIR",
+      "era": "old",
+      "label": "Firefly: which two numbers multiply to −15 and add to 2?",
+      "seconds": 20,
+      "bits": 0.415,
+      "maxBits": 2.322,
+      "bitsPerMin": 1.25,
+      "namedRate": 0,
+      "falseRate": 0,
+      "perState": {
+        "M": {
+          "UNSURE": 1
+        },
+        "SIGNS_SWAPPED": {
+          "UNSURE": 1
+        },
+        "PRODUCT_SUM_SWAPPED": {
+          "UNSURE": 1
+        },
+        "PRODUCT_ONLY": {
+          "UNSURE": 1
+        },
+        "UNK": {
+          "UNSURE": 1
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.35,
+          "SIGNS_SWAPPED": 0.2,
+          "PRODUCT_SUM_SWAPPED": 0.1,
+          "PRODUCT_ONLY": 0.15,
+          "UNK": 0.2
+        },
+        "L": {
+          "M": {
+            "right": 0.9400000000000001,
+            "sign": 0.02,
+            "other": 0.02,
+            "prod": 0.02
+          },
+          "SIGNS_SWAPPED": {
+            "right": 0.9400000000000001,
+            "sign": 0.02,
+            "other": 0.02,
+            "prod": 0.02
+          },
+          "PRODUCT_SUM_SWAPPED": {
+            "right": 0.25,
+            "sign": 0.25,
+            "other": 0.25,
+            "prod": 0.25
+          },
+          "PRODUCT_ONLY": {
+            "right": 0.32666666666666666,
+            "sign": 0.32666666666666666,
+            "other": 0.32666666666666666,
+            "prod": 0.02
+          },
+          "UNK": {
+            "right": 0.25,
+            "sign": 0.25,
+            "other": 0.25,
+            "prod": 0.25
+          }
+        }
+      }
+    },
+    {
+      "id": "new-doors-noconf",
+      "skill": "PAIR",
+      "era": "new*",
+      "label": "Doors without the confidence tap: x² + 3x − 4 = ?",
+      "seconds": 25,
+      "bits": 0.888,
+      "maxBits": 2.322,
+      "bitsPerMin": 2.13,
+      "namedRate": 0.418,
+      "falseRate": 0.104,
+      "perState": {
+        "M": {
+          "M": 0.9400000000000001,
+          "SIGNS_SWAPPED": 0.02,
+          "UNSURE": 0.04
+        },
+        "SIGNS_SWAPPED": {
+          "SIGNS_SWAPPED": 0.9400000000000001,
+          "M": 0.02,
+          "UNSURE": 0.04
+        },
+        "PRODUCT_SUM_SWAPPED": {
+          "UNSURE": 0.9600000000000001,
+          "M": 0.02,
+          "SIGNS_SWAPPED": 0.02
+        },
+        "PRODUCT_ONLY": {
+          "M": 0.32666666666666666,
+          "SIGNS_SWAPPED": 0.32666666666666666,
+          "UNSURE": 0.3466666666666667
+        },
+        "UNK": {
+          "M": 0.25,
+          "SIGNS_SWAPPED": 0.25,
+          "UNSURE": 0.5
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.35,
+          "SIGNS_SWAPPED": 0.2,
+          "PRODUCT_SUM_SWAPPED": 0.1,
+          "PRODUCT_ONLY": 0.15,
+          "UNK": 0.2
+        },
+        "L": {
+          "M": {
+            "(x−1)(x+4)": 0.9400000000000001,
+            "(x−4)(x+1)": 0.02,
+            "(x−3)(x−1)": 0.02,
+            "(x−2)(x+2)": 0.02
+          },
+          "SIGNS_SWAPPED": {
+            "(x−4)(x+1)": 0.9400000000000001,
+            "(x−1)(x+4)": 0.02,
+            "(x−3)(x−1)": 0.02,
+            "(x−2)(x+2)": 0.02
+          },
+          "PRODUCT_SUM_SWAPPED": {
+            "(x−3)(x−1)": 0.9400000000000001,
+            "(x−1)(x+4)": 0.02,
+            "(x−4)(x+1)": 0.02,
+            "(x−2)(x+2)": 0.02
+          },
+          "PRODUCT_ONLY": {
+            "(x−1)(x+4)": 0.32666666666666666,
+            "(x−4)(x+1)": 0.32666666666666666,
+            "(x−2)(x+2)": 0.32666666666666666,
+            "(x−3)(x−1)": 0.02
+          },
+          "UNK": {
+            "(x−1)(x+4)": 0.25,
+            "(x−4)(x+1)": 0.25,
+            "(x−3)(x−1)": 0.25,
+            "(x−2)(x+2)": 0.25
+          }
+        }
+      }
+    },
+    {
+      "id": "new-doors",
+      "skill": "PAIR",
+      "era": "new",
+      "label": "Doors: x² + 3x − 4 = ? (every wrong door is a different mistake) + how sure?",
+      "seconds": 30,
+      "bits": 1.093,
+      "maxBits": 2.322,
+      "bitsPerMin": 2.19,
+      "namedRate": 0.629,
+      "falseRate": 0.116,
+      "perState": {
+        "M": {
+          "M": 0.8930000000000001,
+          "UNSURE": 0.052000000000000005,
+          "SIGNS_SWAPPED": 0.019,
+          "PRODUCT_SUM_SWAPPED": 0.019,
+          "UNK": 0.002,
+          "PRODUCT_ONLY": 0.015
+        },
+        "SIGNS_SWAPPED": {
+          "SIGNS_SWAPPED": 0.8460000000000001,
+          "UNSURE": 0.10200000000000002,
+          "M": 0.018000000000000002,
+          "PRODUCT_SUM_SWAPPED": 0.018000000000000002,
+          "UNK": 0.004,
+          "PRODUCT_ONLY": 0.012
+        },
+        "PRODUCT_SUM_SWAPPED": {
+          "PRODUCT_SUM_SWAPPED": 0.8460000000000001,
+          "UNK": 0.09600000000000002,
+          "M": 0.018000000000000002,
+          "UNSURE": 0.01,
+          "SIGNS_SWAPPED": 0.018000000000000002,
+          "PRODUCT_ONLY": 0.012
+        },
+        "PRODUCT_ONLY": {
+          "M": 0.294,
+          "UNSURE": 0.16333333333333333,
+          "SIGNS_SWAPPED": 0.294,
+          "PRODUCT_ONLY": 0.19599999999999998,
+          "UNK": 0.03466666666666667,
+          "PRODUCT_SUM_SWAPPED": 0.018000000000000002
+        },
+        "UNK": {
+          "M": 0.1,
+          "UNSURE": 0.375,
+          "SIGNS_SWAPPED": 0.1,
+          "PRODUCT_SUM_SWAPPED": 0.1,
+          "UNK": 0.3,
+          "PRODUCT_ONLY": 0.025
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.35,
+          "SIGNS_SWAPPED": 0.2,
+          "PRODUCT_SUM_SWAPPED": 0.1,
+          "PRODUCT_ONLY": 0.15,
+          "UNK": 0.2
+        },
+        "L": {
+          "M": {
+            "(x−1)(x+4)|sure": 0.7050000000000001,
+            "(x−1)(x+4)|think": 0.18800000000000003,
+            "(x−1)(x+4)|guess": 0.04700000000000001,
+            "(x−4)(x+1)|sure": 0.015,
+            "(x−4)(x+1)|think": 0.004,
+            "(x−4)(x+1)|guess": 0.001,
+            "(x−3)(x−1)|sure": 0.015,
+            "(x−3)(x−1)|think": 0.004,
+            "(x−3)(x−1)|guess": 0.001,
+            "(x−2)(x+2)|sure": 0.015,
+            "(x−2)(x+2)|think": 0.004,
+            "(x−2)(x+2)|guess": 0.001
+          },
+          "SIGNS_SWAPPED": {
+            "(x−4)(x+1)|sure": 0.5640000000000001,
+            "(x−4)(x+1)|think": 0.28200000000000003,
+            "(x−4)(x+1)|guess": 0.09400000000000001,
+            "(x−1)(x+4)|sure": 0.012,
+            "(x−1)(x+4)|think": 0.006,
+            "(x−1)(x+4)|guess": 0.002,
+            "(x−3)(x−1)|sure": 0.012,
+            "(x−3)(x−1)|think": 0.006,
+            "(x−3)(x−1)|guess": 0.002,
+            "(x−2)(x+2)|sure": 0.012,
+            "(x−2)(x+2)|think": 0.006,
+            "(x−2)(x+2)|guess": 0.002
+          },
+          "PRODUCT_SUM_SWAPPED": {
+            "(x−3)(x−1)|sure": 0.5640000000000001,
+            "(x−3)(x−1)|think": 0.28200000000000003,
+            "(x−3)(x−1)|guess": 0.09400000000000001,
+            "(x−1)(x+4)|sure": 0.012,
+            "(x−1)(x+4)|think": 0.006,
+            "(x−1)(x+4)|guess": 0.002,
+            "(x−4)(x+1)|sure": 0.012,
+            "(x−4)(x+1)|think": 0.006,
+            "(x−4)(x+1)|guess": 0.002,
+            "(x−2)(x+2)|sure": 0.012,
+            "(x−2)(x+2)|think": 0.006,
+            "(x−2)(x+2)|guess": 0.002
+          },
+          "PRODUCT_ONLY": {
+            "(x−1)(x+4)|sure": 0.19599999999999998,
+            "(x−1)(x+4)|think": 0.09799999999999999,
+            "(x−1)(x+4)|guess": 0.03266666666666667,
+            "(x−4)(x+1)|sure": 0.19599999999999998,
+            "(x−4)(x+1)|think": 0.09799999999999999,
+            "(x−4)(x+1)|guess": 0.03266666666666667,
+            "(x−2)(x+2)|sure": 0.19599999999999998,
+            "(x−2)(x+2)|think": 0.09799999999999999,
+            "(x−2)(x+2)|guess": 0.03266666666666667,
+            "(x−3)(x−1)|sure": 0.012,
+            "(x−3)(x−1)|think": 0.006,
+            "(x−3)(x−1)|guess": 0.002
+          },
+          "UNK": {
+            "(x−1)(x+4)|sure": 0.025,
+            "(x−1)(x+4)|think": 0.075,
+            "(x−1)(x+4)|guess": 0.15,
+            "(x−4)(x+1)|sure": 0.025,
+            "(x−4)(x+1)|think": 0.075,
+            "(x−4)(x+1)|guess": 0.15,
+            "(x−3)(x−1)|sure": 0.025,
+            "(x−3)(x−1)|think": 0.075,
+            "(x−3)(x−1)|guess": 0.15,
+            "(x−2)(x+2)|sure": 0.025,
+            "(x−2)(x+2)|think": 0.075,
+            "(x−2)(x+2)|guess": 0.15
+          }
+        }
+      }
+    },
+    {
+      "id": "old-impostor",
+      "skill": "VERIFY",
+      "era": "old",
+      "label": "Impostor: three of these are x² + 5x + 6 in disguise. Which isn't?",
+      "seconds": 25,
+      "bits": 0.38,
+      "maxBits": 1.585,
+      "bitsPerMin": 0.91,
+      "namedRate": 0,
+      "falseRate": 0,
+      "perState": {
+        "M": {
+          "M": 0.9400000000000001,
+          "UNSURE": 0.06
+        },
+        "FIRST_LAST_ONLY": {
+          "M": 0.25,
+          "UNSURE": 0.75
+        },
+        "UNK": {
+          "M": 0.25,
+          "UNSURE": 0.75
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.4,
+          "FIRST_LAST_ONLY": 0.35,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "impostor": 0.9400000000000001,
+            "eq1": 0.02,
+            "eq2": 0.02,
+            "eq3": 0.02
+          },
+          "FIRST_LAST_ONLY": {
+            "impostor": 0.25,
+            "eq1": 0.25,
+            "eq2": 0.25,
+            "eq3": 0.25
+          },
+          "UNK": {
+            "impostor": 0.25,
+            "eq1": 0.25,
+            "eq2": 0.25,
+            "eq3": 0.25
+          }
+        }
+      }
+    },
+    {
+      "id": "new-riyasam-noconf",
+      "skill": "VERIFY",
+      "era": "new*",
+      "label": "Riya vs Sam, answer + reason only",
+      "seconds": 30,
+      "bits": 1.079,
+      "maxBits": 1.585,
+      "bitsPerMin": 2.16,
+      "namedRate": 0.846,
+      "falseRate": 0.041,
+      "perState": {
+        "M": {
+          "M": 0.8930000000000001,
+          "UNSURE": 0.07740000000000001,
+          "UNK": 0.026000000000000002,
+          "FIRST_LAST_ONLY": 0.0036
+        },
+        "FIRST_LAST_ONLY": {
+          "FIRST_LAST_ONLY": 0.8460000000000001,
+          "UNSURE": 0.09100000000000001,
+          "UNK": 0.05800000000000001,
+          "M": 0.005
+        },
+        "UNK": {
+          "UNK": 0.6499999999999999,
+          "M": 0.1,
+          "UNSURE": 0.15,
+          "FIRST_LAST_ONLY": 0.1
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.4,
+          "FIRST_LAST_ONLY": 0.35,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "onlyRiya|expandedAll": 0.7520000000000001,
+            "onlyRiya|signsLook": 0.14100000000000001,
+            "onlyRiya|firstLast": 0.0282,
+            "onlyRiya|guessed": 0.0188,
+            "onlySam|expandedAll": 0.016,
+            "onlySam|signsLook": 0.003,
+            "onlySam|firstLast": 0.0006,
+            "onlySam|guessed": 0.0004,
+            "both|expandedAll": 0.016,
+            "both|signsLook": 0.003,
+            "both|firstLast": 0.0006,
+            "both|guessed": 0.0004,
+            "neither|expandedAll": 0.016,
+            "neither|signsLook": 0.003,
+            "neither|firstLast": 0.0006,
+            "neither|guessed": 0.0004
+          },
+          "FIRST_LAST_ONLY": {
+            "both|firstLast": 0.658,
+            "both|signsLook": 0.18800000000000003,
+            "both|expandedAll": 0.04700000000000001,
+            "both|guessed": 0.04700000000000001,
+            "onlyRiya|firstLast": 0.013999999999999999,
+            "onlyRiya|signsLook": 0.004,
+            "onlyRiya|expandedAll": 0.001,
+            "onlyRiya|guessed": 0.001,
+            "onlySam|firstLast": 0.013999999999999999,
+            "onlySam|signsLook": 0.004,
+            "onlySam|expandedAll": 0.001,
+            "onlySam|guessed": 0.001,
+            "neither|firstLast": 0.013999999999999999,
+            "neither|signsLook": 0.004,
+            "neither|expandedAll": 0.001,
+            "neither|guessed": 0.001
+          },
+          "UNK": {
+            "onlyRiya|guessed": 0.125,
+            "onlyRiya|signsLook": 0.075,
+            "onlyRiya|firstLast": 0.025,
+            "onlyRiya|expandedAll": 0.025,
+            "onlySam|guessed": 0.125,
+            "onlySam|signsLook": 0.075,
+            "onlySam|firstLast": 0.025,
+            "onlySam|expandedAll": 0.025,
+            "both|guessed": 0.125,
+            "both|signsLook": 0.075,
+            "both|firstLast": 0.025,
+            "both|expandedAll": 0.025,
+            "neither|guessed": 0.125,
+            "neither|signsLook": 0.075,
+            "neither|firstLast": 0.025,
+            "neither|expandedAll": 0.025
+          }
+        }
+      }
+    },
+    {
+      "id": "new-riyasam",
+      "skill": "VERIFY",
+      "era": "new",
+      "label": "Riya vs Sam: who is right? → how did you decide? → how sure?",
+      "seconds": 35,
+      "bits": 1.203,
+      "maxBits": 1.585,
+      "bitsPerMin": 2.06,
+      "namedRate": 0.915,
+      "falseRate": 0.044,
+      "perState": {
+        "M": {
+          "M": 0.9452000000000002,
+          "UNK": 0.018170000000000002,
+          "UNSURE": 0.01678,
+          "FIRST_LAST_ONLY": 0.019849999999999996
+        },
+        "FIRST_LAST_ONLY": {
+          "FIRST_LAST_ONLY": 0.9144999999999999,
+          "UNK": 0.052700000000000025,
+          "M": 0.014799999999999997,
+          "UNSURE": 0.018
+        },
+        "UNK": {
+          "M": 0.07500000000000001,
+          "UNK": 0.7899999999999999,
+          "UNSURE": 0.0525,
+          "FIRST_LAST_ONLY": 0.08250000000000002
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.4,
+          "FIRST_LAST_ONLY": 0.35,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "onlyRiya|expandedAll|sure": 0.5640000000000001,
+            "onlyRiya|expandedAll|think": 0.15040000000000003,
+            "onlyRiya|expandedAll|guess": 0.03760000000000001,
+            "onlyRiya|signsLook|sure": 0.10575000000000001,
+            "onlyRiya|signsLook|think": 0.028200000000000003,
+            "onlyRiya|signsLook|guess": 0.007050000000000001,
+            "onlyRiya|firstLast|sure": 0.02115,
+            "onlyRiya|firstLast|think": 0.00564,
+            "onlyRiya|firstLast|guess": 0.00141,
+            "onlyRiya|guessed|sure": 0.014100000000000001,
+            "onlyRiya|guessed|think": 0.0037600000000000003,
+            "onlyRiya|guessed|guess": 0.0009400000000000001,
+            "onlySam|expandedAll|sure": 0.012,
+            "onlySam|expandedAll|think": 0.0032,
+            "onlySam|expandedAll|guess": 0.0008,
+            "onlySam|signsLook|sure": 0.0022500000000000003,
+            "onlySam|signsLook|think": 0.0006000000000000001,
+            "onlySam|signsLook|guess": 0.00015000000000000001,
+            "onlySam|firstLast|sure": 0.00045,
+            "onlySam|firstLast|think": 0.00011999999999999999,
+            "onlySam|firstLast|guess": 0.000029999999999999997,
+            "onlySam|guessed|sure": 0.00030000000000000003,
+            "onlySam|guessed|think": 0.00008,
+            "onlySam|guessed|guess": 0.00002,
+            "both|expandedAll|sure": 0.012,
+            "both|expandedAll|think": 0.0032,
+            "both|expandedAll|guess": 0.0008,
+            "both|signsLook|sure": 0.0022500000000000003,
+            "both|signsLook|think": 0.0006000000000000001,
+            "both|signsLook|guess": 0.00015000000000000001,
+            "both|firstLast|sure": 0.00045,
+            "both|firstLast|think": 0.00011999999999999999,
+            "both|firstLast|guess": 0.000029999999999999997,
+            "both|guessed|sure": 0.00030000000000000003,
+            "both|guessed|think": 0.00008,
+            "both|guessed|guess": 0.00002,
+            "neither|expandedAll|sure": 0.012,
+            "neither|expandedAll|think": 0.0032,
+            "neither|expandedAll|guess": 0.0008,
+            "neither|signsLook|sure": 0.0022500000000000003,
+            "neither|signsLook|think": 0.0006000000000000001,
+            "neither|signsLook|guess": 0.00015000000000000001,
+            "neither|firstLast|sure": 0.00045,
+            "neither|firstLast|think": 0.00011999999999999999,
+            "neither|firstLast|guess": 0.000029999999999999997,
+            "neither|guessed|sure": 0.00030000000000000003,
+            "neither|guessed|think": 0.00008,
+            "neither|guessed|guess": 0.00002
+          },
+          "FIRST_LAST_ONLY": {
+            "both|firstLast|sure": 0.3948,
+            "both|firstLast|think": 0.1974,
+            "both|firstLast|guess": 0.06580000000000001,
+            "both|signsLook|sure": 0.11280000000000001,
+            "both|signsLook|think": 0.056400000000000006,
+            "both|signsLook|guess": 0.018800000000000004,
+            "both|expandedAll|sure": 0.028200000000000003,
+            "both|expandedAll|think": 0.014100000000000001,
+            "both|expandedAll|guess": 0.004700000000000001,
+            "both|guessed|sure": 0.028200000000000003,
+            "both|guessed|think": 0.014100000000000001,
+            "both|guessed|guess": 0.004700000000000001,
+            "onlyRiya|firstLast|sure": 0.0084,
+            "onlyRiya|firstLast|think": 0.0042,
+            "onlyRiya|firstLast|guess": 0.0014,
+            "onlyRiya|signsLook|sure": 0.0024,
+            "onlyRiya|signsLook|think": 0.0012,
+            "onlyRiya|signsLook|guess": 0.0004,
+            "onlyRiya|expandedAll|sure": 0.0006,
+            "onlyRiya|expandedAll|think": 0.0003,
+            "onlyRiya|expandedAll|guess": 0.0001,
+            "onlyRiya|guessed|sure": 0.0006,
+            "onlyRiya|guessed|think": 0.0003,
+            "onlyRiya|guessed|guess": 0.0001,
+            "onlySam|firstLast|sure": 0.0084,
+            "onlySam|firstLast|think": 0.0042,
+            "onlySam|firstLast|guess": 0.0014,
+            "onlySam|signsLook|sure": 0.0024,
+            "onlySam|signsLook|think": 0.0012,
+            "onlySam|signsLook|guess": 0.0004,
+            "onlySam|expandedAll|sure": 0.0006,
+            "onlySam|expandedAll|think": 0.0003,
+            "onlySam|expandedAll|guess": 0.0001,
+            "onlySam|guessed|sure": 0.0006,
+            "onlySam|guessed|think": 0.0003,
+            "onlySam|guessed|guess": 0.0001,
+            "neither|firstLast|sure": 0.0084,
+            "neither|firstLast|think": 0.0042,
+            "neither|firstLast|guess": 0.0014,
+            "neither|signsLook|sure": 0.0024,
+            "neither|signsLook|think": 0.0012,
+            "neither|signsLook|guess": 0.0004,
+            "neither|expandedAll|sure": 0.0006,
+            "neither|expandedAll|think": 0.0003,
+            "neither|expandedAll|guess": 0.0001,
+            "neither|guessed|sure": 0.0006,
+            "neither|guessed|think": 0.0003,
+            "neither|guessed|guess": 0.0001
+          },
+          "UNK": {
+            "onlyRiya|guessed|sure": 0.0125,
+            "onlyRiya|guessed|think": 0.0375,
+            "onlyRiya|guessed|guess": 0.075,
+            "onlyRiya|signsLook|sure": 0.0075,
+            "onlyRiya|signsLook|think": 0.0225,
+            "onlyRiya|signsLook|guess": 0.045,
+            "onlyRiya|firstLast|sure": 0.0025000000000000005,
+            "onlyRiya|firstLast|think": 0.0075,
+            "onlyRiya|firstLast|guess": 0.015,
+            "onlyRiya|expandedAll|sure": 0.0025000000000000005,
+            "onlyRiya|expandedAll|think": 0.0075,
+            "onlyRiya|expandedAll|guess": 0.015,
+            "onlySam|guessed|sure": 0.0125,
+            "onlySam|guessed|think": 0.0375,
+            "onlySam|guessed|guess": 0.075,
+            "onlySam|signsLook|sure": 0.0075,
+            "onlySam|signsLook|think": 0.0225,
+            "onlySam|signsLook|guess": 0.045,
+            "onlySam|firstLast|sure": 0.0025000000000000005,
+            "onlySam|firstLast|think": 0.0075,
+            "onlySam|firstLast|guess": 0.015,
+            "onlySam|expandedAll|sure": 0.0025000000000000005,
+            "onlySam|expandedAll|think": 0.0075,
+            "onlySam|expandedAll|guess": 0.015,
+            "both|guessed|sure": 0.0125,
+            "both|guessed|think": 0.0375,
+            "both|guessed|guess": 0.075,
+            "both|signsLook|sure": 0.0075,
+            "both|signsLook|think": 0.0225,
+            "both|signsLook|guess": 0.045,
+            "both|firstLast|sure": 0.0025000000000000005,
+            "both|firstLast|think": 0.0075,
+            "both|firstLast|guess": 0.015,
+            "both|expandedAll|sure": 0.0025000000000000005,
+            "both|expandedAll|think": 0.0075,
+            "both|expandedAll|guess": 0.015,
+            "neither|guessed|sure": 0.0125,
+            "neither|guessed|think": 0.0375,
+            "neither|guessed|guess": 0.075,
+            "neither|signsLook|sure": 0.0075,
+            "neither|signsLook|think": 0.0225,
+            "neither|signsLook|guess": 0.045,
+            "neither|firstLast|sure": 0.0025000000000000005,
+            "neither|firstLast|think": 0.0075,
+            "neither|firstLast|guess": 0.015,
+            "neither|expandedAll|sure": 0.0025000000000000005,
+            "neither|expandedAll|think": 0.0075,
+            "neither|expandedAll|guess": 0.015
+          }
+        }
+      }
+    },
+    {
+      "id": "old-detective",
+      "skill": "NEGATIVE",
+      "era": "old",
+      "label": "Detective: which line is the first to go wrong?",
+      "seconds": 25,
+      "bits": 0.663,
+      "maxBits": 2,
+      "bitsPerMin": 1.59,
+      "namedRate": 0.358,
+      "falseRate": 0.116,
+      "perState": {
+        "M": {
+          "M": 0.9400000000000001,
+          "UNK": 0.02,
+          "UNSURE": 0.02,
+          "FLIPPED_ONE_SIGN": 0.02
+        },
+        "FLIPPED_ONE_SIGN": {
+          "FLIPPED_ONE_SIGN": 0.5720000000000001,
+          "UNSURE": 0.38800000000000007,
+          "UNK": 0.02,
+          "M": 0.02
+        },
+        "KEPT_ORIGINAL_SIGNS": {
+          "M": 0.9400000000000001,
+          "UNK": 0.02,
+          "UNSURE": 0.02,
+          "FLIPPED_ONE_SIGN": 0.02
+        },
+        "UNK": {
+          "UNK": 0.25,
+          "M": 0.25,
+          "UNSURE": 0.25,
+          "FLIPPED_ONE_SIGN": 0.25
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.35,
+          "FLIPPED_ONE_SIGN": 0.25,
+          "KEPT_ORIGINAL_SIGNS": 0.15,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "L2": 0.9400000000000001,
+            "L1": 0.02,
+            "L3": 0.02,
+            "nothing": 0.02
+          },
+          "FLIPPED_ONE_SIGN": {
+            "nothing": 0.5720000000000001,
+            "L3": 0.38800000000000007,
+            "L1": 0.02,
+            "L2": 0.02
+          },
+          "KEPT_ORIGINAL_SIGNS": {
+            "L2": 0.9400000000000001,
+            "L1": 0.02,
+            "L3": 0.02,
+            "nothing": 0.02
+          },
+          "UNK": {
+            "L1": 0.25,
+            "L2": 0.25,
+            "L3": 0.25,
+            "nothing": 0.25
+          }
+        }
+      }
+    },
+    {
+      "id": "new-findfix-noconf",
+      "skill": "NEGATIVE",
+      "era": "new*",
+      "label": "Find & fix, no confidence tap",
+      "seconds": 30,
+      "bits": 1.035,
+      "maxBits": 2,
+      "bitsPerMin": 2.07,
+      "namedRate": 0.691,
+      "falseRate": 0.165,
+      "perState": {
+        "M": {
+          "M": 0.8898666666666667,
+          "KEPT_ORIGINAL_SIGNS": 0.025066666666666668,
+          "UNSURE": 0.04506666666666667,
+          "UNK": 0.02,
+          "FLIPPED_ONE_SIGN": 0.02
+        },
+        "FLIPPED_ONE_SIGN": {
+          "FLIPPED_ONE_SIGN": 0.5720000000000001,
+          "UNSURE": 0.3946666666666667,
+          "UNK": 0.02,
+          "M": 0.006666666666666666,
+          "KEPT_ORIGINAL_SIGNS": 0.006666666666666666
+        },
+        "KEPT_ORIGINAL_SIGNS": {
+          "KEPT_ORIGINAL_SIGNS": 0.8898666666666667,
+          "M": 0.025066666666666668,
+          "UNSURE": 0.04506666666666667,
+          "UNK": 0.02,
+          "FLIPPED_ONE_SIGN": 0.02
+        },
+        "UNK": {
+          "UNK": 0.25,
+          "M": 0.08333333333333333,
+          "KEPT_ORIGINAL_SIGNS": 0.08333333333333333,
+          "UNSURE": 0.3333333333333333,
+          "FLIPPED_ONE_SIGN": 0.25
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.35,
+          "FLIPPED_ONE_SIGN": 0.25,
+          "KEPT_ORIGINAL_SIGNS": 0.15,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "L2|fixRight": 0.8898666666666667,
+            "L2|fixKept": 0.025066666666666668,
+            "L2|fixOther": 0.025066666666666668,
+            "L1|-": 0.02,
+            "L3|-": 0.02,
+            "nothing|-": 0.02
+          },
+          "FLIPPED_ONE_SIGN": {
+            "nothing|-": 0.5720000000000001,
+            "L3|-": 0.38800000000000007,
+            "L1|-": 0.02,
+            "L2|fixRight": 0.006666666666666666,
+            "L2|fixKept": 0.006666666666666666,
+            "L2|fixOther": 0.006666666666666666
+          },
+          "KEPT_ORIGINAL_SIGNS": {
+            "L2|fixKept": 0.8898666666666667,
+            "L2|fixRight": 0.025066666666666668,
+            "L2|fixOther": 0.025066666666666668,
+            "L1|-": 0.02,
+            "L3|-": 0.02,
+            "nothing|-": 0.02
+          },
+          "UNK": {
+            "L1|-": 0.25,
+            "L2|fixRight": 0.08333333333333333,
+            "L2|fixKept": 0.08333333333333333,
+            "L2|fixOther": 0.08333333333333333,
+            "L3|-": 0.25,
+            "nothing|-": 0.25
+          }
+        }
+      }
+    },
+    {
+      "id": "new-findfix",
+      "skill": "NEGATIVE",
+      "era": "new",
+      "label": "Find the wrong line → choose its fix → how sure?",
+      "seconds": 35,
+      "bits": 1.226,
+      "maxBits": 2,
+      "bitsPerMin": 2.1,
+      "namedRate": 0.768,
+      "falseRate": 0.1,
+      "perState": {
+        "M": {
+          "M": 0.8453733333333333,
+          "UNSURE": 0.08354666666666667,
+          "KEPT_ORIGINAL_SIGNS": 0.023813333333333336,
+          "UNK": 0.01326666666666667,
+          "FLIPPED_ONE_SIGN": 0.034
+        },
+        "FLIPPED_ONE_SIGN": {
+          "FLIPPED_ONE_SIGN": 0.7476,
+          "UNK": 0.10666666666666669,
+          "UNSURE": 0.13373333333333337,
+          "M": 0.005999999999999998,
+          "KEPT_ORIGINAL_SIGNS": 0.005999999999999998
+        },
+        "KEPT_ORIGINAL_SIGNS": {
+          "KEPT_ORIGINAL_SIGNS": 0.8008799999999999,
+          "UNSURE": 0.12453333333333334,
+          "M": 0.02256,
+          "UNK": 0.022026666666666674,
+          "FLIPPED_ONE_SIGN": 0.03
+        },
+        "UNK": {
+          "UNSURE": 0.20833333333333331,
+          "UNK": 0.6,
+          "M": 0.03333333333333333,
+          "KEPT_ORIGINAL_SIGNS": 0.03333333333333333,
+          "FLIPPED_ONE_SIGN": 0.125
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.35,
+          "FLIPPED_ONE_SIGN": 0.25,
+          "KEPT_ORIGINAL_SIGNS": 0.15,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "L2|fixRight|sure": 0.6674,
+            "L2|fixRight|think": 0.17797333333333334,
+            "L2|fixRight|guess": 0.044493333333333336,
+            "L2|fixKept|sure": 0.0188,
+            "L2|fixKept|think": 0.005013333333333334,
+            "L2|fixKept|guess": 0.0012533333333333335,
+            "L2|fixOther|sure": 0.0188,
+            "L2|fixOther|think": 0.005013333333333334,
+            "L2|fixOther|guess": 0.0012533333333333335,
+            "L1|-|sure": 0.015,
+            "L1|-|think": 0.004,
+            "L1|-|guess": 0.001,
+            "L3|-|sure": 0.015,
+            "L3|-|think": 0.004,
+            "L3|-|guess": 0.001,
+            "nothing|-|sure": 0.015,
+            "nothing|-|think": 0.004,
+            "nothing|-|guess": 0.001
+          },
+          "FLIPPED_ONE_SIGN": {
+            "nothing|-|sure": 0.3432,
+            "nothing|-|think": 0.1716,
+            "nothing|-|guess": 0.05720000000000001,
+            "L3|-|sure": 0.23280000000000003,
+            "L3|-|think": 0.11640000000000002,
+            "L3|-|guess": 0.03880000000000001,
+            "L1|-|sure": 0.012,
+            "L1|-|think": 0.006,
+            "L1|-|guess": 0.002,
+            "L2|fixRight|sure": 0.003999999999999999,
+            "L2|fixRight|think": 0.0019999999999999996,
+            "L2|fixRight|guess": 0.0006666666666666666,
+            "L2|fixKept|sure": 0.003999999999999999,
+            "L2|fixKept|think": 0.0019999999999999996,
+            "L2|fixKept|guess": 0.0006666666666666666,
+            "L2|fixOther|sure": 0.003999999999999999,
+            "L2|fixOther|think": 0.0019999999999999996,
+            "L2|fixOther|guess": 0.0006666666666666666
+          },
+          "KEPT_ORIGINAL_SIGNS": {
+            "L2|fixKept|sure": 0.53392,
+            "L2|fixKept|think": 0.26696,
+            "L2|fixKept|guess": 0.08898666666666667,
+            "L2|fixRight|sure": 0.01504,
+            "L2|fixRight|think": 0.00752,
+            "L2|fixRight|guess": 0.002506666666666667,
+            "L2|fixOther|sure": 0.01504,
+            "L2|fixOther|think": 0.00752,
+            "L2|fixOther|guess": 0.002506666666666667,
+            "L1|-|sure": 0.012,
+            "L1|-|think": 0.006,
+            "L1|-|guess": 0.002,
+            "L3|-|sure": 0.012,
+            "L3|-|think": 0.006,
+            "L3|-|guess": 0.002,
+            "nothing|-|sure": 0.012,
+            "nothing|-|think": 0.006,
+            "nothing|-|guess": 0.002
+          },
+          "UNK": {
+            "L1|-|sure": 0.025,
+            "L1|-|think": 0.075,
+            "L1|-|guess": 0.15,
+            "L2|fixRight|sure": 0.008333333333333333,
+            "L2|fixRight|think": 0.024999999999999998,
+            "L2|fixRight|guess": 0.049999999999999996,
+            "L2|fixKept|sure": 0.008333333333333333,
+            "L2|fixKept|think": 0.024999999999999998,
+            "L2|fixKept|guess": 0.049999999999999996,
+            "L2|fixOther|sure": 0.008333333333333333,
+            "L2|fixOther|think": 0.024999999999999998,
+            "L2|fixOther|guess": 0.049999999999999996,
+            "L3|-|sure": 0.025,
+            "L3|-|think": 0.075,
+            "L3|-|guess": 0.15,
+            "nothing|-|sure": 0.025,
+            "nothing|-|think": 0.075,
+            "nothing|-|guess": 0.15
+          }
+        }
+      }
+    },
+    {
+      "id": "old-meaning",
+      "skill": "MEANING",
+      "era": "old",
+      "label": "Is 2y(x + 1) + 3(x + 1) fully factorised? (one tier)",
+      "seconds": 20,
+      "bits": 0.946,
+      "maxBits": 2,
+      "bitsPerMin": 2.84,
+      "namedRate": 0.671,
+      "falseRate": 0.108,
+      "perState": {
+        "M": {
+          "M": 0.9400000000000001,
+          "SUM_ACCEPTED": 0.02,
+          "UNSURE": 0.02,
+          "UNK": 0.02
+        },
+        "SUM_ACCEPTED": {
+          "SUM_ACCEPTED": 0.9400000000000001,
+          "M": 0.02,
+          "UNSURE": 0.02,
+          "UNK": 0.02
+        },
+        "COMBINED_UNLIKE": {
+          "UNSURE": 0.9400000000000001,
+          "SUM_ACCEPTED": 0.02,
+          "M": 0.02,
+          "UNK": 0.02
+        },
+        "UNK": {
+          "SUM_ACCEPTED": 0.25,
+          "M": 0.25,
+          "UNSURE": 0.25,
+          "UNK": 0.25
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.4,
+          "SUM_ACCEPTED": 0.25,
+          "COMBINED_UNLIKE": 0.1,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "noRight": 0.9400000000000001,
+            "yes": 0.02,
+            "noCombined": 0.02,
+            "noSquared": 0.02
+          },
+          "SUM_ACCEPTED": {
+            "yes": 0.9400000000000001,
+            "noRight": 0.02,
+            "noCombined": 0.02,
+            "noSquared": 0.02
+          },
+          "COMBINED_UNLIKE": {
+            "noCombined": 0.9400000000000001,
+            "yes": 0.02,
+            "noRight": 0.02,
+            "noSquared": 0.02
+          },
+          "UNK": {
+            "yes": 0.25,
+            "noRight": 0.25,
+            "noCombined": 0.25,
+            "noSquared": 0.25
+          }
+        }
+      }
+    },
+    {
+      "id": "new-meaning",
+      "skill": "MEANING",
+      "era": "new",
+      "label": "Same question → why? → how sure?",
+      "seconds": 35,
+      "bits": 1.352,
+      "maxBits": 2,
+      "bitsPerMin": 2.32,
+      "namedRate": 0.81,
+      "falseRate": 0.054,
+      "perState": {
+        "M": {
+          "M": 0.9238000000000002,
+          "UNSURE": 0.02920000000000001,
+          "UNK": 0.026600000000000006,
+          "SUM_ACCEPTED": 0.0187,
+          "COMBINED_UNLIKE": 0.0017000000000000001
+        },
+        "SUM_ACCEPTED": {
+          "SUM_ACCEPTED": 0.8742000000000001,
+          "UNK": 0.037600000000000015,
+          "UNSURE": 0.06760000000000001,
+          "M": 0.0185,
+          "COMBINED_UNLIKE": 0.0021
+        },
+        "COMBINED_UNLIKE": {
+          "COMBINED_UNLIKE": 0.6486,
+          "UNSURE": 0.25300000000000006,
+          "UNK": 0.06980000000000001,
+          "SUM_ACCEPTED": 0.013299999999999998,
+          "M": 0.015299999999999998
+        },
+        "UNK": {
+          "SUM_ACCEPTED": 0.08125,
+          "UNSURE": 0.12625,
+          "UNK": 0.6874999999999999,
+          "M": 0.07750000000000001,
+          "COMBINED_UNLIKE": 0.0275
+        }
+      },
+      "table": {
+        "prior": {
+          "M": 0.4,
+          "SUM_ACCEPTED": 0.25,
+          "COMBINED_UNLIKE": 0.1,
+          "UNK": 0.25
+        },
+        "L": {
+          "M": {
+            "noRight|oneProduct|sure": 0.5640000000000001,
+            "noRight|oneProduct|think": 0.15040000000000003,
+            "noRight|oneProduct|guess": 0.03760000000000001,
+            "noRight|addLike|sure": 0.035250000000000004,
+            "noRight|addLike|think": 0.009400000000000002,
+            "noRight|addLike|guess": 0.0023500000000000005,
+            "noRight|allBrackets|sure": 0.07050000000000001,
+            "noRight|allBrackets|think": 0.018800000000000004,
+            "noRight|allBrackets|guess": 0.004700000000000001,
+            "noRight|guessed|sure": 0.035250000000000004,
+            "noRight|guessed|think": 0.009400000000000002,
+            "noRight|guessed|guess": 0.0023500000000000005,
+            "yes|oneProduct|sure": 0.012,
+            "yes|oneProduct|think": 0.0032,
+            "yes|oneProduct|guess": 0.0008,
+            "yes|addLike|sure": 0.00075,
+            "yes|addLike|think": 0.0002,
+            "yes|addLike|guess": 0.00005,
+            "yes|allBrackets|sure": 0.0015,
+            "yes|allBrackets|think": 0.0004,
+            "yes|allBrackets|guess": 0.0001,
+            "yes|guessed|sure": 0.00075,
+            "yes|guessed|think": 0.0002,
+            "yes|guessed|guess": 0.00005,
+            "noCombined|oneProduct|sure": 0.012,
+            "noCombined|oneProduct|think": 0.0032,
+            "noCombined|oneProduct|guess": 0.0008,
+            "noCombined|addLike|sure": 0.00075,
+            "noCombined|addLike|think": 0.0002,
+            "noCombined|addLike|guess": 0.00005,
+            "noCombined|allBrackets|sure": 0.0015,
+            "noCombined|allBrackets|think": 0.0004,
+            "noCombined|allBrackets|guess": 0.0001,
+            "noCombined|guessed|sure": 0.00075,
+            "noCombined|guessed|think": 0.0002,
+            "noCombined|guessed|guess": 0.00005,
+            "noSquared|oneProduct|sure": 0.012,
+            "noSquared|oneProduct|think": 0.0032,
+            "noSquared|oneProduct|guess": 0.0008,
+            "noSquared|addLike|sure": 0.00075,
+            "noSquared|addLike|think": 0.0002,
+            "noSquared|addLike|guess": 0.00005,
+            "noSquared|allBrackets|sure": 0.0015,
+            "noSquared|allBrackets|think": 0.0004,
+            "noSquared|allBrackets|guess": 0.0001,
+            "noSquared|guessed|sure": 0.00075,
+            "noSquared|guessed|think": 0.0002,
+            "noSquared|guessed|guess": 0.00005
+          },
+          "SUM_ACCEPTED": {
+            "yes|allBrackets|sure": 0.42300000000000004,
+            "yes|allBrackets|think": 0.21150000000000002,
+            "yes|allBrackets|guess": 0.07050000000000001,
+            "yes|oneProduct|sure": 0.056400000000000006,
+            "yes|oneProduct|think": 0.028200000000000003,
+            "yes|oneProduct|guess": 0.009400000000000002,
+            "yes|addLike|sure": 0.028200000000000003,
+            "yes|addLike|think": 0.014100000000000001,
+            "yes|addLike|guess": 0.004700000000000001,
+            "yes|guessed|sure": 0.056400000000000006,
+            "yes|guessed|think": 0.028200000000000003,
+            "yes|guessed|guess": 0.009400000000000002,
+            "noRight|allBrackets|sure": 0.009,
+            "noRight|allBrackets|think": 0.0045,
+            "noRight|allBrackets|guess": 0.0015,
+            "noRight|oneProduct|sure": 0.0012,
+            "noRight|oneProduct|think": 0.0006,
+            "noRight|oneProduct|guess": 0.0002,
+            "noRight|addLike|sure": 0.0006,
+            "noRight|addLike|think": 0.0003,
+            "noRight|addLike|guess": 0.0001,
+            "noRight|guessed|sure": 0.0012,
+            "noRight|guessed|think": 0.0006,
+            "noRight|guessed|guess": 0.0002,
+            "noCombined|allBrackets|sure": 0.009,
+            "noCombined|allBrackets|think": 0.0045,
+            "noCombined|allBrackets|guess": 0.0015,
+            "noCombined|oneProduct|sure": 0.0012,
+            "noCombined|oneProduct|think": 0.0006,
+            "noCombined|oneProduct|guess": 0.0002,
+            "noCombined|addLike|sure": 0.0006,
+            "noCombined|addLike|think": 0.0003,
+            "noCombined|addLike|guess": 0.0001,
+            "noCombined|guessed|sure": 0.0012,
+            "noCombined|guessed|think": 0.0006,
+            "noCombined|guessed|guess": 0.0002,
+            "noSquared|allBrackets|sure": 0.009,
+            "noSquared|allBrackets|think": 0.0045,
+            "noSquared|allBrackets|guess": 0.0015,
+            "noSquared|oneProduct|sure": 0.0012,
+            "noSquared|oneProduct|think": 0.0006,
+            "noSquared|oneProduct|guess": 0.0002,
+            "noSquared|addLike|sure": 0.0006,
+            "noSquared|addLike|think": 0.0003,
+            "noSquared|addLike|guess": 0.0001,
+            "noSquared|guessed|sure": 0.0012,
+            "noSquared|guessed|think": 0.0006,
+            "noSquared|guessed|guess": 0.0002
+          },
+          "COMBINED_UNLIKE": {
+            "noCombined|addLike|sure": 0.3948,
+            "noCombined|addLike|think": 0.1974,
+            "noCombined|addLike|guess": 0.06580000000000001,
+            "noCombined|oneProduct|sure": 0.08460000000000001,
+            "noCombined|oneProduct|think": 0.042300000000000004,
+            "noCombined|oneProduct|guess": 0.014100000000000001,
+            "noCombined|allBrackets|sure": 0.028200000000000003,
+            "noCombined|allBrackets|think": 0.014100000000000001,
+            "noCombined|allBrackets|guess": 0.004700000000000001,
+            "noCombined|guessed|sure": 0.056400000000000006,
+            "noCombined|guessed|think": 0.028200000000000003,
+            "noCombined|guessed|guess": 0.009400000000000002,
+            "yes|addLike|sure": 0.0084,
+            "yes|addLike|think": 0.0042,
+            "yes|addLike|guess": 0.0014,
+            "yes|oneProduct|sure": 0.0018,
+            "yes|oneProduct|think": 0.0009,
+            "yes|oneProduct|guess": 0.00030000000000000003,
+            "yes|allBrackets|sure": 0.0006,
+            "yes|allBrackets|think": 0.0003,
+            "yes|allBrackets|guess": 0.0001,
+            "yes|guessed|sure": 0.0012,
+            "yes|guessed|think": 0.0006,
+            "yes|guessed|guess": 0.0002,
+            "noRight|addLike|sure": 0.0084,
+            "noRight|addLike|think": 0.0042,
+            "noRight|addLike|guess": 0.0014,
+            "noRight|oneProduct|sure": 0.0018,
+            "noRight|oneProduct|think": 0.0009,
+            "noRight|oneProduct|guess": 0.00030000000000000003,
+            "noRight|allBrackets|sure": 0.0006,
+            "noRight|allBrackets|think": 0.0003,
+            "noRight|allBrackets|guess": 0.0001,
+            "noRight|guessed|sure": 0.0012,
+            "noRight|guessed|think": 0.0006,
+            "noRight|guessed|guess": 0.0002,
+            "noSquared|addLike|sure": 0.0084,
+            "noSquared|addLike|think": 0.0042,
+            "noSquared|addLike|guess": 0.0014,
+            "noSquared|oneProduct|sure": 0.0018,
+            "noSquared|oneProduct|think": 0.0009,
+            "noSquared|oneProduct|guess": 0.00030000000000000003,
+            "noSquared|allBrackets|sure": 0.0006,
+            "noSquared|allBrackets|think": 0.0003,
+            "noSquared|allBrackets|guess": 0.0001,
+            "noSquared|guessed|sure": 0.0012,
+            "noSquared|guessed|think": 0.0006,
+            "noSquared|guessed|guess": 0.0002
+          },
+          "UNK": {
+            "yes|guessed|sure": 0.0125,
+            "yes|guessed|think": 0.0375,
+            "yes|guessed|guess": 0.075,
+            "yes|allBrackets|sure": 0.005000000000000001,
+            "yes|allBrackets|think": 0.015,
+            "yes|allBrackets|guess": 0.03,
+            "yes|oneProduct|sure": 0.00375,
+            "yes|oneProduct|think": 0.01125,
+            "yes|oneProduct|guess": 0.0225,
+            "yes|addLike|sure": 0.00375,
+            "yes|addLike|think": 0.01125,
+            "yes|addLike|guess": 0.0225,
+            "noRight|guessed|sure": 0.0125,
+            "noRight|guessed|think": 0.0375,
+            "noRight|guessed|guess": 0.075,
+            "noRight|allBrackets|sure": 0.005000000000000001,
+            "noRight|allBrackets|think": 0.015,
+            "noRight|allBrackets|guess": 0.03,
+            "noRight|oneProduct|sure": 0.00375,
+            "noRight|oneProduct|think": 0.01125,
+            "noRight|oneProduct|guess": 0.0225,
+            "noRight|addLike|sure": 0.00375,
+            "noRight|addLike|think": 0.01125,
+            "noRight|addLike|guess": 0.0225,
+            "noCombined|guessed|sure": 0.0125,
+            "noCombined|guessed|think": 0.0375,
+            "noCombined|guessed|guess": 0.075,
+            "noCombined|allBrackets|sure": 0.005000000000000001,
+            "noCombined|allBrackets|think": 0.015,
+            "noCombined|allBrackets|guess": 0.03,
+            "noCombined|oneProduct|sure": 0.00375,
+            "noCombined|oneProduct|think": 0.01125,
+            "noCombined|oneProduct|guess": 0.0225,
+            "noCombined|addLike|sure": 0.00375,
+            "noCombined|addLike|think": 0.01125,
+            "noCombined|addLike|guess": 0.0225,
+            "noSquared|guessed|sure": 0.0125,
+            "noSquared|guessed|think": 0.0375,
+            "noSquared|guessed|guess": 0.075,
+            "noSquared|allBrackets|sure": 0.005000000000000001,
+            "noSquared|allBrackets|think": 0.015,
+            "noSquared|allBrackets|guess": 0.03,
+            "noSquared|oneProduct|sure": 0.00375,
+            "noSquared|oneProduct|think": 0.01125,
+            "noSquared|oneProduct|guess": 0.0225,
+            "noSquared|addLike|sure": 0.00375,
+            "noSquared|addLike|think": 0.01125,
+            "noSquared|addLike|guess": 0.0225
+          }
+        }
+      }
+    }
+  ],
+  "batteries": [
+    {
+      "era": "old",
+      "perSkill": 1,
+      "minutes": 1.5,
+      "namedRate": 0.243,
+      "falseRate": 0.056,
+      "unknownSpotted": 0.132
+    },
+    {
+      "era": "old",
+      "perSkill": 2,
+      "minutes": 3,
+      "namedRate": 0.349,
+      "falseRate": 0.04,
+      "unknownSpotted": 0.355
+    },
+    {
+      "era": "old",
+      "perSkill": 3,
+      "minutes": 4.5,
+      "namedRate": 0.332,
+      "falseRate": 0.015,
+      "unknownSpotted": 0.443
+    },
+    {
+      "era": "new",
+      "perSkill": 1,
+      "minutes": 2.3,
+      "namedRate": 0.769,
+      "falseRate": 0.076,
+      "unknownSpotted": 0.608
+    },
+    {
+      "era": "new",
+      "perSkill": 2,
+      "minutes": 4.5,
+      "namedRate": 0.855,
+      "falseRate": 0.026,
+      "unknownSpotted": 0.848
+    }
+  ],
+  "sensitivity": {
+    "items": [
+      {
+        "id": "new-doors",
+        "skill": "PAIR",
+        "era": "new",
+        "label": "Doors: x² + 3x − 4 = ? (every wrong door is a different mistake) + how sure?",
+        "seconds": 30,
+        "bits": 0.943,
+        "maxBits": 2.322,
+        "bitsPerMin": 1.89,
+        "namedRate": 0.366,
+        "falseRate": 0.087,
+        "perState": {
+          "M": {
+            "M": 0.8460000000000001,
+            "UNSURE": 0.12400000000000003,
+            "SIGNS_SWAPPED": 0.018000000000000002,
+            "PRODUCT_SUM_SWAPPED": 0.012
+          },
+          "SIGNS_SWAPPED": {
+            "SIGNS_SWAPPED": 0.658,
+            "UNSURE": 0.32100000000000006,
+            "M": 0.013999999999999999,
+            "PRODUCT_SUM_SWAPPED": 0.006999999999999999
+          },
+          "PRODUCT_SUM_SWAPPED": {
+            "PRODUCT_SUM_SWAPPED": 0.329,
+            "UNSURE": 0.643,
+            "M": 0.013999999999999999,
+            "SIGNS_SWAPPED": 0.013999999999999999
+          },
+          "PRODUCT_ONLY": {
+            "M": 0.22866666666666666,
+            "UNSURE": 0.5356666666666666,
+            "SIGNS_SWAPPED": 0.22866666666666666,
+            "PRODUCT_SUM_SWAPPED": 0.006999999999999999
+          },
+          "UNK": {
+            "M": 0.1375,
+            "UNSURE": 0.675,
+            "SIGNS_SWAPPED": 0.1375,
+            "PRODUCT_SUM_SWAPPED": 0.05
+          }
+        },
+        "table": {
+          "prior": {
+            "M": 0.35,
+            "SIGNS_SWAPPED": 0.2,
+            "PRODUCT_SUM_SWAPPED": 0.1,
+            "PRODUCT_ONLY": 0.15,
+            "UNK": 0.2
+          },
+          "L": {
+            "M": {
+              "(x−1)(x+4)|sure": 0.5640000000000001,
+              "(x−1)(x+4)|think": 0.28200000000000003,
+              "(x−1)(x+4)|guess": 0.09400000000000001,
+              "(x−4)(x+1)|sure": 0.012,
+              "(x−4)(x+1)|think": 0.006,
+              "(x−4)(x+1)|guess": 0.002,
+              "(x−3)(x−1)|sure": 0.012,
+              "(x−3)(x−1)|think": 0.006,
+              "(x−3)(x−1)|guess": 0.002,
+              "(x−2)(x+2)|sure": 0.012,
+              "(x−2)(x+2)|think": 0.006,
+              "(x−2)(x+2)|guess": 0.002
+            },
+            "SIGNS_SWAPPED": {
+              "(x−4)(x+1)|sure": 0.329,
+              "(x−4)(x+1)|think": 0.329,
+              "(x−4)(x+1)|guess": 0.28200000000000003,
+              "(x−1)(x+4)|sure": 0.006999999999999999,
+              "(x−1)(x+4)|think": 0.006999999999999999,
+              "(x−1)(x+4)|guess": 0.006,
+              "(x−3)(x−1)|sure": 0.006999999999999999,
+              "(x−3)(x−1)|think": 0.006999999999999999,
+              "(x−3)(x−1)|guess": 0.006,
+              "(x−2)(x+2)|sure": 0.006999999999999999,
+              "(x−2)(x+2)|think": 0.006999999999999999,
+              "(x−2)(x+2)|guess": 0.006
+            },
+            "PRODUCT_SUM_SWAPPED": {
+              "(x−3)(x−1)|sure": 0.329,
+              "(x−3)(x−1)|think": 0.329,
+              "(x−3)(x−1)|guess": 0.28200000000000003,
+              "(x−1)(x+4)|sure": 0.006999999999999999,
+              "(x−1)(x+4)|think": 0.006999999999999999,
+              "(x−1)(x+4)|guess": 0.006,
+              "(x−4)(x+1)|sure": 0.006999999999999999,
+              "(x−4)(x+1)|think": 0.006999999999999999,
+              "(x−4)(x+1)|guess": 0.006,
+              "(x−2)(x+2)|sure": 0.006999999999999999,
+              "(x−2)(x+2)|think": 0.006999999999999999,
+              "(x−2)(x+2)|guess": 0.006
+            },
+            "PRODUCT_ONLY": {
+              "(x−1)(x+4)|sure": 0.11433333333333333,
+              "(x−1)(x+4)|think": 0.11433333333333333,
+              "(x−1)(x+4)|guess": 0.09799999999999999,
+              "(x−4)(x+1)|sure": 0.11433333333333333,
+              "(x−4)(x+1)|think": 0.11433333333333333,
+              "(x−4)(x+1)|guess": 0.09799999999999999,
+              "(x−2)(x+2)|sure": 0.11433333333333333,
+              "(x−2)(x+2)|think": 0.11433333333333333,
+              "(x−2)(x+2)|guess": 0.09799999999999999,
+              "(x−3)(x−1)|sure": 0.006999999999999999,
+              "(x−3)(x−1)|think": 0.006999999999999999,
+              "(x−3)(x−1)|guess": 0.006
+            },
+            "UNK": {
+              "(x−1)(x+4)|sure": 0.05,
+              "(x−1)(x+4)|think": 0.0875,
+              "(x−1)(x+4)|guess": 0.1125,
+              "(x−4)(x+1)|sure": 0.05,
+              "(x−4)(x+1)|think": 0.0875,
+              "(x−4)(x+1)|guess": 0.1125,
+              "(x−3)(x−1)|sure": 0.05,
+              "(x−3)(x−1)|think": 0.0875,
+              "(x−3)(x−1)|guess": 0.1125,
+              "(x−2)(x+2)|sure": 0.05,
+              "(x−2)(x+2)|think": 0.0875,
+              "(x−2)(x+2)|guess": 0.1125
+            }
+          }
+        }
+      },
+      {
+        "id": "new-riyasam",
+        "skill": "VERIFY",
+        "era": "new",
+        "label": "Riya vs Sam: who is right? → how did you decide? → how sure?",
+        "seconds": 35,
+        "bits": 1.113,
+        "maxBits": 1.585,
+        "bitsPerMin": 1.91,
+        "namedRate": 0.846,
+        "falseRate": 0.041,
+        "perState": {
+          "M": {
+            "M": 0.9150200000000003,
+            "UNSURE": 0.06357999999999998,
+            "UNK": 0.017800000000000003,
+            "FIRST_LAST_ONLY": 0.0036000000000000003
+          },
+          "FIRST_LAST_ONLY": {
+            "FIRST_LAST_ONLY": 0.846,
+            "UNSURE": 0.09440000000000003,
+            "UNK": 0.05020000000000002,
+            "M": 0.009399999999999999
+          },
+          "UNK": {
+            "UNSURE": 0.17375000000000004,
+            "UNK": 0.645,
+            "M": 0.08125000000000002,
+            "FIRST_LAST_ONLY": 0.09999999999999999
+          }
+        },
+        "table": {
+          "prior": {
+            "M": 0.4,
+            "FIRST_LAST_ONLY": 0.35,
+            "UNK": 0.25
+          },
+          "L": {
+            "M": {
+              "onlyRiya|expandedAll|sure": 0.45120000000000005,
+              "onlyRiya|expandedAll|think": 0.22560000000000002,
+              "onlyRiya|expandedAll|guess": 0.07520000000000002,
+              "onlyRiya|signsLook|sure": 0.08460000000000001,
+              "onlyRiya|signsLook|think": 0.042300000000000004,
+              "onlyRiya|signsLook|guess": 0.014100000000000001,
+              "onlyRiya|firstLast|sure": 0.016919999999999998,
+              "onlyRiya|firstLast|think": 0.008459999999999999,
+              "onlyRiya|firstLast|guess": 0.00282,
+              "onlyRiya|guessed|sure": 0.01128,
+              "onlyRiya|guessed|think": 0.00564,
+              "onlyRiya|guessed|guess": 0.0018800000000000002,
+              "onlySam|expandedAll|sure": 0.0096,
+              "onlySam|expandedAll|think": 0.0048,
+              "onlySam|expandedAll|guess": 0.0016,
+              "onlySam|signsLook|sure": 0.0018,
+              "onlySam|signsLook|think": 0.0009,
+              "onlySam|signsLook|guess": 0.00030000000000000003,
+              "onlySam|firstLast|sure": 0.00035999999999999997,
+              "onlySam|firstLast|think": 0.00017999999999999998,
+              "onlySam|firstLast|guess": 0.000059999999999999995,
+              "onlySam|guessed|sure": 0.00024,
+              "onlySam|guessed|think": 0.00012,
+              "onlySam|guessed|guess": 0.00004,
+              "both|expandedAll|sure": 0.0096,
+              "both|expandedAll|think": 0.0048,
+              "both|expandedAll|guess": 0.0016,
+              "both|signsLook|sure": 0.0018,
+              "both|signsLook|think": 0.0009,
+              "both|signsLook|guess": 0.00030000000000000003,
+              "both|firstLast|sure": 0.00035999999999999997,
+              "both|firstLast|think": 0.00017999999999999998,
+              "both|firstLast|guess": 0.000059999999999999995,
+              "both|guessed|sure": 0.00024,
+              "both|guessed|think": 0.00012,
+              "both|guessed|guess": 0.00004,
+              "neither|expandedAll|sure": 0.0096,
+              "neither|expandedAll|think": 0.0048,
+              "neither|expandedAll|guess": 0.0016,
+              "neither|signsLook|sure": 0.0018,
+              "neither|signsLook|think": 0.0009,
+              "neither|signsLook|guess": 0.00030000000000000003,
+              "neither|firstLast|sure": 0.00035999999999999997,
+              "neither|firstLast|think": 0.00017999999999999998,
+              "neither|firstLast|guess": 0.000059999999999999995,
+              "neither|guessed|sure": 0.00024,
+              "neither|guessed|think": 0.00012,
+              "neither|guessed|guess": 0.00004
+            },
+            "FIRST_LAST_ONLY": {
+              "both|firstLast|sure": 0.2303,
+              "both|firstLast|think": 0.2303,
+              "both|firstLast|guess": 0.1974,
+              "both|signsLook|sure": 0.06580000000000001,
+              "both|signsLook|think": 0.06580000000000001,
+              "both|signsLook|guess": 0.056400000000000006,
+              "both|expandedAll|sure": 0.016450000000000003,
+              "both|expandedAll|think": 0.016450000000000003,
+              "both|expandedAll|guess": 0.014100000000000001,
+              "both|guessed|sure": 0.016450000000000003,
+              "both|guessed|think": 0.016450000000000003,
+              "both|guessed|guess": 0.014100000000000001,
+              "onlyRiya|firstLast|sure": 0.004899999999999999,
+              "onlyRiya|firstLast|think": 0.004899999999999999,
+              "onlyRiya|firstLast|guess": 0.0042,
+              "onlyRiya|signsLook|sure": 0.0014,
+              "onlyRiya|signsLook|think": 0.0014,
+              "onlyRiya|signsLook|guess": 0.0012,
+              "onlyRiya|expandedAll|sure": 0.00035,
+              "onlyRiya|expandedAll|think": 0.00035,
+              "onlyRiya|expandedAll|guess": 0.0003,
+              "onlyRiya|guessed|sure": 0.00035,
+              "onlyRiya|guessed|think": 0.00035,
+              "onlyRiya|guessed|guess": 0.0003,
+              "onlySam|firstLast|sure": 0.004899999999999999,
+              "onlySam|firstLast|think": 0.004899999999999999,
+              "onlySam|firstLast|guess": 0.0042,
+              "onlySam|signsLook|sure": 0.0014,
+              "onlySam|signsLook|think": 0.0014,
+              "onlySam|signsLook|guess": 0.0012,
+              "onlySam|expandedAll|sure": 0.00035,
+              "onlySam|expandedAll|think": 0.00035,
+              "onlySam|expandedAll|guess": 0.0003,
+              "onlySam|guessed|sure": 0.00035,
+              "onlySam|guessed|think": 0.00035,
+              "onlySam|guessed|guess": 0.0003,
+              "neither|firstLast|sure": 0.004899999999999999,
+              "neither|firstLast|think": 0.004899999999999999,
+              "neither|firstLast|guess": 0.0042,
+              "neither|signsLook|sure": 0.0014,
+              "neither|signsLook|think": 0.0014,
+              "neither|signsLook|guess": 0.0012,
+              "neither|expandedAll|sure": 0.00035,
+              "neither|expandedAll|think": 0.00035,
+              "neither|expandedAll|guess": 0.0003,
+              "neither|guessed|sure": 0.00035,
+              "neither|guessed|think": 0.00035,
+              "neither|guessed|guess": 0.0003
+            },
+            "UNK": {
+              "onlyRiya|guessed|sure": 0.025,
+              "onlyRiya|guessed|think": 0.04375,
+              "onlyRiya|guessed|guess": 0.05625,
+              "onlyRiya|signsLook|sure": 0.015,
+              "onlyRiya|signsLook|think": 0.02625,
+              "onlyRiya|signsLook|guess": 0.03375,
+              "onlyRiya|firstLast|sure": 0.005000000000000001,
+              "onlyRiya|firstLast|think": 0.008749999999999999,
+              "onlyRiya|firstLast|guess": 0.011250000000000001,
+              "onlyRiya|expandedAll|sure": 0.005000000000000001,
+              "onlyRiya|expandedAll|think": 0.008749999999999999,
+              "onlyRiya|expandedAll|guess": 0.011250000000000001,
+              "onlySam|guessed|sure": 0.025,
+              "onlySam|guessed|think": 0.04375,
+              "onlySam|guessed|guess": 0.05625,
+              "onlySam|signsLook|sure": 0.015,
+              "onlySam|signsLook|think": 0.02625,
+              "onlySam|signsLook|guess": 0.03375,
+              "onlySam|firstLast|sure": 0.005000000000000001,
+              "onlySam|firstLast|think": 0.008749999999999999,
+              "onlySam|firstLast|guess": 0.011250000000000001,
+              "onlySam|expandedAll|sure": 0.005000000000000001,
+              "onlySam|expandedAll|think": 0.008749999999999999,
+              "onlySam|expandedAll|guess": 0.011250000000000001,
+              "both|guessed|sure": 0.025,
+              "both|guessed|think": 0.04375,
+              "both|guessed|guess": 0.05625,
+              "both|signsLook|sure": 0.015,
+              "both|signsLook|think": 0.02625,
+              "both|signsLook|guess": 0.03375,
+              "both|firstLast|sure": 0.005000000000000001,
+              "both|firstLast|think": 0.008749999999999999,
+              "both|firstLast|guess": 0.011250000000000001,
+              "both|expandedAll|sure": 0.005000000000000001,
+              "both|expandedAll|think": 0.008749999999999999,
+              "both|expandedAll|guess": 0.011250000000000001,
+              "neither|guessed|sure": 0.025,
+              "neither|guessed|think": 0.04375,
+              "neither|guessed|guess": 0.05625,
+              "neither|signsLook|sure": 0.015,
+              "neither|signsLook|think": 0.02625,
+              "neither|signsLook|guess": 0.03375,
+              "neither|firstLast|sure": 0.005000000000000001,
+              "neither|firstLast|think": 0.008749999999999999,
+              "neither|firstLast|guess": 0.011250000000000001,
+              "neither|expandedAll|sure": 0.005000000000000001,
+              "neither|expandedAll|think": 0.008749999999999999,
+              "neither|expandedAll|guess": 0.011250000000000001
+            }
+          }
+        }
+      },
+      {
+        "id": "new-findfix",
+        "skill": "NEGATIVE",
+        "era": "new",
+        "label": "Find the wrong line → choose its fix → how sure?",
+        "seconds": 35,
+        "bits": 1.077,
+        "maxBits": 2,
+        "bitsPerMin": 1.85,
+        "namedRate": 0.669,
+        "falseRate": 0.145,
+        "perState": {
+          "M": {
+            "M": 0.8898666666666666,
+            "KEPT_ORIGINAL_SIGNS": 0.025066666666666668,
+            "UNSURE": 0.02504,
+            "UNK": 0.030026666666666667,
+            "FLIPPED_ONE_SIGN": 0.03
+          },
+          "FLIPPED_ONE_SIGN": {
+            "FLIPPED_ONE_SIGN": 0.5362,
+            "UNSURE": 0.42613333333333336,
+            "UNK": 0.02433333333333333,
+            "M": 0.006666666666666666,
+            "KEPT_ORIGINAL_SIGNS": 0.006666666666666666
+          },
+          "KEPT_ORIGINAL_SIGNS": {
+            "KEPT_ORIGINAL_SIGNS": 0.8898666666666666,
+            "M": 0.025066666666666664,
+            "UNSURE": 0.02777333333333333,
+            "UNK": 0.03629333333333333,
+            "FLIPPED_ONE_SIGN": 0.020999999999999998
+          },
+          "UNK": {
+            "UNK": 0.31666666666666665,
+            "M": 0.08333333333333333,
+            "KEPT_ORIGINAL_SIGNS": 0.08333333333333333,
+            "UNSURE": 0.32916666666666666,
+            "FLIPPED_ONE_SIGN": 0.1875
+          }
+        },
+        "table": {
+          "prior": {
+            "M": 0.35,
+            "FLIPPED_ONE_SIGN": 0.25,
+            "KEPT_ORIGINAL_SIGNS": 0.15,
+            "UNK": 0.25
+          },
+          "L": {
+            "M": {
+              "L2|fixRight|sure": 0.53392,
+              "L2|fixRight|think": 0.26696,
+              "L2|fixRight|guess": 0.08898666666666667,
+              "L2|fixKept|sure": 0.01504,
+              "L2|fixKept|think": 0.00752,
+              "L2|fixKept|guess": 0.002506666666666667,
+              "L2|fixOther|sure": 0.01504,
+              "L2|fixOther|think": 0.00752,
+              "L2|fixOther|guess": 0.002506666666666667,
+              "L1|-|sure": 0.012,
+              "L1|-|think": 0.006,
+              "L1|-|guess": 0.002,
+              "L3|-|sure": 0.012,
+              "L3|-|think": 0.006,
+              "L3|-|guess": 0.002,
+              "nothing|-|sure": 0.012,
+              "nothing|-|think": 0.006,
+              "nothing|-|guess": 0.002
+            },
+            "FLIPPED_ONE_SIGN": {
+              "nothing|-|sure": 0.20020000000000002,
+              "nothing|-|think": 0.20020000000000002,
+              "nothing|-|guess": 0.1716,
+              "L3|-|sure": 0.1358,
+              "L3|-|think": 0.1358,
+              "L3|-|guess": 0.11640000000000002,
+              "L1|-|sure": 0.006999999999999999,
+              "L1|-|think": 0.006999999999999999,
+              "L1|-|guess": 0.006,
+              "L2|fixRight|sure": 0.002333333333333333,
+              "L2|fixRight|think": 0.002333333333333333,
+              "L2|fixRight|guess": 0.0019999999999999996,
+              "L2|fixKept|sure": 0.002333333333333333,
+              "L2|fixKept|think": 0.002333333333333333,
+              "L2|fixKept|guess": 0.0019999999999999996,
+              "L2|fixOther|sure": 0.002333333333333333,
+              "L2|fixOther|think": 0.002333333333333333,
+              "L2|fixOther|guess": 0.0019999999999999996
+            },
+            "KEPT_ORIGINAL_SIGNS": {
+              "L2|fixKept|sure": 0.3114533333333333,
+              "L2|fixKept|think": 0.3114533333333333,
+              "L2|fixKept|guess": 0.26696,
+              "L2|fixRight|sure": 0.008773333333333333,
+              "L2|fixRight|think": 0.008773333333333333,
+              "L2|fixRight|guess": 0.00752,
+              "L2|fixOther|sure": 0.008773333333333333,
+              "L2|fixOther|think": 0.008773333333333333,
+              "L2|fixOther|guess": 0.00752,
+              "L1|-|sure": 0.006999999999999999,
+              "L1|-|think": 0.006999999999999999,
+              "L1|-|guess": 0.006,
+              "L3|-|sure": 0.006999999999999999,
+              "L3|-|think": 0.006999999999999999,
+              "L3|-|guess": 0.006,
+              "nothing|-|sure": 0.006999999999999999,
+              "nothing|-|think": 0.006999999999999999,
+              "nothing|-|guess": 0.006
+            },
+            "UNK": {
+              "L1|-|sure": 0.05,
+              "L1|-|think": 0.0875,
+              "L1|-|guess": 0.1125,
+              "L2|fixRight|sure": 0.016666666666666666,
+              "L2|fixRight|think": 0.029166666666666664,
+              "L2|fixRight|guess": 0.0375,
+              "L2|fixKept|sure": 0.016666666666666666,
+              "L2|fixKept|think": 0.029166666666666664,
+              "L2|fixKept|guess": 0.0375,
+              "L2|fixOther|sure": 0.016666666666666666,
+              "L2|fixOther|think": 0.029166666666666664,
+              "L2|fixOther|guess": 0.0375,
+              "L3|-|sure": 0.05,
+              "L3|-|think": 0.0875,
+              "L3|-|guess": 0.1125,
+              "nothing|-|sure": 0.05,
+              "nothing|-|think": 0.0875,
+              "nothing|-|guess": 0.1125
+            }
+          }
+        }
+      },
+      {
+        "id": "new-meaning",
+        "skill": "MEANING",
+        "era": "new",
+        "label": "Same question → why? → how sure?",
+        "seconds": 35,
+        "bits": 1.233,
+        "maxBits": 2,
+        "bitsPerMin": 2.11,
+        "namedRate": 0.727,
+        "falseRate": 0.047,
+        "perState": {
+          "M": {
+            "M": 0.9026000000000002,
+            "UNSURE": 0.059800000000000006,
+            "UNK": 0.029200000000000007,
+            "SUM_ACCEPTED": 0.007399999999999999,
+            "COMBINED_UNLIKE": 0.001
+          },
+          "SUM_ACCEPTED": {
+            "SUM_ACCEPTED": 0.7543500000000001,
+            "UNSURE": 0.18075000000000005,
+            "UNK": 0.049650000000000014,
+            "M": 0.014249999999999995,
+            "COMBINED_UNLIKE": 0.001
+          },
+          "COMBINED_UNLIKE": {
+            "COMBINED_UNLIKE": 0.658,
+            "UNSURE": 0.19294999999999998,
+            "UNK": 0.13175000000000003,
+            "SUM_ACCEPTED": 0.006949999999999998,
+            "M": 0.010349999999999998
+          },
+          "UNK": {
+            "UNSURE": 0.246875,
+            "UNK": 0.5400000000000001,
+            "SUM_ACCEPTED": 0.070625,
+            "M": 0.10500000000000001,
+            "COMBINED_UNLIKE": 0.0375
+          }
+        },
+        "table": {
+          "prior": {
+            "M": 0.4,
+            "SUM_ACCEPTED": 0.25,
+            "COMBINED_UNLIKE": 0.1,
+            "UNK": 0.25
+          },
+          "L": {
+            "M": {
+              "noRight|oneProduct|sure": 0.45120000000000005,
+              "noRight|oneProduct|think": 0.22560000000000002,
+              "noRight|oneProduct|guess": 0.07520000000000002,
+              "noRight|addLike|sure": 0.028200000000000003,
+              "noRight|addLike|think": 0.014100000000000001,
+              "noRight|addLike|guess": 0.004700000000000001,
+              "noRight|allBrackets|sure": 0.056400000000000006,
+              "noRight|allBrackets|think": 0.028200000000000003,
+              "noRight|allBrackets|guess": 0.009400000000000002,
+              "noRight|guessed|sure": 0.028200000000000003,
+              "noRight|guessed|think": 0.014100000000000001,
+              "noRight|guessed|guess": 0.004700000000000001,
+              "yes|oneProduct|sure": 0.0096,
+              "yes|oneProduct|think": 0.0048,
+              "yes|oneProduct|guess": 0.0016,
+              "yes|addLike|sure": 0.0006,
+              "yes|addLike|think": 0.0003,
+              "yes|addLike|guess": 0.0001,
+              "yes|allBrackets|sure": 0.0012,
+              "yes|allBrackets|think": 0.0006,
+              "yes|allBrackets|guess": 0.0002,
+              "yes|guessed|sure": 0.0006,
+              "yes|guessed|think": 0.0003,
+              "yes|guessed|guess": 0.0001,
+              "noCombined|oneProduct|sure": 0.0096,
+              "noCombined|oneProduct|think": 0.0048,
+              "noCombined|oneProduct|guess": 0.0016,
+              "noCombined|addLike|sure": 0.0006,
+              "noCombined|addLike|think": 0.0003,
+              "noCombined|addLike|guess": 0.0001,
+              "noCombined|allBrackets|sure": 0.0012,
+              "noCombined|allBrackets|think": 0.0006,
+              "noCombined|allBrackets|guess": 0.0002,
+              "noCombined|guessed|sure": 0.0006,
+              "noCombined|guessed|think": 0.0003,
+              "noCombined|guessed|guess": 0.0001,
+              "noSquared|oneProduct|sure": 0.0096,
+              "noSquared|oneProduct|think": 0.0048,
+              "noSquared|oneProduct|guess": 0.0016,
+              "noSquared|addLike|sure": 0.0006,
+              "noSquared|addLike|think": 0.0003,
+              "noSquared|addLike|guess": 0.0001,
+              "noSquared|allBrackets|sure": 0.0012,
+              "noSquared|allBrackets|think": 0.0006,
+              "noSquared|allBrackets|guess": 0.0002,
+              "noSquared|guessed|sure": 0.0006,
+              "noSquared|guessed|think": 0.0003,
+              "noSquared|guessed|guess": 0.0001
+            },
+            "SUM_ACCEPTED": {
+              "yes|allBrackets|sure": 0.24675,
+              "yes|allBrackets|think": 0.24675,
+              "yes|allBrackets|guess": 0.21150000000000002,
+              "yes|oneProduct|sure": 0.032900000000000006,
+              "yes|oneProduct|think": 0.032900000000000006,
+              "yes|oneProduct|guess": 0.028200000000000003,
+              "yes|addLike|sure": 0.016450000000000003,
+              "yes|addLike|think": 0.016450000000000003,
+              "yes|addLike|guess": 0.014100000000000001,
+              "yes|guessed|sure": 0.032900000000000006,
+              "yes|guessed|think": 0.032900000000000006,
+              "yes|guessed|guess": 0.028200000000000003,
+              "noRight|allBrackets|sure": 0.0052499999999999995,
+              "noRight|allBrackets|think": 0.0052499999999999995,
+              "noRight|allBrackets|guess": 0.0045,
+              "noRight|oneProduct|sure": 0.0007,
+              "noRight|oneProduct|think": 0.0007,
+              "noRight|oneProduct|guess": 0.0006,
+              "noRight|addLike|sure": 0.00035,
+              "noRight|addLike|think": 0.00035,
+              "noRight|addLike|guess": 0.0003,
+              "noRight|guessed|sure": 0.0007,
+              "noRight|guessed|think": 0.0007,
+              "noRight|guessed|guess": 0.0006,
+              "noCombined|allBrackets|sure": 0.0052499999999999995,
+              "noCombined|allBrackets|think": 0.0052499999999999995,
+              "noCombined|allBrackets|guess": 0.0045,
+              "noCombined|oneProduct|sure": 0.0007,
+              "noCombined|oneProduct|think": 0.0007,
+              "noCombined|oneProduct|guess": 0.0006,
+              "noCombined|addLike|sure": 0.00035,
+              "noCombined|addLike|think": 0.00035,
+              "noCombined|addLike|guess": 0.0003,
+              "noCombined|guessed|sure": 0.0007,
+              "noCombined|guessed|think": 0.0007,
+              "noCombined|guessed|guess": 0.0006,
+              "noSquared|allBrackets|sure": 0.0052499999999999995,
+              "noSquared|allBrackets|think": 0.0052499999999999995,
+              "noSquared|allBrackets|guess": 0.0045,
+              "noSquared|oneProduct|sure": 0.0007,
+              "noSquared|oneProduct|think": 0.0007,
+              "noSquared|oneProduct|guess": 0.0006,
+              "noSquared|addLike|sure": 0.00035,
+              "noSquared|addLike|think": 0.00035,
+              "noSquared|addLike|guess": 0.0003,
+              "noSquared|guessed|sure": 0.0007,
+              "noSquared|guessed|think": 0.0007,
+              "noSquared|guessed|guess": 0.0006
+            },
+            "COMBINED_UNLIKE": {
+              "noCombined|addLike|sure": 0.2303,
+              "noCombined|addLike|think": 0.2303,
+              "noCombined|addLike|guess": 0.1974,
+              "noCombined|oneProduct|sure": 0.049350000000000005,
+              "noCombined|oneProduct|think": 0.049350000000000005,
+              "noCombined|oneProduct|guess": 0.042300000000000004,
+              "noCombined|allBrackets|sure": 0.016450000000000003,
+              "noCombined|allBrackets|think": 0.016450000000000003,
+              "noCombined|allBrackets|guess": 0.014100000000000001,
+              "noCombined|guessed|sure": 0.032900000000000006,
+              "noCombined|guessed|think": 0.032900000000000006,
+              "noCombined|guessed|guess": 0.028200000000000003,
+              "yes|addLike|sure": 0.004899999999999999,
+              "yes|addLike|think": 0.004899999999999999,
+              "yes|addLike|guess": 0.0042,
+              "yes|oneProduct|sure": 0.00105,
+              "yes|oneProduct|think": 0.00105,
+              "yes|oneProduct|guess": 0.0009,
+              "yes|allBrackets|sure": 0.00035,
+              "yes|allBrackets|think": 0.00035,
+              "yes|allBrackets|guess": 0.0003,
+              "yes|guessed|sure": 0.0007,
+              "yes|guessed|think": 0.0007,
+              "yes|guessed|guess": 0.0006,
+              "noRight|addLike|sure": 0.004899999999999999,
+              "noRight|addLike|think": 0.004899999999999999,
+              "noRight|addLike|guess": 0.0042,
+              "noRight|oneProduct|sure": 0.00105,
+              "noRight|oneProduct|think": 0.00105,
+              "noRight|oneProduct|guess": 0.0009,
+              "noRight|allBrackets|sure": 0.00035,
+              "noRight|allBrackets|think": 0.00035,
+              "noRight|allBrackets|guess": 0.0003,
+              "noRight|guessed|sure": 0.0007,
+              "noRight|guessed|think": 0.0007,
+              "noRight|guessed|guess": 0.0006,
+              "noSquared|addLike|sure": 0.004899999999999999,
+              "noSquared|addLike|think": 0.004899999999999999,
+              "noSquared|addLike|guess": 0.0042,
+              "noSquared|oneProduct|sure": 0.00105,
+              "noSquared|oneProduct|think": 0.00105,
+              "noSquared|oneProduct|guess": 0.0009,
+              "noSquared|allBrackets|sure": 0.00035,
+              "noSquared|allBrackets|think": 0.00035,
+              "noSquared|allBrackets|guess": 0.0003,
+              "noSquared|guessed|sure": 0.0007,
+              "noSquared|guessed|think": 0.0007,
+              "noSquared|guessed|guess": 0.0006
+            },
+            "UNK": {
+              "yes|guessed|sure": 0.025,
+              "yes|guessed|think": 0.04375,
+              "yes|guessed|guess": 0.05625,
+              "yes|allBrackets|sure": 0.010000000000000002,
+              "yes|allBrackets|think": 0.017499999999999998,
+              "yes|allBrackets|guess": 0.022500000000000003,
+              "yes|oneProduct|sure": 0.0075,
+              "yes|oneProduct|think": 0.013125,
+              "yes|oneProduct|guess": 0.016875,
+              "yes|addLike|sure": 0.0075,
+              "yes|addLike|think": 0.013125,
+              "yes|addLike|guess": 0.016875,
+              "noRight|guessed|sure": 0.025,
+              "noRight|guessed|think": 0.04375,
+              "noRight|guessed|guess": 0.05625,
+              "noRight|allBrackets|sure": 0.010000000000000002,
+              "noRight|allBrackets|think": 0.017499999999999998,
+              "noRight|allBrackets|guess": 0.022500000000000003,
+              "noRight|oneProduct|sure": 0.0075,
+              "noRight|oneProduct|think": 0.013125,
+              "noRight|oneProduct|guess": 0.016875,
+              "noRight|addLike|sure": 0.0075,
+              "noRight|addLike|think": 0.013125,
+              "noRight|addLike|guess": 0.016875,
+              "noCombined|guessed|sure": 0.025,
+              "noCombined|guessed|think": 0.04375,
+              "noCombined|guessed|guess": 0.05625,
+              "noCombined|allBrackets|sure": 0.010000000000000002,
+              "noCombined|allBrackets|think": 0.017499999999999998,
+              "noCombined|allBrackets|guess": 0.022500000000000003,
+              "noCombined|oneProduct|sure": 0.0075,
+              "noCombined|oneProduct|think": 0.013125,
+              "noCombined|oneProduct|guess": 0.016875,
+              "noCombined|addLike|sure": 0.0075,
+              "noCombined|addLike|think": 0.013125,
+              "noCombined|addLike|guess": 0.016875,
+              "noSquared|guessed|sure": 0.025,
+              "noSquared|guessed|think": 0.04375,
+              "noSquared|guessed|guess": 0.05625,
+              "noSquared|allBrackets|sure": 0.010000000000000002,
+              "noSquared|allBrackets|think": 0.017499999999999998,
+              "noSquared|allBrackets|guess": 0.022500000000000003,
+              "noSquared|oneProduct|sure": 0.0075,
+              "noSquared|oneProduct|think": 0.013125,
+              "noSquared|oneProduct|guess": 0.016875,
+              "noSquared|addLike|sure": 0.0075,
+              "noSquared|addLike|think": 0.013125,
+              "noSquared|addLike|guess": 0.016875
+            }
+          }
+        }
+      }
+    ],
+    "batteries": [
+      {
+        "era": "new",
+        "perSkill": 1,
+        "minutes": 2.3,
+        "namedRate": 0.634,
+        "falseRate": 0.078,
+        "unknownSpotted": 0.393
+      },
+      {
+        "era": "new",
+        "perSkill": 2,
+        "minutes": 4.5,
+        "namedRate": 0.828,
+        "falseRate": 0.052,
+        "unknownSpotted": 0.678
+      }
+    ]
+  }
+}

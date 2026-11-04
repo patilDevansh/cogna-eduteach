@@ -365,6 +365,9 @@ model Student {
    */
   aiAssistedPracticePaused Boolean @default(false)
 
+  /// The look the student chose for Lotus (studio | drafting | cabinet | soundlab); null until they pick. A class lock overrides it.
+  lotusTheme String?
+
   learnerProfile       LearnerProfile?
   parentNotifications  ParentNotification[]
   guardianPhones       StudentGuardianPhone[]
@@ -407,6 +410,8 @@ model Classroom {
   subjectId  String
   joinCode   String    @unique
   isDemo     Boolean   @default(false)
+  /// When set, every student in the class takes Lotus in this one theme and the picker is hidden. Null = students choose.
+  lockedTheme String?
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

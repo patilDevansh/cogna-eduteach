@@ -175,6 +175,8 @@ export interface PersonalizedVideoExitAttemptView {
 }
 
 export interface PersonalizedVideoAssignmentView {
+  /** Hash of immutable lesson/practice content, excluding saved learner progress. */
+  contentVersion?: string;
   id: string;
   studentId: string;
   studentKey?: PilotStudentKey | null;

@@ -16,3 +16,12 @@ apps/web/public/generated-videos/*.mov
 /brag-output/
 /brag-output-*/
 /scripts/pilot-walkthrough/out/
+
+# Private release planning and local coordination; this repository is public.
+/delivery/december-2026/
+apps/web/.next-review-*/
+
+# Local working folders: private plans, an unrelated course project, logs and screenshots.
+/output/
+/p0/
+/tmp/

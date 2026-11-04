@@ -96,6 +96,10 @@
 .input:focus { outline: none; border-color: var(--pa-accent); box-shadow: 0 0 0 4px var(--pa-accent-soft); }
 .preview { margin: 8px 0 0; font-size: var(--text-sm); color: var(--ink-soft); font-family: var(--pa-math); }
 .inputError { margin: 8px 0 0; font-size: 13px; color: #b42318; }
+@media (max-width: 640px) {
+  .typeRow { flex-wrap: wrap; }
+  .input { min-width: 0; width: 100%; flex-basis: 100%; }
+}
 
 .feedback { margin: 14px 0 0; padding: 12px 14px; border-radius: 14px; font-size: var(--text-sm); line-height: 1.5; animation: fadeUp 280ms ease; }
 .feedback[data-verdict="CORRECT"] { background: var(--pa-accent-soft); color: var(--pa-accent); font-weight: 600; }

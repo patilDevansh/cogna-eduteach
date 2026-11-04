@@ -2,6 +2,10 @@
 
 Production classroom orchestration is the active engineering era. The canonical contract is [`../docs/mvp-10.0/README.md`](../docs/mvp-10.0/README.md).
 
+3 November 2026: Signed-in teachers can open AI Studio from their workspace to inspect saved Lotus diagnostic evidence for currently owned, actively enrolled classes. The local demo teacher can inspect standalone demo diagnostics in development only. This is an observer view, not a diagnostic-quality or learning-efficacy claim.
+
+MVP 10.0 diagnostic evidence maintenance (2026-10-26): new planned-topic reports separate single/supporting successes from repeated direct demonstrations and record their source turns. Teaching no longer invents a confirmed foundational sign gap from sign labels on other skills. See the [evidence contract](../docs/mvp-10.0/DIAGNOSTIC_EVIDENCE.md) and [real-student validation plan](./FACTORISATION_VALIDATION_PLAN.md). This is not scientific validation or a complete planner redesign.
+
 The [Cogna Lotus architecture](./LOTUS_ARCHITECTURE.md) records the current diagnostic implementation, the syllabus-grounded personalized target, the latency design, and the gaps still to validate. Proposed behavior in that document is not a shipped feature or a replacement for the canonical classroom contract.
 
 The [factorisation problems log](./FACTORISATION_PROBLEMS.md) separates browser-confirmed findings from handoff risks that still need targeted verification.
@@ -18,3 +22,45 @@ Current state: classroom implementation exists and Lotus has a limited arithmeti
 MVP 10.0 UI maintenance (2026-10-08): Lotus now includes workshop and constellation tile scenes, alternating interactive coverage, early Detective, more reliable Garden generation, and separate math toolbars for final answers and working steps.
 
 MVP 10.0 UI maintenance (2026-10-09): Factor crossword and Cut-and-build studio are integrated into compatible diagnostic coverage. Both retain server-side algebra checks and withhold correctness feedback. Focused tests and TypeScript pass; full database/browser acceptance remains pending.
+
+## Shared AI delivery coordination (2026-10-28)
+
+Cross-chat delivery now has common agent entrypoints, task ownership, acceptance evidence and handoff rules. Follow the coordination section in root AGENTS.md; private planning stays outside the public repository. This setup changes coordination only and does not certify any additional runtime feature.
+
+## Teaching-first contract amendment (2026-10-28)
+
+Canonical teaching-first contract added in `docs/mvp-10.0/MODULE_LEARNING.md`; runtime delivery remains pending. It preserves both existing diagnostic modes and clarifies amendment precedence.
+
+## Verified local staging during provider outage (2026-10-28)
+
+Provider-outage maintenance: verified code-probe/bank staging now runs before the model-outage guard, with provider cooldown distinct from content backoff. 51 focused tests and API TypeScript pass. Fresh-session and full continuity coverage remain separate work.
+
+
+## Typed-practice evidence and recovery — 29 October 2026
+
+Personalised typed practice now uses durable versioned receipts, transactional replay-safe saving and a resumable student UI. Lesson/item exposure, explicit help and practice evidence remain distinct from independent/delayed outcomes. 80 relevant API, 4 isolated PostgreSQL, 2 client and 16 browser assertions passed; API/web TypeScript passed. Local working build only.
+
+
+### Unsubmitted practice refresh correction — 29 October 2026
+
+Typed practice now distinguishes tab-local unchecked drafts from durable checked answers; refresh restores unsubmitted edits without rewriting answer evidence.
+
+
+### Exercise and Lotus interaction context — 30 October 2026
+
+Exercise and Lotus answers now carry optional bounded interaction context into existing authorised persistence. The contract documents observation definitions, legacy missingness and remaining collection/history limits.
+
+
+### Recovery, joined history and contextual support —30October2026
+
+Implemented local active-session recovery, separately recorded visible/unanswered observations, joined student-owned history and contextual support with reviewed hints, pause/resume and an explicit practice recheck. Existing diagnostic/exit boundaries remain; this does not complete the full module journey or release.
+
+### Draft-process review correction — 2 November 2026
+
+2 November: Student learning history now projects submitted Exercise/Lotus answer text and answer elapsed time; active typed Exercise/Lotus questions emit bounded, ungraded draft checkpoints after a pause/blur or clear. This closes a product review visibility gap without claiming every keystroke or a cognitive diagnosis. See docs/mvp-10.0/RECOVERY_AND_CONTEXTUAL_SUPPORT.md. Product acceptance remains pending.
+
+### Teaching-first reference module — 2 November 2026
+
+A separate, rollout-gated Grade 8 monic-trinomial module path now starts from a reviewed lesson without creating a diagnostic. Signed teacher assignment and student-led entry share a saved run; a checkpoint can lead to a discriminating prerequisite check, bounded repair, return and a fresh unaided exit. Static reviewed slides work without model, narration or rendering calls. This is a reference slice, not full module/curriculum delivery or real-learner efficacy evidence. Local focused, isolated PostgreSQL and browser checks passed; independent product review remains open.
+
+3 November follow-up: new runs reserve unused reviewed exit questions per learner, teacher access checks current classroom ownership, and browser active-run keys are scoped to the signed-in learner. Reference review remains open.
