@@ -1,5 +1,7 @@
 # Skipped / deferred
 
+Teacher AI Studio access (3 November 2026): broader decision-card redesign, provenance/installed/shown action distinctions, educator usability evaluation and production deployment verification remain open under the existing AI Studio phases. The local demo teacher exception is not production access.
+
 MVP 10.0 diagnostic evidence maintenance (2026-10-26): the report/teaching-target repair is implemented. Deferred explicitly: calibrated internal routing, conditional prerequisite edges, review of AI misconception mappings, full cross-board blueprint coverage, historical-report migration, and real-student validation. The full golden run was stopped after sandbox database connection failures; full database regression and browser acceptance remain unverified. The [validation plan](./FACTORISATION_VALIDATION_PLAN.md) requires school arrangements, consented responses and independent educator judgments; no validation data has been collected.
 
 Nothing is intentionally skipped from the canonical MVP 10.0 classroom contract. Deployment-specific identity-provider configuration and video-renderer credentials remain environment configuration, not product-code substitutes.

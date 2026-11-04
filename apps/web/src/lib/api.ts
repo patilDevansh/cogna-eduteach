@@ -55,6 +55,19 @@ export class ApiError extends Error {
   }
 }
 
+export interface LotusStudioSessionSummary {
+  sessionId: string;
+  classroomAssignmentId: string | null;
+  studentId: string;
+  studentName: string;
+  rollNumber: string | null;
+  status: string;
+  phase: string;
+  topic: LotusTopic | null;
+  answered: number;
+  startedAt: string;
+}
+
 export function isNotFound(err: unknown): boolean {
   return err instanceof ApiError && err.status === 404;
 }
@@ -1159,6 +1172,12 @@ export const api = {
 
   getLotusObserverSession: (sessionId: string) =>
     lotusObserverFetch<LotusSessionView>(`/sessions/${sessionId}/observer`),
+
+  listLotusStudioSessions: (classroomId: string) =>
+    lotusObserverFetch<LotusStudioSessionSummary[]>(`/studio/classrooms/${encodeURIComponent(classroomId)}/sessions`),
+
+  listLotusDemoStudioSessions: () =>
+    lotusObserverFetch<LotusStudioSessionSummary[]>("/studio/demo-sessions"),
 
   /** Server computes the demo answer now that the answer key isn't shipped to the client while a diagnostic is active. Demo student ids only. */
   demoFillLotusResponse: (sessionId: string, studentId: string, gap?: string) =>

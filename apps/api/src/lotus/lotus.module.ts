@@ -7,12 +7,14 @@ import { LotusController } from "./lotus.controller";
 import { LotusModelService } from "./lotus-model.service";
 import { FakeLotusModelService } from "./lotus-fake-model.service";
 import { LotusService } from "./lotus.service";
+import { LotusStudioService } from "./lotus-studio.service";
 import { ClassroomEventsService } from "../classrooms/classroom-events";
 
 @Module({
   imports: [AiModule],
   controllers: [LotusController],
   providers: [
+    LotusStudioService,
     {
       provide: LotusModelService,
       inject: [OpenAIService, ConfigService],

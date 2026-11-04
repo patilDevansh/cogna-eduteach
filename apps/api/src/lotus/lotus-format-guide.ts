@@ -58,6 +58,13 @@ const SIGN_SIGNALS = ["two_slips_cancel", "hit_sign_slip", "fixed_sign_slip", "f
 const FAST_RIGHT_MS = 8000;
 const UNSURE_BELOW = 50;
 
+/** Whether an earlier answer on the last question's skill was right without picking from options. */
+function producedBefore(audits: LotusQuestionAudit[]): boolean {
+  const skill = audits.at(-1)?.question.answerKey?.diagnostics?.skillId;
+  if (!skill) return false;
+  return audits.slice(0, -1).some((a) => a.question.answerKey?.diagnostics?.skillId === skill && a.verification?.status === "VERIFIED_CORRECT" && !a.question.options?.length && a.question.game?.kind !== "SPLIT_CONFIDENCE");
+}
+
 /** What the last answer left unclear, and the formats that could settle it. Null when nothing needs settling. */
 export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | null {
   const last = audits.at(-1);
@@ -87,8 +94,11 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || response.confidence < UNSURE_BELOW) {
     return need(["SPLIT_CONFIDENCE", "TWO_MOVES"], "They were right but unsure, so find out exactly what they doubt.");
   }
-  if (last.question.options?.length || shown === "SPLIT_CONFIDENCE" || signals.includes("checked_options")) {
-    return need(["COMMIT_THEN_CHOOSE", "TWO_MOVES", "EDIT_HISTORY"], "They chose from options, so check they can produce it themselves.");
+  // Only for recognising an answer among options, and only until they have produced one on this skill. Staged
+  // choices (the first wrong line, the odd one out) and games with their own question ask something else.
+  const recognised = signals.includes("checked_options") || shown === "SPLIT_CONFIDENCE" || (!shown && !last.question.presentation && !!last.question.options?.length);
+  if (recognised && !producedBefore(audits)) {
+    return need(["COMMIT_THEN_CHOOSE", "TWO_MOVES"], "They chose from options, so check they can produce it themselves.");
   }
   const before = audits.at(-2);
   const quick = (a: LotusQuestionAudit | undefined) => a?.verification?.status === "VERIFIED_CORRECT" && (a.response?.responseTimeMs ?? Infinity) < FAST_RIGHT_MS;

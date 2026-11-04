@@ -2,6 +2,8 @@
 
 Production classroom orchestration is the active engineering era. The canonical contract is [`../docs/mvp-10.0/README.md`](../docs/mvp-10.0/README.md).
 
+3 November 2026: Signed-in teachers can open AI Studio from their workspace to inspect saved Lotus diagnostic evidence for currently owned, actively enrolled classes. The local demo teacher can inspect standalone demo diagnostics in development only. This is an observer view, not a diagnostic-quality or learning-efficacy claim.
+
 MVP 10.0 diagnostic evidence maintenance (2026-10-26): new planned-topic reports separate single/supporting successes from repeated direct demonstrations and record their source turns. Teaching no longer invents a confirmed foundational sign gap from sign labels on other skills. See the [evidence contract](../docs/mvp-10.0/DIAGNOSTIC_EVIDENCE.md) and [real-student validation plan](./FACTORISATION_VALIDATION_PLAN.md). This is not scientific validation or a complete planner redesign.
 
 The [Cogna Lotus architecture](./LOTUS_ARCHITECTURE.md) records the current diagnostic implementation, the syllabus-grounded personalized target, the latency design, and the gaps still to validate. Proposed behavior in that document is not a shipped feature or a replacement for the canonical classroom contract.

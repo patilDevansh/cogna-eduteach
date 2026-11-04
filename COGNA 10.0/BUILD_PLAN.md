@@ -1,5 +1,12 @@
 # Build plan
 
+## Teacher AI Studio access — 3 November 2026
+
+- [x] Add teacher workspace entry and saved Lotus diagnostic list, with answer, evidence, uncertainty, decision and report details.
+- [x] Authorize observer reads from current classroom ownership and active enrollment; limit standalone demo access to the local development teacher.
+- [x] Verify API/web TypeScript, an isolated PostgreSQL access test and the local teacher browser journey.
+- [ ] Complete the existing AI Studio redesign and usability gates below; this observer entry does not complete those phases.
+
 ## MVP 10.0 evidence qualification — 2026-10-26
 
 - [x] Qualify report strengths using distinct direct successful questions; keep supporting, unscoped and one-off success as observations.

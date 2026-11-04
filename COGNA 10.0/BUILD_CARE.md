@@ -1,5 +1,11 @@
 # Build care
 
+## Teacher AI Studio access — 3 November 2026
+
+- Observer access uses the current classroom owner, active enrollment and diagnostic assignment, including in-progress saved sessions. A teacher who loses class ownership or enrollment access loses the read. Standalone demo diagnostics are visible only to the named local demo teacher outside production; they cannot use teacher override on those sessions.
+- Saved student answers and AI interpretations are shown separately from uncertainty. This view must not describe provisional observations as measured attention, memory or retention.
+- API and web TypeScript, `git diff --check`, one isolated PostgreSQL authorization test and a local teacher browser walkthrough passed. No paid model call or production data was used.
+
 ## MVP 10.0 diagnostic evidence qualification — 2026-10-26
 
 - The planner's existing `SECURE` signals remain provisional. Reports require two distinct, verified, directly targeted successes before exposing a demonstrated strength. Supporting tags and unscoped legacy evidence cannot qualify one; copied expressions/variable-only renaming count once. The threshold is a product rule, not a validated psychometric cutoff.

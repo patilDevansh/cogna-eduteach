@@ -13,6 +13,7 @@ import {
   SubmitLotusAnswerDto,
 } from "./lotus.dto";
 import { LotusService } from "./lotus.service";
+import { LotusStudioService } from "./lotus-studio.service";
 import type { LotusReconcileResult } from "./lotus-reconcile";
 
 /** A private seam for the local autonomous-evaluation runner. It is never
@@ -50,6 +51,7 @@ function observerTeacherGateBypassed(): boolean {
 export class LotusController {
   constructor(
     private readonly lotus: LotusService,
+    private readonly studio: LotusStudioService,
     @Inject(TTS_PROVIDER) private readonly tts: TtsProvider,
   ) {}
 
@@ -93,10 +95,26 @@ export class LotusController {
     @Param("id") id: string,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
-    if (!observerTeacherGateBypassed()) assertTeacher(actor);
     const session = await this.lotus.getForObserver(id);
-    assertStudentAccess(actor, session.studentId);
+    if (actor.role === "student" && observerTeacherGateBypassed()) assertStudentAccess(actor, session.studentId);
+    else {
+      assertTeacher(actor);
+      await this.studio.assertCanObserve(actor, session);
+    }
     return session;
+  }
+
+  @Get("studio/classrooms/:classroomId/sessions")
+  studioSessions(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("classroomId") classroomId: string,
+  ) {
+    return this.studio.listClassSessions(resolveActor(headers), classroomId);
+  }
+
+  @Get("studio/demo-sessions")
+  studioDemoSessions(@Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.studio.listDevDemoSessions(resolveActor(headers));
   }
 
   /**
@@ -138,7 +156,7 @@ export class LotusController {
     const actor = resolveActor(headers);
     const session = await this.lotus.get(id);
     assertTeacher(actor);
-    assertStudentAccess(actor, session.studentId);
+    await this.studio.assertCanObserve(actor, session);
     return this.lotus.unseenPlan(id);
   }
 
@@ -212,14 +230,16 @@ export class LotusController {
   }
 
   @Post("sessions/:id/override")
-  override(
+  async override(
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("id") id: string,
     @Body() body: OverrideLotusSessionDto,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
     assertTeacher(actor);
-    assertStudentAccess(actor, body.studentId);
+    const session = await this.lotus.get(id);
+    if (session.studentId !== body.studentId) throw new NotFoundException("Diagnostic session not found for this student.");
+    await this.studio.assertCanObserve(actor, session, false);
     return this.lotus.override(id, body.studentId, body.action);
   }
 

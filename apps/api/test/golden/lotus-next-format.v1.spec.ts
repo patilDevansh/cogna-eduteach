@@ -40,6 +40,19 @@ describe("what the last answer asks of the next format", () => {
   it("right from options asks them to produce it", () => {
     assert.equal(need(answered({ options: ["a", "b"] }))?.kinds[0], "COMMIT_THEN_CHOOSE");
   });
+  it("a game with its own question, or a staged choice, isn't 'chose from options'", () => {
+    assert.equal(need(answered({ kind: "FIND_EVERY_B", options: ["a"] })), null);
+    assert.equal(need(answered({ kind: "TEST_CLAIM", options: ["a"] })), null);
+    const staged = answered({ options: ["a", "b"] });
+    (staged.question as { presentation?: string }).presentation = "DETECTIVE";
+    assert.equal(need(staged), null);
+  });
+  it("asking them to produce it stops once they have, and never asks for more typing", () => {
+    const on = (a: LotusQuestionAudit, skillId: string) => { (a.question as { answerKey?: unknown }).answerKey = { diagnostics: { skillId } }; return a; };
+    assert.equal(need(on(answered({}), "S"), on(answered({ options: ["a"] }), "S")), null);
+    const kinds = need(on(answered({}), "OTHER"), on(answered({ options: ["a"] }), "S"))!.kinds;
+    assert.deepEqual(kinds, ["COMMIT_THEN_CHOOSE", "TWO_MOVES"]);
+  });
   it("fast and right twice asks whether it is autopilot", () => {
     assert.equal(need(answered({ ms: 4000 }), answered({ ms: 4000 }))?.kinds[0], "TRUE_FALSE");
   });
