@@ -12,6 +12,9 @@ const EMAIL_MAX_ATTEMPTS = 5;
 const CONTENT_JOB_MAX_ATTEMPTS = 3;
 const PLAN_REFRESH_MAX_ATTEMPTS = 3;
 
+/** Rows per database page in the bulk jobs. */
+const JOB_PAGE = 100;
+
 @Injectable()
 export class ScheduledJobsService {
   private readonly logger = new Logger(ScheduledJobsService.name);
@@ -256,45 +259,57 @@ export class ScheduledJobsService {
     }
   }
 
-  async runWeeklyParentReports(): Promise<{ processed: number; mode: string }> {
-    const parents = await this.prisma.parent.findMany({
-      include: {
-        primaryStudents: { where: { canViewReports: true }, include: { student: true } },
-      },
-      take: 100,
-    });
-
-    const periodEnd = new Date();
+  async runWeeklyParentReports(now = new Date()): Promise<{ processed: number; mode: string }> {
+    // The week is the last full Monday-to-Monday (UTC), not "the 7 days before now": the period is part of
+    // each report's idempotency key, so a rerun (a deploy restarts the scheduler) finds the same jobs
+    // instead of sending every parent a second report.
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)));
     const periodStart = new Date(periodEnd);
     periodStart.setUTCDate(periodStart.getUTCDate() - 7);
 
     let processed = 0;
-    for (const parent of parents) {
-      for (const link of parent.primaryStudents) {
-        await this.enqueueWeeklyReport({
-          studentId: link.studentId,
-          periodStart: periodStart.toISOString(),
-          periodEnd: periodEnd.toISOString(),
-        });
-        processed++;
+    // Every parent, a page at a time (a single take: 100 left everyone after the first hundred out).
+    for (let cursor: string | undefined; ;) {
+      const parents = await this.prisma.parent.findMany({
+        include: { primaryStudents: { where: { canViewReports: true }, include: { student: true } } },
+        orderBy: { id: "asc" },
+        take: JOB_PAGE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+      for (const parent of parents) {
+        for (const link of parent.primaryStudents) {
+          await this.enqueueWeeklyReport({
+            studentId: link.studentId,
+            periodStart: periodStart.toISOString(),
+            periodEnd: periodEnd.toISOString(),
+          });
+          processed++;
+        }
       }
+      if (parents.length < JOB_PAGE) break;
+      cursor = parents.at(-1)!.id;
     }
 
     return { processed, mode: "jobs_weekly_report" };
   }
 
   async runDailyRevisionPlans(): Promise<{ processed: number }> {
-    const students = await this.prisma.student.findMany({
-      where: { deletedAt: null },
-      take: 100,
-      select: { id: true },
-    });
-
     let processed = 0;
-    for (const student of students) {
-      const proposals = await this.recommendationEngine.buildDailyProposals(student.id);
-      await this.revisionService.applyProposals(student.id, proposals);
-      processed++;
+    for (let cursor: string | undefined; ;) {
+      const students = await this.prisma.student.findMany({
+        where: { deletedAt: null },
+        orderBy: { id: "asc" },
+        take: JOB_PAGE,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        select: { id: true },
+      });
+      for (const student of students) {
+        const proposals = await this.recommendationEngine.buildDailyProposals(student.id);
+        await this.revisionService.applyProposals(student.id, proposals);
+        processed++;
+      }
+      if (students.length < JOB_PAGE) break;
+      cursor = students.at(-1)!.id;
     }
     return { processed };
   }

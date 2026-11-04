@@ -34,6 +34,7 @@ import {
   classifyFactorisation,
   classifySimplification,
   type CommonFactorReading,
+  finalAnswerText,
   factorisationDefect,
   nonConstantFactorCount,
   normalizeMathText,
@@ -230,9 +231,11 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   }
 
   const expression = d.expression!;
-  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(answer, expression, key)
-    : d.itemKind === "EXPAND" ? classifyExpansion(answer, expression)
-      : classifyFactorisation(answer, expression);
+  // What the student meant as the answer: "Ans: 7(x + 4).", "= 7(x + 4)" or "7x + 28 = 7(x + 4)" all mean 7(x + 4).
+  const typed = finalAnswerText(response.answer) || response.answer;
+  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(typed, expression, key)
+    : d.itemKind === "EXPAND" ? classifyExpansion(typed, expression)
+      : classifyFactorisation(typed, expression);
   const done = d.itemKind === "SIMPLIFY" ? "simplified" : d.itemKind === "EXPAND" ? "expanded and collected" : "factorised";
   if (verdict === "CORRECT") {
     // Right answer, but a step in the working is false: don't call the skill
@@ -244,11 +247,11 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
     return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as an expression, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
   }
   const matches = (p: { answer: string }) => d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND"
-    ? safe(() => algebraicallyEqual(p.answer, answer))
-    : sameFactorisation(p.answer, answer);
+    ? safe(() => algebraicallyEqual(p.answer, typed))
+    : sameFactorisation(p.answer, typed);
   const predicted = d.predictedMistakes.find(matches);
   if (verdict === "UNFINISHED") {
-    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(answer));
+    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(typed));
     return {
       verification: verification("VERIFIED_UNFINISHED", `Equal to ${expression}, but not fully ${done}.`),
       evidence: [{ skillId: ownerOfMistake(code, d), kind: "UNFINISHED", mistake: code, source: "INSTANT", description: `Wrote ${answer}.` }],
@@ -259,12 +262,12 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   // With the right factor outside the bracket, code reads the bracket itself: 7(x + 28) for 7x + 28
   // is "divided only the first term" whether or not the question's writer predicted it. That beats a
   // predicted label, which an AI wrote, and keeps a plain mistake out of the AI review.
-  const reading = d.itemKind === "FACTORISE" ? readCommonFactor(answer, expression) : null;
+  const reading = d.itemKind === "FACTORISE" ? readCommonFactor(typed, expression) : null;
   const mistake = reading?.mistake ?? predicted?.mistake;
   // A predicted wrong answer after working that already reached the right
   // one is most likely a copying slip, not the misconception it resembles:
   // leave it to the AI review (which labels slips) instead of counting it.
-  const countable = !!mistake && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, answer);
+  const countable = !!mistake && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, typed);
   const blamed: LotusSkillEvidence[] = countable ? [{ skillId: ownerOfMistake(mistake, d), kind: "MISTAKE", mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [];
   return {
     verification: verification("VERIFIED_INCORRECT", `Not equal to ${expression} — checked by expanding.`),

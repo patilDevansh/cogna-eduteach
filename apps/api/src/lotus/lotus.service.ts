@@ -1154,7 +1154,8 @@ export class LotusService implements OnModuleDestroy {
     const answeredCount = session.audits.length + 1;
     if (session.factorisation) {
       // Active time, not wall-clock: a student who steps away doesn't lose check time.
-      const activeSeconds = lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt));
+      // From when the questions were ready: time spent waiting for them to be written isn't test time.
+      const activeSeconds = lotusActiveSeconds(session.questionsReadyAt ?? session.startedAt, session.audits.map((audit) => audit.createdAt));
       return this.resolveFactorisationTurn(session, currentQuestion, response, activeSeconds, answeredCount);
     }
     const verification = verifyLotusResponse(currentQuestion, response);
@@ -2303,7 +2304,9 @@ Create one materially different question that adds new diagnostic evidence. Test
       await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
       return;
     }
-    if (!job.retryCount && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
+    // The bank is tried on the first attempt, and on every retry while the AI is unavailable: then it's the only
+    // source of a checked question, and a test that never finishes preparing is worse than a reused one.
+    if ((!job.retryCount || this.models.activeOutage) && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
       const reused = await this.takeFactorisationBankItem(session, job);
       if (reused) {
         await this.applyGenerated(sessionId, job, { item: reused, attempts: 0, ms: 0, rejections: [] }, "BANK");
@@ -2502,6 +2505,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
+    if (!session.questionsReadyAt && Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length >= preparationTarget(f)) {
+      session.questionsReadyAt = new Date().toISOString();
+    }
     this.writeQueues.get(sessionId)?.blockedTurns.delete(job.turn);
     this.factorisationGeneratedPrints.add(print);
     if (job.turn === 1) this.factorisationOpeningPrints.add(print);

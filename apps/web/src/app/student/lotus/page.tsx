@@ -1109,7 +1109,7 @@ function LotusPage() {
     try {
       if (session.status !== "ACTIVE") return;
       writeRecovery(recoveryKey("LOTUS", studentId, recoveryScope), { session, answer, workingLines, confidence, didNotKnow, tiles, pending: pendingSubmission, startedAt: questionStartedAt, ...overrides });
-    } catch { setRecoveryMessage("This browser cannot restore drafts after refresh. Keep this page open until saving is confirmed."); }
+    } catch { setRecoveryMessage("This browser can't keep your work if the page reloads, so keep this page open until your answer saves."); }
   }
   useEffect(() => {
     if (!studentId || recoveryStarted.current === `${studentId}:${recoveryScope}` && recoveryReady.current) return;
@@ -1132,7 +1132,7 @@ function LotusPage() {
         const pending = cached.pending;
         const sameQuestion = cached.session.currentQuestion?.id === fresh.currentQuestion?.id;
         const committed = pending && fresh.audits.some(a => a.question.id === pending.questionId && a.response?.submissionId === pending.submissionId);
-        if (pending && !sameQuestion && !committed) { confirmationFailed=true; setRecoveryMessage("Your question changed. Your earlier pending work is retained locally and has not been applied to a different question. Reload to retry confirmation."); return; }
+        if (pending && !sameQuestion && !committed) { confirmationFailed=true; setRecoveryMessage("Your question changed since your last save. Your earlier answer is still on this device and wasn't added to the new question. Reload the page to try again."); return; }
         const originalQuestion = pending && committed ? fresh.audits.find(a=>a.question.id===pending.questionId)?.question : fresh.currentQuestion;
         if(pending?.interaction){
           const issued=originalQuestion?.interaction,picks=pending.interaction.picks;
@@ -1152,7 +1152,7 @@ function LotusPage() {
           setQuestionStartedAt(cached.startedAt); setPendingSubmission(pending);
           setRecoveryMessage(pending ? "Your previous answer needs confirmation. Retry saving it." : "Draft restored in this tab. It has not been checked yet.");
         }
-      } catch { if(cancelled)return; confirmationFailed = true; setRecoveryMessage("Could not confirm the saved session. Your local draft is retained; reload to retry recovery."); }
+      } catch { if(cancelled)return; confirmationFailed = true; setRecoveryMessage("We couldn't check your saved test. Your work is still on this device: reload the page to try again."); }
       finally { if(!cancelled){recoveryReady.current = !confirmationFailed; setRecoveryChecked(!confirmationFailed);} }
     })();
     return()=>{cancelled=true;};
@@ -1231,7 +1231,7 @@ function LotusPage() {
     setClassEnrollment(getMockEnrollment());
     setObserver(new URLSearchParams(window.location.search).get("observer") === "1");
     api.getLotusStatus().then(setStatus).catch((err) => {
-      setError(err instanceof Error ? err.message : "Could not reach the Lotus service.");
+      setError(err instanceof Error ? err.message : "Can't reach Cogna right now. Check your internet connection and reload the page.");
     });
     if (classroomAssignmentId) void api.startClassroomAssignment(classroomAssignmentId).catch(() => undefined);
   }, [router, classroomAssignmentId]);
@@ -1250,7 +1250,7 @@ function LotusPage() {
     if (!session || session.status !== "ACTIVE") return;
     const timer = window.setInterval(() => {
       // The same active-time rule the server uses for the limit, so the clock never jumps ahead.
-      setElapsed(lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt)));
+      setElapsed(lotusActiveSeconds(session.questionsReadyAt ?? session.startedAt, session.audits.map((audit) => audit.createdAt)));
     }, 1000);
     return () => window.clearInterval(timer);
   }, [session]);
@@ -1608,10 +1608,10 @@ function LotusPage() {
       const message = err instanceof Error ? err.message : "";
       const sessionGone = message.toLowerCase().includes("session not found");
       setError(sessionGone
-        ? "This diagnostic session expired because the API was restarted. Start a new diagnostic to continue."
+        ? "This test can't be found any more. Start a new test to carry on."
         : message
-          ? `Your last answer was not confirmed: ${message}. Retry saving it.`
-          : "Your last answer was not confirmed. Retry saving it.");
+          ? `Your last answer didn't save (${message}). Tap “Retry saving previous answer” to try again.`
+          : "Your last answer didn't save. Tap “Retry saving previous answer” to try again.");
     } finally {
       submissionLock.current = false;
       if(recoveryStarted.current===requestScope){stopPolling();stopReportWatch();setBusy(false);}
@@ -1881,7 +1881,7 @@ function LotusPage() {
                   </div>
                 ) : preparationTimedOut && (
                   <p className={styles.muted} style={{ marginTop: "0.5rem" }}>
-                    Still preparing—no hardcoded questions will be shown. AI is continuing to write and verify the remaining questions.
+                    Still getting your questions ready. Keep this page open; it starts by itself.
                   </p>
                 )}
               </section>
@@ -1908,11 +1908,6 @@ function LotusPage() {
             ) : question ? (
               <section className={`${styles.questionCard} ${advancing ? styles.questionAdvancing : ""}`}>
                 {advancing && <div className={styles.nextQuestionToast} aria-live="polite">Next question</div>}
-                  {preparationTimedOut && (
-                    <div className={styles.error} style={{ margin: "1rem 1rem 0" }}>
-                      All questions were eventually AI-generated and verified. The diagnostic is now ready.
-                    </div>
-                  )}
                   <div className={styles.cardTop}>
                     {/* Phase, skill and where the question came from are the team's view, not the student's. */}
                     {(devMode || observer) && (
@@ -2003,7 +1998,7 @@ function LotusPage() {
                         <label htmlFor="lotus-answer">Final answer</label>
                         <div className={styles.mathAnswerShell}>
                           <span aria-hidden="true">=</span>
-                          <input
+                          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                             id="lotus-answer"
                             className={styles.mathAnswer}
                             value={answer}
@@ -2048,7 +2043,7 @@ function LotusPage() {
                           {workingLines.map((line, index) => (
                             <div className={styles.workingLine} key={index}>
                               <span>{index + 1}</span>
-                              <input
+                              <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                                 aria-label={`Working step ${index + 1}`}
                                 data-working-index={index}
                                 ref={(field) => { workingFieldRefs.current[index] = field; }}

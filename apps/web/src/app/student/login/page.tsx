@@ -97,6 +97,9 @@ export default function StudentLoginPage() {
             required
             placeholder="AB12CD34"
             autoComplete="off"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
           />
 
           {error && <p className="error">{error}</p>}
