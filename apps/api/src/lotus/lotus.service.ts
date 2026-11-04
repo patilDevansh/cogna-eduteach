@@ -2712,8 +2712,27 @@ Create one materially different question that adds new diagnostic evidence. Test
     );
     if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
-    const nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
+    let nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
     let next: LotusQuestion | undefined;
+    // The next planned question may not be written yet: the AI is slow (a whole class at once) or down. A
+    // student mid-test must never be stranded on an error, so go on to the first later question that is
+    // ready (the one the browser staged, if it named one), leaving the unwritten ones between out of the
+    // test (the report shows them as not tested). With none ready, the test ends here.
+    if (nextTurn !== null && !(f.versions[String(nextTurn)] ?? []).length) {
+      const offered = (turn: number) => (f.versions[String(turn)] ?? []).some((item) => item.id === response.nextQuestionId);
+      const later = state.turns.find((turn) => turn.turn > nextTurn! && turn.status !== "SKIPPED" &&
+        (response.nextQuestionId ? offered(turn.turn) : isAcceptedItem(preferredItem(f, turn.turn))));
+      if (later || !response.nextQuestionId) {
+        for (const turn of state.turns) {
+          if (turn.turn < nextTurn || turn.turn >= (later?.turn ?? Infinity) || turn.status === "SKIPPED") continue;
+          turn.status = "SKIPPED";
+          turn.version += 1;
+          turn.reason = "Not asked: its question wasn't ready in time.";
+        }
+        if (!later) f.endedEarlyNote = `The remaining questions couldn't be prepared in time, so the test ended after ${state.answeredTurns.length + 1} questions.`;
+        nextTurn = later?.turn ?? null;
+      }
+    }
     if (nextTurn !== null) {
       const versions = f.versions[String(nextTurn)] ?? [];
       next = response.nextQuestionId ? versions.find((item) => item.id === response.nextQuestionId) : undefined;
