@@ -60,7 +60,7 @@ import {
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
-import { redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { fittingFormats, redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { checkedAiFormat, evidenceFormatNeed, formatDecisionNote } from "./lotus-format-guide";
 import { themedGamesEnabled } from "./lotus-game-core";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
@@ -404,18 +404,25 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
     .slice(0, 10)
     .map((turn) => {
       const spec = slotSpec(factorisation, turn.slot);
+      const item = preferredItem(factorisation, turn.turn);
       return {
         turn: turn.turn,
-        skill: spec?.skillId,
+        // A repurposed turn now asks about the skill it was repurposed for, not its base slot's.
+        skill: turn.forSkill ?? spec?.skillId,
         difficulty: spec?.level,
         status: turn.status,
         purpose: turn.purpose ?? "COVERAGE",
         pinned: turn.turn === nextOpenTurn(factorisation.state, factorisation.state.planTurn),
+        // What a format suggestion can actually do here: the format now, and every one the question could be asked in.
+        ...(item ? { format: item.game?.kind ?? (item.options?.length ? "OPTIONS" : "TYPED"), formatsThatFit: fittingFormats(item) } : { formatsThatFit: "not written yet" }),
       };
     });
+  const fallback = evidenceFormatNeed(session.audits);
   return JSON.stringify({
     rule: "The server alone validates and installs a change. The pinned next item cannot change. Recommend an earliest safe later slot or KEEP.",
     remainingSlots: slots,
+    // What the server does about the next format if the review suggests none.
+    serverFormatDefault: fallback ? { tries: fallback.kinds, because: fallback.reason } : "keep the planned formats",
   });
 }
 
@@ -2584,13 +2591,25 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (proposed) audit.formatDecision = { source: "AI", proposed, reason: `${aiFormat?.reason ?? ""} That isn't a format Lotus can use here.`.trim(), status: "NOT_APPLIED" };
       return;
     }
+    // The upcoming questions a format may go on (never the one the browser may already hold), each with the
+    // format just before it, so two of a kind don't run back to back.
     const frozen = nextOpenTurn(f.state, f.state.planTurn);
-    const firstTurn = frozen === null ? null : nextOpenTurn(f.state, frozen);
-    const firstPrevious = frozen === null ? undefined : preferredItem(f, frozen)?.game?.kind;
+    const window: Array<{ turn: number; previous?: LotusGameKind }> = [];
+    for (let turn = frozen === null ? null : nextOpenTurn(f.state, frozen), before = frozen; turn !== null && window.length < FORMAT_LOOKAHEAD; before = turn, turn = nextOpenTurn(f.state, turn)) {
+      window.push({ turn, previous: before === null ? undefined : preferredItem(f, before)?.game?.kind });
+    }
+    // What the format has to find out is about the skill that just went wrong (or was shaky), so the question
+    // that re-checks that skill goes first; the rest follow in order.
+    const unclear = new Set((audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE").map((e) => e.skillId));
+    const lastSkill = audit.question.answerKey?.diagnostics?.skillId;
+    if (!unclear.size && lastSkill) unclear.add(lastSkill);
+    const rechecks = (turn: number) => {
+      const plan = f.state.turns.find((t) => t.turn === turn);
+      return (!!plan?.forSkill && unclear.has(plan.forSkill)) || unclear.has(preferredItem(f, turn)?.answerKey.diagnostics?.skillId ?? "");
+    };
+    const ordered = [...window.filter((w) => rechecks(w.turn)), ...window.filter((w) => !rechecks(w.turn))];
     const place = (kinds: LotusGameKind[]): Pick<LotusFormatDecision, "status" | "targetTurn" | "chosen"> | null => {
-      let turn = firstTurn;
-      let previous = firstPrevious;
-      for (let looked = 0; turn !== null && looked < FORMAT_LOOKAHEAD; looked += 1) {
+      for (const { turn, previous } of ordered) {
         const item = preferredItem(f, turn);
         if (!item) {
           f.formatIntent = kinds;
@@ -2606,8 +2625,6 @@ Create one materially different question that adds new diagnostic evidence. Test
           f.preferred[key] = next.id;
           return { status: "APPLIED", targetTurn: turn, chosen: next.game?.kind };
         }
-        previous = item.game?.kind;
-        turn = nextOpenTurn(f.state, turn);
       }
       return null;
     };
