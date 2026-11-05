@@ -6,7 +6,7 @@ import { hashAccessCode } from "../parents/access-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { PersonalizedVideosService } from "../personalized-videos/personalized-videos.service";
 import { findTopic } from "./topic-catalogue";
-import type { LotusQuestionAudit } from "@cogna/shared";
+import type { LotusLedgerPrior, LotusQuestionAudit } from "@cogna/shared";
 import { foldLedger, teachingStart } from "../lotus/lotus-factorisation";
 import { buildClassReport, type StudentEvidence } from "./class-report";
 import { autoAdvanceEnabled, nextStage, stagesAfterDiagnostic } from "./pilot-flow";
@@ -993,7 +993,7 @@ export class ClassroomsService {
       const sessionId = own.find((a) => a.diagnosticSessionId)?.diagnosticSessionId;
       const videoId = own.find((a) => a.videoAssignmentId)?.videoAssignmentId;
       const record = sessionId ? lotusBySession.get(sessionId) : undefined;
-      const payload = (record?.payload ?? null) as { audits?: LotusQuestionAudit[]; finalReport?: { outcome?: string; skills?: Array<{ skillId: string; name: string; state: string }>; limitations?: string[] } } | null;
+      const payload = (record?.payload ?? null) as { audits?: LotusQuestionAudit[]; priors?: LotusLedgerPrior[]; finalReport?: { outcome?: string; skills?: Array<{ skillId: string; name: string; state: string }>; limitations?: string[] } } | null;
       const audits = payload?.audits ?? [];
       const video = videoId ? videoById.get(videoId) : undefined;
       const script = (video?.script ?? {}) as { lesson?: { title?: string }; practice?: { items?: unknown[] }; practiceAttempts?: Record<string, { tries: number; correct: boolean }>; animationKind?: string };
@@ -1017,7 +1017,7 @@ export class ClassroomsService {
           ? {
               outcome: payload.finalReport.outcome,
               ...(() => {
-                const start = payload.finalReport.outcome === "SOLID_GAP" ? teachingStart(foldLedger(audits)) : undefined;
+                const start = payload.finalReport.outcome === "SOLID_GAP" ? teachingStart(foldLedger(audits, payload.priors)) : undefined;
                 return { startingSkillId: start?.skillId, startingNotLearned: Boolean(start?.confirmedBySupport) };
               })(),
               skills: payload.finalReport.skills ?? [],

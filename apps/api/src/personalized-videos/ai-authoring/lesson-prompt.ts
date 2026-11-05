@@ -81,6 +81,7 @@ export function buildAuthorPrompt(brief: LessonBrief, previousErrors: string[] =
     RULES,
     SHAPE,
     retry,
+    "If the brief has a \"history\", it is what earlier tests and lessons showed about this student on this skill. A mistake that keeps coming back is a held way of thinking: name it plainly and show why it fails, not just the right method. If an earlier lesson didn't work, teach it a different way from a different starting point.",
     BRIEF_START,
     JSON.stringify(brief, null, 2),
     BRIEF_END,

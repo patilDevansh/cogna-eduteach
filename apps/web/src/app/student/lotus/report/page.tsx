@@ -417,6 +417,15 @@ function Report({
               </ul>
             </section>
           )}
+          {(report.memory?.length ?? 0) > 0 && (
+            <section className={styles.card}>
+              <h3>Since your earlier checks</h3>
+              <p className={styles.muted}>Cogna remembers your past checks and lessons, so it can see what keeps coming back and what you&apos;ve fixed.</p>
+              <ul className={styles.dots}>
+                {report.memory!.slice(0, 5).map((line) => <li key={line}>{plain(line)}</li>)}
+              </ul>
+            </section>
+          )}
         </aside>
       </div>
 

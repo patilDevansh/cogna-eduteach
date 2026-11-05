@@ -33,6 +33,11 @@ export interface LessonBrief {
   }>;
   /** Secure skills, by name: the lesson opens from one of these. */
   strengths: string[];
+  /**
+   * What earlier tests and lessons showed about this skill (learner-memory.ts): a mistake that keeps
+   * coming back, or a lesson that didn't work. Absent for a student's first time on the skill.
+   */
+  history?: string[];
 }
 
 /**
@@ -82,7 +87,7 @@ export function isPairAnswer(answer: string): boolean {
 export function buildLessonBrief(session: LotusSessionView, studentFirstName: string): LessonBrief | null {
   if (!isPlannedLotusTopic(session.topic) || session.finalReport?.outcome !== "SOLID_GAP") return null;
   // The shared sign cause when there is one, so the lesson matches the report.
-  const target = teachingStart(foldLedger(session.audits));
+  const target = teachingStart(foldLedger(session.audits, session.priors));
   if (!target) return null;
 
   const studentItems: LessonBrief["studentItems"] = [];

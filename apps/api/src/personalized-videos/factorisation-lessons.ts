@@ -46,7 +46,7 @@ export function planFactorisationLesson(session: LotusSessionView, studentName: 
   if (session.topic !== "FACTORISATION") return null;
   if (session.finalReport?.outcome !== "SOLID_GAP") return null;
 
-  const start = teachingStart(foldLedger(session.audits));
+  const start = teachingStart(foldLedger(session.audits, session.priors));
   if (!start) return null;
   // A shared sign cause still fits the trinomial-signs animation when a trinomial gap is part of it.
   const fitsTrinomialSigns = (start.rootOf ?? [start.skillId]).some((id) => TRINOMIAL_SKILLS.has(id)) && start.mistakes.some((m) => TRINOMIAL_SIGN_MISTAKES.has(m));

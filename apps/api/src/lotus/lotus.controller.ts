@@ -257,8 +257,17 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ): Promise<{ deletedSessions: number }> {
-    assertTeacher(resolveActor(headers));
+    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
     return this.lotus.deleteStudentData(studentId);
+  }
+
+  /** What Cogna remembers about this student across tests and lessons. */
+  @Get("students/:studentId/memory")
+  learnerMemory(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("studentId") studentId: string,
+  ) {
+    return this.lotus.learnerMemory(resolveActor(headers), studentId);
   }
 
   @Get("students/:studentId/export")
@@ -266,7 +275,7 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ) {
-    assertTeacher(resolveActor(headers));
+    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
     return this.lotus.exportStudentData(studentId);
   }
 
