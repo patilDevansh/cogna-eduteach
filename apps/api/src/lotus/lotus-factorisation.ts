@@ -22,6 +22,7 @@ import type {
   LotusQuestionAudit,
   LotusSessionView,
   LotusSkillEvidence,
+  LotusSkillAssessmentProjection,
   LotusSkillState,
   LotusPlannedTopic,
   LotusSkillSummary,
@@ -483,14 +484,17 @@ function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string |
  */
 const LEVEL_RANK = { easy: 1, medium: 2, hard: 3 } as const;
 
-/** A weaker correct answer cannot settle a concern raised by a harder item. */
-function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQuestionAudit): boolean {
-  if (!original) return false;
-  if (!isTap(original) && isTap(current)) return true;
+/** A suspicion needs an independent, relevant and comparable success to settle it. */
+function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQuestionAudit, skillId: string): boolean {
+  // A prior with no originating item has no difficulty baseline to compare.
+  if (!original || isTap(current)) return true;
+  const diagnostics = current.question?.answerKey?.diagnostics;
+  // A mere topic tag does not establish that the student demonstrated this skill.
+  if (!diagnostics || (diagnostics.skillId !== skillId && !diagnostics.stepSkills?.includes(skillId))) return true;
   const before = original.question?.answerKey?.diagnostics?.level;
-  const after = current.question?.answerKey?.diagnostics?.level;
-  if (before && !after) return true;
-  return Boolean(before && after && LEVEL_RANK[after] < LEVEL_RANK[before]);
+  const after = diagnostics.level;
+  if (!before || !after) return true;
+  return LEVEL_RANK[after] < LEVEL_RANK[before];
 }
 
 export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): Ledger {
@@ -566,9 +570,9 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         // not by one where it is a single step among others.
         const direct = audit.question?.answerKey?.diagnostics?.skillId === skillId;
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
-          isWeakerCheck(audits[e.suspectedAt - 1], audit)) {
+          isWeakerCheck(audits[e.suspectedAt - 1], audit, skillId)) {
           e.needsComparableCheck = true;
-          e.notes.push(`Q${q}: right on a weaker check; the concern from Q${e.suspectedAt} needs a comparable independent check`);
+          e.notes.push(`Q${q}: right on a weaker check; the ${e.suspectedAt ? `concern from Q${e.suspectedAt}` : "earlier concern"} needs a comparable independent check`);
         } else if (e.recheck && e.state === "SUSPECTED") {
           if (direct && e.suspectedAt !== undefined && q > e.suspectedAt) {
             e.state = "SECURE"; e.recheck = false; e.needsComparableCheck = false; e.clearedAfterSlip = e.confirmedAt;
@@ -617,6 +621,30 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
   explainAwayConfounded(audits, ledger);
   markTirednessGaps(audits, ledger);
   return ledger;
+}
+
+/** Reconstruct each prefix using today's persisted records, not a delivery-time snapshot. */
+export function projectSkillAssessments(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): LotusSkillAssessmentProjection[] {
+  return audits.map((audit, index) => {
+    const previous = foldLedger(audits.slice(0, index), priors);
+    const current = foldLedger(audits.slice(0, index + 1), priors);
+    const skills = [...new Set((audit.skillEvidence ?? []).map((item) => item.skillId))];
+    return {
+      basis: "RECONSTRUCTED_FROM_CURRENT_RECORD" as const,
+      entries: skills.flatMap((skillId) => {
+        const after = current.get(skillId);
+        if (!after) return [];
+        const before = previous.get(skillId);
+        return [{
+          skillId,
+          previousState: before?.state ?? "UNTESTED",
+          state: after.state,
+          notes: after.notes.slice(before?.notes.length ?? 0),
+          needsComparableCheck: after.needsComparableCheck ?? false,
+        }];
+      }),
+    };
+  });
 }
 
 /**

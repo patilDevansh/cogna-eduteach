@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { LotusQuestion, LotusQuestionAudit } from "@cogna/shared";
-import { foldLedger, planAdjustments, type FactorisationState } from "../../src/lotus/lotus-factorisation";
+import { foldLedger, planAdjustments, projectSkillAssessments, type FactorisationState } from "../../src/lotus/lotus-factorisation";
 
 const skill = "FAC_DIVIDE_TERMS";
 function turn(level: "easy" | "medium" | "hard", kind: "CHOICE" | "FACTORISE", result: "MISTAKE" | "SECURE", slot: number): LotusQuestionAudit {
@@ -17,11 +17,34 @@ const simpler = turn("easy", "CHOICE", "SECURE", 1);
 const strong = turn("hard", "FACTORISE", "SECURE", 4);
 
 describe("targeted checks preserve the original concern", () => {
+  it("projects the original concern and weaker check without claiming an original-time snapshot", () => {
+    const [first, second] = projectSkillAssessments([wrong, simpler]);
+    assert.equal(first!.basis, "RECONSTRUCTED_FROM_CURRENT_RECORD");
+    assert.equal(first!.entries[0]!.previousState, "UNTESTED");
+    assert.equal(first!.entries[0]!.state, "SUSPECTED");
+    assert.equal(second!.entries[0]!.previousState, "SUSPECTED");
+    assert.equal(second!.entries[0]!.state, "SUSPECTED");
+    assert.equal(second!.entries[0]!.needsComparableCheck, true);
+  });
   it("records an easier chosen answer as positive evidence without clearing a harder concern", () => {
     const e = foldLedger([wrong, simpler]).get(skill)!;
     assert.equal(e.state, "SUSPECTED");
     assert.equal(e.needsComparableCheck, true);
     assert.match(e.notes.join(" "), /Q2: right on a weaker check.*Q1/);
+  });
+  it("a second same-level multiple-choice answer cannot clear a multiple-choice concern", () => {
+    const wrongChoice = turn("medium", "CHOICE", "MISTAKE", 1);
+    const rightChoice = turn("medium", "CHOICE", "SECURE", 1);
+    assert.equal(foldLedger([wrongChoice, rightChoice]).get(skill)?.state, "SUSPECTED");
+  });
+  it("an indirect tag without a demonstrated step cannot clear a concern", () => {
+    const indirect = turn("hard", "FACTORISE", "SECURE", 4);
+    indirect.question.answerKey.diagnostics!.stepSkills = ["FAC_COMMON_MONOMIAL"];
+    assert.equal(foldLedger([wrong, indirect]).get(skill)?.state, "SUSPECTED");
+  });
+  it("a prior concern without original question metadata is not silently cleared", () => {
+    const priors = [{ skillId: skill, reason: "SUSPECTED", mistakes: [], note: "Earlier concern" }] as any;
+    assert.equal(foldLedger([strong], priors).get(skill)?.state, "SUSPECTED");
   });
   it("a later comparable constructed answer can resolve it", () => {
     const e = foldLedger([wrong, simpler, strong]).get(skill)!;

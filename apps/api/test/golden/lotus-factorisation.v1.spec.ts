@@ -249,8 +249,11 @@ describe("foldLedger — one mistake is a suspicion, two is a gap", () => {
     assert.equal(ledger.get("FAC_DIFF_SQUARES")!.confirmedAt, 3);
   });
 
-  it("a later right answer clears the suspicion as a slip", () => {
-    const entry = foldLedger([audit([mistake("FAC_DIFF_SQUARES")]), audit([secure("FAC_DIFF_SQUARES")])]).get("FAC_DIFF_SQUARES")!;
+  it("a later relevant constructed answer clears a suspicion as a possible slip", () => {
+    const prior = { ...audit([mistake("FAC_DIFF_SQUARES", "WROTE_PERFECT_SQUARE")]), question: slotItem(20) };
+    const followup = { ...audit([secure("FAC_DIFF_SQUARES")]), question: slotItem(20) };
+    // This controlled item explicitly includes the skill in its worked steps.
+    const entry = foldLedger([prior, followup]).get("FAC_DIFF_SQUARES")!;
     assert.equal(entry.state, "SECURE");
     assert.equal(entry.clearedAfterSlip, 1);
   });

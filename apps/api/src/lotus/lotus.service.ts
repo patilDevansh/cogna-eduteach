@@ -82,6 +82,7 @@ import {
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
+  projectSkillAssessments,
   reviewsStillRunning,
 } from "./lotus-factorisation";
 import { checkWrittenItem, LotusQuestionFactory, type WriteRequest, type WriteResult } from "./lotus-question-factory";
@@ -634,6 +635,7 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
     formatDecision: undefined,
     // What each answer said about each skill is the diagnosis itself — released with the report, not before.
     skillEvidence: undefined,
+    skillAssessment: undefined,
     // What the server read from a themed game's play is part of the same diagnosis.
     response: audit.response ? { ...audit.response, gameReading: undefined } : audit.response,
     gpt: audit.gpt ? redactAssessment(audit.gpt) : undefined,
@@ -656,6 +658,10 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
  */
 function observerCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
+  if (session.factorisation) {
+    const projections = projectSkillAssessments(session.audits, session.priors);
+    clone.audits = clone.audits.map((audit, index) => ({ ...audit, skillAssessment: projections[index] }));
+  }
   delete clone.factorisation;
   delete clone.priors;
   delete clone.coveragePlan;

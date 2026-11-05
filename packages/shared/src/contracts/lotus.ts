@@ -572,6 +572,20 @@ export interface LotusAdaptiveDecision {
   source: "RULE_VALIDATED_PLAN" | "AI_RECOMMENDATION";
 }
 
+/** Observer-only reconstruction using the evidence currently stored for each answered prefix.
+ * Late asynchronous reviews can change an earlier record; this is not an as-delivered snapshot.
+ * States are planner states and SECURE alone is not a mastery finding. */
+export interface LotusSkillAssessmentProjection {
+  basis: "RECONSTRUCTED_FROM_CURRENT_RECORD";
+  entries: Array<{
+    skillId: string;
+    previousState: LotusSkillState;
+    state: LotusSkillState;
+    notes: string[];
+    needsComparableCheck: boolean;
+  }>;
+}
+
 export interface LotusQuestionAudit {
   question: LotusQuestion;
   response: LotusStudentResponse | null;
@@ -615,6 +629,8 @@ export interface LotusQuestionAudit {
   formatDecision?: LotusFormatDecision;
   /** What this turn told us about each skill. Hidden from the student while the diagnostic is active. */
   skillEvidence?: LotusSkillEvidence[];
+  /** Available only on authorised observer copies; not persisted evidence of the original decision. */
+  skillAssessment?: LotusSkillAssessmentProjection;
   stageAgreement?: LotusStageAgreement | null;
   timingMs?: LotusStageTimingMs | null;
   createdAt: string;
