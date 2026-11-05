@@ -23,14 +23,8 @@ export interface TileGameState {
   answer: string | null;
 }
 
-/** ASCII algebra (x^2, " - ") shown the way a textbook writes it. */
-export function prettyAlgebra(text: string): string {
-  return text
-    .replace(/\^([2-5])/g, (_, d: string) => ({ "2": "²", "3": "³", "4": "⁴", "5": "⁵" })[d]!)
-    .replace(/ - /g, " − ")
-    .replace(/(^|\()-/g, "$1−")
-    .replace(/\*/g, "×");
-}
+export { prettyAlgebra } from "./pretty-algebra";
+import { prettyAlgebra } from "./pretty-algebra";
 
 function tileLabel(interaction: TileBuildInteraction, tile: string): string {
   return prettyAlgebra(tile).replace(/^−(?=\d|[a-z])/, "−").replace(/^\+ /, "+ ");

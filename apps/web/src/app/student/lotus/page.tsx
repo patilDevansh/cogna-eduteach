@@ -709,6 +709,13 @@ function AuditCard({
           )}
         </section>
 
+{audit.analysisSource === "AI_REVIEW" && audit.analysisStatus === "COMPLETE" && (
+          <section className={styles.evidenceBox}>
+            <h4>Evidence sent for AI review</h4>
+            {audit.reviewInputFields ? <p>{audit.reviewInputFields.join(", ")}. The submitted game record can include typing history. Field names show what was supplied; they do not prove what the model used.</p> : <p>This older review did not record its input fields, so its exact inputs cannot be verified here.</p>}
+            <p>Hypotheses are tentative; a pause or edit alone does not establish the cause.</p>
+          </section>
+        )}
         <EvidencePanel audit={audit} audits={audits} index={index} />
 
         {(audit.questionSelection.primaryProposal || audit.questionSelection.challengerProposal) && (
@@ -727,12 +734,13 @@ function AuditCard({
           <details className={styles.reasoningDrawer}>
             <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
             <div className={styles.reasoningBody}>
-              {audit.gpt && audit.challenger && <div className={styles.modelGrid}>
+              {audit.reviewMode === "SINGLE" && audit.gpt && <AssessmentCard name="AI review" assessment={audit.gpt} className={styles.gpt} />}
+              {audit.reviewMode !== "SINGLE" && audit.gpt && audit.challenger && <div className={styles.modelGrid}>
                 <AssessmentCard name="GPT primary thought" assessment={audit.gpt} className={styles.gpt} />
                 <AssessmentCard name="GPT challenger thought" assessment={audit.challenger} className={styles.challenger} />
               </div>}
 
-              {audit.debate && <section className={`${styles.section} ${styles.debate}`}>
+              {audit.reviewMode !== "SINGLE" && audit.debate && <section className={`${styles.section} ${styles.debate}`}>
               <h4>What they argued</h4>
               <p><strong>Agreement</strong></p>
               <List items={audit.debate.agreements} />

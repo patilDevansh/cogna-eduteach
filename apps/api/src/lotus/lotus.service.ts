@@ -46,6 +46,7 @@ import {
   overallReviewPrompt,
   reserveCandidatesPrompt,
   singleReviewPrompt,
+  singleReviewStudentInput,
 } from "./lotus-prompts";
 import type { PrismaClient } from "@cogna/database";
 import { LotusModelService, PROVIDER_OUTAGE_PROBE_MS } from "./lotus-model.service";
@@ -633,6 +634,8 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
     ...audit,
     // Why a format was chosen names what Lotus suspects.
     formatDecision: undefined,
+    reviewInputFields: undefined,
+    reviewMode: undefined,
     // What each answer said about each skill is the diagnosis itself — released with the report, not before.
     skillEvidence: undefined,
     skillAssessment: undefined,
@@ -742,7 +745,11 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
   delete clone.authorizedVariants;
   delete clone.preferredFuture;
   clone.upcomingQuestions = upcoming;
-  if (clone.status === "COMPLETE") return clone;
+  if (clone.status === "COMPLETE") {
+    // Input receipts are observer-only, including after the diagnostic ends.
+    clone.audits = clone.audits.map((audit) => ({ ...audit, reviewInputFields: undefined, reviewMode: undefined }));
+    return clone;
+  }
   if (clone.currentQuestion) clone.currentQuestion = redactQuestion(clone.currentQuestion);
   // openingAudit.question is the exact same object as currentQuestion until
   // the first answer is submitted (audits.length === 0) — it is the live,
@@ -1475,6 +1482,8 @@ export class LotusService implements OnModuleDestroy {
       questionSelection,
       analysisStatus: "COMPLETE",
       analysisSource: "AI_REVIEW",
+      reviewInputFields: analysis.reviewInputFields,
+      reviewMode: analysis.reviewMode,
       stageAgreement: analysis.stageAgreement,
       timingMs: analysis.timingMs,
       createdAt: new Date().toISOString(),
@@ -1600,6 +1609,8 @@ export class LotusService implements OnModuleDestroy {
     slot.timingMs = analysis.timingMs;
     slot.analysisStatus = "COMPLETE";
     slot.analysisSource = "AI_REVIEW";
+    slot.reviewInputFields = analysis.reviewInputFields;
+    slot.reviewMode = analysis.reviewMode;
     slot.analysisCompletedAt = new Date().toISOString();
     slot.analysisLate = Boolean(slot.analysisDeadlineAt && new Date(slot.analysisDeadlineAt).getTime() < Date.now());
 
@@ -1726,6 +1737,8 @@ export class LotusService implements OnModuleDestroy {
     conclusion: LotusDebateClosure;
     stageAgreement: LotusStageAgreement;
     timingMs: LotusStageTimingMs;
+    reviewInputFields?: string[];
+    reviewMode?: "SINGLE" | "DEBATE";
   }> {
     const independentArgs = {
       audits: priorAudits,
@@ -1786,6 +1799,8 @@ export class LotusService implements OnModuleDestroy {
         debate,
         conclusion,
         stageAgreement: { assessmentsAgreed: true, debateChangedVerdict: false, closureChangedVerdict: false },
+        reviewMode: "SINGLE",
+        reviewInputFields: Object.entries(singleReviewStudentInput(independentArgs)).filter(([, value]) => value !== undefined).map(([key]) => key),
         timingMs: {
           assessment: 0,
           debate: 0,

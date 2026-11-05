@@ -612,6 +612,9 @@ export interface LotusQuestionAudit {
   analysisStatus: LotusAnalysisStatus;
   /** Lets the observer separate a mathematical fact, a support request, and a completed model interpretation. */
   analysisSource: LotusAnalysisSource;
+  /** Field names actually included in a completed single-model review; absent on legacy records. */
+  reviewInputFields?: string[];
+  reviewMode?: "SINGLE" | "DEBATE";
   /** Durable review timing, used to distinguish queued work from model time. */
   analysisQueuedAt?: string;
   /** Snapshot of the in-process queue when the review was accepted; zero means running. */
