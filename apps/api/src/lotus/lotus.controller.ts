@@ -5,7 +5,8 @@ import type { TtsProvider } from "../ai/tts.service";
 import { spokenMath } from "../ai/spoken-math";
 import { timingSafeEqual } from "node:crypto";
 import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
-import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
+import { assertStudentAccess, assertTeacher, assertWorker, isProductionLike, resolveActor } from "../access/cogna-access";
+import { isDemoStudent } from "../engines/diagnostic-v2/demo-student";
 import {
   LotusReasonDto,
   DeveloperLotusExitDto,
@@ -254,10 +255,14 @@ export class LotusController {
     @Body() body: OverrideLotusSessionDto,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
-    assertTeacher(actor);
     const session = await this.lotus.get(id);
     if (session.studentId !== body.studentId) throw new NotFoundException("Diagnostic session not found for this student.");
-    await this.studio.assertCanObserve(actor, session, false);
+    if (actor.role === "student" && !isProductionLike() && observerTeacherGateBypassed() && isDemoStudent(session.studentId) && !session.classroomAssignmentId) {
+      assertStudentAccess(actor, session.studentId);
+    } else {
+      assertTeacher(actor);
+      await this.studio.assertCanObserve(actor, session, false);
+    }
     return this.lotus.override(id, body.studentId, body.action);
   }
 

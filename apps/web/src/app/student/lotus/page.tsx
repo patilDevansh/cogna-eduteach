@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } fr
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
 import { relatedEvidence, recordedUncertainty, reconstructedAssessments } from "@/lib/lotus-related-evidence";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
+import { lotusRecoveryProblem } from "@/lib/lotus-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
 import { LotusDeveloperExit } from "@/components/lotus-developer-exit";
@@ -1175,7 +1176,8 @@ function LotusPage() {
           return;
         }
         if (requestedSessionId && cached.session.sessionId !== requestedSessionId) throw new Error("Saved session changed");
-        if (cached.session.studentId !== studentId || typeof cached.answer !== "string" || cached.answer.length > 10000 || !Array.isArray(cached.workingLines) || cached.workingLines.length > 6 || cached.workingLines.some(line => typeof line !== "string" || line.length > 10000) || !Number.isFinite(cached.startedAt) || (cached.confidence !== null && ![25,60,90].includes(cached.confidence)) || cached.pending && (!cached.pending.submissionId || typeof cached.pending.answer !== "string" || cached.pending.answer.length > 10000 || typeof cached.pending.working !== "string" || cached.pending.working.length > 60000 || typeof cached.pending.didNotKnow !== "boolean" || !Number.isFinite(cached.pending.responseTimeMs) || cached.pending.responseTimeMs < 0 || cached.pending.questionId !== cached.session.currentQuestion?.id || !validInteractionContext(cached.pending.interactionContext) || cached.pending.interactionContext.source !== "LOTUS" || cached.pending.interactionContext.questionId !== cached.pending.questionId)) throw new Error("Invalid recovery state");
+        const recoveryProblem = lotusRecoveryProblem(cached, studentId);
+        if (recoveryProblem) throw new Error(recoveryProblem);
         const fresh = await api.getLotusSession(cached.session.sessionId);
         if(cancelled)return;
         if (fresh.studentId !== studentId) throw new Error("Session ownership changed");
@@ -1183,6 +1185,14 @@ function LotusPage() {
         const pending = cached.pending;
         const sameQuestion = cached.session.currentQuestion?.id === fresh.currentQuestion?.id;
         const committed = pending && fresh.audits.some(a => a.question.id === pending.questionId && a.response?.submissionId === pending.submissionId);
+        if (pending && committed) {
+          const confirmed = await submitWithRetry(fresh.sessionId, studentId, pending);
+          if (cancelled) return;
+          setSession(confirmed);
+          setPendingSubmission(null);
+          setRecoveryMessage("Your previous answer was already saved. Resumed from the latest question.");
+          return;
+        }
         if (pending && !sameQuestion && !committed) { confirmationFailed=true; setRecoveryMessage("Your question changed since your last save. Your earlier answer is still on this device and wasn't added to the new question. Reload the page to try again."); return; }
         const originalQuestion = pending && committed ? fresh.audits.find(a=>a.question.id===pending.questionId)?.question : fresh.currentQuestion;
         if(pending?.interaction){
@@ -1716,8 +1726,8 @@ function LotusPage() {
   // A wrong answer code couldn't explain gets one "How did you get it?" tap before the next question.
   const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
-  const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
-  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
+  const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
+  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
   // Only sizes the pond map. The plan's length changes as Lotus adapts, so it

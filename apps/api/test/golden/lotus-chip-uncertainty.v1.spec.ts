@@ -28,6 +28,12 @@ describe("split-chip uncertainty", () => {
     const independent = { ...split([0, 4, 0, 0]), response: { answer: "correct", didNotKnow: false } } as unknown as LotusQuestionAudit;
     assert.equal(foldLedger([split([1, 3, 0, 0]), independent]).get(skill)?.splitDoubtAt, undefined);
   });
+  it("does not resolve split uncertainty from later multiple-choice answers", () => {
+    const choice = { ...split([0, 4, 0, 0]), question: { ...question, type: "MULTIPLE_CHOICE", answerKey: { ...question.answerKey, diagnostics: { ...question.answerKey.diagnostics!, itemKind: "CHOICE" } } }, response: { answer: "correct" } } as unknown as LotusQuestionAudit;
+    const entry = foldLedger([split([1, 3, 0, 0]), choice, choice]).get(skill)!;
+    assert.equal(entry.splitDoubtAt, 1);
+    assert.notEqual(entry.state, "SECURE");
+  });
   it("does not promise a check if no future turn can be used", () => {
     const noCapacity = { ...state, turns: state.turns.filter((t) => t.turn <= state.planTurn) };
     const actions = planAdjustments({ state: noCapacity, ledger: foldLedger([split([1, 3, 0, 0])]), itemAt: () => undefined, askedItems: [question], freezeNext: false });

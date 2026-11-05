@@ -604,6 +604,8 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
           e.notes.push(e.suspectedAt === 0
             ? `Q${q}: right, so ${e.fromMemory === "TAUGHT" ? "the lesson has stuck" : "the earlier gap looks fixed"}`
             : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
+        } else if (e.state === "UNTESTED" && e.splitDoubtAt && isTap(audit)) {
+          e.notes.push(`Q${q}: a selected answer provides supporting evidence, but the split still needs an independent answer`);
         } else if (e.state === "UNTESTED" && isTap(audit) && (e.tapRights ?? 0) < 1) {
           // One right multiple-choice tap could be a 1-in-4 guess: it takes a
           // second right tap or a right typed answer to call the skill secure.
