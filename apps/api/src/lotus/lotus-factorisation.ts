@@ -415,6 +415,8 @@ export interface SkillLedgerEntry {
   recheckUsed?: boolean;
   /** Right once on a multiple-choice tap: not yet enough to call it secure. */
   tapRights?: number;
+  /** A weaker successful check gives positive evidence but cannot resolve the original concern. */
+  needsComparableCheck?: boolean;
   /** Confirmed only by fast wrong answers late in the test: may be tiredness, so not taught (C13). */
   tiredness?: boolean;
   mistakes: string[];
@@ -479,6 +481,18 @@ function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string |
  * plan re-checks it early, one more mistake confirms it, and a right answer that could have shown
  * the old mistake clears it.
  */
+const LEVEL_RANK = { easy: 1, medium: 2, hard: 3 } as const;
+
+/** A weaker correct answer cannot settle a concern raised by a harder item. */
+function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQuestionAudit): boolean {
+  if (!original) return false;
+  if (!isTap(original) && isTap(current)) return true;
+  const before = original.question?.answerKey?.diagnostics?.level;
+  const after = current.question?.answerKey?.diagnostics?.level;
+  if (before && !after) return true;
+  return Boolean(before && after && LEVEL_RANK[after] < LEVEL_RANK[before]);
+}
+
 export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): Ledger {
   const ledger: Ledger = new Map();
   const entry = (skillId: string): SkillLedgerEntry => {
@@ -551,9 +565,13 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         // A re-check is settled only by a question aimed at the skill itself,
         // not by one where it is a single step among others.
         const direct = audit.question?.answerKey?.diagnostics?.skillId === skillId;
-        if (e.recheck && e.state === "SUSPECTED") {
+        if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
+          isWeakerCheck(audits[e.suspectedAt - 1], audit)) {
+          e.needsComparableCheck = true;
+          e.notes.push(`Q${q}: right on a weaker check; the concern from Q${e.suspectedAt} needs a comparable independent check`);
+        } else if (e.recheck && e.state === "SUSPECTED") {
           if (direct && e.suspectedAt !== undefined && q > e.suspectedAt) {
-            e.state = "SECURE"; e.recheck = false; e.clearedAfterSlip = e.confirmedAt;
+            e.state = "SECURE"; e.recheck = false; e.needsComparableCheck = false; e.clearedAfterSlip = e.confirmedAt;
             e.notes.push(`Q${q}: right on the re-check, so the earlier mistakes look like slips`);
           } else {
             e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
@@ -565,7 +583,7 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
           // can't clear it. The plan keeps a check that can.
           e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
-          e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt;
+          e.state = "SECURE"; e.needsComparableCheck = false; e.clearedAfterSlip = e.suspectedAt;
           e.notes.push(e.suspectedAt === 0
             ? `Q${q}: right, so ${e.fromMemory === "TAUGHT" ? "the lesson has stuck" : "the earlier gap looks fixed"}`
             : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
@@ -953,14 +971,19 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // A suspicion gets one dedicated check, ever (an answered one counts too);
     // a re-check needs its own, still ahead.
     const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) =>
-      (t.purpose === "CHECK" && t.forSkill === e.skillId && (!e.recheck || t.turn >= state.planTurn)) ||
+      (t.purpose === "CHECK" && t.forSkill === e.skillId && (!(e.recheck || e.needsComparableCheck) || t.turn >= state.planTurn)) ||
       (t.turn >= state.planTurn &&
-        (t.status !== "SKIPPED" && (e.recheck
+        (t.status !== "SKIPPED" && (e.needsComparableCheck
+          ? false // A generic planned item has not established independent comparable evidence.
+          : e.recheck
           ? itemAt(t.turn)?.answerKey.diagnostics?.skillId === e.skillId
           // C6: the later question must be able to show the suspected mistake.
           : usesSkill(itemAt(t.turn), e.skillId) && itemCouldShow(itemAt(t.turn), e.mistakes.at(-1))))));
     if (hasCheck) continue;
-    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+    const sourceSlot = e.needsComparableCheck && e.suspectedAt
+      ? input.askedItems[e.suspectedAt - 1]?.answerKey.diagnostics?.slot : undefined;
+    const spec = (sourceSlot !== undefined ? slots.find((s) => s.slot === sourceSlot) : undefined)
+      ?? slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     if (!spec) continue;
     const turn = pickVictim();
     if (turn === null) continue;
@@ -970,7 +993,9 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     actions.push({
       kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: e.skillId, spec,
       targetMistake: e.mistakes.at(-1),
-      reason: e.recheck
+      reason: e.needsComparableCheck
+        ? `The simpler answer was correct, but ${skillName(e.skillId)} still needs a comparable independent check.`
+        : e.recheck
         ? `Re-checks ${skillName(e.skillId)}: it was confirmed earlier, but answered right twice since.`
         : `Checks the suspected gap in ${skillName(e.skillId)} a second time.`,
     });
