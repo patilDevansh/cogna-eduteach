@@ -646,6 +646,16 @@ export interface LotusLiveProgress {
   updatedAt: string;
 }
 
+/** A skill earlier tests or lessons left open, carried into a new test (apps/api/src/learner/learner-memory.ts). */
+export interface LotusLedgerPrior {
+  skillId: string;
+  /** GAP: an earlier test found a gap. TAUGHT: a lesson since, whose result a test hasn't checked yet. */
+  reason: "GAP" | "TAUGHT";
+  /** The mistakes seen before, so this test re-checks the same one. */
+  mistakes: string[];
+  note: string;
+}
+
 export interface LotusSessionView {
   sessionId: string;
   studentId: string;
@@ -665,6 +675,11 @@ export interface LotusSessionView {
   reportPending?: boolean;
   experimental: true;
   phase: LotusPhase;
+  /**
+   * Server only (stripped from every copy a browser gets): what earlier tests and lessons left open
+   * about this student, carried in as suspicions so this test re-checks them first.
+   */
+  priors?: LotusLedgerPrior[];
   startedAt: string;
   /** When enough questions were ready to begin. The test clock starts here, so waiting for questions to be written never uses up test time. */
   questionsReadyAt?: string;

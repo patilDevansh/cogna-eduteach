@@ -16,6 +16,7 @@
 import type {
   LotusFinalReport,
   LotusItemDiagnostics,
+  LotusLedgerPrior,
   LotusMathVerification,
   LotusQuestion,
   LotusQuestionAudit,
@@ -428,6 +429,8 @@ export interface SkillLedgerEntry {
   explainedBy?: string;
   /** Answers on this skill that were wrong, where the AI review said "misunderstanding" but named no step, so no skill got evidence. */
   unexplained?: number;
+  /** Carried in from earlier tests or lessons (see foldLedger's priors), and why. */
+  fromMemory?: LotusLedgerPrior["reason"];
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
@@ -470,13 +473,27 @@ function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string |
   return predicted.some((p) => p.mistake === mistake);
 }
 
-export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
+/**
+ * Folds the answers into each skill's state. `priors` are skills earlier tests or lessons left open
+ * (the learner memory): each starts this test as a suspicion from before its first question, so the
+ * plan re-checks it early, one more mistake confirms it, and a right answer that could have shown
+ * the old mistake clears it.
+ */
+export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): Ledger {
   const ledger: Ledger = new Map();
   const entry = (skillId: string): SkillLedgerEntry => {
     let e = ledger.get(skillId);
     if (!e) { e = { skillId, state: "UNTESTED", mistakes: [], notes: [] }; ledger.set(skillId, e); }
     return e;
   };
+  for (const prior of priors) {
+    const e = entry(prior.skillId);
+    e.state = "SUSPECTED";
+    e.suspectedAt = 0;
+    e.fromMemory = prior.reason;
+    e.mistakes.push(...prior.mistakes);
+    e.notes.push(`Before this test: ${prior.note}`);
+  }
   audits.forEach((audit, i) => {
     const q = i + 1;
     const bySkill = new Map<string, LotusSkillEvidence[]>();
@@ -548,7 +565,10 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
           // can't clear it. The plan keeps a check that can.
           e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
-          e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt; e.notes.push(`Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
+          e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt;
+          e.notes.push(e.suspectedAt === 0
+            ? `Q${q}: right, so ${e.fromMemory === "TAUGHT" ? "the lesson has stuck" : "the earlier gap looks fixed"}`
+            : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
         } else if (e.state === "UNTESTED" && isTap(audit) && (e.tapRights ?? 0) < 1) {
           // One right multiple-choice tap could be a 1-in-4 guess: it takes a
           // second right tap or a right typed answer to call the skill secure.
@@ -1281,6 +1301,7 @@ export function factorisationStopReason(
   audits: LotusQuestionAudit[],
   elapsedSeconds: number,
   timeLimitSeconds: number = factorisationTimeLimitSeconds(),
+  priors: LotusLedgerPrior[] = [],
 ): FactorisationStop | null {
   const answered = audits.length;
   if (elapsedSeconds >= timeLimitSeconds) {
@@ -1290,7 +1311,7 @@ export function factorisationStopReason(
     };
   }
   if (answered < MIN_ANSWERS_FOR_EARLY_STOP) return null;
-  const ledger = foldLedger(audits);
+  const ledger = foldLedger(audits, priors);
   const start = confirmedByDepth(ledger)[0];
   if (!start) return null;
   // A soft prerequisite only holds the test open once it has shown trouble; unasked or merely observed, it doesn't.

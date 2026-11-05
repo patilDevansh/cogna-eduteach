@@ -102,3 +102,37 @@ describe("the student's picture across tests and lessons", () => {
     assert.deepEqual(memoryLines(foldLearnerModel("s1", [])), []);
   });
 });
+
+describe("what earlier tests carry into a new one", async () => {
+  const { foldLedger } = await import("../../src/lotus/lotus-factorisation");
+  const { priorsFromMemory } = await import("../../src/learner/learner-memory");
+  const prior = { skillId: "FAC_MONIC_TRINOMIAL", reason: "GAP" as const, mistakes: ["SIGN_PAIR_ERROR"], note: "a gap on 1 Nov" };
+  const onTrinomial = (verdict: "right" | "wrong") => {
+    const a = answer("FAC_MONIC_TRINOMIAL", verdict);
+    (a.question.answerKey!.diagnostics as { predictedMistakes: unknown[] }).predictedMistakes = [{ answer: "x", mistake: "SIGN_PAIR_ERROR" }];
+    return a;
+  };
+
+  it("an earlier gap starts the test as a suspicion, so one more mistake confirms it", () => {
+    assert.equal(foldLedger([], [prior]).get("FAC_MONIC_TRINOMIAL")!.state, "SUSPECTED");
+    assert.equal(foldLedger([onTrinomial("wrong")], [prior]).get("FAC_MONIC_TRINOMIAL")!.state, "CONFIRMED");
+    assert.equal(foldLedger([onTrinomial("wrong")]).get("FAC_MONIC_TRINOMIAL")!.state, "SUSPECTED", "without the memory, one mistake is only a suspicion");
+  });
+
+  it("a right answer that could have shown the old mistake shows it's fixed", () => {
+    const e = foldLedger([onTrinomial("right")], [prior]).get("FAC_MONIC_TRINOMIAL")!;
+    assert.equal(e.state, "SECURE");
+    assert.ok(e.notes.some((n) => /earlier gap looks fixed/.test(n)), e.notes.join(" | "));
+    const taught = foldLedger([onTrinomial("right")], [{ ...prior, reason: "TAUGHT" }]).get("FAC_MONIC_TRINOMIAL")!;
+    assert.ok(taught.notes.some((n) => /the lesson has stuck/.test(n)), taught.notes.join(" | "));
+  });
+
+  it("gaps, suspicions and untested lessons carry in; secure and fixed skills don't; it can be turned off", () => {
+    const first = at(testEvidence(test("p1", [answer("FAC_MONIC_TRINOMIAL", "wrong"), answer("FAC_MONIC_TRINOMIAL", "wrong"), answer("FAC_DIFF_SQUARES", "right"), answer("FAC_DIFF_SQUARES", "right")])), "2026-11-01T10:00:00Z");
+    const priors = priorsFromMemory(foldLearnerModel("s1", first), {});
+    assert.deepEqual(priors.map((p) => [p.skillId, p.reason, p.mistakes]), [["FAC_MONIC_TRINOMIAL", "GAP", ["SIGN_PAIR_ERROR"]]]);
+    const passedLesson: EvidenceRow = { studentId: "s1", topic: "FACTORISATION", skillId: "FAC_MONIC_TRINOMIAL", source: "LESSON", sourceId: "l9", state: "LESSON_PASSED", mistakes: [], detail: {}, observedAt: new Date("2026-11-03T10:00:00Z") };
+    assert.equal(priorsFromMemory(foldLearnerModel("s1", [...first, passedLesson]), {})[0]!.reason, "TAUGHT");
+    assert.deepEqual(priorsFromMemory(foldLearnerModel("s1", first), { LOTUS_MEMORY_PRIORS: "off" }), []);
+  });
+});

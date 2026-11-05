@@ -59,7 +59,7 @@ import {
 } from "./lotus-persistence";
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
-import { foldLearnerModel, loadLearnerModel, memoryLines, testEvidence, writeEvidence, type EvidenceRow, type LearnerModel } from "../learner/learner-memory";
+import { foldLearnerModel, loadLearnerModel, memoryLines, priorsFromMemory, testEvidence, writeEvidence, type EvidenceRow, type LearnerModel } from "../learner/learner-memory";
 import { normalizeMathText } from "./lotus-algebra";
 import { fittingFormats, redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { checkedAiFormat, evidenceFormatNeed, formatDecisionNote } from "./lotus-format-guide";
@@ -657,6 +657,7 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
 function observerCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
   delete clone.factorisation;
+  delete clone.priors;
   delete clone.coveragePlan;
   delete clone.authorizedVariants;
   delete clone.preferredFuture;
@@ -722,6 +723,7 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     }
   }
   delete clone.factorisation;
+  delete clone.priors;
   if (clone.status === "ACTIVE" && clone.coveragePlan) {
     for (let turn = clone.audits.length + 2; turn <= clone.coveragePlan.length; turn += 1) {
       const preferredId = clone.preferredFuture?.[String(turn)];
@@ -2135,15 +2137,10 @@ Create one materially different question that adds new diagnostic evidence. Test
       timingMs: null,
       createdAt: startedAt,
     };
-    // The student's history on this topic, so this test is read in the light of the last ones.
-    const memory = lotusPersistenceEnabled(this.prisma)
-      ? await this.prisma.learnerSkillEvidence?.findMany({ where: { studentId, topic }, orderBy: { observedAt: "asc" } })
-        .then((rows) => rows.map(({ skillId, source, sourceId, state, mistakes, detail, observedAt }) => ({
-          skillId, source: source as "TEST" | "LESSON", sourceId, state: state as EvidenceRow["state"],
-          mistakes: mistakes as unknown as EvidenceRow["mistakes"], detail: detail as Record<string, unknown>, observedAt: observedAt.toISOString(),
-        })))
-        .catch(() => undefined)
-      : undefined;
+    // The student's history on this topic, so this test is read in the light of the last ones, and
+    // what earlier tests or lessons left open is re-checked first.
+    const memory = await this.memoryFor(studentId, topic);
+    const priors = memory?.length ? priorsFromMemory(foldLearnerModel(studentId, memory)) : [];
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
@@ -2152,6 +2149,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       board: "CBSE",
       topic,
       ...(focus ? { catchUp: { skills: focus.map(skillName) } } : {}),
+      ...(priors.length ? { priors } : {}),
       status: "ACTIVE",
       experimental: true,
       workingPrompt: workingPromptFor(studentId),
@@ -2188,6 +2186,17 @@ Create one materially different question that adds new diagnostic evidence. Test
     await this.persist(session, undefined, true);
     this.buildSkeleton(session);
     return publicCopy(session);
+  }
+
+  /** What earlier tests and lessons on this topic showed about the student; empty without a database. */
+  protected async memoryFor(studentId: string, topic: string): Promise<NonNullable<FactorisationSession["memory"]> | undefined> {
+    if (!lotusPersistenceEnabled(this.prisma)) return undefined;
+    return this.prisma.learnerSkillEvidence?.findMany({ where: { studentId, topic }, orderBy: { observedAt: "asc" } })
+      .then((rows) => rows.map(({ skillId, source, sourceId, state, mistakes, detail, observedAt }) => ({
+        skillId, source: source as "TEST" | "LESSON", sourceId, state: state as EvidenceRow["state"],
+        mistakes: mistakes as unknown as EvidenceRow["mistakes"], detail: detail as Record<string, unknown>, observedAt: observedAt.toISOString(),
+      })))
+      .catch(() => undefined);
   }
 
   /** Queues an AI write for every planned turn. No fixed item is installed. */
@@ -2588,7 +2597,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (session.status !== "ACTIVE") return [];
     const actions = planAdjustments({
       state: f.state,
-      ledger: foldLedger(session.audits),
+      ledger: foldLedger(session.audits, session.priors),
       freezeNext,
       forceCheckSkills,
       itemAt: (turn) => preferredItem(f, turn),
@@ -2725,6 +2734,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     const stop = factorisationStopReason(
       [...session.audits, { skillEvidence: instant.evidence } as LotusQuestionAudit],
       elapsedSeconds,
+      undefined,
+      session.priors,
     );
     if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
@@ -2905,7 +2916,7 @@ Create one materially different question that adds new diagnostic evidence. Test
   private factorisationReport(session: LotusSessionState) {
     const f = session.factorisation!;
     const report = buildFactorisationReport({
-      ledger: foldLedger(session.audits),
+      ledger: foldLedger(session.audits, session.priors),
       state: f.state,
       pendingAnalyses: session.audits.filter((audit) => audit.analysisStatus === "PENDING" || audit.analysisStatus === "FAILED").length,
       audits: session.audits,
@@ -2942,7 +2953,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const models = this.models as LotusModelService & { overallReview?: LotusModelService["overallReview"] };
     if (typeof models.overallReview !== "function") return;
     this.overallReviewsRunning.add(session.sessionId);
-    const codeRecord = [...foldLedger(session.audits).values()].map((e) =>
+    const codeRecord = [...foldLedger(session.audits, session.priors).values()].map((e) =>
       `${skillName(e.skillId)}: ${e.state}${e.notes.length ? ` (${e.notes.slice(-3).join("; ")})` : ""}`);
     void models.overallReview(overallReviewPrompt({ audits: session.audits, codeRecord, topic: session.topic }))
       .then(async (result) => {

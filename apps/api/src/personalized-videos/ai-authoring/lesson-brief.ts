@@ -87,7 +87,7 @@ export function isPairAnswer(answer: string): boolean {
 export function buildLessonBrief(session: LotusSessionView, studentFirstName: string): LessonBrief | null {
   if (!isPlannedLotusTopic(session.topic) || session.finalReport?.outcome !== "SOLID_GAP") return null;
   // The shared sign cause when there is one, so the lesson matches the report.
-  const target = teachingStart(foldLedger(session.audits));
+  const target = teachingStart(foldLedger(session.audits, session.priors));
   if (!target) return null;
 
   const studentItems: LessonBrief["studentItems"] = [];

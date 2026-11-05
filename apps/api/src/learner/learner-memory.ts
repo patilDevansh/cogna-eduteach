@@ -10,9 +10,9 @@
  * Read back by: the AI review of a new test (planningContext), the lesson brief, and the report.
  */
 import type { PrismaClient } from "@cogna/database";
-import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusQuestionAudit, type LotusSessionView, type LotusTopic } from "@cogna/shared";
-import { foldLedger } from "../lotus/lotus-factorisation";
-import { skillName } from "../lotus/lotus-factorisation-catalogue";
+import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusLedgerPrior, type LotusQuestionAudit, type LotusSessionView, type LotusTopic } from "@cogna/shared";
+import { depth, foldLedger } from "../lotus/lotus-factorisation";
+import { dependsOnTransitively, skillName } from "../lotus/lotus-factorisation-catalogue";
 import { mistakeInWords } from "../lotus/lotus-reasons";
 import { tidyExpression } from "../personalized-videos/ai-authoring/lesson-brief";
 
@@ -63,7 +63,7 @@ export function testEvidence(session: LotusSessionView): EvidenceRow[] {
   if (!answered.length) return [];
   const observedAt = new Date(answered.at(-1)!.createdAt ?? session.startedAt);
   const base = { studentId: session.studentId, topic: session.topic!, source: "TEST" as const, sourceId: session.sessionId, observedAt };
-  const ledger = foldLedger(session.audits);
+  const ledger = foldLedger(session.audits, session.priors);
   const rows: EvidenceRow[] = [];
 
   const onSkill = (skillId: string) => answered.filter((a) => a.question.answerKey?.diagnostics?.skillId === skillId || (a.skillEvidence ?? []).some((e) => e.skillId === skillId));
@@ -251,6 +251,32 @@ export function foldLearnerModel(studentId: string, stored: StoredRow[]): Learne
     } : null,
   };
 }
+
+/**
+ * What a new test should re-check first: each skill an earlier test left as a gap or a suspicion, or a
+ * lesson taught since without a test checking it. Secure, fixed and unclear skills carry nothing in.
+ * LOTUS_MEMORY_PRIORS=off turns this off (tests then start from nothing, as before).
+ */
+export function priorsFromMemory(model: LearnerModel, env: NodeJS.ProcessEnv = process.env): LotusLedgerPrior[] {
+  if ((env.LOTUS_MEMORY_PRIORS ?? "on").toLowerCase() === "off") return [];
+  const day = (at: string) => new Date(at).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  const all = model.skills.flatMap((s): LotusLedgerPrior[] => {
+    const mistakes = s.mistakes.slice(0, 2).map((m) => m.code);
+    if (s.status === "TAUGHT") return [{ skillId: s.skillId, reason: "TAUGHT", mistakes, note: `taught on ${day(s.lessons.at(-1)!.at)}; checking it stuck` }];
+    if (s.status === "GAP" || s.status === "SUSPECTED" || s.status === "TAUGHT_NOT_YET") {
+      const what = s.status === "GAP" ? "a gap" : s.status === "SUSPECTED" ? "shaky" : "still wrong after a lesson";
+      return [{ skillId: s.skillId, reason: "GAP", mistakes, note: `${what} on ${day(s.lastSeenAt)}${mistakes[0] && mistakeInWords(mistakes[0]) ? ` (${mistakeInWords(mistakes[0])})` : ""}` }];
+    }
+    return [];
+  });
+  // Carry the causes, not their symptoms: a skill built on another open skill went wrong because of it,
+  // and a test can only settle a few suspicions. Deepest first, at most MAX_PRIORS (each costs a question).
+  const roots = all.filter((p) => !all.some((o) => o.skillId !== p.skillId && dependsOnTransitively(p.skillId, o.skillId)));
+  return roots.sort((a, b) => depth(a.skillId) - depth(b.skillId)).slice(0, MAX_PRIORS);
+}
+
+/** Most suspicions one test carries in from earlier ones. */
+const MAX_PRIORS = 3;
 
 /** What's worth knowing from earlier tests and lessons, as short lines for a teacher, a report or the AI review. */
 export function memoryLines(model: LearnerModel, opts: { only?: string[]; beforeSourceId?: string } = {}): string[] {
