@@ -60,7 +60,7 @@ import {
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
 import { normalizeMathText } from "./lotus-algebra";
-import { redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { fittingFormats, redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { checkedAiFormat, evidenceFormatNeed, formatDecisionNote } from "./lotus-format-guide";
 import { themedGamesEnabled } from "./lotus-game-core";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
@@ -404,18 +404,25 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
     .slice(0, 10)
     .map((turn) => {
       const spec = slotSpec(factorisation, turn.slot);
+      const item = preferredItem(factorisation, turn.turn);
       return {
         turn: turn.turn,
-        skill: spec?.skillId,
+        // A repurposed turn now asks about the skill it was repurposed for, not its base slot's.
+        skill: turn.forSkill ?? spec?.skillId,
         difficulty: spec?.level,
         status: turn.status,
         purpose: turn.purpose ?? "COVERAGE",
         pinned: turn.turn === nextOpenTurn(factorisation.state, factorisation.state.planTurn),
+        // What a format suggestion can actually do here: the format now, and every one the question could be asked in.
+        ...(item ? { format: item.game?.kind ?? (item.options?.length ? "OPTIONS" : "TYPED"), formatsThatFit: fittingFormats(item) } : { formatsThatFit: "not written yet" }),
       };
     });
+  const fallback = evidenceFormatNeed(session.audits);
   return JSON.stringify({
     rule: "The server alone validates and installs a change. The pinned next item cannot change. Recommend an earliest safe later slot or KEEP.",
     remainingSlots: slots,
+    // What the server does about the next format if the review suggests none.
+    serverFormatDefault: fallback ? { tries: fallback.kinds, because: fallback.reason } : "keep the planned formats",
   });
 }
 
@@ -1147,7 +1154,8 @@ export class LotusService implements OnModuleDestroy {
     const answeredCount = session.audits.length + 1;
     if (session.factorisation) {
       // Active time, not wall-clock: a student who steps away doesn't lose check time.
-      const activeSeconds = lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt));
+      // From when the questions were ready: time spent waiting for them to be written isn't test time.
+      const activeSeconds = lotusActiveSeconds(session.questionsReadyAt ?? session.startedAt, session.audits.map((audit) => audit.createdAt));
       return this.resolveFactorisationTurn(session, currentQuestion, response, activeSeconds, answeredCount);
     }
     const verification = verifyLotusResponse(currentQuestion, response);
@@ -2296,7 +2304,9 @@ Create one materially different question that adds new diagnostic evidence. Test
       await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
       return;
     }
-    if (!job.retryCount && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
+    // The bank is tried on the first attempt, and on every retry while the AI is unavailable: then it's the only
+    // source of a checked question, and a test that never finishes preparing is worse than a reused one.
+    if ((!job.retryCount || this.models.activeOutage) && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
       const reused = await this.takeFactorisationBankItem(session, job);
       if (reused) {
         await this.applyGenerated(sessionId, job, { item: reused, attempts: 0, ms: 0, rejections: [] }, "BANK");
@@ -2495,6 +2505,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
+    if (!session.questionsReadyAt && Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length >= preparationTarget(f)) {
+      session.questionsReadyAt = new Date().toISOString();
+    }
     this.writeQueues.get(sessionId)?.blockedTurns.delete(job.turn);
     this.factorisationGeneratedPrints.add(print);
     if (job.turn === 1) this.factorisationOpeningPrints.add(print);
@@ -2584,13 +2597,25 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (proposed) audit.formatDecision = { source: "AI", proposed, reason: `${aiFormat?.reason ?? ""} That isn't a format Lotus can use here.`.trim(), status: "NOT_APPLIED" };
       return;
     }
+    // The upcoming questions a format may go on (never the one the browser may already hold), each with the
+    // format just before it, so two of a kind don't run back to back.
     const frozen = nextOpenTurn(f.state, f.state.planTurn);
-    const firstTurn = frozen === null ? null : nextOpenTurn(f.state, frozen);
-    const firstPrevious = frozen === null ? undefined : preferredItem(f, frozen)?.game?.kind;
+    const window: Array<{ turn: number; previous?: LotusGameKind }> = [];
+    for (let turn = frozen === null ? null : nextOpenTurn(f.state, frozen), before = frozen; turn !== null && window.length < FORMAT_LOOKAHEAD; before = turn, turn = nextOpenTurn(f.state, turn)) {
+      window.push({ turn, previous: before === null ? undefined : preferredItem(f, before)?.game?.kind });
+    }
+    // What the format has to find out is about the skill that just went wrong (or was shaky), so the question
+    // that re-checks that skill goes first; the rest follow in order.
+    const unclear = new Set((audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE").map((e) => e.skillId));
+    const lastSkill = audit.question.answerKey?.diagnostics?.skillId;
+    if (!unclear.size && lastSkill) unclear.add(lastSkill);
+    const rechecks = (turn: number) => {
+      const plan = f.state.turns.find((t) => t.turn === turn);
+      return (!!plan?.forSkill && unclear.has(plan.forSkill)) || unclear.has(preferredItem(f, turn)?.answerKey.diagnostics?.skillId ?? "");
+    };
+    const ordered = [...window.filter((w) => rechecks(w.turn)), ...window.filter((w) => !rechecks(w.turn))];
     const place = (kinds: LotusGameKind[]): Pick<LotusFormatDecision, "status" | "targetTurn" | "chosen"> | null => {
-      let turn = firstTurn;
-      let previous = firstPrevious;
-      for (let looked = 0; turn !== null && looked < FORMAT_LOOKAHEAD; looked += 1) {
+      for (const { turn, previous } of ordered) {
         const item = preferredItem(f, turn);
         if (!item) {
           f.formatIntent = kinds;
@@ -2606,8 +2631,6 @@ Create one materially different question that adds new diagnostic evidence. Test
           f.preferred[key] = next.id;
           return { status: "APPLIED", targetTurn: turn, chosen: next.game?.kind };
         }
-        previous = item.game?.kind;
-        turn = nextOpenTurn(f.state, turn);
       }
       return null;
     };
@@ -2689,8 +2712,27 @@ Create one materially different question that adds new diagnostic evidence. Test
     );
     if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
-    const nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
+    let nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
     let next: LotusQuestion | undefined;
+    // The next planned question may not be written yet: the AI is slow (a whole class at once) or down. A
+    // student mid-test must never be stranded on an error, so go on to the first later question that is
+    // ready (the one the browser staged, if it named one), leaving the unwritten ones between out of the
+    // test (the report shows them as not tested). With none ready, the test ends here.
+    if (nextTurn !== null && !(f.versions[String(nextTurn)] ?? []).length) {
+      const offered = (turn: number) => (f.versions[String(turn)] ?? []).some((item) => item.id === response.nextQuestionId);
+      const later = state.turns.find((turn) => turn.turn > nextTurn! && turn.status !== "SKIPPED" &&
+        (response.nextQuestionId ? offered(turn.turn) : isAcceptedItem(preferredItem(f, turn.turn))));
+      if (later || !response.nextQuestionId) {
+        for (const turn of state.turns) {
+          if (turn.turn < nextTurn || turn.turn >= (later?.turn ?? Infinity) || turn.status === "SKIPPED") continue;
+          turn.status = "SKIPPED";
+          turn.version += 1;
+          turn.reason = "Not asked: its question wasn't ready in time.";
+        }
+        if (!later) f.endedEarlyNote = `The remaining questions couldn't be prepared in time, so the test ended after ${state.answeredTurns.length + 1} questions.`;
+        nextTurn = later?.turn ?? null;
+      }
+    }
     if (nextTurn !== null) {
       const versions = f.versions[String(nextTurn)] ?? [];
       next = response.nextQuestionId ? versions.find((item) => item.id === response.nextQuestionId) : undefined;

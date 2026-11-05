@@ -444,7 +444,7 @@ Review tasks:
 4. Classify "mistakeKind": MISUNDERSTANDING if the method is misapplied; SLIP if the method is sound and a sign or number was miscopied; GUESS if ungrounded; UNREADABLE if poorly formatted; or null if the work is correct.
 5. If the work is correct, firstWrongStep must be null, mistakeDescription empty, and mistakeKind null.
 6. Choose the action: ASK (continue) or an exit action (EXIT_GAP | EXIT_ADVANCE | EXIT_UNCERTAIN).
-7. If the action is ASK, set "nextFormat" to the one format above that would best settle what is still unclear about this student, and say why in "nextFormatReason" in one short sentence. Pick for what it would reveal, not for variety. Use null if the answer left nothing unclear. The server checks your choice and may keep the question as it is; it never changes the maths.
+7. If the action is ASK, set "nextFormat" to the one format above that would best settle what is still unclear about this student, and say why in "nextFormatReason" in one short sentence. Pick for what it would reveal, not for variety. Only a format listed in an upcoming slot's "formatsThatFit" can be used, and it goes first on the slot that re-checks the skill in question. Decide first whether this answer looks like a slip or a held misconception, and pick the format that tells the two apart. If "serverFormatDefault" already does that, or the answer left nothing unclear, use null. The server checks your choice and may keep the question as it is; it never changes the maths.
 
 Return JSON only:
 {

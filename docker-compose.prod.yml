@@ -1,6 +1,8 @@
 # Production-shaped stack: Postgres + API + web. Secrets come from ./.env.production (never committed).
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-# Media: set COGNA_MEDIA_STORAGE_BUCKET + COGNA_MEDIA_CDN_URL (+ AWS credentials) so more than one API replica works.
+# Media: set COGNA_MEDIA_STORAGE_BUCKET + COGNA_MEDIA_CDN_URL (+ AWS credentials) so media survives container rebuilds.
+# Run ONE api container: a diagnostic in progress is held in that API's memory (saved to Postgres after every
+# answer and reloaded after a restart), so two replicas behind a load balancer would each hold their own copy.
 services:
   postgres:
     image: postgres:16-alpine
@@ -39,6 +41,18 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-cogna}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cogna}?schema=public
     depends_on: [api]
     ports: ["3000:3000"]
+
+  # Calls the API's scheduled jobs; nothing else does in production. Needs COGNA_JOB_WORKER_TOKEN in .env.production.
+  #   every minute: diagnostic background work (AI reviews, question writes) a restart interrupted
+  #   every 10 minutes: failed emails;  daily: revision plans, question statistics;  weekly: parent reports
+  scheduler:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    env_file: .env.production
+    depends_on: [api]
+    volumes:
+      - ./scripts/run-scheduled-jobs.sh:/jobs.sh:ro
+    entrypoint: ["sh", "/jobs.sh"]
 
   # Nightly logical backup — see docs/BACKUP_RESTORE.md. Writes to ./backups on the host.
   backup:

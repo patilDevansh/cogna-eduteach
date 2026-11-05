@@ -23,11 +23,29 @@ export class AlgebraParseError extends Error {}
 
 export function normalizeMathText(text: string): string {
   return String(text)
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (sup) => `^${[...sup].map((c) => "⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(c)).join("")}`)
+    // Full-width and other compatibility forms some phone keyboards type (＋, （, ７), after the powers, which it would flatten.
+    .normalize("NFKC")
     .replace(/[−–—]/g, "-")
     .replace(/[×·∙]/g, "*")
     .replace(/÷/g, "/")
-    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (sup) => `^${[...sup].map((c) => "⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(c)).join("")}`)
+    .replace(/\*\*/g, "^")
+    // Square and curly brackets are brackets: CBSE books use them for nesting.
+    .replace(/[[{]/g, "(")
+    .replace(/[\]}]/g, ")")
     .replace(/\s+/g, "");
+}
+
+/**
+ * The expression a student meant as their final answer, without what students wrap around it:
+ * "Ans: 7(x + 4).", "= 7(x + 4)", or the whole line "7x + 28 = 7(x + 4)" (the last side is the answer).
+ */
+export function finalAnswerText(text: string): string {
+  const sides = String(text).split("=").map((side) => side.trim()).filter(Boolean);
+  return (sides.at(-1) ?? "")
+    .replace(/^(final\s+)?(ans(wer)?|so|therefore|hence)\b\s*(is\b)?\s*[:\-]?\s*/i, "")
+    .replace(/[.,;!]+$/, "")
+    .trim();
 }
 
 // ---------- parsing ----------
@@ -50,7 +68,8 @@ function tokenize(source: string): Token[] {
       let j = i;
       while (j < source.length && /[a-zA-Z]/.test(source[j]!)) j += 1;
       if (j - i >= 4) throw new AlgebraParseError("That looks like words, not an expression.");
-      tokens.push({ kind: "var", value: c });
+      // X and x are one letter: phones capitalise, and Grade 8 never tells variables apart by case.
+      tokens.push({ kind: "var", value: c.toLowerCase() });
       i += 1;
     } else if ("+-*/^()".includes(c)) {
       tokens.push({ kind: "op", value: c });
@@ -326,6 +345,89 @@ export function factorisationDefect(text: string): UnfinishedReason | "UNREADABL
   return null;
 }
 
+/** A mistake inside the bracket that code can name once the factor outside is known to be right. */
+export type CommonFactorMistake = "DIVIDED_FIRST_TERM_ONLY" | "DROPPED_THE_ONE" | "INDEX_NOT_REDUCED";
+
+export interface CommonFactorReading {
+  /** The factor taken out has a number part above 1, so finding it shows the numeric common factor. */
+  numberPart: boolean;
+  /** The factor taken out has a letter, so finding it shows the common letters. */
+  letterPart: boolean;
+  /** What went wrong inside the bracket, when it is one pattern code recognises; absent otherwise. */
+  mistake?: CommonFactorMistake;
+}
+
+function divideMonomial(key: Monomial, by: Monomial): Monomial | null {
+  const powers = parseMonomial(key);
+  for (const [v, e] of parseMonomial(by)) {
+    const left = (powers.get(v) ?? 0) - e;
+    if (left < 0) return null;
+    powers.set(v, left);
+  }
+  return monomialKey(powers);
+}
+
+/**
+ * Reads a wrong answer to "take out the common factor" as one written m(B),
+ * when m is the highest common factor of the expression's terms (up to sign).
+ * The right m shows the student found the common factor; each term inside B is
+ * then matched to a term of the expression: divided by m (right), left as it
+ * was (7(x + 28) for 7x + 28: DIVIDED_FIRST_TERM_ONLY), number divided but
+ * letters not (3x(x² + 2x) for 3x³ + 6x²: INDEX_NOT_REDUCED), or missing where
+ * dividing would leave 1 (3x(x) for 3x² + 3x: DROPPED_THE_ONE). Any other
+ * bracket gives the reading without a mistake. Null when the answer isn't one
+ * factor times one bracket, or the factor outside isn't the highest one.
+ */
+export function readCommonFactor(answer: string, expression: string): CommonFactorReading | null {
+  try {
+    const terms = polyOf(parseExpression(expression));
+    const g = integerContent(terms);
+    if (terms.size < 2 || !g) return null;
+    const common = new Map<string, number>();
+    for (const v of variables(terms)) {
+      const least = Math.min(...[...terms.keys()].map((k) => parseMonomial(k).get(v) ?? 0));
+      if (least > 0) common.set(v, least);
+    }
+    const commonKey = monomialKey(common);
+    if (g === 1 && !commonKey) return null;
+
+    const prof = profile(answer);
+    if (!prof) return null;
+    let outside: Poly = constant(prof.constant);
+    const brackets = prof.nonConstant.filter((p) => p.size > 1);
+    for (const p of prof.nonConstant) if (p.size === 1) outside = mul(outside, p);
+    if (brackets.length !== 1 || outside.size !== 1) return null;
+    const [[outsideKey, outsideCoef]] = [...outside] as [[Monomial, number]];
+    if (outsideKey !== commonKey || Math.abs(outsideCoef) !== g) return null;
+
+    const reading: CommonFactorReading = { numberPart: g > 1, letterPart: !!commonKey };
+    const inside = [...brackets[0]!];
+    const used = new Set<number>();
+    const take = (key: Monomial | null, coef: number) => {
+      const i = inside.findIndex(([k, c], j) => !used.has(j) && k === key && Math.abs(c - coef) < 1e-9);
+      if (i >= 0) used.add(i);
+      return i >= 0;
+    };
+    let divided = 0, undivided = 0, unreduced = 0, droppedOne = 0;
+    for (const [key, coef] of terms) {
+      const sign = Math.sign(outsideCoef);
+      const quotient = divideMonomial(key, outsideKey);
+      if (take(quotient, coef / outsideCoef)) divided++;
+      else if (take(key, coef) || take(key, coef * sign)) undivided++;
+      else if (outsideKey && take(key, coef / outsideCoef)) unreduced++;
+      else if (quotient === "" && Math.abs(coef / outsideCoef) === 1) droppedOne++;
+      else return reading;
+    }
+    if (used.size !== inside.length || [undivided, unreduced, droppedOne].filter((n) => n > 0).length !== 1) return reading;
+    // Leaving every term undivided, or dropping every term, isn't "only the first term": it's no division at all.
+    if (unreduced) reading.mistake = "INDEX_NOT_REDUCED";
+    else if (divided) reading.mistake = undivided ? "DIVIDED_FIRST_TERM_ONLY" : "DROPPED_THE_ONE";
+    return reading;
+  } catch {
+    return null;
+  }
+}
+
 /** True when the text is written as a product whose non-constant factors can't be split further (within Grade 8 scope). */
 export function isFullyFactorisedForm(text: string): boolean {
   return factorisationDefect(text) === null;
@@ -439,18 +541,29 @@ export function exactDecimals(text: string): string {
  * A written number answer: drops "x =", units, ₹, %, ° and Indian digit
  * grouping (3,40,00,000). Null unless what's left is one number or fraction,
  * so unfinished working like "2*18*4" isn't read as a number.
- * ponytail: mixed numbers ("3 1/16") aren't read; add when students write them.
+ * Mixed numbers ("1 1/2", "1½") are read as fractions; a full stop at the end is punctuation.
  */
 export function readNumberAnswer(text: string): string | null {
   const stripped = String(text)
+    .replace(/[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g, (f) => ` ${VULGAR[f]}`)
+    .normalize("NFKC")
+    .replace(/⁄/g, "/")
     .replace(/^\s*[a-zA-Z]\s*=\s*/, "")
     .replace(/[−–—]/g, "-")
-    .replace(/[²³]|[a-zA-Z]+|[₹%°,]/g, "")
-    .trim();
+    .replace(/[²³]|[a-zA-Z]+|[₹%°,:]/g, "")
+    .trim()
+    .replace(/\.$/, "");
+  const mixed = stripped.match(/^([+-]?)\s*(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const [, sign, whole, top, bottom] = mixed;
+    return `${sign === "-" ? "-" : ""}${Number(whole) * Number(bottom) + Number(top)}/${bottom}`;
+  }
   const m = stripped.match(/^([+-]?)\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?$/);
   if (!m) return null;
   return `${m[1] === "-" ? "-" : ""}${m[2]}${m[3] ? `/${m[3]}` : ""}`;
 }
+
+const VULGAR: Record<string, string> = { "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4", "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8" };
 
 /** Exact numeric equality of two written answers; false when either can't be read. */
 export function sameNumber(a: string, b: string): boolean {

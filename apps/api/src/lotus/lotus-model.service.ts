@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from "@nestjs/common";
+import { Logger, ServiceUnavailableException } from "@nestjs/common";
 import { openAiStudentTextModerator, studentStrings } from "../ai/student-text-safety";
 import { ConfigService } from "@nestjs/config";
 import type {
@@ -38,6 +38,7 @@ function assertStringField(value: Record<string, unknown>, field: string, label:
  * calls fail fast before one probe call is allowed through again.
  */
 export const PROVIDER_OUTAGE_PROBE_MS = 60_000;
+const providerLog = new Logger("LotusProvider");
 
 export interface LotusProviderOutage {
   kind: "NO_CREDITS" | "AUTH" | "SPEND_CAP";
@@ -321,6 +322,8 @@ export class LotusModelService {
     } catch (error) {
       const provider = classifyProviderError(error);
       if (provider) {
+        // Once per outage, with the provider's own words: "no credits" and "bad key" need different fixes.
+        if (this.outage?.kind !== provider.kind) providerLog.error(`AI provider unavailable (${provider.kind}): ${provider.detail}`);
         this.outage = { ...provider, at: Date.now() };
         throw new LotusProviderUnavailableError(this.outage);
       }

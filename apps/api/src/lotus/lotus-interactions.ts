@@ -100,6 +100,14 @@ export function redressedQuestion(question: LotusQuestion, kinds: readonly Lotus
   return next;
 }
 
+/** The formats this question can be asked in: its own game if it is built around one, else every format that dresses it. */
+export function fittingFormats(question: LotusQuestion): LotusGameKind[] {
+  if (question.presentation || question.interaction || (question.game && !DRESSABLE_KINDS.includes(question.game.kind))) {
+    return question.game ? [question.game.kind] : [];
+  }
+  return DRESSABLE_KINDS.filter((kind) => question.game?.kind === kind || !!gameOfPreferredKind(question, [kind]));
+}
+
 export class TileAnswerError extends Error {}
 
 /**

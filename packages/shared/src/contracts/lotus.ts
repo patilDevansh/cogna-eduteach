@@ -664,6 +664,8 @@ export interface LotusSessionView {
   experimental: true;
   phase: LotusPhase;
   startedAt: string;
+  /** When enough questions were ready to begin. The test clock starts here, so waiting for questions to be written never uses up test time. */
+  questionsReadyAt?: string;
   currentQuestion: LotusQuestion | null;
   /** Prompt-only authorized future items. Answer keys are always redacted from active-session API responses. */
   upcomingQuestions?: LotusQuestion[];

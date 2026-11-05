@@ -6,6 +6,8 @@ import { rateLimitMiddleware } from "./rate-limit.middleware";
 import { allowedWebOrigins } from "./web-origins";
 import { isProductionLike, sessionSecretFromEnv } from "./access/cogna-access";
 import { SentryExceptionFilter, initSentry } from "./observability/sentry";
+import { unpricedConfiguredModels } from "./ai/model-pricing";
+import { hasUsdCap } from "./ai/spend-cap";
 
 const bootLogger = new Logger("Bootstrap");
 
@@ -23,6 +25,17 @@ async function bootstrap() {
   const webOrigins = allowedWebOrigins(); // throws in production without WEB_URL, before anything starts
   if (isProductionLike() && !sessionSecretFromEnv()) {
     throw new Error("COGNA_SESSION_SECRET must be set in production, or no student or teacher can sign in.");
+  }
+  // The fake model serves test fixtures (placeholder wrong answers, padded expressions): never to real students.
+  if (isProductionLike() && process.env.LOTUS_E2E_FAKE_MODEL === "true") {
+    throw new Error("LOTUS_E2E_FAKE_MODEL=true is set in production. It serves test fixtures to students; remove it.");
+  }
+  // A dollar cap with an unpriced model refuses every call to it: fail the deploy, not a classroom.
+  const unpriced = hasUsdCap("OPENAI") ? unpricedConfiguredModels() : [];
+  if (unpriced.length) {
+    const message = `An OpenAI dollar cap is set, but these models have no price in OPENAI_MODEL_PRICING_JSON, so every call to them would be refused: ${unpriced.join(", ")}.`;
+    if (isProductionLike()) throw new Error(message);
+    bootLogger.warn(message);
   }
   const sentryActive = initSentry();
   const app = await NestFactory.create(AppModule);

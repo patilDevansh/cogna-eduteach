@@ -41,21 +41,18 @@ import { ModuleLearningModule } from "./module-learning/module-learning.module";
     AccessModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      // turbo runs api from apps/api; repo secrets live in monorepo root .env.
-      // NestJS's ConfigModule merges these in array order with LATER paths
-      // overriding earlier ones for any key present in both — confirmed
-      // directly: packages/database/.env (a point-in-time copy made only for
-      // Prisma CLI's own cwd-relative .env lookup, see media-storage.ts
-      // comments) had a stale OPENAI_API_KEY that silently shadowed a
-      // rotated key in the real root .env for every apps/api request, with
-      // no error at startup. The root .env candidates MUST stay last so they
-      // always win; packages/database/.env is only here as a DATABASE_URL
-      // fallback for Lotus standalone mode, listed first (lowest priority).
+      // turbo runs api from apps/api; repo secrets live in the monorepo root .env.
+      // @nestjs/config gives the FIRST file that defines a key precedence
+      // (loadEnvFile: Object.assign(parsed, alreadyLoaded)). So the root .env
+      // comes first, and packages/database/.env (a copy kept for the Prisma
+      // CLI) comes last, only filling DATABASE_URL in Lotus standalone mode.
+      // That file once held a stale OPENAI_API_KEY; listed first, it silently
+      // won over every rotated key in the root .env.
       envFilePath: [
-        join(__dirname, "..", "..", "..", "packages", "database", ".env"),
         join(__dirname, "..", "..", "..", ".env"),
         join(process.cwd(), ".env"),
         join(process.cwd(), "..", "..", ".env"),
+        join(__dirname, "..", "..", "..", "packages", "database", ".env"),
       ],
     }),
     ObservabilityModule,

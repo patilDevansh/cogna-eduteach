@@ -33,9 +33,12 @@ import {
   classifyExpansion,
   classifyFactorisation,
   classifySimplification,
+  type CommonFactorReading,
+  finalAnswerText,
   factorisationDefect,
   nonConstantFactorCount,
   normalizeMathText,
+  readCommonFactor,
   readNumberAnswer,
   sameFactorisation,
   sameNumber,
@@ -228,9 +231,11 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   }
 
   const expression = d.expression!;
-  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(answer, expression, key)
-    : d.itemKind === "EXPAND" ? classifyExpansion(answer, expression)
-      : classifyFactorisation(answer, expression);
+  // What the student meant as the answer: "Ans: 7(x + 4).", "= 7(x + 4)" or "7x + 28 = 7(x + 4)" all mean 7(x + 4).
+  const typed = finalAnswerText(response.answer) || response.answer;
+  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(typed, expression, key)
+    : d.itemKind === "EXPAND" ? classifyExpansion(typed, expression)
+      : classifyFactorisation(typed, expression);
   const done = d.itemKind === "SIMPLIFY" ? "simplified" : d.itemKind === "EXPAND" ? "expanded and collected" : "factorised";
   if (verdict === "CORRECT") {
     // Right answer, but a step in the working is false: don't call the skill
@@ -242,11 +247,11 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
     return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as an expression, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
   }
   const matches = (p: { answer: string }) => d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND"
-    ? safe(() => algebraicallyEqual(p.answer, answer))
-    : sameFactorisation(p.answer, answer);
+    ? safe(() => algebraicallyEqual(p.answer, typed))
+    : sameFactorisation(p.answer, typed);
   const predicted = d.predictedMistakes.find(matches);
   if (verdict === "UNFINISHED") {
-    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(answer));
+    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(typed));
     return {
       verification: verification("VERIFIED_UNFINISHED", `Equal to ${expression}, but not fully ${done}.`),
       evidence: [{ skillId: ownerOfMistake(code, d), kind: "UNFINISHED", mistake: code, source: "INSTANT", description: `Wrote ${answer}.` }],
@@ -254,16 +259,33 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
       needsAnalysis: false,
     };
   }
+  // With the right factor outside the bracket, code reads the bracket itself: 7(x + 28) for 7x + 28
+  // is "divided only the first term" whether or not the question's writer predicted it. That beats a
+  // predicted label, which an AI wrote, and keeps a plain mistake out of the AI review.
+  const reading = d.itemKind === "FACTORISE" ? readCommonFactor(typed, expression) : null;
+  const mistake = reading?.mistake ?? predicted?.mistake;
   // A predicted wrong answer after working that already reached the right
   // one is most likely a copying slip, not the misconception it resembles:
   // leave it to the AI review (which labels slips) instead of counting it.
-  const countable = predicted && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, answer);
+  const countable = !!mistake && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, typed);
+  const blamed: LotusSkillEvidence[] = countable ? [{ skillId: ownerOfMistake(mistake, d), kind: "MISTAKE", mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [];
   return {
     verification: verification("VERIFIED_INCORRECT", `Not equal to ${expression} — checked by expanding.`),
-    evidence: countable ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
+    evidence: [...blamed, ...(reading ? commonFactorShown(reading, d, blamed) : [])],
     fastSkip: false,
     needsAnalysis: !countable,
   };
+}
+
+/**
+ * The right factor outside the bracket shows the student found the common factor, even when the bracket
+ * is wrong. Recorded on the answer, it stops the AI review pinning the mistake on that step.
+ */
+function commonFactorShown(reading: CommonFactorReading, d: LotusItemDiagnostics, blamed: LotusSkillEvidence[]): LotusSkillEvidence[] {
+  const inTopic = new Set((curriculumOfSkill(d.skillId)?.skills ?? []).map((s) => s.id));
+  return [reading.numberPart && "FAC_GCF_NUMERIC", reading.letterPart && "FAC_GCF_VARIABLE"]
+    .filter((s): s is string => !!s && inTopic.has(s) && !blamed.some((b) => b.skillId === s))
+    .map((skillId) => ({ skillId, kind: "SECURE" as const, source: "INSTANT" as const, description: "Took out the right common factor." }));
 }
 
 /**
@@ -351,7 +373,10 @@ export function evidenceFromAnalysis(
   // secure evidence it would have been; a real misunderstanding counts below.
   if (d && answerCorrect && existing.length === 0 && (noRealStep || mistakeKind === "SLIP" || mistakeKind === "UNREADABLE")) return secureAll(d);
   if (!d) return existing;
-  if (existing.length > 0) return existing;
+  // Code named the mistake: the review can't override it. Code may also have proved part of a wrong
+  // answer right (the factor outside the bracket); that stays, and nothing below blames those skills.
+  const proven = existing.filter((e) => e.kind === "SECURE");
+  if (existing.length > proven.length) return existing;
   // A slip or an unreadable answer is not evidence the student lacks the
   // skill: two careless copies must not confirm a gap. The analyser's note
   // stays on the turn's analysis record. A missing kind is counted as before.
@@ -359,12 +384,16 @@ export function evidenceFromAnalysis(
   // A guess (no method) means the same as "I don't know this yet": a support
   // signal on the question's own skill — the step it "went wrong" at means
   // nothing without a method. Two on a skill confirm it, so the child is taught.
+  const isProven = (skillId: string) => proven.some((e) => e.skillId === skillId);
   if (mistakeKind === "GUESS") {
-    return [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "ANALYSIS", description: description?.trim() || "Guessed with no method." }];
+    return isProven(d.skillId) ? existing : [...proven, { skillId: d.skillId, kind: "DID_NOT_KNOW", source: "ANALYSIS", description: description?.trim() || "Guessed with no method." }];
   }
   if (noRealStep) return existing;
-  const skillId = d.stepSkills[step - 1] ?? d.skillId;
-  return [{ skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
+  // A step code saw done right can't be where it went wrong: the review is pointing at the question's own skill.
+  const stepSkill = d.stepSkills[step - 1] ?? d.skillId;
+  const skillId = isProven(stepSkill) ? d.skillId : stepSkill;
+  if (isProven(skillId)) return existing;
+  return [...proven, { skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
 }
 
 // ---------- ledger ----------
@@ -496,6 +525,10 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         else if (e.state === "UNTESTED" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; e.confirmedBySupport = true; }
         else if (e.state === "SECURE" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
+      } else if (wrongAnswer) {
+        // Done right inside a wrong answer (the factor outside the bracket). Kept on record, and the AI review
+        // can't blame it (evidenceFromAnalysis), but only a right answer makes a skill secure or clears a suspicion.
+        e.notes.push(`Q${q}: right as part of a wrong answer`);
       } else {
         // A re-check is settled only by a question aimed at the skill itself,
         // not by one where it is a single step among others.
