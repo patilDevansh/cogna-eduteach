@@ -1631,6 +1631,7 @@ export class LotusService implements OnModuleDestroy {
         slot.questionSelection.planningNote = planDecisionNote(adjustments);
         slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
         slot.adaptiveDecision.recommendedAt = slot.analysisCompletedAt;
+        this.noteDoubtCheck(liveSession, slot);
         if (analysis.conclusion.action === "ASK") this.steerNextFormat(liveSession, slot, { proposed: analysis.conclusion.nextFormat, reason: analysis.conclusion.nextFormatReason });
       } else if (liveSession.status === "ACTIVE" && !liveSession.developerExitPrompt) {
         slot.adaptiveDecision = {
@@ -2708,6 +2709,26 @@ Create one materially different question that adds new diagnostic evidence. Test
    * going with the AI review's suggestion if it made a usable one. The question the
    * browser may already be showing next is left alone, as with any plan change.
    */
+  /**
+   * A kept plan after a right-but-doubted answer says which upcoming question
+   * checks that doubt, or that none does, instead of a bare "no change".
+   */
+  private noteDoubtCheck(session: LotusSessionState, audit: LotusQuestionAudit): void {
+    const f = session.factorisation;
+    const hedged = (audit.skillEvidence ?? []).find((e) => e.hedge);
+    if (!f || !hedged?.hedge || audit.adaptiveDecision?.action !== "KEEP") return;
+    const doubt = hedged.hedge.mistake ? `the ${hedged.hedge.mistake} doubt` : `the doubt about ${hedged.hedge.option}`;
+    let check: number | null = null;
+    // From the question the student sees next onwards.
+    for (let turn: number | null = f.state.planTurn; turn !== null && check === null; turn = nextOpenTurn(f.state, turn)) {
+      const plan = f.state.turns.find((t) => t.turn === turn);
+      if (plan?.forSkill === hedged.skillId || preferredItem(f, turn)?.answerKey.diagnostics?.skillId === hedged.skillId) check = turn;
+    }
+    audit.adaptiveDecision.implementationDetail = check !== null
+      ? `Kept: question ${check}, already planned, asks ${skillName(hedged.skillId)} again and can show ${doubt}.`
+      : `Kept: no planned question asks ${skillName(hedged.skillId)} again, so ${doubt} stays open unless it comes back.`;
+  }
+
   private steerNextFormat(session: LotusSessionState, audit: LotusQuestionAudit, aiFormat?: { proposed: unknown; reason?: string }): void {
     const f = session.factorisation;
     if (!f || session.status !== "ACTIVE" || !themedGamesEnabled()) return;
@@ -2727,7 +2748,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     }
     // What the format has to find out is about the skill that just went wrong (or was shaky), so the question
     // that re-checks that skill goes first; the rest follow in order.
-    const unclear = new Set((audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE").map((e) => e.skillId));
+    const unclear = new Set((audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE" || e.hedge).map((e) => e.skillId));
     const lastSkill = audit.question.answerKey?.diagnostics?.skillId;
     if (!unclear.size && lastSkill) unclear.add(lastSkill);
     const rechecks = (turn: number) => {
@@ -3001,6 +3022,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
+    this.noteDoubtCheck(session, audit);
     this.steerNextFormat(session, audit);
     await this.persist(
       session, audit, true,

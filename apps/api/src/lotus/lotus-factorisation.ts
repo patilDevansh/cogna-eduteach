@@ -127,7 +127,9 @@ export function instantVerdict(question: LotusQuestion, response: LotusStudentRe
  * A themed game's reading decides how far a marked answer counts towards the
  * skill. It never changes the mark, except that an answer which only a game can
  * give ("None of these") is plainly wrong rather than unreadable. Code settles
- * all of this, so a game never needs an AI review.
+ * all of this. The one exception is a mostly-right split whose other chip sits on
+ * an option no known mistake explains, or that came with working: the background
+ * review reads that, and the student never waits for it.
  */
 function withGameDiagnosis(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
   const diagnosis = response.gameReading?.diagnosis;
@@ -136,8 +138,17 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
   const description = diagnosis.note;
   switch (diagnosis.effect) {
     case "SECURE":
-    case "NEEDS_ANOTHER":
       return verdict;
+    case "NEEDS_ANOTHER": {
+      const hedge = diagnosis.hedge;
+      if (!hedge || verdict.verification.status !== "VERIFIED_CORRECT") return verdict;
+      // The doubt belongs to the skill the doubted option's mistake shows, else to the question's own skill.
+      const owner = hedge.mistake ? ownerOfMistake(hedge.mistake, d) : d.skillId;
+      const holder = verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === owner) ? owner : d.skillId;
+      const evidence = verdict.evidence.map((e) => (e.kind === "SECURE" && e.skillId === holder ? { ...e, hedge } : e));
+      const working = !!response.working?.trim();
+      return { ...verdict, evidence, needsAnalysis: verdict.needsAnalysis || !hedge.mistake || working };
+    }
     case "NO_EVIDENCE":
       return { ...verdict, evidence: [], needsAnalysis: false };
     case "DOESNT_KNOW":
@@ -415,6 +426,10 @@ export interface SkillLedgerEntry {
   recheckUsed?: boolean;
   /** Right once on a multiple-choice tap: not yet enough to call it secure. */
   tapRights?: number;
+  /** Right, but with chips on a wrong option: the question and the doubted mistake ("" when none is named). */
+  hedges?: Array<{ q: number; mistake: string }>;
+  /** Suspected because the same doubt came back, not because of a wrong answer. */
+  fromHedge?: boolean;
   /** Confirmed only by fast wrong answers late in the test: may be tiredness, so not taught (C13). */
   tiredness?: boolean;
   mistakes: string[];
@@ -547,6 +562,21 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         // Done right inside a wrong answer (the factor outside the bracket). Kept on record, and the AI review
         // can't blame it (evidenceFromAnalysis), but only a right answer makes a skill secure or clears a suspicion.
         e.notes.push(`Q${q}: right as part of a wrong answer`);
+      } else if (items.find((ev) => ev.hedge)?.hedge) {
+        // Right, but some confidence went on a wrong option. One doubt is not a gap and not a success:
+        // it neither makes the skill secure nor clears a suspicion. The same doubt again makes it suspected.
+        const hedge = items.find((ev) => ev.hedge)!.hedge!;
+        const key = hedge.mistake ?? "";
+        e.hedges = [...(e.hedges ?? []), { q, mistake: key }];
+        const doubtedBefore = e.hedges.filter((h) => h.mistake === key).length > 1;
+        const about = hedge.mistake ? `the ${hedge.mistake} mistake` : `another answer (${hedge.option})`;
+        if (doubtedBefore && (e.state === "UNTESTED" || e.state === "SECURE")) {
+          e.state = "SUSPECTED"; e.suspectedAt = q; e.fromHedge = true;
+          if (hedge.mistake) e.mistakes.push(hedge.mistake);
+          e.notes.push(`Q${q}: right, but the same doubt about ${about} came back, so it needs a check`);
+        } else {
+          e.notes.push(`Q${q}: right, with a doubt about ${about}, so not counted secure yet`);
+        }
       } else {
         // A re-check is settled only by a question aimed at the skill itself,
         // not by one where it is a single step among others.
@@ -565,10 +595,13 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
           // can't clear it. The plan keeps a check that can.
           e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
-          e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt;
+          e.state = "SECURE";
+          if (!e.fromHedge) e.clearedAfterSlip = e.suspectedAt;
           e.notes.push(e.suspectedAt === 0
             ? `Q${q}: right, so ${e.fromMemory === "TAUGHT" ? "the lesson has stuck" : "the earlier gap looks fixed"}`
-            : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
+            : e.fromHedge ? `Q${q}: right with no doubt, so the earlier doubt looks settled`
+              : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
+          e.fromHedge = false;
         } else if (e.state === "UNTESTED" && isTap(audit) && (e.tapRights ?? 0) < 1) {
           // One right multiple-choice tap could be a 1-in-4 guess: it takes a
           // second right tap or a right typed answer to call the skill secure.

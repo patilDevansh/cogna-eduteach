@@ -322,6 +322,20 @@ export interface LotusSkillEvidence {
   description?: string;
   /** REASON: the student's own one-tap answer to "How did you get it?". */
   source: "INSTANT" | "ANALYSIS" | "REASON";
+  /**
+   * SECURE only: right, but a split-confidence play also put chips on a wrong
+   * option (the mistake it shows, when the option names one). A doubt, never a
+   * mistake: one doesn't count the skill secure, and the same doubt twice makes it suspected.
+   */
+  hedge?: LotusSkillHedge;
+}
+
+export interface LotusSkillHedge {
+  /** Chips on the wrong option, out of LOTUS_SPLIT_TOKENS. */
+  chips: number;
+  /** The wrong option, as shown. */
+  option: string;
+  mistake?: string;
 }
 
 /** One choice in a "How did you get it?" follow-up. What it means is kept on the server. */

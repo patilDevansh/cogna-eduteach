@@ -26,7 +26,7 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
+import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, LOTUS_SPLIT_TOKENS, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { DEV_TOOLS_AVAILABLE, setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
@@ -578,7 +578,11 @@ function AuditCard({
               )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
-                <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
+                <strong>Confidence:</strong>{" "}
+                {audit.response.game?.kind === "SPLIT_CONFIDENCE"
+                  ? `${Math.max(...audit.response.game.counts)} of ${LOTUS_SPLIT_TOKENS} chips on the answer marked`
+                  : `${audit.response.confidence}%`}{" "}
+                · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
               {audit.verification && <p className={styles.verificationNote}>{audit.verification.explanation}</p>}
