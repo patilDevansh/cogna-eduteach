@@ -32,6 +32,9 @@ export class StartLotusSessionDto {
 
 export class SubmitLotusAnswerDto {
   @IsOptional()
+  @IsBoolean()
+  developerMode?: boolean;
+  @IsOptional()
   @IsIn(["TARGETED_CHECK", "RECENT_PROBE", "DID_NOT_KNOW", "NOT_TARGETED"])
   confidenceProbeReason?: "TARGETED_CHECK" | "RECENT_PROBE" | "DID_NOT_KNOW" | "NOT_TARGETED";
 
@@ -86,6 +89,19 @@ export class SubmitLotusAnswerDto {
   @IsOptional()
   @IsObject()
   game?: LotusGameResponse;
+}
+
+export class DeveloperLotusExitDto {
+  @IsString()
+  @IsNotEmpty()
+  studentId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  decisionId!: string;
+
+  @IsIn(["FINISH", "CONTINUE"])
+  choice!: "FINISH" | "CONTINUE";
 }
 
 export class LotusReasonDto {

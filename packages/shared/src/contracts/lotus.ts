@@ -165,6 +165,7 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  developerMode?: boolean;
   /** Client-observed reason for asking or suppressing the confidence probe. */
   confidenceProbeReason?: "TARGETED_CHECK" | "RECENT_PROBE" | "DID_NOT_KNOW" | "NOT_TARGETED";
   interactionContext?: StudentInteractionContext;
@@ -678,6 +679,8 @@ export interface LotusLedgerPrior {
 }
 
 export interface LotusSessionView {
+  /** Durable local-demo pause after saving an answer and before completing the diagnostic. */
+  developerExitPrompt?: LotusDeveloperExitPrompt;
   sessionId: string;
   studentId: string;
   grade: 8;
@@ -748,6 +751,7 @@ export interface LotusUnseenPlanEntry {
 }
 
 export interface LotusStatusResponse {
+  factorisationTimeLimitSeconds?: number;
   enabled: boolean;
   ready: boolean;
   missingConfiguration: string[];
@@ -756,6 +760,15 @@ export interface LotusStatusResponse {
   progressiveStreamingEnabled: boolean;
   /** Present when the AI provider recently refused calls at the account level (no credits, bad key). */
   unavailableReason?: string;
+}
+
+export interface LotusDeveloperExitPrompt {
+  decisionId: string;
+  reason: "TIME_LIMIT" | "STARTING_POINT_FOUND" | "PLAN_COMPLETE" | "NO_READY_QUESTION";
+  message: string;
+  answeredQuestions: number;
+  canContinue: boolean;
+  nextQuestionNumber?: number;
 }
 
 /** At most this much of one question's time counts toward the check's time limit. */

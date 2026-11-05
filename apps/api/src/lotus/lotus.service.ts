@@ -38,7 +38,8 @@ import type {
 } from "@cogna/shared";
 import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
-import { isDemoStudentId, type AccessActor } from "../access/cogna-access";
+import { isDemoStudentId, isProductionLike, type AccessActor } from "../access/cogna-access";
+import { isDemoStudent } from "../engines/diagnostic-v2/demo-student";
 import {
   challengerClosurePrompt,
   gptDebatePrompt,
@@ -79,6 +80,7 @@ import {
   catchUpSlots,
   evidenceFromAnalysis,
   factorisationStopReason,
+  factorisationTimeLimitSeconds,
   foldLedger,
   instantVerdict,
   nextOpenTurn,
@@ -96,6 +98,11 @@ import {
 } from "./lotus-math";
 
 interface LotusSessionState extends LotusSessionView {
+  developmentExitControl?: {
+    pending?: { decisionId: string; stopKey: string; nextTurn: number | null; nextQuestionId?: string };
+    ignoredStops: string[];
+    choices: Array<{ decisionId: string; choice: "FINISH" | "CONTINUE"; reason: string; at: string }>;
+  };
   /** Full server-side keys for the bounded 16-question coverage backbone. */
   coveragePlan?: LotusQuestion[];
   /** Later personalized options remain valid if a browser receives an update just as it submits. */
@@ -105,6 +112,11 @@ interface LotusSessionState extends LotusSessionView {
   factorisation?: FactorisationSession;
   /** C1: the AI's read of the whole finished test, attached to the report. */
   overallReview?: LotusOverallReview;
+}
+
+function developerExitAvailable(session: LotusSessionState): boolean {
+  return !isProductionLike() && process.env.LOTUS_DEV_OBSERVER_BYPASS === "true" &&
+    isDemoStudent(session.studentId) && !session.classroomAssignmentId && Boolean(session.factorisation);
 }
 
 interface FactorisationSession {
@@ -661,6 +673,7 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
  */
 function observerCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
+  delete clone.developmentExitControl;
   if (session.factorisation) {
     const projections = projectSkillAssessments(session.audits, session.priors);
     clone.audits = clone.audits.map((audit, index) => ({ ...audit, skillAssessment: projections[index] }));
@@ -709,6 +722,7 @@ export function workingPromptFor(studentId: string, env: NodeJS.ProcessEnv = pro
 
 function publicCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
+  delete clone.developmentExitControl;
   const upcoming: LotusQuestion[] = [];
   if (clone.status === "ACTIVE" && clone.factorisation) {
     const f = clone.factorisation;
@@ -880,6 +894,7 @@ export class LotusService implements OnModuleDestroy {
     const status = this.models.status;
     return {
       ...status,
+      factorisationTimeLimitSeconds: factorisationTimeLimitSeconds(),
       models: {
         primary: `${this.models.primaryModel} · GPT primary`,
         challenger: `${this.models.challengerModel} · GPT challenger`,
@@ -1070,6 +1085,9 @@ export class LotusService implements OnModuleDestroy {
       if (session.currentQuestion?.id !== response.questionId) {
         throw new BadRequestException("The visible question is no longer the current question. Refresh the session.");
       }
+    }
+    if (session.developerExitPrompt) {
+      throw new BadRequestException("Choose whether to finish or stay in this developer test first.");
     }
     if (session.status !== "ACTIVE" || !session.currentQuestion) {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
@@ -1620,7 +1638,7 @@ export class LotusService implements OnModuleDestroy {
         slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
         slot.verification?.status === "VERIFIED_CORRECT",
       );
-      if (liveSession.status === "ACTIVE" && !slot.analysisLate) {
+      if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
             .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW")
@@ -1631,7 +1649,7 @@ export class LotusService implements OnModuleDestroy {
         slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
         slot.adaptiveDecision.recommendedAt = slot.analysisCompletedAt;
         if (analysis.conclusion.action === "ASK") this.steerNextFormat(liveSession, slot, { proposed: analysis.conclusion.nextFormat, reason: analysis.conclusion.nextFormatReason });
-      } else if (liveSession.status === "ACTIVE") {
+      } else if (liveSession.status === "ACTIVE" && !liveSession.developerExitPrompt) {
         slot.adaptiveDecision = {
           action: "KEEP",
           observedError: slot.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
@@ -1647,7 +1665,7 @@ export class LotusService implements OnModuleDestroy {
           source: "RULE_VALIDATED_PLAN",
         };
       }
-      else { liveSession.finalReport = this.factorisationReport(liveSession); this.maybeRunOverallReview(liveSession); }
+      else if (liveSession.status === "COMPLETE") { liveSession.finalReport = this.factorisationReport(liveSession); this.maybeRunOverallReview(liveSession); }
     } else if (liveSession.coveragePlan) {
       if (!slot.analysisLate) {
         this.stageLaterProbe(liveSession, analysis.conclusion.nextQuestion);
@@ -1993,6 +2011,84 @@ export class LotusService implements OnModuleDestroy {
     } finally {
       if (this.inFlightAnswers.get(sessionId) === task) this.inFlightAnswers.delete(sessionId);
     }
+  }
+
+  async chooseDeveloperExit(
+    sessionId: string,
+    studentId: string,
+    decisionId: string,
+    choice: "FINISH" | "CONTINUE",
+  ): Promise<LotusSessionView> {
+    const existing = this.inFlightAnswers.get(sessionId);
+    if (existing) {
+      await existing.catch(() => undefined);
+      return this.chooseDeveloperExit(sessionId, studentId, decisionId, choice);
+    }
+    const task = this.chooseDeveloperExitOnce(sessionId, studentId, decisionId, choice);
+    this.inFlightAnswers.set(sessionId, task);
+    try {
+      return await task;
+    } finally {
+      if (this.inFlightAnswers.get(sessionId) === task) this.inFlightAnswers.delete(sessionId);
+    }
+  }
+
+  private async chooseDeveloperExitOnce(
+    sessionId: string,
+    studentId: string,
+    decisionId: string,
+    choice: "FINISH" | "CONTINUE",
+  ): Promise<LotusSessionView> {
+    const session = await this.requireSession(sessionId);
+    if (session.studentId !== studentId || !developerExitAvailable(session)) {
+      throw new ForbiddenException("Developer exit control is available only for your local demo diagnostic.");
+    }
+    if (choice !== "FINISH" && choice !== "CONTINUE") throw new BadRequestException("Unknown developer exit choice.");
+    const control = session.developmentExitControl;
+    const prior = control?.choices.find((entry) => entry.decisionId === decisionId);
+    if (prior) {
+      if (prior.choice !== choice) throw new ConflictException("This exit decision already has a different saved choice.");
+      await this.persist(session);
+      return publicCopy(session);
+    }
+    const prompt = session.developerExitPrompt;
+    const pending = control?.pending;
+    if (!prompt || !pending || prompt.decisionId !== decisionId || pending.decisionId !== decisionId || session.status !== "ACTIVE") {
+      throw new ConflictException("This developer exit decision is no longer pending. Reload the session.");
+    }
+    const f = session.factorisation!;
+    const next = pending.nextTurn === null ? undefined : f.versions[String(pending.nextTurn)]?.find((item) => item.id === pending.nextQuestionId);
+    if (choice === "CONTINUE" && (!next || !isAcceptedItem(next))) {
+      throw new BadRequestException("There is no further checked question available. You can finish this test.");
+    }
+    if (choice === "CONTINUE") {
+      f.state.planTurn = pending.nextTurn!;
+      session.currentQuestion = next!;
+      session.phase = next!.phase;
+      session.reportPending = false;
+      delete f.endedEarlyNote;
+      if (!control!.ignoredStops.includes(pending.stopKey)) control!.ignoredStops.push(pending.stopKey);
+      const last = session.audits.at(-1)!;
+      last.adaptiveDecision = {
+        action: "KEEP", observedError: prompt.message,
+        alternatives: ["Finish the diagnostic at the recorded stopping point."],
+        rationale: `The developer chose to continue after ${prompt.reason.replaceAll("_", " ").toLowerCase()}.`,
+        expectedInformationGain: "Continue collecting evidence using the existing checked plan.",
+        implementation: "APPLIED", outcome: "NO_CHANGE",
+        implementationDetail: `Developer continuation opened question ${pending.nextTurn}.`,
+        recommendedAt: new Date().toISOString(), source: "RULE_VALIDATED_PLAN",
+      };
+    } else {
+      session.reportPending = true;
+      await settleWithin(this.waitForSessionAnalyses(sessionId), FINAL_REPORT_WAIT_MS);
+      f.endedEarlyNote = prompt.message;
+      this.completeFactorisation(session);
+    }
+    control!.choices.push({ decisionId, choice, reason: prompt.reason, at: new Date().toISOString() });
+    delete control!.pending;
+    delete session.developerExitPrompt;
+    await this.persist(session);
+    return publicCopy(session);
   }
 
   async override(
@@ -2752,15 +2848,19 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (instant.fastSkip) state.fastSkips += 1;
 
     // Time box or a found starting point ends the test here, even if the browser has the next question staged.
-    const stop = factorisationStopReason(
+    const pauseBeforeExit = response.developerMode === true && developerExitAvailable(session);
+    const ignoredStops = pauseBeforeExit ? session.developmentExitControl?.ignoredStops ?? [] : [];
+    const suggestedStop = factorisationStopReason(
       [...session.audits, { skillEvidence: instant.evidence } as LotusQuestionAudit],
-      elapsedSeconds,
+      ignoredStops.includes("TIME_LIMIT") ? 0 : elapsedSeconds,
       undefined,
       session.priors,
     );
+    const stopKey = suggestedStop?.reason === "STARTING_POINT_FOUND" ? `${suggestedStop.reason}:${suggestedStop.skillId}` : suggestedStop?.reason;
+    const stop = stopKey && ignoredStops.includes(stopKey) ? null : suggestedStop;
     if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
-    let nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
+    let nextTurn = stop && !pauseBeforeExit ? null : nextOpenTurn(state, state.planTurn);
     let next: LotusQuestion | undefined;
     // The next planned question may not be written yet: the AI is slow (a whole class at once) or down. A
     // student mid-test must never be stranded on an error, so go on to the first later question that is
@@ -2848,7 +2948,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     state.answeredTurns.push(state.planTurn);
     session.liveProgress = null;
 
-    if (!next || nextTurn === null) {
+    if (stop || !next || nextTurn === null) {
       audit.adaptiveDecision = {
         action: "STOP",
         observedError: audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
@@ -2865,6 +2965,31 @@ Create one materially different question that adds new diagnostic evidence. Test
         recommendedAt: new Date().toISOString(),
         source: "RULE_VALIDATED_PLAN",
       };
+      if (pauseBeforeExit) {
+        const reason = stop?.reason ?? (state.turns.some((turn) => turn.turn > state.planTurn)
+          ? "NO_READY_QUESTION" : "PLAN_COMPLETE");
+        const message = stop?.note ?? f.endedEarlyNote ?? "All planned questions have been reached.";
+        const decisionId = randomUUID();
+        session.developmentExitControl ??= { ignoredStops: [], choices: [] };
+        session.developmentExitControl.pending = {
+          decisionId, stopKey: stopKey ?? reason, nextTurn,
+          ...(next ? { nextQuestionId: next.id } : {}),
+        };
+        session.developerExitPrompt = {
+          decisionId, reason, message, answeredQuestions: session.audits.length,
+          canContinue: Boolean(next && nextTurn !== null),
+          ...(nextTurn !== null ? { nextQuestionNumber: nextTurn } : {}),
+        };
+        session.currentQuestion = null;
+        session.reportPending = false;
+        audit.adaptiveDecision.implementation = "NOT_APPLIED";
+        audit.adaptiveDecision.outcome = "DEFERRED";
+        audit.adaptiveDecision.implementationDetail = "Answer saved. Waiting for the developer to finish or continue.";
+        await this.persist(session, audit, true,
+          analyse ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : []);
+        if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
+        return publicCopy(session);
+      }
       session.currentQuestion = null;
       session.reportPending = true;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);

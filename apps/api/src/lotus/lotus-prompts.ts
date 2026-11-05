@@ -82,7 +82,7 @@ const LEDGER_DETAIL_WINDOW = 5;
 export function confidenceForPrompt(response: LotusStudentResponse | undefined): number | null {
   if (!response) return null;
   if (response.gameReading?.kind === "SPLIT_CONFIDENCE") return response.confidence;
-  return response.interactionContext?.confidence.status === "REPORTED_BEFORE_ANSWER" ? response.confidence : null;
+  return response.interactionContext?.confidence?.status === "REPORTED_BEFORE_ANSWER" ? response.confidence : null;
 }
 
 /**

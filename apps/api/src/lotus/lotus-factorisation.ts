@@ -957,7 +957,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       forSkill: skillId,
       spec,
       targetMistake: evidence.mistakes.at(-1),
-      reason: `The AI review requested a fresh check of ${skillName(skillId)}; an unseen future slot is being rewritten for that evidence.`,
+      reason: `Cogna requested a fresh check of ${skillName(skillId)}; an unseen future slot is being rewritten for that evidence.`,
     });
   }
 
