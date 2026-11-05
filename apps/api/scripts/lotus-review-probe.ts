@@ -25,6 +25,7 @@ import { setSpendStore } from "../src/ai/spend-cap";
 import { PrismaSpendStore } from "../src/ai/prisma-spend-store";
 import { evidenceFromAnalysis, instantVerdict } from "../src/lotus/lotus-factorisation";
 import { REVIEW_CASES, type ReviewCase } from "./lotus-review-cases";
+import { describeTally, tallyReviews } from "./lotus-review-tally";
 
 const MODE = process.env.LOTUS_REVIEW_PROBE_MODE ?? (process.argv.includes("--simulated") ? "simulated" : (process.argv.includes("--live") ? "live" : "fake"));
 const LIVE = MODE === "live";
@@ -207,7 +208,11 @@ async function main(): Promise<void> {
   const tally: Record<string, number> = {};
   for (const r of results) tally[r.skillVerdict] = (tally[r.skillVerdict] ?? 0) + 1;
   console.log("[tally]", JSON.stringify(tally), failures.length ? `errors=${failures.length}` : "");
-  if (OUT) await writeFile(OUT, JSON.stringify({ mode: LIVE ? "live" : "fake", generatedAt: new Date().toISOString(), tally, results, failures }, null, 2));
+  // What the rules that read the review depend on (see lotus-review-tally.ts).
+  const rules = tallyReviews(results);
+  console.log("[rules]");
+  for (const line of describeTally(rules)) console.log("  " + line);
+  if (OUT) await writeFile(OUT, JSON.stringify({ mode: LIVE ? "live" : SIMULATED ? "simulated" : "fake", generatedAt: new Date().toISOString(), tally, rules, results, failures }, null, 2));
   await prisma?.$disconnect();
 }
 
