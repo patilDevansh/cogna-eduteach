@@ -14,7 +14,7 @@ describe("Skill question families: coverage", () => {
   it("gives a family to every skill that has no question of its own in the live test", () => {
     const hasSlot = new Set(FACTORISATION_SLOTS.map((s) => s.skillId));
     const without = FACTORISATION_SKILLS.filter((s) => !hasSlot.has(s.id)).map((s) => s.id);
-    assert.equal(without.length, 14);
+    assert.equal(without.length, 21);
     assert.deepEqual(without.filter((id) => !skillFamily(id)), []);
   });
 

@@ -366,7 +366,7 @@ describe("planAdjustments — changing only questions the student hasn't reached
   it("a skill already secure is solid ground: nothing below it is checked", () => {
     const { state, itemAt, askedItems } = planFixture(3);
     const ledger = foldLedger([
-      audit([secure("FAC_GCF_NUMERIC"), secure("FAC_GCF_VARIABLE"), secure("FND_EXPONENT_PRODUCT"), mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
+      audit([secure("FAC_GCF_NUMERIC"), secure("FAC_GCF_VARIABLE"), secure("FND_EXPONENT_PRODUCT"), secure("FND_EXPONENT_QUOTIENT"), mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
       audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
     ]);
     const descents = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
@@ -596,6 +596,35 @@ describe("fixes from the held-out scorecard v1", () => {
       // FAC_GCF_NUMERIC is now confirmed and is the most foundational start; its own prerequisite must be secure.
       assert.equal(foldLedger(withGap).get("FAC_GCF_NUMERIC")!.state, "CONFIRMED");
       assert.equal(factorisationStopReason(withGap, 0)?.reason, "STARTING_POINT_FOUND");
+    });
+
+    describe("a soft prerequisite (dividing powers, irreducible factors) holds the test open only once it shows trouble", () => {
+      // Dividing every term builds on dividing powers; no plan slot asks it, and an unasked soft prerequisite must not stretch the test.
+      const dividing = (extra: Parameters<typeof audit>[0] = []) => [
+        audit([secure("FAC_GCF_NUMERIC")]), audit([secure("FAC_GCF_VARIABLE")]), audit([secure("FND_EXPONENT_PRODUCT")]),
+        audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]), audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
+        audit([secure("FAC_MEANING")]), audit([secure("FND_SIGN_MUL_DIV")]), audit([secure("FND_MIN_EXP_COMMON")]),
+        ...(extra.length ? [audit(extra)] : []),
+      ];
+
+      it("stops when it was never asked", () => {
+        assert.equal(factorisationStopReason(dividing(), 0)?.reason, "STARTING_POINT_FOUND");
+      });
+
+      it("stops when it was asked once and answered right", () => {
+        assert.equal(factorisationStopReason(dividing([secure("FND_EXPONENT_QUOTIENT")]), 0)?.reason, "STARTING_POINT_FOUND");
+      });
+
+      it("keeps going while it is suspected", () => {
+        const audits = dividing([mistake("FND_EXPONENT_QUOTIENT", "DIVIDED_EXPONENTS")]);
+        assert.equal(foldLedger(audits).get("FND_EXPONENT_QUOTIENT")!.state, "SUSPECTED");
+        assert.equal(factorisationStopReason(audits, 0), null);
+      });
+
+      it("a soft prerequisite is only soft: an ordinary unasked prerequisite still holds the test open", () => {
+        const audits = dividing().filter((_, i) => i !== 0);
+        assert.equal(factorisationStopReason([...audits, audit([secure("FAC_MEANING")])], 0), null);
+      });
     });
   });
 

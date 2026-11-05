@@ -52,6 +52,7 @@ import {
   ownerOfMistake,
   skillName,
   skillsUsedBy,
+  SOFT_PREREQUISITES,
 } from "./lotus-factorisation-catalogue";
 import { checkSpecFor } from "./lotus-skill-checks";
 import { SHARED_PATTERNS } from "./lotus-skill-map";
@@ -1292,13 +1293,15 @@ export function factorisationStopReason(
   const ledger = foldLedger(audits);
   const start = confirmedByDepth(ledger)[0];
   if (!start) return null;
+  // A soft prerequisite only holds the test open once it has shown trouble; unasked or merely observed, it doesn't.
+  const quiet = (id: string) => SOFT_PREREQUISITES.has(id) && !["SUSPECTED", "CONFIRMED"].includes(ledger.get(id)?.state ?? "UNTESTED");
   const prerequisites = findSkill(start.skillId)?.dependsOn ?? [];
-  if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE")) return null;
+  if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE" || quiet(id))) return null;
   // Not only the start: every confirmed gap's prerequisites must be settled (secure, or a gap already found).
   // A gap with an untested or shaky prerequisite on another branch may be that prerequisite's doing, so the plan
   // keeps probing it. A skill nothing can test doesn't hold the test open.
   const testable = (id: string) => !!checkSpecFor(id) || !!curriculumOfSkill(id)?.slots.some((s) => s.skillId === id);
-  const settled = (id: string) => { const s = ledger.get(id)?.state; return s === "SECURE" || s === "CONFIRMED" || !testable(id); };
+  const settled = (id: string) => { const s = ledger.get(id)?.state; return s === "SECURE" || s === "CONFIRMED" || !testable(id) || quiet(id); };
   const unsettled = [...ledger.values()].some((e) => e.state === "CONFIRMED" && (findSkill(e.skillId)?.dependsOn ?? []).some((id) => !settled(id)));
   if (unsettled) return null;
   return {

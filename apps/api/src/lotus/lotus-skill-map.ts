@@ -16,7 +16,7 @@ import { SKILL_FAMILIES, buildSkillCheck } from "./lotus-skill-checks";
 import { GRADE_8_DRAFTS } from "./syllabus";
 
 /** Bump when a skill, link, owner or card changes, so old records can be read against the map they were made with. */
-export const SKILL_MAP_VERSION = "factorisation-1.1.0";
+export const SKILL_MAP_VERSION = "factorisation-2.0.0";
 
 /** Where a skill comes from. NCERT is a reference, not a limit: COGNA marks skills we added because they help the child more. */
 export type SkillSource = "NCERT_CH12" | "FOUNDATION" | "COGNA";
@@ -75,10 +75,22 @@ const CHAPTER_ROWS: CardRow[] = [
   ["FAC_CANCEL_COMMON_FACTOR", "Factorise, then cancel only common factors, never terms", "(x² − 9)/(x² − 6x + 9) = (x + 3)/(x − 3)", "(7x + 5)/5 = 7x", "Restrictions on x are not assessed at this level.", ["numeric", "algebraic"], "Cancel factors after factorising, never terms"],
 ];
 
+/** The seven skills added on 4 November 2026. Source is explicit: dividing powers is ours; the rest are in NCERT chapter 12. */
+const ADDED_ROWS: Array<[CardRow, SkillSource]> = [
+  [["FND_EXPONENT_QUOTIENT", "Divide powers of one letter by subtracting indices", "x⁵ ÷ x³ = x²", "x⁵ ÷ x³ = x^(5/3)", SCOPE + " The first index is at least the second.", ["two powers", "a power and x", "numbers as bases"], "Indices subtract; the base stays"], "COGNA"],
+  [["FND_IRREDUCIBLE_FACTORS", "Write a term as a product of factors that can't be split further", "12x²y = 2 × 2 × 3 × x × x × y", "12x²y = 4 × 3 × x² × y", SCOPE + " Prime factors of the number; each letter on its own.", ["number and letters", "two letters", "number only"], "Keep splitting until every factor is prime or a single letter"], "NCERT_CH12"],
+  [["FAC_REARRANGE_TO_GROUP", "Reorder terms so that pairs share a factor, then group", "15pq + 15 + 9q + 25p = (3q + 5)(5p + 3)", "Grouping in the order given: 15(pq + 1) + (9q + 25p)", SCOPE + " Four terms.", ["all plus", "with a minus"], "Look for the pairs that share a factor, not the pairs that are next to each other"], "NCERT_CH12"],
+  [["ID_BRACKET_AS_ONE", "Treat a bracket as a single term inside an identity", "(x + 3)² − 4 = (x + 1)(x + 5)", "Expanding (x + 3)² first and stopping", SCOPE + " One or two squared brackets.", ["bracket squared minus a square", "two brackets squared"], "A bracket is one quantity: use the identity on it before expanding"], "NCERT_CH12"],
+  [["FAC_SPLIT_MIDDLE", "Rewrite bx as two terms using the pair, then group", "x² + 7x + 12 → x² + 3x + 4x + 12", "x² + 7x + 12 → x² + 3x + 5x + 12", "x² + bx + c with whole numbers.", ["both positive", "both negative", "one negative", "group after the split"], "The two new terms add to the middle and multiply to c"], "NCERT_CH12"],
+  [["DIV_TERM_BY_TERM", "Divide coefficients and powers, with signs", "−36y³ ÷ 9y² = −4y", "−36y³ ÷ 9y² = −4y³", SCOPE + " The divisor divides evenly.", ["positive", "negative on top", "negative on both"], "Divide the numbers, subtract the indices, then settle the sign"], "NCERT_CH12"],
+  [["DIV_EXPR_BY_TERM", "Divide every term of an expression by a term", "(12x² − 6x) ÷ 3x = 4x − 2", "(12x² − 6x) ÷ 3x = 4x − 6x", SCOPE + " The term divides every term evenly.", ["two terms", "three terms", "negative divisor"], "Every term is divided, one at a time"], "NCERT_CH12"],
+];
+
 /** Every skill's card. The rest of the twelve things a skill carries (owned mistakes, shared patterns, questions that test it alone, needs) are computed below. */
 export const SKILL_CARDS: SkillCard[] = [
   ...FOUNDATION_ROWS.map((r) => row(r, "FOUNDATION")),
   ...CHAPTER_ROWS.map((r) => row(r, "NCERT_CH12")),
+  ...ADDED_ROWS.map(([r, source]) => row(r, source)),
 ];
 function row([id, definition, example, nonExample, boundary, conditions, teachingFocus]: CardRow, source: SkillSource): SkillCard {
   return { id, definition, example, nonExample, boundary, conditions, teachingFocus, source };
@@ -144,7 +156,7 @@ const conditionalKey = new Set(CONDITIONAL.map(([a, b]) => `${a}>${b}`));
 /** The routes to a monic trinomial: write the brackets from the pair, or split the middle term and group. Route B needs the proposed skill. */
 const TRINOMIAL_ROUTES: SkillLink[] = [
   { from: "FAC_MONIC_TRINOMIAL", to: "FAC_PAIR_PRODUCT_SUM", kind: "EITHER_OR", group: "trinomial-route", note: "Route A: write the brackets straight from the pair" },
-  { from: "FAC_MONIC_TRINOMIAL", to: "FAC_GROUP_TERMS", kind: "EITHER_OR", group: "trinomial-route", note: "Route B: split the middle term, then group, with a minus where the signs need it (also needs the proposed skill FAC_SPLIT_MIDDLE)" },
+  { from: "FAC_MONIC_TRINOMIAL", to: "FAC_SPLIT_MIDDLE", kind: "EITHER_OR", group: "trinomial-route", note: "Route B: split the middle term, then group, with a minus where the signs need it" },
 ];
 
 /** The same skill in another chapter's map, so evidence from either reaches both. */
@@ -157,10 +169,12 @@ const ACROSS: Array<[string, string[]]> = [
   ["FND_EXPONENT_PRODUCT", ["EP_PRODUCT_LAW", "AE_MONO_MONO"]],
   ["FND_RECOGNISE_SQUARE", ["SQ_ROOT_MEANING", "SQ_PERFECT"]],
   ["ALG_IDENTIFY_STRUCTURE", ["AE_TERMS"]],
+  ["FND_EXPONENT_QUOTIENT", ["EP_QUOTIENT_LAW"]],
+  ["FND_IRREDUCIBLE_FACTORS", ["SQ_PRIME_FACTOR"]],
 ];
 /** A skill that can verify another. Expanding checks any factorisation. */
 const CHECKS: Array<[string, string[]]> = [
-  ["FAC_VERIFY_EXPAND", ["FAC_COMMON_MONOMIAL", "FAC_GROUP_TERMS", "FAC_DIFF_SQUARES", "FAC_PERFECT_SQUARE_PLUS", "FAC_PERFECT_SQUARE_MINUS", "FAC_MONIC_TRINOMIAL", "FAC_FACTOR_FULLY"]],
+  ["FAC_VERIFY_EXPAND", ["FAC_COMMON_MONOMIAL", "FAC_GROUP_TERMS", "FAC_DIFF_SQUARES", "FAC_PERFECT_SQUARE_PLUS", "FAC_PERFECT_SQUARE_MINUS", "FAC_MONIC_TRINOMIAL", "FAC_SPLIT_MIDDLE", "FAC_REARRANGE_TO_GROUP", "FAC_FACTOR_FULLY"]],
 ];
 
 export interface SharedPattern {
@@ -208,17 +222,13 @@ export const SKILL_LINKS: SkillLink[] = [
   ...CHECKS.flatMap(([from, targets]) => targets.map((to): SkillLink => ({ from, to, kind: "CHECKS" }))),
 ];
 
-/** Skills proposed for the map. Data only: each goes live when it has two code-checked questions. */
+/**
+ * Skills proposed for the map and not yet live. Empty since 4 November 2026: the seven proposed in
+ * the Core Skill Map (Draft 3) are now in the catalogue with cards, links and checked questions. Anything
+ * new is proposed here first: data only, and it goes live when it has two code-checked questions.
+ */
 export interface ProposedSkill { id: string; name: string; group: number; needs: string[]; mistakes: string[]; source: SkillSource; example: string; reason: string }
-export const PROPOSED_SKILLS: ProposedSkill[] = [
-  { id: "FND_EXPONENT_QUOTIENT", name: "Dividing powers", group: 0, needs: ["FND_EXPONENT_PRODUCT"], mistakes: ["DIVIDED_EXPONENTS", "ADDED_EXPONENTS_IN_QUOTIENT"], source: "COGNA", example: "x⁵ ÷ x³ = x²", reason: "Dividing every term depends on it; the map has only multiplying" },
-  { id: "DIV_TERM_BY_TERM", name: "Dividing a term by a term", group: 7, needs: ["FND_SIGN_MUL_DIV", "FND_EXPONENT_QUOTIENT"], mistakes: ["DIVIDED_COEFFICIENT_ONLY", "SIGN_QUOTIENT_ERROR"], source: "NCERT_CH12", example: "−36y³ ÷ 9y² = −4y", reason: "First step of dividing expressions (NCERT 12.3.1)" },
-  { id: "DIV_EXPR_BY_TERM", name: "Dividing an expression by a term", group: 7, needs: ["DIV_TERM_BY_TERM"], mistakes: ["LEFT_TERM_UNDIVIDED"], source: "NCERT_CH12", example: "(5x² − 6x) ÷ 3x", reason: "Builds on term ÷ term (NCERT 12.3.2)" },
-  { id: "FAC_SPLIT_MIDDLE", name: "Splitting the middle term", group: 5, needs: ["FAC_PAIR_PRODUCT_SUM", "FAC_GROUP_TERMS"], mistakes: ["SPLIT_PAIR_DOES_NOT_SUM", "SPLIT_THEN_NO_GROUP"], source: "NCERT_CH12", example: "y² − 3y − 4y + 12", reason: "A second route to trinomials that schools teach (NCERT examples 10–11)" },
-  { id: "FAC_REARRANGE_TO_GROUP", name: "Rearranging terms to group", group: 3, needs: ["FAC_GROUP_TERMS"], mistakes: ["TRIED_GIVEN_ORDER_ONLY"], source: "NCERT_CH12", example: "15pq + 15 + 9q + 25p", reason: "Tested today with no skill behind it (NCERT exercise 12.1)" },
-  { id: "ID_BRACKET_AS_ONE", name: "A bracket as one quantity", group: 4, needs: ["FAC_DIFF_SQUARES"], mistakes: ["EXPANDED_BRACKET_FIRST", "TREATED_BRACKET_AS_TWO_TERMS"], source: "NCERT_CH12", example: "(l + m)² − 4lm", reason: "Needed for harder identity questions (NCERT exercise 12.2)" },
-  { id: "FND_IRREDUCIBLE_FACTORS", name: "Irreducible factors", group: 0, needs: ["FND_FACTOR_PAIRS"], mistakes: ["STOPPED_AT_COMPOSITE_FACTOR"], source: "NCERT_CH12", example: "12x²y = 2 × 2 × 3 × x × x × y", reason: "Step one of taking out the full common factor" },
-];
+export const PROPOSED_SKILLS: ProposedSkill[] = [];
 /** Two pairs of near-duplicates: each pair shares its mistakes, so no question can tell them apart. The first id stays, the second joins it. */
 export const PROPOSED_MERGES: Array<{ keep: string; retire: string }> = [
   { keep: "FND_GCD_NUMERIC", retire: "FAC_GCF_NUMERIC" },
@@ -266,8 +276,8 @@ export function skillMapCoverage(): SkillMapCoverage {
     mistakesNoQuestionAnywhere: [...listedUnder.keys()].filter((m) => !targeted.has(m) && !familyTargets.has(m)),
   };
 }
-/** Where coverage stood on 28 October 2026. The checks let it improve and refuse to let it slip. */
-export const COVERAGE_BASELINE = { skillsWithoutOwnQuestion: 14, mistakesNoQuestionTargets: 27, skillsWithoutAnyQuestion: 0, mistakesNoQuestionAnywhere: 0 };
+/** Where coverage stood on 4 November 2026 (38 skills, 72 mistakes; the 25 slots cover 17 skills). The checks let it improve and refuse to let it slip. */
+export const COVERAGE_BASELINE = { skillsWithoutOwnQuestion: 21, mistakesNoQuestionTargets: 38, skillsWithoutAnyQuestion: 0, mistakesNoQuestionAnywhere: 0 };
 
 /** A short stable id for the map as it is, so a record can say which map it was made against. */
 export function skillMapFingerprint(): string {

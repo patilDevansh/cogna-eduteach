@@ -104,9 +104,9 @@ function choiceItem(skillId: string, level: Level, prompt: string, key: string, 
     },
   };
 }
-function expandItem(skillId: string, level: Level, expression: string, answer: string, worked: string[], wrong: Array<[string, string]>): Item {
+function expandItem(skillId: string, level: Level, expression: string, answer: string, worked: string[], wrong: Array<[string, string]>, verb = "Expand", display = pretty(expression)): Item {
   return {
-    ...head(skillId, level, `Expand ${pretty(expression)}.`), type: "CONSTRUCTED_RESPONSE",
+    ...head(skillId, level, `${verb} ${display}.`), type: "CONSTRUCTED_RESPONSE",
     answerKey: {
       kind: "OPEN_RESPONSE", canonicalAnswer: answer, workedSolution: worked,
       diagnostics: {
@@ -530,10 +530,165 @@ const chooseMethod: SkillFamily = {
   },
 };
 
+// ---------- the seven skills added on 4 November 2026 ----------
+const omega = (n: number) => { let c = 0; for (let p = 2; p <= n; p++) while (n % p === 0) { n /= p; c++; } return c; };
+const power = (v: string, n: number) => (n === 0 ? "" : n === 1 ? v : `${v}^${n}`);
+/** A polynomial in x from [coefficient, power] pairs, highest power first: "12x^2 - 6x". */
+const polyStr = (terms: Array<[number, number]>) => terms.map(([c, n], i) => term(c, power("x", n), i === 0)).join("");
+const monoStr = (c: number, v: string, n: number) => (n === 0 ? String(c) : `${c === 1 ? "" : c === -1 ? "-" : c}${power(v, n)}`);
+const withDivision = (expression: string) => pretty(expression).replace(/\)\/\(/g, ") ÷ (");
+
+const exponentQuotient: SkillFamily = {
+  skillId: "FND_EXPONENT_QUOTIENT", level: "easy",
+  conditions: ["two powers", "a power and x", "numbers as bases"],
+  build(r, condition) {
+    const b = int(r, 2, 4), k = int(r, 2, 4), a = b * k; // a is a multiple of b, so "divided the indices" gives a whole number
+    if (a - b === k) return null;
+    if (condition === "two powers") {
+      return numberItem(this.skillId, this.level, `x${sup(a)} ÷ x${sup(b)} = xⁿ.  What is n?`, a - b, `${a}-${b}`,
+        [`Dividing powers subtracts the indices: ${a} − ${b} = ${a - b}`], [[k, "DIVIDED_EXPONENTS"], [a + b, "ADDED_EXPONENTS_IN_QUOTIENT"]]);
+    }
+    if (condition === "a power and x") {
+      const n = int(r, 3, 7);
+      return numberItem(this.skillId, this.level, `x${sup(n)} ÷ x = xⁿ.  What is n?`, n - 1, `${n}-1`,
+        [`x is x¹, so the indices subtract: ${n} − 1 = ${n - 1}`], [[n, "DIVIDED_EXPONENTS"], [n + 1, "ADDED_EXPONENTS_IN_QUOTIENT"]]);
+    }
+    if (condition === "numbers as bases") {
+      const base = pick(r, [2, 3, 5]), p = (x: number, n: number) => `${x}${sup(n)}`;
+      return choiceItem(this.skillId, this.level, `${p(base, a)} ÷ ${p(base, b)} = ?`, p(base, a - b),
+        [[p(base, k), "DIVIDED_EXPONENTS"], [p(base, a + b), "ADDED_EXPONENTS_IN_QUOTIENT"], [p(1, a - b), null]],
+        [`The base stays ${base}; the indices subtract: ${a} − ${b} = ${a - b}`], r);
+    }
+    return null;
+  },
+};
+
+const irreducibleFactors: SkillFamily = {
+  skillId: "FND_IRREDUCIBLE_FACTORS", level: "medium",
+  conditions: ["number and letters", "two letters", "number only"],
+  build(r, condition) {
+    const repeated = pick(r, [8, 12, 18, 20, 24, 27, 36]);
+    let coef: number, letters: string, count: number;
+    if (condition === "number and letters") { coef = repeated; const pw = int(r, 2, 3); letters = `x^${pw}y`; count = pw + 1; }
+    else if (condition === "two letters") { coef = pick(r, [6, 10, 14, 15, 21]); letters = "ab"; count = 2; }
+    else if (condition === "number only") { coef = repeated; letters = ""; count = 0; }
+    else return null;
+    const w = omega(coef), key = w + count;
+    return numberItem(this.skillId, this.level,
+      `Write ${pretty(`${coef}${letters}`)} as a product of factors that can't be split any further (letters count one each). How many factors is that?`, key, `${w}+${count}`,
+      [`${coef} splits into ${w} prime factor${w === 1 ? "" : "s"}${count ? `, and the letters add ${count}` : ""}`],
+      [[key - 1, "STOPPED_AT_COMPOSITE_FACTOR"], [1 + count, "STOPPED_AT_COMPOSITE_FACTOR"]]);
+  },
+};
+
+const rearrangeToGroup: SkillFamily = {
+  skillId: "FAC_REARRANGE_TO_GROUP", level: "medium",
+  conditions: ["all plus", "with a minus"],
+  build(r, condition) {
+    const [u, v] = pick(r, [["x", "y"], ["p", "q"], ["a", "b"]] as const);
+    const g = (m: number, n: number): number => (n ? g(n, m % n) : m);
+    const a = int(r, 1, 3), c = int(r, 1, 3), b = int(r, 1, 5), d = int(r, 1, 5);
+    if (g(a, b) !== 1 || g(c, d) !== 1 || (a === c && b === d)) return null;
+    if (condition !== "all plus" && condition !== "with a minus") return null;
+    const dd = condition === "with a minus" ? -d : d;
+    // (au + b)(cv + dd) = ac·uv + a·dd·u + bc·v + b·dd, written out of order so the pairs that share a factor are not next to each other.
+    const expr = [term(a * c, `${u}${v}`, true), term(b * dd, ""), term(b * c, v), term(a * dd, u)].join("");
+    const bracketOf = (coef: number, letter: string, k: number) => `(${coef === 1 ? "" : coef}${letter} ${k < 0 ? "-" : "+"} ${Math.abs(k)})`;
+    const inOrder = `${term(a * c, `${u}${v}`, true)}${term(b * dd, "")} + (${term(b * c, v, true)}${term(a * dd, u)})`;
+    return factoriseItem(this.skillId, this.level, expr, `${bracketOf(a, u, b)}${bracketOf(c, v, dd)}`,
+      ["Pair the terms that share a factor, not the ones next to each other", "Take a factor out of each pair, then the common bracket"],
+      [[inOrder, "TRIED_GIVEN_ORDER_ONLY"]]);
+  },
+};
+
+const bracketAsOne: SkillFamily = {
+  skillId: "ID_BRACKET_AS_ONE", level: "hard",
+  conditions: ["bracket squared minus a square", "two brackets squared"],
+  build(r, condition) {
+    if (condition === "bracket squared minus a square") {
+      const m = int(r, 1, 4), k = m + int(r, 1, 4); // k > m so both brackets are positive
+      return factoriseItem(this.skillId, this.level, `(x + ${k})^2 - ${m * m}`, `(x + ${k - m})(x + ${k + m})`,
+        [`(x + ${k})² − ${m}²: the bracket is one quantity`, `= ((x + ${k}) − ${m})((x + ${k}) + ${m})`],
+        [[`x^2 + ${2 * k}x + ${k * k - m * m}`, "EXPANDED_BRACKET_FIRST"], [`(x - ${m})(x + ${m})`, "TREATED_BRACKET_AS_TWO_TERMS"]]);
+    }
+    if (condition === "two brackets squared") {
+      const j = int(r, 1, 5), k = int(r, 1, 5);
+      if ((k - j) % 2 === 0) return null; // keep 2x + (k − j) free of a common factor
+      const diff = k - j;
+      return factoriseItem(this.skillId, this.level, `(x + ${k})^2 - (x - ${j})^2`, `${k + j}(2x ${diff < 0 ? "-" : "+"} ${Math.abs(diff)})`,
+        ["Both squares are brackets: use a² − b² on them as they are", `= ((x + ${k}) − (x − ${j}))((x + ${k}) + (x − ${j}))`],
+        [[`${2 * (k + j)}x + ${k * k - j * j}`, "EXPANDED_BRACKET_FIRST"]]);
+    }
+    return null;
+  },
+};
+
+const splitMiddle: SkillFamily = {
+  skillId: "FAC_SPLIT_MIDDLE", level: "medium",
+  conditions: ["both positive", "both negative", "one negative", "group after the split"],
+  build(r, condition) {
+    const [p0, q0] = twoMagnitudes(r, 2, 8);
+    const [p, q] = condition === "both negative" ? [-p0, -q0] : condition === "one negative" ? [p0, -q0] : [p0, q0];
+    const S = p + q, P = p * q;
+    if (S === 0) return null;
+    const sgn = (n: number, ascii: boolean) => (n < 0 ? (ascii ? "-" : "−") : "+");
+    const pairText = (x: number, y: number) => `${shown(x)}x ${sgn(y, false)} ${Math.abs(y)}x`;
+    if (condition === "group after the split") {
+      const expr = `x^2 ${sgn(p, true)} ${Math.abs(p)}x ${sgn(q, true)} ${Math.abs(q)}x ${sgn(P, true)} ${Math.abs(P)}`;
+      const grouped = (ascii: boolean) => `x(x ${sgn(p, ascii)} ${Math.abs(p)}) ${sgn(q, ascii)} ${Math.abs(q)}(x ${sgn(p, ascii)} ${Math.abs(p)})`;
+      return factoriseItem(this.skillId, this.level, expr, `${bracket(p)}${bracket(q)}`, [grouped(false), "The bracket is common: take it out"], [[grouped(true), "SPLIT_THEN_NO_GROUP"]]);
+    }
+    const options: Array<[string, string | null]> = [
+      [pairText(p, q + 1 === 0 ? q + 2 : q + 1), "SPLIT_PAIR_DOES_NOT_SUM"],
+      [pairText(-p, -q), "SPLIT_PAIR_DOES_NOT_SUM"],
+      [pairText(1, S - 1), null],
+    ];
+    return choiceItem(this.skillId, this.level, `To factorise ${pretty(quad(1, S, P))} by splitting the middle term, how should ${shown(S)}x be split?`, pairText(p, q), options,
+      [`The two terms must add to ${shown(S)}x and multiply to ${shown(P)}x²`], r);
+  },
+};
+
+const termByTerm: SkillFamily = {
+  skillId: "DIV_TERM_BY_TERM", level: "medium",
+  conditions: ["positive", "negative on top", "negative on both"],
+  build(r, condition) {
+    const q = int(r, 2, 9), c = int(r, 2, 9), b = int(r, 1, 3), a = b + int(r, 1, 3), letter = "y";
+    if (q === c) return null;
+    const topSign = condition === "positive" ? 1 : -1, bottomSign = condition === "negative on both" ? -1 : 1;
+    const resultSign = topSign * bottomSign;
+    const expression = `(${monoStr(topSign * q * c, letter, a)})/(${monoStr(bottomSign * c, letter, b)})`;
+    const wrong: Array<[string, string]> = [[monoStr(resultSign * q, letter, a), "DIVIDED_COEFFICIENT_ONLY"]];
+    if (condition !== "positive") wrong.push([monoStr(-resultSign * q, letter, a - b), "SIGN_QUOTIENT_ERROR"]); // nothing to get wrong with a sign when all is positive
+    return expandItem(this.skillId, this.level, expression, monoStr(resultSign * q, letter, a - b), ["Divide the numbers, subtract the indices, then settle the sign"], wrong, "Simplify", withDivision(expression));
+  },
+};
+
+const exprByTerm: SkillFamily = {
+  skillId: "DIV_EXPR_BY_TERM", level: "medium",
+  conditions: ["two terms", "three terms", "negative divisor"],
+  build(r, condition) {
+    const c = int(r, 2, 5), q1 = int(r, 2, 6), q2 = int(r, 2, 6), q3 = int(r, 2, 6);
+    const worked = ["Divide every term, one at a time"];
+    if (condition === "two terms" || condition === "negative divisor") {
+      const dsign = condition === "negative divisor" ? -1 : 1;
+      const expression = `(${polyStr([[c * q1, 2], [-c * q2, 1]])})/(${monoStr(dsign * c, "x", 1)})`;
+      return expandItem(this.skillId, this.level, expression, polyStr([[dsign * q1, 1], [-dsign * q2, 0]]), worked,
+        [[polyStr([[dsign * q1, 1], [-c * q2, 1]]), "LEFT_TERM_UNDIVIDED"]], "Simplify", withDivision(expression));
+    }
+    if (condition === "three terms") {
+      const expression = `(${polyStr([[c * q1, 3], [-c * q2, 2], [c * q3, 1]])})/(${c}x)`;
+      return expandItem(this.skillId, this.level, expression, polyStr([[q1, 2], [-q2, 1], [q3, 0]]), worked,
+        [[polyStr([[q1, 2], [-c * q2, 2], [c * q3, 1]]), "LEFT_TERM_UNDIVIDED"]], "Simplify", withDivision(expression));
+    }
+    return null;
+  },
+};
+
 export const SKILL_FAMILIES: SkillFamily[] = [
   signMulDiv, signAddSub, factorPairs, readAbc, hcf, gcfNumeric, exponentBases, lowestPower,
   recogniseSquare, identifyStructure, expandSingle, expandBinomials, identitiesForward, reversePattern,
   commonBracket, diffSquares, perfectSquarePlus, chooseMethod,
+  exponentQuotient, irreducibleFactors, rearrangeToGroup, bracketAsOne, splitMiddle, termByTerm, exprByTerm,
 ];
 const FAMILY_BY_SKILL = new Map(SKILL_FAMILIES.map((f) => [f.skillId, f]));
 
