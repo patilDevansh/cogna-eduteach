@@ -25,9 +25,9 @@ export const FACTORISATION_SKILLS: FactorisationSkill[] = [
   {id:"FAC_CHOOSE_METHOD",name:"Choosing the method",group:1,dependsOn:["FAC_MEANING"],mistakes:["SKIPPED_COMMON_FACTOR_CHECK","IDENTITY_MISAPPLIED"]},
   {id:"FAC_GCF_NUMERIC",name:"Finding the number common to every term",group:2,dependsOn:["FND_GCD_NUMERIC"],mistakes:["GAVE_LCM","COMMON_NOT_HIGHEST"]},
   {id:"FAC_GCF_VARIABLE",name:"Finding the letters common to every term",group:2,dependsOn:["FND_MIN_EXP_COMMON"],mistakes:["TOOK_HIGHEST_POWER","INCLUDED_NON_COMMON_VARIABLE"]},
-  {id:"FAC_DIVIDE_TERMS",name:"Dividing every term by the common factor",group:2,dependsOn:["FAC_GCF_NUMERIC","FAC_GCF_VARIABLE","FND_EXPONENT_PRODUCT"],mistakes:["DIVIDED_FIRST_TERM_ONLY","DROPPED_THE_ONE","INDEX_NOT_REDUCED"]},
+  {id:"FAC_DIVIDE_TERMS",name:"Dividing every term by the common factor",group:2,dependsOn:["FAC_GCF_NUMERIC","FAC_GCF_VARIABLE","FND_EXPONENT_PRODUCT","FND_EXPONENT_QUOTIENT"],mistakes:["DIVIDED_FIRST_TERM_ONLY","DROPPED_THE_ONE","INDEX_NOT_REDUCED"]},
   {id:"FAC_GCF_NEGATIVE",name:"Taking out a negative common factor",group:2,dependsOn:["FAC_DIVIDE_TERMS","FND_SIGN_MUL_DIV"],mistakes:["KEPT_ORIGINAL_SIGNS","FLIPPED_ONE_SIGN"]},
-  {id:"FAC_COMMON_MONOMIAL",name:"Taking out the full common factor",group:2,dependsOn:["FAC_DIVIDE_TERMS"],mistakes:["PARTIAL_GCF"]},
+  {id:"FAC_COMMON_MONOMIAL",name:"Taking out the full common factor",group:2,dependsOn:["FAC_DIVIDE_TERMS","FND_IRREDUCIBLE_FACTORS"],mistakes:["PARTIAL_GCF"]},
   {id:"FAC_COMMON_BINOMIAL",name:"Taking out a common bracket",group:3,dependsOn:["FAC_MEANING","FAC_DIVIDE_TERMS"],mistakes:["LEFTOVERS_MULTIPLIED","BRACKET_NOT_SEEN_AS_FACTOR","REVERSED_BRACKET_MISSED"]},
   {id:"FAC_GROUP_TERMS",name:"Grouping four terms into pairs",group:3,dependsOn:["FAC_COMMON_MONOMIAL","FAC_COMMON_BINOMIAL"],mistakes:["PAIRS_SHARE_NOTHING"]},
   {id:"FAC_GROUP_SIGN",name:"Grouping when the second pair starts with a minus",group:3,dependsOn:["FAC_GROUP_TERMS","FAC_GCF_NEGATIVE"],mistakes:["SIGN_NOT_FLIPPED_IN_GROUP"]},
@@ -41,8 +41,22 @@ export const FACTORISATION_SKILLS: FactorisationSkill[] = [
   {id:"FAC_FACTOR_FULLY",name:"Factorising fully",group:6,dependsOn:["FAC_CHOOSE_METHOD"],mistakes:["INCOMPLETE_FACTORISATION","FACTORED_SUM_OF_SQUARES"]},
   {id:"FAC_VERIFY_EXPAND",name:"Checking a factorisation by expanding",group:6,dependsOn:["EXP_EXPAND_BINOMIALS"],mistakes:["EXPAND_CHECK_FAIL","CHECKED_FIRST_TERM_ONLY"]},
   {id:"FAC_CANCEL_COMMON_FACTOR",name:"Cancelling factors, never terms",group:6,dependsOn:["FAC_MEANING","FAC_DIVIDE_TERMS"],mistakes:["CANCELLED_TERMS_NOT_FACTORS","DIVIDED_ONE_TERM_ONLY"]},
+  // Added 4 Nov 2026 (the seven proposed in the Core Skill Map, Draft 3). Each has its own mistakes and needs different teaching.
+  {id:"FND_EXPONENT_QUOTIENT",name:"Dividing powers",group:0,dependsOn:["FND_EXPONENT_PRODUCT"],mistakes:["DIVIDED_EXPONENTS","ADDED_EXPONENTS_IN_QUOTIENT"]},
+  {id:"FND_IRREDUCIBLE_FACTORS",name:"Irreducible factors",group:0,dependsOn:["FND_FACTOR_PAIRS"],mistakes:["STOPPED_AT_COMPOSITE_FACTOR"]},
+  {id:"FAC_REARRANGE_TO_GROUP",name:"Rearranging terms to group",group:3,dependsOn:["FAC_GROUP_TERMS"],mistakes:["TRIED_GIVEN_ORDER_ONLY"]},
+  {id:"ID_BRACKET_AS_ONE",name:"A bracket as one quantity",group:4,dependsOn:["FAC_DIFF_SQUARES"],mistakes:["EXPANDED_BRACKET_FIRST","TREATED_BRACKET_AS_TWO_TERMS"]},
+  {id:"FAC_SPLIT_MIDDLE",name:"Splitting the middle term",group:5,dependsOn:["FAC_PAIR_PRODUCT_SUM","FAC_GROUP_TERMS"],mistakes:["SPLIT_PAIR_DOES_NOT_SUM","SPLIT_THEN_NO_GROUP"]},
+  {id:"DIV_TERM_BY_TERM",name:"Dividing a term by a term",group:7,dependsOn:["FND_SIGN_MUL_DIV","FND_EXPONENT_QUOTIENT"],mistakes:["DIVIDED_COEFFICIENT_ONLY","SIGN_QUOTIENT_ERROR"]},
+  {id:"DIV_EXPR_BY_TERM",name:"Dividing an expression by a term",group:7,dependsOn:["DIV_TERM_BY_TERM"],mistakes:["LEFT_TERM_UNDIVIDED"]},
 ];
-export const UNFINISHED_MISTAKES = new Set(["COMMON_NOT_HIGHEST","PARTIAL_GCF","INCOMPLETE_FACTORISATION","SUM_ACCEPTED_AS_FACTORISED","BRACKET_NOT_SEEN_AS_FACTOR","PAIRS_SHARE_NOTHING","SKIPPED_COMMON_FACTOR_CHECK"]);
+/**
+ * Prerequisites the 25 slots never ask about, added after the early stop was tuned. They are in the map and the
+ * short checks can test them, but an unasked one never holds the early stop open: making them required stretched a
+ * child who divides only the first term from 8 questions to 17-23. Once asked and shaky, they count like any other.
+ */
+export const SOFT_PREREQUISITES = new Set(["FND_EXPONENT_QUOTIENT", "FND_IRREDUCIBLE_FACTORS"]);
+export const UNFINISHED_MISTAKES = new Set(["COMMON_NOT_HIGHEST","PARTIAL_GCF","INCOMPLETE_FACTORISATION","SUM_ACCEPTED_AS_FACTORISED","BRACKET_NOT_SEEN_AS_FACTOR","PAIRS_SHARE_NOTHING","SKIPPED_COMMON_FACTOR_CHECK","TRIED_GIVEN_ORDER_ONLY","EXPANDED_BRACKET_FIRST","SPLIT_THEN_NO_GROUP"]);
 
 type Level="easy"|"medium"|"hard";
 export interface SlotSpec{slot:number;skillId:string;tagged:string[];kind:LotusItemDiagnostics["itemKind"];level:Level;phase:LotusPhase;shape:string;note?:string;mistakes:string[];
