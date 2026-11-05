@@ -33,6 +33,11 @@ export interface LessonBrief {
   }>;
   /** Secure skills, by name: the lesson opens from one of these. */
   strengths: string[];
+  /**
+   * What earlier tests and lessons showed about this skill (learner-memory.ts): a mistake that keeps
+   * coming back, or a lesson that didn't work. Absent for a student's first time on the skill.
+   */
+  history?: string[];
 }
 
 /**

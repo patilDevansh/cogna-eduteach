@@ -15,6 +15,11 @@ import { ownerOfMistake } from "./lotus-factorisation-catalogue";
 
 export const REASON_PROMPT = "How did you get it?";
 
+/** A mistake code in plain words ("divided only the first term by the common factor"), if it has a phrase. */
+export function mistakeInWords(code: string): string | undefined {
+  return IN_MY_WORDS[code]?.replace(/^I /, "");
+}
+
 /** A mistake, in the student's words. Codes without a phrase are never offered. */
 const IN_MY_WORDS: Record<string, string> = {
   DIVIDED_FIRST_TERM_ONLY: "I divided only the first term by the common factor",

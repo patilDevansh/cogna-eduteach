@@ -288,6 +288,8 @@ export interface LotusFinalReport {
   skills?: LotusSkillSummary[];
   /** C1: the AI's read of the whole test; never changes the facts above. */
   overallReview?: LotusOverallReview;
+  /** What Cogna remembers about these skills from earlier tests and lessons: a mistake that keeps coming back, a gap since fixed. */
+  memory?: string[];
 }
 
 export type LotusSkillState = "UNTESTED" | "OBSERVED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";

@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from "@nestjs/common";
 import {
   JobStatus,
@@ -37,7 +38,8 @@ import {
   type MicroLessonView,
   type LessonEvidenceReceipt,
 } from "@cogna/shared";
-import { isPlannedLotusTopic, type AuthoredTask } from "@cogna/shared";
+import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type AuthoredTask, type LotusTopic } from "@cogna/shared";
+import { loadLearnerModel, memoryLines, writeEvidence } from "../learner/learner-memory";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
 import type { TtsProvider } from "../ai/tts.service";
@@ -211,6 +213,7 @@ function targetStudentId(actor: AccessActor, requested?: string): string {
 }
 
 export class PersonalizedVideosService {
+  private readonly logger = new Logger("PersonalizedVideos");
   private mediaStorage: MediaStorage | null = null;
   private readonly narrator: LessonNarrator;
 
@@ -329,14 +332,23 @@ export class PersonalizedVideosService {
     if (!microBrief && canAnimate && trusted.session) {
       try { microBrief = buildLessonBrief(trusted.session, names.first); } catch { microBrief = null; }
     }
+    // What earlier tests and lessons showed about this skill: the author is told, and a short lesson
+    // that didn't work last time isn't tried again.
+    const memory = microBrief ? await loadLearnerModel(this.prisma, studentId).catch(() => null) : null;
+    const remembered = memory?.skills.find((s) => s.skillId === microBrief!.targetSkill.id);
+    const history = memory && remembered ? memoryLines(memory, { only: [remembered.skillId] }) : [];
+    if (microBrief && history.length) microBrief.history = history;
     // Short lesson or video, from the size of the gap. A small gap gets the 20-second lesson on the
     // student's own answer and nothing else, so no AI lesson is written for it.
-    const format = microBrief && trusted.session ? chooseLessonFormat({
+    const chosenFormat = microBrief && trusted.session ? chooseLessonFormat({
       skills: (trusted.session.finalReport?.skills ?? []).map((k) => ({ skillId: k.skillId, state: k.state })),
       targetSkillId: microBrief.targetSkill.id,
       studentItems: microBrief.studentItems,
       shortLessonAvailable: Boolean(buildMicroLesson(microBrief)),
     }) : null;
+    const format = chosenFormat?.format === "SHORT" && remembered?.lessons.some((l) => !l.passed && l.format === "SHORT")
+      ? { format: "VIDEO" as const, reason: "A short lesson on this skill didn't work last time, so this one explains it in full." }
+      : chosenFormat;
     const short = format?.format === "SHORT";
     const animated = short ? null : animatedPlan;
     const author = brief && trusted.session && !short ? chooseAuthor(trusted.session, this.openai) : null;
@@ -426,6 +438,9 @@ export class PersonalizedVideosService {
     }
 
     const assignmentId = randomUUID();
+    // The skill this lesson teaches, so its record and its final check are filed under the right skill
+    // (a fixed "distributive property" label used to stand in for every Lotus lesson).
+    const lessonSkill = microBrief?.targetSkill.id ?? planned?.skillId;
     if (short) {
       // Nothing to render: the short lesson is built and narrated when the student opens it.
       await this.prisma.personalizedVideoAssignment.create({
@@ -437,7 +452,7 @@ export class PersonalizedVideosService {
           lotusSessionId: lotusRecordId,
           status: PersonalizedVideoAssignmentStatus.READY,
           diagnosticState: gate.diagnosticState,
-          conceptId: template?.conceptId ?? "C3_DISTRIBUTIVE_PROPERTY",
+          conceptId: lessonSkill ?? template?.conceptId ?? "C3_DISTRIBUTIVE_PROPERTY",
           learningObjective: lesson.objective,
           evidenceSnapshot: snapshot as object,
           script: stored as object,
@@ -471,7 +486,7 @@ export class PersonalizedVideosService {
         lotusSessionId: lotusRecordId,
         status: PersonalizedVideoAssignmentStatus.PREPARING,
         diagnosticState: gate.diagnosticState,
-        conceptId: template?.conceptId ?? "C3_DISTRIBUTIVE_PROPERTY",
+        conceptId: lessonSkill ?? template?.conceptId ?? "C3_DISTRIBUTIVE_PROPERTY",
         learningObjective: lesson.objective,
         evidenceSnapshot: snapshot as object,
         script: stored as object,
@@ -1301,6 +1316,17 @@ export class PersonalizedVideosService {
         exitCorrect: correct,
       },
     });
+    // The main final check is what the lesson achieved: remembered against the skill it taught.
+    const taught = script?.authoring?.brief ?? script?.micro?.brief;
+    const topic = taught && (Object.keys(LOTUS_TOPIC_NAMES) as LotusTopic[]).find((key) => LOTUS_TOPIC_NAMES[key] === taught.topic);
+    if (item === 0 && taught && topic) {
+      await writeEvidence(this.prisma, [{
+        studentId: assignment.studentId, topic, skillId: taught.targetSkill.id, source: "LESSON", sourceId: assignmentId,
+        state: correct ? "LESSON_PASSED" : "LESSON_FAILED", mistakes: [],
+        detail: { format: script?.format ?? "VIDEO", exitPrompt: script?.exit?.prompt ?? "", answer },
+        observedAt: new Date(),
+      }]).catch((error: unknown) => this.logger.warn(`Couldn't remember lesson ${assignmentId}: ${error instanceof Error ? error.message : String(error)}`));
+    }
     if (assignment.assetId) {
       await this.prisma.modalityOutcome.create({
         data: {

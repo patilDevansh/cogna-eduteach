@@ -38,7 +38,7 @@ import type {
 } from "@cogna/shared";
 import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
-import { isDemoStudentId } from "../access/cogna-access";
+import { isDemoStudentId, type AccessActor } from "../access/cogna-access";
 import {
   challengerClosurePrompt,
   gptDebatePrompt,
@@ -59,6 +59,7 @@ import {
 } from "./lotus-persistence";
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
+import { foldLearnerModel, loadLearnerModel, memoryLines, testEvidence, writeEvidence, type EvidenceRow, type LearnerModel } from "../learner/learner-memory";
 import { normalizeMathText } from "./lotus-algebra";
 import { fittingFormats, redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { checkedAiFormat, evidenceFormatNeed, formatDecisionNote } from "./lotus-format-guide";
@@ -116,6 +117,8 @@ interface FactorisationSession {
   endedEarlyNote?: string;
   /** Formats wanted for the next question still to be written. */
   formatIntent?: LotusGameKind[];
+  /** What earlier tests and lessons on this topic showed about the student (learner-memory.ts), loaded when the test starts. */
+  memory?: Array<Omit<EvidenceRow, "studentId" | "topic" | "observedAt"> & { observedAt: string }>;
 }
 
 interface FactorisationWriteLog {
@@ -418,9 +421,12 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
       };
     });
   const fallback = evidenceFormatNeed(session.audits);
+  const history = factorisation.memory?.length ? memoryLines(foldLearnerModel(session.studentId, factorisation.memory)) : [];
   return JSON.stringify({
     rule: "The server alone validates and installs a change. The pinned next item cannot change. Recommend an earliest safe later slot or KEEP.",
     remainingSlots: slots,
+    // Earlier tests and lessons: a mistake seen again here is a held way of thinking, not a slip.
+    ...(history.length ? { studentHistory: history } : {}),
     // What the server does about the next format if the review suggests none.
     serverFormatDefault: fallback ? { tries: fallback.kinds, because: fallback.reason } : "keep the planned formats",
   });
@@ -2129,6 +2135,15 @@ Create one materially different question that adds new diagnostic evidence. Test
       timingMs: null,
       createdAt: startedAt,
     };
+    // The student's history on this topic, so this test is read in the light of the last ones.
+    const memory = lotusPersistenceEnabled(this.prisma)
+      ? await this.prisma.learnerSkillEvidence?.findMany({ where: { studentId, topic }, orderBy: { observedAt: "asc" } })
+        .then((rows) => rows.map(({ skillId, source, sourceId, state, mistakes, detail, observedAt }) => ({
+          skillId, source: source as "TEST" | "LESSON", sourceId, state: state as EvidenceRow["state"],
+          mistakes: mistakes as unknown as EvidenceRow["mistakes"], detail: detail as Record<string, unknown>, observedAt: observedAt.toISOString(),
+        })))
+        .catch(() => undefined)
+      : undefined;
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
@@ -2165,6 +2180,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         versions,
         preferred,
         writes: [],
+        ...(memory?.length ? { memory } : {}),
       },
     };
     this.sessions.set(session.sessionId, session);
@@ -2895,6 +2911,13 @@ Create one materially different question that adds new diagnostic evidence. Test
       audits: session.audits,
     });
     if (f.endedEarlyNote) report.limitations.unshift(f.endedEarlyNote);
+    // This test beside the earlier ones: a mistake that keeps coming back, a gap since fixed.
+    if (f.memory?.length) {
+      const now = testEvidence({ ...session, status: "COMPLETE", finalReport: report });
+      const tested = new Set(now.map((row) => row.skillId));
+      const lines = memoryLines(foldLearnerModel(session.studentId, [...f.memory, ...now]), { only: [...tested] });
+      if (lines.length) report.memory = lines;
+    }
     const review = session.overallReview;
     if (review) {
       // The AI's read sits beside the code's facts, never over them.
@@ -3326,6 +3349,11 @@ Create one materially different question that tests a competing explanation or a
         // without the evidence that justified it.
         await persistLotusSession(prisma, snapshot, outboxJobs, finalizedAudit);
         succeeded = true;
+        // A finished test is remembered against each skill; a re-saved report (a late review) replaces its rows.
+        if (snapshot.status === "COMPLETE") {
+          await writeEvidence(prisma, testEvidence(snapshot)).catch((error: unknown) =>
+            this.logger.warn(`Couldn't remember Lotus session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`));
+        }
         if (snapshot.classroomAssignmentId && this.classEvents) {
           void this.classEvents.lotusSaved({
             classroomAssignmentId: snapshot.classroomAssignmentId,
@@ -3518,6 +3546,8 @@ Create one materially different question that tests a competing explanation or a
     const prisma = this.prisma;
     if (!lotusPersistenceEnabled(prisma)) return { deletedSessions: 0 };
     const result = await prisma.lotusSessionRecord.deleteMany({ where: { studentId } });
+    // What Cogna remembered from those tests goes with them.
+    await prisma.learnerSkillEvidence?.deleteMany({ where: { studentId, source: "TEST" } });
     for (const [id, session] of this.sessions) {
       if (session.studentId === studentId) {
         this.sessions.delete(id);
@@ -3534,6 +3564,7 @@ Create one materially different question that tests a competing explanation or a
   async exportStudentData(studentId: string): Promise<{
     studentId: string;
     pseudonymId: string;
+    memory?: LearnerModel | null;
     sessions: Array<{ session: LotusSessionView; events: Array<{ eventType: string; outcome: string; createdAt: Date }> }>;
   }> {
     const prisma = this.prisma;
@@ -3545,6 +3576,7 @@ Create one materially different question that tests a competing explanation or a
     return {
       studentId,
       pseudonymId: pseudonymousLearnerId(studentId),
+      memory: await loadLearnerModel(prisma, studentId).catch(() => null),
       sessions: records.map((record) => ({
         session: record.payload as unknown as LotusSessionView,
         events: record.evidence.map((event) => ({
@@ -3554,6 +3586,25 @@ Create one materially different question that tests a competing explanation or a
         })),
       })),
     };
+  }
+
+  /**
+   * What Cogna remembers about a student across tests and lessons: each skill's state over time, the
+   * mistakes that keep coming back (with the student's own answers), slips, and lesson outcomes. For the
+   * student, a teacher who has them in a class, or a worker.
+   */
+  async learnerMemory(actor: AccessActor, studentId: string): Promise<LearnerModel & { lines: string[] }> {
+    const prisma = this.prisma;
+    if (actor.role === "teacher") {
+      const teaches = lotusPersistenceEnabled(prisma) && await prisma.classroomEnrollment.count({
+        where: { studentId, classroom: { teacher: { identityKey: `${actor.schoolId}:${actor.teacherEmail.toLowerCase()}` } } },
+      });
+      if (!teaches) throw new ForbiddenException("This student isn't in one of your classes.");
+    } else if (actor.role !== "worker" && !(actor.role === "student" && actor.studentId === studentId)) {
+      throw new ForbiddenException("This record belongs to a different student.");
+    }
+    const model = lotusPersistenceEnabled(prisma) ? await loadLearnerModel(prisma, studentId) : foldLearnerModel(studentId, []);
+    return { ...model, lines: memoryLines(model) };
   }
 
   /** Live-model call counts, token usage, and cost (where a price is configured) since this process started. Teacher/admin telemetry only — never exposed on a student-facing route. */

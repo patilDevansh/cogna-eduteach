@@ -261,6 +261,15 @@ export class LotusController {
     return this.lotus.deleteStudentData(studentId);
   }
 
+  /** What Cogna remembers about this student across tests and lessons. */
+  @Get("students/:studentId/memory")
+  learnerMemory(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("studentId") studentId: string,
+  ) {
+    return this.lotus.learnerMemory(resolveActor(headers), studentId);
+  }
+
   @Get("students/:studentId/export")
   async exportStudentData(
     @Headers() headers: Record<string, string | string[] | undefined>,
