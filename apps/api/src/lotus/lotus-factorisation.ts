@@ -967,7 +967,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   // not a diagnosed error. When capacity permits reserve one fresh skill check.
   for (const e of ledger.values()) {
     if (!e.splitDoubtAt || e.state === "SUSPECTED" || e.state === "CONFIRMED" || checkedThisCall.has(e.skillId)) continue;
-    if (state.turns.some((t) => t.purpose === "CHECK" && t.forSkill === e.skillId && t.turn > e.splitDoubtAt!)) continue;
+    if (state.turns.some((t) => t.purpose === "CHECK" && t.forSkill === e.skillId && t.turn > e.splitDoubtAt! && t.turn > state.planTurn && t.status !== "SKIPPED")) continue;
     const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     const turn = spec ? pickVictim() : null;
     if (!spec || turn === null) continue;

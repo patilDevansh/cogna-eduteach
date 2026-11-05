@@ -59,8 +59,9 @@ describe("CUR-003: Factorisation Discriminating Probes and Hypothesis Narrowing"
       const probe = codeProbeFor(req, env);
       assert.ok(probe, "Division probe generated");
       assert.equal(checkWrittenItem(req, probe).length, 0, "Passes writer checks");
-      assert.equal(probe.type, "MULTIPLE_CHOICE");
-      assert.equal(probe.options?.length, 4, "Four distinct choices");
+      assert.equal(probe.type, "CONSTRUCTED_RESPONSE");
+      assert.equal(probe.options, undefined, "The re-check requires an independently produced answer");
+      assert.equal(probe.answerKey.diagnostics?.itemKind, "FACTORISE");
       const mistakes = probe.answerKey.diagnostics?.predictedMistakes.map((m) => m.mistake);
       assert.ok(mistakes?.includes("DIVIDED_FIRST_TERM_ONLY"));
     });

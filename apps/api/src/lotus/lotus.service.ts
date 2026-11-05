@@ -2642,7 +2642,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     question.requiresConfidenceProbe = planTurn?.purpose === "CHECK";
     // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
     const previous = f.versions[String(job.turn - 1)]?.find((candidate) => candidate.id === f.preferred[String(job.turn - 1)]);
-    withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose, previousKind: previous?.game?.kind, preferredKinds: f.formatIntent });
+    if (!(planTurn?.purpose === "CHECK" && question.type === "CONSTRUCTED_RESPONSE" && question.answerKey.diagnostics?.itemKind === "FACTORISE")) {
+      withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose, previousKind: previous?.game?.kind, preferredKinds: f.formatIntent });
+    }
     if (f.formatIntent && question.game && f.formatIntent.includes(question.game.kind)) delete f.formatIntent;
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
