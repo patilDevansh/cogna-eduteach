@@ -163,3 +163,7 @@ Sprint 1 corrective slice (2 November): expose submitted answer text and observe
 - [ ] Complete the full module contract: teacher release/cancel/due controls, later review, generalised curriculum packages, reporting, access/retention policy and independent product review.
 
 3 November reference hardening: 4/4 state tests, 2/2 isolated PostgreSQL tests and 11/11 browser checks pass after exit-item reservation and classroom-owner checks. API TypeScript passes; full web TypeScript currently fails in concurrent unfinished `sevenways` theme maps and must be rerun after that integration.
+
+### Saved answer with a failed next step — 5 November 2026
+
+An Exercise answer that is saved while the next step fails now offers Try again, which resends the same frozen answer. The earlier correction removed retry for this case as well as for a different already-submitted answer; only that second case can never succeed. Try again survives a refresh and a return from Home in the same tab, and a retry never adds a second answer. Four browser scripts were updated to current behaviour, and the held-out scorecard v1 "found not lower" check now has a stated 3% margin for random question variants. The fixture's next step always fails, so moving on after a retry is shown with one mocked response, not a real temporary failure.

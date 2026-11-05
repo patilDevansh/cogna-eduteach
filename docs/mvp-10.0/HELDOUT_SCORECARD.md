@@ -131,6 +131,8 @@ LOTUS_HELDOUT_REPEATS=20 node --import tsx --test test/golden/lotus-heldout-scor
 node --import tsx --test test/golden/lotus-heldout-scorecard.v1.spec.ts                           # 5 plays each, as in the normal suite
 ```
 
+**Margin on "found not lower" (added 4 November 2026).** Question variants depend on a random session id, so runs of identical code differ by a few plays, and the original rule of no margin failed about half the time. The test now fails only when "with the checks" is lower by more than 3% of plays with a gap. The published comparison above is unchanged.
+
 ---
 
 # Update: the two fixes, measured on held-out v2 (28 October 2026)

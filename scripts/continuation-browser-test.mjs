@@ -47,11 +47,11 @@ try{
  check('support offer, choice, actual delivery and experience recheck are distinct',(await state()).raw.some(r=>r.eventType==='LEARNER_SUPPORT_DELIVERED'));
  await page.getByLabel('Your answer',{exact:true}).fill('5');
  await page.getByRole('button',{name:'Check',exact:true}).click();
- await page.getByRole('button',{name:'Retry saving',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Try again',exact:true}).waitFor();
  const before=(await state()).raw.find(r=>r.eventType==='ANSWER_SUBMITTED').payload;
  await page.reload({waitUntil:'networkidle'});
- await page.getByRole('button',{name:'Retry saving',exact:true}).click();
- await page.getByRole('button',{name:'Retry saving',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Try again',exact:true}).click();
+ await page.getByRole('button',{name:'Try again',exact:true}).waitFor();
  check('pending exercise request is frozen through reload/retry',JSON.stringify((await state()).raw.find(r=>r.eventType==='ANSWER_SUBMITTED').payload)===JSON.stringify(before)&&(await state()).attempts.length===1);
  await page.goto('http://127.0.0.1:4310/student/lotus?topic=brackets&assignment=synthetic-recovery-class&resume=1',{waitUntil:'networkidle',timeout:120000});
  await page.locator('#lotus-answer').waitFor();
