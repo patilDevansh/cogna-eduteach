@@ -257,7 +257,7 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ): Promise<{ deletedSessions: number }> {
-    assertTeacher(resolveActor(headers));
+    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
     return this.lotus.deleteStudentData(studentId);
   }
 
@@ -275,7 +275,7 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ) {
-    assertTeacher(resolveActor(headers));
+    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
     return this.lotus.exportStudentData(studentId);
   }
 

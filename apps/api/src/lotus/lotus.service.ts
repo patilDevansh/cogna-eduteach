@@ -3542,6 +3542,19 @@ Create one materially different question that tests a competing explanation or a
   }
 
   /** Permanently deletes every durable Lotus record for a student. Cascades to evidence via the schema's onDelete: Cascade. */
+  /**
+   * A teacher may act on a student's records only if the student is in one of their classes; any
+   * signed-in teacher used to be able to export or delete any student's data. A worker always may.
+   */
+  async assertTeachesStudent(actor: AccessActor, studentId: string): Promise<void> {
+    if (actor.role === "worker") return;
+    if (actor.role !== "teacher") throw new ForbiddenException("A verified teacher session is required.");
+    const teaches = lotusPersistenceEnabled(this.prisma) && await this.prisma.classroomEnrollment.count({
+      where: { studentId, classroom: { teacher: { identityKey: `${actor.schoolId}:${actor.teacherEmail.toLowerCase()}` } } },
+    });
+    if (!teaches) throw new ForbiddenException("This student isn't in one of your classes.");
+  }
+
   async deleteStudentData(studentId: string): Promise<{ deletedSessions: number }> {
     const prisma = this.prisma;
     if (!lotusPersistenceEnabled(prisma)) return { deletedSessions: 0 };
@@ -3595,14 +3608,7 @@ Create one materially different question that tests a competing explanation or a
    */
   async learnerMemory(actor: AccessActor, studentId: string): Promise<LearnerModel & { lines: string[] }> {
     const prisma = this.prisma;
-    if (actor.role === "teacher") {
-      const teaches = lotusPersistenceEnabled(prisma) && await prisma.classroomEnrollment.count({
-        where: { studentId, classroom: { teacher: { identityKey: `${actor.schoolId}:${actor.teacherEmail.toLowerCase()}` } } },
-      });
-      if (!teaches) throw new ForbiddenException("This student isn't in one of your classes.");
-    } else if (actor.role !== "worker" && !(actor.role === "student" && actor.studentId === studentId)) {
-      throw new ForbiddenException("This record belongs to a different student.");
-    }
+    if (!(actor.role === "student" && actor.studentId === studentId)) await this.assertTeachesStudent(actor, studentId);
     const model = lotusPersistenceEnabled(prisma) ? await loadLearnerModel(prisma, studentId) : foldLearnerModel(studentId, []);
     return { ...model, lines: memoryLines(model) };
   }

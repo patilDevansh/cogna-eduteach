@@ -10,7 +10,7 @@
  * Read back by: the AI review of a new test (planningContext), the lesson brief, and the report.
  */
 import type { PrismaClient } from "@cogna/database";
-import { isPlannedLotusTopic, type LotusQuestionAudit, type LotusSessionView } from "@cogna/shared";
+import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusQuestionAudit, type LotusSessionView, type LotusTopic } from "@cogna/shared";
 import { foldLedger } from "../lotus/lotus-factorisation";
 import { skillName } from "../lotus/lotus-factorisation-catalogue";
 import { mistakeInWords } from "../lotus/lotus-reasons";
@@ -123,6 +123,28 @@ export function testEvidence(session: LotusSessionView): EvidenceRow[] {
     },
   });
   return rows;
+}
+
+/** What a lesson's main final check showed, as a row against the skill the lesson taught. Null if the lesson isn't tied to one. */
+export function lessonEvidence(input: {
+  studentId: string;
+  assignmentId: string;
+  /** The lesson's brief: its chapter name ("Factorisation") and target skill. */
+  taught?: { topic: string; targetSkill: { id: string } } | null;
+  format?: string;
+  exitPrompt?: string;
+  answer: string;
+  correct: boolean;
+  at: Date;
+}): EvidenceRow | null {
+  const topic = input.taught && (Object.keys(LOTUS_TOPIC_NAMES) as LotusTopic[]).find((key) => LOTUS_TOPIC_NAMES[key] === input.taught!.topic);
+  if (!input.taught || !topic) return null;
+  return {
+    studentId: input.studentId, topic, skillId: input.taught.targetSkill.id, source: "LESSON", sourceId: input.assignmentId,
+    state: input.correct ? "LESSON_PASSED" : "LESSON_FAILED", mistakes: [],
+    detail: { format: input.format ?? "VIDEO", exitPrompt: input.exitPrompt ?? "", answer: input.answer },
+    observedAt: input.at,
+  };
 }
 
 // ---------- the student's current picture ----------
@@ -277,4 +299,49 @@ export async function writeEvidence(db: EvidenceDb, rows: EvidenceRow[]): Promis
 export async function loadLearnerModel(db: EvidenceDb, studentId: string, topic?: string): Promise<LearnerModel> {
   const rows = await db.learnerSkillEvidence.findMany({ where: { studentId, ...(topic ? { topic } : {}) }, orderBy: { observedAt: "asc" } });
   return foldLearnerModel(studentId, rows as unknown as StoredRow[]);
+}
+
+/**
+ * Fills the memory from everything already saved: every finished test, and every lesson's main final
+ * check. Safe to run again: each source replaces its own rows.
+ */
+export async function backfillLearnerMemory(
+  db: Pick<PrismaClient, "learnerSkillEvidence" | "lotusSessionRecord" | "personalizedVideoEvent">,
+  log: (line: string) => void = () => undefined,
+): Promise<{ tests: number; lessons: number; rows: number; skipped: number }> {
+  let tests = 0, lessons = 0, rows = 0, skipped = 0;
+  // A test or lesson whose student no longer exists (deleted, or a demo id with no record) is passed over.
+  const write = async (evidence: EvidenceRow[]) => {
+    try { await writeEvidence(db, evidence); return true; } catch (error) {
+      if ((error as { code?: string }).code !== "P2003") throw error;
+      skipped += 1;
+      return false;
+    }
+  };
+  for (let cursor: string | undefined; ;) {
+    const page = await db.lotusSessionRecord.findMany({ where: { status: "COMPLETE" }, orderBy: { id: "asc" }, take: 100, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}), select: { id: true, payload: true } });
+    for (const record of page) {
+      const evidence = testEvidence(record.payload as unknown as LotusSessionView);
+      if (!evidence.length || !(await write(evidence))) continue;
+      tests += 1; rows += evidence.length;
+    }
+    if (page.length < 100) break;
+    cursor = page.at(-1)!.id;
+  }
+  const exits = await db.personalizedVideoEvent.findMany({
+    where: { kind: "INDEPENDENT_EXIT", OR: [{ exitItem: 0 }, { exitItem: null }] },
+    orderBy: { createdAt: "asc" },
+    select: { studentId: true, assignmentId: true, exitPrompt: true, exitAnswer: true, exitCorrect: true, createdAt: true, assignment: { select: { script: true } } },
+  });
+  for (const exit of exits) {
+    const script = exit.assignment.script as { authoring?: { brief?: { topic: string; targetSkill: { id: string } } }; micro?: { brief?: { topic: string; targetSkill: { id: string } } }; format?: string } | null;
+    const row = lessonEvidence({
+      studentId: exit.studentId, assignmentId: exit.assignmentId, taught: script?.authoring?.brief ?? script?.micro?.brief,
+      format: script?.format, exitPrompt: exit.exitPrompt ?? undefined, answer: exit.exitAnswer ?? "", correct: exit.exitCorrect === true, at: exit.createdAt,
+    });
+    if (!row || !(await write([row]))) continue;
+    lessons += 1; rows += 1;
+  }
+  log(`Learner memory: ${tests} tests and ${lessons} lessons, ${rows} rows${skipped ? `; ${skipped} skipped (student no longer exists)` : ""}.`);
+  return { tests, lessons, rows, skipped };
 }

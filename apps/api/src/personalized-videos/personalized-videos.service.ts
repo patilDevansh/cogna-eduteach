@@ -38,8 +38,8 @@ import {
   type MicroLessonView,
   type LessonEvidenceReceipt,
 } from "@cogna/shared";
-import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type AuthoredTask, type LotusTopic } from "@cogna/shared";
-import { loadLearnerModel, memoryLines, writeEvidence } from "../learner/learner-memory";
+import { isPlannedLotusTopic, type AuthoredTask } from "@cogna/shared";
+import { lessonEvidence, loadLearnerModel, memoryLines, writeEvidence } from "../learner/learner-memory";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
 import type { TtsProvider } from "../ai/tts.service";
@@ -1317,15 +1317,13 @@ export class PersonalizedVideosService {
       },
     });
     // The main final check is what the lesson achieved: remembered against the skill it taught.
-    const taught = script?.authoring?.brief ?? script?.micro?.brief;
-    const topic = taught && (Object.keys(LOTUS_TOPIC_NAMES) as LotusTopic[]).find((key) => LOTUS_TOPIC_NAMES[key] === taught.topic);
-    if (item === 0 && taught && topic) {
-      await writeEvidence(this.prisma, [{
-        studentId: assignment.studentId, topic, skillId: taught.targetSkill.id, source: "LESSON", sourceId: assignmentId,
-        state: correct ? "LESSON_PASSED" : "LESSON_FAILED", mistakes: [],
-        detail: { format: script?.format ?? "VIDEO", exitPrompt: script?.exit?.prompt ?? "", answer },
-        observedAt: new Date(),
-      }]).catch((error: unknown) => this.logger.warn(`Couldn't remember lesson ${assignmentId}: ${error instanceof Error ? error.message : String(error)}`));
+    const remembered = item === 0 ? lessonEvidence({
+      studentId: assignment.studentId, assignmentId, taught: script?.authoring?.brief ?? script?.micro?.brief,
+      format: script?.format, exitPrompt: script?.exit?.prompt, answer, correct, at: new Date(),
+    }) : null;
+    if (remembered) {
+      await writeEvidence(this.prisma, [remembered])
+        .catch((error: unknown) => this.logger.warn(`Couldn't remember lesson ${assignmentId}: ${error instanceof Error ? error.message : String(error)}`));
     }
     if (assignment.assetId) {
       await this.prisma.modalityOutcome.create({
