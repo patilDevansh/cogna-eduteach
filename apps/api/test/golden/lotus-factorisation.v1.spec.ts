@@ -9,6 +9,7 @@ import type { LotusQuestion, LotusQuestionAudit, LotusSkillEvidence, LotusStuden
 import {
   FACTORISATION_SLOTS,
   assertFixedItemIsValid,
+  skillName,
 } from "../../src/lotus/lotus-factorisation-catalogue";
 import {
   type FactorisationState,
@@ -521,17 +522,72 @@ describe("fixes from the held-out scorecard v1", () => {
       assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
       assert.match(report.startingPoint, /Not asked in this test: cancelling factors, never terms/);
       assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: not asked in this test/.test(a)));
-      assert.match(report.recommendedNextStep, /cancelling factors, never terms wasn't asked/);
+      assert.match(report.recommendedNextStep, /cancelling factors, never terms, rearranging terms to group.* weren't asked/);
       assert.ok(report.limitations.some((l) => /planned but not asked/.test(l) && /cancelling factors/.test(l)));
       assert.deepEqual(report.skills!.filter((s) => s.skillId === "FAC_CANCEL_COMMON_FACTOR").map((s) => s.state), ["UNTESTED"]);
     });
 
-    it("says nothing extra when every planned skill was asked", () => {
+    it("names no planned skill when every planned skill was asked", () => {
       const audits = FACTORISATION_SLOTS.flatMap((s) => provenBy(s.skillId));
       const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
-      assert.doesNotMatch(report.startingPoint, /Not asked/);
-      assert.equal(report.recommendedNextStep, "Offer the next challenge and schedule a later retention check.");
       assert.ok(!report.uncertainAreas.some((a) => /not asked in this test/.test(a)));
+      assert.ok(!report.limitations.some((l) => /planned but not asked/.test(l)));
+    });
+
+    describe("a skill no question covers, with nothing tested above it", () => {
+      const UNASKED = ["FAC_REARRANGE_TO_GROUP", "ID_BRACKET_AS_ONE", "FAC_SPLIT_MIDDLE", "DIV_TERM_BY_TERM", "DIV_EXPR_BY_TERM"];
+      const everythingAsked = () => FACTORISATION_SLOTS.flatMap((s) => provenBy(s.skillId));
+
+      it("is named even when every planned skill was asked and right: the five added skills nothing asks", () => {
+        const audits = everythingAsked();
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
+        assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
+        assert.match(report.startingPoint, /Not asked in this test: rearranging terms to group, a bracket as one quantity, splitting the middle term, dividing a term by a term, dividing an expression by a term\./);
+        assert.match(report.recommendedNextStep, /No teaching gap found in the skills asked\..* weren't asked, so check them before moving on\./);
+        for (const id of UNASKED) {
+          assert.ok(report.uncertainAreas.some((a) => a.startsWith(skillName(id)) && /no question in this test covers it/.test(a)), `${id} named in the uncertain areas`);
+          assert.deepEqual(report.skills!.filter((s) => s.skillId === id).map((s) => s.state), ["UNTESTED"], `${id} is in the skill list as untested`);
+        }
+        assert.ok(report.limitations.some((l) => /No question in this test covers/.test(l) && /a gap there would not show up here/.test(l)));
+      });
+
+      it("does not name the added skills that sit under a tested skill: the skill above stands in for them", () => {
+        const audits = everythingAsked();
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
+        const prose = [report.startingPoint, report.recommendedNextStep, ...report.uncertainAreas].join(" ").toLowerCase();
+        assert.ok(!prose.includes("dividing powers") && !prose.includes("irreducible factors"));
+      });
+
+      it("is no longer named once something above it has evidence", () => {
+        const audits = [...everythingAsked(), ...provenBy("DIV_EXPR_BY_TERM")];
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
+        const prose = [report.startingPoint, ...report.uncertainAreas].join(" ").toLowerCase();
+        assert.ok(!prose.includes("dividing an expression by a term"), "the one with evidence is not named");
+        assert.ok(!prose.includes("dividing a term by a term"), "its prerequisite is covered by it");
+        assert.ok(prose.includes("splitting the middle term"), "the others are still named");
+      });
+
+      it("is named as a possible cause when a skill built on it went wrong and it was never checked", () => {
+        // Dividing every term went wrong twice; dividing powers sits under it and has no question of its own.
+        const audits = [...provenBy("FAC_GCF_NUMERIC"), ...provenBy("FAC_GCF_VARIABLE"), ...provenBy("FND_EXPONENT_PRODUCT"),
+          answered("FAC_DIVIDE_TERMS", [], [mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")])];
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(5), pendingAnalyses: 0 });
+        assert.ok(report.uncertainAreas.some((a) => /^Dividing powers: never checked, and dividing every term by the common factor went wrong, so it could be the cause\.$/.test(a)), report.uncertainAreas.join(" | "));
+        assert.deepEqual(report.skills!.filter((s) => s.skillId === "FND_EXPONENT_QUOTIENT").map((s) => s.state), ["UNTESTED"]);
+        assert.ok(report.limitations.some((l) => /dividing powers.* never checked, and a skill built on .* went wrong/.test(l)), report.limitations.join(" | "));
+      });
+
+      it("does not say never checked once the skill has evidence", () => {
+        const audits = [...provenBy("FND_EXPONENT_QUOTIENT"), answered("FAC_DIVIDE_TERMS", [], [mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")])];
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(5), pendingAnalyses: 0 });
+        assert.ok(!report.uncertainAreas.some((a) => /^Dividing powers: never checked/.test(a)));
+      });
+
+      it("is not named in a catch-up, which asks only about the skills it was sent for", () => {
+        const state = { ...freshState(10), focusSkills: ["FAC_DIVIDE_TERMS"] };
+        const report = buildFactorisationReport({ ledger: foldLedger([audit([secure("FAC_DIVIDE_TERMS")])]), state, pendingAnalyses: 0 });
+        assert.ok(!report.uncertainAreas.some((a) => /no question in this test covers it/.test(a)));
+      });
     });
 
     it("does not list a skill that was left out because it depends on a confirmed gap (that is 'not tested', already said)", () => {
@@ -833,7 +889,7 @@ describe("buildFactorisationReport", () => {
     assert.notEqual(report.outcome, "SOLID_GAP");
     // The one mistake is listed as unconfirmed; the other planned skills weren't asked at all in this contrived test, and say so.
     assert.equal(report.uncertainAreas.filter((a) => /one mistake, not confirmed/.test(a)).length, 1);
-    assert.equal(report.uncertainAreas.filter((a) => /not asked in this test/.test(a)).length, report.uncertainAreas.length - 1);
+    assert.equal(report.uncertainAreas.filter((a) => /not asked in this test|no question in this test covers it|never checked, and/.test(a)).length, report.uncertainAreas.length - 1);
   });
 
   it("nextOpenTurn skips removed turns", () => {

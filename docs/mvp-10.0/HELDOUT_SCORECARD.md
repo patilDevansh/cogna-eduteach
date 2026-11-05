@@ -392,3 +392,26 @@ students, at least 80% of their gaps found, no capable child given a gap, false 
 cd apps/api
 LOTUS_HELDOUT_REPEATS=20 node --import tsx --test test/golden/lotus-heldout-scorecard.v4.spec.ts
 ```
+
+### v4 after the first change: the report names what the test did not ask
+
+The report now names two more kinds of skill, in the starting point, the uncertain areas, the limits, the
+next step and the skill list: (1) a skill no question in the plan asks about with nothing tested above it
+(the five added skills that sit above nothing), and (2) a skill with no question of its own that sits
+under a skill that went wrong and was never checked ("dividing powers: never checked, and dividing every
+term went wrong, so it could be the cause"). The outcome is not changed: asking the five would be the real
+fix, and calling every test "unclear" because they cannot be asked would take the all-clear from solid children.
+
+| | Before | After |
+|---|---|---|
+| Silent misses | 114 (105 added-skill students) | 0 |
+| A gap found at all | 68.3% | 69.4% |
+| Found at the root | 44.4% | 44.4% |
+| False gaps; capable child given a gap | 0; 0 | 0; 0 |
+| Capable children reported ADVANCEMENT | 50% | 50% |
+| Median questions with a gap | 24 | 24 |
+
+Same 480 plays, 20 per student. v1, v2 and v3 guard-rails still pass. Criterion A is met; B (found at least
+80% for the added-skill students) is not: those gaps are now named, but a child missing one of the five is
+still reported ADVANCEMENT with the skill named as not asked (the report says to check it), and the gap
+is not found. Finding them needs the test to ask them.
