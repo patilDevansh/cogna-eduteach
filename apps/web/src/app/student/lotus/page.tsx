@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
+import { relatedEvidence, recordedUncertainty } from "@/lib/lotus-related-evidence";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
@@ -475,7 +476,7 @@ function TurnStatusStrip({
   );
 }
 
-function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
+function EvidencePanel({ audit, audits, index }: { audit: LotusQuestionAudit; audits: LotusQuestionAudit[]; index: number }) {
   if (!audit.response) return null;
   const source = evidenceSourceLabel(audit);
   const mathsFact = audit.verification?.explanation ?? "No deterministic maths fact was available.";
@@ -487,15 +488,8 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
   const alternatives = audit.analysisSource === "AI_REVIEW"
     ? (audit.gpt?.hypotheses ?? []).flatMap((hypothesis) => hypothesis.alternatives).filter(Boolean).slice(0, 3)
     : [];
-  const unknown = audit.analysisStatus === "PENDING"
-    ? "The AI review is still running. Lotus has not made an interpretation or final decision."
-    : audit.analysisStatus === "FAILED"
-      ? audit.analysisFailureReason ?? "The AI review failed before it could make an interpretation."
-    : audit.analysisSource === "SUPPORT_SIGNAL"
-      ? "Why the student needs support is not known from this response. One support request does not prove a stable gap."
-      : alternatives.length
-        ? `Lotus is still distinguishing: ${alternatives.join("; ")}`
-        : "One response is not enough to establish mastery or a stable gap.";
+  const unknown = recordedUncertainty(audit, alternatives);
+  const related = relatedEvidence(audits, index);
   return (
     <section className={styles.evidencePanel} aria-label="Evidence calibration">
       <div className={styles.evidencePanelHeading}>
@@ -511,6 +505,24 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
         <div><strong>Competing explanations</strong><span>{alternatives.length ? alternatives.join("; ") : "No competing explanation has been claimed."}</span></div>
         <div><strong>Still unknown</strong><span>{unknown}</span></div>
       </div>
+      {related.length > 1 && (
+        <section aria-label="Related answers" style={{ marginTop: "1rem" }}>
+          <h4>Related answers over time</h4>
+          <p>These answers share a recorded skill. That does not by itself mean the same mistake or cause occurred.</p>
+          <ol>
+            {related.map(({ audit: item, questionNumber, shared }) => (
+              <li key={`${item.question.id}-${questionNumber}`}>
+                <strong>Question {questionNumber}</strong>: {item.question.prompt}<br />
+                Answer: {item.response?.answer || (item.response?.didNotKnow ? "I don’t know yet" : "No answer recorded")}. {item.verification?.explanation ?? "No verification recorded."}<br />
+                Recorded skill evidence: {shared.map((e) => e.description ?? e.mistake ?? `${e.skillId}: ${e.kind.toLowerCase()}`).join("; ")}
+              </li>
+            ))}
+          </ol>
+          {audit.analysisStatus === "COMPLETE" && audit.conclusion?.conclusion && <p><strong>Assessment recorded for this answer:</strong> {audit.conclusion.conclusion}</p>}
+          {audit.adaptiveDecision?.rationale && <p><strong>Recorded next-step reason:</strong> {audit.adaptiveDecision.rationale}</p>}
+          <p>These are saved answer records, not a reconstruction of the skill ledger at that time.</p>
+        </section>
+      )}
     </section>
   );
 }
@@ -616,12 +628,14 @@ function ActionTimeline({ decision }: { decision: LotusAdaptiveDecision }) {
 
 function AuditCard({
   audit,
+  audits,
   index,
   latest,
   opening,
   liveProgress,
 }: {
   audit: LotusQuestionAudit;
+  audits: LotusQuestionAudit[];
   index: number;
   latest: boolean;
   opening?: boolean;
@@ -692,7 +706,7 @@ function AuditCard({
           )}
         </section>
 
-        <EvidencePanel audit={audit} />
+        <EvidencePanel audit={audit} audits={audits} index={index} />
 
         {(audit.questionSelection.primaryProposal || audit.questionSelection.challengerProposal) && (
           <QuestionDecision selection={audit.questionSelection} />
@@ -2209,6 +2223,7 @@ function LotusPage() {
                         <AuditCard
                           key={`${audit.question.id}-${index}`}
                           audit={audit}
+                          audits={observerAudits}
                           opening={index === 0}
                           index={index}
                           latest={index === observerAudits.length - 1}
