@@ -45,6 +45,7 @@ import styles from "./themed-game.module.css";
 export interface ThemedGameProps {
   theme: LotusTheme;
   game: LotusGameConfig;
+  developerMode?: boolean;
   disabled?: boolean;
   /** The play so far, or null while it is not yet a complete answer. */
   onChange: (response: LotusGameResponse | null) => void;
@@ -449,7 +450,7 @@ function TypedBox({ label, record, disabled, autoFocus }: { label: string; recor
   );
 }
 
-function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+function EditHistory({ theme, developerMode, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; developerMode: boolean; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.EDIT_HISTORY[theme];
   const [drafts, setDrafts] = useGameDraft<string[]>("deleted", []);
   const report = useRef(onChange);
@@ -462,14 +463,14 @@ function EditHistory({ theme, disabled, onChange }: { theme: LotusTheme; game: E
     <>
       <p className={styles.intro}>{words.intro}</p>
       <TypedBox label={words.input} record={record} disabled={disabled} />
-      {theme === "sevenways" ? <TypingScreen value={record.value} history={record.history} drafts={drafts} draftWord={words.draft} /> : <div className={`${styles.stage} ${styles.log}`}>
+      {theme === "sevenways" && developerMode ? <TypingScreen value={record.value} history={record.history} drafts={drafts} draftWord={words.draft} /> : theme !== "sevenways" && developerMode ? <div className={`${styles.stage} ${styles.log}`}>
         <span className={styles.label}>{words.log}</span>
         {drafts.length === 0 ? <p className={styles.logEmpty}>{words.empty}</p> : (
           <ol className={styles.logList}>
             {drafts.slice(-5).map((draft, i) => <li key={`${draft}-${i}`}><b>{words.draft} {Math.max(0, drafts.length - 5) + i + 1}</b> <s>{prettyAlgebra(draft)}</s></li>)}
           </ol>
         )}
-      </div>}
+      </div> : null}
     </>
   );
 }
@@ -598,7 +599,7 @@ export const SEVEN_HERO: ReadonlySet<LotusGameKind> = new Set<LotusGameKind>(["T
 /** The games whose own screen says everything the page's sentence would. */
 export const sevenLeavesOutPrompt = (kind: LotusGameKind) => SEVEN_HERO.has(kind) || kind === "FOUR_SIGNS";
 
-export function ThemedGame({ theme, game, disabled, onChange, onRowChange, draftScope, onFirstTouch, onTyped, onTypedBlur }: ThemedGameProps) {
+export function ThemedGame({ theme, game, developerMode = false, disabled, onChange, onRowChange, draftScope, onFirstTouch, onTyped, onTypedBlur }: ThemedGameProps) {
   const words = GAME_WORDS[game.kind][theme];
   const seven = theme === "sevenways";
   const latest = useRef({ onTyped, onTypedBlur, onFirstTouch });
@@ -623,7 +624,7 @@ export function ThemedGame({ theme, game, disabled, onChange, onRowChange, draft
       {game.kind === "SPLIT_CONFIDENCE" && (seven ? <ChipSplit game={game} disabled={disabled} onChange={onChange} /> : <SplitConfidence theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
       {game.kind === "TWO_MOVES" && <TwoMoves theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "FOUR_SIGNS" && (seven ? <SignQuadrant game={game} disabled={disabled} onChange={onChange} /> : <FourSigns theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
-      {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} developerMode={developerMode} disabled={disabled} onChange={onChange} />}
       {game.kind === "READBACK" && <Readback theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "RECTANGLE" && <Rectangle theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "ORDER_STEPS" && <OrderSteps theme={theme} game={game} disabled={disabled} onChange={onChange} />}

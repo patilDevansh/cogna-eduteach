@@ -1,0 +1,8 @@
+.dialog { width: min(560px, calc(100vw - 32px)); margin: auto; padding: clamp(22px, 4vw, 36px); border: 1px solid var(--line); border-radius: 20px; color: var(--ink); background: var(--panel, white); box-shadow: 0 24px 80px #142e2440; }
+.dialog::backdrop { background: #12281f80; }
+.eyebrow { color: var(--accent-deep); font-size: .8rem; font-weight: 700; }
+.dialog h2 { margin: .6rem 0 1rem; font-size: 1.6rem; line-height: 1.2; }
+.dialog p { margin: .8rem 0; line-height: 1.5; }
+.reason { font-weight: 700; color: var(--accent-deep); }
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
+.error { color: #8e3027; }
