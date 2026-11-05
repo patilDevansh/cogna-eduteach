@@ -287,3 +287,60 @@ gap in 20 of 20 plays to none; signs and square roots together went from "found 
 
 These are kept as visible `todo` tests. v1, v2 and v3 are now all used: a fix designed from any of
 them needs a new held-out v4 first.
+
+---
+
+# Update 3: the rules checked against real AI reviews (4 November 2026)
+
+**One run, 27 cases.** The review probe (`apps/api/scripts/lotus-review-probe.ts`) sent 27 wrong
+answers to the real AI review in its default one-call mode and read the result with the product's
+own rule for turning a review into skill evidence. Nine cases are the errors listed in the NCERT
+Class 8 textbook's "find and correct the errors" exercise; 18 are messy cases written for this test
+(slips, a guess, an unreadable answer, a lucky right answer), each labelled in advance with what a
+careful teacher would call it. All 27 reviews came back with no errors. Raw results:
+`COGNA 10.0/lotus-live-run/review-probe-live-2026-11-04.json`. This is a small sample from one
+model on one day, not a measurement of accuracy.
+
+| What the rules depend on | Result |
+|---|---|
+| A real gap: the review names a step | **20 of 20** |
+| A real gap becomes skill evidence | 19 of 20 (the 20th, a sign slip in grouping, was called a slip) |
+| A review calls a wrong answer a "misunderstanding" and names no step (the *unexplained* answer) | **0 of 27** |
+| A slip or unreadable answer is called what it is | 3 of 4 |
+| A slip still turns into skill evidence | 1 of 4 (M13: cancelling a common factor) |
+| A guess is called a guess | 1 of 1 |
+
+## What it means for the rules
+
+- **The unexplained-answer rule never fired.** Not once in 27 real reviews did the review say
+  "misunderstanding" without naming a step. It also did no harm: it wrongly counted none of the slips,
+  so a solid child's test would not have been kept open by it. But the problem it was written for (a
+  foundation gap hiding behind wrong answers that give no evidence) came from the pretend AI, which
+  names no step. With a real reviewer, the same answers get evidence, on the skill the review blames.
+  The rule is a safety net for a reviewer that stays silent, which this one did not. It is cheap to keep
+  and should not be counted as a gain on real children.
+- **The review names a step when it sees a gap.** That is what lets one gap become evidence at all.
+  The risk moves to *which* skill it blames: it named a step on all 20 gaps, 19 became evidence, and
+  all 19 landed on the expected skill, but these cases have one obvious cause each.
+- **Slips are mostly safe.** One slip in four became evidence (M13). One wrong answer on a skill makes
+  it suspected, not a gap, so a single slip cannot confirm one; two such slips on the same skill could.
+- **The one real gap treated as a slip** (M09, a minus left out of the second group) is the safe
+  direction: a missed suspicion, not a false gap.
+
+## Limits
+
+27 cases, one model, one run; 18 of them written by Claude, not independent. Each is a single answer
+sent on its own, not a whole test, so nothing here shows how the plan behaves over 25 questions with a
+real reviewer. The held-out scorecards above still use pretend AIs.
+
+## Run it
+
+```bash
+cd apps/api
+node --import tsx scripts/lotus-review-probe.ts                                  # pretend AI, free
+LOTUS_REVIEW_PROBE_MODE=simulated node --import tsx scripts/lotus-review-probe.ts   # simulated reviewer, free
+LOTUS_REVIEW_PROBE_MODE=live node --import tsx scripts/lotus-review-probe.ts        # real AI, spends money
+# from a worktree: LOTUS_REVIEW_PROBE_ENV_FILES=/path/to/.env,/path/to/packages/database/.env
+```
+The script reads the `.env` files itself, the way the API does (first file wins, an empty value never
+overrides a real one). Node's own `--env-file` cannot read this repo's `.env`.
