@@ -77,7 +77,7 @@ state the new behavior: a confirmed gap goes down to foundations with short chec
 
 ## Next steps, in order
 
-1. Check the rules against a sample of real AI reviews ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md), update 2, point 4): does a real review name a step, and does it call slips "misunderstanding"? Then what held-out v3 left open: a gap on the last skill can't be confirmed from one question; a solid child who tires near the end is "unclear" rather than advanced; some foundation roots are reached only 35–40% of the time. Write a held-out v4 first, because v1–v3 have now been used.
+1. Real AI reviews were checked on 4 November ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md), update 3): a real review always named a step, never left an answer unexplained, and called most slips slips. Next: a whole-test check with a real reviewer, and what held-out v3 left open: a gap on the last skill can't be confirmed from one question; a solid child who tires near the end is "unclear" rather than advanced; some foundation roots are reached only 35–40% of the time. Write a held-out v4 first, because v1–v3 have now been used.
 2. Make the proposed skills live as each gets two code-checked questions; decide the two merges.
 3. Switch the blame rule and the prerequisite rule to the owner table and the typed links.
 4. Record conditions and help on every stored answer; keep the four layers apart (shared map, evidence history, current estimate, next step).

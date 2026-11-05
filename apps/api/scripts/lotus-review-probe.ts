@@ -10,8 +10,9 @@
  *
  * Free wiring check (pretend AI):
  *   cd apps/api && node --env-file=../../.env --env-file=../../packages/database/.env --import tsx scripts/lotus-review-probe.ts
- * Real AI (spends money; booked against the app's own spend caps):
- *   ... LOTUS_REVIEW_PROBE_MODE=live node ... (same command)
+ * Real AI (spends money; booked against the app's own spend caps). The script reads the .env files itself, like the API:
+ *   LOTUS_REVIEW_PROBE_MODE=live node --import tsx scripts/lotus-review-probe.ts
+ *   (from a worktree: LOTUS_REVIEW_PROBE_ENV_FILES=/path/to/.env,/path/to/packages/database/.env)
  * Env: LOTUS_REVIEW_PROBE_CASES=N01,M03 (subset), LOTUS_REVIEW_PROBE_OUT=path.json
  */
 import { writeFile } from "node:fs/promises";
@@ -26,6 +27,7 @@ import { PrismaSpendStore } from "../src/ai/prisma-spend-store";
 import { evidenceFromAnalysis, instantVerdict } from "../src/lotus/lotus-factorisation";
 import { REVIEW_CASES, type ReviewCase } from "./lotus-review-cases";
 import { describeTally, tallyReviews } from "./lotus-review-tally";
+import { loadEnvFiles } from "./lotus-env";
 
 const MODE = process.env.LOTUS_REVIEW_PROBE_MODE ?? (process.argv.includes("--simulated") ? "simulated" : (process.argv.includes("--live") ? "live" : "fake"));
 const LIVE = MODE === "live";
@@ -171,6 +173,13 @@ async function reviewOne(service: LotusService, c: ReviewCase) {
 }
 
 async function main(): Promise<void> {
+  if (LIVE) {
+    // Same files and precedence as the API (app.module.ts): the root .env first, the database copy last.
+    // LOTUS_REVIEW_PROBE_ENV_FILES (comma-separated paths) overrides, e.g. when running from a worktree.
+    const files = (process.env.LOTUS_REVIEW_PROBE_ENV_FILES ?? "../../.env,../../packages/database/.env").split(",").map((f) => f.trim());
+    const names = loadEnvFiles(files);
+    console.log(`[env] loaded ${names.length} variable(s); OPENAI_API_KEY ${process.env.OPENAI_API_KEY ? "present" : "MISSING"}`);
+  }
   const prisma = LIVE ? new PrismaClient() : null;
   let models: LotusModelService;
   if (LIVE) {
