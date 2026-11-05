@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
-import { relatedEvidence, recordedUncertainty } from "@/lib/lotus-related-evidence";
+import { relatedEvidence, recordedUncertainty, reconstructedAssessments } from "@/lib/lotus-related-evidence";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
@@ -515,12 +515,15 @@ function EvidencePanel({ audit, audits, index }: { audit: LotusQuestionAudit; au
                 <strong>Question {questionNumber}</strong>: {item.question.prompt}<br />
                 Answer: {item.response?.answer || (item.response?.didNotKnow ? "I don’t know yet" : "No answer recorded")}. {item.verification?.explanation ?? "No verification recorded."}<br />
                 Recorded skill evidence: {shared.map((e) => e.description ?? e.mistake ?? `${e.skillId}: ${e.kind.toLowerCase()}`).join("; ")}
+                {reconstructedAssessments(item).filter((entry) => shared.some((e) => e.skillId === entry.skillId)).map((entry) => (
+                  <p key={entry.skillId}><strong>Reconstructed assessment for {entry.skillId}:</strong> {entry.previousState} → {entry.state}. {entry.notes.join(" ")} {entry.needsComparableCheck ? "A comparable independent check is still needed." : ""}</p>
+                ))}
               </li>
             ))}
           </ol>
           {audit.analysisStatus === "COMPLETE" && audit.conclusion?.conclusion && <p><strong>Assessment recorded for this answer:</strong> {audit.conclusion.conclusion}</p>}
           {audit.adaptiveDecision?.rationale && <p><strong>Recorded next-step reason:</strong> {audit.adaptiveDecision.rationale}</p>}
-          <p>These are saved answer records, not a reconstruction of the skill ledger at that time.</p>
+          <p>Assessment states are reconstructed from the records available now. Reviews may have arrived later, so these are not proof of what Cogna knew when the question was delivered. If no state is shown, it is unavailable.</p>
         </section>
       )}
     </section>

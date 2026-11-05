@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { LotusQuestionAudit } from "@cogna/shared";
-import { recordedUncertainty, relatedEvidence } from "../src/lib/lotus-related-evidence";
+import { recordedUncertainty, relatedEvidence, reconstructedAssessments } from "../src/lib/lotus-related-evidence";
 
 function audit(skill: string, uncertainty: string[] = []): LotusQuestionAudit {
   return {
@@ -25,4 +25,11 @@ test("uncertainty reflects saved interpretation and pending state, without a fab
   current.analysisStatus = "COMPLETE";
   current.conclusion.uncertainty = [];
   assert.equal(recordedUncertainty(current, []), "No specific uncertainty was recorded for this response.");
+});
+
+test("assessment is shown only when an observer reconstruction is provided", () => {
+  const turn = audit("grouping");
+  assert.deepEqual(reconstructedAssessments(turn), []);
+  const projected = Object.assign(turn, { skillAssessment: { basis: "RECONSTRUCTED_FROM_CURRENT_RECORD", entries: [{ skillId: "grouping", previousState: "SUSPECTED", state: "SUSPECTED", notes: ["simpler check passed"], needsComparableCheck: true }] } });
+  assert.equal(reconstructedAssessments(projected)[0]?.needsComparableCheck, true);
 });

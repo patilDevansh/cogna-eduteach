@@ -1,5 +1,16 @@
 import type { LotusQuestionAudit } from "@cogna/shared";
 
+/** Observer-only reconstruction; not a historical snapshot at delivery time. */
+export type SkillAssessmentProjection = {
+  basis: "RECONSTRUCTED_FROM_CURRENT_RECORD";
+  entries: Array<{ skillId: string; previousState: string; state: string; notes: string[]; needsComparableCheck?: boolean }>;
+};
+
+export function reconstructedAssessments(audit: LotusQuestionAudit) {
+  const projection = (audit as LotusQuestionAudit & { skillAssessment?: SkillAssessmentProjection }).skillAssessment;
+  return projection?.basis === "RECONSTRUCTED_FROM_CURRENT_RECORD" ? projection.entries : [];
+}
+
 /** Related by recorded skill, not a claim that the errors or causes match. */
 export function relatedEvidence(audits: LotusQuestionAudit[], index: number) {
   const current = audits[index];
