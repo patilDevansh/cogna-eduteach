@@ -8,6 +8,7 @@ import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
 import {
   LotusReasonDto,
+  DeveloperLotusExitDto,
   OverrideLotusSessionDto,
   StartLotusSessionDto,
   SubmitLotusAnswerDto,
@@ -155,8 +156,11 @@ export class LotusController {
   ) {
     const actor = resolveActor(headers);
     const session = await this.lotus.get(id);
-    assertTeacher(actor);
-    await this.studio.assertCanObserve(actor, session);
+    if (actor.role === "student" && observerTeacherGateBypassed()) assertStudentAccess(actor, session.studentId);
+    else {
+      assertTeacher(actor);
+      await this.studio.assertCanObserve(actor, session);
+    }
     return this.lotus.unseenPlan(id);
   }
 
@@ -178,9 +182,22 @@ export class LotusController {
       questionId: body.questionId,
       nextQuestionId: body.nextQuestionId,
       submissionId: body.submissionId,
+      ...(body.developerMode !== undefined ? { developerMode: body.developerMode } : {}),
       ...(body.interaction ? { interaction: body.interaction } : {}),
       ...(body.game ? { game: body.game } : {}),
     });
+  }
+
+  /** Resolve a durable, local-demo-only stopping decision. */
+  @Post("sessions/:id/developer-exit")
+  developerExit(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: DeveloperLotusExitDto,
+  ): Promise<LotusSessionView> {
+    const actor = resolveActor(headers);
+    assertStudentAccess(actor, body.studentId);
+    return this.lotus.chooseDeveloperExit(id, body.studentId, body.decisionId, body.choice);
   }
 
   /** "How did you get it?": the student's one tap after an answer code couldn't explain. */

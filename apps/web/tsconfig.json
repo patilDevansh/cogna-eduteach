@@ -39,7 +39,8 @@
     "**/*.tsx",
     ".next-review-4322/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    ".next-cogna-launch/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

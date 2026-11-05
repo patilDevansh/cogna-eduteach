@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LotusSessionView } from "@cogna/shared";
+import { LotusObserverDetails } from "@/components/lotus-observer-details";
 import { api, type LotusStudioSessionSummary } from "@/lib/api";
 import { getTeacherInvitation } from "@/lib/session";
 import { useTeacherClasses } from "@/lib/teacher-classes";
@@ -107,6 +108,7 @@ export default function TeacherAiStudioPage() {
                 <div className={styles.auditHead}><strong>Question {index + 1}</strong><span>{audit.analysisStatus === "PENDING" ? "Review pending" : audit.analysisSource?.replaceAll("_", " ").toLowerCase()}</span></div>
                 <p className={styles.prompt}>{audit.question.prompt}</p>
                 <dl className={styles.facts}><div><dt>Submitted answer</dt><dd>{audit.response?.answer ?? "No answer saved"}</dd></div><div><dt>Maths check</dt><dd>{audit.verification?.status?.replaceAll("_", " ").toLowerCase() ?? "Not checked"}</dd></div><div><dt>Evidence</dt><dd>{audit.conclusion.evidenceState.toLowerCase()}</dd></div></dl>
+                <LotusObserverDetails audit={audit} model={session.modelConfiguration.primary} />
                 {audit.gpt?.observations?.length ? <p><strong>Observed:</strong> {audit.gpt.observations.join(" · ")}</p> : null}
                 {audit.conclusion.uncertainty.length > 0 && <p className={styles.uncertain}><strong>Still uncertain:</strong> {audit.conclusion.uncertainty.join(" · ")}</p>}
                 {audit.analysisStatus !== "PENDING" && <p><strong>Cogna’s read:</strong> {audit.conclusion.conclusion}</p>}

@@ -165,6 +165,8 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  /** Local standalone demo only. Requests a developer decision before an automatic exit. */
+  developerMode?: boolean;
   interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
@@ -645,6 +647,8 @@ export interface LotusLiveProgress {
 }
 
 export interface LotusSessionView {
+  /** Durable local-demo pause after saving an answer and before completing the diagnostic. */
+  developerExitPrompt?: LotusDeveloperExitPrompt;
   sessionId: string;
   studentId: string;
   grade: 8;
@@ -710,6 +714,7 @@ export interface LotusUnseenPlanEntry {
 }
 
 export interface LotusStatusResponse {
+  factorisationTimeLimitSeconds?: number;
   enabled: boolean;
   ready: boolean;
   missingConfiguration: string[];
@@ -718,6 +723,15 @@ export interface LotusStatusResponse {
   progressiveStreamingEnabled: boolean;
   /** Present when the AI provider recently refused calls at the account level (no credits, bad key). */
   unavailableReason?: string;
+}
+
+export interface LotusDeveloperExitPrompt {
+  decisionId: string;
+  reason: "TIME_LIMIT" | "STARTING_POINT_FOUND" | "PLAN_COMPLETE" | "NO_READY_QUESTION";
+  message: string;
+  answeredQuestions: number;
+  canContinue: boolean;
+  nextQuestionNumber?: number;
 }
 
 /** At most this much of one question's time counts toward the check's time limit. */

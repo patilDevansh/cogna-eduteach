@@ -1199,6 +1199,13 @@ export const api = {
       body: JSON.stringify({ studentId, ...response }),
     }),
 
+  /** Local developer decision after an answer reached an automatic stopping point. */
+  chooseLotusDeveloperExit: (sessionId: string, studentId: string, decisionId: string, choice: "FINISH" | "CONTINUE") =>
+    lotusFetch<LotusSessionView>(`/sessions/${sessionId}/developer-exit`, {
+      method: "POST",
+      body: JSON.stringify({ studentId, decisionId, choice }),
+    }),
+
   /** "How did you get it?": the student's one tap after an answer code couldn't explain. */
   answerLotusReason: (sessionId: string, studentId: string, questionId: string, optionId: string) =>
     lotusFetch<LotusSessionView>(`/sessions/${sessionId}/reasons`, {
