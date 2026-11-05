@@ -172,6 +172,7 @@ export class LotusController {
       answer: body.didNotKnow ? "I don't know" : body.answer,
       working: body.working,
       confidence: body.confidence,
+      ...(body.confidenceProbeReason ? { confidenceProbeReason: body.confidenceProbeReason } : {}),
       ...(body.interactionContext ? { interactionContext: body.interactionContext } : {}),
       responseTimeMs: body.responseTimeMs,
       didNotKnow: body.didNotKnow,

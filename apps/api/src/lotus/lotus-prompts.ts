@@ -78,6 +78,13 @@ export const ASSESSMENT_JSON_SHAPE = `{
 // 16-question session instead of growing with it.
 const LEDGER_DETAIL_WINDOW = 5;
 
+/** Never represent a compatibility default as a learner's confidence. */
+export function confidenceForPrompt(response: LotusStudentResponse | undefined): number | null {
+  if (!response) return null;
+  if (response.gameReading?.kind === "SPLIT_CONFIDENCE") return response.confidence;
+  return response.interactionContext?.confidence.status === "REPORTED_BEFORE_ANSWER" ? response.confidence : null;
+}
+
 /**
  * Facts only — question, raw response, verification result. No prior
  * interpretation. This is what goes to the independent-assessment step: both
@@ -93,7 +100,7 @@ export function evidenceLogForPrompt(audits: LotusQuestionAudit[]): string {
       JSON.stringify({
         item: index + 1,
         question: audit.question,
-        response: audit.response,
+        response: audit.response ? { ...audit.response, confidence: confidenceForPrompt(audit.response) } : audit.response,
         verification: audit.verification,
         // The student's own one-tap answer to "How did you get it?", in place of written working.
         ...(audit.reasonCheck?.chosenId
@@ -397,7 +404,7 @@ export function singleReviewStudentInput(args: {
   return {
     answer: response.answer,
     working: response.working,
-    confidence: response.confidence,
+    confidence: confidenceForPrompt(response),
     responseTimeMs: response.responseTimeMs,
     didNotKnow: response.didNotKnow,
     studentSaidHowTheyGotIt: args.audits.at(-1)?.reasonCheck?.chosenId,

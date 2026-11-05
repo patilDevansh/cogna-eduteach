@@ -165,6 +165,8 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  /** Client-observed reason for asking or suppressing the confidence probe. */
+  confidenceProbeReason?: "TARGETED_CHECK" | "RECENT_PROBE" | "DID_NOT_KNOW" | "NOT_TARGETED";
   interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;

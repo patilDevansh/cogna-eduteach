@@ -32,6 +32,10 @@ export class StartLotusSessionDto {
 
 export class SubmitLotusAnswerDto {
   @IsOptional()
+  @IsIn(["TARGETED_CHECK", "RECENT_PROBE", "DID_NOT_KNOW", "NOT_TARGETED"])
+  confidenceProbeReason?: "TARGETED_CHECK" | "RECENT_PROBE" | "DID_NOT_KNOW" | "NOT_TARGETED";
+
+  @IsOptional()
   @IsObject()
   interactionContext?: StudentInteractionContext;
 

@@ -13,7 +13,7 @@ const flush = async () => { for (let i = 0; i < 80; i += 1) await new Promise((r
 function answered(over: { kind?: string; status?: string; didNotKnow?: boolean; confidence?: number; ms?: number; mistake?: string; signals?: string[]; options?: string[] }): LotusQuestionAudit {
   return {
     question: { game: over.kind ? { kind: over.kind } : undefined, options: over.options, prompt: "Factorise" },
-    response: { answer: "a", working: "", confidence: over.confidence ?? 80, responseTimeMs: over.ms ?? 30_000, didNotKnow: !!over.didNotKnow, gameReading: over.signals ? { signals: over.signals } : undefined },
+    response: { answer: "a", working: "", confidence: over.confidence ?? 80, responseTimeMs: over.ms ?? 30_000, interactionContext: over.confidence !== undefined ? { confidence: { status: "REPORTED_BEFORE_ANSWER", value: over.confidence } } : undefined, didNotKnow: !!over.didNotKnow, gameReading: over.signals ? { signals: over.signals } : undefined },
     verification: { status: over.status ?? "VERIFIED_CORRECT" },
     skillEvidence: over.mistake ? [{ skillId: "S", kind: "MISTAKE", mistake: over.mistake, source: "INSTANT" }] : [],
   } as unknown as LotusQuestionAudit;

@@ -2543,7 +2543,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     // confidence actually changes the diagnosis. A plain coverage turn
     // leaves this unset so the student isn't asked every time.
     const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
-    question.requiresConfidenceProbe = !!planTurn?.purpose;
+    question.requiresConfidenceProbe = planTurn?.purpose === "CHECK";
     // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
     const previous = f.versions[String(job.turn - 1)]?.find((candidate) => candidate.id === f.preferred[String(job.turn - 1)]);
     withLotusInteraction(question, { turn: job.turn, repurposed: !!planTurn?.purpose, previousKind: previous?.game?.kind, preferredKinds: f.formatIntent });

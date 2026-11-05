@@ -1,5 +1,7 @@
 "use client";
 
+import { shouldAskLotusConfidence } from "@/lib/lotus-confidence-probe";
+
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
 import { relatedEvidence, recordedUncertainty, reconstructedAssessments } from "@/lib/lotus-related-evidence";
@@ -697,9 +699,15 @@ function AuditCard({
               )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
-                <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
+                <strong>Confidence:</strong> {audit.response.gameReading?.kind === "SPLIT_CONFIDENCE" ? `${audit.response.confidence}% (from chips)` : audit.response.interactionContext?.confidence.status === "SKIPPED" ? "Skipped" : audit.response.interactionContext?.confidence.status === "NOT_ASKED" ? "Not asked" : `${audit.response.confidence}%`} · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
+              {audit.response.confidenceProbeReason && <p><strong>Confidence probe decision:</strong> {{
+                TARGETED_CHECK: "Asked on a targeted follow-up to help choose a further check.",
+                RECENT_PROBE: "Not asked because another confidence probe was asked recently.",
+                DID_NOT_KNOW: "Not asked because the student already said they did not know.",
+                NOT_TARGETED: "Not asked because this was not an eligible targeted check.",
+              }[audit.response.confidenceProbeReason]} {audit.response.interactionContext?.confidence.status === "SKIPPED" ? "The student skipped it." : ""}</p>}
               {audit.verification && <p className={styles.verificationNote}>{audit.verification.explanation}</p>}
             </div>
           ) : (
@@ -1102,12 +1110,8 @@ function LotusPage() {
   const [answer, setAnswer] = useState("");
   const [workingLines, setWorkingLines] = useState(["", "", ""]);
   const [confidence, setConfidence] = useState<number | null>(null);
-  // A missing confidence pick nudges the section itself (highlight + shake)
-  // rather than printing an error line — incrementing remounts the wrapper
-  // below (via `key`) so the CSS animation replays on every blocked attempt,
-  // not just the first.
-  const [confidenceNudge, setConfidenceNudge] = useState(0);
-  const confidenceRef = useRef<HTMLDivElement | null>(null);
+  const [awaitConfidence, setAwaitConfidence] = useState(false);
+  const answerReadyAt = useRef<number | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
   /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
   const [tiles, setTiles] = useState<TileGameState | null>(null);
@@ -1491,7 +1495,8 @@ function LotusPage() {
     setWorkingLines(["", "", ""]);
     setWorkingOpen(false);
     setConfidence(null);
-    setConfidenceNudge(0);
+    setAwaitConfidence(false);
+    answerReadyAt.current = null;
     setDidNotKnow(false);
     setTiles(null);
     setGamePlay(null);
@@ -1574,7 +1579,7 @@ function LotusPage() {
     }
   }
 
-  async function submit() {
+  async function submit(skipConfidence = false) {
     if (supportPaused || submissionLock.current) return;
     const requestScope=`${studentId}:${recoveryScope}`;
     const tileGame = question?.interaction;
@@ -1585,18 +1590,20 @@ function LotusPage() {
       setError(themedGame ? "Finish the game, or choose “I don’t know”." : tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
       return;
     }
-    // Confidence has no honest default: forcing a real tap (rather than a
-    // pre-selected button) is what makes the signal usable for distinguishing
-    // a slip from a stable gap. Only asked on turns Lotus flagged as
-    // evidence-critical (requiresConfidenceProbe) — asking on every single
-    // question was producing an unclicked, meaningless default instead of a
-    // real signal. Skipped when "I don't know" already gives an explicit
-    // low-confidence signal on its own.
-    if (!session || (!pendingSubmission && !didNotKnow && question?.requiresConfidenceProbe && confidence === null)) {
-      setConfidenceNudge((n) => n + 1);
-      confidenceRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Ask only after the learner has answered and before the answer is checked.
+    // The previous two turns suppress repeated prompts; missing legacy context
+    // is not interpreted as a prompt having occurred.
+    const shouldProbe = shouldAskLotusConfidence(
+      !!question?.requiresConfidenceProbe,
+      didNotKnow,
+      session.audits.map((audit) => audit.response?.interactionContext?.confidence.status),
+    );
+    if (!pendingSubmission && shouldProbe && !awaitConfidence && !skipConfidence) {
+      answerReadyAt.current = Date.now();
+      setAwaitConfidence(true);
       return;
     }
+    if (!pendingSubmission && shouldProbe && awaitConfidence && confidence === null && !skipConfidence) return;
     const clickedAt = Date.now();
     // The brackets test ends at 20 minutes, so its staged question would be refused after that. The factorisation test has no time limit.
     const staged = isPlannedLotusTopic(session.topic) || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
@@ -1605,9 +1612,10 @@ function LotusPage() {
     const submission: LotusStudentResponse = pendingSubmission ?? {
       answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
-      confidence: confidence ?? 60,
-      responseTimeMs: clickedAt - questionStartedAt,
-      interactionContext: interaction.snapshot({ status: confidence !== null ? "REPORTED_BEFORE_ANSWER" : question?.requiresConfidenceProbe ? "SKIPPED" : "NOT_ASKED", value: confidence, scale: "ZERO_TO_HUNDRED" }),
+      confidenceProbeReason: didNotKnow ? "DID_NOT_KNOW" : !question?.requiresConfidenceProbe ? "NOT_TARGETED" : shouldProbe ? "TARGETED_CHECK" : "RECENT_PROBE",
+      confidence: skipConfidence ? 60 : confidence ?? 60,
+      responseTimeMs: (answerReadyAt.current ?? clickedAt) - questionStartedAt,
+      interactionContext: interaction.snapshot({ status: skipConfidence && shouldProbe ? "SKIPPED" : confidence !== null ? "REPORTED_BEFORE_ANSWER" : "NOT_ASKED", value: skipConfidence ? null : confidence, scale: "ZERO_TO_HUNDRED" }),
       didNotKnow,
       submissionId: crypto.randomUUID(),
       questionId: session.currentQuestion?.id,
@@ -1684,7 +1692,7 @@ function LotusPage() {
   // is never shown to the student as "of N". Don't derive it from the
   // currently exposed/prefetched list: later questions may still be generating.
   const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
-  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused;
+  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused || awaitConfidence;
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
     : [];
@@ -2118,27 +2126,20 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.requiresConfidenceProbe && (
-                      <div
-                        key={confidenceNudge}
-                        ref={confidenceRef}
-                        className={`${styles.confidence} ${confidenceNudge > 0 ? styles.confidenceNudge : ""}`}
-                      >
+                    {awaitConfidence && (
+                      <div className={styles.confidence} role="group" aria-label="Confidence check">
                         <span>How sure are you?</span>
                         <div className={styles.confidenceChoices}>
                           {CONFIDENCE_CHOICES.map((choice) => (
-                            <button
-                              key={choice.value}
-                              type="button"
+                            <button key={choice.value} type="button"
                               className={confidence === choice.value ? styles.confidenceSelected : ""}
                               aria-pressed={confidence === choice.value}
-                              onClick={() => setConfidence(choice.value)}
-                              disabled={inputLocked}
-                            >
+                              onClick={() => setConfidence(choice.value)} disabled={busy}>
                               {choice.label}
                             </button>
                           ))}
                         </div>
+                        <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void submit(true)}>Skip</button>
                       </div>
                     )}
 
@@ -2158,10 +2159,10 @@ function LotusPage() {
                         Fill {studentName.split(" ")[0]}’s demo response
                       </button>
                     )}
-                    <button className="btn btn-primary" type="button" onClick={submit} disabled={busy}>
+                    <button className="btn btn-primary" type="button" onClick={() => void submit()} disabled={busy || (awaitConfidence && confidence === null)}>
                       {busy ? (
                         <span className={styles.loading}><span className={styles.pulse} />{previewQuestion ? "Saving your answer…" : "Checking your answer…"}</span>
-                      ) : pendingSubmission ? "Retry saving previous answer" : "Submit answer"}
+                      ) : pendingSubmission ? "Retry saving previous answer" : awaitConfidence ? "Continue" : "Submit answer"}
                     </button>
                     {busy && liveProgress?.reflectionPrompt && (
                       // Only appears when the slower full analysis is genuinely

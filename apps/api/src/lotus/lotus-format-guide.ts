@@ -97,7 +97,8 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
     return need(["READBACK", "EDIT_HISTORY"], "The answer couldn't be read, so check whether the trouble is the typing or the maths.");
   }
   if (!right) return null;
-  if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || response.confidence < UNSURE_BELOW) {
+  const reportedConfidence = response.gameReading?.kind === "SPLIT_CONFIDENCE" || response.interactionContext?.confidence.status === "REPORTED_BEFORE_ANSWER" ? response.confidence : null;
+  if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || (reportedConfidence !== null && reportedConfidence < UNSURE_BELOW)) {
     return need(["SPLIT_CONFIDENCE", "TWO_MOVES"], "They were right but unsure, so find out exactly what they doubt.");
   }
   // Only for recognising an answer among options, and only until they have produced one on this skill. Staged
