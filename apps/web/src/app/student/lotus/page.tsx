@@ -669,6 +669,15 @@ function AuditCard({
               {audit.response.gameReading && (
                 <p><strong>Played:</strong> {LOTUS_GAME_TITLES[audit.response.gameReading.kind]}. {audit.response.gameReading.summary}</p>
               )}
+              {audit.response.game?.kind === "SPLIT_CONFIDENCE" && audit.question.game?.kind === "SPLIT_CONFIDENCE" && (
+                <div>
+                  <strong>Chip distribution</strong>
+                  <ul>{audit.question.game.options.map((option, i) => <li key={i}>{option}: {audit.response!.game!.kind === "SPLIT_CONFIDENCE" ? audit.response!.game!.counts[i] : 0} chips</li>)}</ul>
+                  {audit.verification?.status === "VERIFIED_CORRECT" && audit.response.game.counts.filter((count) => count > 0).length > 1 && (
+                    <p>The leading choice is correct; the other chips show uncertainty about alternative answers, not a proven misconception.</p>
+                  )}
+                </div>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
                 <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}

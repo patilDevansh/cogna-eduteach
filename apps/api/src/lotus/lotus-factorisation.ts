@@ -418,6 +418,8 @@ export interface SkillLedgerEntry {
   tapRights?: number;
   /** A weaker successful check gives positive evidence but cannot resolve the original concern. */
   needsComparableCheck?: boolean;
+  /** A correct leading chip choice still included a wrong alternative; this is uncertainty, not a mistake. */
+  splitDoubtAt?: number;
   /** Confirmed only by fast wrong answers late in the test: may be tiredness, so not taught (C13). */
   tiredness?: boolean;
   mistakes: string[];
@@ -520,6 +522,17 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
     // the report doesn't read it as nothing and the plan can look underneath.
     const wrongAnswer = audit.verification?.status === "VERIFIED_INCORRECT" || audit.verification?.status === "VERIFIED_UNFINISHED";
     const headline = audit.question?.answerKey?.diagnostics?.skillId;
+    const chipPlay = audit.response?.game;
+    if (headline && audit.verification?.status === "VERIFIED_CORRECT" && chipPlay?.kind === "SPLIT_CONFIDENCE" &&
+      chipPlay.counts.filter((count) => count > 0).length > 1 && Math.max(...chipPlay.counts) === 3) {
+      const e = entry(headline);
+      e.splitDoubtAt = q;
+      e.notes.push(`Q${q}: main chip choice correct, but another option received a chip; a fresh check may clarify the uncertainty`);
+    } else if (headline && chipPlay?.kind !== "SPLIT_CONFIDENCE" && !isTap(audit) &&
+      audit.question?.answerKey?.diagnostics?.skillId === headline && audit.verification?.status === "VERIFIED_CORRECT") {
+      const prior = ledger.get(headline);
+      if (prior?.splitDoubtAt) { prior.splitDoubtAt = undefined; prior.notes.push(`Q${q}: a later independent correct answer followed the split-chip response`); }
+    }
     if (headline && wrongAnswer && audit.analysisStatus === "COMPLETE" && audit.conclusion?.mistakeKind === "MISUNDERSTANDING" &&
       !(audit.skillEvidence ?? []).some((ev) => ev.kind !== "SECURE")) {
       const u = entry(headline);
@@ -946,6 +959,19 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       targetMistake: evidence.mistakes.at(-1),
       reason: `The AI review requested a fresh check of ${skillName(skillId)}; an unseen future slot is being rewritten for that evidence.`,
     });
+  }
+
+  // A split between a correct leader and a wrong alternative is uncertainty,
+  // not a diagnosed error. When capacity permits reserve one fresh skill check.
+  for (const e of ledger.values()) {
+    if (!e.splitDoubtAt || e.state === "SUSPECTED" || e.state === "CONFIRMED" || checkedThisCall.has(e.skillId)) continue;
+    if (state.turns.some((t) => t.purpose === "CHECK" && t.forSkill === e.skillId && t.turn > e.splitDoubtAt!)) continue;
+    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+    const turn = spec ? pickVictim() : null;
+    if (!spec || turn === null) continue;
+    claimed.add(turn); protectedTurns.add(turn); checkedThisCall.add(e.skillId);
+    actions.push({ kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: e.skillId, spec,
+      reason: `A split-chip response favoured the correct answer but gave weight to an alternative; a fresh ${skillName(e.skillId)} check may clarify the uncertainty.` });
   }
 
   // 1. Every suspicion needs a later question that can confirm or clear it.
