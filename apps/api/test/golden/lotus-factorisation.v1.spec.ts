@@ -9,6 +9,7 @@ import type { LotusQuestion, LotusQuestionAudit, LotusSkillEvidence, LotusStuden
 import {
   FACTORISATION_SLOTS,
   assertFixedItemIsValid,
+  skillName,
 } from "../../src/lotus/lotus-factorisation-catalogue";
 import {
   type FactorisationState,
@@ -147,8 +148,24 @@ describe("instantVerdict — what code alone learns from one answer", () => {
   it("a predicted wrong answer names the mistake straight away", () => {
     const verdict = instantVerdict(opener, respond("3(2x + 9)"));
     assert.equal(verdict.verification.status, "VERIFIED_INCORRECT");
-    assert.deepEqual(verdict.evidence, [{ skillId: "FAC_DIVIDE_TERMS", kind: "MISTAKE", mistake: "DIVIDED_FIRST_TERM_ONLY", source: "INSTANT", description: "Wrote 3(2x + 9)." }]);
+    assert.deepEqual(verdict.evidence, [
+      { skillId: "FAC_DIVIDE_TERMS", kind: "MISTAKE", mistake: "DIVIDED_FIRST_TERM_ONLY", source: "INSTANT", description: "Wrote 3(2x + 9): divided only the first term by the common factor." },
+      { skillId: "FAC_GCF_NUMERIC", kind: "SECURE", source: "INSTANT", description: "Took out the right number part of the common factor." },
+    ]);
     assert.equal(verdict.needsAnalysis, false);
+  });
+
+  it("names 'divided only the first term' by itself, even when the question's writer didn't predict it", () => {
+    const unpredicted = { ...opener, answerKey: { ...opener.answerKey, diagnostics: { ...opener.answerKey.diagnostics!, predictedMistakes: [] } } };
+    const verdict = instantVerdict(unpredicted, respond("3(2x + 9)"));
+    assert.equal(verdict.evidence[0]!.mistake, "DIVIDED_FIRST_TERM_ONLY");
+    assert.equal(verdict.needsAnalysis, false, "a plain mistake code can name never goes to the AI review");
+  });
+
+  it("the right factor outside a wrong bracket shows the student found the common factor", () => {
+    const verdict = instantVerdict(opener, respond("3(2x + 4)"));
+    assert.deepEqual(verdict.evidence.map((e) => [e.skillId, e.kind]), [["FAC_GCF_NUMERIC", "SECURE"]]);
+    assert.equal(verdict.needsAnalysis, true, "what went wrong inside the bracket is still for the review to say");
   });
 
   it("the verification never names the mistake, because past verifications are shown to the student", () => {
@@ -166,7 +183,7 @@ describe("instantVerdict — what code alone learns from one answer", () => {
   });
 
   it("an unpredicted wrong answer has no evidence yet — the AI review has to explain it", () => {
-    const verdict = instantVerdict(opener, respond("3(2x + 4)"));
+    const verdict = instantVerdict(opener, respond("2(3x + 4)"));
     assert.equal(verdict.verification.status, "VERIFIED_INCORRECT");
     assert.deepEqual(verdict.evidence, []);
     assert.equal(verdict.needsAnalysis, true);
@@ -196,9 +213,16 @@ describe("evidenceFromAnalysis — the AI points at a step, the step's tag names
     assert.equal(evidenceFromAnalysis(item, [], "3", undefined)[0]!.skillId, "FAC_DIVIDE_TERMS");
   });
 
-  it("never overrides what code already proved", () => {
-    const proven = [secure("FAC_COMMON_MONOMIAL")];
-    assert.equal(evidenceFromAnalysis(item, proven, 2, "x"), proven);
+  it("never overrides a mistake code already named", () => {
+    const named = [mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")];
+    assert.equal(evidenceFromAnalysis(item, named, 2, "x"), named);
+  });
+
+  it("keeps what code proved right in a wrong answer, and never blames a step code saw done right", () => {
+    const proven = [secure("FAC_GCF_NUMERIC")];
+    assert.deepEqual(evidenceFromAnalysis(item, proven, 2, "x").map((e) => [e.skillId, e.kind]), [["FAC_GCF_NUMERIC", "SECURE"], ["FAC_GCF_VARIABLE", "MISTAKE"]]);
+    // Step 1 is the numeric common factor, which the answer got right: the review is pointing at the question's own skill.
+    assert.deepEqual(evidenceFromAnalysis(item, proven, 1, "x").map((e) => [e.skillId, e.kind]), [["FAC_GCF_NUMERIC", "SECURE"], [item.answerKey.diagnostics!.skillId, "MISTAKE"]]);
   });
 
   it("no wrong step means no new evidence", () => {
@@ -210,6 +234,14 @@ describe("evidenceFromAnalysis — the AI points at a step, the step's tag names
 describe("foldLedger — one mistake is a suspicion, two is a gap", () => {
   it("one mistake only makes a skill SUSPECTED", () => {
     assert.equal(foldLedger([audit([mistake("FAC_DIFF_SQUARES")])]).get("FAC_DIFF_SQUARES")!.state, "SUSPECTED");
+  });
+
+  it("a skill done right inside a wrong answer is noted, but only a right answer makes it secure", () => {
+    const wrongBracket = { skillEvidence: [mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY"), secure("FAC_GCF_NUMERIC")], verification: { status: "VERIFIED_INCORRECT" } } as unknown as LotusQuestionAudit;
+    const ledger = foldLedger([wrongBracket, { ...wrongBracket }]);
+    assert.equal(ledger.get("FAC_DIVIDE_TERMS")!.state, "CONFIRMED");
+    assert.equal(ledger.get("FAC_GCF_NUMERIC")!.state, "UNTESTED");
+    assert.match(ledger.get("FAC_GCF_NUMERIC")!.notes[0]!, /right as part of a wrong answer/);
   });
 
   it("the same skill going wrong on a later question confirms it", () => {
@@ -335,7 +367,7 @@ describe("planAdjustments — changing only questions the student hasn't reached
   it("a skill already secure is solid ground: nothing below it is checked", () => {
     const { state, itemAt, askedItems } = planFixture(3);
     const ledger = foldLedger([
-      audit([secure("FAC_GCF_NUMERIC"), secure("FAC_GCF_VARIABLE"), secure("FND_EXPONENT_PRODUCT"), mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
+      audit([secure("FAC_GCF_NUMERIC"), secure("FAC_GCF_VARIABLE"), secure("FND_EXPONENT_PRODUCT"), secure("FND_EXPONENT_QUOTIENT"), mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
       audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
     ]);
     const descents = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
@@ -490,17 +522,72 @@ describe("fixes from the held-out scorecard v1", () => {
       assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
       assert.match(report.startingPoint, /Not asked in this test: cancelling factors, never terms/);
       assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: not asked in this test/.test(a)));
-      assert.match(report.recommendedNextStep, /cancelling factors, never terms wasn't asked/);
+      assert.match(report.recommendedNextStep, /cancelling factors, never terms, rearranging terms to group.* weren't asked/);
       assert.ok(report.limitations.some((l) => /planned but not asked/.test(l) && /cancelling factors/.test(l)));
       assert.deepEqual(report.skills!.filter((s) => s.skillId === "FAC_CANCEL_COMMON_FACTOR").map((s) => s.state), ["UNTESTED"]);
     });
 
-    it("says nothing extra when every planned skill was asked", () => {
+    it("names no planned skill when every planned skill was asked", () => {
       const audits = FACTORISATION_SLOTS.flatMap((s) => provenBy(s.skillId));
       const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
-      assert.doesNotMatch(report.startingPoint, /Not asked/);
-      assert.equal(report.recommendedNextStep, "Offer the next challenge and schedule a later retention check.");
       assert.ok(!report.uncertainAreas.some((a) => /not asked in this test/.test(a)));
+      assert.ok(!report.limitations.some((l) => /planned but not asked/.test(l)));
+    });
+
+    describe("a skill no question covers, with nothing tested above it", () => {
+      const UNASKED = ["FAC_REARRANGE_TO_GROUP", "ID_BRACKET_AS_ONE", "FAC_SPLIT_MIDDLE", "DIV_TERM_BY_TERM", "DIV_EXPR_BY_TERM"];
+      const everythingAsked = () => FACTORISATION_SLOTS.flatMap((s) => provenBy(s.skillId));
+
+      it("is named even when every planned skill was asked and right: the five added skills nothing asks", () => {
+        const audits = everythingAsked();
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
+        assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
+        assert.match(report.startingPoint, /Not asked in this test: rearranging terms to group, a bracket as one quantity, splitting the middle term, dividing a term by a term, dividing an expression by a term\./);
+        assert.match(report.recommendedNextStep, /No teaching gap found in the skills asked\..* weren't asked, so check them before moving on\./);
+        for (const id of UNASKED) {
+          assert.ok(report.uncertainAreas.some((a) => a.startsWith(skillName(id)) && /no question in this test covers it/.test(a)), `${id} named in the uncertain areas`);
+          assert.deepEqual(report.skills!.filter((s) => s.skillId === id).map((s) => s.state), ["UNTESTED"], `${id} is in the skill list as untested`);
+        }
+        assert.ok(report.limitations.some((l) => /No question in this test covers/.test(l) && /a gap there would not show up here/.test(l)));
+      });
+
+      it("does not name the added skills that sit under a tested skill: the skill above stands in for them", () => {
+        const audits = everythingAsked();
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
+        const prose = [report.startingPoint, report.recommendedNextStep, ...report.uncertainAreas].join(" ").toLowerCase();
+        assert.ok(!prose.includes("dividing powers") && !prose.includes("irreducible factors"));
+      });
+
+      it("is no longer named once something above it has evidence", () => {
+        const audits = [...everythingAsked(), ...provenBy("DIV_EXPR_BY_TERM")];
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
+        const prose = [report.startingPoint, ...report.uncertainAreas].join(" ").toLowerCase();
+        assert.ok(!prose.includes("dividing an expression by a term"), "the one with evidence is not named");
+        assert.ok(!prose.includes("dividing a term by a term"), "its prerequisite is covered by it");
+        assert.ok(prose.includes("splitting the middle term"), "the others are still named");
+      });
+
+      it("is named as a possible cause when a skill built on it went wrong and it was never checked", () => {
+        // Dividing every term went wrong twice; dividing powers sits under it and has no question of its own.
+        const audits = [...provenBy("FAC_GCF_NUMERIC"), ...provenBy("FAC_GCF_VARIABLE"), ...provenBy("FND_EXPONENT_PRODUCT"),
+          answered("FAC_DIVIDE_TERMS", [], [mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")])];
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(5), pendingAnalyses: 0 });
+        assert.ok(report.uncertainAreas.some((a) => /^Dividing powers: never checked, and dividing every term by the common factor went wrong, so it could be the cause\.$/.test(a)), report.uncertainAreas.join(" | "));
+        assert.deepEqual(report.skills!.filter((s) => s.skillId === "FND_EXPONENT_QUOTIENT").map((s) => s.state), ["UNTESTED"]);
+        assert.ok(report.limitations.some((l) => /dividing powers.* never checked, and a skill built on .* went wrong/.test(l)), report.limitations.join(" | "));
+      });
+
+      it("does not say never checked once the skill has evidence", () => {
+        const audits = [...provenBy("FND_EXPONENT_QUOTIENT"), answered("FAC_DIVIDE_TERMS", [], [mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")])];
+        const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(5), pendingAnalyses: 0 });
+        assert.ok(!report.uncertainAreas.some((a) => /^Dividing powers: never checked/.test(a)));
+      });
+
+      it("is not named in a catch-up, which asks only about the skills it was sent for", () => {
+        const state = { ...freshState(10), focusSkills: ["FAC_DIVIDE_TERMS"] };
+        const report = buildFactorisationReport({ ledger: foldLedger([audit([secure("FAC_DIVIDE_TERMS")])]), state, pendingAnalyses: 0 });
+        assert.ok(!report.uncertainAreas.some((a) => /no question in this test covers it/.test(a)));
+      });
     });
 
     it("does not list a skill that was left out because it depends on a confirmed gap (that is 'not tested', already said)", () => {
@@ -565,6 +652,35 @@ describe("fixes from the held-out scorecard v1", () => {
       // FAC_GCF_NUMERIC is now confirmed and is the most foundational start; its own prerequisite must be secure.
       assert.equal(foldLedger(withGap).get("FAC_GCF_NUMERIC")!.state, "CONFIRMED");
       assert.equal(factorisationStopReason(withGap, 0)?.reason, "STARTING_POINT_FOUND");
+    });
+
+    describe("a soft prerequisite (dividing powers, irreducible factors) holds the test open only once it shows trouble", () => {
+      // Dividing every term builds on dividing powers; no plan slot asks it, and an unasked soft prerequisite must not stretch the test.
+      const dividing = (extra: Parameters<typeof audit>[0] = []) => [
+        audit([secure("FAC_GCF_NUMERIC")]), audit([secure("FAC_GCF_VARIABLE")]), audit([secure("FND_EXPONENT_PRODUCT")]),
+        audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]), audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]),
+        audit([secure("FAC_MEANING")]), audit([secure("FND_SIGN_MUL_DIV")]), audit([secure("FND_MIN_EXP_COMMON")]),
+        ...(extra.length ? [audit(extra)] : []),
+      ];
+
+      it("stops when it was never asked", () => {
+        assert.equal(factorisationStopReason(dividing(), 0)?.reason, "STARTING_POINT_FOUND");
+      });
+
+      it("stops when it was asked once and answered right", () => {
+        assert.equal(factorisationStopReason(dividing([secure("FND_EXPONENT_QUOTIENT")]), 0)?.reason, "STARTING_POINT_FOUND");
+      });
+
+      it("keeps going while it is suspected", () => {
+        const audits = dividing([mistake("FND_EXPONENT_QUOTIENT", "DIVIDED_EXPONENTS")]);
+        assert.equal(foldLedger(audits).get("FND_EXPONENT_QUOTIENT")!.state, "SUSPECTED");
+        assert.equal(factorisationStopReason(audits, 0), null);
+      });
+
+      it("a soft prerequisite is only soft: an ordinary unasked prerequisite still holds the test open", () => {
+        const audits = dividing().filter((_, i) => i !== 0);
+        assert.equal(factorisationStopReason([...audits, audit([secure("FAC_MEANING")])], 0), null);
+      });
     });
   });
 
@@ -773,7 +889,7 @@ describe("buildFactorisationReport", () => {
     assert.notEqual(report.outcome, "SOLID_GAP");
     // The one mistake is listed as unconfirmed; the other planned skills weren't asked at all in this contrived test, and say so.
     assert.equal(report.uncertainAreas.filter((a) => /one mistake, not confirmed/.test(a)).length, 1);
-    assert.equal(report.uncertainAreas.filter((a) => /not asked in this test/.test(a)).length, report.uncertainAreas.length - 1);
+    assert.equal(report.uncertainAreas.filter((a) => /not asked in this test|no question in this test covers it|never checked, and/.test(a)).length, report.uncertainAreas.length - 1);
   });
 
   it("nextOpenTurn skips removed turns", () => {

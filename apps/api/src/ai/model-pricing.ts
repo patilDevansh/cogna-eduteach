@@ -42,6 +42,21 @@ export function modelPricingFromEnv(env: NodeJS.ProcessEnv = process.env): Model
   return { ...parseModelPricingFromEnv(env.LOTUS_MODEL_PRICING_JSON), ...parseModelPricingFromEnv(env.OPENAI_MODEL_PRICING_JSON) };
 }
 
+/**
+ * OpenAI models this deployment is configured to call (every set *_MODEL variable naming a GPT/o-series
+ * model, plus the diagnostic's two defaults) that have no price. With a dollar cap set, the metered fetch
+ * refuses an unpriced model's calls, so each one listed here is a feature that would stop working.
+ */
+export function unpricedConfiguredModels(env: NodeJS.ProcessEnv = process.env): string[] {
+  const pricing = modelPricingFromEnv(env);
+  const models = new Set<string>([env.LOTUS_OPENAI_MODEL?.trim() || "gpt-5.6-terra", env.LOTUS_CHALLENGER_MODEL?.trim() || "gpt-5.6-sol"]);
+  for (const [name, value] of Object.entries(env)) {
+    const model = value?.trim();
+    if (name.endsWith("_MODEL") && model && /^(gpt-|o\d)/i.test(model)) models.add(model);
+  }
+  return [...models].filter((model) => !pricing[model]);
+}
+
 /** Exact dollar cost of a completed call. `cachedInputTokens` is the part of `inputTokens` served from the prompt cache. */
 export function tokenCostUsd(
   price: ModelPriceUsdPerMillionTokens,

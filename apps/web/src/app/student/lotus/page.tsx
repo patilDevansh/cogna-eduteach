@@ -1,9 +1,14 @@
 "use client";
 
+import { isReusedFromBank, provenanceLabelForQuestion } from "@/lib/lotus-provenance";
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
+import { lotusRecoveryProblem } from "@/lib/lotus-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
+import { useTypingRecord } from "@/lib/use-typing-record";
+import { LotusObserverDetails } from "@/components/lotus-observer-details";
+import { LotusDeveloperExit } from "@/components/lotus-developer-exit";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,10 +28,10 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
+import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, LOTUS_SPLIT_TOKENS, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { sampleTokenFor } from "@/lib/sample";
-import { setFakeModelLocked, useDevState } from "@/lib/dev-mode";
+import { DEV_TOOLS_AVAILABLE, setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
 import { ensureDemoStudentSession, getStudent } from "@/lib/session";
 
@@ -272,136 +277,36 @@ function AssessmentCard({
   );
 }
 
-function ProposalCard({
-  label,
-  question,
-  selected,
-}: {
-  label: string;
-  question: Omit<LotusQuestion, "id"> | undefined;
-  selected?: boolean;
-}) {
-  return (
-    <section className={`${styles.proposalCard} ${selected ? styles.proposalSelected : ""}`}>
-      <div className={styles.proposalLabel}>{label}</div>
-      {question ? (
-        <>
-          <p className={styles.proposalPrompt}>{question.prompt}</p>
-          <p className={styles.proposalPurpose}>{question.purpose}</p>
-        </>
-      ) : (
-        <p className={styles.proposalPurpose}>No question proposed.</p>
-      )}
-    </section>
-  );
-}
-
-/**
- * §11 "Plan and question transparency": shown only for an installed changed
- * item (selection.adaptationTag is only ever set on that item, never on an
- * unchanged coverage question or merely because a recommendation exists),
- * so it never implies a modification that didn't happen.
- */
-function adaptationTagLabel(tag: NonNullable<LotusQuestionSelection["adaptationTag"]>): string {
-  switch (tag.kind) {
-    case "TARGETED_CHECK": return `Targeted check — ${tag.skill}`;
-    case "EASIER_PREREQUISITE": return `Easier prerequisite — ${tag.skill}`;
-    case "BROADENED_EVIDENCE": return `Broadened evidence — ${tag.skill}`;
-    case "COVERAGE_REPLACEMENT": return `Coverage replacement — ${tag.reason}`;
+/** An earlier answer that already went wrong on one of the skills this answer went wrong on: the same mistake, or just the same skill. */
+function repeatOf(audit: LotusQuestionAudit, earlier: LotusQuestionAudit[]): { sameMistake: boolean } | null {
+  const now = (audit.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED");
+  let found: { sameMistake: boolean } | null = null;
+  for (const before of earlier) {
+    for (const e of before.skillEvidence ?? []) {
+      if (e.kind !== "MISTAKE" && e.kind !== "UNFINISHED") continue;
+      for (const n of now) {
+        if (n.skillId !== e.skillId) continue;
+        if (n.mistake && n.mistake === e.mistake) return { sameMistake: true };
+        found = { sameMistake: false };
+      }
+    }
   }
+  return found;
 }
 
-function QuestionDecision({ selection }: { selection: LotusQuestionSelection }) {
-  const sourceLabel = selection.provenance === "AI_GENERATED_FOR_SESSION"
-    ? "AI-generated from a planned skill slot"
-    : selection.provenance === "AI_REUSED_FROM_BANK"
-      ? "Reused from the AI question bank"
-      : selection.selectedFrom === "NONE_EXIT"
-        ? "Diagnostic ended"
-        : selection.selectedFrom === "REVISED_FOR_INFORMATION_GAIN"
-          ? "Revised after repetition check"
-          : `Chosen from ${selection.selectedFrom.toLowerCase()}`;
-  const provenanceLabel = selection.provenance === "AI_GENERATED_FOR_SESSION"
-    ? "New question made for this session"
-    : selection.provenance === "AI_REUSED_FROM_BANK"
-      ? "Question reused from the AI question bank"
-      : selection.provenance === "HARDCODED_SYSTEM"
-        ? "This is a hardcoded question already present in our system"
-        : undefined;
-  return (
-    <section className={styles.decisionBox}>
-      <div className={styles.decisionHeading}>
-        <div>
-          <span className={styles.eyebrow}>Next-question decision</span>
-          <h4>What each AI proposed—and what Lotus chose</h4>
-        </div>
-        <span className={selection.informationGain.passed ? styles.gainPass : styles.gainFail}>
-          {selection.informationGain.passed ? "Adds evidence" : "Low information gain"}
-        </span>
-        {selection.mathVerification && selection.mathVerification.status !== "UNVERIFIABLE" && (
-          <span
-            className={selection.mathVerification.status === "MATCHED" ? styles.gainPass : styles.gainFail}
-            title={selection.mathVerification.explanation}
-          >
-            {selection.mathVerification.status === "MATCHED" ? "Maths independently verified" : "Maths mismatch — rejected"}
-          </span>
-        )}
-      </div>
-      {provenanceLabel && (
-        <div className={styles.questionProvenance} role="status">
-          {provenanceLabel}
-          {selection.adaptationTag && (
-            <span className={styles.adaptationTag}> · {adaptationTagLabel(selection.adaptationTag)}</span>
-          )}
-        </div>
-      )}
-      <div className={styles.proposalGrid}>
-        <ProposalCard label="Primary proposed" question={selection.primaryProposal} />
-        <ProposalCard label="Challenger proposed" question={selection.challengerProposal} />
-        <ProposalCard label={sourceLabel} question={selection.selectedQuestion} selected />
-      </div>
-      <div className={styles.decisionReason}>
-        <strong>Why this was chosen</strong>
-        <p>{selection.reason}</p>
-        {selection.planningNote && <small className={styles.planningNote}>{selection.planningNote}</small>}
-        <small>{selection.informationGain.explanation}</small>
-      </div>
-    </section>
-  );
-}
-
-function matchingProvenanceForQuestion(question: LotusQuestion, session: LotusSessionView) {
-  const selections = [session.openingAudit?.questionSelection, ...session.audits.map((audit) => audit.questionSelection)].filter(Boolean) as LotusQuestionSelection[];
-  const matching = [...selections].reverse().find((selection) => selection.selectedQuestion?.prompt === question.prompt);
-  return matching?.provenance;
-}
-
-function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
-  const provenance = matchingProvenanceForQuestion(question, session);
-  if (provenance === "CODE_BUILT_GAME") return "Interactive question";
-  if (provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
-  if (provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
-  if (provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
-  if (question.answerKey.diagnostics?.origin === "AI") return "New question made for this session";
-  return "This is a hardcoded question already present in our system";
-}
-
-/** Reused-from-bank is the one provenance worth a glance: it's the only case where this exact item may have already been seen by another student. */
-function isReusedFromBank(question: LotusQuestion, session: LotusSessionView): boolean {
-  const provenance = matchingProvenanceForQuestion(question, session);
-  return provenance ? provenance === "AI_REUSED_FROM_BANK" : question.answerKey.diagnostics?.provenance === "AI_REUSED_FROM_BANK";
-}
-
-function DiagnosticDecision({ audit }: { audit: LotusQuestionAudit }) {
+function DiagnosticDecision({ audit, earlier = [] }: { audit: LotusQuestionAudit; earlier?: LotusQuestionAudit[] }) {
   if (!audit.response || !(audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE")) return null;
   const support = audit.skillEvidence?.some((e) => e.kind === "DID_NOT_KNOW");
+  const repeat = support ? null : repeatOf(audit, earlier);
   return (
     <div className={styles.diagnosticDecision}>
       <strong>Diagnostic decision</strong>
       <span>
         {support
           ? "This is recorded as a support need. Lotus will place an easier prerequisite check in the unseen plan where possible."
-          : "This is a suspected signal, not a confirmed gap. Lotus keeps the curriculum moving and schedules a later capable check; a repeat can confirm it, while a suitable correct answer can clear it as a slip."}
+          : repeat
+            ? `${repeat.sameMistake ? "The same mistake again" : "A second mistake on this skill"}, so this is no longer a one-off. Lotus treats the skill as a confirmed gap and goes on to check the foundations only where the answers don't already show them.`
+            : "This is a suspected signal, not a confirmed gap. Lotus keeps the curriculum moving and schedules a later capable check; a repeat can confirm it, while a suitable correct answer can clear it as a slip."}
       </span>
     </div>
   );
@@ -508,7 +413,7 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
       </div>
       <div className={styles.evidencePanelGrid}>
         <div><strong>Mathematical fact</strong><span>{mathsFact}</span></div>
-        <div><strong>Direct evidence</strong><span>{directEvidence.join(" ")}</span></div>
+        <div><strong>Direct evidence</strong><span>{[...new Set(directEvidence)].join(" ")}</span></div>
         <div><strong>Competing explanations</strong><span>{alternatives.length ? alternatives.join("; ") : "No competing explanation has been claimed."}</span></div>
         <div><strong>Still unknown</strong><span>{unknown}</span></div>
       </div>
@@ -617,16 +522,21 @@ function ActionTimeline({ decision }: { decision: LotusAdaptiveDecision }) {
 
 function AuditCard({
   audit,
+  earlier = [],
   index,
   latest,
   opening,
   liveProgress,
+  reviewModel,
 }: {
   audit: LotusQuestionAudit;
+  /** The answers before this one, so the decision can say a mistake is a repeat. */
+  earlier?: LotusQuestionAudit[];
   index: number;
   latest: boolean;
   opening?: boolean;
   liveProgress?: LotusSessionView["liveProgress"];
+  reviewModel?: string;
 }) {
   return (
     <details className={styles.auditCard} open={latest}>
@@ -670,9 +580,21 @@ function AuditCard({
               {audit.response.gameReading && (
                 <p><strong>Played:</strong> {LOTUS_GAME_TITLES[audit.response.gameReading.kind]}. {audit.response.gameReading.summary}</p>
               )}
+              {audit.response.typingReading && (
+                <p><strong>Typing:</strong> {audit.response.typingReading.summary}{" "}
+                  {/* The summary already names a wait before the first key when it is the longest pause. */}
+                  {audit.response.typingReading.facts.firstKeyMs !== audit.response.typingReading.facts.longestPauseMs && `First key after ${Math.round(Number(audit.response.typingReading.facts.firstKeyMs ?? 0) / 100) / 10}s; `}
+                  {audit.response.typingReading.facts.drafts ?? 0} discarded {audit.response.typingReading.facts.drafts === 1 ? "draft" : "drafts"}.</p>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
-                <strong>Confidence:</strong> {audit.response.confidence}% · <strong>Time:</strong>{" "}
+                <strong>Confidence:</strong>{" "}
+                {audit.response.game?.kind === "SPLIT_CONFIDENCE"
+                  ? `${Math.max(...audit.response.game.counts)} of ${LOTUS_SPLIT_TOKENS} chips on the answer marked`
+                  : audit.response.interactionContext?.confidence.status === "NOT_ASKED" ? "not asked"
+                    : audit.response.interactionContext?.confidence.status === "SKIPPED" ? "skipped"
+                      : `${audit.response.confidence}%`}{" "}
+                · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
               {audit.verification && <p className={styles.verificationNote}>{audit.verification.explanation}</p>}
@@ -686,10 +608,8 @@ function AuditCard({
 
         <EvidencePanel audit={audit} />
 
-        {(audit.questionSelection.primaryProposal || audit.questionSelection.challengerProposal) && (
-          <QuestionDecision selection={audit.questionSelection} />
-        )}
-        <DiagnosticDecision audit={audit} />
+        <LotusObserverDetails audit={audit} model={reviewModel} className={styles.section} />
+        <DiagnosticDecision audit={audit} earlier={earlier} />
 
         {audit.analysisStatus === "PENDING" && (
           <div className={styles.analysisPending} role="status" aria-live="polite">
@@ -698,31 +618,11 @@ function AuditCard({
           </div>
         )}
 
-        {(opening || audit.analysisSource === "AI_REVIEW") && audit.analysisStatus === "COMPLETE" && (audit.gpt || audit.debate) && (
+        {(opening || audit.analysisSource === "AI_REVIEW") && audit.analysisStatus === "COMPLETE" && audit.gpt && (
           <details className={styles.reasoningDrawer}>
-            <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
+            <summary className={styles.reasoningSummary}>See AI review details</summary>
             <div className={styles.reasoningBody}>
-              {audit.gpt && audit.challenger && <div className={styles.modelGrid}>
-                <AssessmentCard name="GPT primary thought" assessment={audit.gpt} className={styles.gpt} />
-                <AssessmentCard name="GPT challenger thought" assessment={audit.challenger} className={styles.challenger} />
-              </div>}
-
-              {audit.debate && <section className={`${styles.section} ${styles.debate}`}>
-              <h4>What they argued</h4>
-              <p><strong>Agreement</strong></p>
-              <List items={audit.debate.agreements} />
-              <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
-              <List items={audit.debate.disagreements} />
-              <p style={{ marginTop: "0.65rem" }}>
-                <strong>Concrete example:</strong> {audit.debate.disagreementExample}
-              </p>
-              {audit.debate.acceptedImprovements?.length > 0 && (
-                <>
-                  <p style={{ marginTop: "0.65rem" }}><strong>GPT accepted</strong></p>
-                  <List items={audit.debate.acceptedImprovements} />
-                </>
-              )}
-              </section>}
+              <AssessmentCard name="AI review" assessment={audit.gpt} className={styles.gpt} />
             </div>
           </details>
         )}
@@ -747,7 +647,7 @@ function AuditCard({
           ) : audit.analysisStatus === "NOT_REQUIRED" ? (
             <p>{audit.analysisSource === "SUPPORT_SIGNAL"
               ? "The student asked for support. Lotus recorded that signal without inventing an AI explanation of their reasoning."
-              : "No AI interpretation was required for this turn."}</p>
+              : audit.conclusion.conclusion || "Cogna marked this answer directly."}</p>
           ) : (
             <>
               <p>{audit.conclusion.conclusion}</p>
@@ -798,25 +698,11 @@ function LiveProgressCard({ progress, index }: { progress: LotusLiveProgress; in
             {progress.reflectionPrompt}
           </p>
         )}
-        {(progress.gpt || progress.debate) && (
+        {progress.gpt && (
           <details className={styles.reasoningDrawer}>
-            <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
+            <summary className={styles.reasoningSummary}>See AI review details</summary>
             <div className={styles.reasoningBody}>
-              {progress.gpt && progress.challenger && (
-                <div className={styles.modelGrid}>
-                  <AssessmentCard name="GPT primary thought" assessment={progress.gpt} className={styles.gpt} />
-                  <AssessmentCard name="GPT challenger thought" assessment={progress.challenger} className={styles.challenger} />
-                </div>
-              )}
-              {progress.debate && (
-                <section className={`${styles.section} ${styles.debate}`}>
-                  <h4>What they argued</h4>
-                  <p><strong>Agreement</strong></p>
-                  <List items={progress.debate.agreements} />
-                  <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
-                  <List items={progress.debate.disagreements} />
-                </section>
-              )}
+              <AssessmentCard name="AI review" assessment={progress.gpt} className={styles.gpt} />
             </div>
           </details>
         )}
@@ -1053,6 +939,7 @@ function LotusPage() {
   const searchParams = useSearchParams();
   const demoPersona = searchParams.get("demo");
   const classroomAssignmentId = searchParams.get("assignment");
+  const requestedSessionId = searchParams.get("session");
   const topic: LotusTopic = lotusTopicForClassTopic(searchParams.get("topic") ?? "");
   const planned = isPlannedLotusTopic(topic);
   const catchUp = planned && searchParams.get("check") === "catch-up";
@@ -1092,6 +979,8 @@ function LotusPage() {
   const [questionStartedAt, setQuestionStartedAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [developerExitBusy, setDeveloperExitBusy] = useState(false);
+  const [developerExitError, setDeveloperExitError] = useState("");
   const submissionLock = useRef(false);
   const [supportPaused, setSupportPaused] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -1103,14 +992,15 @@ function LotusPage() {
   const recoveryStarted = useRef("");
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const recoveryReady = useRef(false);
-  const recoveryScope = `${topic}:${classroomAssignmentId ?? "self"}:${devFakeModel ? "fake" : "live"}`;
+  const baseRecoveryScope = `${topic}:${classroomAssignmentId ?? "self"}:${devFakeModel ? "fake" : "live"}`;
+  const recoveryScope = requestedSessionId ? `${baseRecoveryScope}:session:${requestedSessionId}` : baseRecoveryScope;
   type Recovery = { session: LotusSessionView; answer: string; workingLines: string[]; confidence: number | null; didNotKnow: boolean; tiles: TileGameState | null; pending: LotusStudentResponse | null; startedAt: number };
   function saveLotusRecovery(overrides: Partial<Recovery> = {}) {
     if (!studentId || !session || !recoveryReady.current) return;
     try {
       if (session.status !== "ACTIVE") return;
       writeRecovery(recoveryKey("LOTUS", studentId, recoveryScope), { session, answer, workingLines, confidence, didNotKnow, tiles, pending: pendingSubmission, startedAt: questionStartedAt, ...overrides });
-    } catch { setRecoveryMessage("This browser cannot restore drafts after refresh. Keep this page open until saving is confirmed."); }
+    } catch { setRecoveryMessage("This browser can't keep your work if the page reloads, so keep this page open until your answer saves."); }
   }
   useEffect(() => {
     if (!studentId || recoveryStarted.current === `${studentId}:${recoveryScope}` && recoveryReady.current) return;
@@ -1124,8 +1014,21 @@ function LotusPage() {
       let confirmationFailed = false;
       try {
         const cached = readRecovery<Recovery>(recoveryKey("LOTUS", studentId, recoveryScope));
-        if (!cached?.session?.sessionId) return;
-        if (cached.session.studentId !== studentId || typeof cached.answer !== "string" || cached.answer.length > 10000 || !Array.isArray(cached.workingLines) || cached.workingLines.length > 6 || cached.workingLines.some(line => typeof line !== "string" || line.length > 10000) || !Number.isFinite(cached.startedAt) || (cached.confidence !== null && ![25,60,90].includes(cached.confidence)) || cached.pending && (!cached.pending.submissionId || typeof cached.pending.answer !== "string" || cached.pending.answer.length > 10000 || typeof cached.pending.working !== "string" || cached.pending.working.length > 60000 || typeof cached.pending.didNotKnow !== "boolean" || !Number.isFinite(cached.pending.responseTimeMs) || cached.pending.responseTimeMs < 0 || cached.pending.questionId !== cached.session.currentQuestion?.id || !validInteractionContext(cached.pending.interactionContext) || cached.pending.interactionContext.source !== "LOTUS" || cached.pending.interactionContext.questionId !== cached.pending.questionId)) throw new Error("Invalid recovery state");
+        if (!cached?.session?.sessionId) {
+          if (!requestedSessionId) return;
+          const saved = await api.getLotusSession(requestedSessionId);
+          if (cancelled) return;
+          if (saved.studentId !== studentId || saved.topic !== topic ||
+            (saved.classroomAssignmentId ?? null) !== (classroomAssignmentId ?? null)) {
+            throw new Error("Saved diagnostic does not match this learning context");
+          }
+          setSession(saved);
+          setRecoveryMessage(`Saved diagnostic restored with ${saved.audits.length} submitted answers.`);
+          return;
+        }
+        if (requestedSessionId && cached.session.sessionId !== requestedSessionId) throw new Error("Saved session changed");
+        const problem = lotusRecoveryProblem(cached, studentId);
+        if (problem) throw new Error(problem);
         const fresh = await api.getLotusSession(cached.session.sessionId);
         if(cancelled)return;
         if (fresh.studentId !== studentId) throw new Error("Session ownership changed");
@@ -1133,7 +1036,15 @@ function LotusPage() {
         const pending = cached.pending;
         const sameQuestion = cached.session.currentQuestion?.id === fresh.currentQuestion?.id;
         const committed = pending && fresh.audits.some(a => a.question.id === pending.questionId && a.response?.submissionId === pending.submissionId);
-        if (pending && !sameQuestion && !committed) { confirmationFailed=true; setRecoveryMessage("Your question changed. Your earlier pending work is retained locally and has not been applied to a different question. Reload to retry confirmation."); return; }
+        if (pending && committed) {
+          const confirmed = await submitWithRetry(fresh.sessionId, studentId, pending);
+          if (cancelled) return;
+          setSession(confirmed);
+          setPendingSubmission(null);
+          setRecoveryMessage("Your previous answer was already saved. Resumed from the latest question.");
+          return;
+        }
+        if (pending && !sameQuestion && !committed) { confirmationFailed=true; setRecoveryMessage("Your question changed since your last save. Your earlier answer is still on this device and wasn't added to the new question. Reload the page to try again."); return; }
         const originalQuestion = pending && committed ? fresh.audits.find(a=>a.question.id===pending.questionId)?.question : fresh.currentQuestion;
         if(pending?.interaction){
           const issued=originalQuestion?.interaction,picks=pending.interaction.picks;
@@ -1153,7 +1064,12 @@ function LotusPage() {
           setQuestionStartedAt(cached.startedAt); setPendingSubmission(pending);
           setRecoveryMessage(pending ? "Your previous answer needs confirmation. Retry saving it." : "Draft restored in this tab. It has not been checked yet.");
         }
-      } catch { if(cancelled)return; confirmationFailed = true; setRecoveryMessage("Could not confirm the saved session. Your local draft is retained; reload to retry recovery."); }
+      } catch (cause) {
+        if (cancelled) return;
+        confirmationFailed = true;
+        const detail = devMode && cause instanceof Error ? ` Developer detail: ${cause.message}.` : "";
+        setRecoveryMessage(`We couldn't check your saved test. Your work is still on this device. Reload the page to try again.${detail}`);
+      }
       finally { if(!cancelled){recoveryReady.current = !confirmationFailed; setRecoveryChecked(!confirmationFailed);} }
     })();
     return()=>{cancelled=true;};
@@ -1184,6 +1100,7 @@ function LotusPage() {
     if (field.id === "lotus-answer") {
       interaction.input(nextValue);
       draftCheckpoints.record(nextValue);
+      typingRecord.record(nextValue);
       setAnswer(nextValue);
       saveLotusRecovery({ answer: nextValue });
       setDidNotKnow(false);
@@ -1232,7 +1149,7 @@ function LotusPage() {
     setClassEnrollment(getMockEnrollment());
     setObserver(new URLSearchParams(window.location.search).get("observer") === "1");
     api.getLotusStatus().then(setStatus).catch((err) => {
-      setError(err instanceof Error ? err.message : "Could not reach the Lotus service.");
+      setError(err instanceof Error ? err.message : "Can't reach Cogna right now. Check your internet connection and reload the page.");
     });
     if (classroomAssignmentId) void api.startClassroomAssignment(classroomAssignmentId).catch(() => undefined);
   }, [router, classroomAssignmentId]);
@@ -1251,7 +1168,7 @@ function LotusPage() {
     if (!session || session.status !== "ACTIVE") return;
     const timer = window.setInterval(() => {
       // The same active-time rule the server uses for the limit, so the clock never jumps ahead.
-      setElapsed(lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt)));
+      setElapsed(lotusActiveSeconds(session.questionsReadyAt ?? session.startedAt, session.audits.map((audit) => audit.createdAt)));
     }, 1000);
     return () => window.clearInterval(timer);
   }, [session]);
@@ -1292,7 +1209,7 @@ function LotusPage() {
         setObserverError(err instanceof Error ? err.message : "A verified teacher session is required to open AI Studio.");
     });
     return () => { cancelled = true; };
-  }, [observer, session?.sessionId, session?.audits.length, session?.status]);
+  }, [observer, session?.sessionId, session?.audits.length, session?.status, session?.developerExitPrompt?.decisionId]);
 
   // A review can finish after the student has already reached the next
   // question. The student-facing session remains deliberately redacted, but
@@ -1577,10 +1494,13 @@ function LotusPage() {
       interactionContext: interaction.snapshot({ status: confidence !== null ? "REPORTED_BEFORE_ANSWER" : question?.requiresConfidenceProbe ? "SKIPPED" : "NOT_ASKED", value: confidence, scale: "ZERO_TO_HUNDRED" }),
       didNotKnow,
       submissionId: crypto.randomUUID(),
+      ...(devMode && !classroomAssignmentId ? { developerMode: true } : {}),
       questionId: session.currentQuestion?.id,
       nextQuestionId: staged?.id,
       ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
       ...(themedGame && !didNotKnow && gamePlay ? { game: gamePlay } : {}),
+      // An ordinary typed answer sends its typing record too, so its drafts and pauses are read like Typing replay's.
+      ...(!themedGame && !tileGame && !didNotKnow && !question?.options?.length && typingRecord.history() ? { typing: typingRecord.history() } : {}),
     };
     submissionLock.current = true;
     setBusy(true);
@@ -1603,16 +1523,17 @@ function LotusPage() {
     try {
       const next = await submitWithRetry(session.sessionId, studentId, submission);
       if(recoveryStarted.current!==requestScope)return;
+      setRecoveryMessage("");
       rememberSession(next);
     } catch (err) {
       if(recoveryStarted.current!==requestScope)return;
       const message = err instanceof Error ? err.message : "";
       const sessionGone = message.toLowerCase().includes("session not found");
       setError(sessionGone
-        ? "This diagnostic session expired because the API was restarted. Start a new diagnostic to continue."
+        ? "This test can't be found any more. Start a new test to carry on."
         : message
-          ? `Your last answer was not confirmed: ${message}. Retry saving it.`
-          : "Your last answer was not confirmed. Retry saving it.");
+          ? `Your last answer didn't save (${message}). Tap “Retry saving previous answer” to try again.`
+          : "Your last answer didn't save. Tap “Retry saving previous answer” to try again.");
     } finally {
       submissionLock.current = false;
       if(recoveryStarted.current===requestScope){stopPolling();stopReportWatch();setBusy(false);}
@@ -1637,6 +1558,24 @@ function LotusPage() {
     }
   }
 
+  async function chooseDeveloperExit(choice: "FINISH" | "CONTINUE") {
+    const prompt = session?.developerExitPrompt;
+    if (!session || !prompt || developerExitBusy) return;
+    const requestScope = `${studentId}:${recoveryScope}`;
+    setDeveloperExitBusy(true);
+    setDeveloperExitError("");
+    try {
+      const next = await api.chooseLotusDeveloperExit(session.sessionId, studentId, prompt.decisionId, choice);
+      if (recoveryStarted.current !== requestScope) return;
+      rememberSession(next);
+    } catch (cause) {
+      if (recoveryStarted.current !== requestScope) return;
+      setDeveloperExitError(cause instanceof Error ? cause.message : "The choice could not be confirmed. Try again.");
+    } finally {
+      if (recoveryStarted.current === requestScope) setDeveloperExitBusy(false);
+    }
+  }
+
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
   const question = previewQuestion ?? session?.currentQuestion;
@@ -1644,6 +1583,7 @@ function LotusPage() {
   const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
   const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
+  const typingRecord = useTypingRecord(question ? `${session?.sessionId}:${question.id}` : undefined, questionStartedAt);
   const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
@@ -1651,7 +1591,7 @@ function LotusPage() {
   // is never shown to the student as "of N". Don't derive it from the
   // currently exposed/prefetched list: later questions may still be generating.
   const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
-  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused;
+  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused || Boolean(session?.developerExitPrompt);
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
     : [];
@@ -1705,11 +1645,11 @@ function LotusPage() {
       for (let turn = 0; turn < 40; turn++) {
         // Factorisation questions are written on demand: wait for the next one.
         const deadline = Date.now() + 180_000;
-        while (view.status === "ACTIVE" && !view.reportPending && !view.currentQuestion && Date.now() < deadline) {
+        while (view.status === "ACTIVE" && !view.reportPending && !view.developerExitPrompt && !view.currentQuestion && Date.now() < deadline) {
           await new Promise((resolve) => window.setTimeout(resolve, 1000));
           view = await api.getLotusSession(view.sessionId);
         }
-        if (view.status !== "ACTIVE" || view.reportPending || !view.currentQuestion) break;
+        if (view.status !== "ACTIVE" || view.reportPending || view.developerExitPrompt || !view.currentQuestion) break;
         const filled = await api.demoFillLotusResponse(view.sessionId, sid, gap);
         view = await api.submitLotusAnswer(view.sessionId, sid, {
           answer: filled.answer,
@@ -1718,12 +1658,13 @@ function LotusPage() {
           responseTimeMs: 4000,
           didNotKnow: false,
           submissionId: crypto.randomUUID(),
+          developerMode: true,
           questionId: view.currentQuestion.id,
         });
         setSession(view);
       }
       rememberSession(view);
-      if (view.status !== "COMPLETE" && !view.reportPending) watchForReport(view.sessionId);
+      if (view.status !== "COMPLETE" && !view.reportPending && !view.developerExitPrompt) watchForReport(view.sessionId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not skip through the test.");
     } finally {
@@ -1737,6 +1678,13 @@ function LotusPage() {
   const printBeside = sevenWays && !observer && session?.status === "ACTIVE" && !preparing && isPlannedLotusTopic(session.topic);
   return (
     <main className={styles.page} data-lotus-theme={lotusTheme.settings.effective}>
+      {DEV_TOOLS_AVAILABLE && session?.developerExitPrompt && <LotusDeveloperExit
+        key={session.developerExitPrompt.decisionId}
+        prompt={session.developerExitPrompt}
+        busy={developerExitBusy}
+        error={developerExitError}
+        onChoose={(choice) => void chooseDeveloperExit(choice)}
+      />}
       <div className={styles.shell}>
         <header className={styles.header}>
           <div className={styles.brandRow}>
@@ -1760,7 +1708,7 @@ function LotusPage() {
           <div className={styles.statusRow}>
             {observer && <span className={styles.observerBadge}>Observer view</span>}
             {session?.status === "ACTIVE" && (
-              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{planned ? " of 15:00" : ""} · Q{shownQuestionNumber}</span>
+              <span className="time-note">{minutes}:{String(seconds).padStart(2, "0")}{planned ? ` of ${Math.floor((status?.factorisationTimeLimitSeconds ?? 900) / 60)}:${String((status?.factorisationTimeLimitSeconds ?? 900) % 60).padStart(2, "0")}` : ""} · Q{shownQuestionNumber}</span>
             )}
             {/* Skipping signs in as a demo student, so it would abandon a real classroom assignment. */}
             {devMode && !classroomAssignmentId && (
@@ -1893,7 +1841,7 @@ function LotusPage() {
                   </div>
                 ) : preparationTimedOut && (
                   <p className={styles.muted} style={{ marginTop: "0.5rem" }}>
-                    Still preparing—no hardcoded questions will be shown. AI is continuing to write and verify the remaining questions.
+                    Still getting your questions ready. Keep this page open; it starts by itself.
                   </p>
                 )}
               </section>
@@ -1920,11 +1868,6 @@ function LotusPage() {
             ) : question ? (
               <section className={`${styles.questionCard} ${advancing ? styles.questionAdvancing : ""}`}>
                 {advancing && <div className={styles.nextQuestionToast} aria-live="polite">Next question</div>}
-                  {preparationTimedOut && (
-                    <div className={styles.error} style={{ margin: "1rem 1rem 0" }}>
-                      All questions were eventually AI-generated and verified. The diagnostic is now ready.
-                    </div>
-                  )}
                   <div className={styles.cardTop}>
                     {/* Phase, skill and where the question came from are the team's view, not the student's. */}
                     {(devMode || observer) && (
@@ -1964,7 +1907,7 @@ function LotusPage() {
                     {readAloudError && <p className={styles.muted} role="status">{readAloudError}</p>}
 
                     {question.game ? (
-                      <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} disabled={inputLocked || didNotKnow} onRowChange={(row) => { gameRow.current = row; }}
+                      <ThemedGame key={question.id} theme={lotusTheme.settings.effective} game={question.game} developerMode={devMode} disabled={inputLocked || didNotKnow} onRowChange={(row) => { gameRow.current = row; }}
                         draftScope={`${studentId}:${question.id}`} onFirstTouch={() => interaction.input("game", true)} onTyped={(text) => { interaction.input(text); draftCheckpoints.record(text); }} onTypedBlur={() => draftCheckpoints.flush()}
                         onChange={(play) => { if (play) { interaction.input(JSON.stringify(play), true); setDidNotKnow(false); } setGamePlay(play); }} />
                     ) : question.interaction ? (
@@ -2015,7 +1958,7 @@ function LotusPage() {
                         <label htmlFor="lotus-answer">Final answer</label>
                         <div className={styles.mathAnswerShell}>
                           <span aria-hidden="true">=</span>
-                          <input
+                          <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                             id="lotus-answer"
                             className={styles.mathAnswer}
                             value={answer}
@@ -2028,11 +1971,12 @@ function LotusPage() {
                               if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                               activeMathFieldRef.current = event.currentTarget;
                             }}
-                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
+                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); typingRecord.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
                             onChange={(event) => {
                               if (suppressMathChangeRef.current) { suppressMathChangeRef.current = false; return; }
                               interaction.input(formatTypedMath(event.target.value));
                               draftCheckpoints.record(formatTypedMath(event.target.value));
+                              typingRecord.record(formatTypedMath(event.target.value));
                               setAnswer(formatTypedMath(event.target.value));
                               saveLotusRecovery({ answer: formatTypedMath(event.target.value) });
                               setDidNotKnow(false);
@@ -2060,7 +2004,7 @@ function LotusPage() {
                           {workingLines.map((line, index) => (
                             <div className={styles.workingLine} key={index}>
                               <span>{index + 1}</span>
-                              <input
+                              <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
                                 aria-label={`Working step ${index + 1}`}
                                 data-working-index={index}
                                 ref={(field) => { workingFieldRefs.current[index] = field; }}
@@ -2217,9 +2161,11 @@ function LotusPage() {
                         <AuditCard
                           key={`${audit.question.id}-${index}`}
                           audit={audit}
+                          earlier={observerAudits.slice(0, index)}
                           opening={index === 0}
                           index={index}
                           latest={index === observerAudits.length - 1}
+                          reviewModel={observerSession.modelConfiguration.primary}
                           liveProgress={observerSession.liveProgress}
                         />
                       ))}

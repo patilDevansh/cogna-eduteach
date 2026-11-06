@@ -59,10 +59,15 @@ Everything that must be done before Cogna is used at a school with real students
 - [ ] Set all production secrets: Clerk keys, session secret, AI keys, `SENTRY_DSN`
 - [ ] Set up Sentry alerts so errors reach someone
 - [ ] Add a deploy step to CI (`.github/workflows/test-gates.yml` only runs tests)
+- [ ] Run exactly one `api` container: a test in progress is held in that API's memory (it reloads from Postgres after a restart, but two replicas would each hold their own copy)
+- [ ] Set `COGNA_JOB_WORKER_TOKEN` so the `scheduler` service in `docker-compose.prod.yml` can run the background jobs (retrying interrupted AI work, failed emails, revision plans, weekly parent reports). Without it the scheduler stops and says so
+- [ ] Build the API image once and render one lesson video in it (the image now installs Chrome's libraries and fonts and downloads Remotion's browser at build time; this hasn't been built yet)
+- [ ] If you set an OpenAI dollar cap, give every configured model a real price in `OPENAI_MODEL_PRICING_JSON`. The API now refuses to start in production otherwise, because every call to an unpriced model would be refused
+- [ ] Before the first school, run 5 to 10 complete tests with the real model and answer them. That fills the question bank, which is the only source of questions while the AI is down or over its spending limit
 
 ## 7. Load and devices
 
-- [ ] Simulate 40 students starting a check at once, and measure response and lesson build times
+- [ ] Simulate 40 students starting a check at once, and measure response and lesson build times. Check the OpenAI account's tier: its tokens-per-minute limit decides how fast a whole class's questions can be written
 - [ ] Confirm background jobs keep up when everything runs in one API process
 - [ ] Test on a cheap Android phone and on a slow, patchy network
 - [ ] Do a basic accessibility pass: text size, contrast, keyboard use, screen reader labels

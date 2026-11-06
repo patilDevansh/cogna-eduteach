@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { FACTORISATION_SKILLS, FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalogue";
+import { FACTORISATION_SKILLS, FACTORISATION_SLOTS, SOFT_PREREQUISITES } from "../../src/lotus/lotus-factorisation-catalogue";
 import {
   COVERAGE_BASELINE, MISTAKE_OWNER_OVERRIDES, PROPOSED_MERGES, PROPOSED_SKILLS, SHARED_PATTERNS, SKILL_CARDS, SKILL_LINKS, SKILL_MAP_VERSION,
   checkSkillMap, mistakeOwner, ownedMistakes, skillCard, skillMapCoverage, skillMapFingerprint,
@@ -67,7 +67,7 @@ describe("Core Skill Map: five kinds of link", () => {
 
   it("gives trinomials two routes", () => {
     const routes = kinds("EITHER_OR").filter((l) => l.group === "trinomial-route");
-    assert.deepEqual(routes.map((l) => l.to).sort(), ["FAC_GROUP_TERMS", "FAC_PAIR_PRODUCT_SUM"]);
+    assert.deepEqual(routes.map((l) => l.to).sort(), ["FAC_PAIR_PRODUCT_SUM", "FAC_SPLIT_MIDDLE"]);
   });
 
   it("connects signed numbers in factorisation with the other chapters", () => {
@@ -87,27 +87,44 @@ describe("Core Skill Map: shared mistake patterns", () => {
   });
 });
 
-describe("Core Skill Map: proposed changes stay proposals", () => {
-  it("proposes seven new skills and two merges, none live yet", () => {
-    assert.equal(PROPOSED_SKILLS.length, 7);
-    assert.equal(PROPOSED_MERGES.length, 2);
+describe("Core Skill Map: the seven added skills are live; the two merges are still proposals", () => {
+  const ADDED = ["FND_EXPONENT_QUOTIENT", "FND_IRREDUCIBLE_FACTORS", "FAC_REARRANGE_TO_GROUP", "ID_BRACKET_AS_ONE", "FAC_SPLIT_MIDDLE", "DIV_TERM_BY_TERM", "DIV_EXPR_BY_TERM"];
+
+  it("has the seven in the live map, each with a card, and nothing else proposed", () => {
+    assert.equal(FACTORISATION_SKILLS.length, 38);
     const live = new Set(FACTORISATION_SKILLS.map((s) => s.id));
-    for (const p of PROPOSED_SKILLS) assert.ok(!live.has(p.id), `${p.id} is not live`);
-    assert.equal(FACTORISATION_SKILLS.length - PROPOSED_MERGES.length + PROPOSED_SKILLS.length, 36);
+    for (const id of ADDED) { assert.ok(live.has(id), `${id} is live`); assert.ok(skillCard(id), `${id} has a card`); }
+    assert.deepEqual(PROPOSED_SKILLS, []);
+    assert.equal(PROPOSED_MERGES.length, 2);
+    assert.equal(FACTORISATION_SKILLS.length - PROPOSED_MERGES.length, 36, "36 skills once the two merges are decided");
   });
 
-  it("marks the skill we added beyond the book", () => {
-    assert.equal(PROPOSED_SKILLS.find((s) => s.id === "FND_EXPONENT_QUOTIENT")!.source, "COGNA");
+  it("marks the skill we added beyond the book, and each added skill's group", () => {
+    assert.equal(skillCard("FND_EXPONENT_QUOTIENT")!.source, "COGNA");
+    for (const id of ADDED.filter((x) => x !== "FND_EXPONENT_QUOTIENT")) assert.equal(skillCard(id)!.source, "NCERT_CH12");
+    const group = (id: string) => FACTORISATION_SKILLS.find((s) => s.id === id)!.group;
+    assert.deepEqual(["DIV_TERM_BY_TERM", "DIV_EXPR_BY_TERM"].map(group), [7, 7], "the new group: dividing expressions");
+  });
+
+  it("makes the two earned prerequisites real, and no other existing skill changes what it needs", () => {
+    const needs = (id: string) => FACTORISATION_SKILLS.find((s) => s.id === id)!.dependsOn;
+    assert.ok(needs("FAC_DIVIDE_TERMS").includes("FND_EXPONENT_QUOTIENT"));
+    assert.ok(needs("FAC_COMMON_MONOMIAL").includes("FND_IRREDUCIBLE_FACTORS"));
+    assert.deepEqual([...SOFT_PREREQUISITES].sort(), ["FND_EXPONENT_QUOTIENT", "FND_IRREDUCIBLE_FACTORS"], "the two never hold the early stop open until they show trouble");
+    for (const id of ADDED) {
+      const above =FACTORISATION_SKILLS.filter((s) => s.dependsOn.includes(id)).map((s) => s.id);
+      assert.ok(above.every((a) => ["FAC_DIVIDE_TERMS", "FAC_COMMON_MONOMIAL", ...ADDED].includes(a)), `${id} is needed by ${above.join(", ")}`);
+    }
   });
 });
 
 describe("Core Skill Map: coverage today", () => {
   it("measures how much of the map the questions can reach", () => {
     const cov = skillMapCoverage();
-    assert.equal(cov.skills, 31);
-    assert.equal(cov.skillsWithoutOwnQuestion.length, 14);
-    assert.equal(cov.mistakes, 61);
-    assert.equal(cov.mistakesNoQuestionTargets.length, 27);
+    assert.equal(cov.skills, 38);
+    assert.equal(cov.skillsWithoutOwnQuestion.length, 21);
+    assert.equal(cov.mistakes, 72);
+    assert.equal(cov.mistakesNoQuestionTargets.length, 38);
     assert.equal(FACTORISATION_SLOTS.length, 25);
   });
 

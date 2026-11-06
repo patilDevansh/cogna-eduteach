@@ -95,6 +95,7 @@ function makerPrompt(req: WriteRequest): string {
     isFactorisation
       ? "- Grade 8 numbers: whole numbers, coefficients up to 12, constants up to 50."
       : "- Grade 8 numbers a student can work without a calculator. Use Indian contexts (₹, km, Indian names) where a story helps.",
+    "- Pitch it at Grade 8: never a bare whole-number fact such as \"What is 28 ÷ 7?\". Even an easier, prerequisite question tests the skill the way the algebra uses it (\"the highest number that divides every term of 28x + 42\", not \"28 ÷ 7\").",
     "- Machine fields use plain ASCII maths: ^ for powers, no unicode, e.g. 2x^2(5 - 9x + 7x^2).",
     `- Tag every solution step with the skill it uses. Allowed skills: ${[spec.skillId, ...spec.tagged].join(", ")} (or another skill id from the ${topicName} map if a step genuinely needs it).`,
   );
@@ -245,6 +246,19 @@ export function repeatPrint(text: string): string {
   });
 }
 
+/**
+ * "What is 28 ÷ 7?": one operation on two unsigned whole numbers. A Grade 8 student who can factorise
+ * knows these, so a wrong answer says nothing about the skill and being asked one reads as being talked
+ * down to. Signed facts (−15 ÷ −3) are real Grade 8 checks and pass.
+ */
+export function isBareArithmeticFact(prompt: string): boolean {
+  const core = prompt.trim().toLowerCase()
+    .replace(/^(what is|what's|find|calculate|work out|evaluate|compute|solve)\s*:?\s*/, "")
+    .replace(/(\s*=\s*)?[?.!□_\s]*$/, "")
+    .replace(/[()]/g, "");
+  return /^\d+\s*(÷|\/|×|\*|x|\+|-|−|divided by|times|plus|minus)\s*\d+$/.test(core);
+}
+
 export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   const reasons: string[] = [];
   try { assertFixedItemIsValid(item, "item"); } catch (e) { reasons.push(e instanceof Error ? e.message.replace(/^item: /, "") : String(e)); }
@@ -267,6 +281,7 @@ export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   }
   const repeat = repeatPrint(d.expression ?? item.prompt);
   if (req.avoid.some((a) => repeatPrint(a) === repeat)) reasons.push("repeats a question already in this test");
+  if (isBareArithmeticFact(item.prompt)) reasons.push("asks a bare whole-number fact (such as 28 ÷ 7), below Grade 8: test the skill as a step of the algebra instead");
   if (req.avoidSkill && d.stepSkills.some((s) => dependsOnTransitively(s, req.avoidSkill!))) {
     reasons.push(`still needs ${req.avoidSkill}`);
   }

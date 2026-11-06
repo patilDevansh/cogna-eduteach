@@ -5,6 +5,8 @@
 
 ## Contract precedence and delivery status
 
+[DEV_DIAGNOSTIC_EXIT.md](./DEV_DIAGNOSTIC_EXIT.md) defines the additive local developer choice before an automatic diagnostic exit.
+
 This README defines the original diagnostic-cycle baseline. [PILOT_FLOW.md](./PILOT_FLOW.md) is the active amendment for default per-student auto-advance; class-wide gates below apply when `config.autoAdvance: false`. [INTERACTION_FORMATS.md](./INTERACTION_FORMATS.md) governs configured exit-item formats/counts.
 
 [MODULE_LEARNING.md](./MODULE_LEARNING.md) is the canonical additive teaching-first contract (28 October 2026). It defines assigned and self-directed module learning, relevant gap repair, independent evidence and later review. **Its runtime implementation is pending.** It does not replace either existing diagnostic-cycle mode or silently migrate old runs.

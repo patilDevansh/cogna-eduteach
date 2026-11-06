@@ -131,6 +131,8 @@ LOTUS_HELDOUT_REPEATS=20 node --import tsx --test test/golden/lotus-heldout-scor
 node --import tsx --test test/golden/lotus-heldout-scorecard.v1.spec.ts                           # 5 plays each, as in the normal suite
 ```
 
+**Margin on "found not lower" (added 4 November 2026).** Question variants depend on a random session id, so runs of identical code differ by a few plays, and the original rule of no margin failed about half the time. The test now fails only when "with the checks" is lower by more than 3% of plays with a gap. The published comparison above is unchanged.
+
 ---
 
 # Update: the two fixes, measured on held-out v2 (28 October 2026)
@@ -287,3 +289,129 @@ gap in 20 of 20 plays to none; signs and square roots together went from "found 
 
 These are kept as visible `todo` tests. v1, v2 and v3 are now all used: a fix designed from any of
 them needs a new held-out v4 first.
+
+---
+
+# Update 3: the rules checked against real AI reviews (4 November 2026)
+
+**One run, 27 cases.** The review probe (`apps/api/scripts/lotus-review-probe.ts`) sent 27 wrong
+answers to the real AI review in its default one-call mode and read the result with the product's
+own rule for turning a review into skill evidence. Nine cases are the errors listed in the NCERT
+Class 8 textbook's "find and correct the errors" exercise; 18 are messy cases written for this test
+(slips, a guess, an unreadable answer, a lucky right answer), each labelled in advance with what a
+careful teacher would call it. All 27 reviews came back with no errors. Raw results:
+`COGNA 10.0/lotus-live-run/review-probe-live-2026-11-04.json`. This is a small sample from one
+model on one day, not a measurement of accuracy.
+
+| What the rules depend on | Result |
+|---|---|
+| A real gap: the review names a step | **20 of 20** |
+| A real gap becomes skill evidence | 19 of 20 (the 20th, a sign slip in grouping, was called a slip) |
+| A review calls a wrong answer a "misunderstanding" and names no step (the *unexplained* answer) | **0 of 27** |
+| A slip or unreadable answer is called what it is | 3 of 4 |
+| A slip still turns into skill evidence | 1 of 4 (M13: cancelling a common factor) |
+| A guess is called a guess | 1 of 1 |
+
+## What it means for the rules
+
+- **The unexplained-answer rule never fired.** Not once in 27 real reviews did the review say
+  "misunderstanding" without naming a step. It also did no harm: it wrongly counted none of the slips,
+  so a solid child's test would not have been kept open by it. But the problem it was written for (a
+  foundation gap hiding behind wrong answers that give no evidence) came from the pretend AI, which
+  names no step. With a real reviewer, the same answers get evidence, on the skill the review blames.
+  The rule is a safety net for a reviewer that stays silent, which this one did not. It is cheap to keep
+  and should not be counted as a gain on real children.
+- **The review names a step when it sees a gap.** That is what lets one gap become evidence at all.
+  The risk moves to *which* skill it blames: it named a step on all 20 gaps, 19 became evidence, and
+  all 19 landed on the expected skill, but these cases have one obvious cause each.
+- **Slips are mostly safe.** One slip in four became evidence (M13). One wrong answer on a skill makes
+  it suspected, not a gap, so a single slip cannot confirm one; two such slips on the same skill could.
+- **The one real gap treated as a slip** (M09, a minus left out of the second group) is the safe
+  direction: a missed suspicion, not a false gap.
+
+## Limits
+
+27 cases, one model, one run; 18 of them written by Claude, not independent. Each is a single answer
+sent on its own, not a whole test, so nothing here shows how the plan behaves over 25 questions with a
+real reviewer. The held-out scorecards above still use pretend AIs.
+
+## Run it
+
+```bash
+cd apps/api
+node --import tsx scripts/lotus-review-probe.ts                                  # pretend AI, free
+LOTUS_REVIEW_PROBE_MODE=simulated node --import tsx scripts/lotus-review-probe.ts   # simulated reviewer, free
+LOTUS_REVIEW_PROBE_MODE=live node --import tsx scripts/lotus-review-probe.ts        # real AI, spends money
+# from a worktree: LOTUS_REVIEW_PROBE_ENV_FILES=/path/to/.env,/path/to/packages/database/.env
+```
+The script reads the `.env` files itself, the way the API does (first file wins, an empty value never
+overrides a real one). Node's own `--env-file` cannot read this repo's `.env`.
+
+## Held-out v4: the baseline (5 November, before the change it measures)
+
+Set v4 (`test/fixtures/lotus-heldout-students-v4.ts`, scorecard `test/golden/lotus-heldout-scorecard.v4.spec.ts`)
+has 24 new students: 6 capable, 7 missing one of the seven added skills, 7 missing one older skill where v1–v3
+were weak or silent, 2 with two gaps that involve an added skill, 2 messy. It was written before the change that
+asks the added skills in the live test, and the students are frozen: this run is the "before". Map
+`factorisation-2.0.0`, 20 plays per student (480 in all, 360 with a gap), the labelling pretend AI.
+Criteria A–E for the change are declared in the fixture's header.
+
+| | Before |
+|---|---|
+| A gap found at all (root or above) | 68.3% (246 of 360) |
+| Found at the root | 44.4% |
+| Silent misses (gap not found, skill not named) | 114, of which 105 are added-skill students |
+| False gaps; capable children given a gap | 0; 0 |
+| Capable children reported ADVANCEMENT | 50% (60 of 120) |
+| Median questions with a gap | 24 |
+
+**The one big finding: a gap in an added skill the test never asks is an all-clear.** The five added skills
+that sit above nothing (rearranging to group, a bracket as one quantity, splitting the middle term, dividing a
+term by a term, dividing an expression by a term) were missed in all 100 plays, and every one of those tests
+ended "ADVANCEMENT" with no mention of the skill. The report names planned skills it never asked, but these are
+not in the 25 planned questions, so they are not named either.
+
+| Added skill missing | Found | Notes |
+|---|---|---|
+| Irreducible factors | at the root, every play | in 11 questions |
+| Dividing powers | above it only (75%); 25% missed | never at the root |
+| The five unasked skills | 0% | every play reported as an all-clear |
+
+Other findings, none of them caused by the added skills:
+- **Expand one bracket and signed sums are found only above their root** (X15, X16: 100% above, 0% at the root),
+  the same pattern as v3's expand-one-bracket student.
+- **A capable child with three slips (X02: questions 3, 11, 17) is reported "unclear" in every play**, where v3's
+  three slips at 5, 12, 19 were advanced. Tired children (X03, X04) are also "unclear", as in v3.
+- No capable child was given a gap, and no student had a false gap.
+
+What the change that follows must do (declared before it is written): no silent miss among the added-skill
+students, at least 80% of their gaps found, no capable child given a gap, false gaps not higher, no more than
+2 extra questions at the median, and capable children advanced no less often than 50%.
+
+```bash
+cd apps/api
+LOTUS_HELDOUT_REPEATS=20 node --import tsx --test test/golden/lotus-heldout-scorecard.v4.spec.ts
+```
+
+### v4 after the first change: the report names what the test did not ask
+
+The report now names two more kinds of skill, in the starting point, the uncertain areas, the limits, the
+next step and the skill list: (1) a skill no question in the plan asks about with nothing tested above it
+(the five added skills that sit above nothing), and (2) a skill with no question of its own that sits
+under a skill that went wrong and was never checked ("dividing powers: never checked, and dividing every
+term went wrong, so it could be the cause"). The outcome is not changed: asking the five would be the real
+fix, and calling every test "unclear" because they cannot be asked would take the all-clear from solid children.
+
+| | Before | After |
+|---|---|---|
+| Silent misses | 114 (105 added-skill students) | 0 |
+| A gap found at all | 68.3% | 69.4% |
+| Found at the root | 44.4% | 44.4% |
+| False gaps; capable child given a gap | 0; 0 | 0; 0 |
+| Capable children reported ADVANCEMENT | 50% | 50% |
+| Median questions with a gap | 24 | 24 |
+
+Same 480 plays, 20 per student. v1, v2 and v3 guard-rails still pass. Criterion A is met; B (found at least
+80% for the added-skill students) is not: those gaps are now named, but a child missing one of the five is
+still reported ADVANCEMENT with the skill named as not asked (the report says to check it), and the gap
+is not found. Finding them needs the test to ask them.

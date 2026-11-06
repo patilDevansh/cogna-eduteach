@@ -64,3 +64,12 @@ Implemented local active-session recovery, separately recorded visible/unanswere
 A separate, rollout-gated Grade 8 monic-trinomial module path now starts from a reviewed lesson without creating a diagnostic. Signed teacher assignment and student-led entry share a saved run; a checkpoint can lead to a discriminating prerequisite check, bounded repair, return and a fresh unaided exit. Static reviewed slides work without model, narration or rendering calls. This is a reference slice, not full module/curriculum delivery or real-learner efficacy evidence. Local focused, isolated PostgreSQL and browser checks passed; independent product review remains open.
 
 3 November follow-up: new runs reserve unused reviewed exit questions per learner, teacher access checks current classroom ownership, and browser active-run keys are scoped to the signed-in learner. Reference review remains open.
+
+
+AI Studio observer maintenance (5 November 2026): Lotus dev observer and teacher records show the recorded review duration, next-question source/reason and format decision. The current review appears once. Local web type and render checks pass; the saved diagnostic browser view was inspected.
+
+
+Saved Lotus entry correction (5 November 2026): an explicit session link resumes an existing authorized diagnostic. The local seven-answer diagnostic and refresh recovery were verified.
+
+
+Lotus refresh maintenance (5 November 2026): restored the selected saved session and retained submission; optional observer interaction metadata no longer blocks local recovery. Browser refresh verified at the next question.

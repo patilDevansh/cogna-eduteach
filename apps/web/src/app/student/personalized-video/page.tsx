@@ -510,11 +510,11 @@ function PersonalizedVideoPage() {
               <>
                 <label className={L.field}>
                   <span>Your answer</span>
-                  <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
+                  <input autoCorrect="off" autoCapitalize="off" spellCheck={false} value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
                 </label>
                 <label className={L.field}>
                   <span>Your working</span>
-                  <textarea value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
+                  <textarea autoCorrect="off" autoCapitalize="off" spellCheck={false} value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
                 </label>
               </>
             )}

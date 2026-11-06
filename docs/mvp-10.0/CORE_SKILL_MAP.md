@@ -18,9 +18,9 @@ Checks: `apps/api/test/golden/lotus-skill-map.v1.spec.ts`.
 | Typed links | `NEEDS`, `EITHER_OR` (trinomial routes), `THIS_QUESTION_ONLY`, `SHARED_MISTAKE`, `ACROSS_CHAPTERS`, `CHECKS`. |
 | Shared patterns | Sign handling, terms treated as factors, everything distributes, root of the number in front. A pattern triggers one direct question; it is never a gap by itself. |
 | Version and fingerprint | `SKILL_MAP_VERSION` and `skillMapFingerprint()` so a record can say which map it was made against. |
-| Coverage | In the live test's 25 slots: 14 of 31 skills have no question of their own; 27 of 61 mistakes have no question built to show them. With the question families below: every skill and every mistake has a verified question. A baseline check lets this improve and refuses to let it slip. |
-| Question families | `apps/api/src/lotus/lotus-skill-checks.ts`: short code-made checks for 18 skills (all 14 with no live question, plus 4 where the live test leaves a form out). Each family has several conditions, a seeded variant for every child, and wrong answers that are named mistakes the skill lists. |
-| Proposals (data only) | Seven new skills and two merges (31 + 7 − 2 = 36). Each goes live only when it has two code-checked questions. |
+| Coverage | In the live test's 25 slots: 21 of 38 skills have no question of their own; 38 of 72 mistakes have no question built to show them. With the question families below: every skill and every mistake has a verified question. A baseline check lets this improve and refuses to let it slip. |
+| Question families | `apps/api/src/lotus/lotus-skill-checks.ts`: short code-made checks for 25 skills (the 14 that had no live question, 4 where the live test leaves a form out, and the 7 added skills). Each family has several conditions, a seeded variant for every child, and wrong answers that are named mistakes the skill lists. |
+| Seven added skills (live) | Map version `factorisation-2.0.0`: 31 + 7 = 38 skills. Each has a card, its mistakes, links and a check family. Two merges are still proposals (38 − 2 = 36). See below. |
 
 ## How the question families are checked
 
@@ -69,6 +69,36 @@ The other six personas are unchanged. This is simulation performance: scripted s
 pretend AI, used while tuning. It shows the rules behave as designed, not accuracy with real
 children, and a shorter test is only better if it stays as accurate (held-out scorecard below).
 
+## The seven added skills
+
+| Skill | Group | Sits under | Source |
+|---|---|---|---|
+| Dividing powers (`FND_EXPONENT_QUOTIENT`) | foundations | multiplying powers | Cogna (beyond the book) |
+| Irreducible factors (`FND_IRREDUCIBLE_FACTORS`) | foundations | factor pairs | NCERT ch. 12 |
+| Rearranging to group (`FAC_REARRANGE_TO_GROUP`) | grouping | grouping four terms | NCERT ch. 12 |
+| A bracket as one quantity (`ID_BRACKET_AS_ONE`) | identities | difference of two squares | NCERT ch. 12 |
+| Splitting the middle term (`FAC_SPLIT_MIDDLE`) | trinomials | product and sum; grouping | NCERT ch. 12 |
+| Dividing a term by a term (`DIV_TERM_BY_TERM`) | new group: dividing expressions | signed products and quotients; dividing powers | NCERT ch. 12 |
+| Dividing an expression by a term (`DIV_EXPR_BY_TERM`) | dividing expressions | dividing a term by a term | NCERT ch. 12 |
+
+Splitting the middle term is the second route to a trinomial (`EITHER_OR` with product and sum).
+Each skill has two to four conditions, seeded variants and wrong answers that are the skill's
+named mistakes; three of the new mistakes can show up as an unfinished answer.
+
+**Two existing skills now list one of the new ones as something they build on**: dividing every
+term (needs dividing powers) and taking out the full common factor (needs irreducible factors).
+They are *soft* prerequisites (`SOFT_PREREQUISITES`): the short checks can test them and a
+failure counts like any other, but an unasked one never holds the early stop open. Making them
+hard stretched a child who divides only the first term from 8 questions to 17–23, because
+no plan slot asks dividing powers and the test waited for it. The simulated guard-rails
+(held-out v1–v3) are unchanged with them soft.
+
+**Reach.** Only dividing powers and irreducible factors sit under a skill the test already
+visits. The other five sit above nothing, so the 25-question test does not ask them on its own:
+they have cards, mistakes, links and verified questions, but nothing in the live test sends a
+child to them yet. The blame rule and the prerequisite rule still use the old owners and links
+until a fresh held-out set (v4) says the switch is safe.
+
 ## What this does not change
 
 The 25-slot base plan, the evidence rules and the blame rule (`ownerOfMistake`) behave as
@@ -77,8 +107,8 @@ state the new behavior: a confirmed gap goes down to foundations with short chec
 
 ## Next steps, in order
 
-1. Check the rules against a sample of real AI reviews ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md), update 2, point 4): does a real review name a step, and does it call slips "misunderstanding"? Then what held-out v3 left open: a gap on the last skill can't be confirmed from one question; a solid child who tires near the end is "unclear" rather than advanced; some foundation roots are reached only 35–40% of the time. Write a held-out v4 first, because v1–v3 have now been used.
-2. Make the proposed skills live as each gets two code-checked questions; decide the two merges.
+1. Real AI reviews were checked on 4 November ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md), update 3): a real review always named a step, never left an answer unexplained, and called most slips slips. Next: a whole-test check with a real reviewer, and what held-out v3 left open: a gap on the last skill can't be confirmed from one question; a solid child who tires near the end is "unclear" rather than advanced; some foundation roots are reached only 35–40% of the time. Held-out v4 is written and its baseline recorded ([HELDOUT_SCORECARD.md](./HELDOUT_SCORECARD.md)): a gap in any of the five unasked added skills was an all-clear. The report now names them, and any unchecked skill under a skill that went wrong, so v4 has no silent misses; the test still doesn't ask the five, so those gaps are named, not found. Next: ask them.
+2. Decide the two merges (the highest-common-factor pair has a concern recorded). Then make the two soft prerequisites hard only if held-out v4 shows it costs few questions, and give the five unreachable new skills a place in the test.
 3. Switch the blame rule and the prerequisite rule to the owner table and the typed links.
 4. Record conditions and help on every stored answer; keep the four layers apart (shared map, evidence history, current estimate, next step).
 5. Held-out scorecard before the 22 November freeze.

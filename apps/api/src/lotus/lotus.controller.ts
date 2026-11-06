@@ -5,10 +5,11 @@ import { TTS_PROVIDER } from "../ai/ai.module";
 import type { TtsProvider } from "../ai/tts.service";
 import { spokenMath } from "../ai/spoken-math";
 import { timingSafeEqual } from "node:crypto";
-import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
-import { assertStudentAccess, assertTeacher, assertWorker, resolveActor } from "../access/cogna-access";
+import { LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION, type LotusSessionView, type LotusStatusResponse } from "@cogna/shared";
+import { assertStudentAccess, assertTeacher, assertWorker, isDemoStudentId, isProductionLike, resolveActor } from "../access/cogna-access";
 import {
   LotusReasonDto,
+  DeveloperLotusExitDto,
   OverrideLotusSessionDto,
   StartLotusSessionDto,
   SubmitLotusAnswerDto,
@@ -34,14 +35,18 @@ function assertAutonomousEvaluationAccess(headers: Record<string, string | strin
 /**
  * Local manual-testing convenience only: skips the teacher requirement on
  * the AI Studio observer route so one browser session can watch its own
- * live diagnostic hypotheses without a separate teacher login. Same
- * production hard-disable as assertAutonomousEvaluationAccess, and off by
- * default even outside production — must be explicitly opted into. Never
- * lower the bar on delete/export/reconcile this way; those stay
+ * live diagnostic hypotheses without a separate teacher login. Never on in
+ * production or staging. Outside them it is on for the built-in demo
+ * students (so developer mode always has AI Studio), for any student when
+ * LOTUS_DEV_OBSERVER_BYPASS=true, and off everywhere when it is "false".
+ * Never lower the bar on delete/export/reconcile this way; those stay
  * teacher-only regardless of this flag.
  */
-function observerTeacherGateBypassed(): boolean {
-  return process.env.NODE_ENV !== "production" && process.env.LOTUS_DEV_OBSERVER_BYPASS === "true";
+function observerTeacherGateBypassed(studentId: string): boolean {
+  if (isProductionLike()) return false;
+  const flag = process.env.LOTUS_DEV_OBSERVER_BYPASS;
+  if (flag === "false") return false;
+  return flag === "true" || isDemoStudentId(studentId);
 }
 
 /**
@@ -98,7 +103,7 @@ export class LotusController {
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
     const session = await this.lotus.getForObserver(id);
-    if (actor.role === "student" && observerTeacherGateBypassed()) assertStudentAccess(actor, session.studentId);
+    if (actor.role === "student" && observerTeacherGateBypassed(session.studentId)) assertStudentAccess(actor, session.studentId);
     else {
       assertTeacher(actor);
       await this.studio.assertCanObserve(actor, session);
@@ -157,8 +162,11 @@ export class LotusController {
   ) {
     const actor = resolveActor(headers);
     const session = await this.lotus.get(id);
-    assertTeacher(actor);
-    await this.studio.assertCanObserve(actor, session);
+    if (actor.role === "student" && observerTeacherGateBypassed(session.studentId)) assertStudentAccess(actor, session.studentId);
+    else {
+      assertTeacher(actor);
+      await this.studio.assertCanObserve(actor, session);
+    }
     return this.lotus.unseenPlan(id);
   }
 
@@ -175,14 +183,30 @@ export class LotusController {
       working: body.working,
       confidence: body.confidence,
       ...(body.interactionContext ? { interactionContext: body.interactionContext } : {}),
-      responseTimeMs: body.responseTimeMs,
+      // The browser's figure can include time before the question was ready, or a restored tab's
+      // old start: capped like the test clock caps each question.
+      responseTimeMs: Math.min(body.responseTimeMs, LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION * 1000),
       didNotKnow: body.didNotKnow,
       questionId: body.questionId,
       nextQuestionId: body.nextQuestionId,
       submissionId: body.submissionId,
+      ...(body.developerMode !== undefined ? { developerMode: body.developerMode } : {}),
       ...(body.interaction ? { interaction: body.interaction } : {}),
       ...(body.game ? { game: body.game } : {}),
+      ...(body.typing ? { typing: body.typing } : {}),
     });
+  }
+
+  /** Resolve a durable, local-demo-only stopping decision. */
+  @Post("sessions/:id/developer-exit")
+  developerExit(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: DeveloperLotusExitDto,
+  ): Promise<LotusSessionView> {
+    const actor = resolveActor(headers);
+    assertStudentAccess(actor, body.studentId);
+    return this.lotus.chooseDeveloperExit(id, body.studentId, body.decisionId, body.choice);
   }
 
   /** "How did you get it?": the student's one tap after an answer code couldn't explain. */
@@ -259,8 +283,17 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ): Promise<{ deletedSessions: number }> {
-    assertTeacher(resolveActor(headers));
+    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
     return this.lotus.deleteStudentData(studentId);
+  }
+
+  /** What Cogna remembers about this student across tests and lessons. */
+  @Get("students/:studentId/memory")
+  learnerMemory(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("studentId") studentId: string,
+  ) {
+    return this.lotus.learnerMemory(resolveActor(headers), studentId);
   }
 
   @Get("students/:studentId/export")
@@ -268,7 +301,7 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ) {
-    assertTeacher(resolveActor(headers));
+    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
     return this.lotus.exportStudentData(studentId);
   }
 

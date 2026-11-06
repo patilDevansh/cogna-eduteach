@@ -1,5 +1,5 @@
 import type { StudentInteractionContext } from "./interaction-context";
-import type { LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
+import type { EditHistorySample, LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
  *
@@ -104,6 +104,11 @@ export interface LotusQuestion {
    */
   requiresConfidenceProbe?: boolean;
   /**
+   * Where the question came from, set by the server on the session view (the diagnostics that say so are
+   * stripped from it). Never answer-bearing. Absent on a question with no diagnostics.
+   */
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME" | "HARDCODED_SYSTEM";
+  /**
    * When set, the student answers by building from tiles instead of typing
    * (see interaction-formats.ts). Built on the server from the verified
    * answer key; carries no answer. The picks are re-assembled server-side.
@@ -165,6 +170,8 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  /** Local standalone demo only. Requests a developer decision before an automatic exit. */
+  developerMode?: boolean;
   interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
@@ -182,6 +189,10 @@ export interface LotusStudentResponse {
   game?: LotusGameResponse;
   /** Server-only: what the server read from `game`. Anything sent by the browser is discarded. */
   gameReading?: LotusGameReading;
+  /** Every change to an ordinary typed answer, timed from when the question appeared, as Typing replay keeps it. */
+  typing?: EditHistorySample[];
+  /** Server-only: what the server read from `typing` (drafts that match a known mistake, pauses). Anything sent is discarded. */
+  typingReading?: LotusGameReading;
 }
 
 export interface LotusMathVerification {
@@ -288,6 +299,8 @@ export interface LotusFinalReport {
   skills?: LotusSkillSummary[];
   /** C1: the AI's read of the whole test; never changes the facts above. */
   overallReview?: LotusOverallReview;
+  /** What Cogna remembers about these skills from earlier tests and lessons: a mistake that keeps coming back, a gap since fixed. */
+  memory?: string[];
 }
 
 export type LotusSkillState = "UNTESTED" | "OBSERVED" | "SECURE" | "SUSPECTED" | "CONFIRMED" | "NOT_TESTED_DEPENDENCY";
@@ -318,6 +331,20 @@ export interface LotusSkillEvidence {
   description?: string;
   /** REASON: the student's own one-tap answer to "How did you get it?". */
   source: "INSTANT" | "ANALYSIS" | "REASON";
+  /**
+   * SECURE only: right, but a split-confidence play also put chips on a wrong
+   * option (the mistake it shows, when the option names one). A doubt, never a
+   * mistake: one doesn't count the skill secure, and the same doubt twice makes it suspected.
+   */
+  hedge?: LotusSkillHedge;
+}
+
+export interface LotusSkillHedge {
+  /** Chips on the wrong option, out of LOTUS_SPLIT_TOKENS. */
+  chips: number;
+  /** The wrong option, as shown. */
+  option: string;
+  mistake?: string;
 }
 
 /** One choice in a "How did you get it?" follow-up. What it means is kept on the server. */
@@ -335,6 +362,8 @@ export interface LotusReasonCheck {
   options: LotusReasonOption[];
   chosenId?: string;
   chosenAt?: string;
+  /** Set when the chosen reason is something the answer itself contradicts: kept as a note, never as evidence. */
+  mismatchNote?: string;
 }
 
 /**
@@ -644,7 +673,19 @@ export interface LotusLiveProgress {
   updatedAt: string;
 }
 
+/** A skill earlier tests or lessons left open, carried into a new test (apps/api/src/learner/learner-memory.ts). */
+export interface LotusLedgerPrior {
+  skillId: string;
+  /** GAP: an earlier test found a gap. TAUGHT: a lesson since, whose result a test hasn't checked yet. */
+  reason: "GAP" | "TAUGHT";
+  /** The mistakes seen before, so this test re-checks the same one. */
+  mistakes: string[];
+  note: string;
+}
+
 export interface LotusSessionView {
+  /** Durable local-demo pause after saving an answer and before completing the diagnostic. */
+  developerExitPrompt?: LotusDeveloperExitPrompt;
   sessionId: string;
   studentId: string;
   grade: 8;
@@ -663,7 +704,14 @@ export interface LotusSessionView {
   reportPending?: boolean;
   experimental: true;
   phase: LotusPhase;
+  /**
+   * Server only (stripped from every copy a browser gets): what earlier tests and lessons left open
+   * about this student, carried in as suspicions so this test re-checks them first.
+   */
+  priors?: LotusLedgerPrior[];
   startedAt: string;
+  /** When enough questions were ready to begin. The test clock starts here, so waiting for questions to be written never uses up test time. */
+  questionsReadyAt?: string;
   currentQuestion: LotusQuestion | null;
   /** Prompt-only authorized future items. Answer keys are always redacted from active-session API responses. */
   upcomingQuestions?: LotusQuestion[];
@@ -708,6 +756,7 @@ export interface LotusUnseenPlanEntry {
 }
 
 export interface LotusStatusResponse {
+  factorisationTimeLimitSeconds?: number;
   enabled: boolean;
   ready: boolean;
   missingConfiguration: string[];
@@ -716,6 +765,15 @@ export interface LotusStatusResponse {
   progressiveStreamingEnabled: boolean;
   /** Present when the AI provider recently refused calls at the account level (no credits, bad key). */
   unavailableReason?: string;
+}
+
+export interface LotusDeveloperExitPrompt {
+  decisionId: string;
+  reason: "TIME_LIMIT" | "STARTING_POINT_FOUND" | "PLAN_COMPLETE" | "NO_READY_QUESTION";
+  message: string;
+  answeredQuestions: number;
+  canContinue: boolean;
+  nextQuestionNumber?: number;
 }
 
 /** At most this much of one question's time counts toward the check's time limit. */

@@ -11,6 +11,7 @@ import {
   classifyExpansion,
   classifyFactorisation,
   exactDecimals,
+  finalAnswerText,
   isReadable,
   normalizeMathText,
   readNumberAnswer,
@@ -56,7 +57,9 @@ const TASKS = new Set(["factorise", "expand", "simplify", "calculate"]);
 const FORMATS = new Set(["pair-hunt", "spot-mistake", "choose", "type-answer", "factor-safe", "build", "rectangle", "mark-it", "rush"]);
 
 /** Verdict of an answer to a task on an expression, by exact algebra. */
-export function taskVerdict(task: AuthoredTask, answer: string, expression: string): "CORRECT" | "UNFINISHED" | "INCORRECT" | "UNREADABLE" {
+export function taskVerdict(task: AuthoredTask, typed: string, expression: string): "CORRECT" | "UNFINISHED" | "INCORRECT" | "UNREADABLE" {
+  // "Ans: 7(x + 4).", "= 7(x + 4)" and "7x + 28 = 7(x + 4)" all mean 7(x + 4).
+  const answer = finalAnswerText(typed) || typed;
   if (task === "calculate") {
     // A number (units and ₹ allowed) is finished; working that still equals the expression isn't.
     const value = readNumberAnswer(answer) ?? (isReadable(answer) ? answer : null);

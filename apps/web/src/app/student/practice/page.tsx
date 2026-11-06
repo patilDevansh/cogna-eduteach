@@ -235,8 +235,10 @@ function PracticeContent() {
         if (replay || superseded) {
           setSessionId(cached.sessionId); setAnswer(cached.answer); setPhase("recovery-error");
           setBlockedRecovery(replay ? "saved" : "stale");
-          setError(replay ? "Your answer was saved, but the next step could not be completed in this review session." : "This answer was not saved because this question already has a different submitted answer.");
-          setRecoveryMessage("Your typed answer is retained in this browser. Check the learning record for the saved answer.");
+          // A saved answer's next step can still succeed: keep the frozen request so Try again resends the same event.
+          if (replay) { setCurrent(cached.current); setSessionStartedAt(cached.startedAt); pendingPayload.current = cached.pending; pendingEventId.current = cached.pending?.eventId ?? null; }
+          setError(replay ? "We couldn't load your next step just now. Try again, or come back later." : "This answer was not saved because this question already has a different submitted answer.");
+          setRecoveryMessage(replay ? "Nothing is lost: your answer is in your learning record." : "Your typed answer is retained in this browser. Check the learning record for the saved answer.");
           return;
         }
         const cachedItem = cached.current.payload as QuestionPayload;
@@ -502,6 +504,9 @@ function PracticeContent() {
       const result = await api.submitAnswer(pendingPayload.current);
       pendingEventId.current = null;
       pendingPayload.current = null;
+      setBlockedRecovery(null);
+      setRecoveryMessage("");
+      recoveryReady.current = true;
       setGradeResult({ grade: result.grade, isCorrect: result.isCorrect, attemptId: result.attemptId });
       setConfidenceTap(null);
       if (result.next?.decision.uiAction === "END_SESSION") {
@@ -544,8 +549,8 @@ function PracticeContent() {
       setBlockedRecovery(saved ? "saved" : "stale");
       setPhase("recovery-error");
       setSubmitFailed(false);
-      setError(saved ? "Your answer was saved, but the next step could not be completed in this review session." : "This answer was not saved because the question changed or already has another submitted answer.");
-      setRecoveryMessage("Your typed answer is retained in this browser. Check the learning record for the saved answer.");
+      setError(saved ? "We couldn't load your next step just now. Try again, or come back later." : "This answer was not saved because the question changed or already has another submitted answer.");
+      setRecoveryMessage(saved ? "Nothing is lost: your answer is in your learning record." : "Your typed answer is retained in this browser. Check the learning record for the saved answer.");
       return true;
     } catch { return false; }
   }
@@ -792,7 +797,8 @@ function PracticeContent() {
       <p>{recoveryMessage || "Your local draft has not been replaced."}</p>
       {answer && <details open><summary>Your typed answer — retained here, not applied to another question</summary><p style={{ marginTop: "var(--s-2)", fontWeight: 700 }}>{answer}</p></details>}
       <div className="actions" style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-3)", marginTop: "var(--s-5)" }}>
-        {blockedRecovery ? <Link className="btn btn-primary" href="/student/learning-history">View learning record</Link> : <><button type="button" onClick={()=>window.location.reload()}>Retry session recovery</button><button type="button" onClick={()=>{try{sessionStorage.removeItem(recoveryKey("EXERCISE",studentId,mode));}catch{}window.location.reload();}}>Discard this local draft and start a new session</button></>}
+        {blockedRecovery === "saved" && pendingPayload.current && <button type="button" className="btn btn-primary" disabled={submitting} onClick={()=>void retrySubmit()}>{submitting ? "Trying again…" : "Try again"}</button>}
+        {blockedRecovery ? <Link className={blockedRecovery === "saved" && pendingPayload.current ? "btn btn-ghost" : "btn btn-primary"} href="/student/learning-history">View learning record</Link> : <><button type="button" onClick={()=>window.location.reload()}>Retry session recovery</button><button type="button" onClick={()=>{try{sessionStorage.removeItem(recoveryKey("EXERCISE",studentId,mode));}catch{}window.location.reload();}}>Discard this local draft and start a new session</button></>}
         <Link className="btn btn-ghost" href="/student/home">Back home</Link>
       </div>
     </>);

@@ -34,7 +34,8 @@ try{
  releaseHint();
  await page.getByText('Add the two numbers.',{exact:false}).waitFor();
  await page.getByRole('button',{name:'Check',exact:true}).click();
- await page.getByRole('button',{name:'Retry saving',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Try again',exact:true}).waitFor();
+ check('saved answer with a failed next step is called saved, not unsaved',await page.getByRole('heading',{name:'Your answer was saved'}).isVisible()&&await page.getByRole('button',{name:'Retry saving',exact:true}).count()===0);
  let s=await state();
  const answer=s.raw.find(r=>r.eventType==='ANSWER_SUBMITTED');
  assert.ok(answer,JSON.stringify(s));
@@ -44,10 +45,25 @@ try{
  check('controlled hidden/offline context reaches storage',c.timing.hiddenMs>0&&c.technical.offlineMs>0&&c.timing.visibilityChanges===2);
  check('exercise confidence remains unreported null',c.confidence.status==='NOT_ASKED'&&c.confidence.value===null);
  check('help request is separate durable evidence',s.raw.some(r=>r.eventType==='HINT_REQUESTED')&&answer.payload.hintCount===1);
- await page.getByRole('button',{name:'Retry saving',exact:true}).click();
- await page.getByRole('button',{name:'Retry saving',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Try again',exact:true}).click();
+ await page.getByRole('button',{name:'Try again',exact:true}).waitFor();
  s=await state();
  check('exercise failed downstream retry preserves one immutable answer',s.raw.filter(r=>r.eventType==='ANSWER_SUBMITTED').length===1&&s.attempts.length===1&&JSON.stringify(s.raw.find(r=>r.eventType==='ANSWER_SUBMITTED').payload.interactionContext)===JSON.stringify(c));
+ await page.screenshot({path:'delivery/december-2026/evidence/saved-answer-try-again.png',fullPage:true});
+ await page.reload({waitUntil:'networkidle'});
+ await page.getByRole('button',{name:'Try again',exact:true}).waitFor();
+ await page.getByRole('link',{name:'Back home',exact:true}).click();
+ await page.waitForURL('**/student/home');
+ await page.goto('http://127.0.0.1:4310/student/practice?mode=ADAPTIVE_PRACTICE',{waitUntil:'networkidle',timeout:120000});
+ await page.getByRole('button',{name:'Try again',exact:true}).waitFor();
+ s=await state();
+ check('try again survives a refresh and a return from home without another answer',s.raw.filter(r=>r.eventType==='ANSWER_SUBMITTED').length===1&&s.attempts.length===1);
+ // The fixture's next step always fails, so this one mocked response shows only that a later success moves the student on.
+ await page.route('**/practice/answer',r=>r.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*','access-control-allow-headers':'*'},body:JSON.stringify({grade:'CORRECT',isCorrect:true,attemptId:'mocked-success',next:null})}));
+ await page.getByRole('button',{name:'Try again',exact:true}).click();
+ await page.getByRole('heading',{name:'Your answer was saved'}).waitFor({state:'detached'});
+ check('try again moves the student on when the next step recovers',true);
+ await page.unroute('**/practice/answer');
  await page.screenshot({path:'delivery/december-2026/evidence/interaction-exercise.png',fullPage:true});
  await page.goto('http://127.0.0.1:4310/student/lotus?topic=brackets',{waitUntil:'networkidle',timeout:120000});
  await page.getByRole('button',{name:/Start for/}).click();
@@ -55,7 +71,8 @@ try{
  await page.getByRole('checkbox',{name:/I don.t know this yet/}).check();
  await page.getByRole('button',{name:'Submit answer',exact:true}).click();
  await page.getByRole('button',{name:'Very sure',exact:true}).waitFor();
- s=await state();
+ // The staged next question can show just before the answer's transaction commits.
+ for(let i=0;i<40;i++){s=await state();if(s.lotus?.evidence?.some(r=>r.eventType==='ANSWER'))break;await page.waitForTimeout(250);}
  const first=s.lotus.evidence.find(r=>r.eventType==='ANSWER');
  check('Lotus unasked confidence is null despite legacy60',first.metadata.interactionContext.confidence.status==='NOT_ASKED'&&first.metadata.interactionContext.confidence.value===null);
  check('Lotus explicit no answer leaves first mathematical input unknown',first.metadata.interactionContext.timing.firstInputMs===null);

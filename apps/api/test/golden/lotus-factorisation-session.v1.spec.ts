@@ -537,6 +537,26 @@ describe("factorisation session — safety of the running test", () => {
     assert.match(decision!.implementationDetail, /generated and installed/i);
   });
 
+  it("a targeted check is never built by code, and when the AI and bank can't supply one the planned question stays", async () => {
+    const { models, service } = setup();
+    let view = await startReady(service, "demo_no_code_built");
+    await flush();
+    models.writer = () => { throw new Error("the AI writer is not available for this slot"); };
+    view = await submit(service, view, predictedWrong(service, view));
+    await settle(() => (internal(service, view.sessionId).audits[0]?.adaptiveDecision?.implementation ?? "") === "NOT_APPLIED", 8_000);
+    const session = internal(service, view.sessionId);
+    const f = session.factorisation;
+    const items = Object.values(f.versions).flat() as Array<{ answerKey: { diagnostics?: { origin?: string } } }>;
+    assert.ok(items.length > 0);
+    assert.ok(!items.some((item) => item.answerKey.diagnostics?.origin === "CODE"), "no served or planned item was built by code");
+    const decision = session.audits[0].adaptiveDecision;
+    assert.equal(decision.implementation, "NOT_APPLIED");
+    assert.match(decision.implementationDetail, /already planned for question \d+ stays/);
+    const held = f.state.turns.filter((t: { turn: number; status: string }) => t.turn > f.state.planTurn && t.status === "SKIPPED" && !("held" in t));
+    assert.ok(!f.state.turns.some((t: { turn: number; status: string; held?: unknown }) => t.turn === decision.targetTurn && t.status === "SKIPPED"), "the slot is not left empty");
+    assert.ok(Array.isArray(held));
+  });
+
   it("keeps an installed adaptation tag in the internal audit only while the diagnostic is active", async () => {
     const { models, service } = setup();
     let release!: () => void;

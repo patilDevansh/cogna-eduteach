@@ -1,6 +1,6 @@
 import type { LotusGameConfig, LotusGameKind, LotusQuestion, LotusStudentResponse } from "@cogna/shared";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
-import { chooseLotusGame, gameOfPreferredKind, isTypedGame, LotusGameError, readLotusGame, themedGamesEnabled } from "./lotus-games";
+import { checkedPlainTyping, chooseLotusGame, gameOfPreferredKind, isTypedGame, LotusGameError, readLotusGame, readTypingRecord, themedGamesEnabled } from "./lotus-games";
 import { DRESSABLE_KINDS } from "./lotus-format-guide";
 import { buildLotusPuzzle } from "./lotus-puzzles";
 import { prettyPowers } from "./lotus-question-factory";
@@ -100,6 +100,14 @@ export function redressedQuestion(question: LotusQuestion, kinds: readonly Lotus
   return next;
 }
 
+/** The formats this question can be asked in: its own game if it is built around one, else every format that dresses it. */
+export function fittingFormats(question: LotusQuestion): LotusGameKind[] {
+  if (question.presentation || question.interaction || (question.game && !DRESSABLE_KINDS.includes(question.game.kind))) {
+    return question.game ? [question.game.kind] : [];
+  }
+  return DRESSABLE_KINDS.filter((kind) => question.game?.kind === kind || !!gameOfPreferredKind(question, [kind]));
+}
+
 export class TileAnswerError extends Error {}
 
 /**
@@ -110,8 +118,13 @@ export class TileAnswerError extends Error {}
  */
 export function resolveLotusResponse(question: LotusQuestion, response: LotusStudentResponse): LotusStudentResponse {
   // A reading is something the server writes; one sent by the browser is never kept.
-  const { gameReading: _reading, ...sent } = response;
+  const { gameReading: _reading, typingReading: _typingReading, typing: sentTyping, ...sent } = response;
   response = sent;
+  // An ordinary typed answer keeps its typing record, read the way Typing replay is.
+  if (!response.game && !response.interaction && !response.didNotKnow && !question.interaction && question.answerKey.diagnostics) {
+    const typing = checkedPlainTyping(sentTyping, response.answer);
+    if (typing) return { ...response, typing, typingReading: readTypingRecord(question, typing) };
+  }
   if (response.game && !response.didNotKnow) {
     // A game's answer is rebuilt, and its process read, from the payload against the game this server issued.
     let read: ReturnType<typeof readLotusGame>;

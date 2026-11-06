@@ -3,6 +3,7 @@ import type {
   CommitThenChooseResponse,
   EditHistoryGame,
   EditHistoryResponse,
+  EditHistorySample,
   FourSignsGame,
   FourSignsResponse,
   LotusBracketSign,
@@ -252,8 +253,9 @@ export function chooseLotusGame(question: LotusQuestion, context: { turn: number
   if (twoBracket) return twoBracket;
   const chips = buildOptionChips(question);
   const typed = (kind: LotusGameKind) => buildLotusGame(question, kind);
-  // Chips every other turn, the typed games taking turns between, so the same format doesn't come round twice running.
-  const rotation: Array<() => LotusGameConfig | undefined> = [() => chips, () => typed("READBACK"), () => chips, () => typed("EDIT_HISTORY")];
+  // Chips every other turn, typed with the drafts kept between. Confirm your input (READBACK) is no longer
+  // issued: its read-back panel added a step without telling us more. It is still read for sessions that have one.
+  const rotation: Array<() => LotusGameConfig | undefined> = [() => chips, () => typed("EDIT_HISTORY")];
   const offered = rotation.map((_, i) => rotation[(context.turn - 1 + i) % rotation.length]!()).filter((game): game is LotusGameConfig => !!game);
   return offered.find((game) => game.kind !== context.previousKind) ?? offered[0];
 }
@@ -540,7 +542,7 @@ function readSplit(question: LotusQuestion, t: Target | null, game: SplitConfide
     signals.push("leans");
   }
   const clean = { kind: "SPLIT_CONFIDENCE" as const, counts: [...counts] };
-  const reading = { kind: "SPLIT_CONFIDENCE" as const, summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { shape, leaderKind: kinds[top.i]! } };
+  const reading = { kind: "SPLIT_CONFIDENCE" as const, summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { shape, leaderKind: kinds[top.i]! } as Record<string, number | string | boolean> };
   if (top.n === 1) {
     return { answer: "I don't know", didNotKnow: true, game: clean, reading };
   }
@@ -550,8 +552,20 @@ function readSplit(question: LotusQuestion, t: Target | null, game: SplitConfide
   // One token more on an answer than on the others is a lean, not a belief: it shows neither that they know it nor a mistake.
   const leaning = signals.includes("leans");
   const wrongNote = signals.includes("torn") ? "Was torn between two answers, and one of them was wrong." : "Put most of their confidence on a wrong answer.";
+  // Mostly right: the one chip elsewhere is a doubt about the mistake that option shows, when it names one.
+  const doubted = shape === "3–1" && markedKind === "right" ? order[1]! : undefined;
+  const doubtMistake = doubted === undefined ? undefined
+    : t ? (kinds[doubted.i] !== "right" && kinds[doubted.i] !== "other" ? mistakeOf(question, kinds[doubted.i]!, "").mistake : undefined)
+      : predicted.find((m) => equalSafe(m.answer, game.options[doubted.i]!))?.mistake;
+  const hedge = doubted ? { chips: doubted.n, option: game.options[doubted.i]!, ...(doubtMistake ? { mistake: doubtMistake } : {}) } : undefined;
+  if (hedge) {
+    reading.facts.hedgeChips = hedge.chips;
+    if (hedge.mistake) { reading.facts.hedgeMistake = hedge.mistake; signals.push(`doubt_${hedge.mistake}`); }
+    else signals.push("doubt_unlabelled");
+  }
   const diagnosis: LotusGameDiagnosis = markedKind === "right"
-    ? (leaning ? { effect: "NO_EVIDENCE", note: "Leaned towards the right answer, but was unsure." } : { effect: "NEEDS_ANOTHER", note: "Put most of their confidence on the right answer." })
+    ? (leaning ? { effect: "NO_EVIDENCE", note: "Leaned towards the right answer, but was unsure." }
+      : { effect: "NEEDS_ANOTHER", note: hedge ? `Put most of their confidence on the right answer, with a doubt about ${tidyAlgebra(hedge.option)}.` : "Put most of their confidence on the right answer.", ...(hedge ? { hedge } : {}) })
     : leaning ? { effect: "DOESNT_KNOW", note: "Leaned towards a wrong answer, but was unsure." }
     : t
       ? mistakeOf(question, markedKind, wrongNote)
@@ -660,17 +674,36 @@ function readFourSigns(question: LotusQuestion, t: Target, game: FourSignsGame, 
 
 function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Read {
   const history = checkedHistory(raw.history);
-  const final = history[history.length - 1]!.v;
+  const reading = readTypingRecord(question, history);
+  return { answer: history[history.length - 1]!.v, game: { kind: "EDIT_HISTORY", history }, reading };
+}
 
+/** Whether typed text is the question's answer: by expansion for a factorisation, else against the key. */
+function typedIsRight(question: LotusQuestion, text: string): boolean {
   const d = question.answerKey.diagnostics!;
-  const expression = d.expression!;
-  const isRight = (text: string) => { try { return classifyFactorisation(text, expression) === "CORRECT"; } catch { return false; } };
+  try {
+    if (d.itemKind === "FACTORISE" && d.expression) return classifyFactorisation(text, d.expression) === "CORRECT";
+    const key = question.answerKey.canonicalAnswer;
+    return normalizeMathText(text).toLowerCase() === normalizeMathText(key).toLowerCase() || (isReadable(text) && equalSafe(text, key));
+  } catch { return false; }
+}
+
+/**
+ * What the drafts and pauses of a typed answer show: a discarded draft that
+ * matches a known mistake, how many drafts there were, and the longest pause.
+ * The same reading for Typing replay and for an ordinary typed answer.
+ */
+export function readTypingRecord(question: LotusQuestion, history: EditHistorySample[]): LotusGameReading {
+  const final = history[history.length - 1]!.v;
+  const d = question.answerKey.diagnostics!;
+  const expression = d.expression;
+  const isRight = (text: string) => typedIsRight(question, text);
   const mistakeIn = (text: string): string | undefined => {
     if (isRight(text)) return undefined;
     const key = normalizeMathText(text).toLowerCase();
     return d.predictedMistakes.find((m) => normalizeMathText(m.answer).toLowerCase() === key
       // An unfinished mistake equals the expression in value, so only its exact text counts.
-      || (isReadable(text) && !equalSafe(m.answer, expression) && equalSafe(text, m.answer)))?.mistake;
+      || (isReadable(text) && !(expression && equalSafe(m.answer, expression)) && equalSafe(text, m.answer)))?.mistake;
   };
   // A draft: what stood in the box just before the student started deleting.
   const drafts = history.filter((s, k) => {
@@ -681,6 +714,8 @@ function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Rea
   const buggy = [...new Set(drafts.map((x) => mistakeIn(x.v)).filter((m): m is string => !!m))];
   const right = isRight(final);
   const finalMistake = mistakeIn(final);
+  // Equal to the expression but not fully factorised, e.g. x(6x + 10y) for 6x² + 10xy.
+  const unfinished = !right && d.itemKind === "FACTORISE" && !!expression && (() => { try { return classifyFactorisation(final, expression) === "UNFINISHED"; } catch { return false; } })();
   let gap = 0;
   let gapAfter = "";
   history.forEach((s, k) => {
@@ -688,25 +723,39 @@ function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Rea
     if (g > gap) { gap = g; gapAfter = k ? history[k - 1]!.v : ""; }
   });
 
-  const signals: string[] = [right ? "final_right" : finalMistake ? "final_known_mistake" : "final_other"];
+  const signals: string[] = [right ? "final_right" : unfinished && !finalMistake ? "final_unfinished" : finalMistake ? "final_known_mistake" : "final_other"];
+  if (!right) signals.push(...buggy.map((m) => `draft_mistake:${m}`));
   const word = drafts.length === 1 ? "draft" : "drafts";
   let summary: string;
   if (right && buggy.length) { summary = `Finished right, but a discarded draft matched a known mistake (${mistakeWords(buggy[0]!)}). They caught it this time; the mistake is still live.`; signals.push("caught_own_mistake", ...buggy.map((m) => `draft_mistake:${m}`)); }
   else if (right && !drafts.length) { summary = "Straight through, no changes. Fluent."; signals.push("straight_through"); }
   else if (right) { summary = `Right, after ${drafts.length} discarded ${word}. None matched a known mistake.`; signals.push("discarded_drafts"); }
+  else if (unfinished && !finalMistake) summary = "Equal to the expression but not fully factorised.";
   else if (finalMistake) { summary = `Finished with a known mistake (${mistakeWords(finalMistake)}).`; signals.push(`final_mistake:${finalMistake}`); }
-  else summary = "Finished with something that isn't the factorisation.";
+  else summary = d.itemKind === "FACTORISE" ? "Finished with something that isn't the factorisation." : "Finished with something that isn't the answer.";
+  if (!right && buggy.length) summary += ` A discarded draft matched a known mistake (${mistakeWords(buggy[0]!)}).`;
   if (gap > 1500) { summary += ` Longest pause: ${(gap / 1000).toFixed(1)}s${gapAfter ? ` after “${gapAfter}”` : " before starting"}.`; signals.push("long_pause"); }
   return {
-    answer: final,
-    game: { kind: "EDIT_HISTORY", history },
-    reading: {
-      kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,
-      // Typed like any other answer, so it is marked and reviewed like one. Only a caught mistake changes anything: they fixed it, but it's still live.
-      ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves." } } : {}),
-      facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap },
-    },
+    kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,
+    // Typed like any other answer, so it is marked and reviewed like one. Only a caught mistake changes anything: they fixed it, but it's still live.
+    ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves." } } : {}),
+    facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap, firstKeyMs: history[0]!.t },
   };
+}
+
+/**
+ * The typing record of an ordinary typed answer, checked like Typing replay's, with
+ * the submitted answer as its last entry. Undefined when there is none or it's malformed:
+ * a bad record never blocks a submission, it just isn't read.
+ */
+export function checkedPlainTyping(samples: unknown, answer: string): EditHistorySample[] | undefined {
+  if (samples === undefined) return undefined;
+  let history: EditHistorySample[];
+  try { history = checkedHistory(samples); } catch { return undefined; }
+  const last = history[history.length - 1]!;
+  if (normalizeMathText(last.v) === normalizeMathText(answer)) return history;
+  if (history.length >= LOTUS_EDIT_MAX_SAMPLES || answer.length > LOTUS_EDIT_MAX_LENGTH) return undefined;
+  return [...history, { t: last.t, v: answer }];
 }
 
 function readRectangle(question: LotusQuestion, t: Target, game: RectangleGame, raw: RectangleResponse): Read {

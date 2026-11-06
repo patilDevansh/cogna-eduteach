@@ -16,6 +16,7 @@
 import type {
   LotusFinalReport,
   LotusItemDiagnostics,
+  LotusLedgerPrior,
   LotusMathVerification,
   LotusQuestion,
   LotusQuestionAudit,
@@ -28,14 +29,22 @@ import type {
 } from "@cogna/shared";
 import { LOTUS_SELECT_SEPARATOR, assembleTileAnswer } from "@cogna/shared";
 import { assessSkillEvidence } from "./lotus-evidence-assessment";
+import { mistakeInWords } from "./lotus-reasons";
 import {
   algebraicallyEqual,
   classifyExpansion,
   classifyFactorisation,
   classifySimplification,
+  type CommonFactorReading,
+  finalAnswerText,
   factorisationDefect,
-  nonConstantFactorCount,
+  bracketFactorCount,
+  squarePatternMistake,
+  expressionCanShowSkill,
+  expressionHasCommonLetter,
+  lettersFullyTakenOut,
   normalizeMathText,
+  readCommonFactor,
   readNumberAnswer,
   sameFactorisation,
   sameNumber,
@@ -49,6 +58,7 @@ import {
   ownerOfMistake,
   skillName,
   skillsUsedBy,
+  SOFT_PREREQUISITES,
 } from "./lotus-factorisation-catalogue";
 import { checkSpecFor } from "./lotus-skill-checks";
 import { SHARED_PATTERNS } from "./lotus-skill-map";
@@ -66,6 +76,8 @@ export interface FactorisationTurn {
   reason?: string;
   /** Bumped on every change, so a background result for an older version is thrown away. */
   version: number;
+  /** What the slot was before a rewrite put it on hold, so a rewrite that can't be prepared leaves the planned question in place. */
+  held?: { status: "PLANNED" | "REPURPOSED"; purpose?: FactorisationTurn["purpose"]; forSkill?: string; reason?: string };
 }
 
 export interface FactorisationState {
@@ -86,6 +98,21 @@ export interface FactorisationState {
 
 // ---------- instant verdict ----------
 
+/**
+ * What a student types when they have no answer. Compared after trimming, lower-casing and dropping full stops,
+ * commas, "!" and apostrophes, so "I don't know." and "IDK!" both match. Whole answers only: a bare "1" or "x"
+ * is a real answer, and "I don't know why it is 2(x + 3)" is not in this list.
+ */
+export const DONT_KNOW_PHRASES: ReadonlySet<string> = new Set([
+  "idk", "i dont know", "dont know", "i do not know", "do not know", "dunno", "i dunno", "no idea", "i have no idea",
+  "not sure", "i am not sure", "im not sure", "dk", "?", "??", "???",
+]);
+
+export function isDontKnowText(answer: string | undefined): boolean {
+  const text = (answer ?? "").toLowerCase().replace(/['\u2019.,!]/g, "").replace(/\s+/g, " ").trim();
+  return text !== "" && DONT_KNOW_PHRASES.has(text);
+}
+
 function sameChoice(a: string, b: string): boolean {
   return normalizeMathText(a).toLowerCase() === normalizeMathText(b).toLowerCase();
 }
@@ -96,14 +123,37 @@ function unfinishedCode(answer: string): string {
     case "LETTER_LEFT_INSIDE": return "PARTIAL_GCF";
     case "FACTOR_SPLITS_FURTHER": return "INCOMPLETE_FACTORISATION";
     case "NUMBER_LEFT_INSIDE":
-      // (2x + 4)(x + 3) — split first, common factor never taken out — is a method mistake; 2(6x + 9) is not the highest factor.
-      return nonConstantFactorCount(answer) >= 2 ? "SKIPPED_COMMON_FACTOR_CHECK" : "COMMON_NOT_HIGHEST";
+      // (2x + 4)(x + 3): two brackets, common factor never taken out, is a method mistake. One bracket (2(6x + 9), x(6x + 10y)) is not the highest factor.
+      return bracketFactorCount(answer) >= 2 ? "SKIPPED_COMMON_FACTOR_CHECK" : "COMMON_NOT_HIGHEST";
     default: return "INCOMPLETE_FACTORISATION";
   }
 }
 
+/**
+ * How much a mistake matters when one answer carries several (lower = look at it first):
+ * 0 a misconception about what the task means (a sum with brackets counted as factorised),
+ * 1 a method mistake, 2 a completeness miss (stopped too early, a factor left in).
+ * A misconception can sit under a miss, never the other way round, so it is probed first.
+ */
+export function mistakeRank(code: string | undefined): number {
+  if (!code) return 1;
+  if (MEANING_RANKED.has(code)) return 0;
+  if (COMPLETENESS_RANKED.has(code)) return 2;
+  return 1;
+}
+const MEANING_RANKED = new Set(["SUM_ACCEPTED_AS_FACTORISED", "TERMS_VS_FACTORS", "BRACKET_NOT_SEEN_AS_FACTOR", "SHAPE_MISREAD"]);
+const COMPLETENESS_RANKED = new Set(["INCOMPLETE_FACTORISATION", "PARTIAL_GCF", "COMMON_NOT_HIGHEST", "SKIPPED_COMMON_FACTOR_CHECK", "STOPPED_AT_COMPOSITE_FACTOR", "NOT_FULLY_SIMPLIFIED"]);
+
+/** "Chose 2(2x + 6): divided only the first term by the common factor." */
+function named(what: string, mistake: string): string {
+  return `${what}: ${mistakeInWords(mistake) ?? mistake.toLowerCase().replace(/_/g, " ")}.`;
+}
+
 function secureAll(d: LotusItemDiagnostics): LotusSkillEvidence[] {
-  return skillsUsedBy(d).map((skillId) => ({ skillId, kind: "SECURE" as const, source: "INSTANT" as const }));
+  // The question's own skill is always credited; a tagged or step skill only when the expression can exercise it.
+  return skillsUsedBy(d)
+    .filter((skillId) => skillId === d.skillId || expressionCanShowSkill(skillId, d.expression))
+    .map((skillId) => ({ skillId, kind: "SECURE" as const, source: "INSTANT" as const }));
 }
 
 export interface InstantVerdict {
@@ -115,26 +165,72 @@ export interface InstantVerdict {
 }
 
 export function instantVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
-  return withGameDiagnosis(question, response, markedVerdict(question, response));
+  return withGameLimits(question, withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response))));
+}
+
+/**
+ * Skills a game's play cannot demonstrate, whatever the item's tags say: choosing values to test a claim shows
+ * checking a claim, not expanding a bracket. The question's own skill is never dropped.
+ */
+const GAME_CANT_SHOW: Partial<Record<string, string[]>> = {
+  TEST_CLAIM: ["EXP_EXPAND_BINOMIALS"],
+};
+function withGameLimits(question: LotusQuestion, verdict: InstantVerdict): InstantVerdict {
+  const blocked = GAME_CANT_SHOW[question.game?.kind ?? ""];
+  const own = question.answerKey.diagnostics?.skillId;
+  if (!blocked) return verdict;
+  return { ...verdict, evidence: verdict.evidence.filter((e) => !(e.kind === "SECURE" && blocked.includes(e.skillId) && e.skillId !== own)) };
+}
+
+/**
+ * A discarded draft that matches no known mistake, under an answer that isn't fully right and that code
+ * couldn't pin on a predicted mistake, is something only the background review can read.
+ */
+function withDraftDoubt(response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
+  if (verdict.needsAnalysis || response.didNotKnow || verdict.verification.status === "VERIFIED_CORRECT") return verdict;
+  const reading = response.gameReading?.kind === "EDIT_HISTORY" ? response.gameReading : response.typingReading;
+  const facts = reading?.facts as { drafts?: number } | undefined;
+  if (!reading || !facts?.drafts) return verdict;
+  if (reading.signals.some((s) => s.startsWith("draft_mistake:"))) return verdict;
+  if (verdict.evidence.some((e) => e.kind !== "SECURE" && e.mistake && e.source === "INSTANT" && verdict.verification.status === "VERIFIED_INCORRECT")) return verdict;
+  return { ...verdict, needsAnalysis: true };
 }
 
 /**
  * A themed game's reading decides how far a marked answer counts towards the
  * skill. It never changes the mark, except that an answer which only a game can
  * give ("None of these") is plainly wrong rather than unreadable. Code settles
- * all of this, so a game never needs an AI review.
+ * all of this. The one exception is a mostly-right split whose other chip sits on
+ * an option no known mistake explains, or that came with working: the background
+ * review reads that, and the student never waits for it.
  */
 function withGameDiagnosis(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
   const diagnosis = response.gameReading?.diagnosis;
-  if (!diagnosis || response.didNotKnow) return verdict;
+  if (!diagnosis || response.didNotKnow || verdict.verification.status === "NO_ANSWER") return verdict;
   const d = question.answerKey.diagnostics!;
   const description = diagnosis.note;
   switch (diagnosis.effect) {
     case "SECURE":
-    case "NEEDS_ANOTHER":
       return verdict;
-    case "NO_EVIDENCE":
-      return { ...verdict, evidence: [], needsAnalysis: false };
+    case "NEEDS_ANOTHER": {
+      const hedge = diagnosis.hedge;
+      if (!hedge || verdict.verification.status !== "VERIFIED_CORRECT") return verdict;
+      // The doubt belongs to the skill the doubted option's mistake shows, else to the question's own skill.
+      const owner = hedge.mistake ? ownerOfMistake(hedge.mistake, d) : d.skillId;
+      const holder = verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === owner) ? owner : d.skillId;
+      const evidence = verdict.evidence.map((e) => (e.kind === "SECURE" && e.skillId === holder ? { ...e, hedge } : e));
+      const working = !!response.working?.trim();
+      return { ...verdict, evidence, needsAnalysis: verdict.needsAnalysis || !hedge.mistake || working };
+    }
+    case "NO_EVIDENCE": {
+      // A torn split on a RIGHT answer proves nothing either way. On a wrong one it must not silence the review:
+      // a named mistake stays, as a doubt (the chips did not settle it), and with none named the review reads it.
+      if (response.gameReading?.kind !== "SPLIT_CONFIDENCE" || verdict.verification.status === "VERIFIED_CORRECT") return { ...verdict, evidence: [], needsAnalysis: false };
+      const doubted = verdict.evidence.map((e) => (e.kind === "MISTAKE" || e.kind === "UNFINISHED")
+        ? { ...e, description: `${(e.description ?? "").replace(/\.$/, "")} (the chips were split, so this is a doubt, not a settled mistake).`.trim() } : e);
+      const named = doubted.some((e) => e.kind !== "SECURE");
+      return { ...verdict, evidence: doubted, needsAnalysis: verdict.needsAnalysis || !named };
+    }
     case "DOESNT_KNOW":
       return {
         ...verdict,
@@ -144,9 +240,16 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       };
     case "MISTAKE": {
       // The question's own predicted mistake is more exact than one worked out from the play.
-      if (verdict.evidence.some((e) => e.kind === "MISTAKE" && e.mistake)) return { ...verdict, needsAnalysis: false };
+      const named = verdict.evidence.some((e) => e.kind === "MISTAKE" && e.mistake);
       const skillId = diagnosis.mistake ? ownerOfMistake(diagnosis.mistake, d) : d.skillId;
-      return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }], needsAnalysis: false };
+      // Right picks that show another skill on their own are kept as secure evidence for it (never a skill that has a mistake here).
+      const blamed = new Set(named ? verdict.evidence.filter((e) => e.kind !== "SECURE").map((e) => e.skillId) : [skillId]);
+      const credited: LotusSkillEvidence[] = (diagnosis.creditFor ?? [])
+        .map((code) => ownerOfMistake(code, d))
+        .filter((owner, i, all) => !blamed.has(owner) && all.indexOf(owner) === i && (skillsUsedBy(d).includes(owner) || (findSkill(d.skillId)?.dependsOn ?? []).includes(owner)) && expressionCanShowSkill(owner, d.expression))
+        .map((owner) => ({ skillId: owner, kind: "SECURE" as const, source: "INSTANT" as const, description: "Right picks on both the positive and the negative side." }));
+      if (named) return { ...verdict, evidence: [...verdict.evidence, ...credited], needsAnalysis: false };
+      return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }, ...credited], needsAnalysis: false };
     }
   }
 }
@@ -168,6 +271,19 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   }
 
   const answer = response.answer;
+  // "idk" typed into the answer box: a don't-know, not a wrong answer. The drafts and the working still carry
+  // partial evidence (a factor found, a stuck point), so a review reads them when there are any.
+  const typedItem = d.itemKind === "FACTORISE" || d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND" || d.itemKind === "NUMBER";
+  if (typedItem && isDontKnowText(answer)) {
+    const reading = response.gameReading?.kind === "EDIT_HISTORY" ? response.gameReading : response.typingReading;
+    const drafts = Number((reading?.facts as { drafts?: number } | undefined)?.drafts ?? 0);
+    return {
+      verification: verification("NO_ANSWER", "The student typed that they don't know; this is recorded as a support signal."),
+      evidence: [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "INSTANT", description: "Typed that they don't know this yet." }],
+      fastSkip: false,
+      needsAnalysis: drafts > 0 || !!response.working?.trim(),
+    };
+  }
   if (question.interaction?.format === "FACTOR_CROSSWORD") {
     // Rebuild again at this boundary: caller-supplied text cannot override tile picks.
     const built = response.interaction ? assembleTileAnswer(question.interaction, response.interaction.picks) : answer;
@@ -190,13 +306,17 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
     if (chosen.size === keyed.size && [...chosen].every((c) => keyed.has(c))) {
       return { verification: verification("VERIFIED_CORRECT", "Chose exactly the right options."), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
     }
-    const accepted = d.predictedMistakes.filter((p) => chosen.has(normalizeMathText(p.answer).toLowerCase()));
+    // Weightiest mistake first, so the plan and the observer text lead with it.
+    const accepted = d.predictedMistakes.filter((p) => chosen.has(normalizeMathText(p.answer).toLowerCase()))
+      .sort((a, b) => mistakeRank(a.mistake) - mistakeRank(b.mistake));
+    const leftOut = [...keyed].some((k) => !chosen.has(k));
     return {
       verification: verification("VERIFIED_INCORRECT", accepted.length ? "Chose an option that doesn't fit." : "Left out an option that fits."),
-      evidence: accepted.map((p) => ({ skillId: ownerOfMistake(p.mistake, d), kind: "MISTAKE" as const, mistake: p.mistake, source: "INSTANT" as const, description: `Chose "${p.answer}".` })),
+      evidence: accepted.map((p) => ({ skillId: ownerOfMistake(p.mistake, d), kind: "MISTAKE" as const, mistake: p.mistake, source: "INSTANT" as const, description: named(`Chose "${p.answer}"`, p.mistake) })),
       fastSkip: false,
-      // Only leaving a right option out has no named mistake: the review decides what it means.
-      needsAnalysis: accepted.length === 0,
+      // Code names the wrong picks, but nothing explains a right option left out (or a pick no known mistake covers):
+      // the review decides what that means, whether or not other picks were named.
+      needsAnalysis: accepted.length === 0 || leftOut,
     };
   }
   if (d.itemKind === "CHOICE") {
@@ -204,7 +324,7 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
     const predicted = d.predictedMistakes.find((p) => sameChoice(p.answer, answer));
     return {
       verification: verification("VERIFIED_INCORRECT", "Chose a wrong option."),
-      evidence: predicted ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Chose "${answer}".` }] : [],
+      evidence: predicted ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: named(`Chose "${answer}"`, predicted.mistake) }] : [],
       fastSkip: false,
       needsAnalysis: !predicted,
     };
@@ -221,16 +341,18 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
     const predicted = d.predictedMistakes.find((p) => sameNumber(p.answer, answer));
     return {
       verification: verification("VERIFIED_INCORRECT", `Not equal to ${key}.`),
-      evidence: predicted ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
+      evidence: predicted ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: named(`Wrote ${answer}`, predicted.mistake) }] : [],
       fastSkip: false,
       needsAnalysis: !predicted,
     };
   }
 
   const expression = d.expression!;
-  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(answer, expression, key)
-    : d.itemKind === "EXPAND" ? classifyExpansion(answer, expression)
-      : classifyFactorisation(answer, expression);
+  // What the student meant as the answer: "Ans: 7(x + 4).", "= 7(x + 4)" or "7x + 28 = 7(x + 4)" all mean 7(x + 4).
+  const typed = finalAnswerText(response.answer) || response.answer;
+  const verdict = d.itemKind === "SIMPLIFY" ? classifySimplification(typed, expression, key)
+    : d.itemKind === "EXPAND" ? classifyExpansion(typed, expression)
+      : classifyFactorisation(typed, expression);
   const done = d.itemKind === "SIMPLIFY" ? "simplified" : d.itemKind === "EXPAND" ? "expanded and collected" : "factorised";
   if (verdict === "CORRECT") {
     // Right answer, but a step in the working is false: don't call the skill
@@ -242,28 +364,62 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
     return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as an expression, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
   }
   const matches = (p: { answer: string }) => d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND"
-    ? safe(() => algebraicallyEqual(p.answer, answer))
-    : sameFactorisation(p.answer, answer);
+    ? safe(() => algebraicallyEqual(p.answer, typed))
+    : sameFactorisation(p.answer, typed);
   const predicted = d.predictedMistakes.find(matches);
   if (verdict === "UNFINISHED") {
-    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(answer));
+    const code = predicted?.mistake ?? (d.itemKind === "EXPAND" ? "NOT_FULLY_SIMPLIFIED" : unfinishedCode(typed));
+    const blamed: LotusSkillEvidence[] = [{ skillId: ownerOfMistake(code, d), kind: "UNFINISHED", mistake: code, source: "INSTANT", description: named(`Wrote ${answer}`, code) }];
     return {
       verification: verification("VERIFIED_UNFINISHED", `Equal to ${expression}, but not fully ${done}.`),
-      evidence: [{ skillId: ownerOfMistake(code, d), kind: "UNFINISHED", mistake: code, source: "INSTANT", description: `Wrote ${answer}.` }],
+      evidence: [...blamed, ...lettersShown(d, expression, typed, blamed)],
       fastSkip: false,
-      needsAnalysis: false,
+      // A cause code guessed (no predicted mistake on the question) is the kind of answer the background review should read.
+      needsAnalysis: !predicted,
     };
   }
+  // With the right factor outside the bracket, code reads the bracket itself: 7(x + 28) for 7x + 28
+  // is "divided only the first term" whether or not the question's writer predicted it. That beats a
+  // predicted label, which an AI wrote, and keeps a plain mistake out of the AI review.
+  const reading = d.itemKind === "FACTORISE" ? readCommonFactor(typed, expression) : null;
+  // The square-pattern beliefs are also read from the answer's shape, so a mistake the item didn't list is still named.
+  const shape = d.itemKind === "FACTORISE" ? squarePatternMistake(typed, expression) : null;
+  const mistake = reading?.mistake ?? predicted?.mistake ?? shape ?? undefined;
   // A predicted wrong answer after working that already reached the right
   // one is most likely a copying slip, not the misconception it resembles:
   // leave it to the AI review (which labels slips) instead of counting it.
-  const countable = predicted && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, answer);
+  const countable = !!mistake && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, typed);
+  const blamed: LotusSkillEvidence[] = countable ? [{ skillId: ownerOfMistake(mistake, d), kind: "MISTAKE", mistake, source: "INSTANT", description: named(`Wrote ${answer}`, mistake) }] : [];
   return {
     verification: verification("VERIFIED_INCORRECT", `Not equal to ${expression} — checked by expanding.`),
-    evidence: countable ? [{ skillId: ownerOfMistake(predicted.mistake, d), kind: "MISTAKE", mistake: predicted.mistake, source: "INSTANT", description: `Wrote ${answer}.` }] : [],
+    evidence: [...blamed, ...(reading ? commonFactorShown(reading, d, blamed) : [])],
     fastSkip: false,
     needsAnalysis: !countable,
   };
+}
+
+/**
+ * An unfinished answer like x(6x + 10y) for 6x² + 10xy took every shared letter out and only left a number
+ * inside. Code can verify that (no letter is common to the bracket's terms), so the letters skill gets credit,
+ * never the skill that was missed. Only for a single bracket with the letters outside.
+ */
+function lettersShown(d: LotusItemDiagnostics, expression: string, typed: string, blamed: LotusSkillEvidence[]): LotusSkillEvidence[] {
+  if (d.itemKind !== "FACTORISE" || factorisationDefect(typed) !== "NUMBER_LEFT_INSIDE") return [];
+  if (bracketFactorCount(typed) !== 1 || !lettersFullyTakenOut(typed) || !expressionHasCommonLetter(expression)) return [];
+  const letters = "FAC_GCF_VARIABLE";
+  if (!skillsUsedBy(d).includes(letters) || blamed.some((b) => b.skillId === letters)) return [];
+  return [{ skillId: letters, kind: "SECURE", source: "INSTANT", description: "Took every common letter out of the bracket." }];
+}
+
+/**
+ * The right factor outside the bracket shows the student found the common factor, even when the bracket
+ * is wrong. Recorded on the answer, it stops the AI review pinning the mistake on that step.
+ */
+function commonFactorShown(reading: CommonFactorReading, d: LotusItemDiagnostics, blamed: LotusSkillEvidence[]): LotusSkillEvidence[] {
+  const inTopic = new Set((curriculumOfSkill(d.skillId)?.skills ?? []).map((s) => s.id));
+  return [reading.numberPart && "FAC_GCF_NUMERIC", reading.letterPart && "FAC_GCF_VARIABLE"]
+    .filter((s): s is string => !!s && inTopic.has(s) && !blamed.some((b) => b.skillId === s))
+    .map((skillId) => ({ skillId, kind: "SECURE" as const, source: "INSTANT" as const, description: skillId === "FAC_GCF_NUMERIC" ? "Took out the right number part of the common factor." : "Took out the right letters of the common factor." }));
 }
 
 /**
@@ -351,7 +507,10 @@ export function evidenceFromAnalysis(
   // secure evidence it would have been; a real misunderstanding counts below.
   if (d && answerCorrect && existing.length === 0 && (noRealStep || mistakeKind === "SLIP" || mistakeKind === "UNREADABLE")) return secureAll(d);
   if (!d) return existing;
-  if (existing.length > 0) return existing;
+  // Code named the mistake: the review can't override it. Code may also have proved part of a wrong
+  // answer right (the factor outside the bracket); that stays, and nothing below blames those skills.
+  const proven = existing.filter((e) => e.kind === "SECURE");
+  if (existing.length > proven.length) return existing;
   // A slip or an unreadable answer is not evidence the student lacks the
   // skill: two careless copies must not confirm a gap. The analyser's note
   // stays on the turn's analysis record. A missing kind is counted as before.
@@ -359,12 +518,77 @@ export function evidenceFromAnalysis(
   // A guess (no method) means the same as "I don't know this yet": a support
   // signal on the question's own skill — the step it "went wrong" at means
   // nothing without a method. Two on a skill confirm it, so the child is taught.
+  const isProven = (skillId: string) => proven.some((e) => e.skillId === skillId);
   if (mistakeKind === "GUESS") {
-    return [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "ANALYSIS", description: description?.trim() || "Guessed with no method." }];
+    return isProven(d.skillId) ? existing : [...proven, { skillId: d.skillId, kind: "DID_NOT_KNOW", source: "ANALYSIS", description: description?.trim() || "Guessed with no method." }];
   }
   if (noRealStep) return existing;
-  const skillId = d.stepSkills[step - 1] ?? d.skillId;
-  return [{ skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
+  // A step code saw done right can't be where it went wrong: the review is pointing at the question's own skill.
+  const stepSkill = d.stepSkills[step - 1] ?? d.skillId;
+  const skillId = isProven(stepSkill) ? d.skillId : stepSkill;
+  if (isProven(skillId)) return existing;
+  return [...proven, { skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
+}
+
+// ---------- conflicting evidence on one skill ----------
+
+/**
+ * Does this answer pull against what the session already showed on a skill? A predicted mistake on a skill
+ * that was answered right earlier, or a right answer on a skill that already showed that mistake. Code can
+ * mark each answer, but only a review can weigh the two against each other, so it is worth asking for one.
+ */
+export function conflictsWithEarlier(prior: LotusQuestionAudit[], evidence: LotusSkillEvidence[], status: LotusMathVerification["status"] | undefined): boolean {
+  for (const e of evidence) {
+    const earlier = prior.flatMap((a) => (a.skillEvidence ?? []).filter((x) => x.skillId === e.skillId).map((x) => ({ x, audit: a })));
+    if (e.kind === "MISTAKE" && e.mistake) {
+      if (earlier.some(({ x, audit }) => x.kind === "SECURE" && !x.hedge && audit.verification?.status === "VERIFIED_CORRECT")) return true;
+    } else if (e.kind === "SECURE" && status === "VERIFIED_CORRECT") {
+      if (earlier.some(({ x }) => (x.kind === "MISTAKE" || x.kind === "UNFINISHED") && x.mistake)) return true;
+    }
+  }
+  return false;
+}
+
+// ---------- what an answer did to an open suspicion ----------
+
+/**
+ * Plain words for what this answer did to a suspicion the skill was already under (a mistake on an earlier
+ * question): repeated it, made a different one, or got it right. Rebuilt from the same ledger the plan uses, so
+ * it says what the rules actually did. Null when no skill this question uses was under suspicion.
+ */
+export function suspicionEffectNote(prior: LotusQuestionAudit[], audit: LotusQuestionAudit, priors: LotusLedgerPrior[] = []): string | null {
+  const d = audit.question?.answerKey?.diagnostics;
+  if (!d) return null;
+  const before = foldLedger(prior, priors);
+  const after = foldLedger([...prior, audit], priors);
+  const wordsOf = (code: string) => mistakeInWords(code) ?? code.toLowerCase().replace(/_/g, " ");
+  const ordered = [d.skillId, ...skillsUsedBy(d).filter((s) => s !== d.skillId)];
+  for (const skillId of ordered) {
+    const was = before.get(skillId);
+    const mistake = was?.mistakes.at(-1);
+    if (!was || (was.state !== "SUSPECTED" && was.state !== "CONFIRMED") || !mistake) continue;
+    const words = wordsOf(mistake);
+    const evidence = (audit.skillEvidence ?? []).filter((e) => e.skillId === skillId);
+    const now = after.get(skillId)?.state;
+    const negative = evidence.find((e) => e.kind !== "SECURE");
+    if (negative) {
+      if (negative.kind === "DID_NOT_KNOW") return `Said they don't know this yet, after the earlier suspicion (${words}); ${now === "CONFIRMED" ? "it is now confirmed" : "it stays open"}.`;
+      if (negative.mistake === mistake) return `Made the same mistake again (${words}), so ${was.state === "CONFIRMED" ? "the gap stays confirmed" : now === "CONFIRMED" ? "it is now confirmed" : "the suspicion stands"}.`;
+      return `Made a different mistake${negative.mistake ? ` (${wordsOf(negative.mistake)})` : ""}; the earlier suspicion (${words}) stays open.`;
+    }
+    if (was.state === "CONFIRMED") continue;
+    if (!evidence.some((e) => e.kind === "SECURE") || audit.verification?.status !== "VERIFIED_CORRECT") continue;
+    if (evidence.some((e) => e.hedge)) return `Right, but with some doubt, so the earlier suspicion (${words}) is not settled.`;
+    const option = audit.question.options?.length ? d.predictedMistakes.find((p) => p.mistake === mistake)?.answer : undefined;
+    const lead = option ? `Avoided the "${words}" option (${option}).` : `Got it right without the "${words}" mistake.`;
+    if (now === "SECURE") {
+      return isTap(audit)
+        ? `${lead} Lotus counts a picked answer on the re-check as clearing the earlier suspicion, though a pick could be a guess.`
+        : `${lead} The earlier suspicion looks settled.`;
+    }
+    return `${lead} The earlier suspicion stays open: this question could not fully test it.`;
+  }
+  return null;
 }
 
 // ---------- ledger ----------
@@ -384,10 +608,16 @@ export interface SkillLedgerEntry {
   recheckUsed?: boolean;
   /** Right once on a multiple-choice tap: not yet enough to call it secure. */
   tapRights?: number;
+  /** Right, but with chips on a wrong option: the question and the doubted mistake ("" when none is named). */
+  hedges?: Array<{ q: number; mistake: string }>;
+  /** Suspected because the same doubt came back, not because of a wrong answer. */
+  fromHedge?: boolean;
   /** Confirmed only by fast wrong answers late in the test: may be tiredness, so not taught (C13). */
   tiredness?: boolean;
   mistakes: string[];
   notes: string[];
+  /** Answers where code saw this skill done right inside a wrong answer (the factor outside the bracket): it is shown, so no step down to it. */
+  shownInWrong?: number;
   /** The learner explicitly needed help; use a lower prerequisite probe where possible. */
   needsSupport?: boolean;
   /** How many different questions on this skill got "I don't know this yet". */
@@ -398,6 +628,8 @@ export interface SkillLedgerEntry {
   explainedBy?: string;
   /** Answers on this skill that were wrong, where the AI review said "misunderstanding" but named no step, so no skill got evidence. */
   unexplained?: number;
+  /** Carried in from earlier tests or lessons (see foldLedger's priors), and why. */
+  fromMemory?: LotusLedgerPrior["reason"];
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
@@ -420,6 +652,8 @@ function isTap(audit: LotusQuestionAudit): boolean {
   // A themed game says itself how far a right answer counts.
   const effect = audit.response?.gameReading?.diagnosis?.effect;
   if (effect) return effect === "NEEDS_ANOTHER";
+  // A typed answer whose discarded draft was a known mistake: fixed this time, but not proof yet.
+  if (audit.response?.typingReading?.diagnosis?.effect === "NEEDS_ANOTHER") return true;
   const kind = audit.question?.answerKey?.diagnostics?.itemKind;
   return kind === "CHOICE" || kind === "SELECT" || audit.question?.interaction?.format === "BRACKET_BRIDGE" || ["COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "FOUR_SIGNS"].includes(audit.question?.game?.kind ?? "");
 }
@@ -440,13 +674,27 @@ function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string |
   return predicted.some((p) => p.mistake === mistake);
 }
 
-export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
+/**
+ * Folds the answers into each skill's state. `priors` are skills earlier tests or lessons left open
+ * (the learner memory): each starts this test as a suspicion from before its first question, so the
+ * plan re-checks it early, one more mistake confirms it, and a right answer that could have shown
+ * the old mistake clears it.
+ */
+export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): Ledger {
   const ledger: Ledger = new Map();
   const entry = (skillId: string): SkillLedgerEntry => {
     let e = ledger.get(skillId);
     if (!e) { e = { skillId, state: "UNTESTED", mistakes: [], notes: [] }; ledger.set(skillId, e); }
     return e;
   };
+  for (const prior of priors) {
+    const e = entry(prior.skillId);
+    e.state = "SUSPECTED";
+    e.suspectedAt = 0;
+    e.fromMemory = prior.reason;
+    e.mistakes.push(...prior.mistakes);
+    e.notes.push(`Before this test: ${prior.note}`);
+  }
   audits.forEach((audit, i) => {
     const q = i + 1;
     const bySkill = new Map<string, LotusSkillEvidence[]>();
@@ -496,6 +744,26 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
         else if (e.state === "UNTESTED" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; e.confirmedBySupport = true; }
         else if (e.state === "SECURE" && hadPriorMistake) { e.state = "CONFIRMED"; e.confirmedAt = q; }
         else if (e.state === "UNTESTED" || e.state === "SECURE") { e.state = "SUSPECTED"; e.suspectedAt = q; }
+      } else if (wrongAnswer) {
+        // Done right inside a wrong answer (the factor outside the bracket). Kept on record, and the AI review
+        // can't blame it (evidenceFromAnalysis), but only a right answer makes a skill secure or clears a suspicion.
+        e.notes.push(`Q${q}: right as part of a wrong answer`);
+        e.shownInWrong = (e.shownInWrong ?? 0) + 1;
+      } else if (items.find((ev) => ev.hedge)?.hedge) {
+        // Right, but some confidence went on a wrong option. One doubt is not a gap and not a success:
+        // it neither makes the skill secure nor clears a suspicion. The same doubt again makes it suspected.
+        const hedge = items.find((ev) => ev.hedge)!.hedge!;
+        const key = hedge.mistake ?? "";
+        e.hedges = [...(e.hedges ?? []), { q, mistake: key }];
+        const doubtedBefore = e.hedges.filter((h) => h.mistake === key).length > 1;
+        const about = hedge.mistake ? `the ${hedge.mistake} mistake` : `another answer (${hedge.option})`;
+        if (doubtedBefore && (e.state === "UNTESTED" || e.state === "SECURE")) {
+          e.state = "SUSPECTED"; e.suspectedAt = q; e.fromHedge = true;
+          if (hedge.mistake) e.mistakes.push(hedge.mistake);
+          e.notes.push(`Q${q}: right, but the same doubt about ${about} came back, so it needs a check`);
+        } else {
+          e.notes.push(`Q${q}: right, with a doubt about ${about}, so not counted secure yet`);
+        }
       } else {
         // A re-check is settled only by a question aimed at the skill itself,
         // not by one where it is a single step among others.
@@ -514,7 +782,13 @@ export function foldLedger(audits: LotusQuestionAudit[]): Ledger {
           // can't clear it. The plan keeps a check that can.
           e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
-          e.state = "SECURE"; e.clearedAfterSlip = e.suspectedAt; e.notes.push(`Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
+          e.state = "SECURE";
+          if (!e.fromHedge) e.clearedAfterSlip = e.suspectedAt;
+          e.notes.push(e.suspectedAt === 0
+            ? `Q${q}: right, so ${e.fromMemory === "TAUGHT" ? "the lesson has stuck" : "the earlier gap looks fixed"}`
+            : e.fromHedge ? `Q${q}: right with no doubt, so the earlier doubt looks settled`
+              : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
+          e.fromHedge = false;
         } else if (e.state === "UNTESTED" && isTap(audit) && (e.tapRights ?? 0) < 1) {
           // One right multiple-choice tap could be a 1-in-4 guess: it takes a
           // second right tap or a right typed answer to call the skill secure.
@@ -689,6 +963,23 @@ export interface PlanInput {
   freezeNext?: boolean;
   /** A completed AI review explicitly asked for another probe of this skill. */
   forceCheckSkills?: string[];
+  /** Who found the evidence behind each forced check: "AI" when the review named the skill, else code's own evidence rules. */
+  forceCheckDecidedBy?: Record<string, "AI" | "CODE">;
+  /**
+   * How many of the questions still ahead the student can plausibly reach before the time limit
+   * (see reachableQuestionsAhead). Absent = no limit. A check is never placed beyond it.
+   */
+  reachableQuestions?: number;
+  /** Called when open slots exist but none can be reached, so a check was left out for lack of time. */
+  onNoReachableSlot?: () => void;
+}
+
+/** How many more questions fit in the time left, at the pace so far. Zero once time is up. */
+export function reachableQuestionsAhead(elapsedSeconds: number, answered: number, timeLimitSeconds: number = factorisationTimeLimitSeconds()): number {
+  const left = timeLimitSeconds - elapsedSeconds;
+  if (left <= 0) return 0;
+  const pace = Math.max(20, answered > 0 ? elapsedSeconds / answered : 60);
+  return Math.max(1, Math.ceil(left / pace));
 }
 
 export function nextOpenTurn(state: FactorisationState, after: number): number | null {
@@ -730,6 +1021,19 @@ function widenTargets(slots: SlotSpec[], skillId: string, askedSlots: Set<number
  * a skill with only one catalogue slot (e.g. FAC_GCF_VARIABLE), excluding it
  * would make that skill permanently undescendable after turn 1.
  */
+/**
+ * Mistakes made after the common factor was already found: dividing the terms wrongly. When every mistake on a
+ * gap is of this kind, a factor found outside the bracket in the same answers shows the foundation underneath.
+ */
+/** Times the answers showed a skill done right without it becoming secure: inside a wrong answer, or on one picked option. Two is enough to not re-ask it. */
+function shownCount(entry: SkillLedgerEntry | undefined): number {
+  return (entry?.shownInWrong ?? 0) + (entry?.tapRights ?? 0);
+}
+const INSIDE_BRACKET = new Set(["DIVIDED_FIRST_TERM_ONLY", "DROPPED_THE_ONE", "INDEX_NOT_REDUCED"]);
+function INSIDE_BRACKET_ONLY(mistakes: string[]): boolean {
+  return mistakes.length > 0 && mistakes.every((m) => INSIDE_BRACKET.has(m));
+}
+
 function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number, mistakes: string[] = []) {
   const found: Array<{ skill: string; spec: SlotSpec }> = [];
   // A foundation the gap's own mistakes point at goes first: a sign error under a
@@ -744,6 +1048,8 @@ function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max:
     seen.add(p);
     const state = ledger.get(p)?.state ?? "UNTESTED";
     if (state === "SECURE") continue;
+    // The wrong answers themselves already showed it (the right factor was taken out): going down to it would re-ask what is known.
+    if (state === "UNTESTED" && shownCount(ledger.get(p)) >= 2 && INSIDE_BRACKET_ONLY(mistakes)) continue;
     if (state === "UNTESTED") {
       // A foundation the 25 slots never ask about is checked directly with a short code-made
       // question (lotus-skill-checks.ts) instead of being passed over.
@@ -753,6 +1059,48 @@ function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max:
     queue.push(...(findSkill(p)?.dependsOn ?? []));
   }
   return found;
+}
+
+/**
+ * Where a freed slot is best spent: first a suspected skill that has no check coming, then a skill nothing has
+ * asked yet. Never a skill that depends (however far down) on a skill that is suspected or confirmed, never one
+ * already planned or probed, and in the order of the curriculum.
+ */
+function coverageTargets(
+  slots: SlotSpec[], ledger: Ledger, askedSlots: Set<number>, itemAt: (turn: number) => LotusQuestion | undefined,
+  state: FactorisationState, taken: Set<string>,
+): Array<{ skill: string; spec: SlotSpec; why: string }> {
+  const shaky = [...ledger.values()].filter((e) => e.state === "CONFIRMED" || e.state === "SUSPECTED").map((e) => e.skillId);
+  const planned = (skill: string) => state.turns.some((t) => t.turn > state.planTurn && t.status !== "SKIPPED" &&
+    (t.forSkill === skill || usesSkill(itemAt(t.turn), skill)));
+  const out: Array<{ skill: string; spec: SlotSpec; why: string }> = [];
+  for (const e of ledger.values()) {
+    if (e.state !== "SUSPECTED" || taken.has(e.skillId) || planned(e.skillId)) continue;
+    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+    if (spec) out.push({ skill: e.skillId, spec, why: "A suspicion with no check planned:" });
+  }
+  const seen = new Set<string>();
+  for (const spec of slots) {
+    const skill = spec.skillId;
+    if (seen.has(skill)) continue;
+    seen.add(skill);
+    if ((ledger.get(skill)?.state ?? "UNTESTED") !== "UNTESTED" || taken.has(skill) || planned(skill) || askedSlots.has(spec.slot)) continue;
+    if (shaky.some((g) => g === skill || dependsOnTransitively(skill, g))) continue;
+    out.push({ skill, spec, why: "Not asked yet:" });
+  }
+  return out;
+}
+
+/** The skills of the curriculum nothing has asked about, for the stop reason. */
+export function untestedSkillsLeft(topic: LotusPlannedTopic | undefined, ledger: Ledger): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const spec of curriculumFor(topic).slots) {
+    if (seen.has(spec.skillId)) continue;
+    seen.add(spec.skillId);
+    if ((ledger.get(spec.skillId)?.state ?? "UNTESTED") === "UNTESTED") names.push(skillName(spec.skillId));
+  }
+  return names;
 }
 
 export function planAdjustments(input: PlanInput): PlanAction[] {
@@ -779,8 +1127,9 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 
   // Protect the question that will check each open suspicion.
   const protectedTurns = new Set<number>();
+  // A confirmed gap's planned check is protected too: a step down must never take the typed re-ask of the skill itself.
   for (const e of ledger.values()) {
-    if (e.state !== "SUSPECTED") continue;
+    if (e.state !== "SUSPECTED" && e.state !== "CONFIRMED") continue;
     const check = state.turns.find((t) => t.turn >= state.planTurn &&
       // A checked replacement is deliberately SKIPPED until its background
       // writer succeeds. It still reserves this diagnostic check; otherwise
@@ -799,9 +1148,18 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     return !state.turns.some((o) => o.turn !== turn && o.turn > state.planTurn && o.status !== "SKIPPED" &&
       itemAt(o.turn)?.answerKey.diagnostics?.skillId === skill);
   };
+  // Position among the questions still ahead (0 = the next one); reachable when the time left covers it.
+  const reachable = (turn: number): boolean => {
+    if (input.reachableQuestions === undefined) return true;
+    const ahead = state.turns.filter((t) => t.turn > state.planTurn && t.status !== "SKIPPED").map((t) => t.turn);
+    return ahead.indexOf(turn) < input.reachableQuestions;
+  };
   const pickVictim = (widening = false): number | null => {
-    const candidates = mutable().filter((t) =>
+    const open = mutable().filter((t) =>
       !protectedTurns.has(t.turn) && t.purpose !== "CHECK" && t.purpose !== "DESCENT" && t.purpose !== "WIDEN");
+    // A slot the student can't reach in the time left is no place for a check.
+    const candidates = open.filter((t) => reachable(t.turn));
+    if (open.length && !candidates.length) input.onNoReachableSlot?.();
     const allSecure = candidates.filter((t) => {
       const d = itemAt(t.turn)?.answerKey.diagnostics;
       return !!d && skillsUsedBy(d).every((s) => ledger.get(s)?.state === "SECURE");
@@ -819,7 +1177,8 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   // A closure-stage AI recommendation is an explicit request for fresh
   // evidence. Keep the question already visible to the student, but reserve
   // the next mutable future slot for an AI-written check of the same skill.
-  for (const skillId of input.forceCheckSkills ?? []) {
+  const forced = [...(input.forceCheckSkills ?? [])].sort((a, b) => mistakeRank(ledger.get(a)?.mistakes.at(-1)) - mistakeRank(ledger.get(b)?.mistakes.at(-1)));
+  for (const skillId of forced) {
     const spec = slots.find((s) => s.skillId === skillId) ?? checkSpecFor(skillId);
     const evidence = ledger.get(skillId);
     if (!spec || !evidence || claimed.has(spec.slot)) continue;
@@ -844,12 +1203,15 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       forSkill: skillId,
       spec,
       targetMistake: evidence.mistakes.at(-1),
-      reason: `The AI review requested a fresh check of ${skillName(skillId)}; an unseen future slot is being rewritten for that evidence.`,
+      reason: input.forceCheckDecidedBy?.[skillId] === "AI"
+        ? `The AI review requested a fresh check of ${skillName(skillId)}; an unseen future slot is being rewritten for that evidence.`
+        : `Code's evidence rules asked for a fresh check of ${skillName(skillId)}; an unseen future slot is being rewritten for that evidence.`,
     });
   }
 
-  // 1. Every suspicion needs a later question that can confirm or clear it.
-  for (const e of ledger.values()) {
+  // 1. Every suspicion needs a later question that can confirm or clear it. The weightiest mistake is
+  // handled first, so when there is room for one check it goes to the misconception, not the miss.
+  for (const e of [...ledger.values()].sort((a, b) => mistakeRank(a.mistakes.at(-1)) - mistakeRank(b.mistakes.at(-1)))) {
     // A support signal is not evidence of a mathematical gap, but it does
     // justify one lower-prerequisite question. Handle it before the
     // suspicion-only confirmation path, or a pure "I don't know" remains
@@ -962,6 +1324,21 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       actions.push({
         kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: p, spec,
         reason: `Going down: is ${skillName(p)} solid underneath ${skillName(e.skillId)}?`,
+      });
+    }
+    // Turns freed by the removals above that going down did not use are not simply dropped: a shorter test
+    // would leave skills unasked. Each goes to the most useful skill that does not lean on a shaky one.
+    for (const turn of freed.splice(0)) {
+      if (!reachable(turn)) continue;
+      const target = coverageTargets(slots, ledger, askedSlots, itemAt, state, checkedThisCall)[0];
+      if (!target) break;
+      claimed.add(turn);
+      const skipIndex = actions.findIndex((a) => a.kind === "SKIP" && a.turn === turn);
+      if (skipIndex >= 0) actions.splice(skipIndex, 1);
+      checkedThisCall.add(target.skill);
+      actions.push({
+        kind: "REPURPOSE", turn, purpose: "WIDEN", forSkill: target.skill, spec: target.spec,
+        reason: `${target.why} ${skillName(target.skill)}: this slot was freed because its original question depended on ${skillName(e.skillId)}, which isn't secure yet.`,
       });
     }
     state.handledConfirmed.push(e.skillId);
@@ -1105,7 +1482,24 @@ export function buildFactorisationReport(args: {
     const e = args.ledger.get(id);
     return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport && !e.unexplained));
   });
+  // Skills no question in the plan asks about, with nothing tested above them to stand in for them (the added skills that
+  // sit above nothing). Without this a child missing one reads as an all-clear. Skills with a tested skill above them are
+  // covered by it, as before.
+  const hasEvidence = (id: string) => ["SECURE", "CONFIRMED", "SUSPECTED"].includes(args.ledger.get(id)?.state ?? "");
+  const notAsked = args.state.focusSkills?.length ? [] : curriculum.skills.filter((s) =>
+    !curriculum.slots.some((slot) => slot.skillId === s.id) &&
+    !hasEvidence(s.id) && !args.ledger.get(s.id)?.tapRights && !args.ledger.get(s.id)?.needsSupport && !args.ledger.get(s.id)?.unexplained &&
+    !curriculum.skills.some((o) => o.id !== s.id && hasEvidence(o.id) && dependsOnTransitively(o.id, s.id))).map((s) => s.id);
   const notReachedNames = notReached.map((id) => skillName(id).toLowerCase());
+  const notAskedNames = notAsked.map((id) => skillName(id).toLowerCase());
+  // A skill with no question of its own that sits under a skill that went wrong, and was never checked: it could be the cause.
+  const wentWrong = entries.filter((e) => e.state === "SUSPECTED" || e.state === "CONFIRMED").map((e) => e.skillId);
+  const notChecked = args.state.focusSkills?.length ? [] : curriculum.skills.filter((s) =>
+    !curriculum.slots.some((slot) => slot.skillId === s.id) && !notAsked.includes(s.id) &&
+    !hasEvidence(s.id) && !args.ledger.get(s.id)?.tapRights && !args.ledger.get(s.id)?.needsSupport && !args.ledger.get(s.id)?.unexplained &&
+    wentWrong.some((g) => dependsOnTransitively(g, s.id))).map((s) => ({ id: s.id, above: wentWrong.filter((g) => dependsOnTransitively(g, s.id)) }));
+  const unaskedAll = [...notReached, ...notAsked, ...notChecked.map((c) => c.id)];
+  const unaskedAllNames = unaskedAll.map((id) => skillName(id).toLowerCase());
   // Answers that were wrong but taught nothing about any skill (the review named no step). Two or more are not an all-clear.
   const unexplained = entries.filter((e) => (e.unexplained ?? 0) > 0);
   const unexplainedTotal = unexplained.reduce((n, e) => n + (e.unexplained ?? 0), 0);
@@ -1125,7 +1519,7 @@ export function buildFactorisationReport(args: {
     : outcome === "ADVANCEMENT"
       ? focus?.length
         ? `Repeated direct checks succeeded for ${focus.map((id) => skillName(id).toLowerCase()).join(", ")}. Check retention later.`
-        : `Repeated direct checks succeeded across several tested ${curriculum.name.toLowerCase()} skills.${notReached.length ? ` Not asked in this test: ${notReachedNames.join(", ")}.` : ""} Consider the next challenge; untested skills and retention remain unknown.`
+        : `Repeated direct checks succeeded across several tested ${curriculum.name.toLowerCase()} skills.${unaskedAll.length ? ` Not asked in this test: ${unaskedAllNames.join(", ")}.` : ""} Consider the next challenge; untested skills and retention remain unknown.`
       : suspected.length
         ? "No gap was confirmed. Review the suspected areas below before deciding where to start."
         : unexplainedTotal >= 2
@@ -1140,6 +1534,8 @@ export function buildFactorisationReport(args: {
   ];
   if (unexplainedTotal >= 2) limitations.push(`${unexplainedTotal} wrong answers couldn't be linked to a skill, so no gap is confirmed or ruled out from them. This is not a sign that all is well.`);
   if (notReached.length) limitations.push(`${notReached.length} skill${notReached.length === 1 ? " was" : "s were"} planned but not asked in this test (${notReachedNames.join(", ")}), so nothing is known about ${notReached.length === 1 ? "it" : "them"} yet.`);
+  if (notAsked.length) limitations.push(`No question in this test covers ${notAskedNames.join(", ")}, so nothing is known about ${notAsked.length === 1 ? "it" : "them"}; a gap there would not show up here.`);
+  if (notChecked.length) limitations.push(`${notChecked.map((c) => skillName(c.id).toLowerCase()).join(", ")} ${notChecked.length === 1 ? "was" : "were"} never checked, and a skill built on ${notChecked.length === 1 ? "it" : "them"} went wrong, so ${notChecked.length === 1 ? "it" : "they"} could be the cause.`);
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
   if (rushed) limitations.unshift("Most answers were very fast and wrong, so the gaps below may come from rushing, not from what the child knows. No lesson is suggested from this test.");
@@ -1159,6 +1555,12 @@ export function buildFactorisationReport(args: {
     ...notReached
       .filter((id) => !args.ledger.has(id))
       .map((id) => ({ skillId: id, name: skillName(id), state: "UNTESTED" as const, evidence: ["Planned for this test but not asked."] })),
+    ...notAsked
+      .filter((id) => !args.ledger.has(id))
+      .map((id) => ({ skillId: id, name: skillName(id), state: "UNTESTED" as const, evidence: ["No question in this test covers it."] })),
+    ...notChecked
+      .filter((c) => !args.ledger.has(c.id))
+      .map((c) => ({ skillId: c.id, name: skillName(c.id), state: "UNTESTED" as const, evidence: ["Never checked, and a skill built on it went wrong."] })),
   ].filter((s, i, all) => all.findIndex((o) => o.skillId === s.skillId) === i);
 
   return {
@@ -1192,6 +1594,8 @@ export function buildFactorisationReport(args: {
       ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights).map((e) =>
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
       ...notReached.map((id) => `${skillName(id)}: not asked in this test, so nothing is known about it yet.`),
+      ...notAsked.map((id) => `${skillName(id)}: no question in this test covers it, so nothing is known about it.`),
+      ...notChecked.map((c) => `${skillName(c.id)}: never checked, and ${c.above.map((g) => skillName(g).toLowerCase()).join(", ")} went wrong, so it could be the cause.`),
       ...unexplained.map((e) => `${skillName(e.skillId)}: wrong ${e.unexplained === 1 ? "once" : `${e.unexplained} times`}, and the cause couldn't be linked to a skill. Check the skills underneath it.`),
     ],
     evidenceSummary: [
@@ -1205,8 +1609,8 @@ export function buildFactorisationReport(args: {
         ? `Give one more question on ${skillName(suspected[0].skillId).toLowerCase()} to see whether the mistake repeats.`
         : unexplainedTotal >= 2
         ? "Check the skills underneath the ones that went wrong with a few fresh questions; this test could not say what went wrong."
-        : notReached.length
-          ? `No teaching gap found in the skills asked. ${notReachedNames.join(", ")} ${notReached.length === 1 ? "wasn't" : "weren't"} asked, so check ${notReached.length === 1 ? "it" : "them"} before moving on.`
+        : unaskedAll.length
+          ? `No teaching gap found in the skills asked. ${unaskedAllNames.join(", ")} ${unaskedAll.length === 1 ? "wasn't" : "weren't"} asked, so check ${unaskedAll.length === 1 ? "it" : "them"} before moving on.`
           : outcome === "ADVANCEMENT"
             ? "Offer the next challenge and schedule a later retention check."
             : "Gather fresh direct evidence before deciding whether to teach or advance.",
@@ -1247,6 +1651,7 @@ export function factorisationStopReason(
   audits: LotusQuestionAudit[],
   elapsedSeconds: number,
   timeLimitSeconds: number = factorisationTimeLimitSeconds(),
+  priors: LotusLedgerPrior[] = [],
 ): FactorisationStop | null {
   const answered = audits.length;
   if (elapsedSeconds >= timeLimitSeconds) {
@@ -1256,16 +1661,21 @@ export function factorisationStopReason(
     };
   }
   if (answered < MIN_ANSWERS_FOR_EARLY_STOP) return null;
-  const ledger = foldLedger(audits);
+  const ledger = foldLedger(audits, priors);
   const start = confirmedByDepth(ledger)[0];
   if (!start) return null;
+  // A soft prerequisite only holds the test open once it has shown trouble; unasked or merely observed, it doesn't.
+  // A prerequisite the wrong answers already showed done right (the factor outside the bracket) is not re-asked, so it doesn't hold the test open.
+  const onlyInsideBracket = [...ledger.values()].filter((e) => e.state === "CONFIRMED").every((e) => INSIDE_BRACKET_ONLY(e.mistakes));
+  const shownInAnswers = (id: string) => onlyInsideBracket && (ledger.get(id)?.state ?? "UNTESTED") === "UNTESTED" && shownCount(ledger.get(id)) >= 2;
+  const quiet = (id: string) => shownInAnswers(id) || (SOFT_PREREQUISITES.has(id) && !["SUSPECTED", "CONFIRMED"].includes(ledger.get(id)?.state ?? "UNTESTED"));
   const prerequisites = findSkill(start.skillId)?.dependsOn ?? [];
-  if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE")) return null;
+  if (!prerequisites.every((id) => ledger.get(id)?.state === "SECURE" || quiet(id))) return null;
   // Not only the start: every confirmed gap's prerequisites must be settled (secure, or a gap already found).
   // A gap with an untested or shaky prerequisite on another branch may be that prerequisite's doing, so the plan
   // keeps probing it. A skill nothing can test doesn't hold the test open.
   const testable = (id: string) => !!checkSpecFor(id) || !!curriculumOfSkill(id)?.slots.some((s) => s.skillId === id);
-  const settled = (id: string) => { const s = ledger.get(id)?.state; return s === "SECURE" || s === "CONFIRMED" || !testable(id); };
+  const settled = (id: string) => { const s = ledger.get(id)?.state; return s === "SECURE" || s === "CONFIRMED" || !testable(id) || quiet(id); };
   const unsettled = [...ledger.values()].some((e) => e.state === "CONFIRMED" && (findSkill(e.skillId)?.dependsOn ?? []).some((id) => !settled(id)));
   if (unsettled) return null;
   return {

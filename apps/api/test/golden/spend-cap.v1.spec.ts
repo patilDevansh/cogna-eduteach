@@ -177,3 +177,15 @@ describe("metered OpenAI fetch", () => {
     assert.match(String((error as Error).message), /no price/);
   });
 });
+
+describe("spend cap — configured models need prices", () => {
+  it("lists every configured GPT model with no price, the diagnostic's defaults included", async () => {
+    const { unpricedConfiguredModels } = await import("../../src/ai/model-pricing");
+    const env = {
+      OPENAI_MODEL_PRICING_JSON: JSON.stringify({ "gpt-5.6-terra": { input: 1, output: 2 }, "gpt-4o-mini-tts": { input: "SET_ME", output: "SET_ME" } }),
+      COGNA_LESSON_AUDIO_MODEL: "gpt-4o-mini-tts",
+      SARVAM_MODEL: "bulbul:v3",
+    };
+    assert.deepEqual(unpricedConfiguredModels(env).sort(), ["gpt-4o-mini-tts", "gpt-5.6-sol"]);
+  });
+});

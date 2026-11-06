@@ -119,7 +119,7 @@ export function SavedPracticeCard({ assignmentId, studentId, item, learning, onR
     <p className={styles.prompt}>{item.prompt}</p>
     <div className={styles.bigMath}>{prettyMath(item.expression)}</div>
     <form className={styles.typeRow} onSubmit={(event) => { event.preventDefault(); if (text.trim()) submit("ANSWER_SUBMITTED", { text }); }}>
-      <input className={styles.input} aria-label="Your answer" maxLength={2000} value={text} disabled={busy || Boolean(pending) || done} onChange={(event) => changeAnswer(event.target.value)} />
+      <input autoCorrect="off" autoCapitalize="off" spellCheck={false} className={styles.input} aria-label="Your answer" maxLength={2000} value={text} disabled={busy || Boolean(pending) || done} onChange={(event) => changeAnswer(event.target.value)} />
       <button className={styles.primary} disabled={busy || Boolean(pending) || done || !text.trim()}>{busy ? "Saving…" : "Check and save"}</button>
     </form>
     <p role="status" aria-live="polite" data-testid="practice-save-status">{message}</p>

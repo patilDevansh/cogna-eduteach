@@ -331,7 +331,7 @@ function ItemCard({
               void submit({ text }, 0);
             }}
           >
-            <input
+            <input autoCorrect="off" autoCapitalize="off" spellCheck={false}
               className={styles.input}
               data-state={result && picked === 0 ? (result.verdict === "CORRECT" ? "right" : result.verdict === "UNFINISHED" ? "nearly" : result.verdict === "INCORRECT" ? "wrong" : undefined) : undefined}
               data-shake={result && result.verdict !== "CORRECT" ? shakeKey : undefined}

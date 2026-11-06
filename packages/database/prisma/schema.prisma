@@ -384,6 +384,7 @@ model Student {
   reports              Report[]
   parentLinks          ParentStudentLink[]
   retentionEstimates   RetentionEstimate[]
+  learnerEvidence      LearnerSkillEvidence[]
   explanationOutcomes  ExplanationOutcome[]
   classroomEnrollments ClassroomEnrollment[]
 
@@ -401,20 +402,20 @@ model Student {
 // ─── Production classroom orchestration ───────────────────────────────────
 
 model Classroom {
-  id         String    @id @default(cuid())
-  teacherId  String
-  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  schoolId   String
-  name       String
-  grade      Int
-  subjectId  String
-  joinCode   String    @unique
-  isDemo     Boolean   @default(false)
+  id          String    @id @default(cuid())
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  schoolId    String
+  name        String
+  grade       Int
+  subjectId   String
+  joinCode    String    @unique
+  isDemo      Boolean   @default(false)
   /// When set, every student in the class takes Lotus in this one theme and the picker is hidden. Null = students choose.
   lockedTheme String?
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   enrollments  ClassroomEnrollment[]
   runs         ClassroomRun[]
@@ -1512,6 +1513,34 @@ model LotusEvidenceRecord {
 /// answered. This is a content record, not a student-history record: it has
 /// no response, working, learner identifier, or answer-analysis outcome.
 /// An item can only enter here from a durable accepted ANSWER event.
+/// What one test or one lesson showed about one skill of one student: Cogna's long-term memory of how
+/// the student thinks. Append-only per source (a re-saved test replaces its own rows); the student's
+/// current picture is folded from all of their rows (apps/api/src/learner/learner-memory.ts).
+model LearnerSkillEvidence {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  topic      String
+  /// A skill id, or "*" for what the source showed about the student as a whole (slips, confidence).
+  skillId    String
+  /// TEST (a Lotus diagnostic) or LESSON (a personalised lesson's final check).
+  source     String
+  /// The Lotus session id or the lesson assignment id.
+  sourceId   String
+  /// GAP, SUSPECTED, SECURE, UNCLEAR, LESSON_PASSED, LESSON_FAILED, or PROFILE for "*".
+  state      String
+  /// The mistakes seen, each with the student's own answer: [{ code, question, answer, description? }].
+  mistakes   Json     @default("[]")
+  /// Anything else worth remembering about the skill or the student, e.g. slips, "didn't know", lesson format.
+  detail     Json     @default("{}")
+  observedAt DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([source, sourceId, skillId])
+  @@index([studentId, observedAt])
+}
+
 model LotusQuestionBankItem {
   id               String    @id @default(cuid())
   topic            String

@@ -221,6 +221,9 @@ export const GAME_WORDS: {
   },
 };
 
+/** Confirm your input is now shown as Edit history, so it wears Edit history's words. */
+export const shownKind = (kind: LotusGameKind): LotusGameKind => (kind === "READBACK" ? "EDIT_HISTORY" : kind);
+
 export function gameTitle(kind: LotusGameKind, theme: LotusTheme): string {
-  return GAME_WORDS[kind][theme].title;
+  return GAME_WORDS[shownKind(kind)][theme].title;
 }

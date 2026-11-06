@@ -1,0 +1,752 @@
+{
+  "mode": "live",
+  "generatedAt": "2026-11-05T03:08:09.033Z",
+  "tally": {
+    "CORRECTLY_NO_GAP_EVIDENCE": 4,
+    "RIGHT_SKILL": 19,
+    "CORRECT_SUPPORT_SIGNAL": 1,
+    "NO_EVIDENCE": 2,
+    "SLIP_COUNTED_AS_MISTAKE": 1
+  },
+  "rules": {
+    "concept": {
+      "n": 20,
+      "namedStep": 20,
+      "gaveEvidence": 19,
+      "unexplained": 0,
+      "calledSlipOrGuess": 1
+    },
+    "slips": {
+      "n": 4,
+      "calledSlip": 2,
+      "calledUnreadable": 1,
+      "calledMisunderstanding": 1,
+      "becameEvidence": 1,
+      "unexplained": 0,
+      "ids": {
+        "becameEvidence": [
+          "M13"
+        ],
+        "unexplained": []
+      }
+    },
+    "guesses": {
+      "n": 1,
+      "calledGuess": 1
+    },
+    "other": {
+      "n": 2
+    },
+    "unexplainedTotal": 0,
+    "unexplainedIds": []
+  },
+  "results": [
+    {
+      "id": "M01",
+      "set": "MESSY",
+      "nature": "SLIP",
+      "source": "Written for this test: copying slip",
+      "prompt": "Factorise completely: x^2 - 9x + 20",
+      "answer": "(x - 4)(x + 5)",
+      "working": "-4 × -5 = 20, -4 + -5 = -9\nso (x - 4)(x + 5)",
+      "expectedCause": "Found the right pair, then miscopied one sign.",
+      "expectedSkills": [
+        "FAC_MONIC_TRINOMIAL"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "SLIP",
+      "landedSkill": null,
+      "skillVerdict": "CORRECTLY_NO_GAP_EVIDENCE",
+      "aiDescription": "After finding -4 and -5, the second factor should be (x - 5), not (x + 5).",
+      "aiConclusion": "The student correctly identified -4 and -5 as the required pair, then wrote +5 in the second bracket.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single sign mismatch could be a transcription slip or a persistent error converting a negative number into a bracket factor."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.8
+    },
+    {
+      "id": "M02",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: common factor not highest",
+      "prompt": "Factorise completely: 12x + 18",
+      "answer": "3(4x + 6)",
+      "working": "both divide by 3",
+      "expectedCause": "Took out a common factor, but not the highest.",
+      "expectedSkills": [
+        "FAC_GCF_NUMERIC"
+      ],
+      "codeVerdict": "VERIFIED_UNFINISHED",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_GCF_NUMERIC",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The student chose 3 as a common factor rather than the highest common factor, 6, so the bracket can still be factorised by 2.",
+      "aiConclusion": "The response is algebraically equivalent to 12x + 18 but is not fully factorised, because 4x + 6 still has a common factor of 2.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single response does not show whether choosing 3 instead of the highest common factor was a slip or an incomplete understanding of ‘completely’."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.4
+    },
+    {
+      "id": "M03",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: negative common factor",
+      "prompt": "Factorise completely: -6x - 15",
+      "answer": "-3(2x - 5)",
+      "working": "take out -3\n-6x/-3 = 2x\n-15 stays -5",
+      "expectedCause": "Didn't change the sign of the second term when dividing by -3.",
+      "expectedSkills": [
+        "FND_SIGN_MUL_DIV",
+        "FAC_GCF_NEGATIVE"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 3,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_GCF_NEGATIVE",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "When taking out -3, -15 ÷ -3 equals +5, so the second bracket term should be +5, not -5.",
+      "aiConclusion": "The student correctly chose -3 and divided the first term correctly, but divided -15 by -3 as -5 instead of +5.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a persistent signed-division misconception from a sign slip."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.5
+    },
+    {
+      "id": "M04",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: difference of squares as a perfect square",
+      "prompt": "Factorise completely: x^2 - 16",
+      "answer": "(x - 4)^2",
+      "working": "16 is 4 squared so (x-4)^2",
+      "expectedCause": "Treated a difference of squares as a perfect square.",
+      "expectedSkills": [
+        "FAC_DIFF_SQUARES",
+        "ID_REVERSE_PATTERN"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_DIFF_SQUARES",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "After recognising 16 as 4 squared, the student wrote a squared binomial, (x - 4)^2, rather than two conjugate factors, (x - 4)(x + 4).",
+      "aiConclusion": "The student correctly identified 16 as 4 squared but used the square-of-a-difference form instead of the difference-of-squares factorisation.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single response cannot distinguish a stable identity misconception from a momentary sign/form error."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 6
+    },
+    {
+      "id": "M06",
+      "set": "MESSY",
+      "nature": "GUESS",
+      "source": "Written for this test: guess",
+      "prompt": "Factorise completely: x^2 + 7x + 12",
+      "answer": "x + 5",
+      "working": "idk",
+      "expectedCause": "A guess with no method shown.",
+      "expectedSkills": [],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "GUESS",
+      "landedSkill": "FAC_MONIC_TRINOMIAL",
+      "skillVerdict": "CORRECT_SUPPORT_SIGNAL",
+      "aiDescription": "The required first step was to find two numbers that multiply to 12 and add to 7. The response gives “idk” and then an unsupported expression, x + 5, which is not two binomial factors.",
+      "aiConclusion": "The response is not a factorisation of the trinomial; no method was shown beyond “idk.”",
+      "evidenceState": "INSUFFICIENT",
+      "uncertainty": [
+        "It is unclear whether this reflects not knowing the factor-pair method, an ungrounded guess, or a one-off response."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 2.9
+    },
+    {
+      "id": "M07",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: working in words, product only",
+      "prompt": "Factorise completely: x^2 + 7x + 12",
+      "answer": "(x + 2)(x + 6)",
+      "working": "i need two numbers that times to 12. 2 and 6 times to 12",
+      "expectedCause": "Checked the product but not the sum.",
+      "expectedSkills": [
+        "FAC_PAIR_PRODUCT_SUM"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_PAIR_PRODUCT_SUM",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The student chose 2 and 6 because they multiply to 12, but 2 + 6 = 8, not 7. The required pair must have product 12 and sum 7.",
+      "aiConclusion": "The student found a pair with product 12 but did not check that the pair also sums to 7.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "This could be an incomplete application of the product-and-sum rule or a single selection slip; only one response is available."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3.3
+    },
+    {
+      "id": "M08",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: signs swapped",
+      "prompt": "Factorise completely: x^2 - x - 12",
+      "answer": "(x + 4)(x - 3)",
+      "working": "4 and 3, one is minus",
+      "expectedCause": "Right numbers, wrong signs: the pair sums to +1, not -1.",
+      "expectedSkills": [
+        "FAC_PAIR_PRODUCT_SUM",
+        "FAC_MONIC_TRINOMIAL"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_PAIR_PRODUCT_SUM",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The pair must multiply to -12 and add to -1. The chosen signed pair, 4 and -3, adds to 1, not -1.",
+      "aiConclusion": "The student selected 4 and 3 but assigned the negative sign to 3; the factors expand to x² + x - 12, not x² - x - 12.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single sign error could be a slip or an unstable rule for assigning signs in monic trinomials."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3
+    },
+    {
+      "id": "M09",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: grouping with a minus",
+      "prompt": "Factorise completely: 6xy - 4y - 9x + 6",
+      "answer": "(3x - 2)(2y + 3)",
+      "working": "2y(3x - 2) + 3(3x - 2)",
+      "expectedCause": "Took out +3 instead of -3 from the second pair.",
+      "expectedSkills": [
+        "FAC_GROUP_SIGN"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "SLIP",
+      "landedSkill": null,
+      "skillVerdict": "NO_EVIDENCE",
+      "aiDescription": "The second group should be -3(3x - 2), because -3(3x - 2) = -9x + 6. Writing +3(3x - 2) produces +9x - 6 instead.",
+      "aiConclusion": "The student correctly identified the common binomial factor (3x - 2), but changed the required negative group to a positive group.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single sign error may be a transcription slip rather than a stable misunderstanding of grouping signs."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.7
+    },
+    {
+      "id": "M10",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: stopped early",
+      "prompt": "Factorise completely: 2x^2 + 10x + 12",
+      "answer": "2(x^2 + 5x + 6)",
+      "working": "take out 2",
+      "expectedCause": "Took out the common factor but didn't factorise the bracket.",
+      "expectedSkills": [
+        "FAC_MONIC_TRINOMIAL",
+        "FAC_FACTOR_FULLY"
+      ],
+      "codeVerdict": "VERIFIED_UNFINISHED",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_MONIC_TRINOMIAL",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "After correctly writing 2(x^2 + 5x + 6), the student did not factor x^2 + 5x + 6 into two binomials.",
+      "aiConclusion": "The student correctly took out the common factor 2 but stopped before factorising the remaining trinomial, so the expression is not fully factorised.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "It is unclear whether stopping after the common factor was a premature submission or a belief that this was complete factorisation."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 5.2
+    },
+    {
+      "id": "M11",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: divided the first term only",
+      "prompt": "Factorise completely: 6x + 9",
+      "answer": "3(2x + 9)",
+      "working": "3 goes into 6x, 2x\nthen + 9",
+      "expectedCause": "Divided only the first term by the common factor.",
+      "expectedSkills": [
+        "FAC_DIVIDE_TERMS"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_DIVIDE_TERMS",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "After taking out 3, the student divided 6x to get 2x but did not divide 9 by 3; the second bracket term should be 3, not 9.",
+      "aiConclusion": "The student identified 3 as a common factor and divided 6x correctly, but left 9 unchanged inside the bracket.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single response cannot distinguish a one-off omission from a stable belief that only the first term is divided by the common factor."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.2
+    },
+    {
+      "id": "M12",
+      "set": "MESSY",
+      "nature": "FORMAT",
+      "source": "Written for this test: unreadable typing",
+      "prompt": "Factorise completely: x^2 - 9x + 20",
+      "answer": "(x-4(x-5",
+      "working": "-4 -5",
+      "expectedCause": "Right idea, brackets not closed: a typing problem, not a gap.",
+      "expectedSkills": [],
+      "codeVerdict": "NOT_DETERMINISTIC",
+      "firstWrongStep": 2,
+      "mistakeKind": "UNREADABLE",
+      "landedSkill": null,
+      "skillVerdict": "CORRECTLY_NO_GAP_EVIDENCE",
+      "aiDescription": "The final factorisation is not written in readable bracket form: closing brackets are missing after x - 4 and x - 5.",
+      "aiConclusion": "The written pair -4 and -5 correctly has product 20 and sum -9, but the typed factorisation is missing closing brackets and cannot be verified as written.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "It is unclear whether the malformed final expression was a typing slip or reflects uncertainty about writing factors as bracketed binomials."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.8
+    },
+    {
+      "id": "M13",
+      "set": "MESSY",
+      "nature": "SLIP",
+      "source": "Written for this test: wrong bracket cancelled",
+      "prompt": "Simplify: (x^2 - 9)/(x - 3)",
+      "answer": "x - 3",
+      "working": "(x-3)(x+3) over (x-3)",
+      "expectedCause": "Factorised correctly, then kept the wrong bracket.",
+      "expectedSkills": [
+        "FAC_CANCEL_COMMON_FACTOR"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_CANCEL_COMMON_FACTOR",
+      "skillVerdict": "SLIP_COUNTED_AS_MISTAKE",
+      "aiDescription": "After writing (x - 3)(x + 3) over (x - 3), the common factor x - 3 should cancel, leaving x + 3, not x - 3.",
+      "aiConclusion": "The student correctly factored the numerator as (x - 3)(x + 3), but gave the cancelled factor, x - 3, instead of the remaining factor.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a cancellation misunderstanding from a final-answer slip."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3.8
+    },
+    {
+      "id": "M14",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: perfect square sign",
+      "prompt": "Factorise completely: 4y^2 - 12y + 9",
+      "answer": "(2y + 3)^2",
+      "working": "2y squared and 3 squared",
+      "expectedCause": "Ignored the minus on the middle term.",
+      "expectedSkills": [
+        "FAC_PERFECT_SQUARE_MINUS"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_PERFECT_SQUARE_MINUS",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "After correctly noticing that 4y² and 9 are squares, the factorisation used +3. The negative middle term requires (2y - 3)², not (2y + 3)².",
+      "aiConclusion": "The student identified the square terms but chose a positive binomial, which would produce a positive middle term rather than -12y.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "The brief working does not show whether the positive sign was a slip or a misunderstanding of the middle-term sign."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 5.5
+    },
+    {
+      "id": "M15",
+      "set": "MESSY",
+      "nature": "LUCKY_CORRECT",
+      "source": "Written for this test: lucky right answer, wrong working",
+      "prompt": "Factorise completely: x^2 - 9x + 20",
+      "answer": "(x - 4)(x - 5)",
+      "working": "4 + 5 = 20 and 4 × 5 = 9",
+      "expectedCause": "Right answer, but the working swaps product and sum.",
+      "expectedSkills": [
+        "FAC_PAIR_PRODUCT_SUM"
+      ],
+      "codeVerdict": "VERIFIED_CORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "SLIP",
+      "landedSkill": null,
+      "skillVerdict": "NO_EVIDENCE",
+      "aiDescription": "The sum and product were written the wrong way round: 4 + 5 = 9, while 4 × 5 = 20. The negative signs needed for the middle term are also not shown in the check.",
+      "aiConclusion": "The factorisation is correct, but the written check reverses the required sum and product: 4+5 is 9 and 4×5 is 20.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "It is unclear whether the reversed arithmetic statements were a transcription slip or reflect uncertainty about the product-sum rule.",
+        "The working does not show whether the negative signs were deliberately chosen."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 5.5
+    },
+    {
+      "id": "M16",
+      "set": "MESSY",
+      "nature": "NO_EVIDENCE",
+      "source": "Written for this test: no attempt",
+      "prompt": "Factorise completely: x^2 + 7x + 12",
+      "answer": "?",
+      "working": "",
+      "expectedCause": "No attempt.",
+      "expectedSkills": [],
+      "codeVerdict": "NOT_DETERMINISTIC",
+      "firstWrongStep": 1,
+      "mistakeKind": "UNREADABLE",
+      "landedSkill": null,
+      "skillVerdict": "CORRECTLY_NO_GAP_EVIDENCE",
+      "aiDescription": "No pair of numbers with product 12 and sum 7 was provided, and no factorisation was entered.",
+      "aiConclusion": "The response '?' provides no factorisation or working, so the student's method for monic trinomials cannot be evaluated.",
+      "evidenceState": "INSUFFICIENT",
+      "uncertainty": [
+        "The symbol may indicate not knowing, uncertainty, disengagement, or an input/format issue.",
+        "No evidence distinguishes difficulty finding factor pairs from difficulty writing algebraic factors."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.8
+    },
+    {
+      "id": "M17",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: common bracket repeated",
+      "prompt": "Factorise completely: 3(x - 2) + y(x - 2)",
+      "answer": "(3 + y)(x - 2)(x - 2)",
+      "working": "take out (x-2) from each",
+      "expectedCause": "Took the common bracket out once for each term.",
+      "expectedSkills": [
+        "FAC_COMMON_BINOMIAL"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_COMMON_BINOMIAL",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "After taking out the common factor (x - 2), it should appear once outside the bracket. The student included an extra (x - 2), changing the expression.",
+      "aiConclusion": "The student identified (x - 2) as the common factor but wrote it twice in the final factorisation.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "It is not yet clear whether repeating the common factor was a transcription slip or a misconception about taking out a common factor."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.8
+    },
+    {
+      "id": "M18",
+      "set": "MESSY",
+      "nature": "CONCEPT",
+      "source": "Written for this test: lowest power missed",
+      "prompt": "Factorise completely: 10x^2 - 18x^3 + 14x^4",
+      "answer": "2x(5x - 9x^2 + 7x^3)",
+      "working": "2 and x are common",
+      "expectedCause": "Took out x instead of x^2.",
+      "expectedSkills": [
+        "FND_MIN_EXP_COMMON",
+        "FAC_COMMON_MONOMIAL"
+      ],
+      "codeVerdict": "VERIFIED_UNFINISHED",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FND_MIN_EXP_COMMON",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The common variable factor should be x^2, because every term contains at least x^2. Taking out only x leaves another common factor x inside the bracket, so the result is not fully factorised.",
+      "aiConclusion": "The expression is equivalent to the original, but the student stopped before taking out the full common factor 2x^2.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a held lowest-exponent misconception from an incomplete final check."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.8
+    },
+    {
+      "id": "M19",
+      "set": "MESSY",
+      "nature": "SLIP",
+      "source": "Written for this test: arithmetic slip",
+      "prompt": "Factorise completely: x^2 + 13x + 42",
+      "answer": "(x + 6)(x + 8)",
+      "working": "6 × 7 = 42, 6 + 7 = 13\n(x + 6)(x + 8)",
+      "expectedCause": "Found 6 and 7, then wrote 8.",
+      "expectedSkills": [
+        "FAC_MONIC_TRINOMIAL"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "SLIP",
+      "landedSkill": null,
+      "skillVerdict": "CORRECTLY_NO_GAP_EVIDENCE",
+      "aiDescription": "After correctly finding 6 and 7, the second factor uses x + 8 rather than x + 7.",
+      "aiConclusion": "The student correctly identified 6 and 7 as the required pair, then wrote 8 instead of 7 in the second factor.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "It is unclear whether replacing 7 with 8 was a transcription slip or a sustained error when forming the factors."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3.8
+    },
+    {
+      "id": "N01",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q1",
+      "prompt": "Expand: 4(x - 5)",
+      "answer": "4x - 5",
+      "working": "4 times x = 4x\nthen -5",
+      "expectedCause": "Multiplied only the first term inside the bracket.",
+      "expectedSkills": [
+        "EXP_EXPAND_SINGLE"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "EXP_EXPAND_SINGLE",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "After correctly finding 4 × x = 4x, the student left -5 unchanged instead of calculating 4 × (-5) = -20.",
+      "aiConclusion": "The student multiplied 4 by x but did not multiply 4 by -5.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a held distribution misconception from an isolated omission."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 5.8
+    },
+    {
+      "id": "N02",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q2",
+      "prompt": "Expand: x(3x + 2)",
+      "answer": "3x^2 + 2",
+      "working": "x times 3x = 3x^2\n+ 2",
+      "expectedCause": "Multiplied only the first term inside the bracket.",
+      "expectedSkills": [
+        "EXP_EXPAND_SINGLE"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 2,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "EXP_EXPAND_SINGLE",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The second product should multiply x by 2, giving 2x, but the student wrote only + 2.",
+      "aiConclusion": "The student correctly distributed x to 3x, but did not distribute x to the constant 2.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "This single response cannot distinguish a held distribution misconception from an omission or transcription slip."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3.4
+    },
+    {
+      "id": "N11",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q11",
+      "prompt": "Expand: (y - 3)^2",
+      "answer": "y^2 - 9",
+      "working": "square y and square 3\ny^2 - 9",
+      "expectedCause": "Squared each term separately; missed the middle term.",
+      "expectedSkills": [
+        "ID_SQUARE_DIFF",
+        "EXP_EXPAND_BINOMIALS"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "ID_SQUARE_DIFF",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The student treated (y - 3)^2 as y^2 - 3^2. Squaring a binomial means multiplying (y - 3)(y - 3), which includes cross-product terms.",
+      "aiConclusion": "The student expanded (y - 3)^2 as a difference of squares, omitting the two cross-product terms and giving the constant term the wrong sign.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single response cannot distinguish a stable identity misconception from an isolated method-selection error."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3
+    },
+    {
+      "id": "N12",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q12",
+      "prompt": "Expand: (z + 5)^2",
+      "answer": "z^2 + 25",
+      "working": "z^2 + 5^2 = z^2 + 25",
+      "expectedCause": "Squared each term separately; missed the middle term.",
+      "expectedSkills": [
+        "ID_SQUARE_DIFF",
+        "EXP_EXPAND_BINOMIALS"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "ID_SQUARE_DIFF",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "They treated (z + 5)^2 as z^2 + 5^2. Squaring a sum also produces two cross-product terms, which combine to 10z.",
+      "aiConclusion": "The student expanded the square as the sum of the squares and omitted the two cross-product terms, 5z and 5z.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single response cannot distinguish a settled square-of-a-binomial misconception from a one-off omission."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3.8
+    },
+    {
+      "id": "N13",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q13",
+      "prompt": "Expand: (2a + 3b)(a - b)",
+      "answer": "2a^2 - 3b^2",
+      "working": "first times first = 2a^2, last times last = -3b^2",
+      "expectedCause": "Multiplied first terms and last terms only; missed the cross terms.",
+      "expectedSkills": [
+        "EXP_EXPAND_BINOMIALS"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "EXP_EXPAND_BINOMIALS",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The expansion lists only 2a·a and 3b·(-b). It omits the cross-products 2a·(-b) and 3b·a, which combine to +ab.",
+      "aiConclusion": "The student multiplied only the first terms and last terms, omitting both cross-products.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a held expansion method error from an incomplete or rushed attempt."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 5
+    },
+    {
+      "id": "N14",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q14",
+      "prompt": "Expand: (a + 4)(a + 2)",
+      "answer": "a^2 + 8",
+      "working": "a × a = a^2, 4 × 2 = 8",
+      "expectedCause": "Multiplied first terms and last terms only; missed the cross terms.",
+      "expectedSkills": [
+        "EXP_EXPAND_BINOMIALS"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "EXP_EXPAND_BINOMIALS",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The expansion did not multiply every term in the first bracket by every term in the second bracket. The products a×2 and 4×a, which combine to 6a, were omitted.",
+      "aiConclusion": "The student multiplied only the first terms and the constant terms, omitting both cross-products.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response does not distinguish a settled distribution misconception from an incomplete attempt or omission."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 6
+    },
+    {
+      "id": "N15",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q15",
+      "prompt": "Expand: (a - 4)(a - 2)",
+      "answer": "a^2 - 8",
+      "working": "a^2 and 4 × 2 = 8 with a minus",
+      "expectedCause": "Missed the cross terms, and (-4)(-2) gives +8, not -8.",
+      "expectedSkills": [
+        "EXP_EXPAND_BINOMIALS",
+        "FND_SIGN_MUL_DIV"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "EXP_EXPAND_BINOMIALS",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "The work includes only a·a and 4×2, but multiplying two binomials also requires the two cross products, a·(-2) and (-4)·a. Also, (-4)(-2) is positive 8, not negative 8.",
+      "aiConclusion": "The response omits both cross-product terms and gives the constant term a negative sign.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a held expansion misconception from an isolated omission or sign slip."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 5.6
+    },
+    {
+      "id": "N20",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q20",
+      "prompt": "Simplify: (4x + 5)/(4x)",
+      "answer": "5",
+      "working": "cross out the 4x on top and bottom, left with 5",
+      "expectedCause": "Cancelled a term, not a factor.",
+      "expectedSkills": [
+        "FAC_CANCEL_COMMON_FACTOR"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_CANCEL_COMMON_FACTOR",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "They crossed out 4x across an addition. Cancellation is only valid for factors multiplying the entire numerator and denominator, not for one term in 4x + 5.",
+      "aiConclusion": "The student cancelled 4x as though it were a separate factor of the numerator, rather than part of the sum 4x + 5.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "One response cannot distinguish a stable cancellation misconception from an isolated procedural error."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 4.5
+    },
+    {
+      "id": "N21",
+      "set": "NCERT",
+      "nature": "CONCEPT",
+      "source": "NCERT Class 8 Mathematics, Ch. 14 Factorisation, Exercise 14.4, Q21",
+      "prompt": "Simplify: (7x + 5)/5",
+      "answer": "7x",
+      "working": "the 5s cancel",
+      "expectedCause": "Cancelled a term, not a factor.",
+      "expectedSkills": [
+        "FAC_CANCEL_COMMON_FACTOR"
+      ],
+      "codeVerdict": "VERIFIED_INCORRECT",
+      "firstWrongStep": 1,
+      "mistakeKind": "MISUNDERSTANDING",
+      "landedSkill": "FAC_CANCEL_COMMON_FACTOR",
+      "skillVerdict": "RIGHT_SKILL",
+      "aiDescription": "“The 5s cancel” incorrectly treats the 5 in the denominator as cancelling across addition in the numerator. The numerator is 7x + 5, so both terms must be divided by 5.",
+      "aiConclusion": "The student cancelled the denominator 5 with only the +5 term and omitted the remaining 7x/5 term.",
+      "evidenceState": "PARTIAL",
+      "uncertainty": [
+        "A single response cannot distinguish a stable cancellation misconception from an isolated procedural error."
+      ],
+      "assessmentsAgreed": true,
+      "seconds": 3.3
+    }
+  ],
+  "failures": []
+}

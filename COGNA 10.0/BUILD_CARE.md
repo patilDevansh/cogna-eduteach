@@ -110,3 +110,12 @@ The new path requires `MODULE_LEARNING_ENABLED=true` on the API and `NEXT_PUBLIC
 Reserve independent items under a learner-scoped transaction lock; a repeat must not silently reuse the prior exit. If no reviewed item remains, report exhaustion and retain earlier work. Recheck current classroom ownership before teacher read/control actions; do not rely only on the original assigning teacher ID.
 
 Class assignment uses one transaction across its target learners, with student locks acquired in sorted order. A depleted target rolls back the entire launch rather than leaving partial teacher work.
+
+
+AI Studio observer maintenance (5 November 2026): format APPLIED means ready in the plan, not proof of student exposure. Missing historic timings and decisions remain explicitly missing. Session model configuration is labelled as such. Existing stored compatibility fields are rendered as one review. The proposed discriminating follow-up/teaching flow is separate work.
+
+
+Saved Lotus entry correction (5 November 2026): use the student-authorized session read and verify topic/assignment before restoring an explicitly selected record. Each selected session has its own tab recovery key. Submitted history is durable; an older unchecked draft may be unavailable when its original tab cache has been replaced.
+
+
+Lotus recovery: interaction context is optional for observer answers; validate it only when supplied. A pending submission already present in saved history is confirmed using its original submission ID before resuming the latest question. Never discard retained work to recover a session.

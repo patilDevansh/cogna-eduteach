@@ -61,6 +61,15 @@ describe("what the last answer asks of the next format", () => {
     assert.ok(kinds.length > 0);
     assert.equal(kinds.includes("COMMIT_THEN_CHOOSE"), false);
   });
+  it("a readable wrong answer asks for a format that tells a slip from a misconception, never a typing check", () => {
+    const kinds = need(answered({ status: "VERIFIED_INCORRECT", mistake: "DIVIDED_FIRST_TERM_ONLY" }))!.kinds;
+    assert.equal(kinds[0], "EDIT_HISTORY");
+    assert.equal(kinds.includes("READBACK"), false);
+  });
+  it("an answer that couldn't be read is asked again with the drafts kept, never a read-back check", () => {
+    assert.deepEqual(need(answered({ status: "NOT_DETERMINISTIC" }))?.kinds, ["EDIT_HISTORY"]);
+    assert.equal(checkedAiFormat("READBACK"), null, "the AI can't ask for it either");
+  });
   it("a sure, careful right answer asks nothing", () => {
     assert.equal(need(answered({})), null);
   });
@@ -100,8 +109,10 @@ describe("in a running test", () => {
   after(() => { for (const s of services) (s as unknown as { onModuleDestroy?: () => void }).onModuleDestroy?.(); });
 
   class Reviewer extends FakeLotusModelService {
+    prompts: string[] = [];
     constructor(private readonly format: unknown, private readonly why = "To separate the numbers from the signs.") { super(); }
-    override async singleReview(): Promise<LotusDebateClosure> {
+    override async singleReview(prompt: string): Promise<LotusDebateClosure> {
+      this.prompts.push(prompt);
       return { ...(await this.challengerClosure()), action: "ASK", exitDiagnostic: false, nextFormat: this.format as string, nextFormatReason: this.why };
     }
   }
@@ -109,7 +120,8 @@ describe("in a running test", () => {
 
   /** Plays right up to `upTo` answers, then gives one wrong answer no question predicted, which goes to the review. */
   async function wrongAt(format: unknown, upTo: number) {
-    const service = new LotusService(new Reviewer(format) as unknown as LotusModelService, null);
+    const reviewer = new Reviewer(format);
+    const service = new LotusService(reviewer as unknown as LotusModelService, null);
     services.push(service);
     const student = `format_${String(format)}_${upTo}`;
     const started = await service.start(student, "FACTORISATION");
@@ -131,7 +143,7 @@ describe("in a running test", () => {
     view = await service.get(view.sessionId);
     const session = internal(service, view.sessionId);
     const audit = session.audits.at(-1) as LotusQuestionAudit;
-    return { service, session, audit, view, shownNext, held };
+    return { service, session, audit, view, shownNext, held, reviewer };
   }
 
   it("follows a usable AI suggestion, on a later question, and says so", async () => {
@@ -150,6 +162,38 @@ describe("in a running test", () => {
     assert.equal(view.upcomingQuestions?.some((q) => JSON.stringify(q).includes("separate the numbers")), false);
   });
 
+  it("puts the format on the question that re-checks the skill that went wrong, when one is in reach", async () => {
+    const { session, audit } = await wrongAt("EDIT_HISTORY", 10);
+    const d = audit.formatDecision!;
+    assert.equal(d.status, "APPLIED");
+    const f = session.factorisation;
+    const skill = audit.question.answerKey.diagnostics!.skillId;
+    const about = (turn: number) => {
+      const item = f.versions[String(turn)]?.find((q: any) => q.id === f.preferred[String(turn)]);
+      return f.state.turns.find((t: any) => t.turn === turn)?.forSkill === skill || item?.answerKey.diagnostics?.skillId === skill;
+    };
+    const ahead = f.state.turns.filter((t: any) => t.turn > d.targetTurn! - 6 && t.turn < d.targetTurn! && t.turn > f.state.planTurn + 1 && t.status !== "SKIPPED");
+    // Either the chosen question is about that skill, or none of the earlier candidates was.
+    assert.ok(about(d.targetTurn!) || !ahead.some((t: any) => about(t.turn)));
+  });
+
+  it("tells the review which formats each upcoming question really takes, and what the server does by default", async () => {
+    const { session, reviewer } = await wrongAt("FOUR_SIGNS", 10);
+    const f = session.factorisation;
+    const { fittingFormats, redressedQuestion } = await import("../../src/lotus/lotus-interactions");
+    for (const t of f.state.turns.filter((turn: any) => turn.turn > f.state.planTurn && turn.status !== "SKIPPED")) {
+      const item = f.versions[String(t.turn)]?.find((q: any) => q.id === f.preferred[String(t.turn)]);
+      if (!item) continue;
+      for (const kind of fittingFormats(item)) {
+        assert.ok(item.game?.kind === kind || redressedQuestion(item, [kind], undefined, "probe"), `turn ${t.turn}: ${kind} is listed, so it must build`);
+      }
+    }
+    const prompt = reviewer.prompts.at(-1)!;
+    assert.match(prompt, /"formatsThatFit":\["/, "the real fits of each written upcoming question");
+    assert.match(prompt, /"serverFormatDefault":\{"tries":\[[^\]]+\],"because":"Wrong once/, "a readable wrong answer: the server's own choice");
+    assert.match(prompt, /slip or a held misconception/);
+  });
+
   it("never changes the question the browser may already be showing next, and an old version can still be submitted", async () => {
     const { session, audit, shownNext } = await wrongAt("FOUR_SIGNS", 10);
     const f = session.factorisation;
@@ -157,6 +201,11 @@ describe("in a running test", () => {
     assert.equal(frozen.id, shownNext, "the staged question is what the student got");
     assert.notEqual(audit.formatDecision!.targetTurn, f.state.planTurn);
     const versions = f.versions[String(audit.formatDecision!.targetTurn)];
+    // Formats are dealt at random, so the later question is sometimes already the one wanted and nothing is redressed.
+    if (versions[0].game?.kind === audit.formatDecision!.chosen) {
+      assert.equal(versions.length, 1, "already the wanted format, so nothing is replaced");
+      return;
+    }
     assert.ok(versions.length >= 2, "the older version stays valid");
     assert.notEqual(versions[0].id, versions.at(-1).id);
   });

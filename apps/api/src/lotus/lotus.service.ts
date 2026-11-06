@@ -38,7 +38,8 @@ import type {
 } from "@cogna/shared";
 import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
-import { isDemoStudentId } from "../access/cogna-access";
+import { isDemoStudentId, isProductionLike, type AccessActor } from "../access/cogna-access";
+import { isDemoStudent } from "../engines/diagnostic-v2/demo-student";
 import {
   challengerClosurePrompt,
   gptDebatePrompt,
@@ -59,8 +60,9 @@ import {
 } from "./lotus-persistence";
 import { reconcileLotusSession, type LotusReconcileResult } from "./lotus-reconcile";
 import { pseudonymousLearnerId } from "./lotus-privacy";
+import { foldLearnerModel, loadLearnerModel, memoryLines, priorsFromMemory, testEvidence, writeEvidence, type EvidenceRow, type LearnerModel } from "../learner/learner-memory";
 import { normalizeMathText } from "./lotus-algebra";
-import { redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
+import { fittingFormats, redressedQuestion, resolveLotusResponse, TileAnswerError, withLotusInteraction } from "./lotus-interactions";
 import { checkedAiFormat, evidenceFormatNeed, formatDecisionNote } from "./lotus-format-guide";
 import { themedGamesEnabled } from "./lotus-game-core";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
@@ -77,7 +79,13 @@ import {
   catchUpSlots,
   evidenceFromAnalysis,
   factorisationStopReason,
+  factorisationTimeLimitSeconds,
   foldLedger,
+  untestedSkillsLeft,
+  conflictsWithEarlier,
+  reachableQuestionsAhead,
+  mistakeRank,
+  suspicionEffectNote,
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
@@ -93,6 +101,11 @@ import {
 } from "./lotus-math";
 
 interface LotusSessionState extends LotusSessionView {
+  developmentExitControl?: {
+    pending?: { decisionId: string; stopKey: string; nextTurn: number | null; nextQuestionId?: string };
+    ignoredStops: string[];
+    choices: Array<{ decisionId: string; choice: "FINISH" | "CONTINUE"; reason: string; at: string }>;
+  };
   /** Full server-side keys for the bounded 16-question coverage backbone. */
   coveragePlan?: LotusQuestion[];
   /** Later personalized options remain valid if a browser receives an update just as it submits. */
@@ -102,6 +115,11 @@ interface LotusSessionState extends LotusSessionView {
   factorisation?: FactorisationSession;
   /** C1: the AI's read of the whole finished test, attached to the report. */
   overallReview?: LotusOverallReview;
+}
+
+function developerExitAvailable(session: LotusSessionState): boolean {
+  return !isProductionLike() && process.env.LOTUS_DEV_OBSERVER_BYPASS === "true" &&
+    isDemoStudent(session.studentId) && !session.classroomAssignmentId && Boolean(session.factorisation);
 }
 
 interface FactorisationSession {
@@ -116,6 +134,8 @@ interface FactorisationSession {
   endedEarlyNote?: string;
   /** Formats wanted for the next question still to be written. */
   formatIntent?: LotusGameKind[];
+  /** What earlier tests and lessons on this topic showed about the student (learner-memory.ts), loaded when the test starts. */
+  memory?: Array<Omit<EvidenceRow, "studentId" | "topic" | "observedAt"> & { observedAt: string }>;
 }
 
 interface FactorisationWriteLog {
@@ -311,12 +331,22 @@ function deferredPlanEffects(actions: PlanAction[], primary: PlanAction | undefi
 export function adaptiveDecisionFor(
   audit: LotusQuestionAudit,
   actions: PlanAction[],
+  /** What this answer did to a suspicion already open on the skill (suspicionEffectNote), in plain words. */
+  suspicionNote?: string | null,
+  /** A check was wanted but no open slot can be reached in the time left. */
+  noTimeToCheck = false,
 ): LotusAdaptiveDecision {
-  const observedError = audit.response?.didNotKnow
+  // Every wrong thing code saw, weightiest first: one answer (a choose-several) can carry several.
+  const negatives = (audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE")
+    .sort((a, b) => mistakeRank(a.mistake) - mistakeRank(b.mistake));
+  const described = negatives.map((e) => e.description).filter((d): d is string => !!d);
+  const listed = described.length > 1 ? `${described[0]} Also: ${described.slice(1, 3).join(" ")}${described.length > 3 ? ` and ${described.length - 3} more.` : ""}` : described[0];
+  const baseObserved = audit.response?.didNotKnow
     ? "The student explicitly said they do not know this yet."
-    : audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
+    : listed
       ?? audit.verification?.explanation
       ?? "No specific error was established from this response.";
+  const observedError = suspicionNote ? `${baseObserved} ${suspicionNote}` : baseObserved;
   const action = actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "DESCENT")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "CHECK")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "WIDEN")
@@ -327,11 +357,15 @@ export function adaptiveDecisionFor(
       action: "KEEP",
       observedError,
       alternatives: ["A one-off slip, incomplete working, or an untested neighbouring skill can still explain this response."],
-      rationale: "The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.",
+      rationale: suspicionNote
+        ? `${suspicionNote} The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.`
+        : "The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.",
       expectedInformationGain: "Keep collecting independent evidence before changing the plan.",
       implementation: "APPLIED",
       outcome: "NO_CHANGE",
-      implementationDetail: "The validated action is to preserve the existing unseen plan; no question was swapped.",
+      implementationDetail: noTimeToCheck
+        ? "No time left to check this in this test; carried to the student's next session. No question was swapped."
+        : "The validated action is to preserve the existing unseen plan; no question was swapped.",
       ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
     };
@@ -365,7 +399,7 @@ export function adaptiveDecisionFor(
       implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
       outcome: action.spec ? "QUEUED" : "REJECTED",
       implementationDetail: action.spec
-        ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
+        ? `Question ${action.turn} was reserved for a checked question (built by code, reused from the bank or written by the AI); it is being prepared.`
         : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
       ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
@@ -388,7 +422,7 @@ export function adaptiveDecisionFor(
     implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
     outcome: action.spec ? "QUEUED" : "REJECTED",
     implementationDetail: action.spec
-      ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
+      ? `Question ${action.turn} was reserved for a checked question (built by code, reused from the bank or written by the AI); it is being prepared.`
       : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
     ...(planEffects.length ? { planEffects } : {}),
     source: "RULE_VALIDATED_PLAN",
@@ -404,18 +438,28 @@ function factorisationPlanningContext(session: LotusSessionState): string | unde
     .slice(0, 10)
     .map((turn) => {
       const spec = slotSpec(factorisation, turn.slot);
+      const item = preferredItem(factorisation, turn.turn);
       return {
         turn: turn.turn,
-        skill: spec?.skillId,
+        // A repurposed turn now asks about the skill it was repurposed for, not its base slot's.
+        skill: turn.forSkill ?? spec?.skillId,
         difficulty: spec?.level,
         status: turn.status,
         purpose: turn.purpose ?? "COVERAGE",
         pinned: turn.turn === nextOpenTurn(factorisation.state, factorisation.state.planTurn),
+        // What a format suggestion can actually do here: the format now, and every one the question could be asked in.
+        ...(item ? { format: item.game?.kind ?? (item.options?.length ? "OPTIONS" : "TYPED"), formatsThatFit: fittingFormats(item) } : { formatsThatFit: "not written yet" }),
       };
     });
+  const fallback = evidenceFormatNeed(session.audits);
+  const history = factorisation.memory?.length ? memoryLines(foldLearnerModel(session.studentId, factorisation.memory)) : [];
   return JSON.stringify({
     rule: "The server alone validates and installs a change. The pinned next item cannot change. Recommend an earliest safe later slot or KEEP.",
     remainingSlots: slots,
+    // Earlier tests and lessons: a mistake seen again here is a held way of thinking, not a slip.
+    ...(history.length ? { studentHistory: history } : {}),
+    // What the server does about the next format if the review suggests none.
+    serverFormatDefault: fallback ? { tries: fallback.kinds, because: fallback.reason } : "keep the planned formats",
   });
 }
 
@@ -465,6 +509,33 @@ function rapidSetAloud(prompt: string, game: RapidSetGame, row?: number): string
 function isAcceptedItem(item: Omit<LotusQuestion, "id"> | undefined | null): boolean {
   const origin = item?.answerKey.diagnostics?.origin;
   return origin === "AI" || origin === "CODE";
+}
+
+/**
+ * A code-built item is written and installed synchronously inside the plan change, before the decision about
+ * it exists, so applyGenerated finds nothing to update. Bring such a decision up to date once it exists.
+ */
+export function reconcileInstalledDecision(f: Pick<FactorisationSession, "state" | "versions" | "preferred">, audit: LotusQuestionAudit): void {
+  const decision = audit.adaptiveDecision;
+  if (!decision || decision.implementation !== "QUEUED_FOR_GENERATION" || decision.targetTurn === undefined) return;
+  const turn = f.state.turns.find((candidate) => candidate.turn === decision.targetTurn);
+  const item = preferredItem(f as FactorisationSession, decision.targetTurn);
+  if (!turn || turn.status === "SKIPPED" || !item || !isAcceptedItem(item)) return;
+  const now = new Date().toISOString();
+  decision.implementation = "APPLIED";
+  decision.outcome = "INSTALLED";
+  decision.validatedAt ??= now;
+  decision.installedAt = now;
+  decision.implementationDetail = installedDetail(item, decision.targetTurn);
+}
+
+/** A truthful line for an installed plan change, naming where the item came from. */
+function installedDetail(question: LotusQuestion | Omit<LotusQuestion, "id">, turn: number): string {
+  const provenance = questionProvenance(question);
+  const what = provenance === "CODE_BUILT_GAME" ? "A question built and checked by code"
+    : provenance === "AI_REUSED_FROM_BANK" ? "A checked AI question reused from the question bank"
+      : "A checked AI-written question was generated and";
+  return `${what} ${what.endsWith(" and") ? "" : "was "}installed at question ${turn}; it remains unseen until its turn.`;
 }
 
 function questionProvenance(question: LotusQuestion | Omit<LotusQuestion, "id">): LotusQuestionSelection["provenance"] {
@@ -567,10 +638,12 @@ function questionsEquivalent(
 }
 
 /** Strips the answer key and purpose down to nothing a student shouldn't see before answering. Shape-preserving so the frontend types are unaffected. */
-function redactQuestion<T extends Omit<LotusQuestion, "id">>(question: T): T {
+export function redactQuestion<T extends Omit<LotusQuestion, "id">>(question: T): T {
   return {
     ...question,
     purpose: "",
+    // The diagnostics that say where it came from are stripped below, so say it here.
+    ...(question.answerKey.diagnostics ? { provenance: questionProvenance(question) } : {}),
     answerKey: { kind: question.answerKey.kind, canonicalAnswer: "", workedSolution: [] },
   };
 }
@@ -622,7 +695,7 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
     // What each answer said about each skill is the diagnosis itself — released with the report, not before.
     skillEvidence: undefined,
     // What the server read from a themed game's play is part of the same diagnosis.
-    response: audit.response ? { ...audit.response, gameReading: undefined } : audit.response,
+    response: audit.response ? { ...audit.response, gameReading: undefined, typingReading: undefined } : audit.response,
     gpt: audit.gpt ? redactAssessment(audit.gpt) : undefined,
     challenger: audit.challenger ? redactAssessment(audit.challenger) : undefined,
     debate: audit.debate ? redactDebate(audit.debate) : undefined,
@@ -674,7 +747,9 @@ function lockedAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
  */
 function observerCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
+  delete clone.developmentExitControl;
   delete clone.factorisation;
+  delete clone.priors;
   delete clone.coveragePlan;
   delete clone.authorizedVariants;
   delete clone.preferredFuture;
@@ -717,6 +792,7 @@ export function workingPromptFor(studentId: string, env: NodeJS.ProcessEnv = pro
 
 function publicCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
+  delete clone.developmentExitControl;
   const upcoming: LotusQuestion[] = [];
   if (clone.status === "ACTIVE" && clone.factorisation) {
     const f = clone.factorisation;
@@ -740,6 +816,7 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     }
   }
   delete clone.factorisation;
+  delete clone.priors;
   if (clone.status === "ACTIVE" && clone.coveragePlan) {
     for (let turn = clone.audits.length + 2; turn <= clone.coveragePlan.length; turn += 1) {
       const preferredId = clone.preferredFuture?.[String(turn)];
@@ -883,6 +960,7 @@ export class LotusService implements OnModuleDestroy {
     const status = this.models.status;
     return {
       ...status,
+      factorisationTimeLimitSeconds: factorisationTimeLimitSeconds(),
       models: {
         primary: `${this.models.primaryModel} · GPT primary`,
         challenger: `${this.models.challengerModel} · GPT challenger`,
@@ -1074,6 +1152,9 @@ export class LotusService implements OnModuleDestroy {
         throw new BadRequestException("The visible question is no longer the current question. Refresh the session.");
       }
     }
+    if (session.developerExitPrompt) {
+      throw new BadRequestException("Choose whether to finish or stay in this developer test first.");
+    }
     if (session.status !== "ACTIVE" || !session.currentQuestion) {
       throw new BadRequestException("This Lotus diagnostic is already complete.");
     }
@@ -1178,7 +1259,8 @@ export class LotusService implements OnModuleDestroy {
     const answeredCount = session.audits.length + 1;
     if (session.factorisation) {
       // Active time, not wall-clock: a student who steps away doesn't lose check time.
-      const activeSeconds = lotusActiveSeconds(session.startedAt, session.audits.map((audit) => audit.createdAt));
+      // From when the questions were ready: time spent waiting for them to be written isn't test time.
+      const activeSeconds = lotusActiveSeconds(session.questionsReadyAt ?? session.startedAt, session.audits.map((audit) => audit.createdAt));
       return this.resolveFactorisationTurn(session, currentQuestion, response, activeSeconds, answeredCount);
     }
     const verification = verifyLotusResponse(currentQuestion, response);
@@ -1618,18 +1700,27 @@ export class LotusService implements OnModuleDestroy {
         slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
         slot.verification?.status === "VERIFIED_CORRECT",
       );
-      if (liveSession.status === "ACTIVE" && !slot.analysisLate) {
+      if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
             .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW")
             .map((e) => e.skillId))]
           : [];
-        const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills);
+        // Who found the evidence behind each check: the review (ANALYSIS) or code's own rules (INSTANT/REASON).
+        const decidedBy: Record<string, "AI" | "CODE"> = {};
+        for (const e of slot.skillEvidence ?? []) {
+          if (e.kind === "SECURE") continue;
+          decidedBy[e.skillId] = e.source === "ANALYSIS" ? "AI" : decidedBy[e.skillId] ?? "CODE";
+        }
+        const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills, decidedBy, { elapsedSeconds, answered: answeredCount });
+        const noTime = this.lastPlanNoTime;
         slot.questionSelection.planningNote = planDecisionNote(adjustments);
-        slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
+        slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments, suspicionEffectNote(liveSession.audits.slice(0, turnIndex), slot, liveSession.priors), noTime);
         slot.adaptiveDecision.recommendedAt = slot.analysisCompletedAt;
+        this.reconcileInstalledDecision(liveSession, slot);
+        this.noteDoubtCheck(liveSession, slot);
         if (analysis.conclusion.action === "ASK") this.steerNextFormat(liveSession, slot, { proposed: analysis.conclusion.nextFormat, reason: analysis.conclusion.nextFormatReason });
-      } else if (liveSession.status === "ACTIVE") {
+      } else if (liveSession.status === "ACTIVE" && !liveSession.developerExitPrompt) {
         slot.adaptiveDecision = {
           action: "KEEP",
           observedError: slot.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
@@ -1645,7 +1736,7 @@ export class LotusService implements OnModuleDestroy {
           source: "RULE_VALIDATED_PLAN",
         };
       }
-      else { liveSession.finalReport = this.factorisationReport(liveSession); this.maybeRunOverallReview(liveSession); }
+      else if (liveSession.status === "COMPLETE") { liveSession.finalReport = this.factorisationReport(liveSession); this.maybeRunOverallReview(liveSession); }
     } else if (liveSession.coveragePlan) {
       if (!slot.analysisLate) {
         this.stageLaterProbe(liveSession, analysis.conclusion.nextQuestion);
@@ -1973,9 +2064,9 @@ export class LotusService implements OnModuleDestroy {
         throw new ConflictException("That follow-up has already been answered.");
       }
       if (!audit.reasonCheck.options.some((o) => o.id === optionId)) throw new BadRequestException("That isn't one of the choices.");
-      const { valid, evidence } = reasonEvidence(audit.question, optionId);
+      const { valid, evidence, mismatch } = reasonEvidence(audit.question, optionId, audit.response?.answer);
       if (!valid) throw new BadRequestException("That isn't one of the choices.");
-      audit.reasonCheck = { ...audit.reasonCheck, chosenId: optionId, chosenAt: new Date().toISOString() };
+      audit.reasonCheck = { ...audit.reasonCheck, chosenId: optionId, chosenAt: new Date().toISOString(), ...(mismatch ? { mismatchNote: mismatch } : {}) };
       const explained = (audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE");
       if (evidence && !explained) audit.skillEvidence = [...(audit.skillEvidence ?? []), evidence];
       await this.persist(session, audit, true);
@@ -1987,6 +2078,84 @@ export class LotusService implements OnModuleDestroy {
     } finally {
       if (this.inFlightAnswers.get(sessionId) === task) this.inFlightAnswers.delete(sessionId);
     }
+  }
+
+  async chooseDeveloperExit(
+    sessionId: string,
+    studentId: string,
+    decisionId: string,
+    choice: "FINISH" | "CONTINUE",
+  ): Promise<LotusSessionView> {
+    const existing = this.inFlightAnswers.get(sessionId);
+    if (existing) {
+      await existing.catch(() => undefined);
+      return this.chooseDeveloperExit(sessionId, studentId, decisionId, choice);
+    }
+    const task = this.chooseDeveloperExitOnce(sessionId, studentId, decisionId, choice);
+    this.inFlightAnswers.set(sessionId, task);
+    try {
+      return await task;
+    } finally {
+      if (this.inFlightAnswers.get(sessionId) === task) this.inFlightAnswers.delete(sessionId);
+    }
+  }
+
+  private async chooseDeveloperExitOnce(
+    sessionId: string,
+    studentId: string,
+    decisionId: string,
+    choice: "FINISH" | "CONTINUE",
+  ): Promise<LotusSessionView> {
+    const session = await this.requireSession(sessionId);
+    if (session.studentId !== studentId || !developerExitAvailable(session)) {
+      throw new ForbiddenException("Developer exit control is available only for your local demo diagnostic.");
+    }
+    if (choice !== "FINISH" && choice !== "CONTINUE") throw new BadRequestException("Unknown developer exit choice.");
+    const control = session.developmentExitControl;
+    const prior = control?.choices.find((entry) => entry.decisionId === decisionId);
+    if (prior) {
+      if (prior.choice !== choice) throw new ConflictException("This exit decision already has a different saved choice.");
+      await this.persist(session);
+      return publicCopy(session);
+    }
+    const prompt = session.developerExitPrompt;
+    const pending = control?.pending;
+    if (!prompt || !pending || prompt.decisionId !== decisionId || pending.decisionId !== decisionId || session.status !== "ACTIVE") {
+      throw new ConflictException("This developer exit decision is no longer pending. Reload the session.");
+    }
+    const f = session.factorisation!;
+    const next = pending.nextTurn === null ? undefined : f.versions[String(pending.nextTurn)]?.find((item) => item.id === pending.nextQuestionId);
+    if (choice === "CONTINUE" && (!next || !isAcceptedItem(next))) {
+      throw new BadRequestException("There is no further checked question available. You can finish this test.");
+    }
+    if (choice === "CONTINUE") {
+      f.state.planTurn = pending.nextTurn!;
+      session.currentQuestion = next!;
+      session.phase = next!.phase;
+      session.reportPending = false;
+      delete f.endedEarlyNote;
+      if (!control!.ignoredStops.includes(pending.stopKey)) control!.ignoredStops.push(pending.stopKey);
+      const last = session.audits.at(-1)!;
+      last.adaptiveDecision = {
+        action: "KEEP", observedError: prompt.message,
+        alternatives: ["Finish the diagnostic at the recorded stopping point."],
+        rationale: `The developer chose to continue after ${prompt.reason.replaceAll("_", " ").toLowerCase()}.`,
+        expectedInformationGain: "Continue collecting evidence using the existing checked plan.",
+        implementation: "APPLIED", outcome: "NO_CHANGE",
+        implementationDetail: `Developer continuation opened question ${pending.nextTurn}.`,
+        recommendedAt: new Date().toISOString(), source: "RULE_VALIDATED_PLAN",
+      };
+    } else {
+      session.reportPending = true;
+      await settleWithin(this.waitForSessionAnalyses(sessionId), FINAL_REPORT_WAIT_MS);
+      f.endedEarlyNote = prompt.message;
+      this.completeFactorisation(session);
+    }
+    control!.choices.push({ decisionId, choice, reason: prompt.reason, at: new Date().toISOString() });
+    delete control!.pending;
+    delete session.developerExitPrompt;
+    await this.persist(session);
+    return publicCopy(session);
   }
 
   async override(
@@ -2152,6 +2321,10 @@ Create one materially different question that adds new diagnostic evidence. Test
       timingMs: null,
       createdAt: startedAt,
     };
+    // The student's history on this topic, so this test is read in the light of the last ones, and
+    // what earlier tests or lessons left open is re-checked first.
+    const memory = await this.memoryFor(studentId, topic);
+    const priors = memory?.length ? priorsFromMemory(foldLearnerModel(studentId, memory)) : [];
     const session: LotusSessionState = {
       sessionId: randomUUID(),
       studentId,
@@ -2160,6 +2333,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       board: "CBSE",
       topic,
       ...(focus ? { catchUp: { skills: focus.map(skillName) } } : {}),
+      ...(priors.length ? { priors } : {}),
       status: "ACTIVE",
       experimental: true,
       workingPrompt: workingPromptFor(studentId),
@@ -2188,6 +2362,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         versions,
         preferred,
         writes: [],
+        ...(memory?.length ? { memory } : {}),
       },
     };
     this.sessions.set(session.sessionId, session);
@@ -2195,6 +2370,17 @@ Create one materially different question that adds new diagnostic evidence. Test
     await this.persist(session, undefined, true);
     this.buildSkeleton(session);
     return publicCopy(session);
+  }
+
+  /** What earlier tests and lessons on this topic showed about the student; empty without a database. */
+  protected async memoryFor(studentId: string, topic: string): Promise<NonNullable<FactorisationSession["memory"]> | undefined> {
+    if (!lotusPersistenceEnabled(this.prisma)) return undefined;
+    return this.prisma.learnerSkillEvidence?.findMany({ where: { studentId, topic }, orderBy: { observedAt: "asc" } })
+      .then((rows) => rows.map(({ skillId, source, sourceId, state, mistakes, detail, observedAt }) => ({
+        skillId, source: source as "TEST" | "LESSON", sourceId, state: state as EvidenceRow["state"],
+        mistakes: mistakes as unknown as EvidenceRow["mistakes"], detail: detail as Record<string, unknown>, observedAt: observedAt.toISOString(),
+      })))
+      .catch(() => undefined);
   }
 
   /** Queues an AI write for every planned turn. No fixed item is installed. */
@@ -2322,12 +2508,16 @@ Create one materially different question that adds new diagnostic evidence. Test
     // Some slots are staged as games (fireflies, impostor, detective, fishing,
     // garden): built and checked by code, no model call. See lotus-probes.ts.
     const gameRequest = { ...job.request, variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`, avoid: this.testPrints(session, job.turn) };
-    const game = codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest);
+    // Product rule: factorisation questions come only from the AI, newly written or reused from the checked
+    // bank. Code-built content is off unless LOTUS_CODE_BUILT_QUESTIONS=true (tests of the probes themselves).
+    const game = process.env.LOTUS_CODE_BUILT_QUESTIONS === "true" ? codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest) : null;
     if (game && !checkWrittenItem(gameRequest, game).length) {
       await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
       return;
     }
-    if (!job.retryCount && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
+    // The bank is tried on the first attempt, and on every retry while the AI is unavailable: then it's the only
+    // source of a checked question, and a test that never finishes preparing is worse than a reused one.
+    if ((!job.retryCount || this.models.activeOutage) && process.env.LOTUS_E2E_DISABLE_QUESTION_BANK !== "true") {
       const reused = await this.takeFactorisationBankItem(session, job);
       if (reused) {
         await this.applyGenerated(sessionId, job, { item: reused, attempts: 0, ms: 0, rejections: [] }, "BANK");
@@ -2418,6 +2608,18 @@ Create one materially different question that adds new diagnostic evidence. Test
       this.logger.log(`Question write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
     };
     const markNotApplied = (detail: string, outcome: "DEFERRED" | "REJECTED" | "STALE") => {
+      // A rewrite that could not be prepared never leaves the slot empty or filled by code: the question that was
+      // planned there stays, and the decision says so.
+      const held = f.state.turns.find((candidate) => candidate.turn === job.turn);
+      if (held?.held && held.status === "SKIPPED" && held.version === job.version && outcome !== "STALE") {
+        held.status = held.held.status;
+        if (held.held.purpose) held.purpose = held.held.purpose; else delete held.purpose;
+        if (held.held.forSkill) held.forSkill = held.held.forSkill; else delete held.forSkill;
+        held.reason = held.held.reason ?? "Kept as planned: the replacement could not be prepared in time.";
+        delete held.held;
+        held.version += 1;
+        detail = `${detail} The question already planned for question ${job.turn} stays.`;
+      }
       for (const audit of session.audits) {
         const decision = audit.adaptiveDecision;
         if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
@@ -2526,6 +2728,10 @@ Create one materially different question that adds new diagnostic evidence. Test
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
+    if (planTurn) delete planTurn.held;
+    if (!session.questionsReadyAt && Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length >= preparationTarget(f)) {
+      session.questionsReadyAt = new Date().toISOString();
+    }
     this.writeQueues.get(sessionId)?.blockedTurns.delete(job.turn);
     this.factorisationGeneratedPrints.add(print);
     if (job.turn === 1) this.factorisationOpeningPrints.add(print);
@@ -2575,24 +2781,46 @@ Create one materially different question that adds new diagnostic evidence. Test
         decision.implementation = "APPLIED";
         decision.outcome = "INSTALLED";
         decision.installedAt = new Date().toISOString();
-        decision.implementationDetail = source === "BANK"
-          ? `A checked AI question was reused from the question bank and installed at question ${job.turn}; it remains unseen until its turn.`
-          : `A checked AI-written question was generated and installed at question ${job.turn}; it remains unseen until its turn.`;
+        decision.validatedAt ??= decision.installedAt;
+        decision.implementationDetail = installedDetail(question, job.turn);
       }
     }
     record("USED");
     await this.persist(session, undefined, true);
   }
 
+  /**
+   * A code-built item is written and installed synchronously inside the plan change, before the decision about
+   * it exists, so applyGenerated finds nothing to update. Bring such a decision up to date once it exists.
+   */
+  private reconcileInstalledDecision(session: LotusSessionState, audit: LotusQuestionAudit): void {
+    if (session.factorisation) reconcileInstalledDecision(session.factorisation, audit);
+  }
+
+  /** Why the test ends with no question left, naming the skills that were never asked. */
+  private noQuestionLeftNote(session: LotusSessionState): string {
+    const left = untestedSkillsLeft(session.factorisation?.state.topic, foldLedger(session.audits, session.priors));
+    return left.length
+      ? `The plan has no further safe question to install. Skills never asked: ${left.slice(0, 6).join(", ")}${left.length > 6 ? ` and ${left.length - 6} more` : ""}.`
+      : "The plan has no further safe question to install, and every skill in it has been asked.";
+  }
+
+  /** Set by the last plan change: a check was wanted but no open slot is reachable in the time left. */
+  private lastPlanNoTime = false;
+
   /** Re-reads every skill from all evidence so far and changes the questions the student hasn't reached. */
-  private adaptFactorisationPlan(session: LotusSessionState, freezeNext: boolean, forceCheckSkills: string[] = []): PlanAction[] {
+  private adaptFactorisationPlan(session: LotusSessionState, freezeNext: boolean, forceCheckSkills: string[] = [], forceCheckDecidedBy: Record<string, "AI" | "CODE"> = {}, reach?: { elapsedSeconds: number; answered: number }): PlanAction[] {
+    this.lastPlanNoTime = false;
     const f = session.factorisation!;
     if (session.status !== "ACTIVE") return [];
     const actions = planAdjustments({
       state: f.state,
-      ledger: foldLedger(session.audits),
+      ledger: foldLedger(session.audits, session.priors),
       freezeNext,
       forceCheckSkills,
+      forceCheckDecidedBy,
+      ...(reach ? { reachableQuestions: reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
+      onNoReachableSlot: () => { this.lastPlanNoTime = true; },
       itemAt: (turn) => preferredItem(f, turn),
       askedItems: [...session.audits.map((audit) => audit.question), ...(session.currentQuestion ? [session.currentQuestion] : [])],
     });
@@ -2605,6 +2833,26 @@ Create one materially different question that adds new diagnostic evidence. Test
    * going with the AI review's suggestion if it made a usable one. The question the
    * browser may already be showing next is left alone, as with any plan change.
    */
+  /**
+   * A kept plan after a right-but-doubted answer says which upcoming question
+   * checks that doubt, or that none does, instead of a bare "no change".
+   */
+  private noteDoubtCheck(session: LotusSessionState, audit: LotusQuestionAudit): void {
+    const f = session.factorisation;
+    const hedged = (audit.skillEvidence ?? []).find((e) => e.hedge);
+    if (!f || !hedged?.hedge || audit.adaptiveDecision?.action !== "KEEP") return;
+    const doubt = hedged.hedge.mistake ? `the ${hedged.hedge.mistake} doubt` : `the doubt about ${hedged.hedge.option}`;
+    let check: number | null = null;
+    // From the question the student sees next onwards.
+    for (let turn: number | null = f.state.planTurn; turn !== null && check === null; turn = nextOpenTurn(f.state, turn)) {
+      const plan = f.state.turns.find((t) => t.turn === turn);
+      if (plan?.forSkill === hedged.skillId || preferredItem(f, turn)?.answerKey.diagnostics?.skillId === hedged.skillId) check = turn;
+    }
+    audit.adaptiveDecision.implementationDetail = check !== null
+      ? `Kept: question ${check}, already planned, asks ${skillName(hedged.skillId)} again and can show ${doubt}.`
+      : `Kept: no planned question asks ${skillName(hedged.skillId)} again, so ${doubt} stays open unless it comes back.`;
+  }
+
   private steerNextFormat(session: LotusSessionState, audit: LotusQuestionAudit, aiFormat?: { proposed: unknown; reason?: string }): void {
     const f = session.factorisation;
     if (!f || session.status !== "ACTIVE" || !themedGamesEnabled()) return;
@@ -2615,13 +2863,25 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (proposed) audit.formatDecision = { source: "AI", proposed, reason: `${aiFormat?.reason ?? ""} That isn't a format Lotus can use here.`.trim(), status: "NOT_APPLIED" };
       return;
     }
+    // The upcoming questions a format may go on (never the one the browser may already hold), each with the
+    // format just before it, so two of a kind don't run back to back.
     const frozen = nextOpenTurn(f.state, f.state.planTurn);
-    const firstTurn = frozen === null ? null : nextOpenTurn(f.state, frozen);
-    const firstPrevious = frozen === null ? undefined : preferredItem(f, frozen)?.game?.kind;
+    const window: Array<{ turn: number; previous?: LotusGameKind }> = [];
+    for (let turn = frozen === null ? null : nextOpenTurn(f.state, frozen), before = frozen; turn !== null && window.length < FORMAT_LOOKAHEAD; before = turn, turn = nextOpenTurn(f.state, turn)) {
+      window.push({ turn, previous: before === null ? undefined : preferredItem(f, before)?.game?.kind });
+    }
+    // What the format has to find out is about the skill that just went wrong (or was shaky), so the question
+    // that re-checks that skill goes first; the rest follow in order.
+    const unclear = new Set((audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE" || e.hedge).map((e) => e.skillId));
+    const lastSkill = audit.question.answerKey?.diagnostics?.skillId;
+    if (!unclear.size && lastSkill) unclear.add(lastSkill);
+    const rechecks = (turn: number) => {
+      const plan = f.state.turns.find((t) => t.turn === turn);
+      return (!!plan?.forSkill && unclear.has(plan.forSkill)) || unclear.has(preferredItem(f, turn)?.answerKey.diagnostics?.skillId ?? "");
+    };
+    const ordered = [...window.filter((w) => rechecks(w.turn)), ...window.filter((w) => !rechecks(w.turn))];
     const place = (kinds: LotusGameKind[]): Pick<LotusFormatDecision, "status" | "targetTurn" | "chosen"> | null => {
-      let turn = firstTurn;
-      let previous = firstPrevious;
-      for (let looked = 0; turn !== null && looked < FORMAT_LOOKAHEAD; looked += 1) {
+      for (const { turn, previous } of ordered) {
         const item = preferredItem(f, turn);
         if (!item) {
           f.formatIntent = kinds;
@@ -2637,8 +2897,6 @@ Create one materially different question that adds new diagnostic evidence. Test
           f.preferred[key] = next.id;
           return { status: "APPLIED", targetTurn: turn, chosen: next.game?.kind };
         }
-        previous = item.game?.kind;
-        turn = nextOpenTurn(f.state, turn);
       }
       return null;
     };
@@ -2657,6 +2915,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const f = session.factorisation!;
     const turn = f.state.turns.find((candidate) => candidate.turn === action.turn);
     if (!turn) return;
+    const previous = { status: turn.status, purpose: turn.purpose, forSkill: turn.forSkill, reason: turn.reason };
     turn.version += 1;
     turn.reason = action.reason;
     this.logger.log(`Plan ${session.sessionId.slice(0, 8)} turn ${action.turn}: ${action.kind}${action.kind === "REPURPOSE" ? ` ${action.purpose} ${action.forSkill}` : ""} — ${action.reason}`);
@@ -2684,6 +2943,9 @@ Create one materially different question that adds new diagnostic evidence. Test
       // A plan action is a recommendation, not permission to serve a blank
       // slot. Keep it excluded until a generated item has independently
       // passed validation and can safely be installed.
+      if (!action.skipUntilReady && !turn.held && previous.status !== "SKIPPED") {
+        turn.held = { status: previous.status, purpose: previous.purpose, forSkill: previous.forSkill, reason: previous.reason };
+      }
       turn.status = "SKIPPED";
       this.enqueueWrite(session.sessionId, {
         turn: action.turn,
@@ -2714,14 +2976,40 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (instant.fastSkip) state.fastSkips += 1;
 
     // Time box or a found starting point ends the test here, even if the browser has the next question staged.
-    const stop = factorisationStopReason(
+    const pauseBeforeExit = response.developerMode === true && developerExitAvailable(session);
+    const ignoredStops = pauseBeforeExit ? session.developmentExitControl?.ignoredStops ?? [] : [];
+    const suggestedStop = factorisationStopReason(
       [...session.audits, { skillEvidence: instant.evidence } as LotusQuestionAudit],
-      elapsedSeconds,
+      ignoredStops.includes("TIME_LIMIT") ? 0 : elapsedSeconds,
+      undefined,
+      session.priors,
     );
+    const stopKey = suggestedStop?.reason === "STARTING_POINT_FOUND"
+      ? `${suggestedStop.reason}:${suggestedStop.skillId}` : suggestedStop?.reason;
+    const stop = stopKey && ignoredStops.includes(stopKey) ? null : suggestedStop;
     if (stop) f.endedEarlyNote = stop.note;
     // The next question was fixed before this answer arrived — the browser is already showing it.
-    const nextTurn = stop ? null : nextOpenTurn(state, state.planTurn);
+    let nextTurn = stop && !pauseBeforeExit ? null : nextOpenTurn(state, state.planTurn);
     let next: LotusQuestion | undefined;
+    // The next planned question may not be written yet: the AI is slow (a whole class at once) or down. A
+    // student mid-test must never be stranded on an error, so go on to the first later question that is
+    // ready (the one the browser staged, if it named one), leaving the unwritten ones between out of the
+    // test (the report shows them as not tested). With none ready, the test ends here.
+    if (nextTurn !== null && !(f.versions[String(nextTurn)] ?? []).length) {
+      const offered = (turn: number) => (f.versions[String(turn)] ?? []).some((item) => item.id === response.nextQuestionId);
+      const later = state.turns.find((turn) => turn.turn > nextTurn! && turn.status !== "SKIPPED" &&
+        (response.nextQuestionId ? offered(turn.turn) : isAcceptedItem(preferredItem(f, turn.turn))));
+      if (later || !response.nextQuestionId) {
+        for (const turn of state.turns) {
+          if (turn.turn < nextTurn || turn.turn >= (later?.turn ?? Infinity) || turn.status === "SKIPPED") continue;
+          turn.status = "SKIPPED";
+          turn.version += 1;
+          turn.reason = "Not asked: its question wasn't ready in time.";
+        }
+        if (!later) f.endedEarlyNote = `The remaining questions couldn't be prepared in time, so the test ended after ${state.answeredTurns.length + 1} questions.`;
+        nextTurn = later?.turn ?? null;
+      }
+    }
     if (nextTurn !== null) {
       const versions = f.versions[String(nextTurn)] ?? [];
       next = response.nextQuestionId ? versions.find((item) => item.id === response.nextQuestionId) : undefined;
@@ -2745,7 +3033,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     // used only when code found none (evidenceFromAnalysis), and the suspicion loop already
     // re-checks a mistaken skill. A blank skip has nothing to read, and an explicit
     // support request is direct student evidence, not something a model has to interpret.
-    const analyse = !instant.fastSkip && !response.didNotKnow && instant.needsAnalysis;
+    // Also when code marked it cleanly but it pulls against earlier answers on the same skill: a review weighs the conflict.
+    const analyse = !instant.fastSkip && !response.didNotKnow
+      && (instant.needsAnalysis || conflictsWithEarlier(session.audits, instant.evidence, instant.verification.status));
     const note = response.didNotKnow
       ? "The student said they do not know this yet. That is recorded as evidence of a support need; Lotus will check an easier prerequisite where possible."
       : analyse
@@ -2789,7 +3079,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     state.answeredTurns.push(state.planTurn);
     session.liveProgress = null;
 
-    if (!next || nextTurn === null) {
+    if (stop || !next || nextTurn === null) {
       audit.adaptiveDecision = {
         action: "STOP",
         observedError: audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
@@ -2798,7 +3088,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         alternatives: stop
           ? ["Continue the plan, but the stopping rule says more questions wouldn't change the result or the time is up."]
           : ["A further question could add evidence, but there is no authorized remaining slot."],
-        rationale: stop?.note ?? "The 25-slot plan has no further safe question to install.",
+        rationale: stop?.note ?? this.noQuestionLeftNote(session),
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
         implementation: "APPLIED",
         outcome: "NO_CHANGE",
@@ -2806,6 +3096,31 @@ Create one materially different question that adds new diagnostic evidence. Test
         recommendedAt: new Date().toISOString(),
         source: "RULE_VALIDATED_PLAN",
       };
+      if (pauseBeforeExit) {
+        const reason = stop?.reason ?? (state.turns.some((turn) => turn.turn > state.planTurn)
+          ? "NO_READY_QUESTION" : "PLAN_COMPLETE");
+        const message = stop?.note ?? f.endedEarlyNote ?? "All planned questions have been reached.";
+        const decisionId = randomUUID();
+        session.developmentExitControl ??= { ignoredStops: [], choices: [] };
+        session.developmentExitControl.pending = {
+          decisionId, stopKey: stopKey ?? reason, nextTurn,
+          ...(next ? { nextQuestionId: next.id } : {}),
+        };
+        session.developerExitPrompt = {
+          decisionId, reason, message, answeredQuestions: session.audits.length,
+          canContinue: Boolean(next && nextTurn !== null),
+          ...(nextTurn !== null ? { nextQuestionNumber: nextTurn } : {}),
+        };
+        session.currentQuestion = null;
+        session.reportPending = false;
+        audit.adaptiveDecision.implementation = "NOT_APPLIED";
+        audit.adaptiveDecision.outcome = "DEFERRED";
+        audit.adaptiveDecision.implementationDetail = "Answer saved. Waiting for the developer to finish or continue.";
+        await this.persist(session, audit, true,
+          analyse ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : []);
+        if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
+        return publicCopy(session);
+      }
       session.currentQuestion = null;
       session.reportPending = true;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
@@ -2833,10 +3148,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     const codeNamedMistakes = analyse ? [] : [...new Set((instant.evidence ?? [])
       .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED")
       .map((e) => e.skillId))];
-    const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes);
+    const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes, {}, { elapsedSeconds, answered: answeredCount });
+    const noTime = this.lastPlanNoTime;
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
-    audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
+    audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments, suspicionEffectNote(session.audits.slice(0, turnIndex), audit, session.priors), noTime);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
+    this.reconcileInstalledDecision(session, audit);
+    this.noteDoubtCheck(session, audit);
     this.steerNextFormat(session, audit);
     await this.persist(
       session, audit, true,
@@ -2878,12 +3196,19 @@ Create one materially different question that adds new diagnostic evidence. Test
   private factorisationReport(session: LotusSessionState) {
     const f = session.factorisation!;
     const report = buildFactorisationReport({
-      ledger: foldLedger(session.audits),
+      ledger: foldLedger(session.audits, session.priors),
       state: f.state,
       pendingAnalyses: session.audits.filter((audit) => audit.analysisStatus === "PENDING" || audit.analysisStatus === "FAILED").length,
       audits: session.audits,
     });
     if (f.endedEarlyNote) report.limitations.unshift(f.endedEarlyNote);
+    // This test beside the earlier ones: a mistake that keeps coming back, a gap since fixed.
+    if (f.memory?.length) {
+      const now = testEvidence({ ...session, status: "COMPLETE", finalReport: report });
+      const tested = new Set(now.map((row) => row.skillId));
+      const lines = memoryLines(foldLearnerModel(session.studentId, [...f.memory, ...now]), { only: [...tested] });
+      if (lines.length) report.memory = lines;
+    }
     const review = session.overallReview;
     if (review) {
       // The AI's read sits beside the code's facts, never over them.
@@ -2908,7 +3233,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const models = this.models as LotusModelService & { overallReview?: LotusModelService["overallReview"] };
     if (typeof models.overallReview !== "function") return;
     this.overallReviewsRunning.add(session.sessionId);
-    const codeRecord = [...foldLedger(session.audits).values()].map((e) =>
+    const codeRecord = [...foldLedger(session.audits, session.priors).values()].map((e) =>
       `${skillName(e.skillId)}: ${e.state}${e.notes.length ? ` (${e.notes.slice(-3).join("; ")})` : ""}`);
     void models.overallReview(overallReviewPrompt({ audits: session.audits, codeRecord, topic: session.topic }))
       .then(async (result) => {
@@ -3315,6 +3640,11 @@ Create one materially different question that tests a competing explanation or a
         // without the evidence that justified it.
         await persistLotusSession(prisma, snapshot, outboxJobs, finalizedAudit);
         succeeded = true;
+        // A finished test is remembered against each skill; a re-saved report (a late review) replaces its rows.
+        if (snapshot.status === "COMPLETE") {
+          await writeEvidence(prisma, testEvidence(snapshot)).catch((error: unknown) =>
+            this.logger.warn(`Couldn't remember Lotus session ${sessionId}: ${error instanceof Error ? error.message : String(error)}`));
+        }
         if (snapshot.classroomAssignmentId && this.classEvents) {
           void this.classEvents.lotusSaved({
             classroomAssignmentId: snapshot.classroomAssignmentId,
@@ -3503,10 +3833,25 @@ Create one materially different question that tests a competing explanation or a
   }
 
   /** Permanently deletes every durable Lotus record for a student. Cascades to evidence via the schema's onDelete: Cascade. */
+  /**
+   * A teacher may act on a student's records only if the student is in one of their classes; any
+   * signed-in teacher used to be able to export or delete any student's data. A worker always may.
+   */
+  async assertTeachesStudent(actor: AccessActor, studentId: string): Promise<void> {
+    if (actor.role === "worker") return;
+    if (actor.role !== "teacher") throw new ForbiddenException("A verified teacher session is required.");
+    const teaches = lotusPersistenceEnabled(this.prisma) && await this.prisma.classroomEnrollment.count({
+      where: { studentId, classroom: { teacher: { identityKey: `${actor.schoolId}:${actor.teacherEmail.toLowerCase()}` } } },
+    });
+    if (!teaches) throw new ForbiddenException("This student isn't in one of your classes.");
+  }
+
   async deleteStudentData(studentId: string): Promise<{ deletedSessions: number }> {
     const prisma = this.prisma;
     if (!lotusPersistenceEnabled(prisma)) return { deletedSessions: 0 };
     const result = await prisma.lotusSessionRecord.deleteMany({ where: { studentId } });
+    // What Cogna remembered from those tests goes with them.
+    await prisma.learnerSkillEvidence?.deleteMany({ where: { studentId, source: "TEST" } });
     for (const [id, session] of this.sessions) {
       if (session.studentId === studentId) {
         this.sessions.delete(id);
@@ -3523,6 +3868,7 @@ Create one materially different question that tests a competing explanation or a
   async exportStudentData(studentId: string): Promise<{
     studentId: string;
     pseudonymId: string;
+    memory?: LearnerModel | null;
     sessions: Array<{ session: LotusSessionView; events: Array<{ eventType: string; outcome: string; createdAt: Date }> }>;
   }> {
     const prisma = this.prisma;
@@ -3534,6 +3880,7 @@ Create one materially different question that tests a competing explanation or a
     return {
       studentId,
       pseudonymId: pseudonymousLearnerId(studentId),
+      memory: await loadLearnerModel(prisma, studentId).catch(() => null),
       sessions: records.map((record) => ({
         session: record.payload as unknown as LotusSessionView,
         events: record.evidence.map((event) => ({
@@ -3543,6 +3890,18 @@ Create one materially different question that tests a competing explanation or a
         })),
       })),
     };
+  }
+
+  /**
+   * What Cogna remembers about a student across tests and lessons: each skill's state over time, the
+   * mistakes that keep coming back (with the student's own answers), slips, and lesson outcomes. For the
+   * student, a teacher who has them in a class, or a worker.
+   */
+  async learnerMemory(actor: AccessActor, studentId: string): Promise<LearnerModel & { lines: string[] }> {
+    const prisma = this.prisma;
+    if (!(actor.role === "student" && actor.studentId === studentId)) await this.assertTeachesStudent(actor, studentId);
+    const model = lotusPersistenceEnabled(prisma) ? await loadLearnerModel(prisma, studentId) : foldLearnerModel(studentId, []);
+    return { ...model, lines: memoryLines(model) };
   }
 
   /** Live-model call counts, token usage, and cost (where a price is configured) since this process started. Teacher/admin telemetry only — never exposed on a student-facing route. */

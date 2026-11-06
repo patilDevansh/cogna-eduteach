@@ -13,6 +13,10 @@ try {
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:4310/student/personalized-video?studentId=${fixture.studentId}&video=${fixture.assignmentId}`,{waitUntil:'networkidle',timeout:120000});
   const input = page.getByRole('textbox',{name:'Your answer'});
+  const watched = page.getByRole('button',{name:/I\'ve watched it/});
+  // A fresh learner is still on the lesson; the review learner is already past it.
+  await input.or(watched).first().waitFor();
+  if (await watched.isVisible()) await watched.click();
   await input.waitFor();
   assert.equal(await input.isEnabled(),true);
   await input.fill('(x+3)(X+2)');
