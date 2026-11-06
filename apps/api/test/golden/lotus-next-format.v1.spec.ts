@@ -66,8 +66,9 @@ describe("what the last answer asks of the next format", () => {
     assert.equal(kinds[0], "EDIT_HISTORY");
     assert.equal(kinds.includes("READBACK"), false);
   });
-  it("an answer that couldn't be read asks to check the typing", () => {
-    assert.equal(need(answered({ status: "NOT_DETERMINISTIC" }))?.kinds[0], "READBACK");
+  it("an answer that couldn't be read is asked again with the drafts kept, never a read-back check", () => {
+    assert.deepEqual(need(answered({ status: "NOT_DETERMINISTIC" }))?.kinds, ["EDIT_HISTORY"]);
+    assert.equal(checkedAiFormat("READBACK"), null, "the AI can't ask for it either");
   });
   it("a sure, careful right answer asks nothing", () => {
     assert.equal(need(answered({})), null);
@@ -200,6 +201,11 @@ describe("in a running test", () => {
     assert.equal(frozen.id, shownNext, "the staged question is what the student got");
     assert.notEqual(audit.formatDecision!.targetTurn, f.state.planTurn);
     const versions = f.versions[String(audit.formatDecision!.targetTurn)];
+    // Formats are dealt at random, so the later question is sometimes already the one wanted and nothing is redressed.
+    if (versions[0].game?.kind === audit.formatDecision!.chosen) {
+      assert.equal(versions.length, 1, "already the wanted format, so nothing is replaced");
+      return;
+    }
     assert.ok(versions.length >= 2, "the older version stays valid");
     assert.notEqual(versions[0].id, versions.at(-1).id);
   });

@@ -28,7 +28,6 @@ export const FORMAT_GUIDE: Partial<Record<LotusGameKind, FormatGuide>> = {
   RECTANGLE: { reveals: "Whether they understand the factors as sides of an area, with no algebra to recall.", useWhen: "They said they don't know, or the method may be memorised without meaning.", fits: "two monic brackets, all positive" },
   ORDER_STEPS: { reveals: "Whether they follow the structure of grouping, and which tempting wrong step they pick.", useWhen: "The question is grouping and you want the working without typing.", fits: "a grouping question" },
   EDIT_HISTORY: { reveals: "Mistakes they made and fixed themselves, and where they paused.", useWhen: "A wrong answer may have been a slip: asked again, a student who slipped catches it in the drafts, and one who holds the misconception writes it again.", fits: "any factorising question" },
-  READBACK: { reveals: "Whether a wrong answer is the maths or the typing, because they confirm how it was read.", useWhen: "An answer couldn't be read, or could be a typing problem. Not for a readable maths mistake: it only checks the typing.", fits: "any factorising question" },
 };
 
 /** The formats that can dress a question already written. The others come with a question of their own. */
@@ -88,13 +87,12 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
     return need(["TWO_NUMBERS", "RECTANGLE", "SPLIT_CONFIDENCE"], "The pair of numbers went wrong, so watch how they search for it.");
   }
   if (wrong) {
-    // A readable wrong answer is the maths, not the typing, so READBACK can't settle it. Asked again with the
-    // drafts kept, a slip gets caught and a misconception gets written again; beside the right answer as a
+    // Asked again with the drafts kept, a slip gets caught and a misconception gets written again; beside the right answer as a
     // chip, a misconception gets chosen again. The two-bracket formats split the steps where they fit.
     return need(["EDIT_HISTORY", "SPLIT_CONFIDENCE", "TWO_MOVES", "COMMIT_THEN_CHOOSE", "TRUE_FALSE"], "Wrong once: ask it again in a format that shows whether it was a slip they catch or a method they repeat.");
   }
   if (last.verification?.status === "NOT_DETERMINISTIC") {
-    return need(["READBACK", "EDIT_HISTORY"], "The answer couldn't be read, so check whether the trouble is the typing or the maths.");
+    return need(["EDIT_HISTORY"], "The answer couldn't be read, so ask again with the drafts kept to see whether the trouble is the typing or the maths.");
   }
   if (!right) return null;
   if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || response.confidence < UNSURE_BELOW) {
