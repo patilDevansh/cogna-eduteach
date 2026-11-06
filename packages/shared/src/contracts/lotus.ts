@@ -1,5 +1,5 @@
 import type { StudentInteractionContext } from "./interaction-context";
-import type { LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
+import type { EditHistorySample, LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
  *
@@ -184,6 +184,10 @@ export interface LotusStudentResponse {
   game?: LotusGameResponse;
   /** Server-only: what the server read from `game`. Anything sent by the browser is discarded. */
   gameReading?: LotusGameReading;
+  /** Every change to an ordinary typed answer, timed from when the question appeared, as Typing replay keeps it. */
+  typing?: EditHistorySample[];
+  /** Server-only: what the server read from `typing` (drafts that match a known mistake, pauses). Anything sent is discarded. */
+  typingReading?: LotusGameReading;
 }
 
 export interface LotusMathVerification {

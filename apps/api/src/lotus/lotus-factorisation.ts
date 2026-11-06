@@ -468,6 +468,8 @@ function isTap(audit: LotusQuestionAudit): boolean {
   // A themed game says itself how far a right answer counts.
   const effect = audit.response?.gameReading?.diagnosis?.effect;
   if (effect) return effect === "NEEDS_ANOTHER";
+  // A typed answer whose discarded draft was a known mistake: fixed this time, but not proof yet.
+  if (audit.response?.typingReading?.diagnosis?.effect === "NEEDS_ANOTHER") return true;
   const kind = audit.question?.answerKey?.diagnostics?.itemKind;
   return kind === "CHOICE" || kind === "SELECT" || audit.question?.interaction?.format === "BRACKET_BRIDGE" || ["COMMIT_THEN_CHOOSE", "TRUE_FALSE", "SPLIT_CONFIDENCE", "FOUR_SIGNS"].includes(audit.question?.game?.kind ?? "");
 }
