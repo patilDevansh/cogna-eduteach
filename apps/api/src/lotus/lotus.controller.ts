@@ -4,7 +4,7 @@ import { TTS_PROVIDER } from "../ai/ai.module";
 import type { TtsProvider } from "../ai/tts.service";
 import { spokenMath } from "../ai/spoken-math";
 import { timingSafeEqual } from "node:crypto";
-import type { LotusSessionView, LotusStatusResponse } from "@cogna/shared";
+import { LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION, type LotusSessionView, type LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, isDemoStudentId, isProductionLike, resolveActor } from "../access/cogna-access";
 import {
   LotusReasonDto,
@@ -181,7 +181,9 @@ export class LotusController {
       working: body.working,
       confidence: body.confidence,
       ...(body.interactionContext ? { interactionContext: body.interactionContext } : {}),
-      responseTimeMs: body.responseTimeMs,
+      // The browser's figure can include time before the question was ready, or a restored tab's
+      // old start: capped like the test clock caps each question.
+      responseTimeMs: Math.min(body.responseTimeMs, LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION * 1000),
       didNotKnow: body.didNotKnow,
       questionId: body.questionId,
       nextQuestionId: body.nextQuestionId,

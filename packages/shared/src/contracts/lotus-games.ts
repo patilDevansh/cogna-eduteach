@@ -340,6 +340,8 @@ export interface LotusGameDiagnosis {
   mistake?: string;
   /** One neutral sentence that can reach the student's report. */
   note?: string;
+  /** NEEDS_ANOTHER: the wrong option the rest of the confidence went on. */
+  hedge?: { chips: number; option: string; mistake?: string };
 }
 
 /**

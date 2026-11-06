@@ -98,7 +98,7 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   }
   if (!right) return null;
   if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || response.confidence < UNSURE_BELOW) {
-    return need(["SPLIT_CONFIDENCE", "TWO_MOVES"], "They were right but unsure, so find out exactly what they doubt.");
+    return need(["SPLIT_CONFIDENCE", "TWO_MOVES", "COMMIT_THEN_CHOOSE"], "They were right but unsure, so find out exactly what they doubt.");
   }
   // Only for recognising an answer among options, and only until they have produced one on this skill. Staged
   // choices (the first wrong line, the odd one out) and games with their own question ask something else.

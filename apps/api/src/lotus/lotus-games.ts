@@ -540,7 +540,7 @@ function readSplit(question: LotusQuestion, t: Target | null, game: SplitConfide
     signals.push("leans");
   }
   const clean = { kind: "SPLIT_CONFIDENCE" as const, counts: [...counts] };
-  const reading = { kind: "SPLIT_CONFIDENCE" as const, summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { shape, leaderKind: kinds[top.i]! } };
+  const reading = { kind: "SPLIT_CONFIDENCE" as const, summary, signals, skillId: question.answerKey.diagnostics!.skillId, certainty, facts: { shape, leaderKind: kinds[top.i]! } as Record<string, number | string | boolean> };
   if (top.n === 1) {
     return { answer: "I don't know", didNotKnow: true, game: clean, reading };
   }
@@ -550,8 +550,20 @@ function readSplit(question: LotusQuestion, t: Target | null, game: SplitConfide
   // One token more on an answer than on the others is a lean, not a belief: it shows neither that they know it nor a mistake.
   const leaning = signals.includes("leans");
   const wrongNote = signals.includes("torn") ? "Was torn between two answers, and one of them was wrong." : "Put most of their confidence on a wrong answer.";
+  // Mostly right: the one chip elsewhere is a doubt about the mistake that option shows, when it names one.
+  const doubted = shape === "3–1" && markedKind === "right" ? order[1]! : undefined;
+  const doubtMistake = doubted === undefined ? undefined
+    : t ? (kinds[doubted.i] !== "right" && kinds[doubted.i] !== "other" ? mistakeOf(question, kinds[doubted.i]!, "").mistake : undefined)
+      : predicted.find((m) => equalSafe(m.answer, game.options[doubted.i]!))?.mistake;
+  const hedge = doubted ? { chips: doubted.n, option: game.options[doubted.i]!, ...(doubtMistake ? { mistake: doubtMistake } : {}) } : undefined;
+  if (hedge) {
+    reading.facts.hedgeChips = hedge.chips;
+    if (hedge.mistake) { reading.facts.hedgeMistake = hedge.mistake; signals.push(`doubt_${hedge.mistake}`); }
+    else signals.push("doubt_unlabelled");
+  }
   const diagnosis: LotusGameDiagnosis = markedKind === "right"
-    ? (leaning ? { effect: "NO_EVIDENCE", note: "Leaned towards the right answer, but was unsure." } : { effect: "NEEDS_ANOTHER", note: "Put most of their confidence on the right answer." })
+    ? (leaning ? { effect: "NO_EVIDENCE", note: "Leaned towards the right answer, but was unsure." }
+      : { effect: "NEEDS_ANOTHER", note: hedge ? `Put most of their confidence on the right answer, with a doubt about ${tidyAlgebra(hedge.option)}.` : "Put most of their confidence on the right answer.", ...(hedge ? { hedge } : {}) })
     : leaning ? { effect: "DOESNT_KNOW", note: "Leaned towards a wrong answer, but was unsure." }
     : t
       ? mistakeOf(question, markedKind, wrongNote)
