@@ -346,3 +346,49 @@ LOTUS_REVIEW_PROBE_MODE=live node --import tsx scripts/lotus-review-probe.ts    
 ```
 The script reads the `.env` files itself, the way the API does (first file wins, an empty value never
 overrides a real one). Node's own `--env-file` cannot read this repo's `.env`.
+
+## Held-out v4: the baseline (5 November, before the change it measures)
+
+Set v4 (`test/fixtures/lotus-heldout-students-v4.ts`, scorecard `test/golden/lotus-heldout-scorecard.v4.spec.ts`)
+has 24 new students: 6 capable, 7 missing one of the seven added skills, 7 missing one older skill where v1–v3
+were weak or silent, 2 with two gaps that involve an added skill, 2 messy. It was written before the change that
+asks the added skills in the live test, and the students are frozen: this run is the "before". Map
+`factorisation-2.0.0`, 20 plays per student (480 in all, 360 with a gap), the labelling pretend AI.
+Criteria A–E for the change are declared in the fixture's header.
+
+| | Before |
+|---|---|
+| A gap found at all (root or above) | 68.3% (246 of 360) |
+| Found at the root | 44.4% |
+| Silent misses (gap not found, skill not named) | 114, of which 105 are added-skill students |
+| False gaps; capable children given a gap | 0; 0 |
+| Capable children reported ADVANCEMENT | 50% (60 of 120) |
+| Median questions with a gap | 24 |
+
+**The one big finding: a gap in an added skill the test never asks is an all-clear.** The five added skills
+that sit above nothing (rearranging to group, a bracket as one quantity, splitting the middle term, dividing a
+term by a term, dividing an expression by a term) were missed in all 100 plays, and every one of those tests
+ended "ADVANCEMENT" with no mention of the skill. The report names planned skills it never asked, but these are
+not in the 25 planned questions, so they are not named either.
+
+| Added skill missing | Found | Notes |
+|---|---|---|
+| Irreducible factors | at the root, every play | in 11 questions |
+| Dividing powers | above it only (75%); 25% missed | never at the root |
+| The five unasked skills | 0% | every play reported as an all-clear |
+
+Other findings, none of them caused by the added skills:
+- **Expand one bracket and signed sums are found only above their root** (X15, X16: 100% above, 0% at the root),
+  the same pattern as v3's expand-one-bracket student.
+- **A capable child with three slips (X02: questions 3, 11, 17) is reported "unclear" in every play**, where v3's
+  three slips at 5, 12, 19 were advanced. Tired children (X03, X04) are also "unclear", as in v3.
+- No capable child was given a gap, and no student had a false gap.
+
+What the change that follows must do (declared before it is written): no silent miss among the added-skill
+students, at least 80% of their gaps found, no capable child given a gap, false gaps not higher, no more than
+2 extra questions at the median, and capable children advanced no less often than 50%.
+
+```bash
+cd apps/api
+LOTUS_HELDOUT_REPEATS=20 node --import tsx --test test/golden/lotus-heldout-scorecard.v4.spec.ts
+```
