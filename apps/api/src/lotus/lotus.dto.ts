@@ -55,11 +55,12 @@ export class SubmitLotusAnswerDto {
   @IsString()
   working!: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
   @Max(100)
-  confidence!: number;
+  confidence?: number;
 
   @Type(() => Number)
   @IsNumber()

@@ -353,6 +353,8 @@ export interface CommonFactorReading {
   numberPart: boolean;
   /** The factor taken out has a letter, so finding it shows the common letters. */
   letterPart: boolean;
+  /** Only with `allowSmallerNumber`: the number taken out divides the highest common number but is smaller than it (2x for 4x). */
+  numberNotHighest?: boolean;
   /** What went wrong inside the bracket, when it is one pattern code recognises; absent otherwise. */
   mistake?: CommonFactorMistake;
 }
@@ -378,7 +380,7 @@ function divideMonomial(key: Monomial, by: Monomial): Monomial | null {
  * bracket gives the reading without a mistake. Null when the answer isn't one
  * factor times one bracket, or the factor outside isn't the highest one.
  */
-export function readCommonFactor(answer: string, expression: string): CommonFactorReading | null {
+export function readCommonFactor(answer: string, expression: string, allowSmallerNumber = false): CommonFactorReading | null {
   try {
     const terms = polyOf(parseExpression(expression));
     const g = integerContent(terms);
@@ -398,9 +400,10 @@ export function readCommonFactor(answer: string, expression: string): CommonFact
     for (const p of prof.nonConstant) if (p.size === 1) outside = mul(outside, p);
     if (brackets.length !== 1 || outside.size !== 1) return null;
     const [[outsideKey, outsideCoef]] = [...outside] as [[Monomial, number]];
-    if (outsideKey !== commonKey || Math.abs(outsideCoef) !== g) return null;
+    const smaller = allowSmallerNumber && Math.abs(outsideCoef) !== g && Math.abs(outsideCoef) >= 1 && Number.isInteger(outsideCoef) && g % Math.abs(outsideCoef) === 0;
+    if (outsideKey !== commonKey || (Math.abs(outsideCoef) !== g && !smaller)) return null;
 
-    const reading: CommonFactorReading = { numberPart: g > 1, letterPart: !!commonKey };
+    const reading: CommonFactorReading = { numberPart: g > 1 && !smaller, letterPart: !!commonKey, ...(smaller ? { numberNotHighest: true } : {}) };
     const inside = [...brackets[0]!];
     const used = new Set<number>();
     const take = (key: Monomial | null, coef: number) => {

@@ -620,7 +620,7 @@ function AuditCard({
                   ? `${Math.max(...audit.response.game.counts)} of ${LOTUS_SPLIT_TOKENS} chips on the answer marked`
                   : audit.response.interactionContext?.confidence.status === "NOT_ASKED" ? "not asked"
                     : audit.response.interactionContext?.confidence.status === "SKIPPED" ? "skipped"
-                      : `${audit.response.confidence}%`}{" "}
+                      : audit.response.confidence === undefined ? "not given" : `${audit.response.confidence}%`}{" "}
                 · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
@@ -1547,11 +1547,13 @@ function LotusPage() {
       ? session.upcomingQuestions?.[0]
       : undefined;
     const itemContext = pendingSubmission ? undefined : interaction.snapshot({ status: skipConfidence && shouldProbe ? "SKIPPED" : confidence !== null ? "REPORTED_BEFORE_ANSWER" : "NOT_ASKED", value: skipConfidence ? null : confidence, scale: "ZERO_TO_HUNDRED" });
+    const reportedConfidence = skipConfidence || confidence === null ? undefined : confidence;
     const submission: LotusStudentResponse = pendingSubmission ?? {
       answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
       confidenceProbeReason: didNotKnow ? "DID_NOT_KNOW" : !question?.requiresConfidenceProbe ? "NOT_TARGETED" : shouldProbe ? "TARGETED_CHECK" : "RECENT_PROBE",
-      confidence: skipConfidence ? 60 : confidence ?? 60,
+      // No confidence given (not asked, or skipped) is sent as no confidence, never as a stand-in 60.
+      ...(reportedConfidence !== undefined ? { confidence: reportedConfidence } : {}),
       // Measured from when the item was shown (the same clock as interactionContext.timing), not from page or session start.
       responseTimeMs: lotusResponseTimeMs({ itemElapsedMs: itemContext?.timing.elapsedMs, confidenceWaitMs: clickedAt - (answerReadyAt.current ?? clickedAt), fallbackMs: (answerReadyAt.current ?? clickedAt) - questionStartedAt }),
       interactionContext: itemContext,

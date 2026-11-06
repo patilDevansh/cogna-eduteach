@@ -96,6 +96,7 @@ function makerPrompt(req: WriteRequest): string {
       ? "- Grade 8 numbers: whole numbers, coefficients up to 12, constants up to 50."
       : "- Grade 8 numbers a student can work without a calculator. Use Indian contexts (₹, km, Indian names) where a story helps.",
     "- Pitch it at Grade 8: never a bare whole-number fact such as \"What is 28 ÷ 7?\". Even an easier, prerequisite question tests the skill the way the algebra uses it (\"the highest number that divides every term of 28x + 42\", not \"28 ÷ 7\").",
+    "- The prompt states the task only, e.g. \"Factorise completely: 6x + 20\". Never name or hint at the step or method being tested (not \"divide every term by the common factor\", \"take out the HCF\"): finding that step is what the question measures.",
     "- Machine fields use plain ASCII maths: ^ for powers, no unicode, e.g. 2x^2(5 - 9x + 7x^2).",
     `- Tag every solution step with the skill it uses. Allowed skills: ${[spec.skillId, ...spec.tagged].join(", ")} (or another skill id from the ${topicName} map if a step genuinely needs it).`,
   );
@@ -259,6 +260,28 @@ export function isBareArithmeticFact(prompt: string): boolean {
   return /^\d+\s*(÷|\/|×|\*|x|\+|-|−|divided by|times|plus|minus)\s*\d+$/.test(core);
 }
 
+const METHOD_GIVEAWAYS: RegExp[] = [
+  /\b(divid\w*|split\w*)\b[^.?!]{0,30}\b(every|each|all|both)\s+terms?\b/i,
+  /\b(take|taking|pull|pulling)\s+out\b/i,
+  /\bby the (highest |greatest )?common (factor|number)\b/i,
+  /\b(using|use|with) (the )?(hcf|gcf|highest common factor|greatest common factor|common factor)\b/i,
+  /\b(first )?(find|identify|spot|work out) the (hcf|gcf|highest common factor|greatest common factor)\b/i,
+];
+
+/**
+ * Does the shown prompt state the step being tested ("Factorise completely: divide every term by the common
+ * factor in 6x + 20")? For an ordinary factorise/expand/simplify task the prompt must be the plain task: the
+ * method is what the question measures. Returns the phrase that gave it away, or null.
+ */
+export function methodGivenAway(prompt: string, itemKind?: string): string | null {
+  if (itemKind !== "FACTORISE" && itemKind !== "EXPAND" && itemKind !== "SIMPLIFY") return null;
+  for (const pattern of METHOD_GIVEAWAYS) {
+    const hit = pattern.exec(prompt);
+    if (hit) return hit[0];
+  }
+  return null;
+}
+
 export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   const reasons: string[] = [];
   try { assertFixedItemIsValid(item, "item"); } catch (e) { reasons.push(e instanceof Error ? e.message.replace(/^item: /, "") : String(e)); }
@@ -281,6 +304,8 @@ export function checkWrittenItem(req: WriteRequest, item: Item): string[] {
   }
   const repeat = repeatPrint(d.expression ?? item.prompt);
   if (req.avoid.some((a) => repeatPrint(a) === repeat)) reasons.push("repeats a question already in this test");
+  const giveaway = methodGivenAway(item.prompt, d.itemKind);
+  if (giveaway) reasons.push(`the prompt gives the method away ("${giveaway}"): state the task plainly, e.g. "Factorise completely: 6x + 20"`);
   if (isBareArithmeticFact(item.prompt)) reasons.push("asks a bare whole-number fact (such as 28 ÷ 7), below Grade 8: test the skill as a step of the algebra instead");
   if (req.avoidSkill && d.stepSkills.some((s) => dependsOnTransitively(s, req.avoidSkill!))) {
     reasons.push(`still needs ${req.avoidSkill}`);

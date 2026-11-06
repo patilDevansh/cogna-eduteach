@@ -87,6 +87,7 @@ import {
   reachableQuestionsAhead,
   mistakeRank,
   suspicionEffectNote,
+  refreshedCheckReason,
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
@@ -748,6 +749,7 @@ function lockedAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
       selectionReason: "",
       firstWrongStep: undefined,
       mistakeDescription: undefined,
+      strengths: undefined,
     },
   };
 }
@@ -2883,6 +2885,20 @@ Create one materially different question that adds new diagnostic evidence. Test
       : `Kept: no planned question asks ${skillName(hedged.skillId)} again, so ${doubt} stays open unless it comes back.`;
   }
 
+  /**
+   * A check booked after one doubt keeps its reason text, which goes stale when later answers show the same doubt again.
+   * The booked check stays where it is (none is added); only its reason is brought up to date.
+   */
+  private refreshBookedReason(session: LotusSessionState, audit: LotusQuestionAudit, nextTurn: number): void {
+    const f = session.factorisation;
+    const plan = f?.state.turns.find((t) => t.turn === nextTurn);
+    if (!f || !plan || plan.purpose !== "CHECK" || !plan.forSkill) return;
+    const reason = refreshedCheckReason(foldLedger(session.audits, session.priors), plan.forSkill, plan.reason);
+    if (!reason) return;
+    plan.reason = reason;
+    if (audit.questionSelection.selectedFrom === "ADAPTIVE_STAGED") audit.questionSelection.reason = reason;
+  }
+
   private steerNextFormat(session: LotusSessionState, audit: LotusQuestionAudit, aiFormat?: { proposed: unknown; reason?: string }): void {
     const f = session.factorisation;
     if (!f || session.status !== "ACTIVE" || !themedGamesEnabled()) return;
@@ -3180,6 +3196,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes, {}, { elapsedSeconds, answered: answeredCount });
     const noTime = this.lastPlanNoTime;
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
+    if (nextTurn !== null) this.refreshBookedReason(session, audit, nextTurn);
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments, suspicionEffectNote(session.audits.slice(0, turnIndex), audit, session.priors), noTime);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
     this.reconcileInstalledDecision(session, audit);

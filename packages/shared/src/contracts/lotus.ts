@@ -177,7 +177,8 @@ export interface LotusStudentResponse {
   interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
-  confidence: number;
+  /** What the student reported, 0-100. Absent when no confidence was given (not asked, or skipped): never a stand-in value. */
+  confidence?: number;
   responseTimeMs: number;
   didNotKnow: boolean;
   /** Idempotent submit of the question visible when the student pressed Submit. */
@@ -399,6 +400,8 @@ export interface LotusDebateClosure {
    * records and models, which are treated as before (counted).
    */
   mistakeKind?: LotusMistakeKind | null;
+  /** What the student did right on this answer (including in the drafts), in plain words. Optional; kept for the record, never shown to the student. */
+  strengths?: string[];
   /** The format the reviewer thinks would show most next. A suggestion: the server checks it and may not use it. */
   nextFormat?: string | null;
   nextFormatReason?: string;
