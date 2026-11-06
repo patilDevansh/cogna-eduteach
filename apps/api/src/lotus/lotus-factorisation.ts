@@ -1061,6 +1061,48 @@ function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max:
   return found;
 }
 
+/**
+ * Where a freed slot is best spent: first a suspected skill that has no check coming, then a skill nothing has
+ * asked yet. Never a skill that depends (however far down) on a skill that is suspected or confirmed, never one
+ * already planned or probed, and in the order of the curriculum.
+ */
+function coverageTargets(
+  slots: SlotSpec[], ledger: Ledger, askedSlots: Set<number>, itemAt: (turn: number) => LotusQuestion | undefined,
+  state: FactorisationState, taken: Set<string>,
+): Array<{ skill: string; spec: SlotSpec; why: string }> {
+  const shaky = [...ledger.values()].filter((e) => e.state === "CONFIRMED" || e.state === "SUSPECTED").map((e) => e.skillId);
+  const planned = (skill: string) => state.turns.some((t) => t.turn > state.planTurn && t.status !== "SKIPPED" &&
+    (t.forSkill === skill || usesSkill(itemAt(t.turn), skill)));
+  const out: Array<{ skill: string; spec: SlotSpec; why: string }> = [];
+  for (const e of ledger.values()) {
+    if (e.state !== "SUSPECTED" || taken.has(e.skillId) || planned(e.skillId)) continue;
+    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+    if (spec) out.push({ skill: e.skillId, spec, why: "A suspicion with no check planned:" });
+  }
+  const seen = new Set<string>();
+  for (const spec of slots) {
+    const skill = spec.skillId;
+    if (seen.has(skill)) continue;
+    seen.add(skill);
+    if ((ledger.get(skill)?.state ?? "UNTESTED") !== "UNTESTED" || taken.has(skill) || planned(skill) || askedSlots.has(spec.slot)) continue;
+    if (shaky.some((g) => g === skill || dependsOnTransitively(skill, g))) continue;
+    out.push({ skill, spec, why: "Not asked yet:" });
+  }
+  return out;
+}
+
+/** The skills of the curriculum nothing has asked about, for the stop reason. */
+export function untestedSkillsLeft(topic: LotusPlannedTopic | undefined, ledger: Ledger): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const spec of curriculumFor(topic).slots) {
+    if (seen.has(spec.skillId)) continue;
+    seen.add(spec.skillId);
+    if ((ledger.get(spec.skillId)?.state ?? "UNTESTED") === "UNTESTED") names.push(skillName(spec.skillId));
+  }
+  return names;
+}
+
 export function planAdjustments(input: PlanInput): PlanAction[] {
   const { state, ledger, itemAt } = input;
   const slots = curriculumFor(state.topic).slots;
@@ -1282,6 +1324,21 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       actions.push({
         kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: p, spec,
         reason: `Going down: is ${skillName(p)} solid underneath ${skillName(e.skillId)}?`,
+      });
+    }
+    // Turns freed by the removals above that going down did not use are not simply dropped: a shorter test
+    // would leave skills unasked. Each goes to the most useful skill that does not lean on a shaky one.
+    for (const turn of freed.splice(0)) {
+      if (!reachable(turn)) continue;
+      const target = coverageTargets(slots, ledger, askedSlots, itemAt, state, checkedThisCall)[0];
+      if (!target) break;
+      claimed.add(turn);
+      const skipIndex = actions.findIndex((a) => a.kind === "SKIP" && a.turn === turn);
+      if (skipIndex >= 0) actions.splice(skipIndex, 1);
+      checkedThisCall.add(target.skill);
+      actions.push({
+        kind: "REPURPOSE", turn, purpose: "WIDEN", forSkill: target.skill, spec: target.spec,
+        reason: `${target.why} ${skillName(target.skill)}: this slot was freed because its original question depended on ${skillName(e.skillId)}, which isn't secure yet.`,
       });
     }
     state.handledConfirmed.push(e.skillId);

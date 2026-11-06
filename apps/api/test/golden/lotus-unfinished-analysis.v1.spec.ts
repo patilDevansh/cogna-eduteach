@@ -2,8 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { LotusQuestion, LotusQuestionAudit, LotusStudentResponse } from "@cogna/shared";
 import { resolveLotusResponse } from "../../src/lotus/lotus-interactions";
-import { foldLedger, instantVerdict, planAdjustments, suspicionEffectNote, conflictsWithEarlier, reachableQuestionsAhead, type FactorisationState } from "../../src/lotus/lotus-factorisation";
-import { ownerOfMistake } from "../../src/lotus/lotus-factorisation-catalogue";
+import { foldLedger, instantVerdict, planAdjustments, suspicionEffectNote, untestedSkillsLeft, conflictsWithEarlier, reachableQuestionsAhead, type FactorisationState } from "../../src/lotus/lotus-factorisation";
+import { dependsOnTransitively, ownerOfMistake } from "../../src/lotus/lotus-factorisation-catalogue";
 import { assessSkillEvidence } from "../../src/lotus/lotus-evidence-assessment";
 import { adaptiveDecisionFor, reconcileInstalledDecision } from "../../src/lotus/lotus.service";
 import { evidenceFormatNeed } from "../../src/lotus/lotus-format-guide";
@@ -387,6 +387,49 @@ describe("Lotus square patterns and torn splits", () => {
     const right = instantVerdict(q, torn("(3a - 5)^2"));
     assert.deepEqual(right.evidence, []);
     assert.equal(right.needsAnalysis, false);
+  });
+});
+
+describe("Lotus removed dependent questions are replaced, not dropped", () => {
+  const dependent = (id: string): LotusQuestion => ({
+    id, phase: "DIAGNOSE", subtopic: "Taking out", type: "CONSTRUCTED_RESPONSE", asksForWorking: false,
+    prompt: "Factorise completely: 10x^2 - 18x^3 + 14x^4", purpose: "",
+    answerKey: { kind: "OPEN_RESPONSE", canonicalAnswer: "2x^2(5 - 9x + 7x^2)", workedSolution: ["a"],
+      diagnostics: { itemKind: "FACTORISE", expression: "10x^2 - 18x^3 + 14x^4", skillId: "FAC_COMMON_MONOMIAL", taggedSkills: [], stepSkills: ["FAC_COMMON_MONOMIAL"], level: "hard", origin: "AI", predictedMistakes: [] } } });
+  const wrongDivide = (id: string, expression: string, key: string, wrong: string): LotusQuestionAudit => {
+    const q: LotusQuestion = { id, phase: "DIAGNOSE", subtopic: "Dividing", type: "CONSTRUCTED_RESPONSE", asksForWorking: false,
+      prompt: `Factorise completely: ${expression}`, purpose: "",
+      answerKey: { kind: "OPEN_RESPONSE", canonicalAnswer: key, workedSolution: ["a", "b"],
+        diagnostics: { itemKind: "FACTORISE", expression, skillId: "FAC_DIVIDE_TERMS", taggedSkills: [], stepSkills: ["FAC_DIVIDE_TERMS", "FAC_DIVIDE_TERMS"], level: "easy", origin: "AI", predictedMistakes: [] } } };
+    const response = { answer: wrong, working: "", confidence: 60, responseTimeMs: 20000, didNotKnow: false } as LotusStudentResponse;
+    const v = instantVerdict(q, response);
+    return { question: q, response, verification: v.verification, skillEvidence: v.evidence } as unknown as LotusQuestionAudit;
+  };
+  it("slots freed by a confirmed gap go to an untested independent skill, and the stop reason names what was left", () => {
+    const audits = [wrongDivide("w1", "2x + 18", "2(x + 9)", "2(x + 18)"), wrongDivide("w2", "4x + 6", "2(2x + 3)", "2(2x + 6)")];
+    const ledger = foldLedger(audits);
+    assert.equal(ledger.get("FAC_DIVIDE_TERMS")?.state, "CONFIRMED");
+    const state: FactorisationState = {
+      planTurn: 2, answeredTurns: [1, 2], handledConfirmed: [], handledBroadened: [], fastSkips: 0,
+      turns: Array.from({ length: 12 }, (_, i) => ({ turn: i + 1, slot: i + 1, status: "PLANNED" as const, version: 1 })),
+    };
+    const dependentTurns = [5, 6, 7, 8, 9];
+    const actions = planAdjustments({
+      state, ledger, freezeNext: true, askedItems: audits.map((a) => a.question),
+      itemAt: (turn) => (dependentTurns.includes(turn) ? dependent(`d${turn}`) : undefined),
+    });
+    const repurposed = actions.filter((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN");
+    assert.ok(repurposed.length >= 1, "a freed slot is given to an untested skill");
+    const skipped = actions.filter((a) => a.kind === "SKIP");
+    assert.ok(skipped.length < dependentTurns.length, "not every dependent slot was just dropped");
+    for (const a of repurposed) {
+      if (a.kind !== "REPURPOSE") continue;
+      assert.notEqual(a.forSkill, "FAC_DIVIDE_TERMS");
+      assert.ok(!dependsOnTransitively(a.forSkill, "FAC_DIVIDE_TERMS"), "never a skill resting on the shaky one");
+      assert.match(a.reason, /Not asked yet|A suspicion with no check/);
+    }
+    const left = untestedSkillsLeft(undefined, ledger);
+    assert.ok(left.length > 0 && left.every((n) => typeof n === "string"));
   });
 });
 

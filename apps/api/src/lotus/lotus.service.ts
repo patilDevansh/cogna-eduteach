@@ -81,6 +81,7 @@ import {
   factorisationStopReason,
   factorisationTimeLimitSeconds,
   foldLedger,
+  untestedSkillsLeft,
   conflictsWithEarlier,
   reachableQuestionsAhead,
   mistakeRank,
@@ -2765,6 +2766,14 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (session.factorisation) reconcileInstalledDecision(session.factorisation, audit);
   }
 
+  /** Why the test ends with no question left, naming the skills that were never asked. */
+  private noQuestionLeftNote(session: LotusSessionState): string {
+    const left = untestedSkillsLeft(session.factorisation?.state.topic, foldLedger(session.audits, session.priors));
+    return left.length
+      ? `The plan has no further safe question to install. Skills never asked: ${left.slice(0, 6).join(", ")}${left.length > 6 ? ` and ${left.length - 6} more` : ""}.`
+      : "The plan has no further safe question to install, and every skill in it has been asked.";
+  }
+
   /** Set by the last plan change: a check was wanted but no open slot is reachable in the time left. */
   private lastPlanNoTime = false;
 
@@ -3048,7 +3057,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         alternatives: stop
           ? ["Continue the plan, but the stopping rule says more questions wouldn't change the result or the time is up."]
           : ["A further question could add evidence, but there is no authorized remaining slot."],
-        rationale: stop?.note ?? "The 25-slot plan has no further safe question to install.",
+        rationale: stop?.note ?? this.noQuestionLeftNote(session),
         expectedInformationGain: "Use the completed evidence trail and report remaining uncertainty rather than inventing another item.",
         implementation: "APPLIED",
         outcome: "NO_CHANGE",
