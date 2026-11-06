@@ -16,7 +16,7 @@ import { FACTORISATION_SLOTS } from "../../src/lotus/lotus-factorisation-catalog
 /** The fields foldLedger reads: the evidence, and which mistakes the question was built to catch. */
 const turn = (skillEvidence: unknown[], predictedMistakes: string[] = []) => ({
   skillEvidence,
-  question: { answerKey: { diagnostics: { skillId: "FAC_PAIR_PRODUCT_SUM", predictedMistakes: predictedMistakes.map((mistake) => ({ answer: "?", mistake })) } } },
+  question: { answerKey: { diagnostics: { skillId: "FAC_PAIR_PRODUCT_SUM", level: "medium", predictedMistakes: predictedMistakes.map((mistake) => ({ answer: "?", mistake })) } } },
 }) as unknown as LotusQuestionAudit;
 
 describe("C6: clearing a possible gap needs a question that could show the mistake", () => {

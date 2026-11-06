@@ -22,6 +22,7 @@ import type {
   LotusQuestionAudit,
   LotusSessionView,
   LotusSkillEvidence,
+  LotusSkillAssessmentProjection,
   LotusSkillState,
   LotusPlannedTopic,
   LotusSkillSummary,
@@ -608,6 +609,10 @@ export interface SkillLedgerEntry {
   recheckUsed?: boolean;
   /** Right once on a multiple-choice tap: not yet enough to call it secure. */
   tapRights?: number;
+  /** A weaker successful check gives positive evidence but cannot resolve the original concern. */
+  needsComparableCheck?: boolean;
+  /** A correct leading chip choice still included a wrong alternative; this is uncertainty, not a mistake. */
+  splitDoubtAt?: number;
   /** Right, but with chips on a wrong option: the question and the doubted mistake ("" when none is named). */
   hedges?: Array<{ q: number; mistake: string }>;
   /** Suspected because the same doubt came back, not because of a wrong answer. */
@@ -680,6 +685,27 @@ function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string |
  * plan re-checks it early, one more mistake confirms it, and a right answer that could have shown
  * the old mistake clears it.
  */
+const LEVEL_RANK = { easy: 1, medium: 2, hard: 3 } as const;
+
+/** A suspicion needs an independent, relevant and comparable success to settle it. */
+function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQuestionAudit, skillId: string): boolean {
+  // A deliberately installed targeted check is the comparable evidence the
+  // planner selected for this concern, even when its generated metadata uses
+  // a lower difficulty label than the item that first exposed the mistake.
+  if (current.questionSelection?.adaptationTag?.kind === "TARGETED_CHECK") return false;
+  const diagnostics = current.question?.answerKey?.diagnostics;
+  if (!diagnostics) return false;
+  // Learner-memory priors have no originating item in this session. A direct
+  // right re-check is the evidence that shows whether the earlier concern is fixed.
+  if (!original) return false;
+  const before = original.question?.answerKey?.diagnostics?.level;
+  const after = diagnostics.level;
+  // Older verified items do not always carry levels. Missing metadata must
+  // not make a direct right re-check permanently unable to settle a concern.
+  if (!before || !after) return false;
+  return LEVEL_RANK[after] < LEVEL_RANK[before];
+}
+
 export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): Ledger {
   const ledger: Ledger = new Map();
   const entry = (skillId: string): SkillLedgerEntry => {
@@ -703,6 +729,17 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
     // the report doesn't read it as nothing and the plan can look underneath.
     const wrongAnswer = audit.verification?.status === "VERIFIED_INCORRECT" || audit.verification?.status === "VERIFIED_UNFINISHED";
     const headline = audit.question?.answerKey?.diagnostics?.skillId;
+    const chipPlay = audit.response?.game;
+    if (headline && audit.verification?.status === "VERIFIED_CORRECT" && chipPlay?.kind === "SPLIT_CONFIDENCE" &&
+      chipPlay.counts.filter((count) => count > 0).length > 1 && Math.max(...chipPlay.counts) === 3) {
+      const e = entry(headline);
+      e.splitDoubtAt = q;
+      e.notes.push(`Q${q}: main chip choice correct, but another option received a chip; a fresh check may clarify the uncertainty`);
+    } else if (headline && chipPlay?.kind !== "SPLIT_CONFIDENCE" && !isTap(audit) &&
+      audit.question?.answerKey?.diagnostics?.skillId === headline && audit.verification?.status === "VERIFIED_CORRECT") {
+      const prior = ledger.get(headline);
+      if (prior?.splitDoubtAt) { prior.splitDoubtAt = undefined; prior.notes.push(`Q${q}: a later independent correct answer followed the split-chip response`); }
+    }
     if (headline && wrongAnswer && audit.analysisStatus === "COMPLETE" && audit.conclusion?.mistakeKind === "MISUNDERSTANDING" &&
       !(audit.skillEvidence ?? []).some((ev) => ev.kind !== "SECURE")) {
       const u = entry(headline);
@@ -768,27 +805,34 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         // A re-check is settled only by a question aimed at the skill itself,
         // not by one where it is a single step among others.
         const direct = audit.question?.answerKey?.diagnostics?.skillId === skillId;
-        if (e.recheck && e.state === "SUSPECTED") {
+        if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
+          isWeakerCheck(audits[e.suspectedAt - 1], audit, skillId)) {
+          e.needsComparableCheck = true;
+          e.notes.push(`Q${q}: right on a weaker check; the ${e.suspectedAt ? `concern from Q${e.suspectedAt}` : "earlier concern"} needs a comparable independent check`);
+        } else if (e.recheck && e.state === "SUSPECTED") {
           if (direct && e.suspectedAt !== undefined && q > e.suspectedAt) {
-            e.state = "SECURE"; e.recheck = false; e.clearedAfterSlip = e.confirmedAt;
+            e.state = "SECURE"; e.recheck = false; e.needsComparableCheck = false; e.clearedAfterSlip = e.confirmedAt;
             e.notes.push(`Q${q}: right on the re-check, so the earlier mistakes look like slips`);
           } else {
             e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
             e.notes.push(`Q${q}: right, but not a direct re-check`);
           }
-        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt && !couldShow(audit, e.mistakes.at(-1))) {
+        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
+          audit.questionSelection?.adaptationTag?.kind !== "TARGETED_CHECK" && !couldShow(audit, e.mistakes.at(-1))) {
           // C6: right, but this question couldn't produce the suspected
           // mistake (e.g. no negative numbers for a sign mistake), so it
           // can't clear it. The plan keeps a check that can.
           e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
-          e.state = "SECURE";
+          e.state = "SECURE"; e.needsComparableCheck = false;
           if (!e.fromHedge) e.clearedAfterSlip = e.suspectedAt;
           e.notes.push(e.suspectedAt === 0
             ? `Q${q}: right, so ${e.fromMemory === "TAUGHT" ? "the lesson has stuck" : "the earlier gap looks fixed"}`
             : e.fromHedge ? `Q${q}: right with no doubt, so the earlier doubt looks settled`
               : `Q${q}: right, so the Q${e.suspectedAt} mistake looks like a slip`);
           e.fromHedge = false;
+        } else if (e.state === "UNTESTED" && e.splitDoubtAt && isTap(audit)) {
+          e.notes.push(`Q${q}: a selected answer provides supporting evidence, but the split still needs an independent answer`);
         } else if (e.state === "UNTESTED" && isTap(audit) && (e.tapRights ?? 0) < 1) {
           // One right multiple-choice tap could be a 1-in-4 guess: it takes a
           // second right tap or a right typed answer to call the skill secure.
@@ -819,6 +863,30 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
   explainAwayConfounded(audits, ledger);
   markTirednessGaps(audits, ledger);
   return ledger;
+}
+
+/** Reconstruct each prefix using today's persisted records, not a delivery-time snapshot. */
+export function projectSkillAssessments(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): LotusSkillAssessmentProjection[] {
+  return audits.map((audit, index) => {
+    const previous = foldLedger(audits.slice(0, index), priors);
+    const current = foldLedger(audits.slice(0, index + 1), priors);
+    const skills = [...new Set((audit.skillEvidence ?? []).map((item) => item.skillId))];
+    return {
+      basis: "RECONSTRUCTED_FROM_CURRENT_RECORD" as const,
+      entries: skills.flatMap((skillId) => {
+        const after = current.get(skillId);
+        if (!after) return [];
+        const before = previous.get(skillId);
+        return [{
+          skillId,
+          previousState: before?.state ?? "UNTESTED",
+          state: after.state,
+          notes: after.notes.slice(before?.notes.length ?? 0),
+          needsComparableCheck: after.needsComparableCheck ?? false,
+        }];
+      }),
+    };
+  });
 }
 
 /**
@@ -1209,6 +1277,19 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     });
   }
 
+  // A split between a correct leader and a wrong alternative is uncertainty,
+  // not a diagnosed error. When capacity permits reserve one fresh skill check.
+  for (const e of ledger.values()) {
+    if (!e.splitDoubtAt || e.state === "SUSPECTED" || e.state === "CONFIRMED" || checkedThisCall.has(e.skillId)) continue;
+    if (state.turns.some((t) => t.purpose === "CHECK" && t.forSkill === e.skillId && t.turn > e.splitDoubtAt! && t.turn > state.planTurn && t.status !== "SKIPPED")) continue;
+    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+    const turn = spec ? pickVictim() : null;
+    if (!spec || turn === null) continue;
+    claimed.add(turn); protectedTurns.add(turn); checkedThisCall.add(e.skillId);
+    actions.push({ kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: e.skillId, spec,
+      reason: `A split-chip response favoured the correct answer but gave weight to an alternative; a fresh ${skillName(e.skillId)} check may clarify the uncertainty.` });
+  }
+
   // 1. Every suspicion needs a later question that can confirm or clear it. The weightiest mistake is
   // handled first, so when there is room for one check it goes to the misconception, not the miss.
   for (const e of [...ledger.values()].sort((a, b) => mistakeRank(a.mistakes.at(-1)) - mistakeRank(b.mistakes.at(-1)))) {
@@ -1261,14 +1342,19 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // A suspicion gets one dedicated check, ever (an answered one counts too);
     // a re-check needs its own, still ahead.
     const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) =>
-      (t.purpose === "CHECK" && t.forSkill === e.skillId && (!e.recheck || t.turn >= state.planTurn)) ||
+      (t.purpose === "CHECK" && t.forSkill === e.skillId && (!(e.recheck || e.needsComparableCheck) || t.turn >= state.planTurn)) ||
       (t.turn >= state.planTurn &&
-        (t.status !== "SKIPPED" && (e.recheck
+        (t.status !== "SKIPPED" && (e.needsComparableCheck
+          ? false // A generic planned item has not established independent comparable evidence.
+          : e.recheck
           ? itemAt(t.turn)?.answerKey.diagnostics?.skillId === e.skillId
           // C6: the later question must be able to show the suspected mistake.
           : usesSkill(itemAt(t.turn), e.skillId) && itemCouldShow(itemAt(t.turn), e.mistakes.at(-1))))));
     if (hasCheck) continue;
-    const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+    const sourceSlot = e.needsComparableCheck && e.suspectedAt
+      ? input.askedItems[e.suspectedAt - 1]?.answerKey.diagnostics?.slot : undefined;
+    const spec = (sourceSlot !== undefined ? slots.find((s) => s.slot === sourceSlot) : undefined)
+      ?? slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     if (!spec) continue;
     const turn = pickVictim();
     if (turn === null) continue;
@@ -1278,7 +1364,9 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     actions.push({
       kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: e.skillId, spec,
       targetMistake: e.mistakes.at(-1),
-      reason: e.recheck
+      reason: e.needsComparableCheck
+        ? `The simpler answer was correct, but ${skillName(e.skillId)} still needs a comparable independent check.`
+        : e.recheck
         ? `Re-checks ${skillName(e.skillId)}: it was confirmed earlier, but answered right twice since.`
         : `Checks the suspected gap in ${skillName(e.skillId)} a second time.`,
     });

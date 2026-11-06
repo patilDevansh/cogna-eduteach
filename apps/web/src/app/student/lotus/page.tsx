@@ -1,8 +1,10 @@
 "use client";
 
+import { shouldAskLotusConfidence } from "@/lib/lotus-confidence-probe";
 import { isReusedFromBank, provenanceLabelForQuestion } from "@/lib/lotus-provenance";
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
+import { relatedEvidence, recordedUncertainty, reconstructedAssessments } from "@/lib/lotus-related-evidence";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
 import { lotusRecoveryProblem } from "@/lib/lotus-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
@@ -380,7 +382,7 @@ function TurnStatusStrip({
   );
 }
 
-function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
+function EvidencePanel({ audit, audits, index }: { audit: LotusQuestionAudit; audits: LotusQuestionAudit[]; index: number }) {
   if (!audit.response) return null;
   const source = evidenceSourceLabel(audit);
   const mathsFact = audit.verification?.explanation ?? "No deterministic maths fact was available.";
@@ -392,15 +394,8 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
   const alternatives = audit.analysisSource === "AI_REVIEW"
     ? (audit.gpt?.hypotheses ?? []).flatMap((hypothesis) => hypothesis.alternatives).filter(Boolean).slice(0, 3)
     : [];
-  const unknown = audit.analysisStatus === "PENDING"
-    ? "The AI review is still running. Lotus has not made an interpretation or final decision."
-    : audit.analysisStatus === "FAILED"
-      ? audit.analysisFailureReason ?? "The AI review failed before it could make an interpretation."
-    : audit.analysisSource === "SUPPORT_SIGNAL"
-      ? "Why the student needs support is not known from this response. One support request does not prove a stable gap."
-      : alternatives.length
-        ? `Lotus is still distinguishing: ${alternatives.join("; ")}`
-        : "One response is not enough to establish mastery or a stable gap.";
+  const unknown = recordedUncertainty(audit, alternatives);
+  const related = relatedEvidence(audits, index);
   return (
     <section className={styles.evidencePanel} aria-label="Evidence calibration">
       <div className={styles.evidencePanelHeading}>
@@ -416,6 +411,27 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
         <div><strong>Competing explanations</strong><span>{alternatives.length ? alternatives.join("; ") : "No competing explanation has been claimed."}</span></div>
         <div><strong>Still unknown</strong><span>{unknown}</span></div>
       </div>
+      {related.length > 1 && (
+        <section aria-label="Related answers" style={{ marginTop: "1rem" }}>
+          <h4>Related answers over time</h4>
+          <p>These answers share a recorded skill. That does not by itself mean the same mistake or cause occurred.</p>
+          <ol>
+            {related.map(({ audit: item, questionNumber, shared }) => (
+              <li key={`${item.question.id}-${questionNumber}`}>
+                <strong>Question {questionNumber}</strong>: {item.question.prompt}<br />
+                Answer: {item.response?.answer || (item.response?.didNotKnow ? "I don’t know yet" : "No answer recorded")}. {item.verification?.explanation ?? "No verification recorded."}<br />
+                Recorded skill evidence: {shared.map((e) => e.description ?? e.mistake ?? `${e.skillId}: ${e.kind.toLowerCase()}`).join("; ")}
+                {reconstructedAssessments(item).filter((entry) => shared.some((e) => e.skillId === entry.skillId)).map((entry) => (
+                  <p key={entry.skillId}><strong>Reconstructed assessment for {entry.skillId}:</strong> {entry.previousState} → {entry.state}. {entry.notes.join(" ")} {entry.needsComparableCheck ? "A comparable independent check is still needed." : ""}</p>
+                ))}
+              </li>
+            ))}
+          </ol>
+          {audit.analysisStatus === "COMPLETE" && audit.conclusion?.conclusion && <p><strong>Assessment recorded for this answer:</strong> {audit.conclusion.conclusion}</p>}
+          {audit.adaptiveDecision?.rationale && <p><strong>Recorded next-step reason:</strong> {audit.adaptiveDecision.rationale}</p>}
+          <p>Assessment states are reconstructed from the records available now. Reviews may have arrived later, so these are not proof of what Cogna knew when the question was delivered. If no state is shown, it is unavailable.</p>
+        </section>
+      )}
     </section>
   );
 }
@@ -446,7 +462,7 @@ function DecisionPanel({ audit }: { audit: LotusQuestionAudit }) {
       </div>
       <div className={styles.decisionPanelGrid}>
         <div><strong>What Lotus observed</strong><span>{decision.observedError}</span></div>
-        <div><strong>Why this action</strong><span>{decision.rationale}</span></div>
+        <div><strong>Why this action</strong><span>{audit.analysisStatus === "NOT_REQUIRED" && decision.rationale.startsWith("The AI review requested a fresh check of ") ? decision.rationale.replace("The AI review requested a fresh check of ", "Cogna's rules requested a fresh check of ") : decision.rationale}</span></div>
         <div><strong>Alternatives considered</strong><span>{decision.alternatives.join(" ")}</span></div>
         <div><strong>Proposed action</strong><span>{`Lotus proposes to ${action}${decision.targetSkill ? ` for ${decision.targetSkill.replaceAll("_", " ").toLowerCase()}` : ""}.`}</span></div>
         <div><strong>Requested placement</strong><span>{decision.requestedPlacement ?? "No replacement slot requested."}</span></div>
@@ -521,6 +537,7 @@ function ActionTimeline({ decision }: { decision: LotusAdaptiveDecision }) {
 
 function AuditCard({
   audit,
+  audits,
   earlier = [],
   index,
   latest,
@@ -529,6 +546,7 @@ function AuditCard({
   reviewModel,
 }: {
   audit: LotusQuestionAudit;
+  audits: LotusQuestionAudit[];
   /** The answers before this one, so the decision can say a mistake is a repeat. */
   earlier?: LotusQuestionAudit[];
   index: number;
@@ -581,9 +599,17 @@ function AuditCard({
               )}
               {audit.response.typingReading && (
                 <p><strong>Typing:</strong> {audit.response.typingReading.summary}{" "}
-                  {/* The summary already names a wait before the first key when it is the longest pause. */}
                   {audit.response.typingReading.facts.firstKeyMs !== audit.response.typingReading.facts.longestPauseMs && `First key after ${Math.round(Number(audit.response.typingReading.facts.firstKeyMs ?? 0) / 100) / 10}s; `}
                   {audit.response.typingReading.facts.drafts ?? 0} discarded {audit.response.typingReading.facts.drafts === 1 ? "draft" : "drafts"}.</p>
+              )}
+              {audit.response.game?.kind === "SPLIT_CONFIDENCE" && audit.question.game?.kind === "SPLIT_CONFIDENCE" && (
+                <div>
+                  <strong>Chip distribution</strong>
+                  <ul>{audit.question.game.options.map((option, i) => <li key={i}>{option}: {audit.response!.game!.kind === "SPLIT_CONFIDENCE" ? audit.response!.game!.counts[i] : 0} chips</li>)}</ul>
+                  {audit.verification?.status === "VERIFIED_CORRECT" && audit.response.game.counts.filter((count) => count > 0).length > 1 && (
+                    <p>The leading choice is correct; the other chips show uncertainty about alternative answers, not a proven misconception.</p>
+                  )}
+                </div>
               )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
@@ -596,6 +622,12 @@ function AuditCard({
                 · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
+              {audit.response.confidenceProbeReason && <p><strong>Confidence probe decision:</strong> {{
+                TARGETED_CHECK: "Asked on a targeted follow-up to help choose a further check.",
+                RECENT_PROBE: "Not asked because another confidence probe was asked recently.",
+                DID_NOT_KNOW: "Not asked because the student already said they did not know.",
+                NOT_TARGETED: "Not asked because this was not an eligible targeted check.",
+              }[audit.response.confidenceProbeReason]} {audit.response.interactionContext?.confidence.status === "SKIPPED" ? "The student skipped it." : ""}</p>}
               {audit.verification && <p className={styles.verificationNote}>{audit.verification.explanation}</p>}
             </div>
           ) : (
@@ -605,7 +637,14 @@ function AuditCard({
           )}
         </section>
 
-        <EvidencePanel audit={audit} />
+{audit.analysisSource === "AI_REVIEW" && audit.analysisStatus === "COMPLETE" && (
+          <section className={styles.evidenceBox}>
+            <h4>Evidence sent for AI review</h4>
+            {audit.reviewInputFields ? <p>{audit.reviewInputFields.join(", ")}. The submitted game record can include typing history. Field names show what was supplied; they do not prove what the model used.</p> : <p>This older review did not record its input fields, so its exact inputs cannot be verified here.</p>}
+            <p>Hypotheses are tentative; a pause or edit alone does not establish the cause.</p>
+          </section>
+        )}
+        <EvidencePanel audit={audit} audits={audits} index={index} />
 
         <LotusObserverDetails audit={audit} model={reviewModel} className={styles.section} />
         <DiagnosticDecision audit={audit} earlier={earlier} />
@@ -621,7 +660,28 @@ function AuditCard({
           <details className={styles.reasoningDrawer}>
             <summary className={styles.reasoningSummary}>See AI review details</summary>
             <div className={styles.reasoningBody}>
-              <AssessmentCard name="AI review" assessment={audit.gpt} className={styles.gpt} />
+              {audit.reviewMode === "SINGLE" && audit.gpt && <AssessmentCard name="AI review" assessment={audit.gpt} className={styles.gpt} />}
+              {audit.reviewMode !== "SINGLE" && audit.gpt && audit.challenger && <div className={styles.modelGrid}>
+                <AssessmentCard name="GPT primary thought" assessment={audit.gpt} className={styles.gpt} />
+                <AssessmentCard name="GPT challenger thought" assessment={audit.challenger} className={styles.challenger} />
+              </div>}
+
+              {audit.reviewMode !== "SINGLE" && audit.debate && <section className={`${styles.section} ${styles.debate}`}>
+              <h4>What they argued</h4>
+              <p><strong>Agreement</strong></p>
+              <List items={audit.debate.agreements} />
+              <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
+              <List items={audit.debate.disagreements} />
+              <p style={{ marginTop: "0.65rem" }}>
+                <strong>Concrete example:</strong> {audit.debate.disagreementExample}
+              </p>
+              {audit.debate.acceptedImprovements?.length > 0 && (
+                <>
+                  <p style={{ marginTop: "0.65rem" }}><strong>GPT accepted</strong></p>
+                  <List items={audit.debate.acceptedImprovements} />
+                </>
+              )}
+              </section>}
             </div>
           </details>
         )}
@@ -937,8 +997,8 @@ function LotusPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const demoPersona = searchParams.get("demo");
-  const classroomAssignmentId = searchParams.get("assignment");
   const requestedSessionId = searchParams.get("session");
+  const classroomAssignmentId = searchParams.get("assignment");
   const topic: LotusTopic = lotusTopicForClassTopic(searchParams.get("topic") ?? "");
   const planned = isPlannedLotusTopic(topic);
   const catchUp = planned && searchParams.get("check") === "catch-up";
@@ -955,12 +1015,8 @@ function LotusPage() {
   const [answer, setAnswer] = useState("");
   const [workingLines, setWorkingLines] = useState(["", "", ""]);
   const [confidence, setConfidence] = useState<number | null>(null);
-  // A missing confidence pick nudges the section itself (highlight + shake)
-  // rather than printing an error line — incrementing remounts the wrapper
-  // below (via `key`) so the CSS animation replays on every blocked attempt,
-  // not just the first.
-  const [confidenceNudge, setConfidenceNudge] = useState(0);
-  const confidenceRef = useRef<HTMLDivElement | null>(null);
+  const [awaitConfidence, setAwaitConfidence] = useState(false);
+  const answerReadyAt = useRef<number | null>(null);
   const [didNotKnow, setDidNotKnow] = useState(false);
   /** Picks for a question shown as a tile game; the server rebuilds the answer from them. */
   const [tiles, setTiles] = useState<TileGameState | null>(null);
@@ -1374,7 +1430,8 @@ function LotusPage() {
     setWorkingLines(["", "", ""]);
     setWorkingOpen(false);
     setConfidence(null);
-    setConfidenceNudge(0);
+    setAwaitConfidence(false);
+    answerReadyAt.current = null;
     setDidNotKnow(false);
     setTiles(null);
     setGamePlay(null);
@@ -1457,7 +1514,7 @@ function LotusPage() {
     }
   }
 
-  async function submit() {
+  async function submit(skipConfidence = false) {
     if (supportPaused || submissionLock.current) return;
     const requestScope=`${studentId}:${recoveryScope}`;
     const tileGame = question?.interaction;
@@ -1468,18 +1525,20 @@ function LotusPage() {
       setError(themedGame ? "Finish the game, or choose “I don’t know”." : tileGame ? "Fill every box with a tile, or choose “I don’t know”." : "Enter an answer or choose “I don’t know”.");
       return;
     }
-    // Confidence has no honest default: forcing a real tap (rather than a
-    // pre-selected button) is what makes the signal usable for distinguishing
-    // a slip from a stable gap. Only asked on turns Lotus flagged as
-    // evidence-critical (requiresConfidenceProbe) — asking on every single
-    // question was producing an unclicked, meaningless default instead of a
-    // real signal. Skipped when "I don't know" already gives an explicit
-    // low-confidence signal on its own.
-    if (!session || (!pendingSubmission && !didNotKnow && question?.requiresConfidenceProbe && confidence === null)) {
-      setConfidenceNudge((n) => n + 1);
-      confidenceRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Ask only after the learner has answered and before the answer is checked.
+    // The previous two turns suppress repeated prompts; missing legacy context
+    // is not interpreted as a prompt having occurred.
+    const shouldProbe = shouldAskLotusConfidence(
+      !!question?.requiresConfidenceProbe,
+      didNotKnow,
+      session.audits.map((audit) => audit.response?.interactionContext?.confidence.status),
+    );
+    if (!pendingSubmission && shouldProbe && !awaitConfidence && !skipConfidence) {
+      answerReadyAt.current = Date.now();
+      setAwaitConfidence(true);
       return;
     }
+    if (!pendingSubmission && shouldProbe && awaitConfidence && confidence === null && !skipConfidence) return;
     const clickedAt = Date.now();
     // The brackets test ends at 20 minutes, so its staged question would be refused after that. The factorisation test has no time limit.
     const staged = isPlannedLotusTopic(session.topic) || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
@@ -1488,9 +1547,10 @@ function LotusPage() {
     const submission: LotusStudentResponse = pendingSubmission ?? {
       answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
-      confidence: confidence ?? 60,
-      responseTimeMs: clickedAt - questionStartedAt,
-      interactionContext: interaction.snapshot({ status: confidence !== null ? "REPORTED_BEFORE_ANSWER" : question?.requiresConfidenceProbe ? "SKIPPED" : "NOT_ASKED", value: confidence, scale: "ZERO_TO_HUNDRED" }),
+      confidenceProbeReason: didNotKnow ? "DID_NOT_KNOW" : !question?.requiresConfidenceProbe ? "NOT_TARGETED" : shouldProbe ? "TARGETED_CHECK" : "RECENT_PROBE",
+      confidence: skipConfidence ? 60 : confidence ?? 60,
+      responseTimeMs: (answerReadyAt.current ?? clickedAt) - questionStartedAt,
+      interactionContext: interaction.snapshot({ status: skipConfidence && shouldProbe ? "SKIPPED" : confidence !== null ? "REPORTED_BEFORE_ANSWER" : "NOT_ASKED", value: skipConfidence ? null : confidence, scale: "ZERO_TO_HUNDRED" }),
       didNotKnow,
       submissionId: crypto.randomUUID(),
       ...(devMode && !classroomAssignmentId ? { developerMode: true } : {}),
@@ -1590,7 +1650,7 @@ function LotusPage() {
   // is never shown to the student as "of N". Don't derive it from the
   // currently exposed/prefetched list: later questions may still be generating.
   const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
-  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused || Boolean(session?.developerExitPrompt);
+  const inputLocked = busy || Boolean(pendingSubmission) || supportPaused || awaitConfidence || Boolean(session?.developerExitPrompt);
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
     : [];
@@ -2033,27 +2093,20 @@ function LotusPage() {
                       </div>
                     )}
 
-                    {question.requiresConfidenceProbe && (
-                      <div
-                        key={confidenceNudge}
-                        ref={confidenceRef}
-                        className={`${styles.confidence} ${confidenceNudge > 0 ? styles.confidenceNudge : ""}`}
-                      >
+                    {awaitConfidence && (
+                      <div className={styles.confidence} role="group" aria-label="Confidence check">
                         <span>How sure are you?</span>
                         <div className={styles.confidenceChoices}>
                           {CONFIDENCE_CHOICES.map((choice) => (
-                            <button
-                              key={choice.value}
-                              type="button"
+                            <button key={choice.value} type="button"
                               className={confidence === choice.value ? styles.confidenceSelected : ""}
                               aria-pressed={confidence === choice.value}
-                              onClick={() => setConfidence(choice.value)}
-                              disabled={inputLocked}
-                            >
+                              onClick={() => setConfidence(choice.value)} disabled={busy}>
                               {choice.label}
                             </button>
                           ))}
                         </div>
+                        <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void submit(true)}>Skip</button>
                       </div>
                     )}
 
@@ -2073,10 +2126,10 @@ function LotusPage() {
                         Fill {studentName.split(" ")[0]}’s demo response
                       </button>
                     )}
-                    <button className="btn btn-primary" type="button" onClick={submit} disabled={busy}>
+                    <button className="btn btn-primary" type="button" onClick={() => void submit()} disabled={busy || (awaitConfidence && confidence === null)}>
                       {busy ? (
                         <span className={styles.loading}><span className={styles.pulse} />{previewQuestion ? "Saving your answer…" : "Checking your answer…"}</span>
-                      ) : pendingSubmission ? "Retry saving previous answer" : "Submit answer"}
+                      ) : pendingSubmission ? "Retry saving previous answer" : awaitConfidence ? "Continue" : "Submit answer"}
                     </button>
                     {busy && liveProgress?.reflectionPrompt && (
                       // Only appears when the slower full analysis is genuinely
@@ -2149,6 +2202,7 @@ function LotusPage() {
                         <AuditCard
                           key={`${audit.question.id}-${index}`}
                           audit={audit}
+                          audits={observerAudits}
                           earlier={observerAudits.slice(0, index)}
                           opening={index === 0}
                           index={index}

@@ -261,6 +261,17 @@ function divisionProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): I
     { text: pretty(`${g}(${a === 1 ? "" : a}x)`), mistake: "DIVIDED_FIRST_TERM_ONLY" },
   ]);
   if (new Set(options.map((o) => o.text)).size !== 4) return null;
+  if (req.purpose === "CHECK") {
+    return {
+      ...base(spec, req, `Factorise completely: divide every term by the common factor in ${pretty(expr)}.`),
+      type: "CONSTRUCTED_RESPONSE", asksForWorking: true,
+      answerKey: {
+        kind: "OPEN_RESPONSE", canonicalAnswer: pretty(correct),
+        workedSolution: [`The common factor is ${g}`, `Divide both terms by ${g}: ${g * a}x/${g} = ${a === 1 ? "" : a}x, and ${g * b}/${g} = ${b}`, pretty(correct)],
+        diagnostics: diagnostics(spec, "FACTORISE", 3, options.filter((o) => o.mistake).map((o) => ({ answer: o.text, mistake: o.mistake! })), expr),
+      },
+    };
+  }
   return {
     ...base(spec, req, `Factorise completely: divide every term by the common factor in ${pretty(expr)}.`),
     type: "MULTIPLE_CHOICE", asksForWorking: false, options: options.map((o) => o.text), presentation: "WORKSHOP",

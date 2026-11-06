@@ -16,7 +16,7 @@ const SKILL = "FAC_DIFF_SQUARES";
 /** One answered turn: its question's headline skill, and what the answer showed for SKILL. */
 const turn = (headline: string, kind: "MISTAKE" | "SECURE") =>
   ({
-    question: { answerKey: { diagnostics: { skillId: headline } } },
+    question: { answerKey: { diagnostics: { skillId: headline, level: "medium" } } },
     skillEvidence: [{ skillId: SKILL, kind, source: "INSTANT", ...(kind === "MISTAKE" ? { mistake: "WROTE_PERFECT_SQUARE" } : {}) }],
   }) as unknown as LotusQuestionAudit;
 

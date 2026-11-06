@@ -6,6 +6,7 @@ import { spokenMath } from "../ai/spoken-math";
 import { timingSafeEqual } from "node:crypto";
 import { LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION, type LotusSessionView, type LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, isDemoStudentId, isProductionLike, resolveActor } from "../access/cogna-access";
+import { isDemoStudent } from "../engines/diagnostic-v2/demo-student";
 import {
   LotusReasonDto,
   DeveloperLotusExitDto,
@@ -180,6 +181,7 @@ export class LotusController {
       answer: body.didNotKnow ? "I don't know" : body.answer,
       working: body.working,
       confidence: body.confidence,
+      ...(body.confidenceProbeReason ? { confidenceProbeReason: body.confidenceProbeReason } : {}),
       ...(body.interactionContext ? { interactionContext: body.interactionContext } : {}),
       // The browser's figure can include time before the question was ready, or a restored tab's
       // old start: capped like the test clock caps each question.
@@ -260,10 +262,14 @@ export class LotusController {
     @Body() body: OverrideLotusSessionDto,
   ): Promise<LotusSessionView> {
     const actor = resolveActor(headers);
-    assertTeacher(actor);
     const session = await this.lotus.get(id);
     if (session.studentId !== body.studentId) throw new NotFoundException("Diagnostic session not found for this student.");
-    await this.studio.assertCanObserve(actor, session, false);
+    if (actor.role === "student" && !isProductionLike() && observerTeacherGateBypassed(session.studentId) && isDemoStudent(session.studentId) && !session.classroomAssignmentId) {
+      assertStudentAccess(actor, session.studentId);
+    } else {
+      assertTeacher(actor);
+      await this.studio.assertCanObserve(actor, session, false);
+    }
     return this.lotus.override(id, body.studentId, body.action);
   }
 

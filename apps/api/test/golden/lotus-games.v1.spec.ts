@@ -377,8 +377,9 @@ describe("Lotus themed games: the reading counts towards the skill", () => {
     assert.equal(e?.state, "SUSPECTED");
     assert.deepEqual(e?.mistakes, ["SIGN_PAIR_ERROR"]);
   });
-  it("the ledger: a sound answer on the next question clears that suspicion; the same slip again confirms it", () => {
-    assert.equal(stateAfter(["TWO_MOVES", cancels], ["TWO_MOVES", sound])?.state, "SECURE");
+  it("the ledger: a sound assisted answer leaves the suspicion open; the same slip again confirms it", () => {
+    // TWO_MOVES shows the rule to the learner; it is not an independent comparable recheck.
+    assert.equal(stateAfter(["TWO_MOVES", cancels], ["TWO_MOVES", sound])?.state, "SUSPECTED");
     assert.equal(stateAfter(["TWO_MOVES", cancels], ["TWO_MOVES", cancels])?.state, "CONFIRMED");
   });
   it("the ledger: a right answer that needs another isn't secure until a second one", () => {

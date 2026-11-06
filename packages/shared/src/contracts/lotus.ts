@@ -170,6 +170,8 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
+  /** Client-observed reason for asking or suppressing the confidence probe. */
+  confidenceProbeReason?: "TARGETED_CHECK" | "RECENT_PROBE" | "DID_NOT_KNOW" | "NOT_TARGETED";
   /** Local standalone demo only. Requests a developer decision before an automatic exit. */
   developerMode?: boolean;
   interactionContext?: StudentInteractionContext;
@@ -599,6 +601,20 @@ export interface LotusAdaptiveDecision {
   source: "RULE_VALIDATED_PLAN" | "AI_RECOMMENDATION";
 }
 
+/** Observer-only reconstruction using the evidence currently stored for each answered prefix.
+ * Late asynchronous reviews can change an earlier record; this is not an as-delivered snapshot.
+ * States are planner states and SECURE alone is not a mastery finding. */
+export interface LotusSkillAssessmentProjection {
+  basis: "RECONSTRUCTED_FROM_CURRENT_RECORD";
+  entries: Array<{
+    skillId: string;
+    previousState: LotusSkillState;
+    state: LotusSkillState;
+    notes: string[];
+    needsComparableCheck: boolean;
+  }>;
+}
+
 export interface LotusQuestionAudit {
   question: LotusQuestion;
   response: LotusStudentResponse | null;
@@ -625,6 +641,9 @@ export interface LotusQuestionAudit {
   analysisStatus: LotusAnalysisStatus;
   /** Lets the observer separate a mathematical fact, a support request, and a completed model interpretation. */
   analysisSource: LotusAnalysisSource;
+  /** Field names actually included in a completed single-model review; absent on legacy records. */
+  reviewInputFields?: string[];
+  reviewMode?: "SINGLE" | "DEBATE";
   /** Durable review timing, used to distinguish queued work from model time. */
   analysisQueuedAt?: string;
   /** Snapshot of the in-process queue when the review was accepted; zero means running. */
@@ -642,6 +661,8 @@ export interface LotusQuestionAudit {
   formatDecision?: LotusFormatDecision;
   /** What this turn told us about each skill. Hidden from the student while the diagnostic is active. */
   skillEvidence?: LotusSkillEvidence[];
+  /** Available only on authorised observer copies; not persisted evidence of the original decision. */
+  skillAssessment?: LotusSkillAssessmentProjection;
   stageAgreement?: LotusStageAgreement | null;
   timingMs?: LotusStageTimingMs | null;
   createdAt: string;
