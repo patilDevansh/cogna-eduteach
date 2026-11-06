@@ -1482,7 +1482,24 @@ export function buildFactorisationReport(args: {
     const e = args.ledger.get(id);
     return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport && !e.unexplained));
   });
+  // Skills no question in the plan asks about, with nothing tested above them to stand in for them (the added skills that
+  // sit above nothing). Without this a child missing one reads as an all-clear. Skills with a tested skill above them are
+  // covered by it, as before.
+  const hasEvidence = (id: string) => ["SECURE", "CONFIRMED", "SUSPECTED"].includes(args.ledger.get(id)?.state ?? "");
+  const notAsked = args.state.focusSkills?.length ? [] : curriculum.skills.filter((s) =>
+    !curriculum.slots.some((slot) => slot.skillId === s.id) &&
+    !hasEvidence(s.id) && !args.ledger.get(s.id)?.tapRights && !args.ledger.get(s.id)?.needsSupport && !args.ledger.get(s.id)?.unexplained &&
+    !curriculum.skills.some((o) => o.id !== s.id && hasEvidence(o.id) && dependsOnTransitively(o.id, s.id))).map((s) => s.id);
   const notReachedNames = notReached.map((id) => skillName(id).toLowerCase());
+  const notAskedNames = notAsked.map((id) => skillName(id).toLowerCase());
+  // A skill with no question of its own that sits under a skill that went wrong, and was never checked: it could be the cause.
+  const wentWrong = entries.filter((e) => e.state === "SUSPECTED" || e.state === "CONFIRMED").map((e) => e.skillId);
+  const notChecked = args.state.focusSkills?.length ? [] : curriculum.skills.filter((s) =>
+    !curriculum.slots.some((slot) => slot.skillId === s.id) && !notAsked.includes(s.id) &&
+    !hasEvidence(s.id) && !args.ledger.get(s.id)?.tapRights && !args.ledger.get(s.id)?.needsSupport && !args.ledger.get(s.id)?.unexplained &&
+    wentWrong.some((g) => dependsOnTransitively(g, s.id))).map((s) => ({ id: s.id, above: wentWrong.filter((g) => dependsOnTransitively(g, s.id)) }));
+  const unaskedAll = [...notReached, ...notAsked, ...notChecked.map((c) => c.id)];
+  const unaskedAllNames = unaskedAll.map((id) => skillName(id).toLowerCase());
   // Answers that were wrong but taught nothing about any skill (the review named no step). Two or more are not an all-clear.
   const unexplained = entries.filter((e) => (e.unexplained ?? 0) > 0);
   const unexplainedTotal = unexplained.reduce((n, e) => n + (e.unexplained ?? 0), 0);
@@ -1502,7 +1519,7 @@ export function buildFactorisationReport(args: {
     : outcome === "ADVANCEMENT"
       ? focus?.length
         ? `Repeated direct checks succeeded for ${focus.map((id) => skillName(id).toLowerCase()).join(", ")}. Check retention later.`
-        : `Repeated direct checks succeeded across several tested ${curriculum.name.toLowerCase()} skills.${notReached.length ? ` Not asked in this test: ${notReachedNames.join(", ")}.` : ""} Consider the next challenge; untested skills and retention remain unknown.`
+        : `Repeated direct checks succeeded across several tested ${curriculum.name.toLowerCase()} skills.${unaskedAll.length ? ` Not asked in this test: ${unaskedAllNames.join(", ")}.` : ""} Consider the next challenge; untested skills and retention remain unknown.`
       : suspected.length
         ? "No gap was confirmed. Review the suspected areas below before deciding where to start."
         : unexplainedTotal >= 2
@@ -1517,6 +1534,8 @@ export function buildFactorisationReport(args: {
   ];
   if (unexplainedTotal >= 2) limitations.push(`${unexplainedTotal} wrong answers couldn't be linked to a skill, so no gap is confirmed or ruled out from them. This is not a sign that all is well.`);
   if (notReached.length) limitations.push(`${notReached.length} skill${notReached.length === 1 ? " was" : "s were"} planned but not asked in this test (${notReachedNames.join(", ")}), so nothing is known about ${notReached.length === 1 ? "it" : "them"} yet.`);
+  if (notAsked.length) limitations.push(`No question in this test covers ${notAskedNames.join(", ")}, so nothing is known about ${notAsked.length === 1 ? "it" : "them"}; a gap there would not show up here.`);
+  if (notChecked.length) limitations.push(`${notChecked.map((c) => skillName(c.id).toLowerCase()).join(", ")} ${notChecked.length === 1 ? "was" : "were"} never checked, and a skill built on ${notChecked.length === 1 ? "it" : "them"} went wrong, so ${notChecked.length === 1 ? "it" : "they"} could be the cause.`);
   if (args.pendingAnalyses > 0) limitations.push(`${args.pendingAnalyses} answer(s) didn't finish their deeper AI review, so any mistake code couldn't explain is missing.`);
   if (args.state.fastSkips > 0) limitations.push(`${args.state.fastSkips} question(s) were skipped quickly with nothing written. Those aren't counted as evidence either way.`);
   if (rushed) limitations.unshift("Most answers were very fast and wrong, so the gaps below may come from rushing, not from what the child knows. No lesson is suggested from this test.");
@@ -1536,6 +1555,12 @@ export function buildFactorisationReport(args: {
     ...notReached
       .filter((id) => !args.ledger.has(id))
       .map((id) => ({ skillId: id, name: skillName(id), state: "UNTESTED" as const, evidence: ["Planned for this test but not asked."] })),
+    ...notAsked
+      .filter((id) => !args.ledger.has(id))
+      .map((id) => ({ skillId: id, name: skillName(id), state: "UNTESTED" as const, evidence: ["No question in this test covers it."] })),
+    ...notChecked
+      .filter((c) => !args.ledger.has(c.id))
+      .map((c) => ({ skillId: c.id, name: skillName(c.id), state: "UNTESTED" as const, evidence: ["Never checked, and a skill built on it went wrong."] })),
   ].filter((s, i, all) => all.findIndex((o) => o.skillId === s.skillId) === i);
 
   return {
@@ -1569,6 +1594,8 @@ export function buildFactorisationReport(args: {
       ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights).map((e) =>
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
       ...notReached.map((id) => `${skillName(id)}: not asked in this test, so nothing is known about it yet.`),
+      ...notAsked.map((id) => `${skillName(id)}: no question in this test covers it, so nothing is known about it.`),
+      ...notChecked.map((c) => `${skillName(c.id)}: never checked, and ${c.above.map((g) => skillName(g).toLowerCase()).join(", ")} went wrong, so it could be the cause.`),
       ...unexplained.map((e) => `${skillName(e.skillId)}: wrong ${e.unexplained === 1 ? "once" : `${e.unexplained} times`}, and the cause couldn't be linked to a skill. Check the skills underneath it.`),
     ],
     evidenceSummary: [
@@ -1582,8 +1609,8 @@ export function buildFactorisationReport(args: {
         ? `Give one more question on ${skillName(suspected[0].skillId).toLowerCase()} to see whether the mistake repeats.`
         : unexplainedTotal >= 2
         ? "Check the skills underneath the ones that went wrong with a few fresh questions; this test could not say what went wrong."
-        : notReached.length
-          ? `No teaching gap found in the skills asked. ${notReachedNames.join(", ")} ${notReached.length === 1 ? "wasn't" : "weren't"} asked, so check ${notReached.length === 1 ? "it" : "them"} before moving on.`
+        : unaskedAll.length
+          ? `No teaching gap found in the skills asked. ${unaskedAllNames.join(", ")} ${unaskedAll.length === 1 ? "wasn't" : "weren't"} asked, so check ${unaskedAll.length === 1 ? "it" : "them"} before moving on.`
           : outcome === "ADVANCEMENT"
             ? "Offer the next challenge and schedule a later retention check."
             : "Gather fresh direct evidence before deciding whether to teach or advance.",

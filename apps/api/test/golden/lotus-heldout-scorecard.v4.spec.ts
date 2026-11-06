@@ -123,10 +123,11 @@ describe("held-out scorecard v4", () => {
     assert.equal(t.falseGapRuns, 0, "C: no false gap for any student");
     assert.ok(t.medianQuestionsWithGap <= 26, "D: median questions for children with a gap no more than 2 above before (24)");
     assert.ok(pct(t.capableAdvancement, t.capableRuns) >= 50, "E: solid children are reported ADVANCEMENT at least as often as before (50%)");
+    // Criterion A, met by naming in the report the skills the test did not ask or check (before: 114 silent misses, 105 of them added-skill students).
+    assert.equal(t.silentMisses, 0, "A: no silent miss");
   });
 
   // Not met, kept visible (docs/mvp-10.0/HELDOUT_SCORECARD.md): the change this set was written for.
-  it.todo("a gap in an added skill is never a silent miss (X09-X13: five added skills nothing asks, all 100 plays end ADVANCEMENT without naming them)");
   it.todo("a gap in an added skill is found at least 80% of the time (before: 25%)");
   it.todo("a capable child with three slips is not reported unclear (X02: 3, 11, 17)");
   it.todo("a foundation gap's root is found, not only the skills above it (X15 expand one bracket, X16 signed sums)");
