@@ -79,7 +79,7 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   const has = (set: Set<string>) => mistakes.some((m) => set.has(m));
   const need = (kinds: LotusGameKind[], reason: string): FormatNeed => ({ kinds: kinds.filter((kind) => kind !== shown), reason });
 
-  if (response.didNotKnow || signals.includes("spread_evenly")) {
+  if (response.didNotKnow || last.verification?.status === "NO_ANSWER" || signals.includes("spread_evenly")) {
     return need(["RECTANGLE", "TWO_NUMBERS", "SPLIT_CONFIDENCE"], "They didn't know, so find out what they can do without recalling a method.");
   }
   // A sign slip can sit under a right answer: two that cancel, or one the student fixed.

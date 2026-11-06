@@ -390,6 +390,34 @@ describe("Lotus square patterns and torn splits", () => {
   });
 });
 
+describe("Lotus typed don't-know", () => {
+  const q = letters("dk1");
+  (q.answerKey.diagnostics as { expression: string }).expression = "8x^2 + 20x + 12";
+  const drafts = [{ t: 9000, v: "2(2x" }, { t: 20000, v: "2(2x^2 + 10x + 6)" }, { t: 32000, v: "" }, { t: 60000, v: "idk" }];
+  const r = resolveLotusResponse(q, { answer: "idk", working: "2(2x^2 + 10x + 6) there is no integer that multiplies to 12 and adds to 10", confidence: 25, responseTimeMs: 61000, didNotKnow: false, typing: drafts } as LotusStudentResponse);
+  it("'idk' is a don't-know with the drafts and working kept, and a review reads them", () => {
+    const v = instantVerdict(q, r);
+    assert.equal(v.verification.status, "NO_ANSWER");
+    assert.deepEqual(v.evidence.map((e) => [e.kind, e.skillId]), [["DID_NOT_KNOW", "FAC_GCF_VARIABLE"]]);
+    assert.ok(r.typing && r.typing.length === 4, "the typing record is kept");
+    assert.equal(r.typingReading?.facts.drafts, 1);
+    assert.equal(v.needsAnalysis, true);
+    const bare = instantVerdict(q, resolveLotusResponse(q, { answer: "I don't know.", working: "", confidence: 25, responseTimeMs: 5000, didNotKnow: false } as LotusStudentResponse));
+    assert.equal(bare.verification.status, "NO_ANSWER");
+    assert.equal(bare.needsAnalysis, false, "nothing to read");
+  });
+  it("the format guide treats it as a don't-know", () => {
+    const v = instantVerdict(q, r);
+    const need = evidenceFormatNeed([{ question: q, response: r, verification: v.verification, skillEvidence: v.evidence } as unknown as LotusQuestionAudit]);
+    assert.match(need!.reason, /didn't know/);
+  });
+  it("real short answers are not swallowed", async () => {
+    const { isDontKnowText } = await import("../../src/lotus/lotus-factorisation");
+    for (const real of ["1", "x", "2x", "2(x + 3)", "I don't know why it is 2"]) assert.equal(isDontKnowText(real), false, real);
+    for (const dk of ["IDK", " idk ", "i dont know", "I don’t know!", "dunno", "no idea", "?", "??"]) assert.equal(isDontKnowText(dk), true, dk);
+  });
+});
+
 describe("Lotus student view states where a question came from", () => {
   it("redaction strips the diagnostics but keeps the provenance", async () => {
     const { redactQuestion } = await import("../../src/lotus/lotus.service");

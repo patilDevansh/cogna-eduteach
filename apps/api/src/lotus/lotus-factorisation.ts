@@ -98,6 +98,21 @@ export interface FactorisationState {
 
 // ---------- instant verdict ----------
 
+/**
+ * What a student types when they have no answer. Compared after trimming, lower-casing and dropping full stops,
+ * commas, "!" and apostrophes, so "I don't know." and "IDK!" both match. Whole answers only: a bare "1" or "x"
+ * is a real answer, and "I don't know why it is 2(x + 3)" is not in this list.
+ */
+export const DONT_KNOW_PHRASES: ReadonlySet<string> = new Set([
+  "idk", "i dont know", "dont know", "i do not know", "do not know", "dunno", "i dunno", "no idea", "i have no idea",
+  "not sure", "i am not sure", "im not sure", "dk", "?", "??", "???",
+]);
+
+export function isDontKnowText(answer: string | undefined): boolean {
+  const text = (answer ?? "").toLowerCase().replace(/['\u2019.,!]/g, "").replace(/\s+/g, " ").trim();
+  return text !== "" && DONT_KNOW_PHRASES.has(text);
+}
+
 function sameChoice(a: string, b: string): boolean {
   return normalizeMathText(a).toLowerCase() === normalizeMathText(b).toLowerCase();
 }
@@ -191,7 +206,7 @@ function withDraftDoubt(response: LotusStudentResponse, verdict: InstantVerdict)
  */
 function withGameDiagnosis(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
   const diagnosis = response.gameReading?.diagnosis;
-  if (!diagnosis || response.didNotKnow) return verdict;
+  if (!diagnosis || response.didNotKnow || verdict.verification.status === "NO_ANSWER") return verdict;
   const d = question.answerKey.diagnostics!;
   const description = diagnosis.note;
   switch (diagnosis.effect) {
@@ -210,7 +225,7 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
     case "NO_EVIDENCE": {
       // A torn split on a RIGHT answer proves nothing either way. On a wrong one it must not silence the review:
       // a named mistake stays, as a doubt (the chips did not settle it), and with none named the review reads it.
-      if (response.gameReading?.kind !== "SPLIT_CONFIDENCE" || verdict.verification.status === "VERIFIED_CORRECT" || verdict.verification.status === "NO_ANSWER") return { ...verdict, evidence: [], needsAnalysis: false };
+      if (response.gameReading?.kind !== "SPLIT_CONFIDENCE" || verdict.verification.status === "VERIFIED_CORRECT") return { ...verdict, evidence: [], needsAnalysis: false };
       const doubted = verdict.evidence.map((e) => (e.kind === "MISTAKE" || e.kind === "UNFINISHED")
         ? { ...e, description: `${(e.description ?? "").replace(/\.$/, "")} (the chips were split, so this is a doubt, not a settled mistake).`.trim() } : e);
       const named = doubted.some((e) => e.kind !== "SECURE");
@@ -256,6 +271,19 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   }
 
   const answer = response.answer;
+  // "idk" typed into the answer box: a don't-know, not a wrong answer. The drafts and the working still carry
+  // partial evidence (a factor found, a stuck point), so a review reads them when there are any.
+  const typedItem = d.itemKind === "FACTORISE" || d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND" || d.itemKind === "NUMBER";
+  if (typedItem && isDontKnowText(answer)) {
+    const reading = response.gameReading?.kind === "EDIT_HISTORY" ? response.gameReading : response.typingReading;
+    const drafts = Number((reading?.facts as { drafts?: number } | undefined)?.drafts ?? 0);
+    return {
+      verification: verification("NO_ANSWER", "The student typed that they don't know; this is recorded as a support signal."),
+      evidence: [{ skillId: d.skillId, kind: "DID_NOT_KNOW", source: "INSTANT", description: "Typed that they don't know this yet." }],
+      fastSkip: false,
+      needsAnalysis: drafts > 0 || !!response.working?.trim(),
+    };
+  }
   if (question.interaction?.format === "FACTOR_CROSSWORD") {
     // Rebuild again at this boundary: caller-supplied text cannot override tile picks.
     const built = response.interaction ? assembleTileAnswer(question.interaction, response.interaction.picks) : answer;
