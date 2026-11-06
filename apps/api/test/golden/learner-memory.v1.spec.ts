@@ -136,3 +136,50 @@ describe("what earlier tests carry into a new one", async () => {
     assert.deepEqual(priorsFromMemory(foldLearnerModel("s1", first), { LOTUS_MEMORY_PRIORS: "off" }), []);
   });
 });
+
+describe("a lesson's final check, retention, and how the student works", async () => {
+  const { finalCheckMistake } = await import("../../src/learner/final-check-mistakes");
+  const { lessonEvidence, habitLines, priorsFromMemory } = await import("../../src/learner/learner-memory");
+
+  it("reads a wrong final check as the mistake that survived the lesson, and names nothing it can't explain", () => {
+    assert.equal(finalCheckMistake("factorise", "x^2 - 9x + 8", "(x + 1)(x + 8)"), "SIGN_PAIR_ERROR");
+    assert.equal(finalCheckMistake("factorise", "x^2 - 9x + 8", "(x - 2)(x - 4)"), "WRONG_FACTOR_PAIR_SUM");
+    assert.equal(finalCheckMistake("factorise", "x^2 - 9x + 8", "(x - 3)(x - 6)"), "WRONG_FACTOR_PAIR_PRODUCT");
+    assert.equal(finalCheckMistake("factorise", "7x + 28", "7(x + 28)"), "DIVIDED_FIRST_TERM_ONLY");
+    assert.equal(finalCheckMistake("factorise", "6x + 12", "2(3x + 6)"), "COMMON_NOT_HIGHEST");
+    assert.equal(finalCheckMistake("factorise", "x^2 - 9x + 8", "(x - 1)(x - 8)"), undefined, "right");
+    assert.equal(finalCheckMistake("factorise", "x^2 + 7x + 12", "(x + 99)(x + 1)"), undefined, "no reading explains it");
+    assert.equal(finalCheckMistake("expand", "(x + 1)(x + 2)", "x^2 + 2"), undefined, "only factorising is read so far");
+  });
+
+  it("so a mistake that comes back after a lesson is a pattern across the test and the lesson", () => {
+    const row = lessonEvidence({ studentId: "s1", assignmentId: "l1", taught: { topic: "Factorisation", targetSkill: { id: "FAC_MONIC_TRINOMIAL" } }, format: "VIDEO", check: { task: "factorise", expression: "x^2 - 9x + 8" }, answer: "(x + 1)(x + 8)", correct: false, at: new Date("2026-11-02T10:00:00Z") })!;
+    assert.deepEqual(row.mistakes.map((m) => m.code), ["SIGN_PAIR_ERROR"]);
+    const testRows = at(testEvidence(test("t1", [answer("FAC_MONIC_TRINOMIAL", "wrong"), answer("FAC_MONIC_TRINOMIAL", "wrong")])), "2026-11-01T10:00:00Z");
+    const skill = foldLearnerModel("s1", [...testRows, row]).skills.find((s) => s.skillId === "FAC_MONIC_TRINOMIAL")!;
+    assert.equal(skill.status, "TAUGHT_NOT_YET");
+    assert.deepEqual(skill.recurring, ["SIGN_PAIR_ERROR"]);
+  });
+
+  const secureTest = (id: string, iso: string) => at(testEvidence(test(id, [answer("FAC_DIFF_SQUARES", "right"), answer("FAC_DIFF_SQUARES", "right")])), iso);
+  const gapTest = (id: string, iso: string) => at(testEvidence(test(id, [answer("FAC_DIFF_SQUARES", "wrong", { mistake: "WROTE_PERFECT_SQUARE" }), answer("FAC_DIFF_SQUARES", "wrong", { mistake: "WROTE_PERFECT_SQUARE" })])), iso);
+
+  it("secure again two weeks later is kept; a gap after being secure is forgotten, and is re-checked first", () => {
+    const kept = foldLearnerModel("s1", [...secureTest("a", "2026-11-01T10:00:00Z"), ...secureTest("b", "2026-11-20T10:00:00Z")]).skills.find((s) => s.skillId === "FAC_DIFF_SQUARES")!;
+    assert.equal(kept.keptSince, "2026-11-01T10:00:00.000Z");
+    assert.ok(memoryLines(foldLearnerModel("s1", [...secureTest("a", "2026-11-01T10:00:00Z"), ...secureTest("b", "2026-11-20T10:00:00Z")])).some((l) => /so it has lasted/.test(l)));
+    const soon = foldLearnerModel("s1", [...secureTest("a", "2026-11-01T10:00:00Z"), ...secureTest("b", "2026-11-05T10:00:00Z")]).skills[0]!;
+    assert.equal(soon.keptSince, undefined, "four days isn't long enough to call it kept");
+    const forgotten = foldLearnerModel("s1", [...secureTest("a", "2026-11-01T10:00:00Z"), ...gapTest("b", "2026-11-20T10:00:00Z")]);
+    assert.equal(forgotten.skills.find((s) => s.skillId === "FAC_DIFF_SQUARES")!.status, "FORGOTTEN");
+    assert.ok(memoryLines(forgotten).some((l) => /hasn't lasted/.test(l)));
+    assert.deepEqual(priorsFromMemory(forgotten, {}).map((p) => p.skillId), ["FAC_DIFF_SQUARES"]);
+  });
+
+  it("tells the next lesson how the student works, once there is enough to go on", () => {
+    assert.deepEqual(habitLines(null), []);
+    assert.deepEqual(habitLines({ tests: 1, answered: 6, slipShare: 0.9, saidDidNotKnow: 0, confidentButWrong: 5, unsureButRight: 0 }), [], "too few answers to judge");
+    const lines = habitLines({ tests: 2, answered: 40, slipShare: 0.5, saidDidNotKnow: 1, confidentButWrong: 4, unsureButRight: 0 });
+    assert.ok(lines.some((l) => /multiplying it back out/.test(l)) && lines.some((l) => /predict, then check/.test(l)), lines.join("\n"));
+  });
+});

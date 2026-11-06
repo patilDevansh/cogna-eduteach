@@ -118,7 +118,7 @@ function sameChoice(a: string, b: string): boolean {
   return normalizeMathText(a).toLowerCase() === normalizeMathText(b).toLowerCase();
 }
 
-function unfinishedCode(answer: string): string {
+export function unfinishedCode(answer: string): string {
   switch (factorisationDefect(answer)) {
     case "NOT_A_PRODUCT": return "SUM_ACCEPTED_AS_FACTORISED";
     case "LETTER_LEFT_INSIDE": return "PARTIAL_GCF";
