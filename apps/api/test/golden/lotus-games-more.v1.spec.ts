@@ -148,6 +148,20 @@ describe("Find every b", () => {
       { name: "only one", payload: { kind: "FIND_EVERY_B", picked: [positives[0]!] }, status: "VERIFIED_INCORRECT", effect: "DOESNT_KNOW", kinds: ["DID_NOT_KNOW"] },
     ]);
   });
+  it("a half-right set credits the negative side it showed and names what was missed", () => {
+    const smallest = [...valid].filter((n) => n > 0).sort((a, b) => a - b)[0]!;
+    const picked = [-smallest, smallest, c, -c];
+    const out = play(q, { kind: "FIND_EVERY_B", picked });
+    const reading = out.gameReading!;
+    assert.equal(reading.diagnosis?.effect, "MISTAKE");
+    assert.deepEqual(reading.diagnosis?.creditFor, ["NO_NEGATIVE_PAIRS"]);
+    assert.match(reading.summary, /Missed .*pair/);
+    const verdict = instantVerdict(q, out);
+    const kinds = verdict.evidence.map((e) => `${e.kind}:${e.skillId}`);
+    assert.ok(kinds.some((k) => k.startsWith("MISTAKE:")), "the pair-finding mistake is kept");
+    assert.ok(verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === "FND_FACTOR_PAIRS"), `negative pairs credited: ${kinds.join(", ")}`);
+    assert.ok(!verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === q.answerKey.diagnostics!.skillId), "the main skill is not marked secure");
+  });
   it("what is marked does not depend on the order picked", () => {
     assert.deepEqual((play(q, { kind: "FIND_EVERY_B", picked: [...valid].reverse() }).game as { picked: number[] }).picked, valid);
   });

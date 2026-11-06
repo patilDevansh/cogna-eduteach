@@ -203,9 +203,16 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       };
     case "MISTAKE": {
       // The question's own predicted mistake is more exact than one worked out from the play.
-      if (verdict.evidence.some((e) => e.kind === "MISTAKE" && e.mistake)) return { ...verdict, needsAnalysis: false };
+      const named = verdict.evidence.some((e) => e.kind === "MISTAKE" && e.mistake);
       const skillId = diagnosis.mistake ? ownerOfMistake(diagnosis.mistake, d) : d.skillId;
-      return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }], needsAnalysis: false };
+      // Right picks that show another skill on their own are kept as secure evidence for it (never a skill that has a mistake here).
+      const blamed = new Set(named ? verdict.evidence.filter((e) => e.kind !== "SECURE").map((e) => e.skillId) : [skillId]);
+      const credited: LotusSkillEvidence[] = (diagnosis.creditFor ?? [])
+        .map((code) => ownerOfMistake(code, d))
+        .filter((owner, i, all) => !blamed.has(owner) && all.indexOf(owner) === i && (skillsUsedBy(d).includes(owner) || (findSkill(d.skillId)?.dependsOn ?? []).includes(owner)) && expressionCanShowSkill(owner, d.expression))
+        .map((owner) => ({ skillId: owner, kind: "SECURE" as const, source: "INSTANT" as const, description: "Right picks on both the positive and the negative side." }));
+      if (named) return { ...verdict, evidence: [...verdict.evidence, ...credited], needsAnalysis: false };
+      return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }, ...credited], needsAnalysis: false };
     }
   }
 }
