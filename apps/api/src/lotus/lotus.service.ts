@@ -329,6 +329,15 @@ function deferredPlanEffects(actions: PlanAction[], primary: PlanAction | undefi
     }));
 }
 
+/**
+ * The verification note explains why an answer is right or wrong; for a right answer it is not an error,
+ * so it is never shown as the "observed error" (a doubt is described by the evidence's own description instead).
+ */
+export function verificationAsError(audit: LotusQuestionAudit, fallback: string): string {
+  if (audit.verification?.status === "VERIFIED_CORRECT") return "No error: the answer was right.";
+  return audit.verification?.explanation ?? fallback;
+}
+
 /** Converts validated server plan actions into observer-safe decision data. */
 export function adaptiveDecisionFor(
   audit: LotusQuestionAudit,
@@ -346,8 +355,7 @@ export function adaptiveDecisionFor(
   const baseObserved = audit.response?.didNotKnow
     ? "The student explicitly said they do not know this yet."
     : listed
-      ?? audit.verification?.explanation
-      ?? "No specific error was established from this response.";
+      ?? verificationAsError(audit, "No specific error was established from this response.");
   const observedError = suspicionNote ? `${baseObserved} ${suspicionNote}` : baseObserved;
   const action = actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "DESCENT")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "CHECK")
@@ -1720,13 +1728,13 @@ export class LotusService implements OnModuleDestroy {
       if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
-            .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW")
+            .filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW"))
             .map((e) => e.skillId))]
           : [];
         // Who found the evidence behind each check: the review (ANALYSIS) or code's own rules (INSTANT/REASON).
         const decidedBy: Record<string, "AI" | "CODE"> = {};
         for (const e of slot.skillEvidence ?? []) {
-          if (e.kind === "SECURE") continue;
+          if (e.kind === "SECURE" || e.hedge) continue;
           decidedBy[e.skillId] = e.source === "ANALYSIS" ? "AI" : decidedBy[e.skillId] ?? "CODE";
         }
         const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills, decidedBy, { elapsedSeconds, answered: answeredCount });
@@ -1741,8 +1749,7 @@ export class LotusService implements OnModuleDestroy {
         slot.adaptiveDecision = {
           action: "KEEP",
           observedError: slot.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
-            ?? slot.verification?.explanation
-            ?? "The review completed after the plan-change deadline.",
+            ?? verificationAsError(slot, "The review completed after the plan-change deadline."),
           alternatives: ["A plan change could be useful, but the student has already progressed beyond the safe replacement window."],
           rationale: "The review is retained as evidence, but the server will not rewrite a stale future plan from an old response.",
           expectedInformationGain: "Use this evidence in the final report and later planning without claiming it changed an obsolete question.",
@@ -3106,8 +3113,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       audit.adaptiveDecision = {
         action: "STOP",
         observedError: audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
-          ?? audit.verification?.explanation
-          ?? "The planned diagnostic reached its end.",
+          ?? verificationAsError(audit, "The planned diagnostic reached its end."),
         alternatives: stop
           ? ["Continue the plan, but the stopping rule says more questions wouldn't change the result or the time is up."]
           : ["A further question could add evidence, but there is no authorized remaining slot."],
@@ -3169,7 +3175,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     // check the AI review's "ask again" would have requested, so the gap can be confirmed
     // without paying for a review that can't add anything.
     const codeNamedMistakes = analyse ? [] : [...new Set((instant.evidence ?? [])
-      .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED")
+      .filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED"))
       .map((e) => e.skillId))];
     const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes, {}, { elapsedSeconds, answered: answeredCount });
     const noTime = this.lastPlanNoTime;

@@ -4,6 +4,7 @@ import { shouldAskLotusConfidence } from "@/lib/lotus-confidence-probe";
 import { isReusedFromBank, provenanceLabelForQuestion } from "@/lib/lotus-provenance";
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
+import { lotusResponseTimeMs } from "@/lib/lotus-response-time";
 import { relatedEvidence, recordedUncertainty, reconstructedAssessments } from "@/lib/lotus-related-evidence";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
 import { lotusRecoveryProblem } from "@/lib/lotus-recovery";
@@ -281,11 +282,11 @@ function AssessmentCard({
 
 /** An earlier answer that already went wrong on one of the skills this answer went wrong on: the same mistake, or just the same skill. */
 function repeatOf(audit: LotusQuestionAudit, earlier: LotusQuestionAudit[]): { sameMistake: boolean } | null {
-  const now = (audit.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED");
+  const now = (audit.skillEvidence ?? []).filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED"));
   let found: { sameMistake: boolean } | null = null;
   for (const before of earlier) {
     for (const e of before.skillEvidence ?? []) {
-      if (e.kind !== "MISTAKE" && e.kind !== "UNFINISHED") continue;
+      if (e.hedge || (e.kind !== "MISTAKE" && e.kind !== "UNFINISHED")) continue;
       for (const n of now) {
         if (n.skillId !== e.skillId) continue;
         if (n.mistake && n.mistake === e.mistake) return { sameMistake: true };
@@ -297,7 +298,7 @@ function repeatOf(audit: LotusQuestionAudit, earlier: LotusQuestionAudit[]): { s
 }
 
 function DiagnosticDecision({ audit, earlier = [] }: { audit: LotusQuestionAudit; earlier?: LotusQuestionAudit[] }) {
-  if (!audit.response || !(audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE")) return null;
+  if (!audit.response || !(audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE" && !e.hedge)) return null;
   const support = audit.skillEvidence?.some((e) => e.kind === "DID_NOT_KNOW");
   const repeat = support ? null : repeatOf(audit, earlier);
   return (
@@ -1545,13 +1546,15 @@ function LotusPage() {
     const staged = isPlannedLotusTopic(session.topic) || Date.now() - new Date(session.startedAt).getTime() < 20 * 60 * 1000
       ? session.upcomingQuestions?.[0]
       : undefined;
+    const itemContext = pendingSubmission ? undefined : interaction.snapshot({ status: skipConfidence && shouldProbe ? "SKIPPED" : confidence !== null ? "REPORTED_BEFORE_ANSWER" : "NOT_ASKED", value: skipConfidence ? null : confidence, scale: "ZERO_TO_HUNDRED" });
     const submission: LotusStudentResponse = pendingSubmission ?? {
       answer: didNotKnow ? "I don't know" : typedOrBuilt,
       working: workingLines.map((line) => line.trim()).filter(Boolean).join("\n"),
       confidenceProbeReason: didNotKnow ? "DID_NOT_KNOW" : !question?.requiresConfidenceProbe ? "NOT_TARGETED" : shouldProbe ? "TARGETED_CHECK" : "RECENT_PROBE",
       confidence: skipConfidence ? 60 : confidence ?? 60,
-      responseTimeMs: (answerReadyAt.current ?? clickedAt) - questionStartedAt,
-      interactionContext: interaction.snapshot({ status: skipConfidence && shouldProbe ? "SKIPPED" : confidence !== null ? "REPORTED_BEFORE_ANSWER" : "NOT_ASKED", value: skipConfidence ? null : confidence, scale: "ZERO_TO_HUNDRED" }),
+      // Measured from when the item was shown (the same clock as interactionContext.timing), not from page or session start.
+      responseTimeMs: lotusResponseTimeMs({ itemElapsedMs: itemContext?.timing.elapsedMs, confidenceWaitMs: clickedAt - (answerReadyAt.current ?? clickedAt), fallbackMs: (answerReadyAt.current ?? clickedAt) - questionStartedAt }),
+      interactionContext: itemContext,
       didNotKnow,
       submissionId: crypto.randomUUID(),
       ...(devMode && !classroomAssignmentId ? { developerMode: true } : {}),

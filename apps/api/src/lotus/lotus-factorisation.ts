@@ -28,7 +28,7 @@ import type {
   LotusSkillSummary,
   LotusStudentResponse,
 } from "@cogna/shared";
-import { LOTUS_SELECT_SEPARATOR, assembleTileAnswer } from "@cogna/shared";
+import { LOTUS_SELECT_SEPARATOR, LOTUS_SPLIT_TOKENS, assembleTileAnswer } from "@cogna/shared";
 import { assessSkillEvidence } from "./lotus-evidence-assessment";
 import { mistakeInWords } from "./lotus-reasons";
 import {
@@ -219,7 +219,11 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       // The doubt belongs to the skill the doubted option's mistake shows, else to the question's own skill.
       const owner = hedge.mistake ? ownerOfMistake(hedge.mistake, d) : d.skillId;
       const holder = verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === owner) ? owner : d.skillId;
-      const evidence = verdict.evidence.map((e) => (e.kind === "SECURE" && e.skillId === holder ? { ...e, hedge } : e));
+      // Right, but with chips on a named wrong answer: for the skill that doubt is about, this is partial evidence,
+      // not a demonstration. It is recorded as UNFINISHED carrying the hedge (never a mistake: no `mistake` is set),
+      // so the ledger keeps the skill unconfirmed until a later check settles it. Other skills stay secure.
+      const evidence = verdict.evidence.map((e): LotusSkillEvidence => (e.kind === "SECURE" && e.skillId === holder
+        ? { ...e, kind: "UNFINISHED", hedge, description: hedgeDescription(hedge) } : e));
       const working = !!response.working?.trim();
       return { ...verdict, evidence, needsAnalysis: verdict.needsAnalysis || !hedge.mistake || working };
     }
@@ -253,6 +257,12 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }, ...credited], needsAnalysis: false };
     }
   }
+}
+
+/** The doubt in plain words, e.g. "Right answer, but kept 1 of 4 chips on 6(x + 48), the answer you get if you divided only the first term by the common factor." */
+export function hedgeDescription(hedge: { chips: number; option: string; mistake?: string }): string {
+  const words = hedge.mistake ? mistakeInWords(hedge.mistake) : undefined;
+  return `Right answer, but kept ${hedge.chips} of ${LOTUS_SPLIT_TOKENS} chips on ${hedge.option}${words ? `, the answer you get if you ${words}` : ""}.`;
 }
 
 function markedVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
@@ -571,14 +581,14 @@ export function suspicionEffectNote(prior: LotusQuestionAudit[], audit: LotusQue
     const words = wordsOf(mistake);
     const evidence = (audit.skillEvidence ?? []).filter((e) => e.skillId === skillId);
     const now = after.get(skillId)?.state;
-    const negative = evidence.find((e) => e.kind !== "SECURE");
+    const negative = evidence.find((e) => e.kind !== "SECURE" && !e.hedge);
     if (negative) {
       if (negative.kind === "DID_NOT_KNOW") return `Said they don't know this yet, after the earlier suspicion (${words}); ${now === "CONFIRMED" ? "it is now confirmed" : "it stays open"}.`;
       if (negative.mistake === mistake) return `Made the same mistake again (${words}), so ${was.state === "CONFIRMED" ? "the gap stays confirmed" : now === "CONFIRMED" ? "it is now confirmed" : "the suspicion stands"}.`;
       return `Made a different mistake${negative.mistake ? ` (${wordsOf(negative.mistake)})` : ""}; the earlier suspicion (${words}) stays open.`;
     }
     if (was.state === "CONFIRMED") continue;
-    if (!evidence.some((e) => e.kind === "SECURE") || audit.verification?.status !== "VERIFIED_CORRECT") continue;
+    if (!evidence.some((e) => e.kind === "SECURE" || e.hedge) || audit.verification?.status !== "VERIFIED_CORRECT") continue;
     if (evidence.some((e) => e.hedge)) return `Right, but with some doubt, so the earlier suspicion (${words}) is not settled.`;
     const option = audit.question.options?.length ? d.predictedMistakes.find((p) => p.mistake === mistake)?.answer : undefined;
     const lead = option ? `Avoided the "${words}" option (${option}).` : `Got it right without the "${words}" mistake.`;
@@ -748,7 +758,7 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
     }
     for (const [skillId, items] of bySkill) {
       const e = entry(skillId);
-      const negative = items.find((ev) => ev.kind !== "SECURE");
+      const negative = items.find((ev) => ev.kind !== "SECURE" && !ev.hedge);
       if (negative) {
         const label = negative.mistake ?? (negative.kind === "DID_NOT_KNOW" ? "DID_NOT_KNOW" : "MISTAKE");
         e.notes.push(`Q${q}: ${negative.description ?? label}${negative.mistake ? ` (${negative.mistake})` : ""}`);
@@ -904,7 +914,7 @@ function explainAwayConfounded(audits: LotusQuestionAudit[], ledger: Ledger): vo
   const demote: Array<[SkillLedgerEntry, string]> = [];
   for (const e of ledger.values()) {
     if (e.state !== "CONFIRMED" || e.confirmedBySupport || !e.mistakes.length) continue;
-    const negatives = audits.filter((a) => (a.skillEvidence ?? []).some((ev) => ev.skillId === e.skillId && ev.kind !== "SECURE" && ev.kind !== "DID_NOT_KNOW"));
+    const negatives = audits.filter((a) => (a.skillEvidence ?? []).some((ev) => ev.skillId === e.skillId && ev.kind !== "SECURE" && ev.kind !== "DID_NOT_KNOW" && !ev.hedge));
     if (!negatives.length) continue;
     const causeOf = (a: LotusQuestionAudit): string | undefined => {
       const d = a.question?.answerKey?.diagnostics;

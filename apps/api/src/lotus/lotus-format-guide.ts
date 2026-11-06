@@ -75,7 +75,7 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   const signals = [...(response.gameReading?.signals ?? []), ...(response.typingReading?.signals ?? [])];
   const wrong = last.verification?.status === "VERIFIED_INCORRECT";
   const right = last.verification?.status === "VERIFIED_CORRECT";
-  const mistakes = (last.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED").map((e) => e.mistake ?? "");
+  const mistakes = (last.skillEvidence ?? []).filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED")).map((e) => e.mistake ?? "");
   const has = (set: Set<string>) => mistakes.some((m) => set.has(m));
   const need = (kinds: LotusGameKind[], reason: string): FormatNeed => ({ kinds: kinds.filter((kind) => kind !== shown), reason });
 

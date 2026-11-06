@@ -334,7 +334,7 @@ export interface LotusSkillEvidence {
   /** REASON: the student's own one-tap answer to "How did you get it?". */
   source: "INSTANT" | "ANALYSIS" | "REASON";
   /**
-   * SECURE only: right, but a split-confidence play also put chips on a wrong
+   * Carried by UNFINISHED evidence (never SECURE): right, but a split-confidence play also put chips on a wrong
    * option (the mistake it shows, when the option names one). A doubt, never a
    * mistake: one doesn't count the skill secure, and the same doubt twice makes it suspected.
    */
