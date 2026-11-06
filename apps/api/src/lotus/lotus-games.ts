@@ -714,6 +714,8 @@ export function readTypingRecord(question: LotusQuestion, history: EditHistorySa
   const buggy = [...new Set(drafts.map((x) => mistakeIn(x.v)).filter((m): m is string => !!m))];
   const right = isRight(final);
   const finalMistake = mistakeIn(final);
+  // Equal to the expression but not fully factorised, e.g. x(6x + 10y) for 6x² + 10xy.
+  const unfinished = !right && d.itemKind === "FACTORISE" && !!expression && (() => { try { return classifyFactorisation(final, expression) === "UNFINISHED"; } catch { return false; } })();
   let gap = 0;
   let gapAfter = "";
   history.forEach((s, k) => {
@@ -721,14 +723,17 @@ export function readTypingRecord(question: LotusQuestion, history: EditHistorySa
     if (g > gap) { gap = g; gapAfter = k ? history[k - 1]!.v : ""; }
   });
 
-  const signals: string[] = [right ? "final_right" : finalMistake ? "final_known_mistake" : "final_other"];
+  const signals: string[] = [right ? "final_right" : unfinished && !finalMistake ? "final_unfinished" : finalMistake ? "final_known_mistake" : "final_other"];
+  if (!right) signals.push(...buggy.map((m) => `draft_mistake:${m}`));
   const word = drafts.length === 1 ? "draft" : "drafts";
   let summary: string;
   if (right && buggy.length) { summary = `Finished right, but a discarded draft matched a known mistake (${mistakeWords(buggy[0]!)}). They caught it this time; the mistake is still live.`; signals.push("caught_own_mistake", ...buggy.map((m) => `draft_mistake:${m}`)); }
   else if (right && !drafts.length) { summary = "Straight through, no changes. Fluent."; signals.push("straight_through"); }
   else if (right) { summary = `Right, after ${drafts.length} discarded ${word}. None matched a known mistake.`; signals.push("discarded_drafts"); }
+  else if (unfinished && !finalMistake) summary = "Equal to the expression but not fully factorised.";
   else if (finalMistake) { summary = `Finished with a known mistake (${mistakeWords(finalMistake)}).`; signals.push(`final_mistake:${finalMistake}`); }
   else summary = d.itemKind === "FACTORISE" ? "Finished with something that isn't the factorisation." : "Finished with something that isn't the answer.";
+  if (!right && buggy.length) summary += ` A discarded draft matched a known mistake (${mistakeWords(buggy[0]!)}).`;
   if (gap > 1500) { summary += ` Longest pause: ${(gap / 1000).toFixed(1)}s${gapAfter ? ` after “${gapAfter}”` : " before starting"}.`; signals.push("long_pause"); }
   return {
     kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,

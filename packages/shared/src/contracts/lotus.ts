@@ -104,6 +104,11 @@ export interface LotusQuestion {
    */
   requiresConfidenceProbe?: boolean;
   /**
+   * Where the question came from, set by the server on the session view (the diagnostics that say so are
+   * stripped from it). Never answer-bearing. Absent on a question with no diagnostics.
+   */
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME" | "HARDCODED_SYSTEM";
+  /**
    * When set, the student answers by building from tiles instead of typing
    * (see interaction-formats.ts). Built on the server from the verified
    * answer key; carries no answer. The picks are re-assembled server-side.
@@ -357,6 +362,8 @@ export interface LotusReasonCheck {
   options: LotusReasonOption[];
   chosenId?: string;
   chosenAt?: string;
+  /** Set when the chosen reason is something the answer itself contradicts: kept as a note, never as evidence. */
+  mismatchNote?: string;
 }
 
 /**

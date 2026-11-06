@@ -81,6 +81,10 @@ import {
   factorisationStopReason,
   factorisationTimeLimitSeconds,
   foldLedger,
+  conflictsWithEarlier,
+  reachableQuestionsAhead,
+  mistakeRank,
+  suspicionEffectNote,
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
@@ -326,12 +330,22 @@ function deferredPlanEffects(actions: PlanAction[], primary: PlanAction | undefi
 export function adaptiveDecisionFor(
   audit: LotusQuestionAudit,
   actions: PlanAction[],
+  /** What this answer did to a suspicion already open on the skill (suspicionEffectNote), in plain words. */
+  suspicionNote?: string | null,
+  /** A check was wanted but no open slot can be reached in the time left. */
+  noTimeToCheck = false,
 ): LotusAdaptiveDecision {
-  const observedError = audit.response?.didNotKnow
+  // Every wrong thing code saw, weightiest first: one answer (a choose-several) can carry several.
+  const negatives = (audit.skillEvidence ?? []).filter((e) => e.kind !== "SECURE")
+    .sort((a, b) => mistakeRank(a.mistake) - mistakeRank(b.mistake));
+  const described = negatives.map((e) => e.description).filter((d): d is string => !!d);
+  const listed = described.length > 1 ? `${described[0]} Also: ${described.slice(1, 3).join(" ")}${described.length > 3 ? ` and ${described.length - 3} more.` : ""}` : described[0];
+  const baseObserved = audit.response?.didNotKnow
     ? "The student explicitly said they do not know this yet."
-    : audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
+    : listed
       ?? audit.verification?.explanation
       ?? "No specific error was established from this response.";
+  const observedError = suspicionNote ? `${baseObserved} ${suspicionNote}` : baseObserved;
   const action = actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "DESCENT")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "CHECK")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "WIDEN")
@@ -342,11 +356,15 @@ export function adaptiveDecisionFor(
       action: "KEEP",
       observedError,
       alternatives: ["A one-off slip, incomplete working, or an untested neighbouring skill can still explain this response."],
-      rationale: "The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.",
+      rationale: suspicionNote
+        ? `${suspicionNote} The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.`
+        : "The existing unseen plan already contains the safest useful evidence check, or no safe replacement is ready.",
       expectedInformationGain: "Keep collecting independent evidence before changing the plan.",
       implementation: "APPLIED",
       outcome: "NO_CHANGE",
-      implementationDetail: "The validated action is to preserve the existing unseen plan; no question was swapped.",
+      implementationDetail: noTimeToCheck
+        ? "No time left to check this in this test; carried to the student's next session. No question was swapped."
+        : "The validated action is to preserve the existing unseen plan; no question was swapped.",
       ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
     };
@@ -380,7 +398,7 @@ export function adaptiveDecisionFor(
       implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
       outcome: action.spec ? "QUEUED" : "REJECTED",
       implementationDetail: action.spec
-        ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
+        ? `Question ${action.turn} was reserved for a checked question (built by code, reused from the bank or written by the AI); it is being prepared.`
         : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
       ...(planEffects.length ? { planEffects } : {}),
       source: "RULE_VALIDATED_PLAN",
@@ -403,7 +421,7 @@ export function adaptiveDecisionFor(
     implementation: action.spec ? "QUEUED_FOR_GENERATION" : "NOT_APPLIED",
     outcome: action.spec ? "QUEUED" : "REJECTED",
     implementationDetail: action.spec
-      ? `Question ${action.turn} was reserved for a checked AI-written version; generation is in progress.`
+      ? `Question ${action.turn} was reserved for a checked question (built by code, reused from the bank or written by the AI); it is being prepared.`
       : `No safe AI-written version was available for question ${action.turn}, so Lotus did not install a replacement.`,
     ...(planEffects.length ? { planEffects } : {}),
     source: "RULE_VALIDATED_PLAN",
@@ -490,6 +508,33 @@ function rapidSetAloud(prompt: string, game: RapidSetGame, row?: number): string
 function isAcceptedItem(item: Omit<LotusQuestion, "id"> | undefined | null): boolean {
   const origin = item?.answerKey.diagnostics?.origin;
   return origin === "AI" || origin === "CODE";
+}
+
+/**
+ * A code-built item is written and installed synchronously inside the plan change, before the decision about
+ * it exists, so applyGenerated finds nothing to update. Bring such a decision up to date once it exists.
+ */
+export function reconcileInstalledDecision(f: Pick<FactorisationSession, "state" | "versions" | "preferred">, audit: LotusQuestionAudit): void {
+  const decision = audit.adaptiveDecision;
+  if (!decision || decision.implementation !== "QUEUED_FOR_GENERATION" || decision.targetTurn === undefined) return;
+  const turn = f.state.turns.find((candidate) => candidate.turn === decision.targetTurn);
+  const item = preferredItem(f as FactorisationSession, decision.targetTurn);
+  if (!turn || turn.status === "SKIPPED" || !item || !isAcceptedItem(item)) return;
+  const now = new Date().toISOString();
+  decision.implementation = "APPLIED";
+  decision.outcome = "INSTALLED";
+  decision.validatedAt ??= now;
+  decision.installedAt = now;
+  decision.implementationDetail = installedDetail(item, decision.targetTurn);
+}
+
+/** A truthful line for an installed plan change, naming where the item came from. */
+function installedDetail(question: LotusQuestion | Omit<LotusQuestion, "id">, turn: number): string {
+  const provenance = questionProvenance(question);
+  const what = provenance === "CODE_BUILT_GAME" ? "A question built and checked by code"
+    : provenance === "AI_REUSED_FROM_BANK" ? "A checked AI question reused from the question bank"
+      : "A checked AI-written question";
+  return `${what} was installed at question ${turn}; it remains unseen until its turn.`;
 }
 
 function questionProvenance(question: LotusQuestion | Omit<LotusQuestion, "id">): LotusQuestionSelection["provenance"] {
@@ -592,10 +637,12 @@ function questionsEquivalent(
 }
 
 /** Strips the answer key and purpose down to nothing a student shouldn't see before answering. Shape-preserving so the frontend types are unaffected. */
-function redactQuestion<T extends Omit<LotusQuestion, "id">>(question: T): T {
+export function redactQuestion<T extends Omit<LotusQuestion, "id">>(question: T): T {
   return {
     ...question,
     purpose: "",
+    // The diagnostics that say where it came from are stripped below, so say it here.
+    ...(question.answerKey.diagnostics ? { provenance: questionProvenance(question) } : {}),
     answerKey: { kind: question.answerKey.kind, canonicalAnswer: "", workedSolution: [] },
   };
 }
@@ -1627,10 +1674,18 @@ export class LotusService implements OnModuleDestroy {
             .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW")
             .map((e) => e.skillId))]
           : [];
-        const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills);
+        // Who found the evidence behind each check: the review (ANALYSIS) or code's own rules (INSTANT/REASON).
+        const decidedBy: Record<string, "AI" | "CODE"> = {};
+        for (const e of slot.skillEvidence ?? []) {
+          if (e.kind === "SECURE") continue;
+          decidedBy[e.skillId] = e.source === "ANALYSIS" ? "AI" : decidedBy[e.skillId] ?? "CODE";
+        }
+        const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills, decidedBy, { elapsedSeconds, answered: answeredCount });
+        const noTime = this.lastPlanNoTime;
         slot.questionSelection.planningNote = planDecisionNote(adjustments);
-        slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments);
+        slot.adaptiveDecision = adaptiveDecisionFor(slot, adjustments, suspicionEffectNote(liveSession.audits.slice(0, turnIndex), slot, liveSession.priors), noTime);
         slot.adaptiveDecision.recommendedAt = slot.analysisCompletedAt;
+        this.reconcileInstalledDecision(liveSession, slot);
         this.noteDoubtCheck(liveSession, slot);
         if (analysis.conclusion.action === "ASK") this.steerNextFormat(liveSession, slot, { proposed: analysis.conclusion.nextFormat, reason: analysis.conclusion.nextFormatReason });
       } else if (liveSession.status === "ACTIVE" && !liveSession.developerExitPrompt) {
@@ -1977,9 +2032,9 @@ export class LotusService implements OnModuleDestroy {
         throw new ConflictException("That follow-up has already been answered.");
       }
       if (!audit.reasonCheck.options.some((o) => o.id === optionId)) throw new BadRequestException("That isn't one of the choices.");
-      const { valid, evidence } = reasonEvidence(audit.question, optionId);
+      const { valid, evidence, mismatch } = reasonEvidence(audit.question, optionId, audit.response?.answer);
       if (!valid) throw new BadRequestException("That isn't one of the choices.");
-      audit.reasonCheck = { ...audit.reasonCheck, chosenId: optionId, chosenAt: new Date().toISOString() };
+      audit.reasonCheck = { ...audit.reasonCheck, chosenId: optionId, chosenAt: new Date().toISOString(), ...(mismatch ? { mismatchNote: mismatch } : {}) };
       const explained = (audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE");
       if (evidence && !explained) audit.skillEvidence = [...(audit.skillEvidence ?? []), evidence];
       await this.persist(session, audit, true);
@@ -2679,17 +2734,28 @@ Create one materially different question that adds new diagnostic evidence. Test
         decision.implementation = "APPLIED";
         decision.outcome = "INSTALLED";
         decision.installedAt = new Date().toISOString();
-        decision.implementationDetail = source === "BANK"
-          ? `A checked AI question was reused from the question bank and installed at question ${job.turn}; it remains unseen until its turn.`
-          : `A checked AI-written question was generated and installed at question ${job.turn}; it remains unseen until its turn.`;
+        decision.validatedAt ??= decision.installedAt;
+        decision.implementationDetail = installedDetail(question, job.turn);
       }
     }
     record("USED");
     await this.persist(session, undefined, true);
   }
 
+  /**
+   * A code-built item is written and installed synchronously inside the plan change, before the decision about
+   * it exists, so applyGenerated finds nothing to update. Bring such a decision up to date once it exists.
+   */
+  private reconcileInstalledDecision(session: LotusSessionState, audit: LotusQuestionAudit): void {
+    if (session.factorisation) reconcileInstalledDecision(session.factorisation, audit);
+  }
+
+  /** Set by the last plan change: a check was wanted but no open slot is reachable in the time left. */
+  private lastPlanNoTime = false;
+
   /** Re-reads every skill from all evidence so far and changes the questions the student hasn't reached. */
-  private adaptFactorisationPlan(session: LotusSessionState, freezeNext: boolean, forceCheckSkills: string[] = []): PlanAction[] {
+  private adaptFactorisationPlan(session: LotusSessionState, freezeNext: boolean, forceCheckSkills: string[] = [], forceCheckDecidedBy: Record<string, "AI" | "CODE"> = {}, reach?: { elapsedSeconds: number; answered: number }): PlanAction[] {
+    this.lastPlanNoTime = false;
     const f = session.factorisation!;
     if (session.status !== "ACTIVE") return [];
     const actions = planAdjustments({
@@ -2697,6 +2763,9 @@ Create one materially different question that adds new diagnostic evidence. Test
       ledger: foldLedger(session.audits, session.priors),
       freezeNext,
       forceCheckSkills,
+      forceCheckDecidedBy,
+      ...(reach ? { reachableQuestions: reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
+      onNoReachableSlot: () => { this.lastPlanNoTime = true; },
       itemAt: (turn) => preferredItem(f, turn),
       askedItems: [...session.audits.map((audit) => audit.question), ...(session.currentQuestion ? [session.currentQuestion] : [])],
     });
@@ -2905,7 +2974,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     // used only when code found none (evidenceFromAnalysis), and the suspicion loop already
     // re-checks a mistaken skill. A blank skip has nothing to read, and an explicit
     // support request is direct student evidence, not something a model has to interpret.
-    const analyse = !instant.fastSkip && !response.didNotKnow && instant.needsAnalysis;
+    // Also when code marked it cleanly but it pulls against earlier answers on the same skill: a review weighs the conflict.
+    const analyse = !instant.fastSkip && !response.didNotKnow
+      && (instant.needsAnalysis || conflictsWithEarlier(session.audits, instant.evidence, instant.verification.status));
     const note = response.didNotKnow
       ? "The student said they do not know this yet. That is recorded as evidence of a support need; Lotus will check an easier prerequisite where possible."
       : analyse
@@ -3018,10 +3089,12 @@ Create one materially different question that adds new diagnostic evidence. Test
     const codeNamedMistakes = analyse ? [] : [...new Set((instant.evidence ?? [])
       .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED")
       .map((e) => e.skillId))];
-    const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes);
+    const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes, {}, { elapsedSeconds, answered: answeredCount });
+    const noTime = this.lastPlanNoTime;
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
-    audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments);
+    audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments, suspicionEffectNote(session.audits.slice(0, turnIndex), audit, session.priors), noTime);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
+    this.reconcileInstalledDecision(session, audit);
     this.noteDoubtCheck(session, audit);
     this.steerNextFormat(session, audit);
     await this.persist(

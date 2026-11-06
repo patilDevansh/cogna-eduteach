@@ -1,5 +1,6 @@
 import type { LotusQuestion, LotusReasonCheck, LotusSkillEvidence } from "@cogna/shared";
 import { createHash } from "node:crypto";
+import { lettersOutsideAreCommon } from "./lotus-algebra";
 import { ownerOfMistake } from "./lotus-factorisation-catalogue";
 
 /**
@@ -102,7 +103,7 @@ export function buildReasonCheck(question: LotusQuestion): LotusReasonCheck {
  * a slip is one negative on the skill (suspected, never confirmed alone);
  * "not sure" is a support need; "guessed" records nothing about any skill.
  */
-export function reasonEvidence(question: LotusQuestion, optionId: string): { valid: boolean; evidence: LotusSkillEvidence | null } {
+export function reasonEvidence(question: LotusQuestion, optionId: string, answer?: string): { valid: boolean; evidence: LotusSkillEvidence | null; mismatch?: string } {
   const d = question.answerKey?.diagnostics;
   if (!d) return { valid: false, evidence: null };
   if (optionId === GUESSED.id) return { valid: true, evidence: null };
@@ -114,5 +115,10 @@ export function reasonEvidence(question: LotusQuestion, optionId: string): { val
   }
   const named = mistakeOptions(question).find((o) => o.id === optionId);
   if (!named) return { valid: false, evidence: null };
+  // What the student says must not override what the answer shows: a reason the answer itself contradicts is
+  // kept as a note, never counted as a mistake on that skill.
+  if (named.mistake === "INCLUDED_NON_COMMON_VARIABLE" && answer && d.expression && lettersOutsideAreCommon(answer, d.expression) === true) {
+    return { valid: true, evidence: null, mismatch: `Said "${named.text}", but every letter taken out is in every term, so the answer doesn't show that.` };
+  }
   return { valid: true, evidence: { skillId: ownerOfMistake(named.mistake, d), kind: "MISTAKE", mistake: named.mistake, source: "REASON", description: `Said: "${named.text}".` } };
 }

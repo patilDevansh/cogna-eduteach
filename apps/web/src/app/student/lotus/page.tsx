@@ -1,5 +1,6 @@
 "use client";
 
+import { isReusedFromBank, provenanceLabelForQuestion } from "@/lib/lotus-provenance";
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
@@ -275,38 +276,36 @@ function AssessmentCard({
   );
 }
 
-function matchingProvenanceForQuestion(question: LotusQuestion, session: LotusSessionView) {
-  const selections = [session.openingAudit?.questionSelection, ...session.audits.map((audit) => audit.questionSelection)].filter(Boolean) as LotusQuestionSelection[];
-  const matching = [...selections].reverse().find((selection) => selection.selectedQuestion?.prompt === question.prompt);
-  return matching?.provenance;
+/** An earlier answer that already went wrong on one of the skills this answer went wrong on: the same mistake, or just the same skill. */
+function repeatOf(audit: LotusQuestionAudit, earlier: LotusQuestionAudit[]): { sameMistake: boolean } | null {
+  const now = (audit.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED");
+  let found: { sameMistake: boolean } | null = null;
+  for (const before of earlier) {
+    for (const e of before.skillEvidence ?? []) {
+      if (e.kind !== "MISTAKE" && e.kind !== "UNFINISHED") continue;
+      for (const n of now) {
+        if (n.skillId !== e.skillId) continue;
+        if (n.mistake && n.mistake === e.mistake) return { sameMistake: true };
+        found = { sameMistake: false };
+      }
+    }
+  }
+  return found;
 }
 
-function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
-  const provenance = matchingProvenanceForQuestion(question, session);
-  if (provenance === "CODE_BUILT_GAME") return "Interactive question";
-  if (provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
-  if (provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
-  if (provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
-  if (question.answerKey.diagnostics?.origin === "AI") return "New question made for this session";
-  return "This is a hardcoded question already present in our system";
-}
-
-/** Reused-from-bank is the one provenance worth a glance: it's the only case where this exact item may have already been seen by another student. */
-function isReusedFromBank(question: LotusQuestion, session: LotusSessionView): boolean {
-  const provenance = matchingProvenanceForQuestion(question, session);
-  return provenance ? provenance === "AI_REUSED_FROM_BANK" : question.answerKey.diagnostics?.provenance === "AI_REUSED_FROM_BANK";
-}
-
-function DiagnosticDecision({ audit }: { audit: LotusQuestionAudit }) {
+function DiagnosticDecision({ audit, earlier = [] }: { audit: LotusQuestionAudit; earlier?: LotusQuestionAudit[] }) {
   if (!audit.response || !(audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE")) return null;
   const support = audit.skillEvidence?.some((e) => e.kind === "DID_NOT_KNOW");
+  const repeat = support ? null : repeatOf(audit, earlier);
   return (
     <div className={styles.diagnosticDecision}>
       <strong>Diagnostic decision</strong>
       <span>
         {support
           ? "This is recorded as a support need. Lotus will place an easier prerequisite check in the unseen plan where possible."
-          : "This is a suspected signal, not a confirmed gap. Lotus keeps the curriculum moving and schedules a later capable check; a repeat can confirm it, while a suitable correct answer can clear it as a slip."}
+          : repeat
+            ? `${repeat.sameMistake ? "The same mistake again" : "A second mistake on this skill"}, so this is no longer a one-off. Lotus treats the skill as a confirmed gap and goes on to check the foundations only where the answers don't already show them.`
+            : "This is a suspected signal, not a confirmed gap. Lotus keeps the curriculum moving and schedules a later capable check; a repeat can confirm it, while a suitable correct answer can clear it as a slip."}
       </span>
     </div>
   );
@@ -413,7 +412,7 @@ function EvidencePanel({ audit }: { audit: LotusQuestionAudit }) {
       </div>
       <div className={styles.evidencePanelGrid}>
         <div><strong>Mathematical fact</strong><span>{mathsFact}</span></div>
-        <div><strong>Direct evidence</strong><span>{directEvidence.join(" ")}</span></div>
+        <div><strong>Direct evidence</strong><span>{[...new Set(directEvidence)].join(" ")}</span></div>
         <div><strong>Competing explanations</strong><span>{alternatives.length ? alternatives.join("; ") : "No competing explanation has been claimed."}</span></div>
         <div><strong>Still unknown</strong><span>{unknown}</span></div>
       </div>
@@ -522,6 +521,7 @@ function ActionTimeline({ decision }: { decision: LotusAdaptiveDecision }) {
 
 function AuditCard({
   audit,
+  earlier = [],
   index,
   latest,
   opening,
@@ -529,6 +529,8 @@ function AuditCard({
   reviewModel,
 }: {
   audit: LotusQuestionAudit;
+  /** The answers before this one, so the decision can say a mistake is a repeat. */
+  earlier?: LotusQuestionAudit[];
   index: number;
   latest: boolean;
   opening?: boolean;
@@ -585,7 +587,9 @@ function AuditCard({
                 <strong>Confidence:</strong>{" "}
                 {audit.response.game?.kind === "SPLIT_CONFIDENCE"
                   ? `${Math.max(...audit.response.game.counts)} of ${LOTUS_SPLIT_TOKENS} chips on the answer marked`
-                  : `${audit.response.confidence}%`}{" "}
+                  : audit.response.interactionContext?.confidence.status === "NOT_ASKED" ? "not asked"
+                    : audit.response.interactionContext?.confidence.status === "SKIPPED" ? "skipped"
+                      : `${audit.response.confidence}%`}{" "}
                 · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
@@ -601,7 +605,7 @@ function AuditCard({
         <EvidencePanel audit={audit} />
 
         <LotusObserverDetails audit={audit} model={reviewModel} className={styles.section} />
-        <DiagnosticDecision audit={audit} />
+        <DiagnosticDecision audit={audit} earlier={earlier} />
 
         {audit.analysisStatus === "PENDING" && (
           <div className={styles.analysisPending} role="status" aria-live="polite">
@@ -2142,6 +2146,7 @@ function LotusPage() {
                         <AuditCard
                           key={`${audit.question.id}-${index}`}
                           audit={audit}
+                          earlier={observerAudits.slice(0, index)}
                           opening={index === 0}
                           index={index}
                           latest={index === observerAudits.length - 1}
