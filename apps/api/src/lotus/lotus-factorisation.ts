@@ -39,6 +39,7 @@ import {
   finalAnswerText,
   factorisationDefect,
   bracketFactorCount,
+  squarePatternMistake,
   expressionCanShowSkill,
   expressionHasCommonLetter,
   lettersFullyTakenOut,
@@ -149,7 +150,21 @@ export interface InstantVerdict {
 }
 
 export function instantVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
-  return withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response)));
+  return withGameLimits(question, withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response))));
+}
+
+/**
+ * Skills a game's play cannot demonstrate, whatever the item's tags say: choosing values to test a claim shows
+ * checking a claim, not expanding a bracket. The question's own skill is never dropped.
+ */
+const GAME_CANT_SHOW: Partial<Record<string, string[]>> = {
+  TEST_CLAIM: ["EXP_EXPAND_BINOMIALS"],
+};
+function withGameLimits(question: LotusQuestion, verdict: InstantVerdict): InstantVerdict {
+  const blocked = GAME_CANT_SHOW[question.game?.kind ?? ""];
+  const own = question.answerKey.diagnostics?.skillId;
+  if (!blocked) return verdict;
+  return { ...verdict, evidence: verdict.evidence.filter((e) => !(e.kind === "SECURE" && blocked.includes(e.skillId) && e.skillId !== own)) };
 }
 
 /**
@@ -192,8 +207,15 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       const working = !!response.working?.trim();
       return { ...verdict, evidence, needsAnalysis: verdict.needsAnalysis || !hedge.mistake || working };
     }
-    case "NO_EVIDENCE":
-      return { ...verdict, evidence: [], needsAnalysis: false };
+    case "NO_EVIDENCE": {
+      // A torn split on a RIGHT answer proves nothing either way. On a wrong one it must not silence the review:
+      // a named mistake stays, as a doubt (the chips did not settle it), and with none named the review reads it.
+      if (response.gameReading?.kind !== "SPLIT_CONFIDENCE" || verdict.verification.status === "VERIFIED_CORRECT" || verdict.verification.status === "NO_ANSWER") return { ...verdict, evidence: [], needsAnalysis: false };
+      const doubted = verdict.evidence.map((e) => (e.kind === "MISTAKE" || e.kind === "UNFINISHED")
+        ? { ...e, description: `${(e.description ?? "").replace(/\.$/, "")} (the chips were split, so this is a doubt, not a settled mistake).`.trim() } : e);
+      const named = doubted.some((e) => e.kind !== "SECURE");
+      return { ...verdict, evidence: doubted, needsAnalysis: verdict.needsAnalysis || !named };
+    }
     case "DOESNT_KNOW":
       return {
         ...verdict,
@@ -332,7 +354,9 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   // is "divided only the first term" whether or not the question's writer predicted it. That beats a
   // predicted label, which an AI wrote, and keeps a plain mistake out of the AI review.
   const reading = d.itemKind === "FACTORISE" ? readCommonFactor(typed, expression) : null;
-  const mistake = reading?.mistake ?? predicted?.mistake;
+  // The square-pattern beliefs are also read from the answer's shape, so a mistake the item didn't list is still named.
+  const shape = d.itemKind === "FACTORISE" ? squarePatternMistake(typed, expression) : null;
+  const mistake = reading?.mistake ?? predicted?.mistake ?? shape ?? undefined;
   // A predicted wrong answer after working that already reached the right
   // one is most likely a copying slip, not the misconception it resembles:
   // leave it to the AI review (which labels slips) instead of counting it.

@@ -99,6 +99,13 @@ describe("Test the claim", () => {
       { name: "not enough to say", payload: { kind: "TEST_CLAIM", tested: [], verdict: at("Not enough to say") }, status: "VERIFIED_INCORRECT", effect: "DOESNT_KNOW", kinds: ["DID_NOT_KNOW"] },
     ]);
   });
+  it("names the values tried and does not credit expanding brackets from a play that never expanded", () => {
+    const out = play(q, { kind: "TEST_CLAIM", tested: [0, 1, -1], verdict: at("Sometimes true") });
+    assert.match(out.gameReading!.summary, /Tried 0, 1, .1.*equal at 0.*differ at 1/);
+    const verdict = instantVerdict(q, out);
+    assert.ok(!verdict.evidence.some((e) => e.skillId === "EXP_EXPAND_BINOMIALS"), "testing values is not expanding");
+    assert.ok(verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === q.answerKey.diagnostics!.skillId), "the question's own skill is still credited");
+  });
   it("what is marked is the verdict, never what was tried", () => {
     assert.equal(play(q, { kind: "TEST_CLAIM", tested: [0, 1, 2, 3], verdict: at("Sometimes true") }).answer, "Sometimes true");
   });

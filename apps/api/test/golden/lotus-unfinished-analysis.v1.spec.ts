@@ -356,6 +356,40 @@ describe("Lotus: a later term left undivided is recognised by its shape", () => 
   });
 });
 
+describe("Lotus square patterns and torn splits", () => {
+  const square = (id: string, expression: string, key: string): LotusQuestion => ({
+    id, phase: "DIAGNOSE", subtopic: "Squares", type: "CONSTRUCTED_RESPONSE", asksForWorking: false,
+    prompt: `Factorise completely: ${expression}`, purpose: "",
+    answerKey: { kind: "OPEN_RESPONSE", canonicalAnswer: key, workedSolution: ["a", "b"],
+      diagnostics: { itemKind: "FACTORISE", expression, skillId: "FAC_PERFECT_SQUARE_MINUS", taggedSkills: [], stepSkills: ["FAC_PERFECT_SQUARE_MINUS"], level: "medium", origin: "AI", predictedMistakes: [] } } });
+  const torn = (answer: string): LotusStudentResponse => ({ answer, working: "", confidence: 60, responseTimeMs: 20000, didNotKnow: false,
+    gameReading: { kind: "SPLIT_CONFIDENCE", summary: "split", signals: ["torn"], certainty: 0.5, skillId: "FAC_PERFECT_SQUARE_MINUS", diagnosis: { effect: "NO_EVIDENCE", note: "Torn." }, facts: {} } } as unknown as LotusStudentResponse);
+  it("names the difference-of-squares belief from the answer's shape", () => {
+    const q = square("sq1", "9a^2 - 30a + 25", "(3a - 5)^2");
+    const v = instantVerdict(q, { answer: "(3a - 5)(3a + 5)", working: "", confidence: 60, responseTimeMs: 9000, didNotKnow: false } as LotusStudentResponse);
+    assert.equal(v.evidence.find((e) => e.kind === "MISTAKE")?.mistake, "WROTE_DIFF_OF_SQUARES");
+    const sum = square("sq2", "x^2 + 36", "x^2 + 36");
+    const s = instantVerdict(sum, { answer: "(x - 6)(x + 6)", working: "", confidence: 60, responseTimeMs: 9000, didNotKnow: false } as LotusStudentResponse);
+    assert.equal(s.evidence.find((e) => e.kind === "MISTAKE")?.mistake, "NOT_DIFF_OF_SQUARES");
+  });
+  it("does not fire on a right answer or a different wrong one", () => {
+    const q = square("sq3", "9a^2 - 30a + 25", "(3a - 5)^2");
+    assert.equal(instantVerdict(q, { answer: "(3a - 5)^2", working: "", confidence: 60, responseTimeMs: 9000, didNotKnow: false } as LotusStudentResponse).evidence.some((e) => e.kind === "MISTAKE"), false);
+    assert.equal(instantVerdict(q, { answer: "(3a - 5)(3a - 4)", working: "", confidence: 60, responseTimeMs: 9000, didNotKnow: false } as LotusStudentResponse).evidence.some((e) => e.mistake === "WROTE_DIFF_OF_SQUARES"), false);
+  });
+  it("a torn split on a wrong answer keeps the mistake as a doubt and asks for a review when none is named", () => {
+    const q = square("sq4", "9a^2 - 30a + 25", "(3a - 5)^2");
+    const named = instantVerdict(q, torn("(3a - 5)(3a + 5)"));
+    assert.equal(named.evidence.find((e) => e.kind === "MISTAKE")?.mistake, "WROTE_DIFF_OF_SQUARES");
+    assert.match(named.evidence[0]!.description!, /doubt/);
+    const unnamed = instantVerdict(q, torn("(3a - 5)(3a - 4)"));
+    assert.equal(unnamed.needsAnalysis, true);
+    const right = instantVerdict(q, torn("(3a - 5)^2"));
+    assert.deepEqual(right.evidence, []);
+    assert.equal(right.needsAnalysis, false);
+  });
+});
+
 describe("Lotus student view states where a question came from", () => {
   it("redaction strips the diagnostics but keeps the provenance", async () => {
     const { redactQuestion } = await import("../../src/lotus/lotus.service");

@@ -483,6 +483,41 @@ export function lettersOutsideAreCommon(answer: string, expression: string): boo
   } catch { return null; }
 }
 
+/**
+ * The difference-of-squares belief, read from the shape of a wrong answer when the item doesn't list it:
+ * (3a - 5)(3a + 5) for the perfect square 9a² - 30a + 25 (WROTE_DIFF_OF_SQUARES), and (x - 6)(x + 6) for the
+ * sum of squares x² + 36 (NOT_DIFF_OF_SQUARES). One letter only; null for anything else, and for right answers.
+ */
+export function squarePatternMistake(answer: string, expression: string): "WROTE_DIFF_OF_SQUARES" | "NOT_DIFF_OF_SQUARES" | null {
+  try {
+    const coefficients = (text: string): { v: string; c: number[] } | null => {
+      const poly = polyOf(parseExpression(text));
+      const letters = variables(poly);
+      if (letters.length !== 1) return null;
+      const c = [0, 0, 0];
+      for (const [key, coef] of poly) {
+        const degreeOf = [...parseMonomial(key).values()].reduce((a, b) => a + b, 0);
+        if (degreeOf > 2) return null;
+        c[degreeOf] = (c[degreeOf] ?? 0) + coef;
+      }
+      return { v: letters[0]!, c };
+    };
+    const ex = coefficients(expression);
+    const an = coefficients(answer);
+    if (!ex || !an || ex.v !== an.v) return null;
+    const [c0, c1, c2] = ex.c as [number, number, number];
+    const [a0, a1, a2] = an.c as [number, number, number];
+    const isSquare = (n: number) => n > 0 && Number.isInteger(Math.sqrt(n));
+    // Where a right answer would have been equal to the expression, this is never reached; guard anyway.
+    if (a2 === c2 && a1 === c1 && a0 === c0) return null;
+    const diffShape = a2 === c2 && a1 === 0 && a0 === -c0 && isSquare(c2) && isSquare(c0);
+    if (!diffShape) return null;
+    if (c1 !== 0 && c1 * c1 === 4 * c2 * c0) return "WROTE_DIFF_OF_SQUARES";
+    if (c1 === 0) return "NOT_DIFF_OF_SQUARES";
+    return null;
+  } catch { return null; }
+}
+
 /** True when some letter appears in every term of the expression (6x² + 10xy shares x). */
 export function expressionHasCommonLetter(expression: string): boolean {
   try {

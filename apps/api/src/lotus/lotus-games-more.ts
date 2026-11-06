@@ -163,7 +163,10 @@ function readTestClaim(question: LotusQuestion, game: TestClaimGame, raw: TestCl
     diagnosis = { effect: "DOESNT_KNOW", note: sawEqual ? "Saw the sides match once, but said they never do." : "Said never without checking every kind of value." };
   } else if (role === "sometimes") {
     const thorough = n >= 3 && sawDiffer;
-    summary = `Sometimes, after checking ${n} value${n === 1 ? "" : "s"}. ${thorough ? "Tested like a mathematician." : "Right, but checked very little."}`;
+    const shownValues = tested.map(showB).join(", ");
+    const counter = tested.find((x) => x !== 0);
+    const seen = n === 0 ? "" : ` Tried ${shownValues}${sawEqual ? `: saw the sides equal at 0 (the trap value)${counter !== undefined ? ` and differ at ${showB(counter)}` : ""}` : counter !== undefined ? `: never tried 0, but saw the sides differ at ${showB(counter)}` : ""}.`;
+    summary = `Sometimes, after checking ${n} value${n === 1 ? "" : "s"}.${seen} ${thorough ? "Tested like a mathematician." : "Right, but checked very little."}`;
     signals.push(thorough ? "tested_thoroughly" : "checked_little");
     diagnosis = thorough ? { effect: "SECURE" } : { effect: "NEEDS_ANOTHER", note: "Said sometimes, with only a little checking behind it." };
   } else {

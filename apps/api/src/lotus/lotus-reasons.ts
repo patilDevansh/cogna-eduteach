@@ -47,6 +47,7 @@ const IN_MY_WORDS: Record<string, string> = {
   SIGN_NOT_FLIPPED_IN_GROUP: "I took a minus out of a pair but didn't change the signs inside",
   WROTE_PERFECT_SQUARE: "It looked like a perfect square, so I wrote it as one",
   WROTE_DIFF_OF_SQUARES: "It looked like a difference of two squares, so I used that",
+  NOT_DIFF_OF_SQUARES: "I used a difference of two squares on a sum of squares",
   FACTORED_SUM_OF_SQUARES: "I factorised a sum of two squares like a difference",
   COEFFICIENT_NOT_ROOTED: "I took the square root of the letter but not of the number",
   ROOTED_NUMBER_ONLY: "I took the square root of the number but not of the letter",
