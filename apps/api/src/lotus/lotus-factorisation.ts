@@ -194,7 +194,9 @@ function withRootsShown(question: LotusQuestion, response: LotusStudentResponse,
   const d = question.answerKey.diagnostics;
   const step = "FND_RECOGNISE_SQUARE";
   if (!d || d.itemKind !== "FACTORISE" || !d.expression || verdict.verification.status === "VERIFIED_CORRECT" || response.didNotKnow) return verdict;
-  if (!skillsUsedBy(d).includes(step) || verdict.evidence.some((e) => e.skillId === step)) return verdict;
+  // The skill map decides whether the item needs square recognition: an AI-written item often lists only its own skill as steps.
+  const usesStep = skillsUsedBy(d).some((s) => s === step || dependsOnTransitively(s, step));
+  if (!usesStep || verdict.evidence.some((e) => e.skillId === step)) return verdict;
   try {
     const outer = termsOf(normalizeMathText(d.expression));
     if (outer.length < 2) return verdict;
@@ -1733,12 +1735,13 @@ export function buildFactorisationReport(args: {
   // A catch-up asks only about the skills it was sent for, so nothing is "not reached" there.
   const notReached = args.state.focusSkills?.length ? [] : [...new Set(curriculum.slots.map((s) => s.skillId))].filter((id) => {
     const e = args.ledger.get(id);
-    return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport && !e.unexplained));
+    return !skippedSkills.has(id) && (!e || (e.state === "UNTESTED" && !e.tapRights && !e.needsSupport && !e.unexplained && !e.hedges?.length));
   });
   // Skills no question in the plan asks about, with nothing tested above them to stand in for them (the added skills that
   // sit above nothing). Without this a child missing one reads as an all-clear. Skills with a tested skill above them are
   // covered by it, as before.
-  const hasEvidence = (id: string) => ["SECURE", "CONFIRMED", "SUSPECTED"].includes(args.ledger.get(id)?.state ?? "");
+  // A right answer with a doubt is evidence too: the skill was asked, just not settled.
+  const hasEvidence = (id: string) => ["SECURE", "CONFIRMED", "SUSPECTED"].includes(args.ledger.get(id)?.state ?? "") || !!args.ledger.get(id)?.hedges?.length;
   const notAsked = args.state.focusSkills?.length ? [] : curriculum.skills.filter((s) =>
     !curriculum.slots.some((slot) => slot.skillId === s.id) &&
     !hasEvidence(s.id) && !args.ledger.get(s.id)?.tapRights && !args.ledger.get(s.id)?.needsSupport && !args.ledger.get(s.id)?.unexplained &&
@@ -1846,7 +1849,9 @@ export function buildFactorisationReport(args: {
       }),
       ...confirmed.filter((e) => e.rightSinceConfirmed?.length).map((e) =>
         `${skillName(e.skillId)}: confirmed earlier, but answered right on ${e.rightSinceConfirmed!.map((q) => `Q${q}`).join(", ")} since — check again before teaching it.`),
-      ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights).map((e) =>
+      ...entries.filter((e) => e.state === "UNTESTED" && e.hedges?.length).map((e) =>
+        `${skillName(e.skillId)}: right, but with a doubt (${e.hedges!.map((h) => `Q${h.q}`).join(", ")}), so not counted secure yet.`),
+      ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights && !e.hedges?.length).map((e) =>
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
       ...notReached.map((id) => `${skillName(id)}: not asked in this test, so nothing is known about it yet.`),
       ...notAsked.map((id) => `${skillName(id)}: no question in this test covers it, so nothing is known about it.`),
