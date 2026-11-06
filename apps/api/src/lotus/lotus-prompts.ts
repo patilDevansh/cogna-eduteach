@@ -411,6 +411,8 @@ export function singleReviewStudentInput(args: {
     format: question.game?.kind ?? (question.options?.length ? "OPTIONS" : "TYPED"),
     whatThePlayShowed: response.gameReading?.summary,
     playSignals: response.gameReading?.signals,
+    whatTheTypingShowed: response.typingReading?.summary,
+    typingSignals: response.typingReading?.signals,
     interactionContext: response.interactionContext,
     tileInteraction: response.interaction,
     submittedGame: response.game,

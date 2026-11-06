@@ -1,6 +1,6 @@
 import type { LotusPredictedMistake, LotusQuestion } from "@cogna/shared";
 import { LOTUS_SELECT_SEPARATOR } from "@cogna/shared";
-import { algebraicallyEqual, classifyFactorisation, factorisationDefect, normalizeMathText } from "./lotus-algebra";
+import { algebraicallyEqual, classifyFactorisation, expressionCanShowSkill, factorisationDefect, normalizeMathText } from "./lotus-algebra";
 import { skillName, type SlotSpec } from "./lotus-factorisation-catalogue";
 import { checkWrittenItem, type WriteRequest } from "./lotus-question-factory";
 import { isCheckSpec, skillCheckForRequest } from "./lotus-skill-checks";
@@ -68,12 +68,14 @@ function base(spec: SlotSpec, req: WriteRequest, prompt: string) {
   };
 }
 
-function diagnostics(spec: SlotSpec, itemKind: "CHOICE" | "SELECT" | "FACTORISE", steps: number, predictedMistakes: LotusPredictedMistake[], expression?: string) {
+function diagnostics(spec: SlotSpec, itemKind: "CHOICE" | "SELECT" | "FACTORISE", steps: number, predictedMistakes: LotusPredictedMistake[], expression?: string, taggedFor?: string) {
+  // A slot's static tags assume its usual expression: drop a tag the expression actually built can't exercise.
+  const shape = expression ?? taggedFor;
   return {
     itemKind,
     ...(expression ? { expression } : {}),
     skillId: spec.skillId,
-    taggedSkills: spec.tagged,
+    taggedSkills: spec.tagged.filter((s) => expressionCanShowSkill(s, shape)),
     stepSkills: Array.from({ length: steps }, () => spec.skillId),
     predictedMistakes,
     slot: spec.slot,
@@ -276,7 +278,7 @@ function divisionProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): I
     answerKey: {
       kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(correct),
       workedSolution: [`The common factor is ${g}`, `Divide both terms by ${g}: ${g * a}x/${g} = ${a === 1 ? "" : a}x, and ${g * b}/${g} = ${b}`, pretty(correct)],
-      diagnostics: diagnostics(spec, "CHOICE", 3, options.filter((o) => o.mistake).map((o) => ({ answer: o.text, mistake: o.mistake! }))),
+      diagnostics: diagnostics(spec, "CHOICE", 3, options.filter((o) => o.mistake).map((o) => ({ answer: o.text, mistake: o.mistake! })), undefined, expr),
     },
   };
 }

@@ -167,3 +167,12 @@ Sprint 1 corrective slice (2 November): expose submitted answer text and observe
 ### Saved answer with a failed next step — 5 November 2026
 
 An Exercise answer that is saved while the next step fails now offers Try again, which resends the same frozen answer. The earlier correction removed retry for this case as well as for a different already-submitted answer; only that second case can never succeed. Try again survives a refresh and a return from Home in the same tab, and a retry never adds a second answer. Four browser scripts were updated to current behaviour, and the held-out scorecard v1 "found not lower" check now has a stated 3% margin for random question variants. The fixture's next step always fails, so moving on after a retry is shown with one mocked response, not a real temporary failure.
+
+
+AI Studio observer maintenance (5 November 2026): [x] Replace duplicated primary/challenger display with one review. [x] Expose recorded question/format selection, source, placement, rationale and application state. [x] Show review duration and queue wait separately. [x] Web TypeScript, render assertions, diff check and saved-session browser inspection.
+
+
+Saved Lotus entry correction (5 November 2026): [x] Explicit session selection with student/topic/assignment checks. [x] Separate recovery scope per selected session. [x] Web types, three existing recovery tests, diff check and browser restore/refresh checks.
+
+
+Lotus refresh maintenance (5 November 2026): completed focused recovery validation and browser save/resume check. Six recovery tests pass; developer-exit feature verification remains separate and in progress.

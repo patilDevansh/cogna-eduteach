@@ -2,8 +2,6 @@
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  prettyReadback,
-  readbackTyped,
   LOTUS_EDIT_MAX_LENGTH,
   LOTUS_EDIT_MAX_SAMPLES,
   LOTUS_GAME_MAX_TRIES,
@@ -28,7 +26,7 @@ import {
 } from "@cogna/shared";
 import { prettyAlgebra } from "@/components/games/TileGame";
 import { clearOtherGameDrafts, GameDraft, useGameDraft } from "./game-draft";
-import { GAME_WORDS, type TrueFalseWords } from "./themed-game-words";
+import { GAME_WORDS, shownKind, type TrueFalseWords } from "./themed-game-words";
 import { signed, Stepper } from "./themed-game-parts";
 import { CaseArt, Token, TwoNumbersArt } from "./themed-game-art";
 import { ChunkIt, FindEveryB, OrderSteps, RapidSet, Replay, TestClaim } from "./ThemedGameMore";
@@ -439,7 +437,8 @@ function TypedBox({ label, record, disabled, autoFocus }: { label: string; recor
       <label className={styles.typedRow}>
         <span className={styles.label}>{label}</span>
         <input ref={record.field} className={styles.editInput} value={record.value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} autoFocus={autoFocus}
-          placeholder="(x + ?)(x − ?)" onBlur={record.onBlur} onChange={(event) => record.type(event.target.value)} />
+          // Neutral on purpose: a shaped hint would show the answer's form to a test checking whether they know it.
+          placeholder="Type your answer" onBlur={record.onBlur} onChange={(event) => record.type(event.target.value)} />
       </label>
       <div className={styles.mathKeys} role="group" aria-label="Math tools">
         {MATH_KEYS.map(([keyLabel, token]) => (
@@ -450,14 +449,15 @@ function TypedBox({ label, record, disabled, autoFocus }: { label: string; recor
   );
 }
 
-function EditHistory({ theme, developerMode, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame; developerMode: boolean; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
+function EditHistory({ theme, game, developerMode, disabled, onChange }: { theme: LotusTheme; game: EditHistoryGame | ReadbackGame; developerMode: boolean; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
   const words = GAME_WORDS.EDIT_HISTORY[theme];
   const [drafts, setDrafts] = useGameDraft<string[]>("deleted", []);
   const report = useRef(onChange);
   report.current = onChange;
-  const record = useTypedRecord((value, history) => report.current(value.trim() ? { kind: "EDIT_HISTORY", history } : null), (draft) => setDrafts((cur) => [...cur, draft]));
+  const kind = game.kind;
+  const record = useTypedRecord((value, history) => report.current(value.trim() ? { kind, history } : null), (draft) => setDrafts((cur) => [...cur, draft]));
   // After a refresh the page has lost the play, though the student hasn't.
-  const resumed = useRef(record.value.trim() ? { kind: "EDIT_HISTORY" as const, history: [...record.history] } : null);
+  const resumed = useRef(record.value.trim() ? { kind, history: [...record.history] } : null);
   useEffect(() => { if (resumed.current) report.current(resumed.current); }, []);
   return (
     <>
@@ -477,44 +477,9 @@ function EditHistory({ theme, developerMode, disabled, onChange }: { theme: Lotu
 
 // ---------- Confirm your input ----------
 
-function Readback({ theme, disabled, onChange }: { theme: LotusTheme; game: ReadbackGame; disabled?: boolean; onChange: ThemedGameProps["onChange"] }) {
-  const words = GAME_WORDS.READBACK[theme];
-  const [confirmed, setConfirmed] = useGameDraft("confirmed", false);
-  const [took, setTook] = useGameDraft("took", false);
-  const report = useRef(onChange);
-  report.current = onChange;
-  const record = useTypedRecord((_, history) => { latest.current = history; });
-  const latest = useRef<EditHistorySample[]>(record.history);
-  const read = readbackTyped(record.value);
-  // Reading changes with every key, so a play is only reported once the student confirms.
-  useEffect(() => {
-    report.current(confirmed && record.value.trim() ? { kind: "READBACK", history: latest.current, ...(took ? { tookSuggestion: true } : {}) } : null);
-  }, [confirmed, took, record.value]);
-
-  const locked = disabled || confirmed;
-  return (
-    <>
-      <p className={styles.intro}>{words.intro}</p>
-      <div className={styles.readGrid}>
-        <TypedBox label={words.input} record={record} disabled={locked} />
-        <div className={styles.stage} aria-live="polite">
-          <span className={styles.label}>{words.read}</span>
-          <span className={styles.readText}>{record.value.trim() ? prettyReadback(read.read) : <i>{words.nothing}</i>}</span>
-          {record.value.trim() && read.flags.map((flag, i) => (
-            <p key={flag.code} className={styles.flag}><b>{words.flag}-{i + 1}</b> {flag.text}</p>
-          ))}
-        </div>
-      </div>
-      <div className={styles.actions}>
-        <button type="button" className={styles.primary} disabled={locked || !record.value.trim()} onClick={() => setConfirmed(true)}>{words.confirm}</button>
-        {read.suggestion && !confirmed && (
-          <button type="button" className={styles.secondary} disabled={disabled} onClick={() => { record.type(read.suggestion!); setTook(true); }}>{words.suggest}</button>
-        )}
-        {confirmed && <><span className={styles.stamp} role="status">{words.stamp}</span><button type="button" className={styles.link} disabled={disabled} onClick={() => setConfirmed(false)}>{words.change}</button></>}
-      </div>
-    </>
-  );
-}
+// No longer issued. A test that already has one shows Edit history's typing box instead: the read-back panel
+// and its confirm step told us nothing a typed answer with its drafts doesn't. The play is still sent as
+// READBACK, so the server reads it against the game it issued.
 
 // ---------- Tiles: one rectangle ----------
 
@@ -600,7 +565,7 @@ export const SEVEN_HERO: ReadonlySet<LotusGameKind> = new Set<LotusGameKind>(["T
 export const sevenLeavesOutPrompt = (kind: LotusGameKind) => SEVEN_HERO.has(kind) || kind === "FOUR_SIGNS";
 
 export function ThemedGame({ theme, game, developerMode = false, disabled, onChange, onRowChange, draftScope, onFirstTouch, onTyped, onTypedBlur }: ThemedGameProps) {
-  const words = GAME_WORDS[game.kind][theme];
+  const words = GAME_WORDS[shownKind(game.kind)][theme];
   const seven = theme === "sevenways";
   const latest = useRef({ onTyped, onTypedBlur, onFirstTouch });
   latest.current = { onTyped, onTypedBlur, onFirstTouch };
@@ -624,8 +589,7 @@ export function ThemedGame({ theme, game, developerMode = false, disabled, onCha
       {game.kind === "SPLIT_CONFIDENCE" && (seven ? <ChipSplit game={game} disabled={disabled} onChange={onChange} /> : <SplitConfidence theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
       {game.kind === "TWO_MOVES" && <TwoMoves theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "FOUR_SIGNS" && (seven ? <SignQuadrant game={game} disabled={disabled} onChange={onChange} /> : <FourSigns theme={theme} game={game} disabled={disabled} onChange={onChange} />)}
-      {game.kind === "EDIT_HISTORY" && <EditHistory theme={theme} game={game} developerMode={developerMode} disabled={disabled} onChange={onChange} />}
-      {game.kind === "READBACK" && <Readback theme={theme} game={game} disabled={disabled} onChange={onChange} />}
+      {(game.kind === "EDIT_HISTORY" || game.kind === "READBACK") && <EditHistory theme={theme} game={game} developerMode={developerMode} disabled={disabled} onChange={onChange} />}
       {game.kind === "RECTANGLE" && <Rectangle theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "ORDER_STEPS" && <OrderSteps theme={theme} game={game} disabled={disabled} onChange={onChange} />}
       {game.kind === "TEST_CLAIM" && <TestClaim theme={theme} game={game} disabled={disabled} onChange={onChange} />}

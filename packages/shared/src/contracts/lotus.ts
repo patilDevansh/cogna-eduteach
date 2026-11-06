@@ -1,5 +1,5 @@
 import type { StudentInteractionContext } from "./interaction-context";
-import type { LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
+import type { EditHistorySample, LotusGameConfig, LotusGameKind, LotusGameReading, LotusGameResponse } from "./lotus-games";
 /**
  * Cogna Lotus — experimental AI-only diagnostic contracts.
  *
@@ -104,6 +104,11 @@ export interface LotusQuestion {
    */
   requiresConfidenceProbe?: boolean;
   /**
+   * Where the question came from, set by the server on the session view (the diagnostics that say so are
+   * stripped from it). Never answer-bearing. Absent on a question with no diagnostics.
+   */
+  provenance?: "AI_GENERATED_FOR_SESSION" | "AI_REUSED_FROM_BANK" | "CODE_BUILT_GAME" | "HARDCODED_SYSTEM";
+  /**
    * When set, the student answers by building from tiles instead of typing
    * (see interaction-formats.ts). Built on the server from the verified
    * answer key; carries no answer. The picks are re-assembled server-side.
@@ -165,9 +170,10 @@ export function isLotusDemoGap(value: unknown): value is LotusDemoGap {
 }
 
 export interface LotusStudentResponse {
-  developerMode?: boolean;
   /** Client-observed reason for asking or suppressing the confidence probe. */
   confidenceProbeReason?: "TARGETED_CHECK" | "RECENT_PROBE" | "DID_NOT_KNOW" | "NOT_TARGETED";
+  /** Local standalone demo only. Requests a developer decision before an automatic exit. */
+  developerMode?: boolean;
   interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
@@ -185,6 +191,10 @@ export interface LotusStudentResponse {
   game?: LotusGameResponse;
   /** Server-only: what the server read from `game`. Anything sent by the browser is discarded. */
   gameReading?: LotusGameReading;
+  /** Every change to an ordinary typed answer, timed from when the question appeared, as Typing replay keeps it. */
+  typing?: EditHistorySample[];
+  /** Server-only: what the server read from `typing` (drafts that match a known mistake, pauses). Anything sent is discarded. */
+  typingReading?: LotusGameReading;
 }
 
 export interface LotusMathVerification {
@@ -323,6 +333,20 @@ export interface LotusSkillEvidence {
   description?: string;
   /** REASON: the student's own one-tap answer to "How did you get it?". */
   source: "INSTANT" | "ANALYSIS" | "REASON";
+  /**
+   * SECURE only: right, but a split-confidence play also put chips on a wrong
+   * option (the mistake it shows, when the option names one). A doubt, never a
+   * mistake: one doesn't count the skill secure, and the same doubt twice makes it suspected.
+   */
+  hedge?: LotusSkillHedge;
+}
+
+export interface LotusSkillHedge {
+  /** Chips on the wrong option, out of LOTUS_SPLIT_TOKENS. */
+  chips: number;
+  /** The wrong option, as shown. */
+  option: string;
+  mistake?: string;
 }
 
 /** One choice in a "How did you get it?" follow-up. What it means is kept on the server. */
@@ -340,6 +364,8 @@ export interface LotusReasonCheck {
   options: LotusReasonOption[];
   chosenId?: string;
   chosenAt?: string;
+  /** Set when the chosen reason is something the answer itself contradicts: kept as a note, never as evidence. */
+  mismatchNote?: string;
 }
 
 /**

@@ -1,3 +1,5 @@
+// This test is about the code-built probes (or needs them with the fake model); production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /**
  * A whole factorisation session through LotusService with the free fake model:
  * a themed game is issued by the server, played, and its answer is rebuilt and
@@ -284,5 +286,27 @@ describe("themed games through a whole session", () => {
     const audit = internal(service, wrong.sessionId).audits[0];
     assert.equal(audit.verification.status, "VERIFIED_INCORRECT");
     assert.ok(audit.response.gameReading.signals.includes("final_flip"));
+  });
+
+  it("split, mostly right: the doubt is kept on the skill, and a kept plan says which question checks it", async () => {
+    const service = new LotusService(new FakeLotusModelService() as unknown as LotusModelService, createPersonalizedVideoMemoryDb() as never);
+    services.push(service);
+    const view = await sessionWithGame(service, "demo_aarav", "SPLIT_CONFIDENCE");
+    const game = view.currentQuestion!.game! as { options: string[] };
+    const norm = (t: string) => t.replace(/\s/g, "");
+    const counts = game.options.map((o) => (norm(o) === "(x+4)(x-1)" ? 3 : norm(o) === "(x-4)(x+1)" ? 1 : 0));
+    const next = await service.answer(view.sessionId, "demo_aarav", {
+      answer: "ignored", working: "", confidence: 60, responseTimeMs: 30_000, didNotKnow: false, submissionId: "mostly", questionId: view.currentQuestion!.id,
+      nextQuestionId: view.upcomingQuestions?.[0]?.id, game: { kind: "SPLIT_CONFIDENCE", counts },
+    });
+    await flush();
+    const audit = internal(service, next.sessionId).audits[0];
+    assert.equal(audit.verification.status, "VERIFIED_CORRECT");
+    const hedged = audit.skillEvidence.find((e: { hedge?: unknown }) => e.hedge);
+    assert.equal(hedged?.hedge.option.replace(/\s/g, ""), "(x-4)(x+1)");
+    assert.notEqual(foldLedger(internal(service, next.sessionId).audits).get("FAC_MONIC_TRINOMIAL")?.state, "SECURE", "a doubted right answer isn't secure yet");
+    assert.equal(audit.analysisStatus, "NOT_REQUIRED", "code knows what the doubted option means");
+    assert.equal(audit.adaptiveDecision?.action, "KEEP");
+    assert.match(audit.adaptiveDecision.implementationDetail, /^Kept: question \d+, already planned, asks .+ and can show the SIGNS_SWAPPED doubt\.$/);
   });
 });

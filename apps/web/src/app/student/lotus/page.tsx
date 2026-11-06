@@ -1,15 +1,17 @@
 "use client";
 
 import { shouldAskLotusConfidence } from "@/lib/lotus-confidence-probe";
-
+import { isReusedFromBank, provenanceLabelForQuestion } from "@/lib/lotus-provenance";
 import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
 import { relatedEvidence, recordedUncertainty, reconstructedAssessments } from "@/lib/lotus-related-evidence";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
 import { lotusRecoveryProblem } from "@/lib/lotus-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
-import { LearnerSupport } from "@/components/learning/LearnerSupport";
+import { useTypingRecord } from "@/lib/use-typing-record";
+import { LotusObserverDetails } from "@/components/lotus-observer-details";
 import { LotusDeveloperExit } from "@/components/lotus-developer-exit";
+import { LearnerSupport } from "@/components/learning/LearnerSupport";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -28,7 +30,7 @@ import type {
   LotusTopic,
   LotusUnseenPlanEntry,
 } from "@cogna/shared";
-import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
+import { validInteractionContext, assembleTileAnswer, INTERACTION_FORMATS, LOTUS_DEMO_GAPS, LOTUS_GAME_TITLES, LOTUS_SPLIT_TOKENS, type LotusGameResponse, LOTUS_TOPIC_NAMES, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap } from "@cogna/shared";
 import { api, ApiError, lotusTopicForClassTopic } from "@/lib/api";
 import { DEV_TOOLS_AVAILABLE, setFakeModelLocked, useDevState } from "@/lib/dev-mode";
 import { PILOT_STUDENT_STORIES, type PilotStudentKey } from "@/lib/pilot-video-demo";
@@ -276,136 +278,36 @@ function AssessmentCard({
   );
 }
 
-function ProposalCard({
-  label,
-  question,
-  selected,
-}: {
-  label: string;
-  question: Omit<LotusQuestion, "id"> | undefined;
-  selected?: boolean;
-}) {
-  return (
-    <section className={`${styles.proposalCard} ${selected ? styles.proposalSelected : ""}`}>
-      <div className={styles.proposalLabel}>{label}</div>
-      {question ? (
-        <>
-          <p className={styles.proposalPrompt}>{question.prompt}</p>
-          <p className={styles.proposalPurpose}>{question.purpose}</p>
-        </>
-      ) : (
-        <p className={styles.proposalPurpose}>No question proposed.</p>
-      )}
-    </section>
-  );
-}
-
-/**
- * §11 "Plan and question transparency": shown only for an installed changed
- * item (selection.adaptationTag is only ever set on that item, never on an
- * unchanged coverage question or merely because a recommendation exists),
- * so it never implies a modification that didn't happen.
- */
-function adaptationTagLabel(tag: NonNullable<LotusQuestionSelection["adaptationTag"]>): string {
-  switch (tag.kind) {
-    case "TARGETED_CHECK": return `Targeted check — ${tag.skill}`;
-    case "EASIER_PREREQUISITE": return `Easier prerequisite — ${tag.skill}`;
-    case "BROADENED_EVIDENCE": return `Broadened evidence — ${tag.skill}`;
-    case "COVERAGE_REPLACEMENT": return `Coverage replacement — ${tag.reason}`;
+/** An earlier answer that already went wrong on one of the skills this answer went wrong on: the same mistake, or just the same skill. */
+function repeatOf(audit: LotusQuestionAudit, earlier: LotusQuestionAudit[]): { sameMistake: boolean } | null {
+  const now = (audit.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED");
+  let found: { sameMistake: boolean } | null = null;
+  for (const before of earlier) {
+    for (const e of before.skillEvidence ?? []) {
+      if (e.kind !== "MISTAKE" && e.kind !== "UNFINISHED") continue;
+      for (const n of now) {
+        if (n.skillId !== e.skillId) continue;
+        if (n.mistake && n.mistake === e.mistake) return { sameMistake: true };
+        found = { sameMistake: false };
+      }
+    }
   }
+  return found;
 }
 
-function QuestionDecision({ selection }: { selection: LotusQuestionSelection }) {
-  const sourceLabel = selection.provenance === "AI_GENERATED_FOR_SESSION"
-    ? "AI-generated from a planned skill slot"
-    : selection.provenance === "AI_REUSED_FROM_BANK"
-      ? "Reused from the AI question bank"
-      : selection.selectedFrom === "NONE_EXIT"
-        ? "Diagnostic ended"
-        : selection.selectedFrom === "REVISED_FOR_INFORMATION_GAIN"
-          ? "Revised after repetition check"
-          : `Chosen from ${selection.selectedFrom.toLowerCase()}`;
-  const provenanceLabel = selection.provenance === "AI_GENERATED_FOR_SESSION"
-    ? "New question made for this session"
-    : selection.provenance === "AI_REUSED_FROM_BANK"
-      ? "Question reused from the AI question bank"
-      : selection.provenance === "HARDCODED_SYSTEM"
-        ? "This is a hardcoded question already present in our system"
-        : undefined;
-  return (
-    <section className={styles.decisionBox}>
-      <div className={styles.decisionHeading}>
-        <div>
-          <span className={styles.eyebrow}>Next-question decision</span>
-          <h4>What each AI proposed—and what Lotus chose</h4>
-        </div>
-        <span className={selection.informationGain.passed ? styles.gainPass : styles.gainFail}>
-          {selection.informationGain.passed ? "Adds evidence" : "Low information gain"}
-        </span>
-        {selection.mathVerification && selection.mathVerification.status !== "UNVERIFIABLE" && (
-          <span
-            className={selection.mathVerification.status === "MATCHED" ? styles.gainPass : styles.gainFail}
-            title={selection.mathVerification.explanation}
-          >
-            {selection.mathVerification.status === "MATCHED" ? "Maths independently verified" : "Maths mismatch — rejected"}
-          </span>
-        )}
-      </div>
-      {provenanceLabel && (
-        <div className={styles.questionProvenance} role="status">
-          {provenanceLabel}
-          {selection.adaptationTag && (
-            <span className={styles.adaptationTag}> · {adaptationTagLabel(selection.adaptationTag)}</span>
-          )}
-        </div>
-      )}
-      <div className={styles.proposalGrid}>
-        <ProposalCard label="Primary proposed" question={selection.primaryProposal} />
-        <ProposalCard label="Challenger proposed" question={selection.challengerProposal} />
-        <ProposalCard label={sourceLabel} question={selection.selectedQuestion} selected />
-      </div>
-      <div className={styles.decisionReason}>
-        <strong>Why this was chosen</strong>
-        <p>{selection.reason}</p>
-        {selection.planningNote && <small className={styles.planningNote}>{selection.planningNote}</small>}
-        <small>{selection.informationGain.explanation}</small>
-      </div>
-    </section>
-  );
-}
-
-function matchingProvenanceForQuestion(question: LotusQuestion, session: LotusSessionView) {
-  const selections = [session.openingAudit?.questionSelection, ...session.audits.map((audit) => audit.questionSelection)].filter(Boolean) as LotusQuestionSelection[];
-  const matching = [...selections].reverse().find((selection) => selection.selectedQuestion?.prompt === question.prompt);
-  return matching?.provenance;
-}
-
-function provenanceLabelForQuestion(question: LotusQuestion, session: LotusSessionView): string {
-  const provenance = matchingProvenanceForQuestion(question, session);
-  if (provenance === "CODE_BUILT_GAME") return "Interactive question";
-  if (provenance === "AI_GENERATED_FOR_SESSION") return "New question made for this session";
-  if (provenance === "AI_REUSED_FROM_BANK") return "Question reused from the AI question bank";
-  if (provenance === "HARDCODED_SYSTEM") return "This is a hardcoded question already present in our system";
-  if (question.answerKey.diagnostics?.origin === "AI") return "New question made for this session";
-  return "This is a hardcoded question already present in our system";
-}
-
-/** Reused-from-bank is the one provenance worth a glance: it's the only case where this exact item may have already been seen by another student. */
-function isReusedFromBank(question: LotusQuestion, session: LotusSessionView): boolean {
-  const provenance = matchingProvenanceForQuestion(question, session);
-  return provenance ? provenance === "AI_REUSED_FROM_BANK" : question.answerKey.diagnostics?.provenance === "AI_REUSED_FROM_BANK";
-}
-
-function DiagnosticDecision({ audit }: { audit: LotusQuestionAudit }) {
+function DiagnosticDecision({ audit, earlier = [] }: { audit: LotusQuestionAudit; earlier?: LotusQuestionAudit[] }) {
   if (!audit.response || !(audit.skillEvidence ?? []).some((e) => e.kind !== "SECURE")) return null;
   const support = audit.skillEvidence?.some((e) => e.kind === "DID_NOT_KNOW");
+  const repeat = support ? null : repeatOf(audit, earlier);
   return (
     <div className={styles.diagnosticDecision}>
       <strong>Diagnostic decision</strong>
       <span>
         {support
           ? "This is recorded as a support need. Lotus will place an easier prerequisite check in the unseen plan where possible."
-          : "This is a suspected signal, not a confirmed gap. Lotus keeps the curriculum moving and schedules a later capable check; a repeat can confirm it, while a suitable correct answer can clear it as a slip."}
+          : repeat
+            ? `${repeat.sameMistake ? "The same mistake again" : "A second mistake on this skill"}, so this is no longer a one-off. Lotus treats the skill as a confirmed gap and goes on to check the foundations only where the answers don't already show them.`
+            : "This is a suspected signal, not a confirmed gap. Lotus keeps the curriculum moving and schedules a later capable check; a repeat can confirm it, while a suitable correct answer can clear it as a slip."}
       </span>
     </div>
   );
@@ -505,7 +407,7 @@ function EvidencePanel({ audit, audits, index }: { audit: LotusQuestionAudit; au
       </div>
       <div className={styles.evidencePanelGrid}>
         <div><strong>Mathematical fact</strong><span>{mathsFact}</span></div>
-        <div><strong>Direct evidence</strong><span>{directEvidence.join(" ")}</span></div>
+        <div><strong>Direct evidence</strong><span>{[...new Set(directEvidence)].join(" ")}</span></div>
         <div><strong>Competing explanations</strong><span>{alternatives.length ? alternatives.join("; ") : "No competing explanation has been claimed."}</span></div>
         <div><strong>Still unknown</strong><span>{unknown}</span></div>
       </div>
@@ -636,17 +538,22 @@ function ActionTimeline({ decision }: { decision: LotusAdaptiveDecision }) {
 function AuditCard({
   audit,
   audits,
+  earlier = [],
   index,
   latest,
   opening,
   liveProgress,
+  reviewModel,
 }: {
   audit: LotusQuestionAudit;
   audits: LotusQuestionAudit[];
+  /** The answers before this one, so the decision can say a mistake is a repeat. */
+  earlier?: LotusQuestionAudit[];
   index: number;
   latest: boolean;
   opening?: boolean;
   liveProgress?: LotusSessionView["liveProgress"];
+  reviewModel?: string;
 }) {
   return (
     <details className={styles.auditCard} open={latest}>
@@ -690,6 +597,11 @@ function AuditCard({
               {audit.response.gameReading && (
                 <p><strong>Played:</strong> {LOTUS_GAME_TITLES[audit.response.gameReading.kind]}. {audit.response.gameReading.summary}</p>
               )}
+              {audit.response.typingReading && (
+                <p><strong>Typing:</strong> {audit.response.typingReading.summary}{" "}
+                  {audit.response.typingReading.facts.firstKeyMs !== audit.response.typingReading.facts.longestPauseMs && `First key after ${Math.round(Number(audit.response.typingReading.facts.firstKeyMs ?? 0) / 100) / 10}s; `}
+                  {audit.response.typingReading.facts.drafts ?? 0} discarded {audit.response.typingReading.facts.drafts === 1 ? "draft" : "drafts"}.</p>
+              )}
               {audit.response.game?.kind === "SPLIT_CONFIDENCE" && audit.question.game?.kind === "SPLIT_CONFIDENCE" && (
                 <div>
                   <strong>Chip distribution</strong>
@@ -701,7 +613,13 @@ function AuditCard({
               )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
-                <strong>Confidence:</strong> {audit.response.gameReading?.kind === "SPLIT_CONFIDENCE" ? `${audit.response.confidence}% (from chips)` : audit.response.interactionContext?.confidence.status === "SKIPPED" ? "Skipped" : audit.response.confidenceProbeReason && audit.response.confidenceProbeReason !== "TARGETED_CHECK" || audit.response.interactionContext?.confidence.status === "NOT_ASKED" ? "Not asked" : audit.response.interactionContext?.confidence.status === "REPORTED_BEFORE_ANSWER" ? `${audit.response.confidence}%` : "Not recorded"} · <strong>Time:</strong>{" "}
+                <strong>Confidence:</strong>{" "}
+                {audit.response.game?.kind === "SPLIT_CONFIDENCE"
+                  ? `${Math.max(...audit.response.game.counts)} of ${LOTUS_SPLIT_TOKENS} chips on the answer marked`
+                  : audit.response.interactionContext?.confidence.status === "NOT_ASKED" ? "not asked"
+                    : audit.response.interactionContext?.confidence.status === "SKIPPED" ? "skipped"
+                      : `${audit.response.confidence}%`}{" "}
+                · <strong>Time:</strong>{" "}
                 {Math.round(audit.response.responseTimeMs / 1000)}s
               </p>
               {audit.response.confidenceProbeReason && <p><strong>Confidence probe decision:</strong> {{
@@ -728,10 +646,8 @@ function AuditCard({
         )}
         <EvidencePanel audit={audit} audits={audits} index={index} />
 
-        {(audit.questionSelection.primaryProposal || audit.questionSelection.challengerProposal) && (
-          <QuestionDecision selection={audit.questionSelection} />
-        )}
-        <DiagnosticDecision audit={audit} />
+        <LotusObserverDetails audit={audit} model={reviewModel} className={styles.section} />
+        <DiagnosticDecision audit={audit} earlier={earlier} />
 
         {audit.analysisStatus === "PENDING" && (
           <div className={styles.analysisPending} role="status" aria-live="polite">
@@ -740,9 +656,9 @@ function AuditCard({
           </div>
         )}
 
-        {(opening || audit.analysisSource === "AI_REVIEW") && audit.analysisStatus === "COMPLETE" && (audit.gpt || audit.debate) && (
+        {(opening || audit.analysisSource === "AI_REVIEW") && audit.analysisStatus === "COMPLETE" && audit.gpt && (
           <details className={styles.reasoningDrawer}>
-            <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
+            <summary className={styles.reasoningSummary}>See AI review details</summary>
             <div className={styles.reasoningBody}>
               {audit.reviewMode === "SINGLE" && audit.gpt && <AssessmentCard name="AI review" assessment={audit.gpt} className={styles.gpt} />}
               {audit.reviewMode !== "SINGLE" && audit.gpt && audit.challenger && <div className={styles.modelGrid}>
@@ -790,7 +706,7 @@ function AuditCard({
           ) : audit.analysisStatus === "NOT_REQUIRED" ? (
             <p>{audit.analysisSource === "SUPPORT_SIGNAL"
               ? "The student asked for support. Lotus recorded that signal without inventing an AI explanation of their reasoning."
-              : "No AI interpretation was required for this turn."}</p>
+              : audit.conclusion.conclusion || "Cogna marked this answer directly."}</p>
           ) : (
             <>
               <p>{audit.conclusion.conclusion}</p>
@@ -841,25 +757,11 @@ function LiveProgressCard({ progress, index }: { progress: LotusLiveProgress; in
             {progress.reflectionPrompt}
           </p>
         )}
-        {(progress.gpt || progress.debate) && (
+        {progress.gpt && (
           <details className={styles.reasoningDrawer}>
-            <summary className={styles.reasoningSummary}>See AI reasoning details</summary>
+            <summary className={styles.reasoningSummary}>See AI review details</summary>
             <div className={styles.reasoningBody}>
-              {progress.gpt && progress.challenger && (
-                <div className={styles.modelGrid}>
-                  <AssessmentCard name="GPT primary thought" assessment={progress.gpt} className={styles.gpt} />
-                  <AssessmentCard name="GPT challenger thought" assessment={progress.challenger} className={styles.challenger} />
-                </div>
-              )}
-              {progress.debate && (
-                <section className={`${styles.section} ${styles.debate}`}>
-                  <h4>What they argued</h4>
-                  <p><strong>Agreement</strong></p>
-                  <List items={progress.debate.agreements} />
-                  <p style={{ marginTop: "0.65rem" }}><strong>Disagreement</strong></p>
-                  <List items={progress.debate.disagreements} />
-                </section>
-              )}
+              <AssessmentCard name="AI review" assessment={progress.gpt} className={styles.gpt} />
             </div>
           </details>
         )}
@@ -1145,7 +1047,8 @@ function LotusPage() {
   const recoveryStarted = useRef("");
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const recoveryReady = useRef(false);
-  const recoveryScope = `${topic}:${classroomAssignmentId ?? "self"}:${devFakeModel ? "fake" : "live"}${requestedSessionId ? `:session:${requestedSessionId}` : ""}`;
+  const baseRecoveryScope = `${topic}:${classroomAssignmentId ?? "self"}:${devFakeModel ? "fake" : "live"}`;
+  const recoveryScope = requestedSessionId ? `${baseRecoveryScope}:session:${requestedSessionId}` : baseRecoveryScope;
   type Recovery = { session: LotusSessionView; answer: string; workingLines: string[]; confidence: number | null; didNotKnow: boolean; tiles: TileGameState | null; pending: LotusStudentResponse | null; startedAt: number };
   function saveLotusRecovery(overrides: Partial<Recovery> = {}) {
     if (!studentId || !session || !recoveryReady.current) return;
@@ -1170,14 +1073,17 @@ function LotusPage() {
           if (!requestedSessionId) return;
           const saved = await api.getLotusSession(requestedSessionId);
           if (cancelled) return;
-          if (saved.studentId !== studentId || saved.topic !== topic || (saved.classroomAssignmentId ?? null) !== (classroomAssignmentId ?? null)) throw new Error("Saved diagnostic does not match this learner or topic");
+          if (saved.studentId !== studentId || saved.topic !== topic ||
+            (saved.classroomAssignmentId ?? null) !== (classroomAssignmentId ?? null)) {
+            throw new Error("Saved diagnostic does not match this learning context");
+          }
           setSession(saved);
           setRecoveryMessage(`Saved diagnostic restored with ${saved.audits.length} submitted answers.`);
           return;
         }
         if (requestedSessionId && cached.session.sessionId !== requestedSessionId) throw new Error("Saved session changed");
-        const recoveryProblem = lotusRecoveryProblem(cached, studentId);
-        if (recoveryProblem) throw new Error(recoveryProblem);
+        const problem = lotusRecoveryProblem(cached, studentId);
+        if (problem) throw new Error(problem);
         const fresh = await api.getLotusSession(cached.session.sessionId);
         if(cancelled)return;
         if (fresh.studentId !== studentId) throw new Error("Session ownership changed");
@@ -1213,7 +1119,12 @@ function LotusPage() {
           setQuestionStartedAt(cached.startedAt); setPendingSubmission(pending);
           setRecoveryMessage(pending ? "Your previous answer needs confirmation. Retry saving it." : "Draft restored in this tab. It has not been checked yet.");
         }
-      } catch { if(cancelled)return; confirmationFailed = true; setRecoveryMessage("We couldn't check your saved test. Your work is still on this device: reload the page to try again."); }
+      } catch (cause) {
+        if (cancelled) return;
+        confirmationFailed = true;
+        const detail = devMode && cause instanceof Error ? ` Developer detail: ${cause.message}.` : "";
+        setRecoveryMessage(`We couldn't check your saved test. Your work is still on this device. Reload the page to try again.${detail}`);
+      }
       finally { if(!cancelled){recoveryReady.current = !confirmationFailed; setRecoveryChecked(!confirmationFailed);} }
     })();
     return()=>{cancelled=true;};
@@ -1244,6 +1155,7 @@ function LotusPage() {
     if (field.id === "lotus-answer") {
       interaction.input(nextValue);
       draftCheckpoints.record(nextValue);
+      typingRecord.record(nextValue);
       setAnswer(nextValue);
       saveLotusRecovery({ answer: nextValue });
       setDidNotKnow(false);
@@ -1646,6 +1558,8 @@ function LotusPage() {
       nextQuestionId: staged?.id,
       ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
       ...(themedGame && !didNotKnow && gamePlay ? { game: gamePlay } : {}),
+      // An ordinary typed answer sends its typing record too, so its drafts and pauses are read like Typing replay's.
+      ...(!themedGame && !tileGame && !didNotKnow && !question?.options?.length && typingRecord.history() ? { typing: typingRecord.history() } : {}),
     };
     submissionLock.current = true;
     setBusy(true);
@@ -1668,6 +1582,7 @@ function LotusPage() {
     try {
       const next = await submitWithRetry(session.sessionId, studentId, submission);
       if(recoveryStarted.current!==requestScope)return;
+      setRecoveryMessage("");
       rememberSession(next);
     } catch (err) {
       if(recoveryStarted.current!==requestScope)return;
@@ -1726,8 +1641,9 @@ function LotusPage() {
   // A wrong answer code couldn't explain gets one "How did you get it?" tap before the next question.
   const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
-  const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
-  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
+  const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
+  const typingRecord = useTypingRecord(question ? `${session?.sessionId}:${question.id}` : undefined, questionStartedAt);
+  const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
   // Only sizes the pond map. The plan's length changes as Lotus adapts, so it
@@ -2103,11 +2019,12 @@ function LotusPage() {
                               if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                               activeMathFieldRef.current = event.currentTarget;
                             }}
-                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
+                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); typingRecord.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
                             onChange={(event) => {
                               if (suppressMathChangeRef.current) { suppressMathChangeRef.current = false; return; }
                               interaction.input(formatTypedMath(event.target.value));
                               draftCheckpoints.record(formatTypedMath(event.target.value));
+                              typingRecord.record(formatTypedMath(event.target.value));
                               setAnswer(formatTypedMath(event.target.value));
                               saveLotusRecovery({ answer: formatTypedMath(event.target.value) });
                               setDidNotKnow(false);
@@ -2286,9 +2203,11 @@ function LotusPage() {
                           key={`${audit.question.id}-${index}`}
                           audit={audit}
                           audits={observerAudits}
+                          earlier={observerAudits.slice(0, index)}
                           opening={index === 0}
                           index={index}
                           latest={index === observerAudits.length - 1}
+                          reviewModel={observerSession.modelConfiguration.primary}
                           liveProgress={observerSession.liveProgress}
                         />
                       ))}

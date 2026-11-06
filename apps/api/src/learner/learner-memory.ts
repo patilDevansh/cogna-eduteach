@@ -76,9 +76,12 @@ export function testEvidence(session: LotusSessionView): EvidenceRow[] {
     const mistakes: MistakeSeen[] = [];
     for (const audit of onSkill(entry.skillId)) {
       for (const ev of audit.skillEvidence ?? []) {
-        if (ev.skillId !== entry.skillId || ev.kind === "SECURE" || !ev.mistake) continue;
+        if (ev.skillId !== entry.skillId) continue;
+        // A doubt (right, with chips on a wrong option) is remembered only once it made the skill suspected.
+        const code = ev.kind !== "SECURE" ? ev.mistake : entry.state === "SUSPECTED" && entry.fromHedge ? ev.hedge?.mistake : undefined;
+        if (!code) continue;
         mistakes.push({
-          code: ev.mistake,
+          code,
           // The expression as the student read it (no "+ 7932 - 7932" uniqueness padding), else the question itself.
           question: tidy(audit.question.answerKey?.diagnostics?.expression ? tidyExpression(audit.question.answerKey.diagnostics.expression) : audit.question.prompt, 100).replace(/[.?]+$/, ""),
           answer: tidy(audit.response!.answer, 80),

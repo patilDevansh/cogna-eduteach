@@ -52,3 +52,12 @@ Deferred beyond the bounded Sprint 1 correction: raw keystroke streams, complete
 This local reference path does not provide full Grade 8 board coverage, delayed retention checks, parent/teacher learning charts, calibrated frustration or attention detection, broad theme/animation selection, general offline use, teacher due/cancel/release controls, or a complete child-record lifecycle. The assigned-run class selector was stubbed only in the isolated browser fixture; ownership and launch used real database rows. Content still needs independent product review, and the school pilot has not measured learning benefit.
 
 The reviewed reference bank has four independent exit items per learner; further repeated starts stop explicitly until new compatible items are reviewed. This is not a scalable long-term item-reservation policy. The full web TypeScript gate is currently blocked by separate unfinished theme translations, not by the module route.
+
+
+AI Studio observer maintenance (5 November 2026): this display correction does not implement the proposed step-level follow-up teaching flow or rewrite historical decision attribution. Per-question writer-model attribution and learner efficacy evaluation remain separate work.
+
+
+Saved Lotus entry correction (5 November 2026): a direct saved-session link is available. A student-facing session picker and cross-device unsubmitted draft recovery remain separate work.
+
+
+Lotus refresh maintenance: no retained answers discarded or submitted history reset. Full developer-exit verification remains pending under its separate task; this recovery check does not certify that feature.

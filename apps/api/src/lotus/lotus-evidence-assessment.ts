@@ -16,6 +16,8 @@ export function assessSkillEvidence(audits: LotusQuestionAudit[], skillId: strin
   for (const [index, audit] of audits.entries()) {
     const evidence = (audit.skillEvidence ?? []).filter((e) => e.skillId === skillId);
     if (!evidence.some((e) => e.kind === "SECURE") || evidence.some((e) => e.kind !== "SECURE")) continue;
+    // Right with chips on a wrong option is a doubt, not a demonstration.
+    if (evidence.some((e) => e.hedge)) continue;
     const diagnostics = audit.question?.answerKey?.diagnostics;
     if (!audit.response || audit.response.didNotKnow || audit.verification?.status !== "VERIFIED_CORRECT" || !diagnostics) {
       result.unscopedSuccessTurns.push(index + 1);

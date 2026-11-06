@@ -1,6 +1,7 @@
 import type { StudentInteractionContext } from "@cogna/shared";
 import { Type } from "class-transformer";
 import {
+  IsArray,
   IsBoolean,
   IsInt,
   IsIn,
@@ -13,7 +14,7 @@ import {
   Min,
   ValidateIf,
 } from "class-validator";
-import { LOTUS_TOPICS, type LotusGameResponse, type LotusOverrideAction, type LotusTopic, type TileBuildResponse } from "@cogna/shared";
+import { LOTUS_TOPICS, type EditHistorySample, type LotusGameResponse, type LotusOverrideAction, type LotusTopic, type TileBuildResponse } from "@cogna/shared";
 
 export class StartLotusSessionDto {
   @IsString()
@@ -89,6 +90,11 @@ export class SubmitLotusAnswerDto {
   @IsOptional()
   @IsObject()
   game?: LotusGameResponse;
+
+  /** Every change to an ordinary typed answer. Shape-checked in the service; a malformed record is dropped, never refused. */
+  @IsOptional()
+  @IsArray()
+  typing?: EditHistorySample[];
 }
 
 export class DeveloperLotusExitDto {

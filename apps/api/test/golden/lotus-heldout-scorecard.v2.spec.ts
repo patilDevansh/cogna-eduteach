@@ -1,3 +1,5 @@
+// The fake model needs the code-built probes; production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /**
  * Held-out scorecard v2: 24 simulated students (test/fixtures/lotus-heldout-students-v2.ts),
  * written before the two fixes it measures. Each is played REPEATS times and scored against the

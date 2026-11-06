@@ -340,6 +340,13 @@ export interface LotusGameDiagnosis {
   mistake?: string;
   /** One neutral sentence that can reach the student's report. */
   note?: string;
+  /** NEEDS_ANOTHER: the wrong option the rest of the confidence went on. */
+  hedge?: { chips: number; option: string; mistake?: string };
+  /**
+   * MISTAKE: right picks that show a skill on their own, as the mistake codes that skill owns (e.g. finding both
+   * 9 and -9 shows the negative pairs, so NO_NEGATIVE_PAIRS). Credited only for skills the item can show.
+   */
+  creditFor?: string[];
 }
 
 /**
