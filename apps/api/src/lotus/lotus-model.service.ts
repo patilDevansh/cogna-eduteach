@@ -202,6 +202,9 @@ export class LotusModelService {
     if (typeof value.exitDiagnostic !== "boolean") {
       value.exitDiagnostic = value.action !== "ASK";
     }
+    // What the student did right: a short list of plain strings, or nothing. A bad shape never fails the review.
+    value.strengths = (Array.isArray(value.strengths) ? (value.strengths as unknown[]) : [])
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim().slice(0, 240)).slice(0, 5);
     return value as unknown as LotusDebateClosure;
   }
 

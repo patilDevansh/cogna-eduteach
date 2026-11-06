@@ -78,7 +78,7 @@ export function testEvidence(session: LotusSessionView): EvidenceRow[] {
       for (const ev of audit.skillEvidence ?? []) {
         if (ev.skillId !== entry.skillId) continue;
         // A doubt (right, with chips on a wrong option) is remembered only once it made the skill suspected.
-        const code = ev.kind !== "SECURE" ? ev.mistake : entry.state === "SUSPECTED" && entry.fromHedge ? ev.hedge?.mistake : undefined;
+        const code = ev.hedge ? (entry.state === "SUSPECTED" && entry.fromHedge ? ev.hedge.mistake : undefined) : ev.kind !== "SECURE" ? ev.mistake : undefined;
         if (!code) continue;
         mistakes.push({
           code,

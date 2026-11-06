@@ -4,6 +4,7 @@ import type { LotusGameResponse, LotusQuestion, LotusQuestionAudit, LotusStudent
 import { gameOfPreferredKind } from "../../src/lotus/lotus-games";
 import { resolveLotusResponse } from "../../src/lotus/lotus-interactions";
 import { foldLedger, instantVerdict } from "../../src/lotus/lotus-factorisation";
+import { adaptiveDecisionFor } from "../../src/lotus/lotus.service";
 import { assessSkillEvidence } from "../../src/lotus/lotus-evidence-assessment";
 
 // 6x + 36 = 6(x + 6). 6(x + 36) is what dividing only the first term gives.
@@ -44,8 +45,12 @@ describe("Lotus split confidence: a mostly-right answer keeps its doubt", () => 
     const q = gcf("hedge-2");
     const v = instantVerdict(q, mostly(q));
     assert.equal(v.verification.status, "VERIFIED_CORRECT");
-    assert.ok(v.evidence.every((e) => e.kind === "SECURE"), "a doubt is never a mistake");
-    assert.equal(v.evidence.find((e) => e.hedge)?.skillId, "FAC_DIVIDE_TERMS");
+    const doubted = v.evidence.find((e) => e.hedge)!;
+    assert.equal(doubted.skillId, "FAC_DIVIDE_TERMS");
+    assert.equal(doubted.kind, "UNFINISHED", "a doubted skill is partial evidence, not secure");
+    assert.equal(doubted.mistake, undefined, "a doubt is never a mistake");
+    assert.equal(v.evidence.filter((e) => e.kind === "SECURE" && e.skillId === "FAC_DIVIDE_TERMS").length, 0);
+    assert.equal(v.evidence.find((e) => e.skillId === "FAC_GCF_NUMERIC")?.kind, "SECURE", "the skill with no doubt stays secure");
     assert.equal(v.evidence.find((e) => e.skillId === "FAC_GCF_NUMERIC")?.hedge, undefined);
     assert.equal(v.needsAnalysis, false, "code knows what the doubted option means");
   });
@@ -74,8 +79,14 @@ describe("Lotus split confidence: a mostly-right answer keeps its doubt", () => 
     const secureThenDoubt = foldLedger([audit(a, sure(a)), audit(b, sure(b)), audit(c, mostly(c))]).get("FAC_DIVIDE_TERMS");
     assert.equal(secureThenDoubt?.state, "SECURE", "one doubt after shown success stays secure");
     const [d, e, f] = [gcf("s4"), gcf("s5"), gcf("s6")];
-    const settled = foldLedger([audit(d, mostly(d)), audit(e, mostly(e)), audit(f, sure(f))]).get("FAC_DIVIDE_TERMS");
-    assert.equal(settled?.state, "SECURE");
+    const shaky = foldLedger([audit(d, mostly(d)), audit(e, mostly(e)), audit(f, sure(f))]).get("FAC_DIVIDE_TERMS");
+    assert.equal(shaky?.state, "SUSPECTED", "doubted twice: one right answer is only shaky");
+    const [g2, h2, i2] = [gcf("s7"), gcf("s8"), gcf("s9")];
+    const typedQ = gcf("s10");
+    delete typedQ.game;
+    const typedRight = { ...base(), answer: "6(x + 6)" };
+    const settled = foldLedger([audit(g2, mostly(g2)), audit(h2, mostly(h2)), audit(i2, sure(i2)), audit(typedQ, typedRight)]).get("FAC_DIVIDE_TERMS");
+    assert.equal(settled?.state, "SECURE", "a second, typed right answer settles it");
     assert.equal(settled?.clearedAfterSlip, undefined, "a settled doubt is not recorded as a slip");
     assert.match(settled!.notes.at(-1)!, /earlier doubt looks settled/);
   });
@@ -88,5 +99,29 @@ describe("Lotus split confidence: a mostly-right answer keeps its doubt", () => 
     const [a, b] = [gcf("r1"), gcf("r2")];
     const result = assessSkillEvidence([audit(a, mostly(a)), audit(b, sure(b))], "FAC_DIVIDE_TERMS");
     assert.deepEqual(result.directSuccessTurns, [2]);
+  });
+  it("the plan change names the doubt, not the verification note", () => {
+    const q = gcf("o1");
+    const a = audit(q, mostly(q));
+    const decision = adaptiveDecisionFor(a, []);
+    assert.match(decision.observedError, /kept 1 of 4 chips on 6\(x \+ 36\)/);
+    assert.match(decision.observedError, /divided only the first term/);
+    assert.ok(!decision.observedError.includes(a.verification!.explanation ?? "\u0000"));
+  });
+  it("a plainly right answer has no observed error", () => {
+    const q = gcf("o2");
+    assert.equal(adaptiveDecisionFor(audit(q, sure(q)), []).observedError, "No error: the answer was right.");
+  });
+  it("the doubt never counts as a direct success, and twice makes the skill suspected", () => {
+    const [a, b] = [gcf("p1"), gcf("p2")];
+    assert.deepEqual(assessSkillEvidence([audit(a, mostly(a))], "FAC_DIVIDE_TERMS").directSuccessTurns, []);
+    assert.equal(foldLedger([audit(a, mostly(a)), audit(b, mostly(b))]).get("FAC_DIVIDE_TERMS")?.state, "SUSPECTED");
+  });
+  it("writing time never exceeds the time the item was on screen", () => {
+    const q = gcf("t1");
+    const ctx = { timing: { basis: "CLIENT_ITEM_MOUNT", elapsedMs: 44941, firstInputMs: 2323, hiddenMs: 0, visibilityChanges: 0, complete: false } } as unknown as LotusStudentResponse["interactionContext"];
+    const play = { kind: "SPLIT_CONFIDENCE", counts: optionsOf(q).map((o) => (o === "6(x + 6)" ? 4 : 0)) } as LotusGameResponse;
+    assert.equal(resolveLotusResponse(q, { ...base(), responseTimeMs: 180000, interactionContext: ctx, game: play }).responseTimeMs, 44941);
+    assert.equal(resolveLotusResponse(q, { ...base(), responseTimeMs: 20000, interactionContext: ctx, game: play }).responseTimeMs, 20000);
   });
 });

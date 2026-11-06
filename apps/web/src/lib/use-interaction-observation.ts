@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import type { StudentInteractionContext } from "@cogna/shared";
 import { queuePresentation } from "./presentation-outbox";
 import { getStudent } from "./session";
-import { InteractionObservation, InteractionObservationSlot } from "./interaction-observation";
+import { InteractionObservation, InteractionObservationSlot, snapshotWithoutLiveObservation } from "./interaction-observation";
 
 /** Starts after the question DOM commits, not when it is generated or prefetched. */
 export function useInteractionObservation(source: StudentInteractionContext["source"], questionId: string | undefined, questionVersion: number | null, format: string, enabled: boolean, sessionId = "") {
@@ -35,10 +35,20 @@ export function useInteractionObservation(source: StudentInteractionContext["sou
     window.addEventListener("online", connection); window.addEventListener("offline", connection);
     return () => { window.removeEventListener("online", flush); document.removeEventListener("visibilitychange", visibility); window.removeEventListener("online", connection); window.removeEventListener("offline", connection); };
   }, [key, enabled, questionId, questionVersion, source, format]);
+  // When the question first rendered, whether or not it was answerable yet. If the live observation is missing at submit
+  // (it is switched off while the page is busy or between questions), the submission still carries a timing record,
+  // honestly marked partial, instead of silently dropping it.
+  const firstSeen = useRef<{ key: string; at: number } | null>(null);
+  useEffect(() => { if (questionId && firstSeen.current?.key !== key) firstSeen.current = { key, at: performance.now() }; }, [key, questionId]);
   const current = () => ref.current.get(key);
   return {
     input: (value: string, discrete = false) => current()?.input(value, discrete),
     workingInput: () => current()?.workingInput(),
-    snapshot: (confidence: StudentInteractionContext["confidence"]) => current()?.snapshot(confidence),
+    snapshot: (confidence: StudentInteractionContext["confidence"]) => {
+      const live = current();
+      if (live) return live.snapshot(confidence);
+      if (!questionId) return undefined;
+      return snapshotWithoutLiveObservation({ source, questionId, questionVersion, format }, firstSeen.current?.key === key ? firstSeen.current.at : null, confidence);
+    },
   };
 }

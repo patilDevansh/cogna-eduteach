@@ -120,6 +120,10 @@ export function resolveLotusResponse(question: LotusQuestion, response: LotusStu
   // A reading is something the server writes; one sent by the browser is never kept.
   const { gameReading: _reading, typingReading: _typingReading, typing: sentTyping, ...sent } = response;
   response = sent;
+  // The browser's own item clock (shown-to-submitted) is the ceiling for the writing time: a figure
+  // measured from session start or question generation can never exceed the time the item was on screen.
+  const shownMs = response.interactionContext?.timing.elapsedMs;
+  if (typeof shownMs === "number" && response.responseTimeMs > shownMs) response = { ...response, responseTimeMs: shownMs };
   // An ordinary typed answer keeps its typing record, read the way Typing replay is.
   if (!response.game && !response.interaction && !response.didNotKnow && !question.interaction && question.answerKey.diagnostics) {
     const typing = checkedPlainTyping(sentTyping, response.answer);

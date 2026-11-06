@@ -75,7 +75,7 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   const signals = [...(response.gameReading?.signals ?? []), ...(response.typingReading?.signals ?? [])];
   const wrong = last.verification?.status === "VERIFIED_INCORRECT";
   const right = last.verification?.status === "VERIFIED_CORRECT";
-  const mistakes = (last.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED").map((e) => e.mistake ?? "");
+  const mistakes = (last.skillEvidence ?? []).filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED")).map((e) => e.mistake ?? "");
   const has = (set: Set<string>) => mistakes.some((m) => set.has(m));
   const need = (kinds: LotusGameKind[], reason: string): FormatNeed => ({ kinds: kinds.filter((kind) => kind !== shown), reason });
 
@@ -114,7 +114,7 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
     return need(["TRUE_FALSE", "COMMIT_THEN_CHOOSE", "SPLIT_CONFIDENCE", "EDIT_HISTORY"], "Equal but not finished: find out whether they stopped too early or don't know to take out the number too.");
   }
   if (!right) return null;
-  const reportedConfidence = response.gameReading?.kind === "SPLIT_CONFIDENCE" || response.interactionContext?.confidence.status === "REPORTED_BEFORE_ANSWER" ? response.confidence : null;
+  const reportedConfidence = response.gameReading?.kind === "SPLIT_CONFIDENCE" || response.interactionContext?.confidence.status === "REPORTED_BEFORE_ANSWER" ? response.confidence ?? null : null;
   if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || (reportedConfidence !== null && reportedConfidence < UNSURE_BELOW)) {
     return need(["SPLIT_CONFIDENCE", "TWO_MOVES", "COMMIT_THEN_CHOOSE"], "They were right but unsure, so find out exactly what they doubt.");
   }

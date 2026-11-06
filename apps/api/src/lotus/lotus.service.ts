@@ -85,8 +85,10 @@ import {
   untestedSkillsLeft,
   conflictsWithEarlier,
   reachableQuestionsAhead,
+  questionsActuallyLeft,
   mistakeRank,
   suspicionEffectNote,
+  refreshedCheckReason,
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
@@ -329,6 +331,15 @@ function deferredPlanEffects(actions: PlanAction[], primary: PlanAction | undefi
     }));
 }
 
+/**
+ * The verification note explains why an answer is right or wrong; for a right answer it is not an error,
+ * so it is never shown as the "observed error" (a doubt is described by the evidence's own description instead).
+ */
+export function verificationAsError(audit: LotusQuestionAudit, fallback: string): string {
+  if (audit.verification?.status === "VERIFIED_CORRECT") return "No error: the answer was right.";
+  return audit.verification?.explanation ?? fallback;
+}
+
 /** Converts validated server plan actions into observer-safe decision data. */
 export function adaptiveDecisionFor(
   audit: LotusQuestionAudit,
@@ -346,8 +357,7 @@ export function adaptiveDecisionFor(
   const baseObserved = audit.response?.didNotKnow
     ? "The student explicitly said they do not know this yet."
     : listed
-      ?? audit.verification?.explanation
-      ?? "No specific error was established from this response.";
+      ?? verificationAsError(audit, "No specific error was established from this response.");
   const observedError = suspicionNote ? `${baseObserved} ${suspicionNote}` : baseObserved;
   const action = actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "DESCENT")
     ?? actions.find((candidate) => candidate.kind === "REPURPOSE" && candidate.purpose === "CHECK")
@@ -740,6 +750,7 @@ function lockedAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
       selectionReason: "",
       firstWrongStep: undefined,
       mistakeDescription: undefined,
+      strengths: undefined,
     },
   };
 }
@@ -1716,17 +1727,18 @@ export class LotusService implements OnModuleDestroy {
       slot.skillEvidence = evidenceFromAnalysis(
         slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
         slot.verification?.status === "VERIFIED_CORRECT",
+        slot.verification?.status === "VERIFIED_UNFINISHED",
       );
       if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
-            .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW")
+            .filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW"))
             .map((e) => e.skillId))]
           : [];
         // Who found the evidence behind each check: the review (ANALYSIS) or code's own rules (INSTANT/REASON).
         const decidedBy: Record<string, "AI" | "CODE"> = {};
         for (const e of slot.skillEvidence ?? []) {
-          if (e.kind === "SECURE") continue;
+          if (e.kind === "SECURE" || e.hedge) continue;
           decidedBy[e.skillId] = e.source === "ANALYSIS" ? "AI" : decidedBy[e.skillId] ?? "CODE";
         }
         const adjustments = this.adaptFactorisationPlan(liveSession, true, forceCheckSkills, decidedBy, { elapsedSeconds, answered: answeredCount });
@@ -1741,8 +1753,7 @@ export class LotusService implements OnModuleDestroy {
         slot.adaptiveDecision = {
           action: "KEEP",
           observedError: slot.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
-            ?? slot.verification?.explanation
-            ?? "The review completed after the plan-change deadline.",
+            ?? verificationAsError(slot, "The review completed after the plan-change deadline."),
           alternatives: ["A plan change could be useful, but the student has already progressed beyond the safe replacement window."],
           rationale: "The review is retained as evidence, but the server will not rewrite a stale future plan from an old response.",
           expectedInformationGain: "Use this evidence in the final report and later planning without claiming it changed an obsolete question.",
@@ -2842,7 +2853,11 @@ Create one materially different question that adds new diagnostic evidence. Test
       freezeNext,
       forceCheckSkills,
       forceCheckDecidedBy,
-      ...(reach ? { reachableQuestions: reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
+      // A developer who chose "Stay in test" past the time limit has the questions actually left, not the clock's estimate:
+      // the check placement and the decision text then agree with the format change applied to a later question.
+      ...(reach ? { reachableQuestions: session.developmentExitControl?.choices.some((c) => c.choice === "CONTINUE")
+        ? questionsActuallyLeft(f.state)
+        : reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
       onNoReachableSlot: () => { this.lastPlanNoTime = true; },
       itemAt: (turn) => preferredItem(f, turn),
       askedItems: [...session.audits.map((audit) => audit.question), ...(session.currentQuestion ? [session.currentQuestion] : [])],
@@ -2874,6 +2889,20 @@ Create one materially different question that adds new diagnostic evidence. Test
     audit.adaptiveDecision.implementationDetail = check !== null
       ? `Kept: question ${check}, already planned, asks ${skillName(hedged.skillId)} again and can show ${doubt}.`
       : `Kept: no planned question asks ${skillName(hedged.skillId)} again, so ${doubt} stays open unless it comes back.`;
+  }
+
+  /**
+   * A check booked after one doubt keeps its reason text, which goes stale when later answers show the same doubt again.
+   * The booked check stays where it is (none is added); only its reason is brought up to date.
+   */
+  private refreshBookedReason(session: LotusSessionState, audit: LotusQuestionAudit, nextTurn: number): void {
+    const f = session.factorisation;
+    const plan = f?.state.turns.find((t) => t.turn === nextTurn);
+    if (!f || !plan || plan.purpose !== "CHECK" || !plan.forSkill) return;
+    const reason = refreshedCheckReason(foldLedger(session.audits, session.priors), plan.forSkill, plan.reason);
+    if (!reason) return;
+    plan.reason = reason;
+    if (audit.questionSelection.selectedFrom === "ADAPTIVE_STAGED") audit.questionSelection.reason = reason;
   }
 
   private steerNextFormat(session: LotusSessionState, audit: LotusQuestionAudit, aiFormat?: { proposed: unknown; reason?: string }): void {
@@ -3106,8 +3135,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       audit.adaptiveDecision = {
         action: "STOP",
         observedError: audit.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
-          ?? audit.verification?.explanation
-          ?? "The planned diagnostic reached its end.",
+          ?? verificationAsError(audit, "The planned diagnostic reached its end."),
         alternatives: stop
           ? ["Continue the plan, but the stopping rule says more questions wouldn't change the result or the time is up."]
           : ["A further question could add evidence, but there is no authorized remaining slot."],
@@ -3169,11 +3197,19 @@ Create one materially different question that adds new diagnostic evidence. Test
     // check the AI review's "ask again" would have requested, so the gap can be confirmed
     // without paying for a review that can't add anything.
     const codeNamedMistakes = analyse ? [] : [...new Set((instant.evidence ?? [])
-      .filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED")
+      .filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED"))
       .map((e) => e.skillId))];
     const adjustments = this.adaptFactorisationPlan(session, true, codeNamedMistakes, {}, { elapsedSeconds, answered: answeredCount });
     const noTime = this.lastPlanNoTime;
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
+    if (nextTurn !== null) this.refreshBookedReason(session, audit, nextTurn);
+    if (response.didNotKnow) {
+      // Only promise the easier check when one was actually placed.
+      const descent = adjustments.find((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
+      audit.conclusion.conclusion = descent && descent.kind === "REPURPOSE"
+        ? `The student said they do not know this yet. Lotus placed a check of the easier prerequisite ${skillName(descent.forSkill)} at question ${descent.turn}.`
+        : `The student said they do not know this yet. No easier prerequisite check could be placed${noTime ? " in the time left" : " (none is available, or every open slot is already used)"}.`;
+    }
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments, suspicionEffectNote(session.audits.slice(0, turnIndex), audit, session.priors), noTime);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
     this.reconcileInstalledDecision(session, audit);

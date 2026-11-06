@@ -29,7 +29,7 @@ import type {
 } from "@cogna/shared";
 import { readbackTyped, LOTUS_CLAIM_VERDICTS, LOTUS_EDIT_MAX_LENGTH, LOTUS_EDIT_MAX_SAMPLES, LOTUS_GAME_MAX_TRIES, LOTUS_SPLIT_TOKENS } from "@cogna/shared";
 import { gameFormatsEnabled, tidyAlgebra } from "../interaction-formats/tile-builder";
-import { algebraicallyEqual, classifyFactorisation, isReadable, normalizeMathText } from "./lotus-algebra";
+import { algebraicallyEqual, classifyFactorisation, isReadable, normalizeMathText, readCommonFactor } from "./lotus-algebra";
 import { findSkill } from "./lotus-factorisation-catalogue";
 import { buildOrderSteps, isMoreGameKind, readMoreGame } from "./lotus-games-more";
 import { clampMs, equalSafe, hashOf, isInt, LotusGameError, mistakeWith, ownMistake, shuffled, themedGamesEnabled, type Read } from "./lotus-game-core";
@@ -570,6 +570,13 @@ function readSplit(question: LotusQuestion, t: Target | null, game: SplitConfide
     : t
       ? mistakeOf(question, markedKind, wrongNote)
       : mistakeWith(question, predicted.find((m) => equalSafe(m.answer, game.options[marked.i]!))?.mistake, wrongNote);
+  // A tie between the right answer and a wrong one has no single answer: record both, flag the tie, and keep the named mistake.
+  if (signals.includes("torn") && tied.length > 1 && tied.some((x) => kinds[x.i] === "right") && tied.some((x) => kinds[x.i] !== "right")) {
+    const tiedOptions = [...tied].sort((a, b) => a.i - b.i).map((x) => game.options[x.i]!);
+    signals.push("tied_options");
+    reading.facts.tiedOptions = tiedOptions.join(" | ");
+    return { answer: tiedOptions.join(" or "), confidence: 25, game: clean, reading: { ...reading, diagnosis } };
+  }
   return { answer: game.options[marked.i]!, confidence: top.n === LOTUS_SPLIT_TOKENS ? 90 : top.n === 3 ? 60 : 25, game: clean, reading: { ...reading, diagnosis } };
 }
 
@@ -698,10 +705,15 @@ export function readTypingRecord(question: LotusQuestion, history: EditHistorySa
   const d = question.answerKey.diagnostics!;
   const expression = d.expression;
   const isRight = (text: string) => typedIsRight(question, text);
+  // A bracket read against the factor taken out: 2x(4xy + 12) for 8x²y + 12x leaves the second term undivided.
+  const bracketMistake = (text: string): string | undefined => {
+    if (d.itemKind !== "FACTORISE" || !expression) return undefined;
+    try { return (readCommonFactor(text, expression) ?? readCommonFactor(text, expression, true))?.mistake; } catch { return undefined; }
+  };
   const mistakeIn = (text: string): string | undefined => {
     if (isRight(text)) return undefined;
     const key = normalizeMathText(text).toLowerCase();
-    return d.predictedMistakes.find((m) => normalizeMathText(m.answer).toLowerCase() === key
+    return bracketMistake(text) ?? d.predictedMistakes.find((m) => normalizeMathText(m.answer).toLowerCase() === key
       // An unfinished mistake equals the expression in value, so only its exact text counts.
       || (isReadable(text) && !(expression && equalSafe(m.answer, expression)) && equalSafe(text, m.answer)))?.mistake;
   };
@@ -714,6 +726,9 @@ export function readTypingRecord(question: LotusQuestion, history: EditHistorySa
   const buggy = [...new Set(drafts.map((x) => mistakeIn(x.v)).filter((m): m is string => !!m))];
   const right = isRight(final);
   const finalMistake = mistakeIn(final);
+  // A correct quotient written first and then swapped for the undivided value: the same doubt as a split-chip hedge on dividing every term.
+  const replacedQuotient = !right && bracketMistake(final) === "DIVIDED_FIRST_TERM_ONLY" && !!expression &&
+    history.slice(0, -1).some((s) => { try { const r = readCommonFactor(s.v, expression) ?? readCommonFactor(s.v, expression, true); return !!r && !r.mistake; } catch { return false; } });
   // Equal to the expression but not fully factorised, e.g. x(6x + 10y) for 6x² + 10xy.
   const unfinished = !right && d.itemKind === "FACTORISE" && !!expression && (() => { try { return classifyFactorisation(final, expression) === "UNFINISHED"; } catch { return false; } })();
   let gap = 0;
@@ -734,11 +749,14 @@ export function readTypingRecord(question: LotusQuestion, history: EditHistorySa
   else if (finalMistake) { summary = `Finished with a known mistake (${mistakeWords(finalMistake)}).`; signals.push(`final_mistake:${finalMistake}`); }
   else summary = d.itemKind === "FACTORISE" ? "Finished with something that isn't the factorisation." : "Finished with something that isn't the answer.";
   if (!right && buggy.length) summary += ` A discarded draft matched a known mistake (${mistakeWords(buggy[0]!)}).`;
+  if (replacedQuotient) { summary += " They first wrote the second term divided correctly, then changed it back to the undivided value."; signals.push("replaced_correct_quotient:DIVIDED_FIRST_TERM_ONLY"); }
   if (gap > 1500) { summary += ` Longest pause: ${(gap / 1000).toFixed(1)}s${gapAfter ? ` after “${gapAfter}”` : " before starting"}.`; signals.push("long_pause"); }
   return {
     kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,
     // Typed like any other answer, so it is marked and reviewed like one. Only a caught mistake changes anything: they fixed it, but it's still live.
-    ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves." } } : {}),
+    ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves.",
+      // A named mistake in a discarded draft is a doubt on that mistake's skill, the same as a chip left on its option.
+      hedge: { chips: 0, option: drafts.map((x) => x.v).find((v) => mistakeIn(v) === buggy[0]) ?? "", mistake: buggy[0]! } } } : {}),
     facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap, firstKeyMs: history[0]!.t },
   };
 }

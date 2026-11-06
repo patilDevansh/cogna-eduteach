@@ -28,7 +28,7 @@ import type {
   LotusSkillSummary,
   LotusStudentResponse,
 } from "@cogna/shared";
-import { LOTUS_SELECT_SEPARATOR, assembleTileAnswer } from "@cogna/shared";
+import { LOTUS_SELECT_SEPARATOR, LOTUS_SPLIT_TOKENS, assembleTileAnswer } from "@cogna/shared";
 import { assessSkillEvidence } from "./lotus-evidence-assessment";
 import { mistakeInWords } from "./lotus-reasons";
 import {
@@ -49,6 +49,7 @@ import {
   readNumberAnswer,
   sameFactorisation,
   sameNumber,
+  isUnevaluatedNumberEqualTo,
 } from "./lotus-algebra";
 import {
   type SlotSpec,
@@ -166,7 +167,49 @@ export interface InstantVerdict {
 }
 
 export function instantVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
-  return withGameLimits(question, withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response))));
+  return withRootsShown(question, response, withGameLimits(question, withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response)))));
+}
+
+/** The top-level terms of a sum, signs dropped: "4x^2+12x+9" gives 4x^2, 12x, 9. */
+function termsOf(text: string): string[] {
+  const terms: string[] = [];
+  let depth = 0, current = "";
+  for (const ch of text) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if ((ch === "+" || ch === "-") && depth === 0 && current) { terms.push(current); current = ""; continue; }
+    if ((ch === "+" || ch === "-") && depth === 0) continue;
+    current += ch;
+  }
+  if (current) terms.push(current);
+  return terms;
+}
+
+/**
+ * A wrong pick can still show a step skill. When the chosen answer is a bracket pair or a squared bracket whose two terms
+ * are the exact square roots of the expression's first and last terms (2x and 3 for 4x^2 + 12x + 9), the student recognised
+ * the squares, so the square-recognition step is credited. Never overrides a mistake already recorded for that skill.
+ */
+function withRootsShown(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
+  const d = question.answerKey.diagnostics;
+  const step = "FND_RECOGNISE_SQUARE";
+  if (!d || d.itemKind !== "FACTORISE" || !d.expression || verdict.verification.status === "VERIFIED_CORRECT" || response.didNotKnow) return verdict;
+  if (!skillsUsedBy(d).includes(step) || verdict.evidence.some((e) => e.skillId === step)) return verdict;
+  try {
+    const outer = termsOf(normalizeMathText(d.expression));
+    if (outer.length < 2) return verdict;
+    const first = outer[0]!, last = outer[outer.length - 1]!;
+    const answer = normalizeMathText(response.answer);
+    const brackets = [...answer.matchAll(/\(([^()]+)\)/g)].map((m) => termsOf(m[1]!));
+    const squares = (t: string, outerTerm: string) => algebraicallyEqual(`(${t})^2`, outerTerm);
+    const shown = brackets.find((b) => b.length === 2 && squares(b[0]!, first) && squares(b[1]!, last));
+    if (!shown) return verdict;
+    const pretty = (t: string) => t.replace(/\^2/g, "²");
+    return { ...verdict, evidence: [...verdict.evidence, { skillId: step, kind: "SECURE", source: "INSTANT",
+      description: `Chose ${response.answer}, whose parts ${shown[0]} and ${shown[1]} are the correct square roots of ${pretty(first)} and ${pretty(last)}.` }] };
+  } catch {
+    return verdict;
+  }
 }
 
 /**
@@ -205,11 +248,18 @@ function withDraftDoubt(response: LotusStudentResponse, verdict: InstantVerdict)
  * an option no known mistake explains, or that came with working: the background
  * review reads that, and the student never waits for it.
  */
-function withGameDiagnosis(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
+function withGameDiagnosis(question: LotusQuestion, response: LotusStudentResponse, verdictIn: InstantVerdict): InstantVerdict {
+  let verdict = verdictIn;
   const diagnosis = response.gameReading?.diagnosis;
   if (!diagnosis || response.didNotKnow || verdict.verification.status === "NO_ANSWER") return verdict;
   const d = question.answerKey.diagnostics!;
   const description = diagnosis.note;
+  // A split-chip tie between the right answer and a wrong one: the student chose neither, so the answer is not "incorrect".
+  // The diagnosis (and its named mistake) below still applies.
+  if (response.gameReading?.signals.includes("tied_options")) {
+    const tiedOptions = String(response.gameReading.facts?.tiedOptions ?? "").split(" | ").join(" and ");
+    verdict = { ...verdict, verification: { ...verdict.verification, status: "NOT_DETERMINISTIC", explanation: `The chips were tied between ${tiedOptions}, so no single answer was chosen.` } };
+  }
   switch (diagnosis.effect) {
     case "SECURE":
       return verdict;
@@ -219,7 +269,13 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       // The doubt belongs to the skill the doubted option's mistake shows, else to the question's own skill.
       const owner = hedge.mistake ? ownerOfMistake(hedge.mistake, d) : d.skillId;
       const holder = verdict.evidence.some((e) => e.kind === "SECURE" && e.skillId === owner) ? owner : d.skillId;
-      const evidence = verdict.evidence.map((e) => (e.kind === "SECURE" && e.skillId === holder ? { ...e, hedge } : e));
+      // Right, but with chips on a named wrong answer: for the skill that doubt is about, this is partial evidence,
+      // not a demonstration. It is recorded as UNFINISHED carrying the hedge (never a mistake: no `mistake` is set),
+      // so the ledger keeps the skill unconfirmed until a later check settles it. Other skills stay secure.
+      const evidence = verdict.evidence.map((e): LotusSkillEvidence => (e.kind === "SECURE" && e.skillId === holder
+        ? { ...e, kind: "UNFINISHED", hedge, description: hedgeDescription(hedge) } : e));
+      // The doubt is never dropped: with no secure entry to turn into a doubt, it is recorded on the skill it is about.
+      if (!evidence.some((e) => e.hedge)) evidence.push({ skillId: holder, kind: "UNFINISHED", source: "INSTANT", hedge, description: hedgeDescription(hedge) });
       const working = !!response.working?.trim();
       return { ...verdict, evidence, needsAnalysis: verdict.needsAnalysis || !hedge.mistake || working };
     }
@@ -253,6 +309,13 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       return { ...verdict, evidence: [{ skillId, kind: "MISTAKE", source: "INSTANT", ...(diagnosis.mistake ? { mistake: diagnosis.mistake } : {}), ...(description ? { description } : {}) }, ...credited], needsAnalysis: false };
     }
   }
+}
+
+/** The doubt in plain words, e.g. "Right answer, but kept 1 of 4 chips on 6(x + 48), the answer you get if you divided only the first term by the common factor." */
+export function hedgeDescription(hedge: { chips: number; option: string; mistake?: string }): string {
+  const words = hedge.mistake ? mistakeInWords(hedge.mistake) : undefined;
+  if (hedge.chips === 0) return `Right answer, but a discarded draft${hedge.option ? ` (${hedge.option})` : ""} showed${words ? ` the mistake of having ${words}` : " a possible mistake"}.`;
+  return `Right answer, but kept ${hedge.chips} of ${LOTUS_SPLIT_TOKENS} chips on ${hedge.option}${words ? `, the answer you get if you ${words}` : ""}.`;
 }
 
 function markedVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
@@ -332,6 +395,10 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   }
 
   if (d.itemKind === "NUMBER") {
+    // 2^7 or 2⁷ for 128: exactly equal, just not evaluated. A note, never a mistake.
+    if (!sameNumber(answer, key) && normalizeMathText(answer) !== normalizeMathText(key) && isUnevaluatedNumberEqualTo(answer, key)) {
+      return { verification: verification("VERIFIED_UNFINISHED", `Equal to ${key}, but not evaluated to a single number.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    }
     if (readNumberAnswer(answer) === null) {
       return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as a number, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
     }
@@ -382,7 +449,8 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   // With the right factor outside the bracket, code reads the bracket itself: 7(x + 28) for 7x + 28
   // is "divided only the first term" whether or not the question's writer predicted it. That beats a
   // predicted label, which an AI wrote, and keeps a plain mistake out of the AI review.
-  const reading = d.itemKind === "FACTORISE" ? readCommonFactor(typed, expression) : null;
+  // A smaller number outside (2x for 4x) with the right letters still shows the letters were found: the bracket is read against what was taken out.
+  const reading = d.itemKind === "FACTORISE" ? (readCommonFactor(typed, expression) ?? readCommonFactor(typed, expression, true)) : null;
   // The square-pattern beliefs are also read from the answer's shape, so a mistake the item didn't list is still named.
   const shape = d.itemKind === "FACTORISE" ? squarePatternMistake(typed, expression) : null;
   const mistake = reading?.mistake ?? predicted?.mistake ?? shape ?? undefined;
@@ -391,6 +459,11 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   // leave it to the AI review (which labels slips) instead of counting it.
   const countable = !!mistake && !workingReachesAnswer(response.working, key, d.itemKind) && !workingShowsLostNumbers(response.working, key, typed);
   const blamed: LotusSkillEvidence[] = countable ? [{ skillId: ownerOfMistake(mistake, d), kind: "MISTAKE", mistake, source: "INSTANT", description: named(`Wrote ${answer}`, mistake) }] : [];
+  // The number taken out was not the highest one: that is its own gap, separate from what happened inside the bracket.
+  if (countable && reading?.numberNotHighest && reading.mistake && mistake === reading.mistake) {
+    const owner = ownerOfMistake("COMMON_NOT_HIGHEST", d);
+    if (!blamed.some((b) => b.skillId === owner && b.mistake === "COMMON_NOT_HIGHEST")) blamed.push({ skillId: owner, kind: "MISTAKE", mistake: "COMMON_NOT_HIGHEST", source: "INSTANT", description: named(`Wrote ${answer}`, "COMMON_NOT_HIGHEST") });
+  }
   return {
     verification: verification("VERIFIED_INCORRECT", `Not equal to ${expression} — checked by expanding.`),
     evidence: [...blamed, ...(reading ? commonFactorShown(reading, d, blamed) : [])],
@@ -498,8 +571,12 @@ export function evidenceFromAnalysis(
   description: string | undefined,
   mistakeKind?: unknown,
   answerCorrect = false,
+  /** Code verified the answer equal to the key but not yet one finished value (2^7 for 128). */
+  equalButUnfinished = false,
 ): LotusSkillEvidence[] {
   const d = question.answerKey.diagnostics;
+  // The step being tested was done and only the final evaluation was left: that is a note, not a mistake on the skill.
+  if (d && equalButUnfinished && d.itemKind === "NUMBER" && existing.every((e) => e.kind === "SECURE")) return existing.length ? existing : secureAll(d);
   // Models sometimes send the step as a string; anything that isn't a step number means "no wrong step".
   const step = typeof firstWrongStep === "string" ? Number(firstWrongStep) : firstWrongStep;
   const noRealStep = typeof step !== "number" || !Number.isInteger(step) || step < 1;
@@ -558,6 +635,18 @@ export function conflictsWithEarlier(prior: LotusQuestionAudit[], evidence: Lotu
  * it says what the rules actually did. Null when no skill this question uses was under suspicion.
  */
 export function suspicionEffectNote(prior: LotusQuestionAudit[], audit: LotusQuestionAudit, priors: LotusLedgerPrior[] = []): string | null {
+  const base = suspicionEffectNoteBase(prior, audit, priors);
+  const after = foldLedger([...prior, audit], priors);
+  // The same mistake or doubt on this skill in 2+ answers (a chip, a discarded draft, or a real mistake): add the count, with the questions.
+  for (const ev of audit.skillEvidence ?? []) {
+    const code = ev.hedge ? ev.hedge.mistake : ev.kind !== "SECURE" ? ev.mistake : undefined;
+    const seen = code ? after.get(ev.skillId)?.sightings?.filter((s) => s.mistake === code) ?? [] : [];
+    if (code && seen.length >= 2) return [base, sightingsText(code, seen)].filter(Boolean).join(" ");
+  }
+  return base;
+}
+
+function suspicionEffectNoteBase(prior: LotusQuestionAudit[], audit: LotusQuestionAudit, priors: LotusLedgerPrior[] = []): string | null {
   const d = audit.question?.answerKey?.diagnostics;
   if (!d) return null;
   const before = foldLedger(prior, priors);
@@ -571,15 +660,17 @@ export function suspicionEffectNote(prior: LotusQuestionAudit[], audit: LotusQue
     const words = wordsOf(mistake);
     const evidence = (audit.skillEvidence ?? []).filter((e) => e.skillId === skillId);
     const now = after.get(skillId)?.state;
-    const negative = evidence.find((e) => e.kind !== "SECURE");
+    const negative = evidence.find((e) => e.kind !== "SECURE" && !e.hedge);
     if (negative) {
       if (negative.kind === "DID_NOT_KNOW") return `Said they don't know this yet, after the earlier suspicion (${words}); ${now === "CONFIRMED" ? "it is now confirmed" : "it stays open"}.`;
       if (negative.mistake === mistake) return `Made the same mistake again (${words}), so ${was.state === "CONFIRMED" ? "the gap stays confirmed" : now === "CONFIRMED" ? "it is now confirmed" : "the suspicion stands"}.`;
       return `Made a different mistake${negative.mistake ? ` (${wordsOf(negative.mistake)})` : ""}; the earlier suspicion (${words}) stays open.`;
     }
     if (was.state === "CONFIRMED") continue;
-    if (!evidence.some((e) => e.kind === "SECURE") || audit.verification?.status !== "VERIFIED_CORRECT") continue;
+    if (!evidence.some((e) => e.kind === "SECURE" || e.hedge) || audit.verification?.status !== "VERIFIED_CORRECT") continue;
     if (evidence.some((e) => e.hedge)) return `Right, but with some doubt, so the earlier suspicion (${words}) is not settled.`;
+    const shaky = after.get(skillId);
+    if (shaky?.shakyRightAt === prior.length + 1 && now === "SUSPECTED") return `Right this time, after ${shaky.shakyAfter} earlier doubts (${words}); counts as shaky until another right answer, so the suspicion is not cleared.`;
     const option = audit.question.options?.length ? d.predictedMistakes.find((p) => p.mistake === mistake)?.answer : undefined;
     const lead = option ? `Avoided the "${words}" option (${option}).` : `Got it right without the "${words}" mistake.`;
     if (now === "SECURE") {
@@ -615,6 +706,12 @@ export interface SkillLedgerEntry {
   splitDoubtAt?: number;
   /** Right, but with chips on a wrong option: the question and the doubted mistake ("" when none is named). */
   hedges?: Array<{ q: number; mistake: string }>;
+  /** Every time one named mistake showed on this skill: as a real mistake, or only as a doubt (a chip, or a discarded draft). */
+  sightings?: Array<{ q: number; mistake: string; how: "mistake" | "doubt" }>;
+  /** Shaky: the same doubt or mistake showed on 2+ answers and one right answer has come since. It does not clear the suspicion; another right answer does. */
+  shakyRightAt?: number;
+  /** How many earlier sightings the shaky right answer followed. */
+  shakyAfter?: number;
   /** Suspected because the same doubt came back, not because of a wrong answer. */
   fromHedge?: boolean;
   /** Confirmed only by fast wrong answers late in the test: may be tiredness, so not taught (C13). */
@@ -706,6 +803,31 @@ function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQ
   return LEVEL_RANK[after] < LEVEL_RANK[before];
 }
 
+/** The sightings of the mistake this skill was last suspected of. */
+function sightingsOfLatest(e: SkillLedgerEntry) {
+  const code = e.mistakes.at(-1);
+  return code ? (e.sightings ?? []).filter((s) => s.mistake === code) : [];
+}
+
+/** "Seen 3 times now (question 1 as a doubt, question 2, question 3)": plain words for a repeated mistake or doubt. */
+export function sightingsText(mistake: string, seen: Array<{ q: number; how: "mistake" | "doubt" }>): string {
+  const words = mistakeInWords(mistake) ?? mistake.toLowerCase().replace(/_/g, " ");
+  const where = seen.map((s) => `question ${s.q}${s.how === "doubt" ? " as a doubt" : ""}`).join(", ");
+  return `The same thing (${words}) has now shown up ${seen.length === 2 ? "twice (second sighting)" : `${seen.length} times`}: ${where}. It counts as one repeated pattern, and one check covers it.`;
+}
+
+/** The reason text for a booked check, refreshed when later answers showed the same doubt again. Null when nothing changed. */
+export function refreshedCheckReason(ledger: Ledger, skillId: string, original: string | undefined, mistake?: string): string | null {
+  const sightings = ledger.get(skillId)?.sightings ?? [];
+  const code = mistake ?? sightings.at(-1)?.mistake;
+  const seen = code ? sightings.filter((s) => s.mistake === code) : [];
+  if (!code || seen.length < 2) return null;
+  const first = seen[0]!;
+  const later = seen.slice(1).map((s) => s.q);
+  const words = mistakeInWords(code) ?? code.toLowerCase().replace(/_/g, " ");
+  return `Booked after question ${first.q}; ${later.length > 1 ? "questions" : "question"} ${later.join(" and ")} showed the same thing (${words}). ${original && !/^Booked after/.test(original) ? `Originally: ${original}` : ""}`.trim();
+}
+
 export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrior[] = []): Ledger {
   const ledger: Ledger = new Map();
   const entry = (skillId: string): SkillLedgerEntry => {
@@ -748,9 +870,13 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
     }
     for (const [skillId, items] of bySkill) {
       const e = entry(skillId);
-      const negative = items.find((ev) => ev.kind !== "SECURE");
+      const negative = items.find((ev) => ev.kind !== "SECURE" && !ev.hedge);
       if (negative) {
         const label = negative.mistake ?? (negative.kind === "DID_NOT_KNOW" ? "DID_NOT_KNOW" : "MISTAKE");
+        // The same mistake that an earlier right answer only doubted: this is its second sighting, counted once (no second check is booked for it).
+        if (negative.mistake) e.sightings = [...(e.sightings ?? []), { q, mistake: negative.mistake, how: "mistake" }];
+        const doubtedAt = negative.mistake ? e.hedges?.find((h) => h.mistake === negative.mistake)?.q : undefined;
+        if (doubtedAt !== undefined) e.notes.push(`Q${q}: the doubt from Q${doubtedAt} about ${negative.mistake} came back as a real mistake (second sighting)`);
         e.notes.push(`Q${q}: ${negative.description ?? label}${negative.mistake ? ` (${negative.mistake})` : ""}`);
         if (negative.kind === "DID_NOT_KNOW") {
           // One "I don't know" is a support signal, not a gap: it earns an
@@ -792,6 +918,7 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         const hedge = items.find((ev) => ev.hedge)!.hedge!;
         const key = hedge.mistake ?? "";
         e.hedges = [...(e.hedges ?? []), { q, mistake: key }];
+        if (key) e.sightings = [...(e.sightings ?? []), { q, mistake: key, how: "doubt" }];
         const doubtedBefore = e.hedges.filter((h) => h.mistake === key).length > 1;
         const about = hedge.mistake ? `the ${hedge.mistake} mistake` : `another answer (${hedge.option})`;
         if (doubtedBefore && (e.state === "UNTESTED" || e.state === "SECURE")) {
@@ -823,6 +950,14 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
           // mistake (e.g. no negative numbers for a sign mistake), so it
           // can't clear it. The plan keeps a check that can.
           e.notes.push(`Q${q}: right, but it couldn't show the ${e.mistakes.at(-1)} mistake`);
+        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt && e.shakyRightAt === undefined &&
+          sightingsOfLatest(e).length >= 2) {
+          // Shaky until two: doubted or wrong on 2+ answers, one right answer is not enough to clear it. It stays suspected,
+          // and the plan books a comparable check (the same rule as a right answer on a weaker check).
+          e.shakyRightAt = q; e.shakyAfter = sightingsOfLatest(e).length; e.needsComparableCheck = true;
+          e.notes.push(`Q${q}: right this time, after ${e.shakyAfter} earlier doubts; counts as shaky until another right answer`);
+        } else if (e.state === "SUSPECTED" && e.shakyRightAt !== undefined && q > e.shakyRightAt && isTap(audit)) {
+          e.notes.push(`Q${q}: right on a picked answer; the skill stays shaky until a typed or unprompted right answer`);
         } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt) {
           e.state = "SECURE"; e.needsComparableCheck = false;
           if (!e.fromHedge) e.clearedAfterSlip = e.suspectedAt;
@@ -904,7 +1039,7 @@ function explainAwayConfounded(audits: LotusQuestionAudit[], ledger: Ledger): vo
   const demote: Array<[SkillLedgerEntry, string]> = [];
   for (const e of ledger.values()) {
     if (e.state !== "CONFIRMED" || e.confirmedBySupport || !e.mistakes.length) continue;
-    const negatives = audits.filter((a) => (a.skillEvidence ?? []).some((ev) => ev.skillId === e.skillId && ev.kind !== "SECURE" && ev.kind !== "DID_NOT_KNOW"));
+    const negatives = audits.filter((a) => (a.skillEvidence ?? []).some((ev) => ev.skillId === e.skillId && ev.kind !== "SECURE" && ev.kind !== "DID_NOT_KNOW" && !ev.hedge));
     if (!negatives.length) continue;
     const causeOf = (a: LotusQuestionAudit): string | undefined => {
       const d = a.question?.answerKey?.diagnostics;
@@ -1050,6 +1185,14 @@ export function reachableQuestionsAhead(elapsedSeconds: number, answered: number
   return Math.max(1, Math.ceil(left / pace));
 }
 
+/**
+ * After a developer chose to stay in the test past the time limit, the clock no longer decides what can be reached:
+ * every planned question still ahead can be asked, so a check may go in any of them.
+ */
+export function questionsActuallyLeft(state: FactorisationState): number {
+  return state.turns.filter((t) => t.turn > state.planTurn && t.status !== "SKIPPED").length;
+}
+
 export function nextOpenTurn(state: FactorisationState, after: number): number | null {
   for (const t of state.turns) if (t.turn > after && t.status !== "SKIPPED") return t.turn;
   return null;
@@ -1102,13 +1245,15 @@ function INSIDE_BRACKET_ONLY(mistakes: string[]): boolean {
   return mistakes.length > 0 && mistakes.every((m) => INSIDE_BRACKET.has(m));
 }
 
-function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number, mistakes: string[] = []) {
+function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number, mistakes: string[] = [], preferFoundation = false) {
   const found: Array<{ skill: string; spec: SlotSpec }> = [];
   // A foundation the gap's own mistakes point at goes first: a sign error under a
   // trinomial is checked at signed numbers before it is checked at factor pairs.
   const pointedAt = new Set(SHARED_PATTERNS.filter((p) => p.mistakes.some((m) => mistakes.includes(m)))
     .flatMap((p) => p.skills).filter((s) => findSkill(s)?.group === 0));
-  const queue = [...(findSkill(skillId)?.dependsOn ?? [])].sort((a, b) => Number(!pointedAt.has(a)) - Number(!pointedAt.has(b)));
+  // With nothing to point at (an "I don't know"), the deepest foundation is the most useful thing to ask first.
+  const depthKey = (id: string) => (preferFoundation && !pointedAt.size ? findSkill(id)?.group ?? 9 : 0);
+  const queue = [...(findSkill(skillId)?.dependsOn ?? [])].sort((a, b) => Number(!pointedAt.has(a)) - Number(!pointedAt.has(b)) || depthKey(a) - depthKey(b));
   const seen = new Set<string>();
   while (queue.length && found.length < max) {
     const p = queue.shift()!;
@@ -1316,7 +1461,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       }
     }
     if (e.needsSupport) {
-      const support = descentTargets(slots, e.skillId, ledger, 1, e.mistakes)[0];
+      const support = descentTargets(slots, e.skillId, ledger, 1, e.mistakes, true)[0];
       const supportAlreadyReserved = support && (checkedThisCall.has(support.skill) || state.turns.some((t) =>
         t.purpose === "DESCENT" && t.forSkill === support.skill));
       if (support && !supportAlreadyReserved) {
@@ -1330,6 +1475,26 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
             spec: support.spec,
             reason: `The student said they do not know this yet; checking the easier prerequisite ${skillName(support.skill)} next.`,
           });
+          // Not another question like the one just given up on, and nothing that needs the same prerequisite, before that check.
+          const gaveUp = [...input.askedItems].reverse().find((i) => i.answerKey.diagnostics?.skillId === e.skillId)?.answerKey.diagnostics;
+          for (const t of mutable()) {
+            if (protectedTurns.has(t.turn) || claimed.has(t.turn)) continue;
+            const d2 = itemAt(t.turn)?.answerKey.diagnostics;
+            if (!d2) continue;
+            const sameSkillNotEasier = d2.skillId === e.skillId && !!gaveUp && LEVEL_RANK[d2.level ?? "easy"] >= LEVEL_RANK[gaveUp.level ?? "easy"];
+            const needsPrerequisite = d2.skillId !== e.skillId && (skillsUsedBy(d2).includes(support.skill));
+            if (sameSkillNotEasier) {
+              claimed.add(t.turn);
+              actions.push({ kind: "SKIP", turn: t.turn, reason: `Not asked yet: ${skillName(e.skillId)} was just answered "I don't know", so another question like it waits until ${skillName(support.skill)} has been checked.` });
+            } else if (needsPrerequisite) {
+              claimed.add(t.turn);
+              actions.push({
+                kind: "REPURPOSE", turn: t.turn, purpose: "AVOID", forSkill: d2.skillId, spec: slots.find((sl) => sl.slot === t.slot) ?? null,
+                avoidSkill: support.skill, skipUntilReady: true,
+                reason: `Held behind the ${skillName(support.skill)} check: it also needs ${skillName(support.skill)}, which is not known yet.`,
+              });
+            }
+          }
         }
       }
       if (support) continue;
@@ -1663,7 +1828,9 @@ export function buildFactorisationReport(args: {
           : a.supportingSuccessTurns.length ? "supporting evidence only; not directly demonstrated"
           : "successful observation without enough question context to establish a strength"}.`;
       }),
-      ...suspected.map((e) => e.tiredness
+      ...suspected.map((e) => e.shakyRightAt !== undefined
+        ? `${skillName(e.skillId)}: shaky — right on Q${e.shakyRightAt}, but only after ${e.shakyAfter} earlier doubts or mistakes. Not shown as secure until another right answer.`
+        : e.tiredness
         ? `${skillName(e.skillId)}: unclear — the mistakes came only from fast answers late in the test, which may be tiredness. Check again when the child is fresh.`
         : e.explainedBy
         ? `${skillName(e.skillId)}: unclear — every question it went wrong on also needed ${skillName(e.explainedBy).toLowerCase()}, which is a confirmed gap. Check it again after that is taught.`

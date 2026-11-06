@@ -182,7 +182,7 @@ export class LotusController {
     return this.lotus.answer(id, body.studentId, {
       answer: body.didNotKnow ? "I don't know" : body.answer,
       working: body.working,
-      confidence: body.confidence,
+      ...(body.confidence !== undefined ? { confidence: body.confidence } : {}),
       ...(body.confidenceProbeReason ? { confidenceProbeReason: body.confidenceProbeReason } : {}),
       ...(body.interactionContext ? { interactionContext: body.interactionContext } : {}),
       // The browser's figure can include time before the question was ready, or a restored tab's

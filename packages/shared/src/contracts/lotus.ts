@@ -177,7 +177,8 @@ export interface LotusStudentResponse {
   interactionContext?: StudentInteractionContext;
   answer: string;
   working: string;
-  confidence: number;
+  /** What the student reported, 0-100. Absent when no confidence was given (not asked, or skipped): never a stand-in value. */
+  confidence?: number;
   responseTimeMs: number;
   didNotKnow: boolean;
   /** Idempotent submit of the question visible when the student pressed Submit. */
@@ -334,7 +335,7 @@ export interface LotusSkillEvidence {
   /** REASON: the student's own one-tap answer to "How did you get it?". */
   source: "INSTANT" | "ANALYSIS" | "REASON";
   /**
-   * SECURE only: right, but a split-confidence play also put chips on a wrong
+   * Carried by UNFINISHED evidence (never SECURE): right, but a split-confidence play also put chips on a wrong
    * option (the mistake it shows, when the option names one). A doubt, never a
    * mistake: one doesn't count the skill secure, and the same doubt twice makes it suspected.
    */
@@ -399,6 +400,8 @@ export interface LotusDebateClosure {
    * records and models, which are treated as before (counted).
    */
   mistakeKind?: LotusMistakeKind | null;
+  /** What the student did right on this answer (including in the drafts), in plain words. Optional; kept for the record, never shown to the student. */
+  strengths?: string[];
   /** The format the reviewer thinks would show most next. A suggestion: the server checks it and may not use it. */
   nextFormat?: string | null;
   nextFormatReason?: string;

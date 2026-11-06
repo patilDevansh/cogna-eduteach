@@ -95,7 +95,7 @@ export function buildLessonBrief(session: LotusSessionView, studentFirstName: st
     const d = audit.question.answerKey?.diagnostics;
     const answer = audit.response?.answer?.trim();
     if (!answer || audit.response?.didNotKnow) return;
-    const evidence = (audit.skillEvidence ?? []).find((ev) => ev.kind !== "SECURE" && (target.rootOf
+    const evidence = (audit.skillEvidence ?? []).find((ev) => ev.kind !== "SECURE" && !ev.hedge && (target.rootOf
       ? target.rootOf.includes(ev.skillId) && /SIGN/.test(ev.mistake ?? "")
       : ev.skillId === target.skillId));
     if (!evidence) return;

@@ -68,3 +68,22 @@ export class InteractionObservationSlot {
   deactivate() { if (this.entry) this.entry.active = false; }
   get(key: string) { return this.entry?.key === key && this.entry.active ? this.entry.observation : null; }
 }
+
+/**
+ * A record for a submit that has no live observation (the collector was switched off, or the question was re-mounted).
+ * It is measured from when the question first rendered and is always marked incomplete.
+ */
+export function snapshotWithoutLiveObservation(
+  identity: Pick<StudentInteractionContext, "source" | "questionId" | "questionVersion" | "format">,
+  firstSeenAt: number | null,
+  confidence: StudentInteractionContext["confidence"],
+  now: () => number = () => performance.now(),
+  iso: () => string = () => new Date().toISOString(),
+): StudentInteractionContext {
+  const started = firstSeenAt ?? now();
+  // The collector reads the clock once when built (its zero point), so the first reading is 0 and the rest count from first render.
+  let built = false;
+  const clock = () => { if (!built) { built = true; return 0; } return now() - started; };
+  const observation = new InteractionObservation({ ...identity, observationId: crypto.randomUUID() }, clock, iso, false, false, false, true);
+  return observation.snapshot(confidence);
+}
