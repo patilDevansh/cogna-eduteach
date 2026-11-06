@@ -1482,7 +1482,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
             const d2 = itemAt(t.turn)?.answerKey.diagnostics;
             if (!d2) continue;
             const sameSkillNotEasier = d2.skillId === e.skillId && !!gaveUp && LEVEL_RANK[d2.level ?? "easy"] >= LEVEL_RANK[gaveUp.level ?? "easy"];
-            const needsPrerequisite = d2.skillId !== e.skillId && (skillsUsedBy(d2).includes(support.skill) || dependsOnTransitively(d2.skillId, support.skill));
+            const needsPrerequisite = d2.skillId !== e.skillId && (skillsUsedBy(d2).includes(support.skill));
             if (sameSkillNotEasier) {
               claimed.add(t.turn);
               actions.push({ kind: "SKIP", turn: t.turn, reason: `Not asked yet: ${skillName(e.skillId)} was just answered "I don't know", so another question like it waits until ${skillName(support.skill)} has been checked.` });
