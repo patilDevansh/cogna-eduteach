@@ -38,7 +38,8 @@ async function bootstrap() {
     bootLogger.warn(message);
   }
   const sentryActive = initSentry();
-  const app = await NestFactory.create(AppModule);
+  // rawBody: Razorpay signs the exact bytes of each webhook (sample/razorpay.ts).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   if (sentryActive) app.useGlobalFilters(new SentryExceptionFilter(app.get(HttpAdapterHost).httpAdapter));
   else bootLogger.warn("SENTRY_DSN is not set: production errors will not notify anyone.");
 

@@ -11,6 +11,16 @@ Everything that must be done before Cogna is used at a school with real students
 - [ ] Prepare a data agreement for schools to sign
 - [ ] Make "delete my data" remove all of a student's data (today only Lotus data and class removal exist)
 
+## 1b. Public sample test and payments (/try)
+
+- [ ] Razorpay: complete business KYC, switch to live keys, and turn on automatic capture of payments
+- [ ] Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` on the API, and add the webhook `https://<api>/sample/razorpay-webhook` for `payment.captured` and `order.paid`
+- [ ] Marketing sets `SAMPLE_REPORT_PRICE_INR` and `SAMPLE_DAILY_LIMIT` (each sample test costs AI calls)
+- [ ] Email must be configured (`SMTP_USER`, `SMTP_PASS`): parents get their link by email
+- [ ] Privacy policy and refund policy pages (Razorpay requires both before going live), linked from /try
+- [ ] Decide how long unpaid sample data is kept, and delete it after that (nothing deletes it yet)
+- [ ] Hide the "Experimental AI Lab" badge on the check page for sample children
+
 ## 2. Security
 
 - [x] Remove the prefilled teacher invite code in production (login and signup pages); deployed servers no longer fall back to the public demo invitation

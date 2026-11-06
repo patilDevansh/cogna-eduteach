@@ -33,6 +33,7 @@ import { LotusModule } from "./lotus/lotus.module";
 import { PersonalizedVideosModule } from "./personalized-videos/personalized-videos.module";
 import { TeachersModule } from "./teachers/teachers.module";
 import { ClassroomsModule } from "./classrooms/classrooms.module";
+import { SampleModule } from "./sample/sample.module";
 import { ClassroomEventsModule } from "./classrooms/classroom-events";
 import { ModuleLearningModule } from "./module-learning/module-learning.module";
 
@@ -87,6 +88,7 @@ import { ModuleLearningModule } from "./module-learning/module-learning.module";
     TeachersModule,
     ClassroomEventsModule,
     ClassroomsModule,
+    SampleModule,
     ModuleLearningModule,
   ],
   controllers: [HealthController],
