@@ -148,8 +148,8 @@ describe("instantVerdict — what code alone learns from one answer", () => {
     const verdict = instantVerdict(opener, respond("3(2x + 9)"));
     assert.equal(verdict.verification.status, "VERIFIED_INCORRECT");
     assert.deepEqual(verdict.evidence, [
-      { skillId: "FAC_DIVIDE_TERMS", kind: "MISTAKE", mistake: "DIVIDED_FIRST_TERM_ONLY", source: "INSTANT", description: "Wrote 3(2x + 9)." },
-      { skillId: "FAC_GCF_NUMERIC", kind: "SECURE", source: "INSTANT", description: "Took out the right common factor." },
+      { skillId: "FAC_DIVIDE_TERMS", kind: "MISTAKE", mistake: "DIVIDED_FIRST_TERM_ONLY", source: "INSTANT", description: "Wrote 3(2x + 9): divided only the first term by the common factor." },
+      { skillId: "FAC_GCF_NUMERIC", kind: "SECURE", source: "INSTANT", description: "Took out the right number part of the common factor." },
     ]);
     assert.equal(verdict.needsAnalysis, false);
   });

@@ -1,3 +1,5 @@
+// This test is about the code-built probes (or needs them with the fake model); production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /**
  * Returning students: does what Cogna remembers from a first test make the second one better?
  *

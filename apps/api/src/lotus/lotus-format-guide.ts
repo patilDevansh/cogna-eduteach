@@ -51,8 +51,10 @@ export interface FormatNeed {
   reason: string;
 }
 
-const SIGN_MISTAKE = /SIGN|FLIP/;
-const PAIR_MISTAKE = /PAIR|PRODUCT|SUM/;
+const SIGN_MISTAKES = new Set(["SIGN_PAIR_ERROR", "SIGNS_SWAPPED", "SIGN_PRODUCT_ERROR", "SIGN_QUOTIENT_ERROR", "SIGN_SUM_ERROR", "FLIPPED_ONE_SIGN", "KEPT_ORIGINAL_SIGNS", "WRONG_MIDDLE_SIGN", "DROPPED_SIGN", "SIGN_NOT_FLIPPED_IN_GROUP"]);
+const PAIR_MISTAKES = new Set(["WRONG_FACTOR_PAIR_PRODUCT", "WRONG_FACTOR_PAIR_SUM", "SPLIT_PAIR_DOES_NOT_SUM", "MISSED_PAIR", "NO_NEGATIVE_PAIRS", "PRODUCT_SUM_SWAPPED", "SWAPPED_PRODUCT_SUM"]);
+/** Taking a sum or a set of terms for a finished product: a idea about what factorised means, not about numbers. */
+const MEANING_MISTAKES = new Set(["SUM_ACCEPTED_AS_FACTORISED", "TERMS_VS_FACTORS", "BRACKET_NOT_SEEN_AS_FACTOR"]);
 const SIGN_SIGNALS = ["two_slips_cancel", "hit_sign_slip", "fixed_sign_slip", "flips_into_brackets", "one_sign_lost"];
 const FAST_RIGHT_MS = 8000;
 const UNSURE_BELOW = 50;
@@ -73,26 +75,43 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   const signals = [...(response.gameReading?.signals ?? []), ...(response.typingReading?.signals ?? [])];
   const wrong = last.verification?.status === "VERIFIED_INCORRECT";
   const right = last.verification?.status === "VERIFIED_CORRECT";
-  const mistakes = (last.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE").map((e) => e.mistake ?? "").join(" ");
+  const mistakes = (last.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE" || e.kind === "UNFINISHED").map((e) => e.mistake ?? "");
+  const has = (set: Set<string>) => mistakes.some((m) => set.has(m));
   const need = (kinds: LotusGameKind[], reason: string): FormatNeed => ({ kinds: kinds.filter((kind) => kind !== shown), reason });
 
-  if (response.didNotKnow || signals.includes("spread_evenly")) {
+  if (response.didNotKnow || last.verification?.status === "NO_ANSWER" || signals.includes("spread_evenly")) {
     return need(["RECTANGLE", "TWO_NUMBERS", "SPLIT_CONFIDENCE"], "They didn't know, so find out what they can do without recalling a method.");
   }
   // A sign slip can sit under a right answer: two that cancel, or one the student fixed.
-  if ((wrong && SIGN_MISTAKE.test(mistakes)) || SIGN_SIGNALS.some((signal) => signals.includes(signal))) {
+  if ((wrong && has(SIGN_MISTAKES)) || SIGN_SIGNALS.some((signal) => signals.includes(signal))) {
     return need(["FOUR_SIGNS", "TWO_MOVES"], "Signs went wrong or nearly did, so test the signs on their own.");
   }
-  if (wrong && PAIR_MISTAKE.test(mistakes)) {
+  if (wrong && has(PAIR_MISTAKES)) {
     return need(["TWO_NUMBERS", "RECTANGLE", "SPLIT_CONFIDENCE"], "The pair of numbers went wrong, so watch how they search for it.");
+  }
+  if (wrong && has(MEANING_MISTAKES)) {
+    return need(["TRUE_FALSE", "COMMIT_THEN_CHOOSE", "EDIT_HISTORY"], "A sum with brackets was taken for a factorised answer, so test what \"factorised\" means: a true-or-false claim or a choice shows whether the idea is held, not just one slip.");
   }
   if (wrong) {
     // Asked again with the drafts kept, a slip gets caught and a misconception gets written again; beside the right answer as a
     // chip, a misconception gets chosen again. The two-bracket formats split the steps where they fit.
-    return need(["EDIT_HISTORY", "SPLIT_CONFIDENCE", "TWO_MOVES", "COMMIT_THEN_CHOOSE", "TRUE_FALSE"], "Wrong once: ask it again in a format that shows whether it was a slip they catch or a method they repeat.");
+    const skill = last.question.answerKey?.diagnostics?.skillId;
+    const sameSkill = audits.slice(0, -1).filter((a) => a.question.answerKey?.diagnostics?.skillId === skill);
+    const wrongBefore = sameSkill.some((a) => a.verification?.status === "VERIFIED_INCORRECT" || a.verification?.status === "VERIFIED_UNFINISHED");
+    // Every answer on this skill so far was picked from options: a typed answer shows what a pick can hide.
+    const allPicked = sameSkill.length > 0 && sameSkill.every((a) => !!a.question.options?.length) && !!last.question.options?.length;
+    const kinds: LotusGameKind[] = ["EDIT_HISTORY", "SPLIT_CONFIDENCE", "TWO_MOVES", "COMMIT_THEN_CHOOSE", "TRUE_FALSE"];
+    if (wrongBefore) {
+      // The typed format (EDIT_HISTORY) already leads the list.
+      return need(kinds, `Wrong again on this skill${allPicked ? ", and every answer so far was picked from options" : ""}: ask it in a format that shows whether the method is really being repeated${allPicked ? ", with typing so a lucky pick can't hide it" : ""}.`);
+    }
+    return need(kinds, "Wrong once: ask it again in a format that shows whether it was a slip they catch or a method they repeat.");
   }
   if (last.verification?.status === "NOT_DETERMINISTIC") {
     return need(["EDIT_HISTORY"], "The answer couldn't be read, so ask again with the drafts kept to see whether the trouble is the typing or the maths.");
+  }
+  if (last.verification?.status === "VERIFIED_UNFINISHED") {
+    return need(["TRUE_FALSE", "COMMIT_THEN_CHOOSE", "SPLIT_CONFIDENCE", "EDIT_HISTORY"], "Equal but not finished: find out whether they stopped too early or don't know to take out the number too.");
   }
   if (!right) return null;
   if (signals.includes("torn") || signals.includes("leans") || signals.includes("mostly_sure") || response.confidence < UNSURE_BELOW) {

@@ -414,6 +414,8 @@ export function readCommonFactor(answer: string, expression: string): CommonFact
       const quotient = divideMonomial(key, outsideKey);
       if (take(quotient, coef / outsideCoef)) divided++;
       else if (take(key, coef) || take(key, coef * sign)) undivided++;
+      // 9x ÷ 3x written as 9: the letters were divided out but the number was left as it was.
+      else if (quotient !== null && (take(quotient, coef) || take(quotient, coef * sign))) undivided++;
       else if (outsideKey && take(key, coef / outsideCoef)) unreduced++;
       else if (quotient === "" && Math.abs(coef / outsideCoef) === 1) droppedOne++;
       else return reading;
@@ -436,6 +438,110 @@ export function isFullyFactorisedForm(text: string): boolean {
 /** How many non-constant factors an answer has — (2x + 4)(x + 3) has two, 3(x² − 4) has one. */
 export function nonConstantFactorCount(text: string): number {
   try { return profile(text)?.nonConstant.length ?? 0; } catch { return 0; }
+}
+
+/** How many bracketed (multi-term) factors an answer has — x(6x + 10y) has one, (2x + 4)(x + 3) has two. */
+export function bracketFactorCount(text: string): number {
+  try { return profile(text)?.nonConstant.filter((p) => p.size > 1).length ?? 0; } catch { return 0; }
+}
+
+/**
+ * True when every term inside the answer's bracket(s) shares no letter, i.e. the letter part of the
+ * common factor was fully taken out. Needs at least one bracket; a lone monomial factor is fine.
+ */
+export function lettersFullyTakenOut(text: string): boolean {
+  try {
+    const prof = profile(text);
+    if (!prof) return false;
+    const brackets = prof.nonConstant.filter((p) => p.size > 1);
+    if (!brackets.length) return false;
+    for (const poly of brackets) {
+      for (const v of variables(poly)) {
+        let minE = Infinity;
+        for (const k of poly.keys()) minE = Math.min(minE, parseMonomial(k).get(v) ?? 0);
+        if (minE > 0) return false;
+      }
+    }
+    return true;
+  } catch { return false; }
+}
+
+/**
+ * Does the answer take out only letters that every term of the expression has? x(6x + 10y) for 6x² + 10xy and
+ * 3x(xy + 9) for 3x²y + 9x do. Null when the answer isn't a product with a letter outside to judge.
+ */
+export function lettersOutsideAreCommon(answer: string, expression: string): boolean | null {
+  try {
+    const terms = polyOf(parseExpression(expression));
+    const prof = profile(answer);
+    if (!prof || terms.size < 2) return null;
+    let outside: Poly = constant(1);
+    for (const p of prof.nonConstant) if (p.size === 1) outside = mul(outside, p);
+    const outsideLetters = variables(outside);
+    if (!outsideLetters.length) return null;
+    return outsideLetters.every((v) => [...terms.keys()].every((k) => (parseMonomial(k).get(v) ?? 0) > 0));
+  } catch { return null; }
+}
+
+/**
+ * The difference-of-squares belief, read from the shape of a wrong answer when the item doesn't list it:
+ * (3a - 5)(3a + 5) for the perfect square 9a² - 30a + 25 (WROTE_DIFF_OF_SQUARES), and (x - 6)(x + 6) for the
+ * sum of squares x² + 36 (NOT_DIFF_OF_SQUARES). One letter only; null for anything else, and for right answers.
+ */
+export function squarePatternMistake(answer: string, expression: string): "WROTE_DIFF_OF_SQUARES" | "NOT_DIFF_OF_SQUARES" | null {
+  try {
+    const coefficients = (text: string): { v: string; c: number[] } | null => {
+      const poly = polyOf(parseExpression(text));
+      const letters = variables(poly);
+      if (letters.length !== 1) return null;
+      const c = [0, 0, 0];
+      for (const [key, coef] of poly) {
+        const degreeOf = [...parseMonomial(key).values()].reduce((a, b) => a + b, 0);
+        if (degreeOf > 2) return null;
+        c[degreeOf] = (c[degreeOf] ?? 0) + coef;
+      }
+      return { v: letters[0]!, c };
+    };
+    const ex = coefficients(expression);
+    const an = coefficients(answer);
+    if (!ex || !an || ex.v !== an.v) return null;
+    const [c0, c1, c2] = ex.c as [number, number, number];
+    const [a0, a1, a2] = an.c as [number, number, number];
+    const isSquare = (n: number) => n > 0 && Number.isInteger(Math.sqrt(n));
+    // Where a right answer would have been equal to the expression, this is never reached; guard anyway.
+    if (a2 === c2 && a1 === c1 && a0 === c0) return null;
+    const diffShape = a2 === c2 && a1 === 0 && a0 === -c0 && isSquare(c2) && isSquare(c0);
+    if (!diffShape) return null;
+    if (c1 !== 0 && c1 * c1 === 4 * c2 * c0) return "WROTE_DIFF_OF_SQUARES";
+    if (c1 === 0) return "NOT_DIFF_OF_SQUARES";
+    return null;
+  } catch { return null; }
+}
+
+/** True when some letter appears in every term of the expression (6x² + 10xy shares x). */
+export function expressionHasCommonLetter(expression: string): boolean {
+  try {
+    const terms = polyOf(parseExpression(expression));
+    if (terms.size < 2) return false;
+    return variables(terms).some((v) => [...terms.keys()].every((k) => (parseMonomial(k).get(v) ?? 0) > 0));
+  } catch { return false; }
+}
+
+/**
+ * Can this expression exercise the skill at all? 9x + 15 has no letter in every term, so it can't show
+ * "the letters common to every term"; 7x + 3 has no number in common, so it can't show "the number common to
+ * every term". Skills code knows nothing about are always allowed. Unreadable expressions are allowed too.
+ */
+export function expressionCanShowSkill(skillId: string, expression: string | undefined): boolean {
+  if (!expression) return true;
+  try {
+    if (skillId === "FAC_GCF_VARIABLE") return expressionHasCommonLetter(expression);
+    if (skillId === "FAC_GCF_NUMERIC") {
+      const terms = polyOf(parseExpression(expression));
+      return terms.size < 2 || (integerContent(terms) ?? 0) > 1;
+    }
+  } catch { /* unreadable: don't drop credit */ }
+  return true;
 }
 
 export type FactorisationVerdict = "CORRECT" | "UNFINISHED" | "INCORRECT" | "UNREADABLE";

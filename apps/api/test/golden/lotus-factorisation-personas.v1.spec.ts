@@ -1,3 +1,5 @@
+// The fake model needs the code-built probes; production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /**
  * Synthetic-learner persona evaluation — deterministic wiring and policy
  * invariants, factorisation topic (COGNA 10.0/LOTUS_CONTINUOUS_DIAGNOSTIC.md

@@ -163,7 +163,10 @@ function readTestClaim(question: LotusQuestion, game: TestClaimGame, raw: TestCl
     diagnosis = { effect: "DOESNT_KNOW", note: sawEqual ? "Saw the sides match once, but said they never do." : "Said never without checking every kind of value." };
   } else if (role === "sometimes") {
     const thorough = n >= 3 && sawDiffer;
-    summary = `Sometimes, after checking ${n} value${n === 1 ? "" : "s"}. ${thorough ? "Tested like a mathematician." : "Right, but checked very little."}`;
+    const shownValues = tested.map(showB).join(", ");
+    const counter = tested.find((x) => x !== 0);
+    const seen = n === 0 ? "" : ` Tried ${shownValues}${sawEqual ? `: saw the sides equal at 0 (the trap value)${counter !== undefined ? ` and differ at ${showB(counter)}` : ""}` : counter !== undefined ? `: never tried 0, but saw the sides differ at ${showB(counter)}` : ""}.`;
+    summary = `Sometimes, after checking ${n} value${n === 1 ? "" : "s"}.${seen} ${thorough ? "Tested like a mathematician." : "Right, but checked very little."}`;
     signals.push(thorough ? "tested_thoroughly" : "checked_little");
     diagnosis = thorough ? { effect: "SECURE" } : { effect: "NEEDS_ANOTHER", note: "Said sometimes, with only a little checking behind it." };
   } else {
@@ -278,6 +281,17 @@ export function validBs(c: number): number[] {
 
 const showB = (n: number) => minus(n);
 
+/** "15 and -15, the 1 × 14 pair": the factor pair each missed b comes from. */
+function missedWords(missed: number[], c: number): string {
+  const pairs: string[] = [];
+  for (const b of missed) {
+    for (let p = 1; p <= Math.abs(c); p++) {
+      if (c % p === 0 && (p + c / p === Math.abs(b))) { const text = `${p} × ${Math.abs(c) / p}`; if (!pairs.includes(text)) pairs.push(text); break; }
+    }
+  }
+  return `${missed.map(showB).join(" and ")}${pairs.length ? `, the ${pairs.join(" and ")} pair` : ""}`;
+}
+
 function readFindEveryB(question: LotusQuestion, game: FindEveryBGame, raw: FindEveryBResponse): Read {
   const picked = raw.picked;
   if (!Array.isArray(picked) || picked.length === 0 || picked.length > 2 * game.range || picked.some((n) => !isInt(n) || n === 0 || Math.abs(n) > game.range) || new Set(picked).size !== picked.length) {
@@ -301,9 +315,11 @@ function readFindEveryB(question: LotusQuestion, game: FindEveryBGame, raw: Find
     signals.push("no_negative_pairs");
     diagnosis = mistakeWith(question, "SIGN_PAIR_ERROR", "Found the positive values of b and none of the negative ones.");
   } else if (mixedUp) {
-    summary = `Found ${found.length} of ${valid.length}. Picked ${wrong.map(showB).join(", ")}, mixing b up with a factor of ${game.c}.`;
+    summary = `Found ${found.length} of ${valid.length}. Picked ${wrong.map(showB).join(", ")}, mixing b up with a factor of ${game.c}.${missed.length ? ` Missed ${missedWords(missed, game.c)}.` : ""}`;
     signals.push("mixed_b_with_a_factor");
     diagnosis = mistakeWith(question, "WRONG_FACTOR_PAIR_SUM", "Picked a factor of the last number as if it were the middle number.");
+    // Both 9 and -9 found: the signs work both ways, whatever else went wrong.
+    if (found.some((n) => n > 0 && found.includes(-n))) diagnosis.creditFor = ["NO_NEGATIVE_PAIRS"];
   } else if (found.length <= 1) {
     summary = `Found ${found.length}. Knows an example, not the whole set.`;
     diagnosis = { effect: "DOESNT_KNOW", note: "Found an example but not the whole set." };
