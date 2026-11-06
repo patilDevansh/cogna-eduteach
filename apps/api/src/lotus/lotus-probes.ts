@@ -263,7 +263,7 @@ function divisionProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): I
   if (new Set(options.map((o) => o.text)).size !== 4) return null;
   if (req.purpose === "CHECK") {
     return {
-      ...base(spec, req, `Factorise completely: divide every term by the common factor in ${pretty(expr)}.`),
+      ...base(spec, req, `Factorise completely: ${pretty(expr)}.`),
       type: "CONSTRUCTED_RESPONSE", asksForWorking: true,
       answerKey: {
         kind: "OPEN_RESPONSE", canonicalAnswer: pretty(correct),
@@ -273,7 +273,7 @@ function divisionProbe(spec: SlotSpec, req: WriteRequest, rand: () => number): I
     };
   }
   return {
-    ...base(spec, req, `Factorise completely: divide every term by the common factor in ${pretty(expr)}.`),
+    ...base(spec, req, `Factorise completely: ${pretty(expr)}.`),
     type: "MULTIPLE_CHOICE", asksForWorking: false, options: options.map((o) => o.text), presentation: "WORKSHOP",
     answerKey: {
       kind: "MULTIPLE_CHOICE", canonicalAnswer: pretty(correct),
