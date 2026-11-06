@@ -578,7 +578,10 @@ function AuditCard({
                 <p><strong>Played:</strong> {LOTUS_GAME_TITLES[audit.response.gameReading.kind]}. {audit.response.gameReading.summary}</p>
               )}
               {audit.response.typingReading && (
-                <p><strong>Typing:</strong> {audit.response.typingReading.summary} First key after {Math.round(Number(audit.response.typingReading.facts.firstKeyMs ?? 0) / 100) / 10}s; {audit.response.typingReading.facts.drafts ?? 0} discarded {audit.response.typingReading.facts.drafts === 1 ? "draft" : "drafts"}.</p>
+                <p><strong>Typing:</strong> {audit.response.typingReading.summary}{" "}
+                  {/* The summary already names a wait before the first key when it is the longest pause. */}
+                  {audit.response.typingReading.facts.firstKeyMs !== audit.response.typingReading.facts.longestPauseMs && `First key after ${Math.round(Number(audit.response.typingReading.facts.firstKeyMs ?? 0) / 100) / 10}s; `}
+                  {audit.response.typingReading.facts.drafts ?? 0} discarded {audit.response.typingReading.facts.drafts === 1 ? "draft" : "drafts"}.</p>
               )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
