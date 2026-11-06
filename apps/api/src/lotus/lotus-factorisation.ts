@@ -75,6 +75,8 @@ export interface FactorisationTurn {
   reason?: string;
   /** Bumped on every change, so a background result for an older version is thrown away. */
   version: number;
+  /** What the slot was before a rewrite put it on hold, so a rewrite that can't be prepared leaves the planned question in place. */
+  held?: { status: "PLANNED" | "REPURPOSED"; purpose?: FactorisationTurn["purpose"]; forSkill?: string; reason?: string };
 }
 
 export interface FactorisationState {

@@ -533,8 +533,8 @@ function installedDetail(question: LotusQuestion | Omit<LotusQuestion, "id">, tu
   const provenance = questionProvenance(question);
   const what = provenance === "CODE_BUILT_GAME" ? "A question built and checked by code"
     : provenance === "AI_REUSED_FROM_BANK" ? "A checked AI question reused from the question bank"
-      : "A checked AI-written question";
-  return `${what} was installed at question ${turn}; it remains unseen until its turn.`;
+      : "A checked AI-written question was generated and";
+  return `${what} ${what.endsWith(" and") ? "" : "was "}installed at question ${turn}; it remains unseen until its turn.`;
 }
 
 function questionProvenance(question: LotusQuestion | Omit<LotusQuestion, "id">): LotusQuestionSelection["provenance"] {
@@ -2476,7 +2476,9 @@ Create one materially different question that adds new diagnostic evidence. Test
     // Some slots are staged as games (fireflies, impostor, detective, fishing,
     // garden): built and checked by code, no model call. See lotus-probes.ts.
     const gameRequest = { ...job.request, variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`, avoid: this.testPrints(session, job.turn) };
-    const game = codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest);
+    // Product rule: factorisation questions come only from the AI, newly written or reused from the checked
+    // bank. Code-built content is off unless LOTUS_CODE_BUILT_QUESTIONS=true (tests of the probes themselves).
+    const game = process.env.LOTUS_CODE_BUILT_QUESTIONS === "true" ? codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest) : null;
     if (game && !checkWrittenItem(gameRequest, game).length) {
       await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
       return;
@@ -2574,6 +2576,18 @@ Create one materially different question that adds new diagnostic evidence. Test
       this.logger.log(`Question write ${sessionId.slice(0, 8)} turn ${job.turn} ${job.request.purpose}: ${outcome} in ${result.ms} ms, ${result.attempts} attempt(s)${result.rejections.length ? ` — ${result.rejections.join(" | ")}` : ""}`);
     };
     const markNotApplied = (detail: string, outcome: "DEFERRED" | "REJECTED" | "STALE") => {
+      // A rewrite that could not be prepared never leaves the slot empty or filled by code: the question that was
+      // planned there stays, and the decision says so.
+      const held = f.state.turns.find((candidate) => candidate.turn === job.turn);
+      if (held?.held && held.status === "SKIPPED" && held.version === job.version && outcome !== "STALE") {
+        held.status = held.held.status;
+        if (held.held.purpose) held.purpose = held.held.purpose; else delete held.purpose;
+        if (held.held.forSkill) held.forSkill = held.held.forSkill; else delete held.forSkill;
+        held.reason = held.held.reason ?? "Kept as planned: the replacement could not be prepared in time.";
+        delete held.held;
+        held.version += 1;
+        detail = `${detail} The question already planned for question ${job.turn} stays.`;
+      }
       for (const audit of session.audits) {
         const decision = audit.adaptiveDecision;
         if (decision?.targetTurn === job.turn && decision.implementation === "QUEUED_FOR_GENERATION") {
@@ -2682,6 +2696,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const key = String(job.turn);
     f.versions[key] = [...(f.versions[key] ?? []), question];
     f.preferred[key] = question.id;
+    if (planTurn) delete planTurn.held;
     if (!session.questionsReadyAt && Object.entries(f.preferred).filter(([turn, id]) => Number(turn) >= 1 && f.versions[turn]?.some((item) => item.id === id && isAcceptedItem(item))).length >= preparationTarget(f)) {
       session.questionsReadyAt = new Date().toISOString();
     }
@@ -2860,6 +2875,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     const f = session.factorisation!;
     const turn = f.state.turns.find((candidate) => candidate.turn === action.turn);
     if (!turn) return;
+    const previous = { status: turn.status, purpose: turn.purpose, forSkill: turn.forSkill, reason: turn.reason };
     turn.version += 1;
     turn.reason = action.reason;
     this.logger.log(`Plan ${session.sessionId.slice(0, 8)} turn ${action.turn}: ${action.kind}${action.kind === "REPURPOSE" ? ` ${action.purpose} ${action.forSkill}` : ""} — ${action.reason}`);
@@ -2887,6 +2903,9 @@ Create one materially different question that adds new diagnostic evidence. Test
       // A plan action is a recommendation, not permission to serve a blank
       // slot. Keep it excluded until a generated item has independently
       // passed validation and can safely be installed.
+      if (!action.skipUntilReady && !turn.held && previous.status !== "SKIPPED") {
+        turn.held = { status: previous.status, purpose: previous.purpose, forSkill: previous.forSkill, reason: previous.reason };
+      }
       turn.status = "SKIPPED";
       this.enqueueWrite(session.sessionId, {
         turn: action.turn,

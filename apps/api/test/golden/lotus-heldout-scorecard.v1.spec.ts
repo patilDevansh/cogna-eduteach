@@ -1,3 +1,5 @@
+// The fake model needs the code-built probes; production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /**
  * Held-out scorecard v1: 24 simulated students (test/fixtures/lotus-heldout-students.ts) played
  * through the factorisation diagnostic with and without the short foundation checks

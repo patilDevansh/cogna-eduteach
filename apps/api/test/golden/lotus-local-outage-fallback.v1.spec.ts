@@ -1,3 +1,5 @@
+// This test is about the code-built probes (or needs them with the fake model); production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /** Real local staging/validation, fake models and in-memory DB; no network. */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

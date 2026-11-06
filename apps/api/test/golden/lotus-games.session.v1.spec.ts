@@ -1,3 +1,5 @@
+// This test is about the code-built probes (or needs them with the fake model); production serves AI-written or bank questions only.
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 /**
  * A whole factorisation session through LotusService with the free fake model:
  * a themed game is issued by the server, played, and its answer is rebuilt and
