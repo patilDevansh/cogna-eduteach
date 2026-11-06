@@ -252,8 +252,9 @@ export function chooseLotusGame(question: LotusQuestion, context: { turn: number
   if (twoBracket) return twoBracket;
   const chips = buildOptionChips(question);
   const typed = (kind: LotusGameKind) => buildLotusGame(question, kind);
-  // Chips every other turn, the typed games taking turns between, so the same format doesn't come round twice running.
-  const rotation: Array<() => LotusGameConfig | undefined> = [() => chips, () => typed("READBACK"), () => chips, () => typed("EDIT_HISTORY")];
+  // Chips every other turn, typed with the drafts kept between. Confirm your input (READBACK) is no longer
+  // issued: its read-back panel added a step without telling us more. It is still read for sessions that have one.
+  const rotation: Array<() => LotusGameConfig | undefined> = [() => chips, () => typed("EDIT_HISTORY")];
   const offered = rotation.map((_, i) => rotation[(context.turn - 1 + i) % rotation.length]!()).filter((game): game is LotusGameConfig => !!game);
   return offered.find((game) => game.kind !== context.previousKind) ?? offered[0];
 }

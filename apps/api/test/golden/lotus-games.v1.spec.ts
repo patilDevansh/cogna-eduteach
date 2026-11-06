@@ -95,7 +95,7 @@ describe("Lotus themed games: issuing", () => {
     assert.equal(opening.interaction, undefined);
     assert.equal(opening.asksForWorking, false);
     const typed = withLotusInteraction(other("gcf-2"), { turn: 2, repurposed: false }, {});
-    assert.equal(typed.game?.kind, "READBACK");
+    assert.equal(typed.game?.kind, "EDIT_HISTORY");
     assert.equal(typed.asksForWorking, true, "a typed game keeps its working");
     assert.equal(withLotusInteraction(other("gcf-3"), { turn: 3, repurposed: false }, {}).game?.kind, "SPLIT_CONFIDENCE");
     assert.equal(withLotusInteraction(other("gcf-5"), { turn: 4, repurposed: false }, {}).game?.kind, "EDIT_HISTORY");
@@ -103,7 +103,7 @@ describe("Lotus themed games: issuing", () => {
     thin.answerKey.canonicalAnswer = "x(x + 12)";
     thin.answerKey.diagnostics!.expression = "x^2 + 12x";
     thin.answerKey.diagnostics!.predictedMistakes = [{ answer: "1", mistake: "DIVIDED_FIRST_TERM_ONLY" }];
-    assert.equal(withLotusInteraction(thin, { turn: 1, repurposed: false }, {}).game?.kind, "READBACK", "too few real options for chips, and a bare number is not one");
+    assert.equal(withLotusInteraction(thin, { turn: 1, repurposed: false }, {}).game?.kind, "EDIT_HISTORY", "too few real options for chips, and a bare number is not one");
     const made = other("gcf-6");
     made.answerKey.diagnostics!.predictedMistakes = [];
     assert.deepEqual([...(withLotusInteraction(made, { turn: 1, repurposed: false }, {}).game as { options: string[] }).options].sort(), ["2(x + 12)", "2(x + 24)", "2(x - 12)"], "look-alikes fill in for a common factor");
