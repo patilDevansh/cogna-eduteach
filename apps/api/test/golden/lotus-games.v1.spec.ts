@@ -126,7 +126,8 @@ describe("Lotus themed games: issuing", () => {
     assert.equal(held.answer, wrong);
     assert.equal(held.gameReading?.diagnosis?.effect, "MISTAKE");
     const torn = play(q, { kind: "SPLIT_CONFIDENCE", counts: counts(right, 2, wrong) });
-    assert.equal(torn.answer, wrong, "a tie marks the wrong answer it includes");
+    assert.ok(torn.answer.includes(wrong) && torn.answer.includes(right), "a tie records both answers, not one leader");
+    assert.ok(torn.gameReading!.signals.includes("tied_options"));
     assert.throws(() => play(q, { kind: "SPLIT_CONFIDENCE", counts: counts(right, 3) }), /Place all/);
   });
   it("the same format doesn't come round twice running when another fits", () => {
@@ -167,10 +168,10 @@ describe("Lotus themed games, second batch: what the readers notice", () => {
     assert.equal(status(splitQ, mostly), "VERIFIED_CORRECT");
     assert.equal(mostly.confidence, 60);
   });
-  it("Split: a 2–2 tie with the right answer marks the wrong one and names the doubt", () => {
+  it("Split: a 2–2 tie with the right answer is recorded as a tie and still names the doubt", () => {
     const r = play(splitQ, { kind: "SPLIT_CONFIDENCE", counts: split({ "(x + 4)(x - 1)": 2, "(x - 4)(x + 1)": 2 }) });
-    assert.equal(r.answer, "(x - 4)(x + 1)");
-    assert.equal(status(splitQ, r), "VERIFIED_INCORRECT");
+    assert.ok(r.answer.includes("(x + 4)(x - 1)") && r.answer.includes("(x - 4)(x + 1)"));
+    assert.equal(status(splitQ, r), "NOT_DETERMINISTIC");
     assert.equal(r.confidence, 25);
     assert.match(r.gameReading!.summary, /signs inside the brackets/);
   });
@@ -323,7 +324,7 @@ describe("Lotus themed games: the reading counts towards the skill", () => {
     ["tiles, settled on a split that leaves gaps", "RECTANGLE", () => ({ kind: "RECTANGLE", tries: [1], final: 1 }), { status: "VERIFIED_INCORRECT", effect: "MISTAKE", kinds: ["MISTAKE"], mistake: "WRONG_FACTOR_PAIR_PRODUCT" }],
     ["confirm your input, typed with an open bracket, wrongly", "READBACK", () => ({ kind: "READBACK", history: [{ t: 400, v: "(x - 4)(x + 1" }] }), { status: "VERIFIED_INCORRECT", effect: "NO_EVIDENCE", kinds: [] }],
     ["confirm your input, an open bracket on the right answer", "READBACK", () => ({ kind: "READBACK", history: [{ t: 400, v: "(x + 4)(x - 1" }] }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
-    ["edit history, a caught mistake", "EDIT_HISTORY", () => ({ kind: "EDIT_HISTORY", history: [{ t: 500, v: "(x - 4)(x + 1)" }, { t: 900, v: "(" }, { t: 3000, v: "(x + 4)(x - 1)" }] }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["SECURE"] }],
+    ["edit history, a caught mistake", "EDIT_HISTORY", () => ({ kind: "EDIT_HISTORY", history: [{ t: 500, v: "(x - 4)(x + 1)" }, { t: 900, v: "(" }, { t: 3000, v: "(x + 4)(x - 1)" }] }), { status: "VERIFIED_CORRECT", effect: "NEEDS_ANOTHER", kinds: ["UNFINISHED"] }],
   ];
   for (const [name, kind, build, expected] of cases) {
     it(name, () => {

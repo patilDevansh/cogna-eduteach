@@ -653,6 +653,8 @@ export function exactDecimals(text: string): string {
  * Mixed numbers ("1 1/2", "1½") are read as fractions; a full stop at the end is punctuation.
  */
 export function readNumberAnswer(text: string): string | null {
+  // A superscript right after a digit is a power (2⁷ is 2 to the 7th), never the digits "27"; it is not one plain number.
+  if (/[\d)][⁰¹²³⁴-⁹]/.test(String(text))) return null;
   const stripped = String(text)
     .replace(/[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g, (f) => ` ${VULGAR[f]}`)
     .normalize("NFKC")
@@ -670,6 +672,21 @@ export function readNumberAnswer(text: string): string | null {
   const m = stripped.match(/^([+-]?)\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?$/);
   if (!m) return null;
   return `${m[1] === "-" ? "-" : ""}${m[2]}${m[3] ? `/${m[3]}` : ""}`;
+}
+
+const SUPERSCRIPTS: Record<string, string> = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9" };
+
+/**
+ * A "find the value" answer written as a number expression that is exactly equal to the key but not yet one number:
+ * 2^7 or 2⁷ or 4*32 for 128. False for a plain number (use sameNumber) and for anything with letters or unreadable text.
+ */
+export function isUnevaluatedNumberEqualTo(answer: string, key: string): boolean {
+  const text = String(answer).trim().replace(/[⁰¹²³⁴-⁹]+/g, (run) => `^${[...run].map((c) => SUPERSCRIPTS[c]).join("")}`)
+    .replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/[−–—]/g, "-").replace(/\.$/, "");
+  if (!text || !/^[\d\s+\-*/^().]+$/.test(text) || !/[+\-*/^]/.test(text.replace(/^\s*-/, ""))) return false;
+  const target = readNumberAnswer(key);
+  if (target === null) return false;
+  try { return algebraicallyEqual(exactDecimals(text), exactDecimals(target)); } catch { return false; }
 }
 
 const VULGAR: Record<string, string> = { "½": "1/2", "⅓": "1/3", "⅔": "2/3", "¼": "1/4", "¾": "3/4", "⅕": "1/5", "⅖": "2/5", "⅗": "3/5", "⅘": "4/5", "⅙": "1/6", "⅚": "5/6", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8" };

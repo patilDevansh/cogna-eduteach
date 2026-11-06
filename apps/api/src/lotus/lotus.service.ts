@@ -85,6 +85,7 @@ import {
   untestedSkillsLeft,
   conflictsWithEarlier,
   reachableQuestionsAhead,
+  questionsActuallyLeft,
   mistakeRank,
   suspicionEffectNote,
   refreshedCheckReason,
@@ -1726,6 +1727,7 @@ export class LotusService implements OnModuleDestroy {
       slot.skillEvidence = evidenceFromAnalysis(
         slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
         slot.verification?.status === "VERIFIED_CORRECT",
+        slot.verification?.status === "VERIFIED_UNFINISHED",
       );
       if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
@@ -2851,7 +2853,11 @@ Create one materially different question that adds new diagnostic evidence. Test
       freezeNext,
       forceCheckSkills,
       forceCheckDecidedBy,
-      ...(reach ? { reachableQuestions: reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
+      // A developer who chose "Stay in test" past the time limit has the questions actually left, not the clock's estimate:
+      // the check placement and the decision text then agree with the format change applied to a later question.
+      ...(reach ? { reachableQuestions: session.developmentExitControl?.choices.some((c) => c.choice === "CONTINUE")
+        ? questionsActuallyLeft(f.state)
+        : reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
       onNoReachableSlot: () => { this.lastPlanNoTime = true; },
       itemAt: (turn) => preferredItem(f, turn),
       askedItems: [...session.audits.map((audit) => audit.question), ...(session.currentQuestion ? [session.currentQuestion] : [])],
@@ -3197,6 +3203,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     const noTime = this.lastPlanNoTime;
     audit.questionSelection.planningNote = planDecisionNote(adjustments);
     if (nextTurn !== null) this.refreshBookedReason(session, audit, nextTurn);
+    if (response.didNotKnow) {
+      // Only promise the easier check when one was actually placed.
+      const descent = adjustments.find((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
+      audit.conclusion.conclusion = descent && descent.kind === "REPURPOSE"
+        ? `The student said they do not know this yet. Lotus placed a check of the easier prerequisite ${skillName(descent.forSkill)} at question ${descent.turn}.`
+        : `The student said they do not know this yet. No easier prerequisite check could be placed${noTime ? " in the time left" : " (none is available, or every open slot is already used)"}.`;
+    }
     audit.adaptiveDecision = adaptiveDecisionFor(audit, adjustments, suspicionEffectNote(session.audits.slice(0, turnIndex), audit, session.priors), noTime);
     audit.adaptiveDecision.recommendedAt = new Date().toISOString();
     this.reconcileInstalledDecision(session, audit);

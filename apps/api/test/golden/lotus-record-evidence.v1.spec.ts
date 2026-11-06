@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import type { LotusGameResponse, LotusQuestion, LotusQuestionAudit, LotusStudentResponse } from "@cogna/shared";
 import { gameOfPreferredKind } from "../../src/lotus/lotus-games";
 import { resolveLotusResponse } from "../../src/lotus/lotus-interactions";
-import { foldLedger, instantVerdict, suspicionEffectNote, refreshedCheckReason } from "../../src/lotus/lotus-factorisation";
+import { foldLedger, instantVerdict, suspicionEffectNote, refreshedCheckReason, evidenceFromAnalysis, questionsActuallyLeft, reachableQuestionsAhead } from "../../src/lotus/lotus-factorisation";
+import { planAdjustments, type FactorisationState } from "../../src/lotus/lotus-factorisation";
+import { curriculumFor } from "../../src/lotus/lotus-factorisation-catalogue";
 import { checkWrittenItem, methodGivenAway } from "../../src/lotus/lotus-question-factory";
 import { singleReviewPrompt } from "../../src/lotus/lotus-prompts";
 
@@ -188,5 +190,107 @@ describe("Lotus confidence is never invented", () => {
     const r = resolveLotusResponse(q, { ...base(), answer: "2x(4xy + 12)", confidence: undefined });
     assert.equal(r.confidence, undefined);
     assert.equal(confidenceForPrompt(r), null);
+  });
+});
+
+const powers = (): LotusQuestion => ({ id: "n1", phase: "DIAGNOSE", subtopic: "Powers", type: "CONSTRUCTED_RESPONSE", asksForWorking: false,
+  prompt: "Find the value of 2² * 2² * 2³.", purpose: "",
+  answerKey: { kind: "OPEN_RESPONSE", canonicalAnswer: "128", workedSolution: ["2^(2+2+3) = 2^7", "2^7 = 128"],
+    diagnostics: { itemKind: "NUMBER", expression: "2^2 * 2^2 * 2^3", skillId: "FND_EXPONENT_PRODUCT", taggedSkills: ["FND_EXPONENT_PRODUCT"], stepSkills: ["FND_EXPONENT_PRODUCT", "FND_EXPONENT_PRODUCT"], level: "easy", origin: "AI", predictedMistakes: [] } } });
+
+describe("Lotus numeric answers that are equal but not evaluated", () => {
+  for (const written of ["2^7", "2⁷", "4*32"]) {
+    it(`${written} for 128 is never marked incorrect`, () => {
+      const v = instantVerdict(powers(), typed(powers(), written));
+      assert.notEqual(v.verification.status, "VERIFIED_INCORRECT");
+      assert.equal(v.verification.status, "VERIFIED_UNFINISHED");
+      assert.ok(v.evidence.length > 0 && v.evidence.every((e) => e.kind === "SECURE"), "the skill was shown");
+      assert.equal(v.needsAnalysis, false);
+    });
+  }
+  it("a plain 128 is correct and a wrong power is still wrong", () => {
+    assert.equal(instantVerdict(powers(), typed(powers(), "128")).verification.status, "VERIFIED_CORRECT");
+    assert.notEqual(instantVerdict(powers(), typed(powers(), "2⁶")).verification.status, "VERIFIED_CORRECT");
+    assert.notEqual(instantVerdict(powers(), typed(powers(), "27")).verification.status, "VERIFIED_CORRECT");
+  });
+  it("a review cannot turn the unevaluated power into a mistake on the skill shown", () => {
+    const existing = instantVerdict(powers(), typed(powers(), "2⁷")).evidence;
+    const out = evidenceFromAnalysis(powers(), existing, 2, "After correctly writing 2^7, the student stopped instead of evaluating it as 128", "MISUNDERSTANDING", false, true);
+    assert.ok(out.every((e) => e.kind === "SECURE"));
+    const guarded = evidenceFromAnalysis(powers(), [], 1, "stopped", "MISUNDERSTANDING", false, true);
+    assert.ok(guarded.every((e) => e.kind === "SECURE"));
+  });
+});
+
+describe("Lotus after the developer chooses to stay in the test", () => {
+  it("the time estimate says nothing is reachable, but the questions actually left are", () => {
+    assert.equal(reachableQuestionsAhead(901, 7, 900), 0);
+    const state = { planTurn: 7, turns: [8, 9, 10, 11].map((turn) => ({ turn, slot: turn, status: turn === 9 ? "SKIPPED" : "PLANNED", version: 1 })) } as never;
+    assert.equal(questionsActuallyLeft(state), 3);
+  });
+});
+
+describe("Lotus credits what a wrong pick shows, in plain third person", () => {
+  const square = () => item("sq1", "4x^2 + 12x + 9", "(2x + 3)^2", "FAC_PERFECT_SQUARE_PLUS", ["FND_RECOGNISE_SQUARE"],
+    [{ answer: "(2x + 3)(2x - 3)", mistake: "WROTE_DIFF_OF_SQUARES" }, { answer: "(4x + 9)^2", mistake: "NOT_ROOTED" }]);
+  const pick = (q: LotusQuestion, answer: string) => {
+    q.game = gameOfPreferredKind(q, ["SPLIT_CONFIDENCE"]);
+    assert.ok(q.game, "split builds");
+    const options = (q.game as { options: string[] }).options;
+    const r = resolveLotusResponse(q, { ...base(), game: { kind: "SPLIT_CONFIDENCE", counts: options.map((o) => (o === answer ? 4 : 0)) } as LotusGameResponse });
+    return instantVerdict(q, r);
+  };
+  it("the difference-of-squares pick for a perfect-square trinomial still blames the tested skill but credits the roots", () => {
+    const v = pick(square(), "(2x + 3)(2x - 3)");
+    assert.equal(v.evidence.find((e) => e.kind === "MISTAKE")?.mistake, "WROTE_DIFF_OF_SQUARES");
+    const credit = v.evidence.find((e) => e.skillId === "FND_RECOGNISE_SQUARE");
+    assert.equal(credit?.kind, "SECURE");
+    assert.match(credit!.description!, /correct square roots/);
+  });
+  it("wrong roots earn no credit", () => {
+    const v = pick(square(), "(4x + 9)^2");
+    assert.equal(v.evidence.some((e) => e.skillId === "FND_RECOGNISE_SQUARE" && e.kind === "SECURE"), false);
+  });
+  it("code never speaks for the student: no mistake description is first person", () => {
+    const v = pick(square(), "(2x + 3)(2x - 3)");
+    for (const e of v.evidence) assert.doesNotMatch(e.description ?? "", /\b(I|my|me)\b|It looked like/);
+    assert.match(v.evidence.find((e) => e.kind === "MISTAKE")!.description!, /^(Chose|Wrote) /);
+  });
+});
+
+describe("Lotus after one I-don't-know", () => {
+  const slotOf = (skill: string) => curriculumFor("FACTORISATION").slots.find((sl) => sl.skillId === skill)?.slot ?? 1;
+  const make = (turn: number, skillId: string, level: "easy" | "medium" | "hard", stepSkills: string[]) =>
+    ({ id: `t${turn}`, type: "CONSTRUCTED_RESPONSE", answerKey: { diagnostics: { skillId, itemKind: "FACTORISE", level, slot: slotOf(skillId), stepSkills, taggedSkills: [], predictedMistakes: [] } } }) as unknown as LotusQuestion;
+  it("books the foundation check at the nearest slot, holds same-skill and dependent questions, and says what it placed", () => {
+    const asked = make(1, "FAC_DIFF_SQUARES", "medium", ["FAC_DIFF_SQUARES"]);
+    const items: Record<number, LotusQuestion> = {
+      2: make(2, "FAC_DIFF_SQUARES", "medium", ["FAC_DIFF_SQUARES"]),
+      3: make(3, "FAC_PERFECT_SQUARE_PLUS", "medium", ["FAC_PERFECT_SQUARE_PLUS", "FND_RECOGNISE_SQUARE"]),
+      4: make(4, "FAC_DIFF_SQUARES", "hard", ["FAC_DIFF_SQUARES"]),
+      5: make(5, "FAC_GCF_NUMERIC", "easy", ["FAC_GCF_NUMERIC"]),
+    };
+    const state: FactorisationState = { topic: "FACTORISATION", planTurn: 1, answeredTurns: [1], handledConfirmed: [], handledBroadened: [], fastSkips: 0,
+      turns: [1, 2, 3, 4, 5].map((turn) => ({ turn, slot: slotOf((turn === 1 ? asked : items[turn]!).answerKey.diagnostics!.skillId), status: "PLANNED" as const, version: 0 })) };
+    const dnk = { question: asked, response: { answer: "I don't know", didNotKnow: true }, verification: { status: "NO_ANSWER" }, skillEvidence: [{ skillId: "FAC_DIFF_SQUARES", kind: "DID_NOT_KNOW", source: "INSTANT" }] } as unknown as LotusQuestionAudit;
+    const actions = planAdjustments({ state, ledger: foldLedger([dnk]), itemAt: (turn) => items[turn], askedItems: [asked], freezeNext: false });
+    const descent = actions.find((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
+    assert.ok(descent && descent.kind === "REPURPOSE");
+    assert.equal(descent.forSkill, "FND_RECOGNISE_SQUARE", "the first foundation, not a middle rung");
+    assert.equal(descent.turn, 2, "the nearest reachable slot");
+    const skipped = actions.filter((a) => a.kind === "SKIP").map((a) => a.turn);
+    assert.deepEqual(skipped, [4], "the harder question of the same skill waits");
+    const held = actions.find((a) => a.kind === "REPURPOSE" && a.purpose === "AVOID" && a.turn === 3);
+    assert.ok(held, "the question that also needs square recognition waits behind the check");
+  });
+  it("with no slot reachable in the time left, no descent is promised", () => {
+    const asked = make(1, "FAC_DIFF_SQUARES", "medium", ["FAC_DIFF_SQUARES"]);
+    const state: FactorisationState = { topic: "FACTORISATION", planTurn: 1, answeredTurns: [1], handledConfirmed: [], handledBroadened: [], fastSkips: 0,
+      turns: [{ turn: 1, slot: slotOf("FAC_DIFF_SQUARES"), status: "PLANNED", version: 0 }, { turn: 2, slot: slotOf("FAC_GCF_NUMERIC"), status: "PLANNED", version: 0 }] };
+    const dnk = { question: asked, response: { answer: "I don't know", didNotKnow: true }, verification: { status: "NO_ANSWER" }, skillEvidence: [{ skillId: "FAC_DIFF_SQUARES", kind: "DID_NOT_KNOW", source: "INSTANT" }] } as unknown as LotusQuestionAudit;
+    let noSlot = false;
+    const actions = planAdjustments({ state, ledger: foldLedger([dnk]), itemAt: () => make(2, "FAC_GCF_NUMERIC", "easy", ["FAC_GCF_NUMERIC"]), askedItems: [asked], freezeNext: false, reachableQuestions: 0, onNoReachableSlot: () => { noSlot = true; } });
+    assert.equal(actions.some((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT"), false);
+    assert.equal(noSlot, true);
   });
 });

@@ -79,8 +79,14 @@ describe("Lotus split confidence: a mostly-right answer keeps its doubt", () => 
     const secureThenDoubt = foldLedger([audit(a, sure(a)), audit(b, sure(b)), audit(c, mostly(c))]).get("FAC_DIVIDE_TERMS");
     assert.equal(secureThenDoubt?.state, "SECURE", "one doubt after shown success stays secure");
     const [d, e, f] = [gcf("s4"), gcf("s5"), gcf("s6")];
-    const settled = foldLedger([audit(d, mostly(d)), audit(e, mostly(e)), audit(f, sure(f))]).get("FAC_DIVIDE_TERMS");
-    assert.equal(settled?.state, "SECURE");
+    const shaky = foldLedger([audit(d, mostly(d)), audit(e, mostly(e)), audit(f, sure(f))]).get("FAC_DIVIDE_TERMS");
+    assert.equal(shaky?.state, "SUSPECTED", "doubted twice: one right answer is only shaky");
+    const [g2, h2, i2] = [gcf("s7"), gcf("s8"), gcf("s9")];
+    const typedQ = gcf("s10");
+    delete typedQ.game;
+    const typedRight = { ...base(), answer: "6(x + 6)" };
+    const settled = foldLedger([audit(g2, mostly(g2)), audit(h2, mostly(h2)), audit(i2, sure(i2)), audit(typedQ, typedRight)]).get("FAC_DIVIDE_TERMS");
+    assert.equal(settled?.state, "SECURE", "a second, typed right answer settles it");
     assert.equal(settled?.clearedAfterSlip, undefined, "a settled doubt is not recorded as a slip");
     assert.match(settled!.notes.at(-1)!, /earlier doubt looks settled/);
   });

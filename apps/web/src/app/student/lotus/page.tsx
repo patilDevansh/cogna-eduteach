@@ -589,7 +589,7 @@ function AuditCard({
                 </div>
                 {audit.verification && (
                   <span className={audit.verification.status === "VERIFIED_CORRECT" ? styles.verifiedCorrect : audit.verification.status === "VERIFIED_INCORRECT" ? styles.verifiedIncorrect : styles.verifiedNeutral}>
-                    {audit.verification.status.replaceAll("_", " ")}
+                    {audit.response?.gameReading?.signals.includes("tied_options") ? "TIED (no single answer)" : audit.verification.status.replaceAll("_", " ")}
                   </span>
                 )}
               </div>

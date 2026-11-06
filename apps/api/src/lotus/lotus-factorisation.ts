@@ -49,6 +49,7 @@ import {
   readNumberAnswer,
   sameFactorisation,
   sameNumber,
+  isUnevaluatedNumberEqualTo,
 } from "./lotus-algebra";
 import {
   type SlotSpec,
@@ -166,7 +167,49 @@ export interface InstantVerdict {
 }
 
 export function instantVerdict(question: LotusQuestion, response: LotusStudentResponse): InstantVerdict {
-  return withGameLimits(question, withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response))));
+  return withRootsShown(question, response, withGameLimits(question, withDraftDoubt(response, withGameDiagnosis(question, response, markedVerdict(question, response)))));
+}
+
+/** The top-level terms of a sum, signs dropped: "4x^2+12x+9" gives 4x^2, 12x, 9. */
+function termsOf(text: string): string[] {
+  const terms: string[] = [];
+  let depth = 0, current = "";
+  for (const ch of text) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if ((ch === "+" || ch === "-") && depth === 0 && current) { terms.push(current); current = ""; continue; }
+    if ((ch === "+" || ch === "-") && depth === 0) continue;
+    current += ch;
+  }
+  if (current) terms.push(current);
+  return terms;
+}
+
+/**
+ * A wrong pick can still show a step skill. When the chosen answer is a bracket pair or a squared bracket whose two terms
+ * are the exact square roots of the expression's first and last terms (2x and 3 for 4x^2 + 12x + 9), the student recognised
+ * the squares, so the square-recognition step is credited. Never overrides a mistake already recorded for that skill.
+ */
+function withRootsShown(question: LotusQuestion, response: LotusStudentResponse, verdict: InstantVerdict): InstantVerdict {
+  const d = question.answerKey.diagnostics;
+  const step = "FND_RECOGNISE_SQUARE";
+  if (!d || d.itemKind !== "FACTORISE" || !d.expression || verdict.verification.status === "VERIFIED_CORRECT" || response.didNotKnow) return verdict;
+  if (!skillsUsedBy(d).includes(step) || verdict.evidence.some((e) => e.skillId === step)) return verdict;
+  try {
+    const outer = termsOf(normalizeMathText(d.expression));
+    if (outer.length < 2) return verdict;
+    const first = outer[0]!, last = outer[outer.length - 1]!;
+    const answer = normalizeMathText(response.answer);
+    const brackets = [...answer.matchAll(/\(([^()]+)\)/g)].map((m) => termsOf(m[1]!));
+    const squares = (t: string, outerTerm: string) => algebraicallyEqual(`(${t})^2`, outerTerm);
+    const shown = brackets.find((b) => b.length === 2 && squares(b[0]!, first) && squares(b[1]!, last));
+    if (!shown) return verdict;
+    const pretty = (t: string) => t.replace(/\^2/g, "²");
+    return { ...verdict, evidence: [...verdict.evidence, { skillId: step, kind: "SECURE", source: "INSTANT",
+      description: `Chose ${response.answer}, whose parts ${shown[0]} and ${shown[1]} are the correct square roots of ${pretty(first)} and ${pretty(last)}.` }] };
+  } catch {
+    return verdict;
+  }
 }
 
 /**
@@ -231,6 +274,8 @@ function withGameDiagnosis(question: LotusQuestion, response: LotusStudentRespon
       // so the ledger keeps the skill unconfirmed until a later check settles it. Other skills stay secure.
       const evidence = verdict.evidence.map((e): LotusSkillEvidence => (e.kind === "SECURE" && e.skillId === holder
         ? { ...e, kind: "UNFINISHED", hedge, description: hedgeDescription(hedge) } : e));
+      // The doubt is never dropped: with no secure entry to turn into a doubt, it is recorded on the skill it is about.
+      if (!evidence.some((e) => e.hedge)) evidence.push({ skillId: holder, kind: "UNFINISHED", source: "INSTANT", hedge, description: hedgeDescription(hedge) });
       const working = !!response.working?.trim();
       return { ...verdict, evidence, needsAnalysis: verdict.needsAnalysis || !hedge.mistake || working };
     }
@@ -350,6 +395,10 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   }
 
   if (d.itemKind === "NUMBER") {
+    // 2^7 or 2⁷ for 128: exactly equal, just not evaluated. A note, never a mistake.
+    if (!sameNumber(answer, key) && normalizeMathText(answer) !== normalizeMathText(key) && isUnevaluatedNumberEqualTo(answer, key)) {
+      return { verification: verification("VERIFIED_UNFINISHED", `Equal to ${key}, but not evaluated to a single number.`), evidence: secureAll(d), fastSkip: false, needsAnalysis: false };
+    }
     if (readNumberAnswer(answer) === null) {
       return { verification: verification("NOT_DETERMINISTIC", "The answer couldn't be read as a number, so the AI review will interpret it."), evidence: [], fastSkip: false, needsAnalysis: true };
     }
@@ -522,8 +571,12 @@ export function evidenceFromAnalysis(
   description: string | undefined,
   mistakeKind?: unknown,
   answerCorrect = false,
+  /** Code verified the answer equal to the key but not yet one finished value (2^7 for 128). */
+  equalButUnfinished = false,
 ): LotusSkillEvidence[] {
   const d = question.answerKey.diagnostics;
+  // The step being tested was done and only the final evaluation was left: that is a note, not a mistake on the skill.
+  if (d && equalButUnfinished && d.itemKind === "NUMBER" && existing.every((e) => e.kind === "SECURE")) return existing.length ? existing : secureAll(d);
   // Models sometimes send the step as a string; anything that isn't a step number means "no wrong step".
   const step = typeof firstWrongStep === "string" ? Number(firstWrongStep) : firstWrongStep;
   const noRealStep = typeof step !== "number" || !Number.isInteger(step) || step < 1;
@@ -582,18 +635,24 @@ export function conflictsWithEarlier(prior: LotusQuestionAudit[], evidence: Lotu
  * it says what the rules actually did. Null when no skill this question uses was under suspicion.
  */
 export function suspicionEffectNote(prior: LotusQuestionAudit[], audit: LotusQuestionAudit, priors: LotusLedgerPrior[] = []): string | null {
+  const base = suspicionEffectNoteBase(prior, audit, priors);
+  const after = foldLedger([...prior, audit], priors);
+  // The same mistake or doubt on this skill in 2+ answers (a chip, a discarded draft, or a real mistake): add the count, with the questions.
+  for (const ev of audit.skillEvidence ?? []) {
+    const code = ev.hedge ? ev.hedge.mistake : ev.kind !== "SECURE" ? ev.mistake : undefined;
+    const seen = code ? after.get(ev.skillId)?.sightings?.filter((s) => s.mistake === code) ?? [] : [];
+    if (code && seen.length >= 2) return [base, sightingsText(code, seen)].filter(Boolean).join(" ");
+  }
+  return base;
+}
+
+function suspicionEffectNoteBase(prior: LotusQuestionAudit[], audit: LotusQuestionAudit, priors: LotusLedgerPrior[] = []): string | null {
   const d = audit.question?.answerKey?.diagnostics;
   if (!d) return null;
   const before = foldLedger(prior, priors);
   const after = foldLedger([...prior, audit], priors);
   const wordsOf = (code: string) => mistakeInWords(code) ?? code.toLowerCase().replace(/_/g, " ");
   const ordered = [d.skillId, ...skillsUsedBy(d).filter((s) => s !== d.skillId)];
-  // The same mistake or doubt on this skill in 2+ answers (a chip, a discarded draft, or a real mistake): say so, with the questions.
-  for (const ev of audit.skillEvidence ?? []) {
-    const code = ev.hedge ? ev.hedge.mistake : ev.kind !== "SECURE" ? ev.mistake : undefined;
-    const seen = code ? after.get(ev.skillId)?.sightings?.filter((s) => s.mistake === code) ?? [] : [];
-    if (code && seen.length >= 2) return sightingsText(code, seen);
-  }
   for (const skillId of ordered) {
     const was = before.get(skillId);
     const mistake = was?.mistakes.at(-1);
@@ -1126,6 +1185,14 @@ export function reachableQuestionsAhead(elapsedSeconds: number, answered: number
   return Math.max(1, Math.ceil(left / pace));
 }
 
+/**
+ * After a developer chose to stay in the test past the time limit, the clock no longer decides what can be reached:
+ * every planned question still ahead can be asked, so a check may go in any of them.
+ */
+export function questionsActuallyLeft(state: FactorisationState): number {
+  return state.turns.filter((t) => t.turn > state.planTurn && t.status !== "SKIPPED").length;
+}
+
 export function nextOpenTurn(state: FactorisationState, after: number): number | null {
   for (const t of state.turns) if (t.turn > after && t.status !== "SKIPPED") return t.turn;
   return null;
@@ -1178,13 +1245,15 @@ function INSIDE_BRACKET_ONLY(mistakes: string[]): boolean {
   return mistakes.length > 0 && mistakes.every((m) => INSIDE_BRACKET.has(m));
 }
 
-function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number, mistakes: string[] = []) {
+function descentTargets(slots: SlotSpec[], skillId: string, ledger: Ledger, max: number, mistakes: string[] = [], preferFoundation = false) {
   const found: Array<{ skill: string; spec: SlotSpec }> = [];
   // A foundation the gap's own mistakes point at goes first: a sign error under a
   // trinomial is checked at signed numbers before it is checked at factor pairs.
   const pointedAt = new Set(SHARED_PATTERNS.filter((p) => p.mistakes.some((m) => mistakes.includes(m)))
     .flatMap((p) => p.skills).filter((s) => findSkill(s)?.group === 0));
-  const queue = [...(findSkill(skillId)?.dependsOn ?? [])].sort((a, b) => Number(!pointedAt.has(a)) - Number(!pointedAt.has(b)));
+  // With nothing to point at (an "I don't know"), the deepest foundation is the most useful thing to ask first.
+  const depthKey = (id: string) => (preferFoundation && !pointedAt.size ? findSkill(id)?.group ?? 9 : 0);
+  const queue = [...(findSkill(skillId)?.dependsOn ?? [])].sort((a, b) => Number(!pointedAt.has(a)) - Number(!pointedAt.has(b)) || depthKey(a) - depthKey(b));
   const seen = new Set<string>();
   while (queue.length && found.length < max) {
     const p = queue.shift()!;
@@ -1392,7 +1461,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       }
     }
     if (e.needsSupport) {
-      const support = descentTargets(slots, e.skillId, ledger, 1, e.mistakes)[0];
+      const support = descentTargets(slots, e.skillId, ledger, 1, e.mistakes, true)[0];
       const supportAlreadyReserved = support && (checkedThisCall.has(support.skill) || state.turns.some((t) =>
         t.purpose === "DESCENT" && t.forSkill === support.skill));
       if (support && !supportAlreadyReserved) {
@@ -1406,6 +1475,26 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
             spec: support.spec,
             reason: `The student said they do not know this yet; checking the easier prerequisite ${skillName(support.skill)} next.`,
           });
+          // Not another question like the one just given up on, and nothing that needs the same prerequisite, before that check.
+          const gaveUp = [...input.askedItems].reverse().find((i) => i.answerKey.diagnostics?.skillId === e.skillId)?.answerKey.diagnostics;
+          for (const t of mutable()) {
+            if (protectedTurns.has(t.turn) || claimed.has(t.turn)) continue;
+            const d2 = itemAt(t.turn)?.answerKey.diagnostics;
+            if (!d2) continue;
+            const sameSkillNotEasier = d2.skillId === e.skillId && !!gaveUp && LEVEL_RANK[d2.level ?? "easy"] >= LEVEL_RANK[gaveUp.level ?? "easy"];
+            const needsPrerequisite = d2.skillId !== e.skillId && (skillsUsedBy(d2).includes(support.skill) || dependsOnTransitively(d2.skillId, support.skill));
+            if (sameSkillNotEasier) {
+              claimed.add(t.turn);
+              actions.push({ kind: "SKIP", turn: t.turn, reason: `Not asked yet: ${skillName(e.skillId)} was just answered "I don't know", so another question like it waits until ${skillName(support.skill)} has been checked.` });
+            } else if (needsPrerequisite) {
+              claimed.add(t.turn);
+              actions.push({
+                kind: "REPURPOSE", turn: t.turn, purpose: "AVOID", forSkill: d2.skillId, spec: slots.find((sl) => sl.slot === t.slot) ?? null,
+                avoidSkill: support.skill, skipUntilReady: true,
+                reason: `Held behind the ${skillName(support.skill)} check: it also needs ${skillName(support.skill)}, which is not known yet.`,
+              });
+            }
+          }
         }
       }
       if (support) continue;

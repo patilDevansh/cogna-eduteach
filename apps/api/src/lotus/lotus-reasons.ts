@@ -18,8 +18,20 @@ export const REASON_PROMPT = "How did you get it?";
 
 /** A mistake code in plain words ("divided only the first term by the common factor"), if it has a phrase. */
 export function mistakeInWords(code: string): string | undefined {
-  return IN_MY_WORDS[code]?.replace(/^I /, "");
+  const mine = IN_MY_WORDS[code];
+  if (!mine) return undefined;
+  if (FACTUAL_WORDS[code]) return FACTUAL_WORDS[code];
+  const plain = mine.replace(/^I /, "");
+  // Code writes facts about an answer in the third person. Wording that still speaks for the student ("so I wrote it")
+  // is only for the one-tap reason options, shown when the student actually picks it.
+  return /\b(I|my|me)\b|^It /.test(plain) ? code.toLowerCase().replace(/_/g, " ") : plain;
 }
+
+/** Third-person wording for the codes whose reason-option text is a first-person story. */
+const FACTUAL_WORDS: Record<string, string> = {
+  WROTE_PERFECT_SQUARE: "wrote it as a perfect square when it is not one",
+  WROTE_DIFF_OF_SQUARES: "used the difference-of-squares form on an expression that is not one",
+};
 
 /** A mistake, in the student's words. Codes without a phrase are never offered. */
 const IN_MY_WORDS: Record<string, string> = {
