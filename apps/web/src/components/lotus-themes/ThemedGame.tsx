@@ -439,7 +439,8 @@ function TypedBox({ label, record, disabled, autoFocus }: { label: string; recor
       <label className={styles.typedRow}>
         <span className={styles.label}>{label}</span>
         <input ref={record.field} className={styles.editInput} value={record.value} maxLength={LOTUS_EDIT_MAX_LENGTH} disabled={disabled} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} autoFocus={autoFocus}
-          placeholder="(x + ?)(x − ?)" onBlur={record.onBlur} onChange={(event) => record.type(event.target.value)} />
+          // Neutral on purpose: a shaped hint would show the answer's form to a test checking whether they know it.
+          placeholder="Type your answer" onBlur={record.onBlur} onChange={(event) => record.type(event.target.value)} />
       </label>
       <div className={styles.mathKeys} role="group" aria-label="Math tools">
         {MATH_KEYS.map(([keyLabel, token]) => (
