@@ -4,7 +4,7 @@ import type { LotusGameResponse, LotusQuestion, LotusQuestionAudit, LotusStudent
 import { gameOfPreferredKind } from "../../src/lotus/lotus-games";
 import { resolveLotusResponse } from "../../src/lotus/lotus-interactions";
 import { foldLedger, instantVerdict, suspicionEffectNote, refreshedCheckReason, evidenceFromAnalysis, questionsActuallyLeft, reachableQuestionsAhead } from "../../src/lotus/lotus-factorisation";
-import { planAdjustments, type FactorisationState } from "../../src/lotus/lotus-factorisation";
+import { planAdjustments, buildFactorisationReport, type FactorisationState } from "../../src/lotus/lotus-factorisation";
 import { curriculumFor } from "../../src/lotus/lotus-factorisation-catalogue";
 import { checkWrittenItem, methodGivenAway } from "../../src/lotus/lotus-question-factory";
 import { singleReviewPrompt } from "../../src/lotus/lotus-prompts";
@@ -247,6 +247,14 @@ describe("Lotus credits what a wrong pick shows, in plain third person", () => {
     assert.equal(credit?.kind, "SECURE");
     assert.match(credit!.description!, /correct square roots/);
   });
+  it("credits the roots on an AI item that lists only its own skill as steps (live question 11)", () => {
+    // The live item tagged no square-recognition step; the skill map says the perfect square depends on it.
+    const q = item("sq2", "4x^2 + 12x + 9", "(2x + 3)^2", "FAC_PERFECT_SQUARE_PLUS", [],
+      [{ answer: "(2x + 3)(2x - 3)", mistake: "WROTE_DIFF_OF_SQUARES" }, { answer: "(4x + 9)^2", mistake: "NOT_ROOTED" }]);
+    q.answerKey.diagnostics!.stepSkills = ["FAC_PERFECT_SQUARE_PLUS"];
+    const v = pick(q, "(2x + 3)(2x - 3)");
+    assert.equal(v.evidence.find((e) => e.skillId === "FND_RECOGNISE_SQUARE")?.kind, "SECURE");
+  });
   it("wrong roots earn no credit", () => {
     const v = pick(square(), "(4x + 9)^2");
     assert.equal(v.evidence.some((e) => e.skillId === "FND_RECOGNISE_SQUARE" && e.kind === "SECURE"), false);
@@ -292,5 +300,24 @@ describe("Lotus after one I-don't-know", () => {
     const actions = planAdjustments({ state, ledger: foldLedger([dnk]), itemAt: () => make(2, "FAC_GCF_NUMERIC", "easy", ["FAC_GCF_NUMERIC"]), askedItems: [asked], freezeNext: false, reachableQuestions: 0, onNoReachableSlot: () => { noSlot = true; } });
     assert.equal(actions.some((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT"), false);
     assert.equal(noSlot, true);
+  });
+});
+
+describe("Lotus report after a right answer with a doubt", () => {
+  it("names the doubt, and never says the skill was not asked (live question 13)", () => {
+    const q = item("tri1", "x^2 - 11x + 24", "(x - 3)(x - 8)", "FAC_MONIC_TRINOMIAL", ["FAC_PAIR_PRODUCT_SUM"],
+      [{ answer: "(x + 3)(x + 8)", mistake: "SIGNS_SWAPPED" }, { answer: "(x - 4)(x - 6)", mistake: "WRONG_FACTOR_PAIR_SUM" }]);
+    q.game = gameOfPreferredKind(q, ["SPLIT_CONFIDENCE"]);
+    assert.ok(q.game, "split builds");
+    const options = (q.game as { options: string[] }).options;
+    const r = resolveLotusResponse(q, { ...base(), game: { kind: "SPLIT_CONFIDENCE", counts: options.map((o) => (o === "(x - 3)(x - 8)" ? 3 : o === "(x + 3)(x + 8)" ? 1 : 0)) } as LotusGameResponse });
+    const audits = [auditOf(q, r)];
+    assert.ok(audits[0]!.skillEvidence!.some((e) => e.skillId === "FAC_MONIC_TRINOMIAL" && e.hedge));
+    const state: FactorisationState = { topic: "FACTORISATION", planTurn: 2, turns: [], answeredTurns: [], handledConfirmed: [], handledBroadened: [], fastSkips: 0 };
+    const report = buildFactorisationReport({ ledger: foldLedger(audits), state, pendingAnalyses: 0, audits });
+    const name = "Factorising x² + bx + c";
+    assert.ok(report.uncertainAreas.some((s) => s.startsWith(name) && /with a doubt \(Q1\)/.test(s)), report.uncertainAreas.join("\n"));
+    assert.ok(!report.uncertainAreas.some((s) => s.startsWith(name) && /nothing is known/.test(s)));
+    assert.ok(!report.limitations.some((s) => s.toLowerCase().includes("factorising x² + bx + c") && /not asked|nothing is known/.test(s)));
   });
 });
