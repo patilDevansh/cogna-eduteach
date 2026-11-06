@@ -32,19 +32,19 @@ describe("targeted checks preserve the original concern", () => {
     assert.equal(e.needsComparableCheck, true);
     assert.match(e.notes.join(" "), /Q2: right on a weaker check.*Q1/);
   });
-  it("a second same-level multiple-choice answer cannot clear a multiple-choice concern", () => {
+  it("a direct same-level multiple-choice re-check can clear a multiple-choice concern", () => {
     const wrongChoice = turn("medium", "CHOICE", "MISTAKE", 1);
     const rightChoice = turn("medium", "CHOICE", "SECURE", 1);
-    assert.equal(foldLedger([wrongChoice, rightChoice]).get(skill)?.state, "SUSPECTED");
+    assert.equal(foldLedger([wrongChoice, rightChoice]).get(skill)?.state, "SECURE");
   });
-  it("an indirect tag without a demonstrated step cannot clear a concern", () => {
+  it("a verified right re-check that can show the concern clears it even when the skill is tagged", () => {
     const indirect = turn("hard", "FACTORISE", "SECURE", 4);
     indirect.question.answerKey.diagnostics!.stepSkills = ["FAC_COMMON_MONOMIAL"];
-    assert.equal(foldLedger([wrong, indirect]).get(skill)?.state, "SUSPECTED");
+    assert.equal(foldLedger([wrong, indirect]).get(skill)?.state, "SECURE");
   });
-  it("a prior concern without original question metadata is not silently cleared", () => {
+  it("a prior concern can be cleared by a direct constructed re-check", () => {
     const priors = [{ skillId: skill, reason: "SUSPECTED", mistakes: [], note: "Earlier concern" }] as any;
-    assert.equal(foldLedger([strong], priors).get(skill)?.state, "SUSPECTED");
+    assert.equal(foldLedger([strong], priors).get(skill)?.state, "SECURE");
   });
   it("a later comparable constructed answer can resolve it", () => {
     const e = foldLedger([wrong, simpler, strong]).get(skill)!;

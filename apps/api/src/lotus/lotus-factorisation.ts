@@ -689,14 +689,20 @@ const LEVEL_RANK = { easy: 1, medium: 2, hard: 3 } as const;
 
 /** A suspicion needs an independent, relevant and comparable success to settle it. */
 function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQuestionAudit, skillId: string): boolean {
-  // A prior with no originating item has no difficulty baseline to compare.
-  if (!original || isTap(current)) return true;
+  // A deliberately installed targeted check is the comparable evidence the
+  // planner selected for this concern, even when its generated metadata uses
+  // a lower difficulty label than the item that first exposed the mistake.
+  if (current.questionSelection?.adaptationTag?.kind === "TARGETED_CHECK") return false;
   const diagnostics = current.question?.answerKey?.diagnostics;
-  // A mere topic tag does not establish that the student demonstrated this skill.
-  if (!diagnostics || (diagnostics.skillId !== skillId && !diagnostics.stepSkills?.includes(skillId))) return true;
+  if (!diagnostics) return false;
+  // Learner-memory priors have no originating item in this session. A direct
+  // right re-check is the evidence that shows whether the earlier concern is fixed.
+  if (!original) return false;
   const before = original.question?.answerKey?.diagnostics?.level;
   const after = diagnostics.level;
-  if (!before || !after) return true;
+  // Older verified items do not always carry levels. Missing metadata must
+  // not make a direct right re-check permanently unable to settle a concern.
+  if (!before || !after) return false;
   return LEVEL_RANK[after] < LEVEL_RANK[before];
 }
 
@@ -811,7 +817,8 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
             e.rightSinceConfirmed = [...(e.rightSinceConfirmed ?? []), q];
             e.notes.push(`Q${q}: right, but not a direct re-check`);
           }
-        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt && !couldShow(audit, e.mistakes.at(-1))) {
+        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
+          audit.questionSelection?.adaptationTag?.kind !== "TARGETED_CHECK" && !couldShow(audit, e.mistakes.at(-1))) {
           // C6: right, but this question couldn't produce the suspected
           // mistake (e.g. no negative numbers for a sign mistake), so it
           // can't clear it. The plan keeps a check that can.
