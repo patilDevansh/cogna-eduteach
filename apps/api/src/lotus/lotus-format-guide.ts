@@ -70,7 +70,7 @@ export function evidenceFormatNeed(audits: LotusQuestionAudit[]): FormatNeed | n
   const response = last?.response;
   if (!last || !response) return null;
   const shown = last.question.game?.kind;
-  const signals = response.gameReading?.signals ?? [];
+  const signals = [...(response.gameReading?.signals ?? []), ...(response.typingReading?.signals ?? [])];
   const wrong = last.verification?.status === "VERIFIED_INCORRECT";
   const right = last.verification?.status === "VERIFIED_CORRECT";
   const mistakes = (last.skillEvidence ?? []).filter((e) => e.kind === "MISTAKE").map((e) => e.mistake ?? "").join(" ");

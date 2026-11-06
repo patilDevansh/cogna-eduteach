@@ -5,6 +5,7 @@ import { useInteractionObservation } from "@/lib/use-interaction-observation";
 import { readRecovery, writeRecovery, recoveryKey } from "@/lib/learner-recovery";
 import { lotusRecoveryProblem } from "@/lib/lotus-recovery";
 import { useDraftCheckpoints } from "@/lib/use-draft-checkpoints";
+import { useTypingRecord } from "@/lib/use-typing-record";
 import { LotusObserverDetails } from "@/components/lotus-observer-details";
 import { LotusDeveloperExit } from "@/components/lotus-developer-exit";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
@@ -576,6 +577,9 @@ function AuditCard({
               {audit.response.gameReading && (
                 <p><strong>Played:</strong> {LOTUS_GAME_TITLES[audit.response.gameReading.kind]}. {audit.response.gameReading.summary}</p>
               )}
+              {audit.response.typingReading && (
+                <p><strong>Typing:</strong> {audit.response.typingReading.summary} First key after {Math.round(Number(audit.response.typingReading.facts.firstKeyMs ?? 0) / 100) / 10}s; {audit.response.typingReading.facts.drafts ?? 0} discarded {audit.response.typingReading.facts.drafts === 1 ? "draft" : "drafts"}.</p>
+              )}
               <p><strong>Working:</strong> {audit.response.working || (audit.response.didNotKnow ? "Student said they do not know this yet" : "No working entered")}</p>
               <p>
                 <strong>Confidence:</strong>{" "}
@@ -1088,6 +1092,7 @@ function LotusPage() {
     if (field.id === "lotus-answer") {
       interaction.input(nextValue);
       draftCheckpoints.record(nextValue);
+      typingRecord.record(nextValue);
       setAnswer(nextValue);
       saveLotusRecovery({ answer: nextValue });
       setDidNotKnow(false);
@@ -1486,6 +1491,8 @@ function LotusPage() {
       nextQuestionId: staged?.id,
       ...(tileGame && !didNotKnow && tiles ? { interaction: { format: tileGame.format, picks: tiles.picks, changes: tiles.changes } } : {}),
       ...(themedGame && !didNotKnow && gamePlay ? { game: gamePlay } : {}),
+      // An ordinary typed answer sends its typing record too, so its drafts and pauses are read like Typing replay's.
+      ...(!themedGame && !tileGame && !didNotKnow && !question?.options?.length && typingRecord.history() ? { typing: typingRecord.history() } : {}),
     };
     submissionLock.current = true;
     setBusy(true);
@@ -1568,6 +1575,7 @@ function LotusPage() {
   const lastAudit = session?.status === "ACTIVE" && !pendingSubmission && !previewQuestion ? session.audits.at(-1) : undefined;
   const reasonFollowUp = lastAudit?.reasonCheck && !lastAudit.reasonCheck.chosenId ? lastAudit : null;
   const interaction = useInteractionObservation("LOTUS", question?.id, null, question?.presentation ?? question?.game?.kind ?? question?.interaction?.format ?? question?.type ?? "UNKNOWN", Boolean(question && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && !reasonFollowUp?.reasonCheck && session?.status === "ACTIVE"), session?.sessionId);
+  const typingRecord = useTypingRecord(question ? `${session?.sessionId}:${question.id}` : undefined, questionStartedAt);
   const draftCheckpoints = useDraftCheckpoints("LOTUS", studentId, session?.sessionId ?? "", question?.id, null, Boolean(question && !question.interaction && (!question.game || question.game.kind === "EDIT_HISTORY" || question.game.kind === "READBACK") && !observer && !minimized && !preparing && !busy && !supportPaused && !pendingSubmission && !previewQuestion && session?.status === "ACTIVE"), questionStartedAt);
   const workingOptional = session?.workingPrompt !== "LINES";
   const shownQuestionNumber = session ? session.audits.length + (previewQuestion ? 2 : 1) : 0;
@@ -1944,11 +1952,12 @@ function LotusPage() {
                               if (activeMathFieldRef.current !== event.currentTarget) exponentModeRef.current = false;
                               activeMathFieldRef.current = event.currentTarget;
                             }}
-                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
+                            onKeyDown={(event) => handleMathKeyDown(event, (value) => { interaction.input(value); draftCheckpoints.record(value); typingRecord.record(value); setAnswer(value); }, exponentModeRef, suppressMathChangeRef)}
                             onChange={(event) => {
                               if (suppressMathChangeRef.current) { suppressMathChangeRef.current = false; return; }
                               interaction.input(formatTypedMath(event.target.value));
                               draftCheckpoints.record(formatTypedMath(event.target.value));
+                              typingRecord.record(formatTypedMath(event.target.value));
                               setAnswer(formatTypedMath(event.target.value));
                               saveLotusRecovery({ answer: formatTypedMath(event.target.value) });
                               setDidNotKnow(false);

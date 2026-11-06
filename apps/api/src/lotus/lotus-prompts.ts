@@ -423,6 +423,8 @@ ${JSON.stringify({
   format: args.currentQuestion.game?.kind ?? (args.currentQuestion.options?.length ? "OPTIONS" : "TYPED"),
   whatThePlayShowed: args.currentResponse.gameReading?.summary,
   playSignals: args.currentResponse.gameReading?.signals,
+  whatTheTypingShowed: args.currentResponse.typingReading?.summary,
+  typingSignals: args.currentResponse.typingReading?.signals,
 })}
 
 Deterministic verification (authoritative):

@@ -3,6 +3,7 @@ import type {
   CommitThenChooseResponse,
   EditHistoryGame,
   EditHistoryResponse,
+  EditHistorySample,
   FourSignsGame,
   FourSignsResponse,
   LotusBracketSign,
@@ -673,17 +674,36 @@ function readFourSigns(question: LotusQuestion, t: Target, game: FourSignsGame, 
 
 function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Read {
   const history = checkedHistory(raw.history);
-  const final = history[history.length - 1]!.v;
+  const reading = readTypingRecord(question, history);
+  return { answer: history[history.length - 1]!.v, game: { kind: "EDIT_HISTORY", history }, reading };
+}
 
+/** Whether typed text is the question's answer: by expansion for a factorisation, else against the key. */
+function typedIsRight(question: LotusQuestion, text: string): boolean {
   const d = question.answerKey.diagnostics!;
-  const expression = d.expression!;
-  const isRight = (text: string) => { try { return classifyFactorisation(text, expression) === "CORRECT"; } catch { return false; } };
+  try {
+    if (d.itemKind === "FACTORISE" && d.expression) return classifyFactorisation(text, d.expression) === "CORRECT";
+    const key = question.answerKey.canonicalAnswer;
+    return normalizeMathText(text).toLowerCase() === normalizeMathText(key).toLowerCase() || (isReadable(text) && equalSafe(text, key));
+  } catch { return false; }
+}
+
+/**
+ * What the drafts and pauses of a typed answer show: a discarded draft that
+ * matches a known mistake, how many drafts there were, and the longest pause.
+ * The same reading for Typing replay and for an ordinary typed answer.
+ */
+export function readTypingRecord(question: LotusQuestion, history: EditHistorySample[]): LotusGameReading {
+  const final = history[history.length - 1]!.v;
+  const d = question.answerKey.diagnostics!;
+  const expression = d.expression;
+  const isRight = (text: string) => typedIsRight(question, text);
   const mistakeIn = (text: string): string | undefined => {
     if (isRight(text)) return undefined;
     const key = normalizeMathText(text).toLowerCase();
     return d.predictedMistakes.find((m) => normalizeMathText(m.answer).toLowerCase() === key
       // An unfinished mistake equals the expression in value, so only its exact text counts.
-      || (isReadable(text) && !equalSafe(m.answer, expression) && equalSafe(text, m.answer)))?.mistake;
+      || (isReadable(text) && !(expression && equalSafe(m.answer, expression)) && equalSafe(text, m.answer)))?.mistake;
   };
   // A draft: what stood in the box just before the student started deleting.
   const drafts = history.filter((s, k) => {
@@ -708,18 +728,29 @@ function readEditHistory(question: LotusQuestion, raw: EditHistoryResponse): Rea
   else if (right && !drafts.length) { summary = "Straight through, no changes. Fluent."; signals.push("straight_through"); }
   else if (right) { summary = `Right, after ${drafts.length} discarded ${word}. None matched a known mistake.`; signals.push("discarded_drafts"); }
   else if (finalMistake) { summary = `Finished with a known mistake (${mistakeWords(finalMistake)}).`; signals.push(`final_mistake:${finalMistake}`); }
-  else summary = "Finished with something that isn't the factorisation.";
+  else summary = d.itemKind === "FACTORISE" ? "Finished with something that isn't the factorisation." : "Finished with something that isn't the answer.";
   if (gap > 1500) { summary += ` Longest pause: ${(gap / 1000).toFixed(1)}s${gapAfter ? ` after “${gapAfter}”` : " before starting"}.`; signals.push("long_pause"); }
   return {
-    answer: final,
-    game: { kind: "EDIT_HISTORY", history },
-    reading: {
-      kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,
-      // Typed like any other answer, so it is marked and reviewed like one. Only a caught mistake changes anything: they fixed it, but it's still live.
-      ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves." } } : {}),
-      facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap },
-    },
+    kind: "EDIT_HISTORY", summary, signals, skillId: d.skillId, certainty: buggy.length ? 0.6 : 0.85,
+    // Typed like any other answer, so it is marked and reviewed like one. Only a caught mistake changes anything: they fixed it, but it's still live.
+    ...(right && buggy.length ? { diagnosis: { effect: "NEEDS_ANOTHER" as const, note: "Started with a known mistake and fixed it themselves." } } : {}),
+    facts: { samples: history.length, drafts: drafts.length, longestPauseMs: gap, firstKeyMs: history[0]!.t },
   };
+}
+
+/**
+ * The typing record of an ordinary typed answer, checked like Typing replay's, with
+ * the submitted answer as its last entry. Undefined when there is none or it's malformed:
+ * a bad record never blocks a submission, it just isn't read.
+ */
+export function checkedPlainTyping(samples: unknown, answer: string): EditHistorySample[] | undefined {
+  if (samples === undefined) return undefined;
+  let history: EditHistorySample[];
+  try { history = checkedHistory(samples); } catch { return undefined; }
+  const last = history[history.length - 1]!;
+  if (normalizeMathText(last.v) === normalizeMathText(answer)) return history;
+  if (history.length >= LOTUS_EDIT_MAX_SAMPLES || answer.length > LOTUS_EDIT_MAX_LENGTH) return undefined;
+  return [...history, { t: last.t, v: answer }];
 }
 
 function readRectangle(question: LotusQuestion, t: Target, game: RectangleGame, raw: RectangleResponse): Read {

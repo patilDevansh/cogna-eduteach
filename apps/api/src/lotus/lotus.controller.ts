@@ -191,6 +191,7 @@ export class LotusController {
       ...(body.developerMode !== undefined ? { developerMode: body.developerMode } : {}),
       ...(body.interaction ? { interaction: body.interaction } : {}),
       ...(body.game ? { game: body.game } : {}),
+      ...(body.typing ? { typing: body.typing } : {}),
     });
   }
 

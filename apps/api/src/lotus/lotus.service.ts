@@ -647,7 +647,7 @@ function redactAudit(audit: LotusQuestionAudit): LotusQuestionAudit {
     // What each answer said about each skill is the diagnosis itself — released with the report, not before.
     skillEvidence: undefined,
     // What the server read from a themed game's play is part of the same diagnosis.
-    response: audit.response ? { ...audit.response, gameReading: undefined } : audit.response,
+    response: audit.response ? { ...audit.response, gameReading: undefined, typingReading: undefined } : audit.response,
     gpt: audit.gpt ? redactAssessment(audit.gpt) : undefined,
     challenger: audit.challenger ? redactAssessment(audit.challenger) : undefined,
     debate: audit.debate ? redactDebate(audit.debate) : undefined,
