@@ -1,3 +1,5 @@
+import { fixedPlanEvaluation } from "./lotus-ai-only";
+import { aiOnlyAnalysis, aiOnlyEvidence, aiOnlyInstant, aiJudgedVerification, isAiOnlyUnmarked, withoutCodeReadings } from "./lotus-ai-only";
 import { assertInteractionContext, assertSameInteractionSubmission } from "../learning-evidence/interaction-context";
 import type { ClassroomEventsService } from "../classrooms/classroom-events";
 import {
@@ -1723,12 +1725,18 @@ export class LotusService implements OnModuleDestroy {
     slot.analysisLate = Boolean(slot.analysisDeadlineAt && new Date(slot.analysisDeadlineAt).getTime() < Date.now());
 
     if (liveSession.factorisation) {
-      // The AI only points at a step; the question's own step tags say which skill that is.
-      slot.skillEvidence = evidenceFromAnalysis(
-        slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
-        slot.verification?.status === "VERIFIED_CORRECT",
-        slot.verification?.status === "VERIFIED_UNFINISHED",
-      );
+      if (isAiOnlyUnmarked(slot.verification)) {
+        // AI-only experiment: the review's own marking replaces code's, and its findings are the only evidence.
+        slot.verification = aiJudgedVerification(slot.question, analysis.conclusion);
+        slot.skillEvidence = aiOnlyEvidence(slot.question, analysis.conclusion);
+      } else {
+        // The AI only points at a step; the question's own step tags say which skill that is.
+        slot.skillEvidence = evidenceFromAnalysis(
+          slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
+          slot.verification?.status === "VERIFIED_CORRECT",
+          slot.verification?.status === "VERIFIED_UNFINISHED",
+        );
+      }
       if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
@@ -2847,6 +2855,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     this.lastPlanNoTime = false;
     const f = session.factorisation!;
     if (session.status !== "ACTIVE") return [];
+    // Evaluation baseline (LOTUS_FIXED_PLAN): the opening plan is asked as written, with no checks, step-downs or swaps.
+    if (fixedPlanEvaluation()) return [];
     const actions = planAdjustments({
       state: f.state,
       ledger: foldLedger(session.audits, session.priors),
@@ -2855,7 +2865,8 @@ Create one materially different question that adds new diagnostic evidence. Test
       forceCheckDecidedBy,
       // A developer who chose "Stay in test" past the time limit has the questions actually left, not the clock's estimate:
       // the check placement and the decision text then agree with the format change applied to a later question.
-      ...(reach ? { reachableQuestions: session.developmentExitControl?.choices.some((c) => c.choice === "CONTINUE")
+      // In a full-test evaluation (LOTUS_FULL_TEST) the clock never ends the test, so the questions actually left count too.
+      ...(reach ? { reachableQuestions: session.developmentExitControl?.choices.some((c) => c.choice === "CONTINUE") || process.env.LOTUS_FULL_TEST?.trim().toLowerCase() === "true"
         ? questionsActuallyLeft(f.state)
         : reachableQuestionsAhead(reach.elapsedSeconds, reach.answered) } : {}),
       onNoReachableSlot: () => { this.lastPlanNoTime = true; },
@@ -2906,6 +2917,7 @@ Create one materially different question that adds new diagnostic evidence. Test
   }
 
   private steerNextFormat(session: LotusSessionState, audit: LotusQuestionAudit, aiFormat?: { proposed: unknown; reason?: string }): void {
+    if (fixedPlanEvaluation()) return;
     const f = session.factorisation;
     if (!f || session.status !== "ACTIVE" || !themedGamesEnabled()) return;
     const need = evidenceFormatNeed(session.audits);
@@ -3024,7 +3036,11 @@ Create one materially different question that adds new diagnostic evidence. Test
     const f = session.factorisation!;
     const state = f.state;
     this.acknowledgeAdaptiveItemShown(session, state.planTurn, currentQuestion);
-    const instant = instantVerdict(currentQuestion, response);
+    // Experiment (LOTUS_AI_ONLY_ANALYSIS): code neither marks nor reads the play; the AI review judges every answer.
+    // An explicit "I don't know" is the student's own statement, so it is still recorded directly.
+    const aiOnly = aiOnlyAnalysis() && !response.didNotKnow;
+    if (aiOnly) response = withoutCodeReadings(response);
+    const instant = aiOnly ? aiOnlyInstant(currentQuestion) : instantVerdict(currentQuestion, response);
     if (instant.fastSkip) state.fastSkips += 1;
 
     // Time box or a found starting point ends the test here, even if the browser has the next question staged.
