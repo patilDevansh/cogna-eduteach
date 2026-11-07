@@ -202,7 +202,8 @@ export interface LotusMathVerification {
   /** VERIFIED_UNFINISHED: equal to the original but not fully factorised or simplified. */
   status: "VERIFIED_CORRECT" | "VERIFIED_INCORRECT" | "VERIFIED_UNFINISHED" | "NO_ANSWER" | "NOT_DETERMINISTIC";
   correctAnswer: string;
-  method: "DETERMINISTIC_ARITHMETIC" | "DETERMINISTIC_ALGEBRA" | "AI_AUTHORED_REFERENCE";
+  /** AI_JUDGED: the AI-only analysis experiment, where the review marks the answer instead of code. */
+  method: "DETERMINISTIC_ARITHMETIC" | "DETERMINISTIC_ALGEBRA" | "AI_AUTHORED_REFERENCE" | "AI_JUDGED";
   explanation: string;
 }
 
@@ -402,6 +403,9 @@ export interface LotusDebateClosure {
   mistakeKind?: LotusMistakeKind | null;
   /** What the student did right on this answer (including in the drafts), in plain words. Optional; kept for the record, never shown to the student. */
   strengths?: string[];
+  /** AI-only analysis experiment: the review's own marking of the final answer. */
+  answerJudgment?: "CORRECT" | "INCORRECT" | "UNFINISHED" | "UNCLEAR";
+  answerJudgmentReason?: string;
   /** The format the reviewer thinks would show most next. A suggestion: the server checks it and may not use it. */
   nextFormat?: string | null;
   nextFormatReason?: string;

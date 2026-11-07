@@ -205,6 +205,12 @@ export class LotusModelService {
     // What the student did right: a short list of plain strings, or nothing. A bad shape never fails the review.
     value.strengths = (Array.isArray(value.strengths) ? (value.strengths as unknown[]) : [])
       .filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim().slice(0, 240)).slice(0, 5);
+    // AI-only analysis experiment: the review's own marking. Anything else reads as UNCLEAR.
+    if (value.answerJudgment !== undefined) {
+      const j = typeof value.answerJudgment === "string" ? value.answerJudgment.trim().toUpperCase() : "";
+      value.answerJudgment = j === "CORRECT" || j === "INCORRECT" || j === "UNFINISHED" ? j : "UNCLEAR";
+      value.answerJudgmentReason = typeof value.answerJudgmentReason === "string" ? value.answerJudgmentReason.trim().slice(0, 300) : "";
+    }
     return value as unknown as LotusDebateClosure;
   }
 

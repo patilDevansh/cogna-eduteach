@@ -9,6 +9,7 @@ import type { LotusQuestion, LotusQuestionAudit, LotusSkillEvidence, LotusStuden
 import {
   FACTORISATION_SLOTS,
   assertFixedItemIsValid,
+  dependsOnTransitively,
   skillName,
 } from "../../src/lotus/lotus-factorisation-catalogue";
 import {
@@ -22,6 +23,7 @@ import {
   instantVerdict,
   nextOpenTurn,
   planAdjustments,
+  COVER_FROM_TURN,
 } from "../../src/lotus/lotus-factorisation";
 
 let nextId = 0;
@@ -341,6 +343,40 @@ describe("planAdjustments — changing only questions the student hasn't reached
     assert.deepEqual(state.handledConfirmed, ["FAC_DIVIDE_TERMS"]);
     // Handled once: the same ledger doesn't prune again.
     assert.deepEqual(planAdjustments({ state, ledger, itemAt, askedItems }), []);
+  });
+
+  it("going down keeps going once the first step-downs come back secure, instead of stopping (eval E1, dividing powers)", () => {
+    const { state, itemAt, askedItems } = planFixture(3);
+    const gap = [audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")]), audit([mistake("FAC_DIVIDE_TERMS", "DIVIDED_FIRST_TERM_ONLY")])];
+    const first = planAdjustments({ state, ledger: foldLedger(gap), itemAt, askedItems });
+    const firstDown = first.filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT").map((a) => a.kind === "REPURPOSE" && a.forSkill);
+    assert.deepEqual(firstDown, ["FAC_GCF_NUMERIC", "FAC_GCF_VARIABLE"]);
+    // While those step-downs are still to come, nothing more is planned.
+    assert.deepEqual(planAdjustments({ state, ledger: foldLedger(gap), itemAt, askedItems }), []);
+    // Both came back secure (and the skills that don't rest on the gap are secure too, so a question is spare):
+    // the cause is further down, so the next prerequisite is asked, in a slot that costs nothing.
+    state.planTurn = 8;
+    const independent = [...new Set(FACTORISATION_SLOTS.map((s) => s.skillId))].filter((s) => !dependsOnTransitively(s, "FAC_DIVIDE_TERMS"));
+    const ledger = foldLedger([...gap, ...provenBy("FAC_GCF_NUMERIC"), ...provenBy("FAC_GCF_VARIABLE"), ...independent.flatMap(provenBy)]);
+    const next = planAdjustments({ state, ledger, itemAt, askedItems }).filter((a) => a.kind === "REPURPOSE" && a.purpose === "DESCENT");
+    assert.equal(next.length, 1);
+    assert.ok(next[0]!.kind === "REPURPOSE" && ["FND_EXPONENT_PRODUCT", "FND_EXPONENT_QUOTIENT"].includes(next[0]!.forSkill!), JSON.stringify(next));
+    assert.match(next[0]!.kind === "REPURPOSE" ? next[0]!.reason : "", /Going further down/);
+  });
+
+  it("a skill no slot asks and nothing builds on gets one question in a spare slot, but only in the second half (eval E1, splitting the middle term)", () => {
+    const early = planFixture(5);
+    const ledgerOf = (turn: number) => foldLedger(FACTORISATION_SLOTS.filter((s) => s.slot <= turn).flatMap((s) => provenBy(s.skillId)));
+    const covers = (actions: ReturnType<typeof planAdjustments>) => actions.filter((a) => a.kind === "REPURPOSE" && a.purpose === "WIDEN" && /Not asked anywhere/.test(a.reason));
+    assert.equal(covers(planAdjustments({ ...early, ledger: ledgerOf(5) })).length, 0, "not in the first half");
+    const late = planFixture(COVER_FROM_TURN);
+    const placed = covers(planAdjustments({ ...late, ledger: ledgerOf(COVER_FROM_TURN) }));
+    const topLevel = ["FAC_REARRANGE_TO_GROUP", "ID_BRACKET_AS_ONE", "FAC_SPLIT_MIDDLE", "DIV_EXPR_BY_TERM"];
+    const skills = placed.map((a) => (a.kind === "REPURPOSE" ? a.forSkill : ""));
+    assert.ok(skills.length >= 1 && skills.every((s) => topLevel.includes(s!)) && new Set(skills).size === skills.length, JSON.stringify(skills));
+    // Each such skill is asked once: a second replan never places it again.
+    const again = covers(planAdjustments({ ...late, ledger: ledgerOf(COVER_FROM_TURN) })).map((a) => (a.kind === "REPURPOSE" ? a.forSkill : ""));
+    assert.ok(again.every((s) => !skills.includes(s)), JSON.stringify(again));
   });
 
   it("right after an answer, the question after next may change too", () => {

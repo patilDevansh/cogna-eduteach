@@ -95,6 +95,10 @@ export interface FactorisationState {
   handledConfirmed: string[];
   /** Skills already offered a BROADEN check (found a target or not) — never revisited, so one secure skill never claims two slots. */
   handledBroadened: string[];
+  /** Step-down questions placed, as "<skill>@<turn>": going down continues only once these have been answered. */
+  descents?: string[];
+  /** Skills no slot asks and nothing builds on, already given their one question (planAdjustments step 4). */
+  covered?: string[];
   fastSkips: number;
 }
 
@@ -1318,6 +1322,9 @@ export function untestedSkillsLeft(topic: LotusPlannedTopic | undefined, ledger:
   return names;
 }
 
+/** From this question on, a skill no slot asks and nothing builds on may take a spare slot (planAdjustments, step 4). */
+export const COVER_FROM_TURN = 13;
+
 export function planAdjustments(input: PlanInput): PlanAction[] {
   const { state, ledger, itemAt } = input;
   const slots = curriculumFor(state.topic).slots;
@@ -1388,6 +1395,11 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // Q24/Q25 instead, far past where the evidence was actually needed.
     return pool.length ? pool[0]!.turn : null;
   };
+  // A truly spare slot: every skill its question uses is already secure, so taking it costs nothing the plan needs.
+  // Used by the later, optional steps (going further down, covering skills nothing builds on).
+  const spareSecure = (): number | null => mutable().find((t) => !protectedTurns.has(t.turn) && reachable(t.turn) &&
+    t.purpose !== "CHECK" && t.purpose !== "DESCENT" && t.purpose !== "WIDEN" &&
+    (() => { const d = itemAt(t.turn)?.answerKey.diagnostics; return !!d && skillsUsedBy(d).every((u) => ledger.get(u)?.state === "SECURE"); })())?.turn ?? null;
 
   // A closure-stage AI recommendation is an explicit request for fresh
   // evidence. Keep the question already visible to the student, but reserve
@@ -1541,7 +1553,33 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 
   // 2. A confirmed gap: remove or reroute later questions that depend on it, then go down.
   for (const e of ledger.values()) {
-    if (e.state !== "CONFIRMED" || state.handledConfirmed.includes(e.skillId)) continue;
+    if (e.state !== "CONFIRMED") continue;
+    // The removals and the first step down happen once. After that the step down keeps going, one prerequisite at a
+    // time, whenever no step-down question below this gap is still to come: a prerequisite that came back secure
+    // must not end the search for the cause (dividing every term → the number was fine → try multiplying, then
+    // dividing powers).
+    const firstTime = !state.handledConfirmed.includes(e.skillId);
+    if (!firstTime) {
+      // Step-downs are also remembered in state.descents, so a replan before they are installed still sees them.
+      const remembered = (state.descents ?? []).map((k) => { const [skill, turn] = k.split("@"); return { skill: skill!, turn: Number(turn) }; });
+      const pending = state.turns.some((t) => t.turn > state.planTurn && t.status !== "SKIPPED" && t.purpose === "DESCENT" &&
+        !!t.forSkill && dependsOnTransitively(e.skillId, t.forSkill)) ||
+        remembered.some((r) => r.turn > state.planTurn && dependsOnTransitively(e.skillId, r.skill));
+      if (pending) continue;
+      const probed = (p: string) => state.turns.some((t) => t.purpose === "DESCENT" && t.forSkill === p) || remembered.some((r) => r.skill === p);
+      const next = descentTargets(slots, e.skillId, ledger, 6, e.mistakes).find((d) => !probed(d.skill) && !checkedThisCall.has(d.skill));
+      if (!next) continue;
+      const turn = spareSecure();
+      if (turn === null) continue;
+      claimed.add(turn);
+      checkedThisCall.add(next.skill);
+      (state.descents ??= []).push(`${next.skill}@${turn}`);
+      actions.push({
+        kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: next.skill, spec: next.spec,
+        reason: `Going further down: is ${skillName(next.skill)} solid underneath ${skillName(e.skillId)}?`,
+      });
+      continue;
+    }
     const freed: number[] = [];
     for (const t of mutable()) {
       if (protectedTurns.has(t.turn)) continue;
@@ -1576,6 +1614,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       const skipIndex = actions.findIndex((a) => a.kind === "SKIP" && a.turn === turn);
       if (skipIndex >= 0) actions.splice(skipIndex, 1);
       checkedThisCall.add(p);
+      (state.descents ??= []).push(`${p}@${turn}`);
       actions.push({
         kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: p, spec,
         reason: `Going down: is ${skillName(p)} solid underneath ${skillName(e.skillId)}?`,
@@ -1617,6 +1656,31 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     actions.push({
       kind: "REPURPOSE", turn, purpose: "WIDEN", forSkill: target.skill, spec: target.spec,
       reason: `${skillName(e.skillId)} was right once; a different representation of the same skill can confirm transfer rather than one memorized shape.`,
+    });
+  }
+
+  // 4. A skill no slot asks and nothing else builds on (splitting the middle term, rearranging to group…) is never
+  // reached by going down, so without this a gap there can't be found at all. Each is asked once, in a spare slot
+  // (one whose skills are already all secure), unless it rests on a skill already found shaky — then it can't be
+  // read until that is taught. Only in the second half: the first half belongs to the plan's own coverage.
+  const curriculum = curriculumFor(state.topic);
+  const shakyNow = [...ledger.values()].filter((x) => x.state === "CONFIRMED" || x.state === "SUSPECTED").map((x) => x.skillId);
+  for (const s of state.planTurn < COVER_FROM_TURN ? [] : curriculum.skills) {
+    if ((state.covered ?? []).includes(s.id) || slots.some((x) => x.skillId === s.id)) continue;
+    if (curriculum.skills.some((o) => o.id !== s.id && dependsOnTransitively(o.id, s.id))) continue;
+    if ((ledger.get(s.id)?.state ?? "UNTESTED") !== "UNTESTED" || checkedThisCall.has(s.id)) continue;
+    if (state.turns.some((t) => t.status !== "SKIPPED" && (t.forSkill === s.id || usesSkill(itemAt(t.turn), s.id)))) continue;
+    if (shakyNow.some((g) => dependsOnTransitively(s.id, g))) continue;
+    const spec = checkSpecFor(s.id);
+    if (!spec) continue;
+    const turn = spareSecure();
+    if (turn === null) break;
+    (state.covered ??= []).push(s.id);
+    claimed.add(turn);
+    checkedThisCall.add(s.id);
+    actions.push({
+      kind: "REPURPOSE", turn, purpose: "WIDEN", forSkill: s.id, spec,
+      reason: `Not asked anywhere in this test: ${skillName(s.id)}. Nothing else builds on it, so this is the only way a gap there can show.`,
     });
   }
   return actions;
@@ -1914,6 +1978,8 @@ export function factorisationStopReason(
   priors: LotusLedgerPrior[] = [],
 ): FactorisationStop | null {
   const answered = audits.length;
+  // Evaluation (LOTUS_FULL_TEST): every planned question is asked; neither a found starting point nor the clock ends it.
+  if (process.env.LOTUS_FULL_TEST?.trim().toLowerCase() === "true") return null;
   if (elapsedSeconds >= timeLimitSeconds) {
     return {
       reason: "TIME_LIMIT",
@@ -1921,6 +1987,8 @@ export function factorisationStopReason(
     };
   }
   if (answered < MIN_ANSWERS_FOR_EARLY_STOP) return null;
+  // Evaluation baseline (LOTUS_FIXED_PLAN): a fixed test asks every planned question.
+  if (process.env.LOTUS_FIXED_PLAN?.trim().toLowerCase() === "true") return null;
   const ledger = foldLedger(audits, priors);
   const start = confirmedByDepth(ledger)[0];
   if (!start) return null;
