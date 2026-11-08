@@ -1,3 +1,4 @@
+import { aiOnlyAnalysis, AI_ONLY_REVIEW_RULES } from "./lotus-ai-only";
 import { isPlannedLotusTopic, type LotusMathVerification, type LotusQuestion, type LotusQuestionAudit, type LotusPhase, type LotusStudentResponse, type LotusTopic } from "@cogna/shared";
 import { formatGuideForPrompt, formatsUsedForPrompt } from "./lotus-format-guide";
 import { curriculumFor } from "./lotus-factorisation-catalogue";
@@ -470,7 +471,7 @@ Review tasks:
 5b. If the deterministic verification says the answer is equal to the key but not finished (for example 2^7 where the key is 128, or an expression not yet simplified), and your own reading is that the tested step was done correctly, report NO mistake on that step: firstWrongStep must be null, and say in "mistakeDescription" only that the final value was not worked out. Never turn an unevaluated but correct answer into a misunderstanding.
 5a. Name what the student did right in "strengths" (up to 4 short plain phrases), including anything right in the drafts: a correct common letter or number taken out, a term divided correctly, a correct value written first and then changed. Say only what the answer, working or drafts actually show; use an empty list when nothing was right. When a part was right, "mistakeDescription" must not blame the skill for that part (for example, if the common letter was found correctly, do not describe the letters as the mistake).
 6. Choose the action: ASK (continue) or an exit action (EXIT_GAP | EXIT_ADVANCE | EXIT_UNCERTAIN).
-7. If the action is ASK, set "nextFormat" to the one format above that would best settle what is still unclear about this student, and say why in "nextFormatReason" in one short sentence. Pick for what it would reveal, not for variety. Only a format listed in an upcoming slot's "formatsThatFit" can be used, and it goes first on the slot that re-checks the skill in question. Decide first whether this answer looks like a slip or a held misconception, and pick the format that tells the two apart. If "serverFormatDefault" already does that, or the answer left nothing unclear, use null. The server checks your choice and may keep the question as it is; it never changes the maths.
+7. If the action is ASK, set "nextFormat" to the one format above that would best settle what is still unclear about this student, and say why in "nextFormatReason" in one short sentence. Pick for what it would reveal, not for variety. Only a format listed in an upcoming slot's "formatsThatFit" can be used, and it goes first on the slot that re-checks the skill in question. Decide first whether this answer looks like a slip or a held misconception, and pick the format that tells the two apart. If "serverFormatDefault" already does that, or the answer left nothing unclear, use null. The server checks your choice and may keep the question as it is; it never changes the maths.${aiOnlyAnalysis() ? AI_ONLY_REVIEW_RULES : ""}
 
 Return JSON only:
 {
@@ -484,7 +485,9 @@ Return JSON only:
   "firstWrongStep": null,
   "mistakeDescription": "",
   "mistakeKind": null,
-  "strengths": [],
+  "strengths": [],${aiOnlyAnalysis() ? `
+  "answerJudgment": "CORRECT|INCORRECT|UNFINISHED|UNCLEAR",
+  "answerJudgmentReason": "",` : ""}
   "nextFormat": null,
   "nextFormatReason": "",
   "exitDiagnostic": false
