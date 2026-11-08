@@ -12,6 +12,8 @@ function matchesWhere(row: Row, where: Record<string, unknown> | undefined): boo
       if ("in" in value) return (value.in as unknown[]).includes(row[key]);
       if ("lt" in value) return row[key] instanceof Date && (row[key] as Date) < (value.lt as Date);
     }
+    // A field a row never had reads as null, as a database column would.
+    if (value === null) return row[key] === undefined || row[key] === null;
     return row[key] === value;
   });
 }
@@ -83,10 +85,18 @@ export function createPersonalizedVideoMemoryDb() {
     },
     personalizedVideoEvent: {
       create: async ({ data }: { data: Row }) => {
+        // exitSlot is unique, as in the database (DATA-014).
+        if (data.exitSlot && [...events.values()].some((row) => row.exitSlot === data.exitSlot)) {
+          throw Object.assign(new Error("Unique constraint failed on the fields: (`exitSlot`)"), { code: "P2002" });
+        }
         const row = { ...data, id: randomUUID(), createdAt: new Date() };
         events.set(row.id as string, row);
         return row;
       },
+      findFirst: async ({ where }: { where?: Record<string, unknown> }) =>
+        [...events.values()].find((row) => matchesWhere(row, where)) ?? null,
+      findUnique: async ({ where }: { where: { exitSlot?: string; id?: string } }) =>
+        [...events.values()].find((row) => (where.exitSlot !== undefined ? row.exitSlot === where.exitSlot : row.id === where.id)) ?? null,
       findMany: async ({
         where,
         orderBy,
