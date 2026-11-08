@@ -735,6 +735,8 @@ export interface SkillLedgerEntry {
   shownInWrong?: number;
   /** The learner explicitly needed help; use a lower prerequisite probe where possible. */
   needsSupport?: boolean;
+  /** A stopped-early gap kept as a suspicion: the method its questions needed, not yet shown secure. */
+  methodUnchecked?: string;
   /** How many different questions on this skill got "I don't know this yet". */
   supportCount?: number;
   /** Confirmed because the student said they don't know it (twice, or once plus a mistake), not by two mistakes. */
@@ -1009,6 +1011,7 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
     }
   });
   explainAwayConfounded(audits, ledger);
+  demoteUncheckedMethod(audits, ledger);
   markTirednessGaps(audits, ledger);
   return ledger;
 }
@@ -1070,6 +1073,38 @@ function explainAwayConfounded(audits: LotusQuestionAudit[], ledger: Ledger): vo
     e.suspectedAt = e.confirmedAt;
     delete e.confirmedAt;
     e.notes.push(`Every question it went wrong on also needed ${skillName(g)}, a confirmed gap, so that may be the cause`);
+  }
+}
+
+/** The method skill a stopped-early answer may have lacked: one the question needed that nothing has shown secure. */
+export function uncheckedMethodFor(skillId: string, diagnostics: Parameters<typeof skillsUsedBy>[0][], ledger: Ledger): string | undefined {
+  return diagnostics.flatMap((d) => skillsUsedBy(d)).find((m) => m !== skillId && !dependsOnTransitively(skillId, m) &&
+    (ledger.get(m)?.state ?? "UNTESTED") !== "SECURE");
+}
+
+/**
+ * Stopping early ("2(x² − 25)") is blamed on factorising fully, but it may be a gap in the method the left-over
+ * bracket needed. While some method every such question needed has not been shown secure, the gap stays a
+ * suspicion and says which method to check (held-out H20: a missing difference of squares was confirmed as a gap
+ * in factorising fully).
+ */
+function demoteUncheckedMethod(audits: LotusQuestionAudit[], ledger: Ledger): void {
+  for (const e of ledger.values()) {
+    if (e.state !== "CONFIRMED" || e.confirmedBySupport || !e.mistakes.length || !e.mistakes.every((m) => m === "INCOMPLETE_FACTORISATION")) continue;
+    const negatives = audits.filter((a) => (a.skillEvidence ?? []).some((ev) => ev.skillId === e.skillId && ev.kind !== "SECURE" && !ev.hedge));
+    // Older records may lack the tag lists.
+    const diags = negatives.map((a) => a.question?.answerKey?.diagnostics).filter((d): d is NonNullable<typeof d> => !!d)
+      .map((d) => ({ skillId: d.skillId, taggedSkills: d.taggedSkills ?? [], stepSkills: d.stepSkills ?? [] }));
+    if (!diags.length || diags.length < negatives.length) continue;
+    // A method every one of those questions needed, so each stop could be that method.
+    const method = skillsUsedBy(diags[0]!).find((m) => uncheckedMethodFor(e.skillId, [{ skillId: m, taggedSkills: [], stepSkills: [] }], ledger) === m &&
+      diags.every((d) => skillsUsedBy(d).includes(m)));
+    if (!method) continue;
+    e.methodUnchecked = method;
+    e.state = "SUSPECTED";
+    e.suspectedAt = e.confirmedAt;
+    delete e.confirmedAt;
+    e.notes.push(`Every question it stopped early on also needed ${skillName(method)}, which hasn't been shown secure, so that may be the cause`);
   }
 }
 
@@ -1558,6 +1593,29 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     // a re-check needs its own, still ahead.
     // A check that was dropped before it was asked (its question wasn't ready in time) doesn't count: eval E13's
     // second check was booked, dropped, and the suspicion was never settled.
+    // Stopping early ("2(x² − 25)") can be a gap in the method the left-over bracket needed, not in finishing the
+    // job. That method is checked first; the same-skill check waits until it is known (held-out H20: a missing
+    // difference of squares was confirmed as a gap in factorising fully).
+    if (e.state === "SUSPECTED" && e.mistakes.at(-1) === "INCOMPLETE_FACTORISATION") {
+      const askedFor = [...input.askedItems].reverse().map((i) => i.answerKey.diagnostics).filter((d) => d?.skillId === e.skillId);
+      const method = e.methodUnchecked ?? uncheckedMethodFor(e.skillId, askedFor as Parameters<typeof skillsUsedBy>[0][], ledger);
+      if (method) {
+        const asked = checkedThisCall.has(method) || state.turns.some((t) => (t.purpose === "CHECK" || t.purpose === "DESCENT") &&
+          t.forSkill === method && (t.status !== "SKIPPED" || state.answeredTurns.includes(t.turn)));
+        const methodSpec = asked ? undefined : slots.find((s) => s.skillId === method) ?? checkSpecFor(method);
+        const turn = methodSpec ? pickVictim() : null;
+        if (methodSpec && turn !== null) {
+          claimed.add(turn);
+          protectedTurns.add(turn);
+          checkedThisCall.add(method);
+          actions.push({
+            kind: "REPURPOSE", turn, purpose: "CHECK", forSkill: method, spec: methodSpec,
+            reason: `${skillName(e.skillId)} stopped early; checking ${skillName(method)}, which the left-over bracket needed, before asking it again.`,
+          });
+          continue;
+        }
+      }
+    }
     const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) =>
       (t.purpose === "CHECK" && t.forSkill === e.skillId && (t.status !== "SKIPPED" || state.answeredTurns.includes(t.turn)) &&
         (!(e.recheck || e.needsComparableCheck) || t.turn >= state.planTurn)) ||

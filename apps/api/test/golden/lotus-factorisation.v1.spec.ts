@@ -968,6 +968,23 @@ describe("report accuracy fixes from the E1 evaluation", () => {
     assert.equal((e as { tiredness?: boolean }).tiredness, true);
   });
 
+  it("stopping early on questions that all needed an unchecked method is a suspicion that names the method (held-out H20)", () => {
+    const stopped = (tagged: string[]) => ({
+      skillEvidence: [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")],
+      response: { responseTimeMs: 30_000, didNotKnow: false },
+      verification: { status: "VERIFIED_INCORRECT" },
+      question: { prompt: `q${(nextId += 1)}`, answerKey: { diagnostics: { skillId: "FAC_FACTOR_FULLY", taggedSkills: tagged, stepSkills: ["FAC_FACTOR_FULLY"], expression: `x^4 - ${nextId}` } } },
+    }) as unknown as LotusQuestionAudit;
+    const twice = [stopped(["FAC_COMMON_MONOMIAL", "FAC_DIFF_SQUARES"]), stopped(["FAC_DIFF_SQUARES"])];
+    const e = foldLedger(twice).get("FAC_FACTOR_FULLY") as { state: string; methodUnchecked?: string; notes: string[] };
+    assert.equal(e.state, "SUSPECTED");
+    assert.equal(e.methodUnchecked, "FAC_DIFF_SQUARES", "the method both questions needed");
+    assert.match(e.notes.at(-1)!, /Difference of two squares/);
+    // Once that method is shown secure, the same two stops confirm the gap.
+    const secureMethod = { ...timed(30_000, true, [secure("FAC_DIFF_SQUARES")]) };
+    assert.equal(foldLedger([secureMethod, ...twice]).get("FAC_FACTOR_FULLY")?.state, "CONFIRMED");
+  });
+
   it("a careful learner who rushes twice is not called tired", () => {
     const rushed = (i: number) => i === 6 || i === 15;
     const audits = Array.from({ length: 25 }, (_, i) => timed(rushed(i) ? 4_000 : 30_000, !rushed(i), [rushed(i) ? mistake("FAC_GCF_NUMERIC") : secure("FAC_GCF_NUMERIC")]));
