@@ -163,17 +163,21 @@ async function main() {
     if (run.condition === "FIXED" && run.aiRead?.skills) scores.push(scoreStates(f, run, "FIXED_AI_READ", aiStates(run), run.aiRead.startWith ?? null, false));
   }
   // The blind independent end reports (Amendment 1), scored on the same bars as the Lotus run they read.
-  const keyFile = join(outDir, "blind-key.json");
   const blindDir = join(outDir, "blind-reports");
   try {
-    const key: Record<string, string> = JSON.parse(await readFile(keyFile, "utf8"));
+    // blind-key.json (first export) maps code → run file; blind-key-2.json maps code → { file, batch }.
+    const key: Record<string, string> = JSON.parse(await readFile(join(outDir, "blind-key.json"), "utf8"));
+    try {
+      for (const [code, v] of Object.entries<{ file: string }>(JSON.parse(await readFile(join(outDir, "blind-key-2.json"), "utf8")))) key[code] = v.file;
+    } catch { /* only the first export */ }
     for (const [code, runFile] of Object.entries(key)) {
       let report: any;
       try { report = JSON.parse(await readFile(join(blindDir, `${code}.json`), "utf8")); } catch { continue; }
       const run = JSON.parse(await readFile(join(runsDir, runFile), "utf8"));
       const states = new Map<string, State>();
       for (const [s, v] of Object.entries<string>(report.skills ?? {})) states.set(s, v === "GAP" ? "CONFIRMED" : v === "SHAKY" ? "SUSPECTED" : v === "SECURE" ? "SECURE" : "OTHER");
-      const score = scoreStates(`${code}→${runFile}`, run, "BLIND_CLAUDE", states, report.startWith ?? null, false);
+      // Named by the run it read, so it sits beside the report from that same run.
+      const score = scoreStates(`${code}→${runFile}`, run, `BLIND_ON_${run.condition}`, states, report.startWith ?? null, false);
       // Bar 13 for the blind report: the questions its gaps and shaky skills cite.
       const intents = new Map<number, string>((run.turns ?? []).filter((t: any) => t.intent).map((t: any) => [t.turn, t.intent.kind]));
       let cited = 0, real = 0; const none: string[] = [], bad: string[] = [];
@@ -185,7 +189,7 @@ async function main() {
       scores.push({ ...score, cited, citedReal: real, weaknessesWithoutCitation: none, badCitations: bad });
     }
   } catch { /* no blind reports yet */ }
-  const conditions = ["LOTUS", "BLIND_CLAUDE", "FIXED", "FIXED_AI_READ", "AI_ONLY"].filter((c) => scores.some((s) => s.condition === c));
+  const conditions = ["LOTUS", "BLIND_ON_LOTUS", "FIXED", "FIXED_AI_READ", "BLIND_ON_FIXED", "AI_ONLY", "BLIND_ON_AI_ONLY"].filter((c) => scores.some((s) => s.condition === c));
   const summary = conditions.map((c) => summarise(c, scores.filter((s) => s.condition === c)));
   await writeFile(join(outDir, "scorecard.json"), JSON.stringify({ summary, runs: scores }, null, 2));
   const f = (x: unknown) => Array.isArray(x) ? `${pct(x[0], x[1])} (${x[0]}/${x[1]})` : typeof x === "number" ? (Number.isInteger(x) ? String(x) : x.toFixed(1)) : x === null ? "n/a" : String(x);
