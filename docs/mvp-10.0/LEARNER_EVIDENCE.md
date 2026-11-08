@@ -41,6 +41,15 @@ Other interaction formats, replay/seek capture, comprehensive exposure tags, glo
 
 Malformed versions/IDs/actions, wrong learner, stale content, replay and changed-payload replay, concurrent distinct requests, failed transaction, restart/readback, explicit help versus first practice attempt with NONE_RECORDED assistance, absent exposure and legacy records. Browser verifies actual displayed content, save/retry state, refresh/resume and stored receipt correlation. Fake database tests alone do not establish durable behaviour.
 
+### Server draft checkpoints: the temporary rule (DATA-015)
+
+Product-owner decision, 8 November 2026. This is a product rule, not a legal-compliance claim, and it is provisional until the school discussion in DATA-007.
+
+- **Who sees them:** no person. Draft checkpoints (`LEARNER_DRAFT_CHECKPOINT` raw events, from exercises and Lotus) are left out of every view: the student's own learning history, teacher and parent views, AI Studio and other students. Only Cogna's own analysis may read them. The one exception is a worker export made for the family's own request (`GET /lotus/students/:id/export` as a worker); a teacher export leaves them out.
+- **How long:** 30 days (`DRAFT_RETENTION_DAYS`). Conclusions drawn from drafts may be kept in the learner memory; the raw text may not.
+- **How they're deleted:** the nightly scheduler calls `POST /jobs/drafts/expire`, which permanently deletes draft checkpoints older than 30 days. Deleting a child's data (`DELETE /lotus/students/:id`) deletes all their drafts at once. Submitted answers and other evidence are never touched.
+- **Release check:** draft capture may be used in a real school only while these three hold. `apps/api/test/golden/drafts-rule.database.v1.spec.ts` proves them, including a source scan that fails if any other code starts reading drafts.
+
 ### Unsubmitted typed-practice drafts
 
 The typed-practice page keeps a separate, tab-scoped recovery draft, keyed by learner, assignment, item and immutable content version. It expires after 24 hours and only restores against the same latest checked-answer event. Input edits are written immediately, including an intentionally cleared input. Pending submitted requests take priority and retain their original event/body for retry. Acknowledged checked answers remain immutable; drafts are not server evidence, scored answers or learning progress. The UI explicitly distinguishes local unchecked drafts from acknowledged server saves. Recovery in another browser/tab/device and full offline operation are not promised by this slice.

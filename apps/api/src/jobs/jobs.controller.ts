@@ -35,6 +35,12 @@ export class JobsController {
     return this.jobs.refreshItemStatistics();
   }
 
+  /** Delete unsubmitted drafts past their retention period (DATA-015). */
+  @Post("drafts/expire")
+  expireDrafts() {
+    return this.jobs.expireDrafts();
+  }
+
   /** Advance queued personalized-video render jobs. */
   @Post("personalized-video-render/run")
   runPersonalizedVideoRender() {

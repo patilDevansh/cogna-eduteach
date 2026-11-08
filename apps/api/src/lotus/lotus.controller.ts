@@ -307,8 +307,9 @@ export class LotusController {
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Param("studentId") studentId: string,
   ) {
-    await this.lotus.assertTeachesStudent(resolveActor(headers), studentId);
-    return this.lotus.exportStudentData(studentId);
+    const actor = resolveActor(headers);
+    await this.lotus.assertTeachesStudent(actor, studentId);
+    return this.lotus.exportStudentData(studentId, actor.role === "worker");
   }
 
   /** Live-model call/token/cost telemetry since this process started. Teacher/admin only — never a student-facing route. */

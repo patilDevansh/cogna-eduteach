@@ -21,6 +21,7 @@ while true; do
   if [ $((minute % 1440)) -eq 0 ]; then
     run /jobs/daily-revision-plans/run
     run /jobs/item-statistics/refresh
+    run /jobs/drafts/expire
   fi
   [ $((minute % 10080)) -eq 0 ] && run /jobs/weekly-reports/run
   minute=$((minute + 1))
