@@ -560,7 +560,7 @@ describe("fixes from the held-out scorecard v1", () => {
       const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
       assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
       assert.match(report.startingPoint, /Not asked in this test: cancelling factors, never terms/);
-      assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: not asked in this test/.test(a)));
+      assert.ok(report.uncertainAreas.some((a) => /^Planned but not asked in this test.*cancelling factors, never terms/.test(a)));
       assert.match(report.recommendedNextStep, /cancelling factors, never terms, rearranging terms to group.* weren't asked/);
       assert.ok(report.limitations.some((l) => /planned but not asked/.test(l) && /cancelling factors/.test(l)));
       assert.deepEqual(report.skills!.filter((s) => s.skillId === "FAC_CANCEL_COMMON_FACTOR").map((s) => s.state), ["UNTESTED"]);
@@ -584,7 +584,8 @@ describe("fixes from the held-out scorecard v1", () => {
         assert.match(report.startingPoint, /Not asked in this test: rearranging terms to group, a bracket as one quantity, splitting the middle term, dividing a term by a term, dividing an expression by a term\./);
         assert.match(report.recommendedNextStep, /No teaching gap found in the skills asked\..* weren't asked, so check them before moving on\./);
         for (const id of UNASKED) {
-          assert.ok(report.uncertainAreas.some((a) => a.startsWith(skillName(id)) && /no question in this test covers it/.test(a)), `${id} named in the uncertain areas`);
+          // Named on the one grouped "not covered" line, not a line each.
+          assert.ok(report.uncertainAreas.some((a) => /^Not covered by any question in this test/.test(a) && a.includes(skillName(id).toLowerCase())), `${id} named in the uncertain areas`);
           assert.deepEqual(report.skills!.filter((s) => s.skillId === id).map((s) => s.state), ["UNTESTED"], `${id} is in the skill list as untested`);
         }
         assert.ok(report.limitations.some((l) => /No question in this test covers/.test(l) && /a gap there would not show up here/.test(l)));
@@ -928,7 +929,9 @@ describe("buildFactorisationReport", () => {
     assert.notEqual(report.outcome, "SOLID_GAP");
     // The one mistake is listed as unconfirmed; the other planned skills weren't asked at all in this contrived test, and say so.
     assert.equal(report.uncertainAreas.filter((a) => /one mistake, not confirmed/.test(a)).length, 1);
-    assert.equal(report.uncertainAreas.filter((a) => /not asked in this test|no question in this test covers it|never checked, and/.test(a)).length, report.uncertainAreas.length - 1);
+    assert.equal(report.uncertainAreas.filter((a) => /not asked in this test|not covered by any question|never checked, and/i.test(a)).length, report.uncertainAreas.length - 1);
+    // The unasked skills are grouped: one line, not one per skill.
+    assert.equal(report.uncertainAreas.filter((a) => /^Planned but not asked in this test/.test(a)).length, 1);
   });
 
   it("nextOpenTurn skips removed turns", () => {
@@ -936,5 +939,67 @@ describe("buildFactorisationReport", () => {
     state.turns[3]!.status = "SKIPPED";
     assert.equal(nextOpenTurn(state, 3), 5);
     assert.equal(nextOpenTurn(state, 25), null);
+  });
+});
+
+describe("report accuracy fixes from the E1 evaluation", () => {
+  const timed = (ms: number, ok: boolean, ev: LotusSkillEvidence[]): LotusQuestionAudit => ({
+    skillEvidence: ev,
+    response: { responseTimeMs: ms, didNotKnow: false },
+    verification: { status: ok ? "VERIFIED_CORRECT" : "VERIFIED_INCORRECT" },
+    question: { prompt: `q${(nextId += 1)}`, answerKey: { diagnostics: { skillId: ev[0]!.skillId, expression: `${nextId}x + 1` } } },
+  }) as unknown as LotusQuestionAudit;
+
+  it("a tired spell with a right answer in it, and answers of exactly 5 seconds, is tiredness, not a gap (E05)", () => {
+    const careful = Array.from({ length: 18 }, () => timed(30_000, true, [secure("FAC_DIVIDE_TERMS")]));
+    const tired = [
+      timed(4_000, false, [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")]),
+      timed(30_000, true, [secure("FAC_GCF_NUMERIC")]),
+      timed(5_000, false, [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")]),
+      timed(5_000, false, [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")]),
+      timed(3_000, false, [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")]),
+      timed(3_000, false, [mistake("FAC_FACTOR_FULLY", "INCOMPLETE_FACTORISATION")]),
+    ];
+    const audits = [...careful, ...tired];
+    const start = fatigueStart(audits);
+    assert.ok(start !== null && start <= 21, `tiredness found from ${start}`);
+    const e = foldLedger(audits).get("FAC_FACTOR_FULLY");
+    assert.notEqual(e?.state, "CONFIRMED");
+    assert.equal((e as { tiredness?: boolean }).tiredness, true);
+  });
+
+  it("a careful learner who rushes twice is not called tired", () => {
+    const rushed = (i: number) => i === 6 || i === 15;
+    const audits = Array.from({ length: 25 }, (_, i) => timed(rushed(i) ? 4_000 : 30_000, !rushed(i), [rushed(i) ? mistake("FAC_GCF_NUMERIC") : secure("FAC_GCF_NUMERIC")]));
+    assert.equal(fatigueStart(audits), null);
+  });
+
+  it("when every step is tagged with the question's own skill, the review's named skill takes the blame (E07, (11x + 12)/6)", () => {
+    const item = { answerKey: { diagnostics: { itemKind: "SELECT", skillId: "FAC_MEANING", taggedSkills: ["FAC_CANCEL_COMMON_FACTOR"], stepSkills: ["FAC_MEANING", "FAC_MEANING", "FAC_MEANING"] } } } as unknown as LotusQuestion;
+    const blamed = (named: unknown) => evidenceFromAnalysis(item, [], 2, "Left 12 undivided.", "MISUNDERSTANDING", false, false, named).map((e) => e.skillId);
+    assert.deepEqual(blamed("FAC_DIVIDE_TERMS"), ["FAC_DIVIDE_TERMS"], "a skill this question builds on");
+    assert.deepEqual(blamed("FAC_DIFF_SQUARES"), ["FAC_MEANING"], "a skill the question doesn't involve is ignored");
+    assert.deepEqual(blamed(null), ["FAC_MEANING"], "no named skill: as before");
+    // A step tagged with its own skill still decides.
+    const tagged = { answerKey: { diagnostics: { itemKind: "SELECT", skillId: "FAC_MEANING", taggedSkills: [], stepSkills: ["FAC_MEANING", "FAC_CANCEL_COMMON_FACTOR"] } } } as unknown as LotusQuestion;
+    assert.deepEqual(evidenceFromAnalysis(tagged, [], 2, "x", "MISUNDERSTANDING", false, false, "FAC_DIVIDE_TERMS").map((e) => e.skillId), ["FAC_CANCEL_COMMON_FACTOR"]);
+  });
+
+  it("a second check that was dropped before it was asked is booked again (E13)", () => {
+    const { state, itemAt, askedItems } = planFixture(20);
+    const ledger = foldLedger([audit([mistake("FAC_GROUP_SIGN", "SIGN_NOT_FLIPPED_IN_GROUP")])]);
+    const first = planAdjustments({ state, ledger, itemAt, askedItems }).find((a) => a.kind === "REPURPOSE" && a.purpose === "CHECK" && a.forSkill === "FAC_GROUP_SIGN");
+    assert.ok(first, "a check is booked");
+    // That question wasn't ready in time and was dropped.
+    Object.assign(state.turns.find((t) => t.turn === first!.turn)!, { purpose: "CHECK", forSkill: "FAC_GROUP_SIGN", status: "SKIPPED" });
+    const again = planAdjustments({ state, ledger, itemAt, askedItems }).find((a) => a.kind === "REPURPOSE" && a.purpose === "CHECK" && a.forSkill === "FAC_GROUP_SIGN");
+    assert.ok(again && again.turn !== first!.turn, "booked again, in another slot");
+  });
+
+  it("one \"I don't know\" with nothing easier left to check gets a second question on the skill itself (E10)", () => {
+    const { state, itemAt, askedItems } = planFixture(12);
+    const ledger = foldLedger([...provenBy("FND_FACTOR_PAIRS"), audit([support("FND_GCD_NUMERIC")])]);
+    const actions = planAdjustments({ state, ledger, itemAt, askedItems });
+    assert.ok(actions.some((a) => a.kind === "REPURPOSE" && a.purpose === "CHECK" && a.forSkill === "FND_GCD_NUMERIC"), JSON.stringify(actions.map((a) => (a.kind === "REPURPOSE" ? `${a.purpose}:${a.forSkill}` : a.kind))));
   });
 });

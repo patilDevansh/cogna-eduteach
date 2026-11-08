@@ -403,6 +403,8 @@ export interface LotusDebateClosure {
   mistakeKind?: LotusMistakeKind | null;
   /** What the student did right on this answer (including in the drafts), in plain words. Optional; kept for the record, never shown to the student. */
   strengths?: string[];
+  /** The skill the mistake belongs to, from the question's own skills and the ones they build on directly. */
+  mistakeSkill?: string | null;
   /** AI-only analysis experiment: the review's own marking of the final answer. */
   answerJudgment?: "CORRECT" | "INCORRECT" | "UNFINISHED" | "UNCLEAR";
   answerJudgmentReason?: string;
