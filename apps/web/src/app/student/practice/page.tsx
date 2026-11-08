@@ -8,6 +8,7 @@ import type { PracticeNextResponse, QuestionPayload } from "@cogna/shared";
 import {
   api,
   breakMinutesFromDecision,
+  isUnavailable,
   newEventId,
   SESSION_LIMIT_MS,
 } from "@/lib/api";
@@ -93,6 +94,11 @@ function PracticeContent() {
       writeRecovery(recoveryKey("EXERCISE", studentId, mode), { sessionId, current, phase, answer, confidence, gradeResult, hints, hintCount, highestHintLevel, startedAt: sessionStartedAt ?? Date.now(), shownAt: questionShownAt.current, firstInputAt: firstInputAt.current, answerChanged, pending: pendingPayload.current, ...overrides });
     } catch { setRecoveryMessage("This browser cannot keep a draft after refresh. Keep this page open until your answer is confirmed."); }
   }
+  // The counter follows the server's baseline slot, so a refresh or a retry can't reset or skip it.
+  useEffect(() => {
+    const slot = (current?.decision.parameters as { baselineSlotIndex?: number } | undefined)?.baselineSlotIndex;
+    if (mode === "BASELINE" && phase === "question" && Number.isInteger(slot)) setBaselineQuestionIndex(slot! + 1);
+  }, [mode, phase, current]);
   useEffect(() => { persistRecovery(); }, [studentId, sessionId, current, phase, answer, confidence, gradeResult, hints, hintCount, highestHintLevel, submitting]);
   const interaction = useInteractionObservation("EXERCISE", question?.id, question?.version ?? null, "TYPED_ANSWER", (phase === "question" || phase === "confidence") && !supportPaused, sessionId);
   const draftCheckpoints = useDraftCheckpoints("EXERCISE", studentId, sessionId, question?.id, question?.version ?? null, phase === "question" && !submitting && !submitFailed && !supportPaused, questionShownAt.current);
@@ -306,7 +312,7 @@ function PracticeContent() {
       }
     } catch (err) {
       setError(
-        err instanceof Error && err.message.includes("API unavailable")
+        isUnavailable(err)
           ? "We're having trouble connecting. Ask a grown-up to make sure practice is running, then try again."
           : "Something went wrong starting your session. Please try again.",
       );
