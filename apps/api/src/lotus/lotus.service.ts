@@ -96,6 +96,7 @@ import {
   reviewsStillRunning,
 } from "./lotus-factorisation";
 import { checkWrittenItem, LotusQuestionFactory, type WriteRequest, type WriteResult } from "./lotus-question-factory";
+import { DRAFT_EVENT } from "../learning-evidence/learner-events.service";
 import {
   crossCheckExpressionAgainstPrompt,
   diagnoseBreakpoint,
@@ -3911,6 +3912,8 @@ Create one materially different question that tests a competing explanation or a
     const result = await prisma.lotusSessionRecord.deleteMany({ where: { studentId } });
     // What Cogna remembered from those tests goes with them.
     await prisma.learnerSkillEvidence?.deleteMany({ where: { studentId, source: "TEST" } });
+    // The child's unsubmitted drafts go too (DATA-015).
+    await prisma.rawEvent?.deleteMany({ where: { studentId, eventType: DRAFT_EVENT } });
     for (const [id, session] of this.sessions) {
       if (session.studentId === studentId) {
         this.sessions.delete(id);
@@ -3924,10 +3927,12 @@ Create one materially different question that tests a competing explanation or a
   }
 
   /** Every durable Lotus record for a student, as structured JSON — the auditable export half of the deletion/export pair. */
-  async exportStudentData(studentId: string): Promise<{
+  async exportStudentData(studentId: string, withDrafts = false): Promise<{
     studentId: string;
     pseudonymId: string;
     memory?: LearnerModel | null;
+    /** Only in a worker export (the family's own request): no teacher reads a child's drafts (DATA-015). */
+    drafts?: Array<{ sessionId: string | null; questionId: string; candidate: string; action: string; createdAt: Date }>;
     sessions: Array<{ session: LotusSessionView; events: Array<{ eventType: string; outcome: string; createdAt: Date }> }>;
   }> {
     const prisma = this.prisma;
@@ -3940,6 +3945,10 @@ Create one materially different question that tests a competing explanation or a
       studentId,
       pseudonymId: pseudonymousLearnerId(studentId),
       memory: await loadLearnerModel(prisma, studentId).catch(() => null),
+      ...(withDrafts ? { drafts: (await prisma.rawEvent.findMany({ where: { studentId, eventType: DRAFT_EVENT }, orderBy: { createdAt: "asc" } })).map((r) => {
+        const request = (r.payload as { request?: { questionId?: string; draft?: { candidate?: string; action?: string } } }).request;
+        return { sessionId: r.sessionId, questionId: request?.questionId ?? "", candidate: request?.draft?.candidate ?? "", action: request?.draft?.action ?? "", createdAt: r.createdAt };
+      }) } : {}),
       sessions: records.map((record) => ({
         session: record.payload as unknown as LotusSessionView,
         events: record.evidence.map((event) => ({

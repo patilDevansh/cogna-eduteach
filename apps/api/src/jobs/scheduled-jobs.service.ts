@@ -1,3 +1,4 @@
+import { DRAFT_EVENT, DRAFT_RETENTION_DAYS } from "../learning-evidence/learner-events.service";
 import { Injectable, Logger } from "@nestjs/common";
 import { JobStatus, ReportTrigger } from "@cogna/database";
 import { ReportGeneratorService } from "../engines/report-generator/report-generator.service";
@@ -333,6 +334,13 @@ export class ScheduledJobsService {
   }
 
   /** Refresh ItemStatistic rows from recent attempts (off hot path). */
+  /** DATA-015: permanently deletes unsubmitted drafts older than the retention period. Submitted answers are other rows. */
+  async expireDrafts(now = new Date()): Promise<{ deleted: number }> {
+    const before = new Date(now.getTime() - DRAFT_RETENTION_DAYS * 86_400_000);
+    const { count } = await this.prisma.rawEvent.deleteMany({ where: { eventType: DRAFT_EVENT, createdAt: { lt: before } } });
+    return { deleted: count };
+  }
+
   async refreshItemStatistics(limit = 50): Promise<{ refreshed: number }> {
     const questions = await this.prisma.question.findMany({
       where: { reviewStatus: "APPROVED" },
