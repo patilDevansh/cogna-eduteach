@@ -38,6 +38,8 @@ export interface LessonBrief {
    * coming back, or a lesson that didn't work. Absent for a student's first time on the skill.
    */
   history?: string[];
+  /** How the student tends to work across tests (learner-memory.ts habitLines), e.g. slips rather than misunderstands. */
+  habits?: string[];
 }
 
 /**
