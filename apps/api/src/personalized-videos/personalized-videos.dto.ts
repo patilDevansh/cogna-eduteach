@@ -7,6 +7,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  MaxLength,
   Max,
   Min,
   ValidateIf,
@@ -49,6 +50,12 @@ export class PersonalizedVideoExitDto {
   @Min(0)
   @Max(1)
   item?: number;
+
+  /** The browser's id for this answer (DATA-014): resending it returns the saved result, never a second attempt. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  submissionId?: string;
 }
 
 export class PersonalizedVideoWatchDto {

@@ -1279,7 +1279,7 @@ export class PersonalizedVideosService {
 
   async recordExit(
     assignmentId: string,
-    input: { answer: string; working?: string; interaction?: TileBuildResponse; item?: number },
+    input: { answer: string; working?: string; interaction?: TileBuildResponse; item?: number; submissionId?: string },
     actor: AccessActor,
   ): Promise<PersonalizedVideoAssignmentView> {
     const assignment = await this.requireAssignableLesson(assignmentId);
@@ -1287,9 +1287,18 @@ export class PersonalizedVideosService {
     const script = assignment.script as StoredScript | null;
     const item = input.item ?? 0;
     if (item !== 0 && !(item === 1 && script?.transfer)) throw new BadRequestException("There is no such exit question.");
-    // Each independent exit question is one attempt: a second answer would turn it into practice.
-    const earlier = await this.prisma.personalizedVideoEvent.findMany({ where: { assignmentId, kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT } });
-    if (earlier.some((event) => (event.exitItem ?? 0) === item)) throw new ConflictException("That independent question has already been answered.");
+    // DATA-014: each independent question is one attempt, saved once. The database holds one row per
+    // lesson and question (exitSlot is unique), so two simultaneous sends can't both save. The browser's
+    // submissionId makes a resend after a lost reply the same answer, which gets the saved result back.
+    // An older client sends no id: its one attempt still saves once, and a resend is refused as before.
+    const slot = `${assignmentId}:${item}`;
+    const submissionId = input.submissionId?.trim() || randomUUID();
+    const alreadyAnswered = () => new ConflictException("That independent question has already been answered.");
+    const legacy = await this.prisma.personalizedVideoEvent.findFirst({
+      where: { assignmentId, kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT, exitSlot: null, ...(item === 0 ? { OR: [{ exitItem: 0 }, { exitItem: null }] } : { exitItem: item }) },
+      select: { id: true },
+    });
+    if (legacy) throw alreadyAnswered();
     let answer = input.answer;
     if (input.interaction) {
       // A tile exit is rebuilt from the picks against the tiles this server issued.
@@ -1304,18 +1313,37 @@ export class PersonalizedVideosService {
       : script?.exitCheck
         ? taskVerdict(script.exitCheck.task, answer, script.exitCheck.expression) === "CORRECT"
         : Boolean(expected) && normalizeAlgebraAnswer(answer) === normalizeAlgebraAnswer(expected);
-    await this.prisma.personalizedVideoEvent.create({
-      data: {
-        assignmentId,
-        studentId: assignment.studentId,
-        kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT,
-        exitPrompt: item === 1 ? script?.transfer?.prompt : script?.exit?.prompt,
-        exitItem: item,
-        exitAnswer: answer,
-        exitWorking: input.working ?? (input.interaction ? `Built from tiles (${input.interaction.format})` : ""),
-        exitCorrect: correct,
-      },
-    });
+    const working = input.working ?? (input.interaction ? `Built from tiles (${input.interaction.format})` : "");
+    // The same submission again (a resend, or the slower of two simultaneous sends) is answered with
+    // what was saved; anything else for an answered question is a second attempt.
+    const replay = async (): Promise<PersonalizedVideoAssignmentView> => {
+      const saved = await this.prisma.personalizedVideoEvent.findUnique({ where: { exitSlot: slot } });
+      if (!saved || saved.submissionId !== submissionId || saved.exitAnswer !== answer || (saved.exitWorking ?? "") !== working) throw alreadyAnswered();
+      return this.toView(await this.requireAssignment(assignmentId));
+    };
+    if (await this.prisma.personalizedVideoEvent.findUnique({ where: { exitSlot: slot }, select: { id: true } })) return replay();
+    try {
+      await this.prisma.personalizedVideoEvent.create({
+        data: {
+          assignmentId,
+          studentId: assignment.studentId,
+          kind: PersonalizedVideoEvidenceKind.INDEPENDENT_EXIT,
+          exitPrompt: item === 1 ? script?.transfer?.prompt : script?.exit?.prompt,
+          exitItem: item,
+          exitAnswer: answer,
+          exitWorking: working,
+          exitCorrect: correct,
+          exitSlot: slot,
+          submissionId,
+          contentVersion: script ? lessonContentVersion(script as unknown as Record<string, unknown>) : null,
+          // The exit screen shows no hints, worked steps or options to the student while they answer.
+          helpStatus: "NONE_OFFERED",
+        },
+      });
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2002") return replay();
+      throw error;
+    }
     // The main final check is what the lesson achieved: remembered against the skill it taught.
     const remembered = item === 0 ? lessonEvidence({
       studentId: assignment.studentId, assignmentId, taught: script?.authoring?.brief ?? script?.micro?.brief,
@@ -1339,6 +1367,18 @@ export class PersonalizedVideosService {
       });
     }
     return this.toView(await this.requireAssignment(assignmentId));
+  }
+
+  /**
+   * DATA-014: lessons with more than one stored answer to the same independent question, from before the
+   * database enforced one. Reported for a person to decide on, never deleted here.
+   */
+  async duplicateExits(): Promise<Array<{ assignmentId: string; studentId: string; item: number; count: number }>> {
+    const rows = await this.prisma.$queryRaw<Array<{ assignmentId: string; studentId: string; item: number; count: bigint }>>`
+      SELECT "assignmentId", "studentId", COALESCE("exitItem", 0) AS item, COUNT(*) AS count
+      FROM "PersonalizedVideoEvent" WHERE kind = 'INDEPENDENT_EXIT'
+      GROUP BY "assignmentId", "studentId", COALESCE("exitItem", 0) HAVING COUNT(*) > 1`;
+    return rows.map((r) => ({ ...r, item: Number(r.item), count: Number(r.count) }));
   }
 
   async teacherReport(actor: AccessActor, demo = false): Promise<PersonalizedVideoTeacherReport> {
