@@ -156,6 +156,12 @@ export function skillsUsedBy(diagnostics: Pick<LotusItemDiagnostics, "skillId" |
   return [...new Set([diagnostics.skillId, ...diagnostics.taggedSkills, ...diagnostics.stepSkills])];
 }
 
+/** The skills a mistake on this question can belong to: the ones it uses, and the ones those build on directly. */
+export function mistakeSkillCandidates(diagnostics: Pick<LotusItemDiagnostics, "skillId" | "taggedSkills" | "stepSkills">): string[] {
+  const used = skillsUsedBy(diagnostics);
+  return [...new Set([...used, ...used.flatMap((s) => SKILL_BY_ID.get(s)?.dependsOn ?? [])])];
+}
+
 /** Validates an AI-created item before it can be installed for a learner. */
 export function assertFixedItemIsValid(item: any, label: string): void {
   const d = item?.answerKey?.diagnostics;

@@ -202,8 +202,10 @@ describe("in a running test", () => {
     assert.notEqual(audit.formatDecision!.targetTurn, f.state.planTurn);
     const versions = f.versions[String(audit.formatDecision!.targetTurn)];
     // Formats are dealt at random, so the later question is sometimes already the one wanted and nothing is redressed.
-    if (versions[0].game?.kind === audit.formatDecision!.chosen) {
-      assert.equal(versions.length, 1, "already the wanted format, so nothing is replaced");
+    // An earlier decision may have redressed it away and this one back, so a first version in the wanted format
+    // only proves nothing was replaced when it is the only version.
+    if (versions.length === 1) {
+      assert.equal(versions[0].game?.kind, audit.formatDecision!.chosen, "already the wanted format, so nothing is replaced");
       return;
     }
     assert.ok(versions.length >= 2, "the older version stays valid");

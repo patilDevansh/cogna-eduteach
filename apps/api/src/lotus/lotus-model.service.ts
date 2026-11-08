@@ -205,6 +205,8 @@ export class LotusModelService {
     // What the student did right: a short list of plain strings, or nothing. A bad shape never fails the review.
     value.strengths = (Array.isArray(value.strengths) ? (value.strengths as unknown[]) : [])
       .filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim().slice(0, 240)).slice(0, 5);
+    // The skill the mistake belongs to: a short id or nothing. A bad shape never fails the review.
+    value.mistakeSkill = typeof value.mistakeSkill === "string" && /^[A-Z][A-Z_]{2,40}$/.test(value.mistakeSkill.trim()) ? value.mistakeSkill.trim() : null;
     // AI-only analysis experiment: the review's own marking. Anything else reads as UNCLEAR.
     if (value.answerJudgment !== undefined) {
       const j = typeof value.answerJudgment === "string" ? value.answerJudgment.trim().toUpperCase() : "";

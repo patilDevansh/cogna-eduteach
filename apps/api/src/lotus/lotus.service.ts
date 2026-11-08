@@ -1735,6 +1735,7 @@ export class LotusService implements OnModuleDestroy {
           slot.question, slot.skillEvidence ?? [], analysis.conclusion.firstWrongStep, analysis.conclusion.mistakeDescription, analysis.conclusion.mistakeKind,
           slot.verification?.status === "VERIFIED_CORRECT",
           slot.verification?.status === "VERIFIED_UNFINISHED",
+          analysis.conclusion.mistakeSkill,
         );
       }
       if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {

@@ -74,7 +74,7 @@ export function aiOnlyEvidence(question: LotusQuestion, closure: LotusDebateClos
       description: `Right answer, but the AI read a doubt: ${closure.mistakeDescription.trim()}` }];
   }
   const mapped = evidenceFromAnalysis(question, [], closure.firstWrongStep, closure.mistakeDescription, closure.mistakeKind,
-    judgment === "CORRECT", judgment === "UNFINISHED" && d?.itemKind === "NUMBER");
+    judgment === "CORRECT", judgment === "UNFINISHED" && d?.itemKind === "NUMBER", closure.mistakeSkill);
   if (mapped.length || !d || judgment === "CORRECT" || judgment === "UNCLEAR") return mapped;
   if (closure.mistakeKind === "SLIP" || closure.mistakeKind === "UNREADABLE") return mapped;
   return [{ skillId: d.skillId, kind: judgment === "UNFINISHED" ? "UNFINISHED" : "MISTAKE", source: "ANALYSIS",

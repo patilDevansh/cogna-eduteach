@@ -60,6 +60,7 @@ import {
   ownerOfMistake,
   skillName,
   skillsUsedBy,
+  mistakeSkillCandidates,
   SOFT_PREREQUISITES,
 } from "./lotus-factorisation-catalogue";
 import { checkSpecFor } from "./lotus-skill-checks";
@@ -579,6 +580,8 @@ export function evidenceFromAnalysis(
   answerCorrect = false,
   /** Code verified the answer equal to the key but not yet one finished value (2^7 for 128). */
   equalButUnfinished = false,
+  /** The skill the review says the mistake belongs to (mistakeSkill). Used only when the step tags can't tell. */
+  namedSkill?: unknown,
 ): LotusSkillEvidence[] {
   const d = question.answerKey.diagnostics;
   // The step being tested was done and only the final evaluation was left: that is a note, not a mistake on the skill.
@@ -609,7 +612,11 @@ export function evidenceFromAnalysis(
   if (noRealStep) return existing;
   // A step code saw done right can't be where it went wrong: the review is pointing at the question's own skill.
   const stepSkill = d.stepSkills[step - 1] ?? d.skillId;
-  const skillId = isProven(stepSkill) ? d.skillId : stepSkill;
+  // When the step is tagged only with the question's own skill, the tag can't say which skill the mistake belongs
+  // to (eval E1: "(11x + 12)/6" had every step tagged "what factorised means", so leaving 12 undivided was blamed
+  // on it). The review's named skill is used instead, if it is one this question really involves.
+  const named = typeof namedSkill === "string" && stepSkill === d.skillId && mistakeSkillCandidates(d).includes(namedSkill) ? namedSkill : undefined;
+  const skillId = named && !isProven(named) ? named : isProven(stepSkill) ? d.skillId : stepSkill;
   if (isProven(skillId)) return existing;
   return [...proven, { skillId, kind: "MISTAKE", source: "ANALYSIS", description: description?.trim() || `Step ${step} went wrong.` }];
 }
@@ -1082,9 +1089,16 @@ function markTirednessGaps(audits: LotusQuestionAudit[], ledger: Ledger): void {
   if (fatigue === null && lastSpell === null) return;
   const rushedWrongTurn = (q: number, from: number) => {
     const a = audits.at(q - 1);
-    return !!a && q >= from && (a.response?.responseTimeMs ?? Infinity) < RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT";
+    return q >= from && rushedWrongAnswer(a);
   };
   for (const e of ledger.values()) {
+    // A suspicion raised only inside the tired spell is marked too, so the report says "may be tiredness" rather than
+    // listing it beside real suspicions (eval E1: four suspicions in a tired, secure learner).
+    if (e.state === "SUSPECTED" && fatigue !== null) {
+      const turns = e.notes.filter((n) => !n.includes(": right")).map((n) => Number(/^Q(\d+):/.exec(n)?.[1])).filter((q) => Number.isInteger(q) && q > 0);
+      if (turns.length && turns.every((q) => rushedWrongTurn(q, fatigue))) e.tiredness = true;
+      continue;
+    }
     if (e.state !== "CONFIRMED") continue;
     const negativeTurns = e.notes
       .filter((n) => !n.includes(": right"))
@@ -1099,13 +1113,26 @@ function markTirednessGaps(audits: LotusQuestionAudit[], ledger: Ledger): void {
 }
 
 /** The answer number where a careful start turns into fast wrong answers, or null if it doesn't. */
+/** Fast (5 seconds or less) and not right: the mark of a rushed answer when reading tiredness. */
+function rushedWrongAnswer(a: LotusQuestionAudit | undefined): boolean {
+  return !!a?.response && !a.response.didNotKnow && (a.response.responseTimeMs ?? Infinity) <= RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT";
+}
+
+/** Careful and mostly right before answer index `from`: at least 7 answers, 60% right, at most 20% rushed. */
+function carefulBefore(audits: LotusQuestionAudit[], from: number): boolean {
+  const before = audits.slice(0, from).filter((a) => a.response && !a.response.didNotKnow);
+  const right = before.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length / Math.max(before.length, 1);
+  const rushed = before.filter(rushedWrongAnswer).length / Math.max(before.length, 1);
+  return before.length >= 7 && right >= 0.6 && rushed <= 0.2;
+}
+
 export function fatigueStart(audits: LotusQuestionAudit[]): number | null {
   const answered = audits.filter((a) => a.response && !a.response.didNotKnow);
   if (answered.length < 10) return null;
   const half = Math.floor(audits.length / 2);
   const early = audits.slice(0, half).filter((a) => a.response && !a.response.didNotKnow);
   const late = audits.slice(half).filter((a) => a.response && !a.response.didNotKnow);
-  const rushedWrong = (a: LotusQuestionAudit) => (a.response?.responseTimeMs ?? Infinity) < RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT";
+  const rushedWrong = rushedWrongAnswer;
   const earlyRight = early.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length / Math.max(early.length, 1);
   const earlyRushed = early.filter(rushedWrong).length / Math.max(early.length, 1);
   const lateRushed = late.filter(rushedWrong).length / Math.max(late.length, 1);
@@ -1116,7 +1143,18 @@ export function fatigueStart(audits: LotusQuestionAudit[]): number | null {
   }
   // A short tired spell at the very end: three or more fast wrong answers in a row after a careful, mostly right start.
   const run = fastWrongRunAtEnd(audits);
-  return run >= 3 && carefulBeforeRun(audits, run) ? audits.length - run + 1 : null;
+  const endRun = run >= 3 && carefulBeforeRun(audits, run) ? audits.length - run + 1 : null;
+  // A tired spell with the odd right answer in it (eval E1, learner tired from Q18: Q19 fast wrong, Q20 right,
+  // Q21-25 fast wrong). From its first rushed answer in the second half to the end: at least three rushed wrong
+  // answers and at least 60% of the answers, after a careful start. The earliest such point is where it began;
+  // the run at the very end only shows where the spell got worse, so the earlier start wins.
+  for (let k = Math.max(half, 7); k <= audits.length - 3; k += 1) {
+    if (!rushedWrongAnswer(audits[k])) continue;
+    const tail = audits.slice(k).filter((a) => a.response && !a.response.didNotKnow);
+    const rushedTail = tail.filter(rushedWrongAnswer).length;
+    if (rushedTail >= 3 && rushedTail / Math.max(tail.length, 1) >= 0.6 && carefulBefore(audits, k)) return Math.min(k + 1, endRun ?? Infinity);
+  }
+  return endRun;
 }
 
 /** How many answers in a row at the very end were fast and wrong. */
@@ -1124,7 +1162,7 @@ function fastWrongRunAtEnd(audits: LotusQuestionAudit[]): number {
   let run = 0;
   for (let i = audits.length - 1; i >= 0; i -= 1) {
     const a = audits[i]!;
-    if (!a.response || a.response.didNotKnow || !((a.response.responseTimeMs ?? Infinity) < RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT")) break;
+    if (!rushedWrongAnswer(a)) break;
     run += 1;
   }
   return run;
@@ -1132,10 +1170,7 @@ function fastWrongRunAtEnd(audits: LotusQuestionAudit[]): number {
 
 /** Whether the answers before that run were careful and mostly right. */
 function carefulBeforeRun(audits: LotusQuestionAudit[], run: number): boolean {
-  const before = audits.slice(0, audits.length - run).filter((a) => a.response && !a.response.didNotKnow);
-  const right = before.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length / Math.max(before.length, 1);
-  const rushed = before.filter((a) => (a.response?.responseTimeMs ?? Infinity) < RUSHED_MS && a.verification?.status !== "VERIFIED_CORRECT").length / Math.max(before.length, 1);
-  return before.length >= 7 && right >= 0.6 && rushed <= 0.2;
+  return carefulBefore(audits, audits.length - run);
 }
 
 // ---------- plan adjustments ----------
@@ -1512,16 +1547,20 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
         }
       }
       if (support) continue;
-      // "I don't know" alone never earns a same-skill confirmation probe.
-      if (e.state !== "SUSPECTED") continue;
+      // Nothing easier is left to check underneath (it's secure, or there is none): the "I don't know" is about this
+      // skill itself. It gets one more question, as a suspicion would, so it can be settled instead of left untested
+      // (eval E1: a guess on the highest common number, its factor pairs secure, was never asked again).
     }
-    if (e.state !== "SUSPECTED") continue;
+    if (e.state !== "SUSPECTED" && !(e.needsSupport && e.state === "UNTESTED")) continue;
     // A re-check needs a question aimed at the skill: one that merely uses it
     // as a step can't settle it (foldLedger only clears it on a direct item).
     // A suspicion gets one dedicated check, ever (an answered one counts too);
     // a re-check needs its own, still ahead.
+    // A check that was dropped before it was asked (its question wasn't ready in time) doesn't count: eval E13's
+    // second check was booked, dropped, and the suspicion was never settled.
     const hasCheck = checkedThisCall.has(e.skillId) || state.turns.some((t) =>
-      (t.purpose === "CHECK" && t.forSkill === e.skillId && (!(e.recheck || e.needsComparableCheck) || t.turn >= state.planTurn)) ||
+      (t.purpose === "CHECK" && t.forSkill === e.skillId && (t.status !== "SKIPPED" || state.answeredTurns.includes(t.turn)) &&
+        (!(e.recheck || e.needsComparableCheck) || t.turn >= state.planTurn)) ||
       (t.turn >= state.planTurn &&
         (t.status !== "SKIPPED" && (e.needsComparableCheck
           ? false // A generic planned item has not established independent comparable evidence.
@@ -1917,8 +1956,9 @@ export function buildFactorisationReport(args: {
         `${skillName(e.skillId)}: right, but with a doubt (${e.hedges!.map((h) => `Q${h.q}`).join(", ")}), so not counted secure yet.`),
       ...entries.filter((e) => e.state === "UNTESTED" && e.tapRights && !e.hedges?.length).map((e) =>
         `${skillName(e.skillId)}: right once on a multiple-choice question, not enough to call it secure yet.`),
-      ...notReached.map((id) => `${skillName(id)}: not asked in this test, so nothing is known about it yet.`),
-      ...notAsked.map((id) => `${skillName(id)}: no question in this test covers it, so nothing is known about it.`),
+      // One line each, not one per skill: 20+ of these buried the answer (eval E1, bar 12b).
+      ...(notReached.length ? [`Planned but not asked in this test, so nothing is known about ${notReached.length === 1 ? "it" : "them"} yet: ${notReachedNames.join(", ")}.`] : []),
+      ...(notAsked.length ? [`Not covered by any question in this test, so nothing is known about ${notAsked.length === 1 ? "it" : "them"}: ${notAskedNames.join(", ")}.`] : []),
       ...notChecked.map((c) => `${skillName(c.id)}: never checked, and ${c.above.map((g) => skillName(g).toLowerCase()).join(", ")} went wrong, so it could be the cause.`),
       ...unexplained.map((e) => `${skillName(e.skillId)}: wrong ${e.unexplained === 1 ? "once" : `${e.unexplained} times`}, and the cause couldn't be linked to a skill. Check the skills underneath it.`),
     ],
