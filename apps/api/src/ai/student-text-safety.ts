@@ -23,6 +23,14 @@ export function studentStrings(value: unknown, out: string[] = []): string[] {
 export function openAiStudentTextModerator(client: OpenAI): StudentTextModerator {
   return async (texts) => {
     if (!texts.length) return null;
+    const isCustomBaseUrl = Boolean(
+      process.env.OPENAI_BASE_URL && !process.env.OPENAI_BASE_URL.includes("api.openai.com"),
+    );
+    if (isCustomBaseUrl) {
+      // Third-party / OpenAI-compatible providers (such as Google Gemini) apply built-in safety filtering
+      // on generated completions and do not serve OpenAI's proprietary /moderations endpoint.
+      return null;
+    }
     try {
       const result = await client.moderations.create({ model: "omni-moderation-latest", input: texts });
       const flagged = result.results.find((r) => r.flagged);

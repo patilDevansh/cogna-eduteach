@@ -286,23 +286,52 @@ export class LotusModelService {
     if (outage) throw new LotusProviderUnavailableError(outage);
     try {
       const tuning = this.latency.tuning(kind, model);
-      const response = await this.openai.getClient().responses.create({
-        model,
-        input: prompt,
-        max_output_tokens: tuning.maxOutputTokens,
-        ...(!/^(gpt-4|gpt-3)/i.test(model) ? { reasoning: { effort: tuning.reasoningEffort } } : {}),
-        text: { format: { type: "json_object" } },
-        prompt_cache_key: tuning.promptCacheKey,
-      }, { timeout: tuning.timeoutMs });
-      if (response.usage) {
-        this.costTracker.record(model, kind, {
-          inputTokens: response.usage.input_tokens,
-          outputTokens: response.usage.output_tokens,
-          totalTokens: response.usage.total_tokens,
-        });
+      let content: string | null | undefined;
+      const isCustomBaseUrl = Boolean(
+        process.env.OPENAI_BASE_URL && !process.env.OPENAI_BASE_URL.includes("api.openai.com"),
+      );
+
+      if (isCustomBaseUrl || !this.openai.getClient().responses) {
+        const completion = await this.openai.getClient().chat.completions.create(
+          {
+            model,
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            ...(tuning.maxOutputTokens ? { max_tokens: tuning.maxOutputTokens } : {}),
+          },
+          { timeout: tuning.timeoutMs },
+        );
+        content = completion.choices[0]?.message?.content;
+        if (completion.usage) {
+          this.costTracker.record(model, kind, {
+            inputTokens: completion.usage.prompt_tokens,
+            outputTokens: completion.usage.completion_tokens,
+            totalTokens: completion.usage.total_tokens,
+          });
+        }
+      } else {
+        const response = await this.openai.getClient().responses.create(
+          {
+            model,
+            input: prompt,
+            max_output_tokens: tuning.maxOutputTokens,
+            ...(!/^(gpt-4|gpt-3)/i.test(model) ? { reasoning: { effort: tuning.reasoningEffort } } : {}),
+            text: { format: { type: "json_object" } },
+            prompt_cache_key: tuning.promptCacheKey,
+          },
+          { timeout: tuning.timeoutMs },
+        );
+        content = response.output_text;
+        if (response.usage) {
+          this.costTracker.record(model, kind, {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+            totalTokens: response.usage.total_tokens,
+          });
+        }
       }
+
       this.outage = null;
-      const content = response.output_text;
       if (!content) throw new Error(`${agentLabel} returned an empty response.`);
       const value = extractJson(content);
       // Safety-check only text that a student can read. Generation, revision,
