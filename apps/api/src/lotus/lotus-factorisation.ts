@@ -741,6 +741,8 @@ export interface SkillLedgerEntry {
   confirmedBySupport?: boolean;
   /** Every question this skill went wrong on also needed a confirmed gap in an unrelated branch, so that gap may be the cause: shown as suspected, not confirmed. */
   explainedBy?: string;
+  /** `explainedBy` was never checked in this test (not a confirmed gap): it may be the cause, and nothing has ruled it out. */
+  explainedByUnchecked?: boolean;
   /** Answers on this skill that were wrong, where the AI review said "misunderstanding" but named no step, so no skill got evidence. */
   unexplained?: number;
   /** Carried in from earlier tests or lessons (see foldLedger's priors), and why. */
@@ -1045,10 +1047,15 @@ export function projectSkillAssessments(audits: LotusQuestionAudit[], priors: Lo
  * A gap above the skill (a prerequisite) is left alone: that is the "one cause, many gaps" case the
  * report already handles by starting at the root. A skill with any mistake on a question that needed
  * nothing else from a confirmed gap stays confirmed.
+ *
+ * The same holds for an unrelated skill the questions used that was never checked at all (no evidence
+ * on it in this test): nothing rules it out as the cause (DATA-025: every "factorise fully" miss needed
+ * a difference of squares that was never asked, and "factorise fully" was blamed).
  */
 function explainAwayConfounded(audits: LotusQuestionAudit[], ledger: Ledger): void {
   const confirmed = [...ledger.values()].filter((e) => e.state === "CONFIRMED").map((e) => e.skillId);
-  if (confirmed.length < 2) return;
+  if (!confirmed.length) return;
+  const unchecked = (s: string) => (ledger.get(s)?.state ?? "UNTESTED") === "UNTESTED" && !ledger.get(s)?.notes.length;
   const demote: Array<[SkillLedgerEntry, string]> = [];
   for (const e of ledger.values()) {
     if (e.state !== "CONFIRMED" || e.confirmedBySupport || !e.mistakes.length) continue;
@@ -1058,18 +1065,20 @@ function explainAwayConfounded(audits: LotusQuestionAudit[], ledger: Ledger): vo
       const d = a.question?.answerKey?.diagnostics;
       if (!d) return undefined;
       const others = skillsUsedBy(d).filter((u) => u !== e.skillId);
-      return confirmed.find((g) => g !== e.skillId && !dependsOnTransitively(g, e.skillId) && !dependsOnTransitively(e.skillId, g) &&
-        others.some((u) => dependsOnTransitively(u, g)));
+      const unrelated = (g: string) => g !== e.skillId && !dependsOnTransitively(g, e.skillId) && !dependsOnTransitively(e.skillId, g);
+      return confirmed.find((g) => unrelated(g) && others.some((u) => dependsOnTransitively(u, g))) ??
+        others.find((u) => unrelated(u) && unchecked(u));
     };
     const causes = negatives.map(causeOf);
     if (causes.every((c) => !!c)) demote.push([e, causes[0]!]);
   }
   for (const [e, g] of demote) {
     e.explainedBy = g;
+    e.explainedByUnchecked = !confirmed.includes(g);
     e.state = "SUSPECTED";
     e.suspectedAt = e.confirmedAt;
     delete e.confirmedAt;
-    e.notes.push(`Every question it went wrong on also needed ${skillName(g)}, a confirmed gap, so that may be the cause`);
+    e.notes.push(`Every question it went wrong on also needed ${skillName(g)}, ${e.explainedByUnchecked ? "which was never checked" : "a confirmed gap"}, so that may be the cause`);
   }
 }
 
@@ -1939,7 +1948,7 @@ export function buildFactorisationReport(args: {
         : e.tiredness
         ? `${skillName(e.skillId)}: unclear — the mistakes came only from fast answers late in the test, which may be tiredness. Check again when the child is fresh.`
         : e.explainedBy
-        ? `${skillName(e.skillId)}: unclear — every question it went wrong on also needed ${skillName(e.explainedBy).toLowerCase()}, which is a confirmed gap. Check it again after that is taught.`
+        ? `${skillName(e.skillId)}: unclear — every question it went wrong on also needed ${skillName(e.explainedBy).toLowerCase()}, ${e.explainedByUnchecked ? "which this test never checked. Check both before teaching either." : "which is a confirmed gap. Check it again after that is taught."}`
         : e.recheck
         ? `${skillName(e.skillId)}: unclear — confirmed earlier, but answered right on ${(e.rightSinceConfirmed ?? []).map((q) => `Q${q}`).join(", ")} since, and the re-check question wasn't reached. Check again before teaching it.`
         : `${skillName(e.skillId)}: one mistake, not confirmed — ${e.notes.at(-1) ?? ""}`),

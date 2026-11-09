@@ -153,7 +153,7 @@ export function ownerOfMistake(code: string, diagnostics: Pick<LotusItemDiagnost
   return tagged ?? sameTopic.find((s) => s.mistakes.includes(code))?.id ?? diagnostics.skillId;
 }
 export function skillsUsedBy(diagnostics: Pick<LotusItemDiagnostics, "skillId" | "taggedSkills" | "stepSkills">): string[] {
-  return [...new Set([diagnostics.skillId, ...diagnostics.taggedSkills, ...diagnostics.stepSkills])];
+  return [...new Set([diagnostics.skillId, ...(diagnostics.taggedSkills ?? []), ...(diagnostics.stepSkills ?? [])])];
 }
 
 /** The skills a mistake on this question can belong to: the ones it uses, and the ones those build on directly. */
