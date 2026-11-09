@@ -72,6 +72,8 @@ import { codeProbeFor } from "./lotus-probes";
 import {
   curriculumFor,
   skillName,
+  FACTORISATION_STRETCH_SLOTS,
+  adaptPromptForBoard,
 } from "./lotus-factorisation-catalogue";
 import {
   type FactorisationState,
@@ -83,6 +85,8 @@ import {
   factorisationTimeLimitSeconds,
   foldLedger,
   untestedSkillsLeft,
+  evaluateCeilingEscalation,
+  insertElasticProbe,
   conflictsWithEarlier,
   reachableQuestionsAhead,
   questionsActuallyLeft,
@@ -949,10 +953,33 @@ export class LotusService implements OnModuleDestroy {
     for (const versions of Object.values(session.factorisation.versions)) {
       for (const question of versions) {
         const print = questionPrint(question);
+        if (this.factorisationGeneratedPrints.size >= 1000) {
+          const first = this.factorisationGeneratedPrints.values().next().value;
+          if (first) this.factorisationGeneratedPrints.delete(first);
+        }
         this.factorisationGeneratedPrints.add(print);
-        if (question.answerKey.diagnostics?.slot === 1) this.factorisationOpeningPrints.add(print);
+        if (question.answerKey.diagnostics?.slot === 1) {
+          if (this.factorisationOpeningPrints.size >= 1000) {
+            const firstOpener = this.factorisationOpeningPrints.values().next().value;
+            if (firstOpener) this.factorisationOpeningPrints.delete(firstOpener);
+          }
+          this.factorisationOpeningPrints.add(print);
+        }
       }
     }
+  }
+
+  /** Clean up all ephemeral in-memory state associated with a session upon eviction or completion. */
+  private cleanupSessionMemory(sessionId: string): void {
+    this.sessions.delete(sessionId);
+    this.reserves.delete(sessionId);
+    this.forceSlowPath.delete(sessionId);
+    this.lastTouchedAt.delete(sessionId);
+    this.writeQueues.delete(sessionId);
+    this.analysisQueues.delete(sessionId);
+    this.persistenceTails.delete(sessionId);
+    this.inFlightAnswers.delete(sessionId);
+    this.overallReviewsRunning.delete(sessionId);
   }
 
   /**
@@ -972,11 +999,7 @@ export class LotusService implements OnModuleDestroy {
       const idleMs = now - (this.lastTouchedAt.get(sessionId) ?? 0);
       const threshold = session.status === "COMPLETE" ? COMPLETE_EVICTION_IDLE_MS : ACTIVE_EVICTION_IDLE_MS;
       if (idleMs < threshold) continue;
-      this.sessions.delete(sessionId);
-      this.reserves.delete(sessionId);
-      this.forceSlowPath.delete(sessionId);
-      this.lastTouchedAt.delete(sessionId);
-      this.writeQueues.delete(sessionId);
+      this.cleanupSessionMemory(sessionId);
     }
   }
 
@@ -2767,8 +2790,18 @@ Create one materially different question that adds new diagnostic evidence. Test
       session.questionsReadyAt = new Date().toISOString();
     }
     this.writeQueues.get(sessionId)?.blockedTurns.delete(job.turn);
+    if (this.factorisationGeneratedPrints.size >= 1000) {
+      const first = this.factorisationGeneratedPrints.values().next().value;
+      if (first) this.factorisationGeneratedPrints.delete(first);
+    }
     this.factorisationGeneratedPrints.add(print);
-    if (job.turn === 1) this.factorisationOpeningPrints.add(print);
+    if (job.turn === 1) {
+      if (this.factorisationOpeningPrints.size >= 1000) {
+        const firstOpener = this.factorisationOpeningPrints.values().next().value;
+        if (firstOpener) this.factorisationOpeningPrints.delete(firstOpener);
+      }
+      this.factorisationOpeningPrints.add(print);
+    }
     // An item reaches this point only after the factory has validated its
     // answer, requested mistake coverage, and duplicate safety. Preserve that
     // distinct transition: a valid candidate can still be too late to be
@@ -2965,6 +2998,55 @@ Create one materially different question that adds new diagnostic evidence. Test
 
   private applyPlanAction(session: LotusSessionState, action: PlanAction): void {
     const f = session.factorisation!;
+    if (action.kind === "INSERT_ELASTIC_PROBE") {
+      insertElasticProbe(f.state, action);
+      const newTurnNumber = action.afterTurn + 1;
+      for (let t = f.state.turns.length; t > newTurnNumber; t--) {
+        if (f.versions[String(t - 1)]) {
+          f.versions[String(t)] = f.versions[String(t - 1)]!;
+          delete f.versions[String(t - 1)];
+        }
+        if (f.preferred[String(t - 1)]) {
+          f.preferred[String(t)] = f.preferred[String(t - 1)]!;
+          delete f.preferred[String(t - 1)];
+        }
+      }
+      const codeProbe = codeProbeFor({
+        spec: action.spec,
+        purpose: action.purpose === "DESCENT" ? "BASE" : action.purpose,
+        targetMistake: action.targetMistake,
+        avoid: [],
+        variation: `${session.sessionId}:elastic-q${newTurnNumber}`,
+      }, process.env);
+
+      if (codeProbe) {
+        const probeItem: LotusQuestion = {
+          ...codeProbe,
+          id: randomUUID(),
+        };
+        if (probeItem.answerKey?.diagnostics) {
+          probeItem.answerKey.diagnostics.slot = action.probeSlot;
+          (probeItem.answerKey.diagnostics as any).isElasticProbe = true;
+          (probeItem.answerKey.diagnostics as any).parentSlot = action.parentSlot;
+        }
+        f.versions[String(newTurnNumber)] = [probeItem];
+        f.preferred[String(newTurnNumber)] = probeItem.id;
+      } else {
+        this.enqueueWrite(session.sessionId, {
+          turn: newTurnNumber,
+          version: 0,
+          request: {
+            spec: action.spec,
+            purpose: action.purpose === "DESCENT" ? "BASE" : action.purpose,
+            targetMistake: action.targetMistake,
+          },
+          urgent: true,
+          readyReason: action.reason,
+        });
+      }
+      this.logger.log(`Plan ${session.sessionId.slice(0, 8)} inserted elastic probe at turn ${newTurnNumber} — ${action.reason}`);
+      return;
+    }
     const turn = f.state.turns.find((candidate) => candidate.turn === action.turn);
     if (!turn) return;
     const previous = { status: turn.status, purpose: turn.purpose, forSkill: turn.forSkill, reason: turn.reason };
@@ -3027,6 +3109,58 @@ Create one materially different question that adds new diagnostic evidence. Test
     const instant = instantVerdict(currentQuestion, response);
     if (instant.fastSkip) state.fastSkips += 1;
 
+    // Evaluate ceiling escalation after Turn 5
+    if (!state.ceilingEscalated && state.answeredTurns.length >= 4) {
+      const auditsForEscalation = [
+        ...session.audits,
+        {
+          question: currentQuestion,
+          response,
+          verification: instant.verification,
+          skillEvidence: instant.evidence,
+        } as LotusQuestionAudit,
+      ];
+      if (evaluateCeilingEscalation(auditsForEscalation, state, session.board)) {
+        for (const stretchSpec of FACTORISATION_STRETCH_SLOTS) {
+          const slotNum = stretchSpec.slot;
+          const prompt = adaptPromptForBoard(
+            stretchSpec.kind === "FACTORISE"
+              ? `Factorise: ${stretchSpec.shape}`
+              : stretchSpec.kind === "SIMPLIFY"
+              ? `Simplify: ${stretchSpec.shape}`
+              : stretchSpec.shape,
+            session.board ?? "CBSE",
+          );
+          const stretchItem: LotusQuestion = {
+            id: `stretch-${slotNum}-${randomUUID()}`,
+            phase: stretchSpec.phase,
+            subtopic: stretchSpec.skillId,
+            prompt,
+            type: stretchSpec.kind === "CHOICE" ? "MULTIPLE_CHOICE" : "CONSTRUCTED_RESPONSE",
+            options: stretchSpec.kind === "CHOICE" ? stretchSpec.example?.options ?? [] : undefined,
+            asksForWorking: false,
+            purpose: "STRETCH",
+            answerKey: {
+              kind: stretchSpec.kind === "CHOICE" ? "MULTIPLE_CHOICE" : "OPEN_RESPONSE",
+              canonicalAnswer: stretchSpec.example?.answer ?? (stretchSpec.kind === "NUMBER" ? stretchSpec.example?.answer ?? "14" : stretchSpec.shape),
+              workedSolution: [stretchSpec.shape],
+              diagnostics: {
+                slot: slotNum,
+                itemKind: stretchSpec.kind,
+                expression: stretchSpec.shape,
+                skillId: stretchSpec.skillId,
+                level: stretchSpec.level,
+                origin: "CODE",
+                board: session.board,
+              } as any,
+            },
+          };
+          f.versions[String(slotNum)] = [stretchItem];
+          f.preferred[String(slotNum)] = stretchItem.id;
+        }
+      }
+    }
+
     // Time box or a found starting point ends the test here, even if the browser has the next question staged.
     const pauseBeforeExit = response.developerMode === true && developerExitAvailable(session);
     const ignoredStops = pauseBeforeExit ? session.developmentExitControl?.ignoredStops ?? [] : [];
@@ -3035,6 +3169,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       ignoredStops.includes("TIME_LIMIT") ? 0 : elapsedSeconds,
       undefined,
       session.priors,
+      state,
     );
     const stopKey = suggestedStop?.reason === "STARTING_POINT_FOUND"
       ? `${suggestedStop.reason}:${suggestedStop.skillId}` : suggestedStop?.reason;
@@ -3081,13 +3216,14 @@ Create one materially different question that adds new diagnostic evidence. Test
 
     // The four-call AI review runs only when code couldn't say what the answer shows (an
     // unpredicted wrong answer, or one it can't read). When code has settled it, a right
-    // answer or a predicted mistake, the review can't change anything: its skill finding is
-    // used only when code found none (evidenceFromAnalysis), and the suspicion loop already
-    // re-checks a mistaken skill. A blank skip has nothing to read, and an explicit
-    // support request is direct student evidence, not something a model has to interpret.
-    // Also when code marked it cleanly but it pulls against earlier answers on the same skill: a review weighs the conflict.
+    // Sarah Standard: Deterministic referee does not silence the background diagnostician.
+    // For 15-slot canonical sessions (turns <= 17) or when LOTUS_SARAH_STANDARD is active,
+    // every turn's payload is dispatched asynchronously to the background AI worker during student
+    // think time (~20s) whenever !instant.fastSkip. Legacy conditional review gating (needsAnalysis || conflictsWithEarlier)
+    // is preserved only for historical 25-slot sessions when LOTUS_SARAH_STANDARD is not active.
+    const legacyGating = f.state.turns.length === 25 && process.env.LOTUS_SARAH_STANDARD !== "on";
     const analyse = !instant.fastSkip && !response.didNotKnow
-      && (instant.needsAnalysis || conflictsWithEarlier(session.audits, instant.evidence, instant.verification.status));
+      && (!legacyGating || instant.needsAnalysis || conflictsWithEarlier(session.audits, instant.evidence, instant.verification.status));
     const note = response.didNotKnow
       ? "The student said they do not know this yet. That is recorded as evidence of a support need; Lotus will check an easier prerequisite where possible."
       : analyse
@@ -3148,8 +3284,8 @@ Create one materially different question that adds new diagnostic evidence. Test
         source: "RULE_VALIDATED_PLAN",
       };
       if (pauseBeforeExit) {
-        const reason = stop?.reason ?? (state.turns.some((turn) => turn.turn > state.planTurn)
-          ? "NO_READY_QUESTION" : "PLAN_COMPLETE");
+        const reason = ((stop?.reason === "FLOOR_EXIT_PARALYSIS" ? "STARTING_POINT_FOUND" : stop?.reason) ?? (state.turns.some((turn) => turn.turn > state.planTurn)
+          ? "NO_READY_QUESTION" : "PLAN_COMPLETE")) as any;
         const message = stop?.note ?? f.endedEarlyNote ?? "All planned questions have been reached.";
         const decisionId = randomUUID();
         session.developmentExitControl ??= { ignoredStops: [], choices: [] };
@@ -3259,6 +3395,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       state: f.state,
       pendingAnalyses: session.audits.filter((audit) => audit.analysisStatus === "PENDING" || audit.analysisStatus === "FAILED").length,
       audits: session.audits,
+      board: session.board,
     });
     if (f.endedEarlyNote) report.limitations.unshift(f.endedEarlyNote);
     // This test beside the earlier ones: a mistake that keeps coming back, a gap since fixed.
@@ -3319,6 +3456,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     session.finalReport = report;
     session.liveProgress = null;
     this.writeQueues.delete(session.sessionId);
+    this.inFlightAnswers.delete(session.sessionId);
     this.maybeRunOverallReview(session);
   }
 

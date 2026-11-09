@@ -27,6 +27,11 @@ import type {
   LotusPlannedTopic,
   LotusSkillSummary,
   LotusStudentResponse,
+  LotusBoard,
+  LotusCompetencyRating,
+  LotusCompetencyStatus,
+  LotusScaffoldingLevel,
+  LotusStartingZone,
 } from "@cogna/shared";
 import { LOTUS_SELECT_SEPARATOR, LOTUS_SPLIT_TOKENS, assembleTileAnswer } from "@cogna/shared";
 import { assessSkillEvidence } from "./lotus-evidence-assessment";
@@ -53,6 +58,7 @@ import {
 } from "./lotus-algebra";
 import {
   type SlotSpec,
+  type Curriculum,
   curriculumFor,
   curriculumOfSkill,
   dependsOnTransitively,
@@ -61,6 +67,7 @@ import {
   skillName,
   skillsUsedBy,
   SOFT_PREREQUISITES,
+  FACTORISATION_STRETCH_SLOTS,
 } from "./lotus-factorisation-catalogue";
 import { checkSpecFor } from "./lotus-skill-checks";
 import { SHARED_PATTERNS } from "./lotus-skill-map";
@@ -80,6 +87,12 @@ export interface FactorisationTurn {
   version: number;
   /** What the slot was before a rewrite put it on hold, so a rewrite that can't be prepared leaves the planned question in place. */
   held?: { status: "PLANNED" | "REPURPOSED"; purpose?: FactorisationTurn["purpose"]; forSkill?: string; reason?: string };
+  /** True if this turn was inserted as an elastic diagnostic runway probe */
+  isElasticProbe?: boolean;
+  /** The parent slot that triggered this elastic probe (e.g. 8) */
+  parentSlot?: number;
+  /** Human-readable probe label (e.g. "Q8.5") */
+  probeLabel?: string;
 }
 
 export interface FactorisationState {
@@ -96,6 +109,10 @@ export interface FactorisationState {
   /** Skills already offered a BROADEN check (found a target or not) — never revisited, so one secure skill never claims two slots. */
   handledBroadened: string[];
   fastSkips: number;
+  /** True if high-performing blitzer was escalated to stretch slots */
+  ceilingEscalated?: boolean;
+  /** Board alignment */
+  board?: LotusBoard;
 }
 
 // ---------- instant verdict ----------
@@ -507,7 +524,8 @@ function commonFactorShown(reading: CommonFactorReading, d: LotusItemDiagnostics
  */
 function workingHasWrongStep(working: string | undefined, expression: string | undefined, itemKind: LotusItemDiagnostics["itemKind"]): boolean {
   const readable = (s: string) => /[0-9a-z]/i.test(s) && safe(() => algebraicallyEqual(s, s));
-  for (const line of (working ?? "").split("\n")) {
+  const lines = (working ?? "").split("\n").slice(0, 10);
+  for (const line of lines) {
     for (const raw of line.split(/,|;|\band\b/i)) {
       const segment = (raw.includes(":") ? raw.slice(raw.lastIndexOf(":") + 1) : raw)
         .replace(/^\s*(so|then|therefore|which is|gives)\s+/i, "").trim();
@@ -734,9 +752,314 @@ export interface SkillLedgerEntry {
   unexplained?: number;
   /** Carried in from earlier tests or lessons (see foldLedger's priors), and why. */
   fromMemory?: LotusLedgerPrior["reason"];
+  /** Unambiguously cleared by downstream composite success under Sarah Rule */
+  retroactivelyCleared?: boolean;
+  slipClassification?: "CARELESS_DRILL_SLIP" | "MISCONCEPTION";
 }
 
 export type Ledger = Map<string, SkillLedgerEntry>;
+
+export const FOUNDATIONAL_OR_SIGN_SKILLS = new Set<string>([
+  "FND_FACTOR_PAIRS",
+  "FND_GCD_NUMERIC",
+  "FND_EXPONENT_PRODUCT",
+  "FND_MIN_EXP_COMMON",
+  "FND_SIGN_MUL_DIV",
+  "FND_SIGN_ADD_SUB",
+  "FND_RECOGNISE_SQUARE",
+  "ALG_IDENTIFY_STRUCTURE",
+  "FND_EXPONENT_QUOTIENT",
+  "FND_IRREDUCIBLE_FACTORS",
+  "FAC_GCF_NEGATIVE",
+  "FAC_GROUP_SIGN",
+  "FAC_DIVIDE_TERMS",
+  "FAC_GCF_NUMERIC",
+  "FAC_GCF_VARIABLE",
+  "FAC_COMMON_MONOMIAL",
+]);
+
+export function isFoundationalOrSignSkill(skillId: string, curriculum?: Curriculum): boolean {
+  if (FOUNDATIONAL_OR_SIGN_SKILLS.has(skillId)) return true;
+  const s = curriculum?.skills.find((item) => item.id === skillId) ?? findSkill(skillId);
+  return s !== undefined && s.group === 0;
+}
+
+export function getSkillLatency(skillId: string, audits: LotusQuestionAudit[]): { avgMs: number; count: number } {
+  const times: number[] = [];
+  for (const audit of audits) {
+    if (!audit.response || audit.response.didNotKnow || typeof audit.response.responseTimeMs !== "number") continue;
+    const isDirect = audit.question?.answerKey?.diagnostics?.skillId === skillId;
+    const isSecure = (audit.skillEvidence ?? []).some((e) => e.skillId === skillId && e.kind === "SECURE" && !e.hedge);
+    if (isDirect && isSecure) {
+      times.push(audit.response.responseTimeMs);
+    }
+  }
+  if (times.length === 0) {
+    for (const audit of audits) {
+      if (!audit.response || audit.response.didNotKnow || typeof audit.response.responseTimeMs !== "number") continue;
+      if ((audit.skillEvidence ?? []).some((e) => e.skillId === skillId && e.kind === "SECURE" && !e.hedge)) {
+        times.push(audit.response.responseTimeMs);
+      }
+    }
+  }
+  if (times.length === 0) return { avgMs: 0, count: 0 };
+  const total = times.reduce((sum, t) => sum + t, 0);
+  return { avgMs: Math.round(total / times.length), count: times.length };
+}
+
+export function calculateSkillRating(
+  entry: SkillLedgerEntry,
+  audits: LotusQuestionAudit[] = [],
+  curriculum?: Curriculum,
+): { rating: LotusCompetencyRating; ratingStatus: LotusCompetencyStatus } | undefined {
+  // 1. Untested skill with zero evidence: leave rating undefined per contract
+  const hasEvidence =
+    entry.notes.length > 0 ||
+    entry.mistakes.length > 0 ||
+    (entry.hedges && entry.hedges.length > 0) ||
+    (entry.tapRights ?? 0) > 0 ||
+    entry.state !== "UNTESTED";
+
+  if (!hasEvidence && entry.state === "UNTESTED") {
+    return undefined;
+  }
+
+  const assessment = assessSkillEvidence(audits, entry.skillId);
+  const latency = getSkillLatency(entry.skillId, audits);
+  const isFastLatency = latency.count > 0 && latency.avgMs < 15_000;
+  const isSlowLatency = latency.avgMs > 30_000;
+  const hasConfirmedGap = entry.state === "CONFIRMED";
+  const hasSuspectedGap = entry.state === "SUSPECTED";
+  const isFoundational = isFoundationalOrSignSkill(entry.skillId, curriculum);
+  const isParalysis = entry.confirmedBySupport === true || (entry.supportCount ?? 0) >= 2;
+  const mistakeCount = entry.mistakes.length;
+  const clearedSlip = entry.clearedAfterSlip !== undefined || entry.retroactivelyCleared === true;
+  const hadAnySlips = mistakeCount > 0 || clearedSlip || (entry.sightings ?? []).length > 0;
+  const hasHedge = (entry.hedges && entry.hedges.length > 0) || entry.splitDoubtAt !== undefined;
+  const isShaky = entry.shakyRightAt !== undefined || entry.needsComparableCheck === true;
+
+  // Rating 1: CRITICAL_BLOCKER
+  // Confirmed gap in foundational arithmetic / negative signs, or acute paralysis
+  if (hasConfirmedGap && (isFoundational || isParalysis)) {
+    return { rating: 1, ratingStatus: "CRITICAL_BLOCKER" };
+  }
+  if (isParalysis) {
+    return { rating: 1, ratingStatus: "CRITICAL_BLOCKER" };
+  }
+
+  // Rating 2: FRAGILE
+  // Confirmed gap on composite skill, or repeated unhedged errors
+  if (hasConfirmedGap) {
+    return { rating: 2, ratingStatus: "FRAGILE" };
+  }
+  if (hasSuspectedGap && (mistakeCount >= 2 || (entry.sightings ?? []).filter((s) => s.how === "mistake").length >= 2)) {
+    return { rating: 2, ratingStatus: "FRAGILE" };
+  }
+
+  // Rating 3: EMERGING
+  // Slow latency (>30s), active unconfirmed suspicion, minor hedged attempt, shaky, or single observation
+  if (
+    hasSuspectedGap ||
+    hasHedge ||
+    isShaky ||
+    (entry.state === "UNTESTED" && (entry.tapRights ?? 0) > 0) ||
+    isSlowLatency ||
+    (entry.state === "SECURE" && assessment.distinctDirectSuccessCount < 2 && !clearedSlip)
+  ) {
+    return { rating: 3, ratingStatus: "EMERGING" };
+  }
+
+  // Rating 5: ADVANCED_MASTERY
+  // Clean unhedged demonstrations (distinct direct successes >= 2), fast latency (<15s), zero slips ever
+  if (
+    entry.state === "SECURE" &&
+    assessment.distinctDirectSuccessCount >= 2 &&
+    !hadAnySlips &&
+    !clearedSlip &&
+    !hasHedge &&
+    isFastLatency
+  ) {
+    return { rating: 5, ratingStatus: "ADVANCED_MASTERY" };
+  }
+
+  // Rating 4: FLUENT
+  // Clean demonstrations, no active slips, normal latency (<=30s), or cleared single slip
+  if (entry.state === "SECURE") {
+    return { rating: 4, ratingStatus: "FLUENT" };
+  }
+
+  // Fallback for edge cases with partial evidence
+  return { rating: 3, ratingStatus: "EMERGING" };
+}
+
+export interface RetroactiveClearanceRule {
+  compositeSkillId: string;
+  prerequisiteSkillId: string;
+  eligibleMistakes: string[];
+  expressionValidator: (expr: string) => boolean;
+}
+
+export const RETROACTIVE_CLEARANCE_RULES: RetroactiveClearanceRule[] = [
+  // 1. 4-Term Grouping with negative pair clears Negative GCF
+  {
+    compositeSkillId: "FAC_GROUP_SIGN",
+    prerequisiteSkillId: "FAC_GCF_NEGATIVE",
+    eligibleMistakes: ["KEPT_ORIGINAL_SIGNS", "FLIPPED_ONE_SIGN"],
+    expressionValidator: (expr: string) => /-\s*\d*x\s*\+\s*\d+/.test(expr) || /-\s*\d+[a-z]\s*[+-]\s*\d+/.test(expr) || expr.includes("-"),
+  },
+  // 2. 4-Term Grouping with negative pair clears Signed Mul/Div
+  {
+    compositeSkillId: "FAC_GROUP_SIGN",
+    prerequisiteSkillId: "FND_SIGN_MUL_DIV",
+    eligibleMistakes: ["SIGN_PRODUCT_ERROR", "ADDED_INSTEAD", "SIGN_PAIR_ERROR"],
+    expressionValidator: (expr: string) => expr.includes("-"),
+  },
+  // 3. Monic Trinomial with mixed/negative signs clears Product-Sum Pair Search
+  {
+    compositeSkillId: "FAC_MONIC_TRINOMIAL",
+    prerequisiteSkillId: "FAC_PAIR_PRODUCT_SUM",
+    eligibleMistakes: ["SIGN_PAIR_ERROR", "WRONG_FACTOR_PAIR_SUM", "PRODUCT_SUM_SWAPPED"],
+    expressionValidator: (expr: string) => /-\s*\d*x/.test(expr) || /-\s*\d+$/.test(expr.trim()) || expr.includes("-"),
+  },
+  // 4. Monic Trinomial with negative constant clears Signed Mul/Div & Add/Sub
+  {
+    compositeSkillId: "FAC_MONIC_TRINOMIAL",
+    prerequisiteSkillId: "FND_SIGN_MUL_DIV",
+    eligibleMistakes: ["SIGN_PRODUCT_ERROR", "SIGN_PAIR_ERROR"],
+    expressionValidator: (expr: string) => /-\s*\d+$/.test(expr.trim()) || expr.includes("-"),
+  },
+  // 5. Perfect Square with Minus clears Signed Mul/Div
+  {
+    compositeSkillId: "FAC_PERFECT_SQUARE_MINUS",
+    prerequisiteSkillId: "FND_SIGN_MUL_DIV",
+    eligibleMistakes: ["SIGN_PRODUCT_ERROR", "WRONG_MIDDLE_SIGN"],
+    expressionValidator: (expr: string) => expr.includes("-"),
+  },
+];
+
+export function applySarahRetroactiveClearance(audits: LotusQuestionAudit[], ledger: Ledger): void {
+  for (let i = 0; i < audits.length; i++) {
+    const audit = audits[i]!;
+    const q = i + 1;
+    if (audit.verification?.status !== "VERIFIED_CORRECT") continue;
+    if (audit.response?.didNotKnow) continue;
+    const hasHedge = (audit.skillEvidence ?? []).some((ev) => ev.hedge);
+    if (hasHedge) continue;
+
+    const currentSkill = audit.question?.answerKey?.diagnostics?.skillId;
+    const expression = audit.question?.answerKey?.diagnostics?.expression ?? audit.question?.prompt ?? "";
+
+    for (const rule of RETROACTIVE_CLEARANCE_RULES) {
+      if (rule.compositeSkillId !== currentSkill) continue;
+      if (!rule.expressionValidator(expression)) continue;
+
+      const prereqEntry = ledger.get(rule.prerequisiteSkillId);
+      if (!prereqEntry) continue;
+      if (prereqEntry.state !== "SUSPECTED" && prereqEntry.state !== "CONFIRMED") continue;
+
+      const lastMistakeTurn = Math.max(
+        prereqEntry.confirmedAt ?? 0,
+        prereqEntry.suspectedAt ?? 0,
+        ...(prereqEntry.sightings ?? []).filter((s) => s.how === "mistake").map((s) => s.q),
+      );
+      if (q <= lastMistakeTurn) continue;
+
+      const hasMatchingSlip = prereqEntry.mistakes.some((m) => rule.eligibleMistakes.includes(m));
+      if (!hasMatchingSlip && prereqEntry.mistakes.length > 0) continue;
+
+      // Apply retroactive clearance
+      prereqEntry.state = "SECURE";
+      prereqEntry.clearedAfterSlip = lastMistakeTurn;
+      prereqEntry.retroactivelyCleared = true;
+      prereqEntry.slipClassification = "CARELESS_DRILL_SLIP";
+      delete prereqEntry.confirmedAt;
+      prereqEntry.needsComparableCheck = false;
+
+      const mistakeList = prereqEntry.mistakes.join(", ");
+      prereqEntry.notes.push(
+        `Q${q}: retroactively cleared earlier ${skillName(rule.prerequisiteSkillId)} slip (${mistakeList}) ` +
+        `via successful composite demonstration on ${skillName(rule.compositeSkillId)}; reclassified as CARELESS_DRILL_SLIP.`
+      );
+
+      audit.skillEvidence = [
+        ...(audit.skillEvidence ?? []),
+        {
+          skillId: rule.prerequisiteSkillId,
+          kind: "SECURE",
+          source: "INSTANT",
+          description: `Retroactively cleared by composite success on Q${q}`,
+        },
+      ];
+    }
+  }
+}
+
+export const CEILING_ESCALATION_MAX_AVG_LATENCY_MS = 15_000;
+export const CEILING_ESCALATION_MIN_QUESTIONS = 5;
+
+export function isCeilingEscalationEligible(
+  audits: LotusQuestionAudit[],
+  state: FactorisationState,
+  maxAvgLatencyMs: number = CEILING_ESCALATION_MAX_AVG_LATENCY_MS,
+): boolean {
+  if (state.ceilingEscalated) return false;
+  if (audits.length < CEILING_ESCALATION_MIN_QUESTIONS) return false;
+
+  const earlyAudits = audits.slice(0, CEILING_ESCALATION_MIN_QUESTIONS);
+
+  // 1. Accuracy & Evidence Verification
+  const allCorrect = earlyAudits.every((audit) => {
+    if (audit.verification?.status !== "VERIFIED_CORRECT") return false;
+    if (audit.response?.didNotKnow) return false;
+    const evidence = audit.skillEvidence ?? [];
+    return evidence.every(
+      (e) => e.kind === "SECURE" || (e.kind === "UNFINISHED" && (!e.hedge || e.hedge.chips === 0)),
+    );
+  });
+  if (!allCorrect) return false;
+
+  // 2. Unhedged verification
+  const hasHedge = earlyAudits.some((audit) =>
+    (audit.skillEvidence ?? []).some((e) => e.hedge && e.hedge.chips > 0),
+  );
+  if (hasHedge) return false;
+
+  // 3. Fast Latency verification
+  const latencies = earlyAudits.map((a) => a.response?.responseTimeMs ?? 0);
+  if (latencies.some((ms) => ms < 500)) return false; // Guard against bot/clickspam
+  const avgLatency = latencies.reduce((sum, ms) => sum + ms, 0) / CEILING_ESCALATION_MIN_QUESTIONS;
+  if (avgLatency > maxAvgLatencyMs) return false;
+
+  // 4. No fast skips
+  if (state.fastSkips > 0) return false;
+
+  return true;
+}
+
+export function evaluateCeilingEscalation(
+  audits: LotusQuestionAudit[],
+  state: FactorisationState,
+  board: LotusBoard = "CBSE",
+): boolean {
+  if (!isCeilingEscalationEligible(audits, state)) return false;
+
+  state.ceilingEscalated = true;
+  for (let slotNum = 6; slotNum <= 15; slotNum++) {
+    const stretchSpec = FACTORISATION_STRETCH_SLOTS.find((s) => s.slot === slotNum);
+    if (!stretchSpec) continue;
+    const turnObj = state.turns.find((t) => t.turn === slotNum);
+    if (turnObj) {
+      turnObj.slot = stretchSpec.slot;
+      turnObj.forSkill = stretchSpec.skillId;
+      turnObj.status = "PLANNED";
+      turnObj.purpose = "CHECK";
+      turnObj.reason = `Ceiling Escalation: Advanced blitzer escalated to stretch slot ${slotNum} (${stretchSpec.note ?? stretchSpec.shape}).`;
+      turnObj.version += 1;
+      delete turnObj.held;
+    }
+  }
+  return true;
+}
 
 /**
  * Could this answered question have shown the given mistake? Only a question
@@ -997,6 +1320,7 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
       if (e.state === "CONFIRMED") e.recheck = false;
     }
   });
+  applySarahRetroactiveClearance(audits, ledger);
   explainAwayConfounded(audits, ledger);
   markTirednessGaps(audits, ledger);
   return ledger;
@@ -1150,6 +1474,18 @@ export type PlanAction =
       avoidSkill?: string;
       /** Keep the turn out of the test until the AI's version is ready. */
       skipUntilReady?: boolean;
+    }
+  | {
+      kind: "INSERT_ELASTIC_PROBE";
+      turn: number;
+      afterTurn: number;
+      spec: SlotSpec;
+      purpose: "CHECK" | "DESCENT";
+      forSkill: string;
+      parentSlot: number;
+      probeSlot: number;
+      reason: string;
+      targetMistake?: string;
     };
 
 export interface PlanInput {
@@ -1523,6 +1859,28 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     const spec = (sourceSlot !== undefined ? slots.find((s) => s.slot === sourceSlot) : undefined)
       ?? slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     if (!spec) continue;
+
+    // Elastic Runway check: on 15-slot diagnostic spine, insert probe instead of cannibalizing downstream slots
+    const elasticCount = state.turns.filter((t) => t.isElasticProbe).length;
+    const is15SpineOrElastic = state.turns.length <= 17;
+    if (is15SpineOrElastic && elasticCount < 2 && state.planTurn > 0) {
+      const parentSlot = state.turns.find((t) => t.turn === state.planTurn)?.slot ?? state.planTurn;
+      actions.push({
+        kind: "INSERT_ELASTIC_PROBE",
+        turn: state.planTurn + 1,
+        afterTurn: state.planTurn,
+        spec,
+        purpose: "CHECK",
+        forSkill: e.skillId,
+        parentSlot: Math.floor(parentSlot),
+        probeSlot: Math.floor(parentSlot) + 0.5,
+        reason: `Elastic runway probe inserted after Q${state.planTurn} to isolate ambiguous slip on ${skillName(e.skillId)} without pruning downstream topics.`,
+        targetMistake: e.mistakes.at(-1),
+      });
+      checkedThisCall.add(e.skillId);
+      continue;
+    }
+
     const turn = pickVictim();
     if (turn === null) continue;
     claimed.add(turn);
@@ -1622,6 +1980,56 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   return actions;
 }
 
+/**
+ * Inserts a surgical diagnostic probe (e.g. Q8.5) at afterTurn + 1, shifting all subsequent
+ * turns downstream without deleting or cannibalizing curriculum topics.
+ */
+export function insertElasticProbe(
+  state: FactorisationState,
+  input: {
+    afterTurn: number;
+    spec: SlotSpec;
+    parentSlot: number;
+    probeSlot?: number;
+    purpose?: "CHECK" | "DESCENT";
+    reason?: string;
+    targetMistake?: string;
+  },
+): FactorisationTurn {
+  const afterTurn = input.afterTurn;
+  const newTurnNumber = afterTurn + 1;
+  const probeSlot = input.probeSlot ?? input.parentSlot + 0.5;
+
+  // Shift all future turns > afterTurn by +1
+  for (const t of state.turns) {
+    if (t.turn > afterTurn) {
+      t.turn += 1;
+    }
+  }
+
+  const probeTurn: FactorisationTurn = {
+    turn: newTurnNumber,
+    slot: probeSlot,
+    status: "PLANNED",
+    purpose: input.purpose ?? "CHECK",
+    forSkill: input.spec.skillId,
+    reason: input.reason ?? `Elastic runway probe inserted after Q${afterTurn} to isolate ambiguous slip on ${skillName(input.spec.skillId)} without pruning downstream topics.`,
+    version: 0,
+    isElasticProbe: true,
+    parentSlot: input.parentSlot,
+    probeLabel: `Q${input.parentSlot}.5`,
+  };
+
+  const spliceIndex = state.turns.findIndex((t) => t.turn === newTurnNumber + 1);
+  if (spliceIndex >= 0) {
+    state.turns.splice(spliceIndex, 0, probeTurn);
+  } else {
+    state.turns.push(probeTurn);
+  }
+
+  return probeTurn;
+}
+
 // ---------- catch-up ----------
 
 /** Most a catch-up asks, and the fewest worth sending. */
@@ -1695,13 +2103,143 @@ export function teachingStart(ledger: Ledger): (SkillLedgerEntry & { rootOf?: st
   return confirmedByDepth(ledger)[0];
 }
 
+/**
+ * Calculates the Day 1 Launchpad Node (LotusStartingZone) mapping to 6 canonical Launchpad Modules
+ * across 3 scaffolding levels with tailored 3–5 minute micro-intervention drills.
+ */
+export function calculateStartingZone(
+  ledger: Ledger,
+  audits: LotusQuestionAudit[] = [],
+  curriculum?: Curriculum,
+  board: LotusBoard = "CBSE",
+): LotusStartingZone {
+  const confirmed = confirmedByDepth(ledger);
+  const start = confirmed[0];
+  const suspected = [...ledger.values()].filter((e) => e.state === "SUSPECTED");
+  const ratedEntries = [...ledger.values()]
+    .map((e) => ({ entry: e, rating: calculateSkillRating(e, audits, curriculum) }))
+    .filter((r): r is { entry: SkillLedgerEntry; rating: { rating: LotusCompetencyRating; ratingStatus: LotusCompetencyStatus } } => r.rating !== undefined);
+
+  const hasCriticalBlocker = ratedEntries.some((r) => r.rating.rating === 1);
+  const microInterventions: string[] = [];
+
+  // Case 1: Foundational Gap / Critical Blocker (Rating 1)
+  if (hasCriticalBlocker || (start && isFoundationalOrSignSkill(start.skillId, curriculum))) {
+    const targetSkillId = start?.skillId ?? ratedEntries.find((r) => r.rating.rating === 1)?.entry.skillId ?? "FAC_DIVIDE_TERMS";
+    const isSignGap = ["FND_SIGN_MUL_DIV", "FND_SIGN_ADD_SUB", "FAC_GCF_NEGATIVE", "FAC_GROUP_SIGN"].includes(targetSkillId);
+
+    if (isSignGap) {
+      microInterventions.push(
+        "Negative sign extraction drill: flip signs inside bracket when taking out negative GCF (3 mins)",
+        "Signed integer multiplication & division warm-up (3 mins)",
+      );
+      return {
+        moduleId: "MOD_FACT_SIGNS_MEANING",
+        moduleName: "Signed Factors & Meaning of Factorisation",
+        scaffoldingLevel: "FOUNDATIONAL_REMEDIATION",
+        rationale: `Critical blocker detected in negative sign handling (${skillName(targetSkillId)}). Day 1 instruction begins with foundational signed factor extraction before composite structures.`,
+        microInterventions,
+      };
+    }
+
+    microInterventions.push(
+      "Term-by-term quotient verification: retain identity +1 when dividing completely (3 mins)",
+      "Highest common factor extraction: prime factor trees and common divisors (4 mins)",
+    );
+    return {
+      moduleId: "MOD_FACT_FOUNDATIONS",
+      moduleName: "Foundations: Common Monomial Factors & Division",
+      scaffoldingLevel: "FOUNDATIONAL_REMEDIATION",
+      rationale: `Foundational gap confirmed in common factor division (${skillName(targetSkillId)}). Day 1 launchpad provides structured term-by-term remediation.`,
+      microInterventions,
+    };
+  }
+
+  // Case 2: Intermediate Gap (Grouping, Identities, Quadratics)
+  if (start) {
+    const isGrouping = ["FAC_COMMON_BINOMIAL", "FAC_GROUP_TERMS", "FAC_GROUP_SIGN", "FAC_REARRANGE_TO_GROUP"].includes(start.skillId);
+    if (isGrouping) {
+      microInterventions.push(
+        "Binomial bracket highlighting: identifying common bracket expressions as single factors (4 mins)",
+        "Grouping second-pair sign-flip check when leading sign is minus (3 mins)",
+      );
+      return {
+        moduleId: "MOD_FACT_GROUPING",
+        moduleName: "Factorisation by Grouping Terms",
+        scaffoldingLevel: "STEPPED_SCAFFOLDING",
+        rationale: `Monomial foundations are secure. Day 1 launches into four-term grouping (${skillName(start.skillId)}) with stepped scaffolding and visual brackets.`,
+        microInterventions,
+      };
+    }
+
+    const isIdentity = ["FAC_DIFF_SQUARES", "FAC_PERFECT_SQUARE_PLUS", "FAC_PERFECT_SQUARE_MINUS", "ID_REVERSE_PATTERN", "ID_BRACKET_AS_ONE"].includes(start.skillId);
+    if (isIdentity) {
+      microInterventions.push(
+        "Square root coefficient recognition: identifying (ax + b)(ax - b) forms (4 mins)",
+        "Middle term 2ab verification for perfect square trinomials (3 mins)",
+      );
+      return {
+        moduleId: "MOD_FACT_IDENTITIES",
+        moduleName: "Algebraic Identities & Difference of Squares",
+        scaffoldingLevel: "STEPPED_SCAFFOLDING",
+        rationale: `Foundations and grouping are solid. Day 1 focuses on difference of squares and identity recognition (${skillName(start.skillId)}) with stepped hints.`,
+        microInterventions,
+      };
+    }
+
+    // Quadratics gap
+    microInterventions.push(
+      "Factor pair search table: systematic factor pairs with mixed signs (5 mins)",
+      "Monic quadratic sign rules: connecting constant term sign to factor signs (4 mins)",
+    );
+    return {
+      moduleId: "MOD_FACT_QUADRATICS",
+      moduleName: "Quadratic Trinomials (x² + bx + c)",
+      scaffoldingLevel: "STEPPED_SCAFFOLDING",
+      rationale: `Prerequisites through identities are secure. Day 1 focuses on quadratic trinomial splitting (${skillName(start.skillId)}) with stepped pair search.`,
+      microInterventions,
+    };
+  }
+
+  // Case 3: No confirmed gap, but suspected area exists
+  if (suspected.length > 0) {
+    const susp = suspected[0]!;
+    microInterventions.push(
+      `Focused warm-up on ${skillName(susp.skillId).toLowerCase()} (4 mins)`,
+      "Confidence check with immediate step feedback (3 mins)",
+    );
+    return {
+      moduleId: "MOD_FACT_QUADRATICS",
+      moduleName: "Quadratic Trinomials (x² + bx + c)",
+      scaffoldingLevel: "STEPPED_SCAFFOLDING",
+      rationale: `Core foundations are solid; unconfirmed suspicion on ${skillName(susp.skillId)} will be clarified before advancement.`,
+      microInterventions,
+    };
+  }
+
+  // Case 4: Independent Mastery (All core skills fluent, ratings 4-5)
+  microInterventions.push(
+    "Non-monic splitting middle term warmup: 6x² - 11x - 10 (5 mins)",
+    "Algebraic fraction common factor cancellation challenge (5 mins)",
+  );
+  return {
+    moduleId: "MOD_FACT_ADVANCED_SYNTHESIS",
+    moduleName: "Advanced Factorisation & Algebraic Fractions",
+    scaffoldingLevel: "INDEPENDENT",
+    rationale: "All core factorisation spine topics demonstrated with fluent mastery (Rating 4–5). Ready for independent advanced quadratic synthesis and algebraic fractions.",
+    microInterventions,
+  };
+}
+
 export function buildFactorisationReport(args: {
   ledger: Ledger;
   state: FactorisationState;
   pendingAnalyses: number;
   /** The answered turns, for checking whether the child was really trying. */
   audits?: LotusQuestionAudit[];
+  board?: LotusBoard;
 }): LotusFinalReport {
+  const board: LotusBoard = args.board ?? args.state.board ?? "CBSE";
   const curriculum = curriculumFor(args.state.topic);
   // Not trying: most answers very fast (under 5 s) and wrong. Such a test
   // can't show what the child knows, so it gives no gap to teach.
@@ -1799,11 +2337,18 @@ export function buildFactorisationReport(args: {
   if (!rushed && tiredFrom !== null) limitations.unshift(`From Q${tiredFrom} the answers got much faster and more often wrong, which may be tiredness. Gaps seen only in that part are marked unclear, not taught.`);
 
   const summaries: LotusSkillSummary[] = [
-    ...entries.map((e) => ({
-      skillId: e.skillId, name: skillName(e.skillId),
-      state: e.state === "SECURE" && !secureIds.has(e.skillId) ? "OBSERVED" as const : e.state,
-      evidence: e.notes, evidenceAssessment: assessments.get(e.skillId),
-    })),
+    ...entries.map((e) => {
+      const ratingResult = calculateSkillRating(e, args.audits ?? [], curriculum);
+      return {
+        skillId: e.skillId,
+        name: skillName(e.skillId),
+        state: e.state === "SECURE" && !secureIds.has(e.skillId) ? ("OBSERVED" as const) : e.state,
+        rating: ratingResult?.rating,
+        ratingStatus: ratingResult?.ratingStatus,
+        evidence: e.notes,
+        evidenceAssessment: assessments.get(e.skillId),
+      };
+    }),
     ...skipped
       .map((t) => slotSkill(t.slot))
       .filter((id): id is string => !!id && !args.ledger.has(id))
@@ -1819,9 +2364,13 @@ export function buildFactorisationReport(args: {
       .map((c) => ({ skillId: c.id, name: skillName(c.id), state: "UNTESTED" as const, evidence: ["Never checked, and a skill built on it went wrong."] })),
   ].filter((s, i, all) => all.findIndex((o) => o.skillId === s.skillId) === i);
 
+  const startingZone = calculateStartingZone(args.ledger, args.audits ?? [], curriculum, board);
+
   return {
+    board,
     outcome,
     startingPoint,
+    startingZone,
     observedStrengths: secure.map((e) => skillName(e.skillId) + (e.clearedAfterSlip ? " (an earlier mistake looked like a slip)" : "")),
     uncertainAreas: [
       ...observed.map((e) => {
@@ -1880,6 +2429,16 @@ export function buildFactorisationReport(args: {
   };
 }
 
+export function produceFinalReport(args: {
+  ledger: Ledger;
+  state: FactorisationState;
+  pendingAnalyses: number;
+  audits?: LotusQuestionAudit[];
+  board?: LotusBoard;
+}): LotusFinalReport {
+  return buildFactorisationReport(args);
+}
+
 // ---------- stopping rule ----------
 
 /** Pilot time box for the factorisation diagnostic. LOTUS_TIME_LIMIT_MINUTES overrides it. */
@@ -1893,7 +2452,8 @@ export const MIN_ANSWERS_FOR_EARLY_STOP = 8;
 
 export type FactorisationStop =
   | { reason: "TIME_LIMIT"; note: string }
-  | { reason: "STARTING_POINT_FOUND"; skillId: string; note: string };
+  | { reason: "STARTING_POINT_FOUND"; skillId: string; note: string }
+  | { reason: "FLOOR_EXIT_PARALYSIS"; skillId: string; note: string };
 
 /**
  * Whether the diagnostic should end now, with the answer just given counted.
@@ -1904,6 +2464,7 @@ export type FactorisationStop =
  *   secure, so more questions wouldn't move the start any lower. A gap whose
  *   prerequisites are untested or shaky keeps the test going, because the
  *   plan probes those next.
+ * - FLOOR_EXIT_PARALYSIS: acute foundational arithmetic paralysis detected at Q4/Q5.
  *
  * Pure and deterministic: it reads only the code-marked evidence ledger.
  */
@@ -1912,6 +2473,7 @@ export function factorisationStopReason(
   elapsedSeconds: number,
   timeLimitSeconds: number = factorisationTimeLimitSeconds(),
   priors: LotusLedgerPrior[] = [],
+  state?: FactorisationState,
 ): FactorisationStop | null {
   const answered = audits.length;
   if (elapsedSeconds >= timeLimitSeconds) {
@@ -1920,6 +2482,40 @@ export function factorisationStopReason(
       note: `The ${Math.round(timeLimitSeconds / 60)}-minute time limit ended the test after ${answered} question${answered === 1 ? "" : "s"}. Skills planned after that point weren't reached.`,
     };
   }
+
+  // Floor Exit (Mercy Stop) Guardrails: strictly at Q4/Q5 gateway
+  if (answered === 4 || answered === 5) {
+    const earlyAudits = audits.slice(0, answered);
+    const zeroCorrect = earlyAudits.every((a) => a.verification?.status !== "VERIFIED_CORRECT");
+    if (zeroCorrect) {
+      const allFoundational = earlyAudits.every((a) => {
+        const d = a.question?.answerKey?.diagnostics;
+        const skillId = d?.skillId;
+        return !skillId || isFoundationalOrSignSkill(skillId);
+      });
+      const dnkCount = earlyAudits.filter((a) => a.response?.didNotKnow).length;
+      const latencies = earlyAudits.map((a) => a.response?.responseTimeMs ?? 0);
+      const avgLatency = latencies.length ? latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length : 0;
+      const acuteParalysis = dnkCount >= 3 || avgLatency >= 45_000;
+
+      if (allFoundational && acuteParalysis) {
+        const ledger = foldLedger(audits, priors);
+        const start = confirmedByDepth(ledger)[0];
+        const rootSkill = start?.skillId ?? "FAC_DIVIDE_TERMS";
+        return {
+          reason: "FLOOR_EXIT_PARALYSIS",
+          skillId: rootSkill,
+          note: `Acute foundational arithmetic paralysis detected on early spine questions (Q1–Q${answered}). Diagnostic safely completed early to route student to foundational remediation without cognitive overload.`,
+        };
+      }
+    }
+  }
+
+  if (state?.ceilingEscalated) {
+    // Blitzers never exit early under STARTING_POINT_FOUND.
+    return null;
+  }
+
   if (answered < MIN_ANSWERS_FOR_EARLY_STOP) return null;
   const ledger = foldLedger(audits, priors);
   const start = confirmedByDepth(ledger)[0];

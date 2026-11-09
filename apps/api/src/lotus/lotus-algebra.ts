@@ -166,6 +166,9 @@ function add(a: Poly, b: Poly, sign = 1): Poly {
   return clean(out);
 }
 function mul(a: Poly, b: Poly): Poly {
+  if (a.size * b.size > 64) {
+    throw new AlgebraParseError("Expression exceeds supported polynomial complexity.");
+  }
   const out: Poly = new Map();
   for (const [ka, ca] of a) {
     for (const [kb, cb] of b) {
@@ -195,6 +198,9 @@ function toFrac(node: Node): Frac {
           throw new AlgebraParseError("Only whole-number powers up to 12 are supported.");
         }
         const base = toFrac(node.left);
+        if (base.num.size > 2 && exponent.value > 4) {
+          throw new AlgebraParseError("Powers above 4 for multi-term expressions are not supported.");
+        }
         let num = constant(1); let den = constant(1);
         for (let i = 0; i < exponent.value; i += 1) { num = mul(num, base.num); den = mul(den, base.den); }
         return { num, den };

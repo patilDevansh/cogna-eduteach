@@ -5,7 +5,7 @@ import { TTS_PROVIDER } from "../ai/ai.module";
 import type { TtsProvider } from "../ai/tts.service";
 import { spokenMath } from "../ai/spoken-math";
 import { timingSafeEqual } from "node:crypto";
-import { LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION, type LotusSessionView, type LotusStatusResponse } from "@cogna/shared";
+import { LOTUS_MAX_COUNTED_SECONDS_PER_QUESTION, type LotusClassroomPortfolio, type LotusSessionView, type LotusStatusResponse } from "@cogna/shared";
 import { assertStudentAccess, assertTeacher, assertWorker, isDemoStudentId, isProductionLike, resolveActor } from "../access/cogna-access";
 import { isDemoStudent } from "../engines/diagnostic-v2/demo-student";
 import {
@@ -17,6 +17,7 @@ import {
 } from "./lotus.dto";
 import { LotusService } from "./lotus.service";
 import { LotusStudioService } from "./lotus-studio.service";
+import { LotusClassroomService } from "./lotus-classroom.service";
 import type { LotusReconcileResult } from "./lotus-reconcile";
 
 /** A private seam for the local autonomous-evaluation runner. It is never
@@ -60,6 +61,7 @@ export class LotusController {
   constructor(
     private readonly lotus: LotusService,
     private readonly studio: LotusStudioService,
+    private readonly classroom: LotusClassroomService,
     @Inject(TTS_PROVIDER) private readonly tts: TtsProvider,
   ) {}
 
@@ -69,6 +71,15 @@ export class LotusController {
   @Get("status")
   status(): LotusStatusResponse {
     return this.lotus.status();
+  }
+
+  @Get("classrooms/:classroomId/portfolio")
+  async classroomPortfolio(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("classroomId") classroomId: string,
+  ): Promise<LotusClassroomPortfolio> {
+    const actor = resolveActor(headers);
+    return this.classroom.getClassroomPortfolio(classroomId, actor);
   }
 
   @Post("sessions")

@@ -48,6 +48,14 @@ export function isPlannedLotusTopic(topic: LotusTopic | undefined | null): topic
   return !!topic && topic !== "BRACKETS";
 }
 
+/** Educational boards supported by Lotus diagnostic papers. */
+export const LOTUS_BOARDS = ["CBSE", "ICSE", "IGCSE"] as const;
+export type LotusBoard = (typeof LOTUS_BOARDS)[number];
+
+export function isLotusBoard(value: unknown): value is LotusBoard {
+  return typeof value === "string" && (LOTUS_BOARDS as readonly string[]).includes(value);
+}
+
 /** What a student making one specific mistake writes — used to recognise that mistake instantly, with no AI call. */
 export interface LotusPredictedMistake {
   answer: string;
@@ -289,8 +297,12 @@ export type LotusClosureVerdict =
   | "UNRESOLVED";
 
 export interface LotusFinalReport {
+  /** Board alignment for this diagnostic report. */
+  board?: LotusBoard;
   outcome: "SOLID_GAP" | "ADVANCEMENT" | "INSUFFICIENT_OR_CONFLICTING";
   startingPoint: string;
+  /** Day 1 Launchpad Node for Module Learning. */
+  startingZone?: LotusStartingZone;
   observedStrengths: string[];
   uncertainAreas: string[];
   evidenceSummary: string[];
@@ -322,9 +334,87 @@ export interface LotusSkillSummary {
   skillId: string;
   name: string;
   state: LotusSkillState;
+  /**
+   * Sarah standard 1–5 competency rating.
+   * Absent on historical reports or untested skills; absence must not be treated as validated mastery.
+   */
+  rating?: LotusCompetencyRating;
+  /** Descriptive status mapped from competency rating (e.g. CRITICAL_BLOCKER, EMERGING, FLUENT). */
+  ratingStatus?: LotusCompetencyStatus;
   evidence: string[];
   /** Absent on historical reports; absence must not be treated as validated mastery. */
   evidenceAssessment?: LotusSkillEvidenceAssessment;
+}
+
+/** Competency rating scale (1 to 5) under the Sarah standard. */
+export const LOTUS_COMPETENCY_RATINGS = [1, 2, 3, 4, 5] as const;
+export type LotusCompetencyRating = (typeof LOTUS_COMPETENCY_RATINGS)[number];
+
+export function isLotusCompetencyRating(value: unknown): value is LotusCompetencyRating {
+  return typeof value === "number" && (LOTUS_COMPETENCY_RATINGS as readonly number[]).includes(value);
+}
+
+/** Descriptive competency status mapped from 1–5 rating. */
+export const LOTUS_COMPETENCY_STATUSES = [
+  "CRITICAL_BLOCKER",
+  "FRAGILE",
+  "EMERGING",
+  "FLUENT",
+  "ADVANCED_MASTERY",
+] as const;
+export type LotusCompetencyStatus = (typeof LOTUS_COMPETENCY_STATUSES)[number];
+
+export function isLotusCompetencyStatus(value: unknown): value is LotusCompetencyStatus {
+  return typeof value === "string" && (LOTUS_COMPETENCY_STATUSES as readonly string[]).includes(value);
+}
+
+export const LOTUS_SCAFFOLDING_LEVELS = [
+  "FOUNDATIONAL_REMEDIATION",
+  "STEPPED_SCAFFOLDING",
+  "INDEPENDENT",
+] as const;
+export type LotusScaffoldingLevel = (typeof LOTUS_SCAFFOLDING_LEVELS)[number];
+
+export function isLotusScaffoldingLevel(value: unknown): value is LotusScaffoldingLevel {
+  return typeof value === "string" && (LOTUS_SCAFFOLDING_LEVELS as readonly string[]).includes(value);
+}
+
+export interface LotusMicroIntervention {
+  topic: string;
+  drill: string;
+  durationMinutes: number;
+}
+
+/** Day 1 Launchpad Node for Module Learning. */
+export interface LotusStartingZone {
+  moduleId: string;
+  moduleName: string;
+  rationale: string;
+  scaffoldingLevel: LotusScaffoldingLevel;
+  microInterventions: string[];
+}
+
+/** Per-skill classroom aggregate metrics across competency bands. */
+export interface LotusClassroomSkillAggregation {
+  skillId: string;
+  name: string;
+  classAverage: number;
+  criticalCount: number;
+  emergingCount: number;
+  fluentCount: number;
+  criticalPercent: number;
+  emergingPercent: number;
+  fluentPercent: number;
+}
+
+/** Whole-class diagnostic summary and teacher brief. */
+export interface LotusClassroomPortfolio {
+  classroomId: string;
+  totalEnrolled: number;
+  completedTests: number;
+  skills: LotusClassroomSkillAggregation[];
+  wholeClassFocusAreas: string[];
+  teacherBrief: string;
 }
 
 export interface LotusSkillEvidence {
@@ -713,7 +803,7 @@ export interface LotusSessionView {
   sessionId: string;
   studentId: string;
   grade: 8;
-  board: "CBSE";
+  board: LotusBoard;
   topic?: LotusTopic;
   /** The class assignment this diagnostic was started for, so the class can be updated even if the browser never reports back. */
   classroomAssignmentId?: string;

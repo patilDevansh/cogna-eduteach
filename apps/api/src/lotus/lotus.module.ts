@@ -8,6 +8,7 @@ import { LotusModelService } from "./lotus-model.service";
 import { FakeLotusModelService } from "./lotus-fake-model.service";
 import { LotusService } from "./lotus.service";
 import { LotusStudioService } from "./lotus-studio.service";
+import { LotusClassroomService } from "./lotus-classroom.service";
 import { ClassroomEventsService } from "../classrooms/classroom-events";
 
 @Module({
@@ -15,6 +16,7 @@ import { ClassroomEventsService } from "../classrooms/classroom-events";
   controllers: [LotusController],
   providers: [
     LotusStudioService,
+    LotusClassroomService,
     {
       provide: LotusModelService,
       inject: [OpenAIService, ConfigService],
@@ -34,6 +36,6 @@ import { ClassroomEventsService } from "../classrooms/classroom-events";
         new LotusService(models, prisma, { classEvents }),
     },
   ],
-  exports: [LotusService],
+  exports: [LotusService, LotusClassroomService],
 })
 export class LotusModule {}

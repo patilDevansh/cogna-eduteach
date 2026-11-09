@@ -4,7 +4,7 @@
  * ids are unique across topics, so a skill lookup needs no topic; a slot
  * lookup does (each topic numbers its slots 1–25). No question bank lives here.
  */
-import { LOTUS_PLANNED_TOPICS, LOTUS_TOPIC_NAMES, type LotusItemDiagnostics, type LotusPhase, type LotusPlannedTopic, type LotusTopic } from "@cogna/shared";
+import { LOTUS_BOARDS, LOTUS_PLANNED_TOPICS, LOTUS_TOPIC_NAMES, type LotusBoard, type LotusItemDiagnostics, type LotusPhase, type LotusPlannedTopic, type LotusTopic } from "@cogna/shared";
 import { checkProves, classifyExpansion, classifyFactorisation, classifyReducedForm, classifySimplification, normalizeMathText, readNumberAnswer, sameNumber } from "./lotus-algebra";
 import { GRADE_8_DRAFTS } from "./syllabus";
 
@@ -90,6 +90,163 @@ const raw:Array<[string,SlotSpec["kind"],Level,LotusPhase,string,string[],string
  ["FAC_GROUP_TERMS","FACTORISE","hard","CONFIRM","2x + 3y + 6 + xy",["FAC_COMMON_BINOMIAL","FAC_MEANING"],["PAIRS_SHARE_NOTHING","SUM_ACCEPTED_AS_FACTORISED"]],
 ];
 export const FACTORISATION_SLOTS:SlotSpec[]=raw.map(([skillId,kind,level,phase,shape,tagged,mistakes,note],i)=>({slot:i+1,skillId,kind,level,phase,shape,tagged,mistakes,note}));
+
+/**
+ * Adapts prompt wording and algebraic notation for the student's educational board.
+ * - CBSE: "HCF", "regrouping", (x + a)(x + b) with "splitting the middle term"
+ * - ICSE: "HCF", "grouping method", (x + a)(x + b) with "quadratic factors"
+ * - IGCSE: "GCF", "factorising completely in pairs", (x + p)(x + q), "Factorise"
+ *
+ * Idempotent: calling adaptPromptForBoard multiple times produces identical output.
+ */
+export function adaptPromptForBoard(prompt: string, board: LotusBoard): string {
+  if (!prompt || typeof prompt !== "string") return "";
+  const b: LotusBoard = (board === "CBSE" || board === "ICSE" || board === "IGCSE") ? board : "CBSE";
+
+  let out = prompt;
+
+  // 1. Universal spelling normalization (all three boards use British spelling in standard curriculum exams)
+  out = out.replace(/\bFactorize\b/g, "Factorise");
+  out = out.replace(/\bfactorize\b/g, "factorise");
+  out = out.replace(/\bFactorization\b/g, "Factorisation");
+  out = out.replace(/\bfactorization\b/g, "factorisation");
+  out = out.replace(/\bFactorizing\b/g, "Factorising");
+  out = out.replace(/\bfactorizing\b/g, "factorising");
+
+  if (b === "CBSE") {
+    // A. GCF -> HCF
+    out = out.replace(/\bGreatest Common Factor\b/g, "Highest Common Factor");
+    out = out.replace(/\bGreatest common factor\b/g, "Highest common factor");
+    out = out.replace(/\bgreatest common factor\b/g, "highest common factor");
+    out = out.replace(/\bGCF\b/g, "HCF");
+    out = out.replace(/\bgcf\b/g, "hcf");
+
+    // B. Grouping: NCERT Class 8 Ch 12 uses "regrouping" / "regrouping terms"
+    out = out.replace(/\bby\s+grouping\s+of\s+terms\b/gi, "by regrouping terms");
+    out = out.replace(/\bgrouping\s+of\s+terms\b/gi, "regrouping terms");
+    out = out.replace(/\bby\s+grouping\s+terms\b/gi, "by regrouping");
+    out = out.replace(/\b[Ff]actorise\s+(?:completely\s+in\s+pairs|in\s+pairs|by\s+grouping(?:\s+method)?)(?!\s+by\s+regrouping)\b/gi, "Factorise by regrouping");
+    out = out.replace(/\bby\s+(?:grouping(?:\s+method)?|factorising\s+completely\s+in\s+pairs|factorising\s+in\s+pairs|grouping\s+in\s+pairs)\b/gi, "by regrouping");
+    out = out.replace(/\b(?:factorising\s+completely\s+in\s+pairs|factorising\s+in\s+pairs|grouping\s+in\s+pairs|grouping\s+method)\b/gi, "regrouping");
+
+    // C. Quadratics: (x + a)(x + b) and "splitting the middle term"
+    out = out.replace(/\(\s*x\s*\+\s*p\s*\)\s*\(\s*x\s*\+\s*q\s*\)/g, "(x + a)(x + b)");
+    out = out.replace(/\bby\s+(?:finding\s+)?quadratic\s+factors\b/gi, "by splitting the middle term");
+    out = out.replace(/\bquadratic\s+factors\b/gi, "splitting the middle term");
+    out = out.replace(/\bdouble\s+brackets\b/gi, "splitting the middle term");
+    out = out.replace(/\btwo\s+linear\s+factors\b/gi, "factors of the form (x + a)(x + b)");
+  } else if (b === "ICSE") {
+    // A. GCF -> HCF
+    out = out.replace(/\bGreatest Common Factor\b/g, "Highest Common Factor");
+    out = out.replace(/\bGreatest common factor\b/g, "Highest common factor");
+    out = out.replace(/\bgreatest common factor\b/g, "highest common factor");
+    out = out.replace(/\bGCF\b/g, "HCF");
+    out = out.replace(/\bgcf\b/g, "hcf");
+
+    // B. Grouping: Selina / ML Aggarwal uses "grouping method" / "grouping of terms"
+    out = out.replace(/\bby\s+regrouping\s+terms\b/gi, "by grouping of terms");
+    out = out.replace(/\bregrouping\s+terms\b/gi, "grouping of terms");
+    out = out.replace(/\b[Ff]actorise\s+(?:completely\s+in\s+pairs|in\s+pairs|by\s+regrouping)(?!\s+by\s+grouping\s+method)\b/gi, "Factorise by grouping method");
+    out = out.replace(/\bby\s+(?:regrouping|grouping(?!\s+(?:method|of\s+terms))|factorising\s+completely\s+in\s+pairs|factorising\s+in\s+pairs|grouping\s+in\s+pairs)\b/gi, "by grouping method");
+    out = out.replace(/\b(?:factorising\s+completely\s+in\s+pairs|factorising\s+in\s+pairs|grouping\s+in\s+pairs|regrouping)\b/gi, "grouping method");
+
+    // C. Quadratics: (x + a)(x + b) and "quadratic factors"
+    out = out.replace(/\(\s*x\s*\+\s*p\s*\)\s*\(\s*x\s*\+\s*q\s*\)/g, "(x + a)(x + b)");
+    out = out.replace(/\bby\s+splitting\s+(?:the\s+)?middle\s+term\b/gi, "into quadratic factors");
+    out = out.replace(/\bsplitting\s+(?:the\s+)?middle\s+term\b/gi, "quadratic factors");
+    out = out.replace(/\bdouble\s+brackets\b/gi, "quadratic factors");
+    out = out.replace(/\btwo\s+linear\s+factors\b/gi, "quadratic factors");
+  } else if (b === "IGCSE") {
+    // A. HCF -> GCF
+    out = out.replace(/\bHighest Common Factor\b/g, "Greatest Common Factor");
+    out = out.replace(/\bHighest common factor\b/g, "Greatest common factor");
+    out = out.replace(/\bhighest common factor\b/g, "greatest common factor");
+    out = out.replace(/\bHCF\b/g, "GCF");
+    out = out.replace(/\bhcf\b/g, "gcf");
+
+    // B. Grouping: Cambridge 0580 / 0862 uses "factorising completely in pairs"
+    out = out.replace(/\b[Ff]actorise\s+(?:by\s+)?(?:regrouping|grouping(?:\s+method)?|in\s+pairs)(?!\s+completely)\b/gi, "Factorise completely in pairs");
+    out = out.replace(/\bby\s+(?:regrouping|grouping(?:\s+method)?)(?!\s+in\s+pairs)\b/gi, "by factorising completely in pairs");
+    out = out.replace(/\b(?:regrouping\s+terms|grouping\s+method)\b/gi, "factorising completely in pairs");
+    out = out.replace(/\bgrouping\s+of\s+terms\b/gi, "factorising in pairs");
+    out = out.replace(/\bregrouping\b/gi, "factorising completely in pairs");
+
+    // C. Quadratics: (x + p)(x + q) and "two linear factors" / "factorising into double brackets"
+    out = out.replace(/\(\s*x\s*\+\s*a\s*\)\s*\(\s*x\s*\+\s*b\s*\)/g, "(x + p)(x + q)");
+    out = out.replace(/\bby\s+splitting\s+(?:the\s+)?middle\s+term\b/gi, "into double brackets");
+    out = out.replace(/\bsplitting\s+(?:the\s+)?middle\s+term\b/gi, "factorising into double brackets");
+    out = out.replace(/\bquadratic\s+factors\b/gi, "two linear factors (x + p)(x + q)");
+  }
+
+  return out;
+}
+
+const canonicalRaw: Array<[string, SlotSpec["kind"], Level, LotusPhase, string, string[], string[], string?]> = [
+  // Tier 1: Foundations (Q1-Q3)
+  ["FAC_DIVIDE_TERMS", "FACTORISE", "easy", "EXPLORE", "6x + 9", ["FAC_GCF_NUMERIC"], ["DIVIDED_FIRST_TERM_ONLY", "COMMON_NOT_HIGHEST"], "Tier 1: Numeric GCF"],
+  ["FAC_GCF_VARIABLE", "FACTORISE", "easy", "EXPLORE", "x^2 + 5x", ["FAC_DIVIDE_TERMS"], ["TOOK_HIGHEST_POWER", "INCLUDED_NON_COMMON_VARIABLE", "DIVIDED_FIRST_TERM_ONLY"], "Tier 1: Variable GCF"],
+  ["FAC_DIVIDE_TERMS", "FACTORISE", "medium", "EXPLORE", "3x^2 + 3x", ["FAC_GCF_VARIABLE"], ["DROPPED_THE_ONE", "DIVIDED_FIRST_TERM_ONLY"], "Tier 1: Compound Monomial GCF"],
+  // Tier 2: Signs & Meaning (Q4-Q6)
+  ["FAC_COMMON_MONOMIAL", "FACTORISE", "hard", "EXPLORE", "10x^2 - 18x^3 + 14x^4", ["FAC_GCF_VARIABLE", "FAC_DIVIDE_TERMS", "FAC_GCF_NUMERIC"], ["PARTIAL_GCF", "INDEX_NOT_REDUCED", "TOOK_HIGHEST_POWER"], "Tier 2: Multi-Term Monomial GCF"],
+  ["FAC_GCF_NEGATIVE", "FACTORISE", "easy", "EXPLORE", "-4x - 8", ["FND_SIGN_MUL_DIV"], ["KEPT_ORIGINAL_SIGNS", "FLIPPED_ONE_SIGN"], "Tier 2: Negative GCF"],
+  ["FAC_MEANING", "CHOICE", "medium", "EXPLORE", "Is 2y(x + 1) + 3(x + 1) fully factorised? Why?", ["ALG_IDENTIFY_STRUCTURE"], ["SUM_ACCEPTED_AS_FACTORISED", "BRACKET_NOT_SEEN_AS_FACTOR"], "Tier 2: What Factorised Means"],
+  // Tier 3: Grouping (Q7-Q8)
+  ["FAC_COMMON_BINOMIAL", "FACTORISE", "easy", "EXPLORE", "3(x - 2) + y(x - 2)", ["FAC_MEANING"], ["LEFTOVERS_MULTIPLIED", "BRACKET_NOT_SEEN_AS_FACTOR"], "Tier 3: Common Binomial"],
+  ["FAC_GROUP_TERMS", "FACTORISE", "easy", "EXPLORE", "2xy + 2y + 3x + 3", ["FAC_COMMON_BINOMIAL", "FAC_MEANING"], ["PAIRS_SHARE_NOTHING", "SUM_ACCEPTED_AS_FACTORISED"], "Tier 3: 4-Term Grouping"],
+  // Tier 4: Identities (Q9-Q11)
+  ["FAC_DIFF_SQUARES", "FACTORISE", "easy", "EXPLORE", "x^2 - 9", ["ID_REVERSE_PATTERN"], ["WROTE_PERFECT_SQUARE", "DROPPED_SQUARE"], "Tier 4: Difference of Squares Basic"],
+  ["FAC_DIFF_SQUARES", "FACTORISE", "medium", "EXPLORE", "49a^2 - 25b^2", ["FND_RECOGNISE_SQUARE"], ["COEFFICIENT_NOT_ROOTED", "WROTE_PERFECT_SQUARE"], "Tier 4: Difference of Squares with Coefficients"],
+  ["FAC_PERFECT_SQUARE_PLUS", "FACTORISE", "easy", "EXPLORE", "x^2 + 6x + 9", ["ID_REVERSE_PATTERN"], ["SQUARED_WITHOUT_ROOT", "WROTE_DIFF_OF_SQUARES"], "Tier 4: Perfect Square Trinomial"],
+  // Tier 5: Quadratics & Synthesis (Q12-Q15)
+  ["FAC_PAIR_PRODUCT_SUM", "CHOICE", "medium", "EXPLORE", "Which two numbers have a product of 12 and a sum of -7?", ["FND_FACTOR_PAIRS", "FND_SIGN_ADD_SUB"], ["WRONG_FACTOR_PAIR_SUM", "WRONG_FACTOR_PAIR_PRODUCT", "SIGN_PAIR_ERROR"], "Tier 5: Product-Sum Pair Search"],
+  ["FAC_MONIC_TRINOMIAL", "FACTORISE", "easy", "EXPLORE", "x^2 + 5x + 6", ["FAC_PAIR_PRODUCT_SUM"], ["WRONG_FACTOR_PAIR_SUM", "PRODUCT_SUM_SWAPPED"], "Tier 5: Monic Quadratic Positive"],
+  ["FAC_MONIC_TRINOMIAL", "FACTORISE", "hard", "DIAGNOSE", "x^2 - x - 12", ["FAC_PAIR_PRODUCT_SUM", "FND_SIGN_MUL_DIV"], ["SIGNS_SWAPPED", "WRONG_FACTOR_PAIR_SUM"], "Tier 5: Monic Quadratic Mixed Signs"],
+  ["FAC_FACTOR_FULLY", "FACTORISE", "medium", "CONFIRM", "2x^2 - 18", ["FAC_COMMON_MONOMIAL", "FAC_DIFF_SQUARES"], ["INCOMPLETE_FACTORISATION", "SKIPPED_COMMON_FACTOR_CHECK"], "Tier 5: Multi-Step Synthesis"],
+];
+
+/** The canonical 15-question board-aligned diagnostic spine across 5 curriculum tiers. */
+export const CANONICAL_15_SPINE: SlotSpec[] = canonicalRaw.map(
+  ([skillId, kind, level, phase, shape, tagged, mistakes, note], i) => ({
+    slot: i + 1,
+    skillId,
+    kind,
+    level,
+    phase,
+    shape,
+    tagged,
+    mistakes,
+    note,
+  }),
+);
+
+const stretchRaw: Array<[number, string, SlotSpec["kind"], Level, LotusPhase, string, string[], string[], string]> = [
+  [6, "FAC_SPLIT_MIDDLE", "FACTORISE", "hard", "DIAGNOSE", "6x^2 - 11x - 10", ["FAC_PAIR_PRODUCT_SUM", "FAC_GROUP_TERMS"], ["SPLIT_PAIR_DOES_NOT_SUM", "SPLIT_THEN_NO_GROUP"], "Stretch Slot 6: Non-monic quadratic splitting"],
+  [7, "FAC_FACTOR_FULLY", "FACTORISE", "hard", "CONFIRM", "x^4 - 81", ["FAC_DIFF_SQUARES"], ["INCOMPLETE_FACTORISATION", "FACTORED_SUM_OF_SQUARES"], "Stretch Slot 7: Multi-step nested difference of squares"],
+  [8, "FAC_CANCEL_COMMON_FACTOR", "SIMPLIFY", "hard", "CONFIRM", "(x^2 - 9) / (x^2 - 5x + 6)", ["FAC_DIFF_SQUARES", "FAC_MONIC_TRINOMIAL"], ["CANCELLED_TERMS_NOT_FACTORS", "DIVIDED_ONE_TERM_ONLY"], "Stretch Slot 8: Algebraic fraction simplification"],
+  [9, "FAC_FACTOR_FULLY", "FACTORISE", "medium", "CONFIRM", "a^3 - 4a", ["FAC_COMMON_MONOMIAL", "FAC_DIFF_SQUARES"], ["INCOMPLETE_FACTORISATION", "PARTIAL_GCF"], "Stretch Slot 9: Compound GCF with difference of squares"],
+  [10, "FAC_PERFECT_SQUARE_MINUS", "FACTORISE", "hard", "DIAGNOSE", "4x^2 - 12xy + 9y^2", ["FND_RECOGNISE_SQUARE"], ["WRONG_MIDDLE_SIGN", "COEFFICIENT_NOT_ROOTED", "WROTE_DIFF_OF_SQUARES"], "Stretch Slot 10: Two-variable perfect square trinomial"],
+  [11, "FAC_PERFECT_SQUARE_PLUS", "NUMBER", "hard", "CONFIRM", "Find positive k such that x^2 + kx + 49 is a perfect square trinomial.", ["ID_REVERSE_PATTERN", "FND_RECOGNISE_SQUARE"], ["MIDDLE_TERM_NOT_CHECKED", "HALVED_NOT_ROOTED"], "Stretch Slot 11: Competition parameter challenge"],
+  [12, "FAC_FACTOR_FULLY", "FACTORISE", "hard", "CONFIRM", "2x^3 - 8x^2 - 24x", ["FAC_COMMON_MONOMIAL", "FAC_MONIC_TRINOMIAL"], ["INCOMPLETE_FACTORISATION", "SKIPPED_COMMON_FACTOR_CHECK"], "Stretch Slot 12: Monomial GCF and trinomial synthesis"],
+  [13, "ID_BRACKET_AS_ONE", "FACTORISE", "hard", "CONFIRM", "x^2 - (y + 1)^2", ["FAC_DIFF_SQUARES", "FAC_PERFECT_SQUARE_PLUS"], ["EXPANDED_BRACKET_FIRST", "TREATED_BRACKET_AS_TWO_TERMS"], "Stretch Slot 13: Grouping into difference of squares"],
+  [14, "FAC_CANCEL_COMMON_FACTOR", "SIMPLIFY", "hard", "CONFIRM", "(2x^2 + 5x - 3) / (4x^2 - 1)", ["FAC_SPLIT_MIDDLE", "FAC_DIFF_SQUARES"], ["CANCELLED_TERMS_NOT_FACTORS", "DIVIDED_ONE_TERM_ONLY"], "Stretch Slot 14: Non-monic algebraic fraction reduction"],
+  [15, "FAC_FACTOR_FULLY", "FACTORISE", "hard", "CONFIRM", "n^4 + 4", ["FAC_PERFECT_SQUARE_PLUS", "FAC_DIFF_SQUARES"], ["FACTORED_SUM_OF_SQUARES", "INCOMPLETE_FACTORISATION"], "Stretch Slot 15: Olympiad Sophie Germain identity"],
+];
+
+/** Ceiling escalation stretch slots (replacing Q6-Q15 for high performers). */
+export const FACTORISATION_STRETCH_SLOTS: SlotSpec[] = stretchRaw.map(
+  ([slot, skillId, kind, level, phase, shape, tagged, mistakes, note]) => ({
+    slot,
+    skillId,
+    kind,
+    level,
+    phase,
+    shape,
+    tagged,
+    mistakes,
+    note,
+    ...(kind === "NUMBER" ? { example: { answer: "14", check: "2 * 7" } } : {}),
+  }),
+);
 
 export interface Curriculum {
   topic: LotusPlannedTopic;
@@ -199,6 +356,8 @@ export function assertFixedItemIsValid(item: any, label: string): void {
 }
 
 for (const c of CURRICULA) {
-  if (c.slots.length !== 25) throw new Error(`The ${c.name} plan must have 25 AI slots.`);
+  if (c.slots.length !== 15 && c.slots.length !== 25) {
+    throw new Error(`The ${c.name} plan must have 15 or 25 AI slots.`);
+  }
   for (const skill of c.skills) for (const d of skill.dependsOn) if (!SKILL_BY_ID.has(d)) throw new Error(`${skill.id} depends on unknown ${d}`);
 }
