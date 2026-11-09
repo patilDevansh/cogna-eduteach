@@ -7,9 +7,11 @@ export class OpenAIService {
 
   constructor() {
     const apiKey = process.env.OPENAI_API_KEY;
+    const baseURL = process.env.OPENAI_BASE_URL;
     this.client = apiKey
       ? new OpenAI({
           apiKey,
+          ...(baseURL ? { baseURL } : {}),
           // The SDK default (2) silently triples a failing call; callers already
           // run their own bounded retry loops on top of this.
           maxRetries: 1,
