@@ -278,8 +278,7 @@ const OUTBOX_JOB_REPLENISH_RESERVE = "lotus.replenishReserve";
 const OUTBOX_JOB_MAX_ATTEMPTS = 3;
 
 function delay(ms: number): Promise<void> {
-  // Unref'd: a retry pause must never keep a stopping process (or a test run) alive.
-  return new Promise((resolve) => setTimeout(resolve, ms).unref());
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
