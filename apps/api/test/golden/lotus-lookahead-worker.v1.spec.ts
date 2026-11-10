@@ -527,6 +527,7 @@ describe("Lookahead AI Worker — Suite 3: Successful Queue Swap into Slot N+1 /
   it("splices elastic runway probe into Slot N+1 (Q8.5) without truncating downstream curriculum", () => {
     const state: FactorisationState = {
       topic: "FACTORISATION",
+      paper: "SPINE_15",
       planTurn: 8,
       turns: CANONICAL_15_SPINE.map((spec, i) => ({
         turn: i + 1,
@@ -635,13 +636,19 @@ describe("Lookahead AI Worker — Suite 4: Fallback to Pre-Baked Catalogue Slot"
       questionId: q3.id,
     });
 
+    // On SPINE_15 the review inserts a follow-up rather than repurposing Q3.
+    // A late follow-up may still be installed safely beyond the active item;
+    // the browser's staged question must remain exactly the same either way.
+    const stagedId = session.currentQuestion?.id;
+    const stagedPrompt = session.currentQuestion?.prompt;
     // Now let writer resolve late
     releaseWriter();
     await flushTicks();
 
-    const f = session.factorisation;
-    const writeLog = f.writes.find((w: { outcome: string }) => w.outcome === "STALE");
-    assert.ok(writeLog, "Delayed write must be safely recorded as STALE without mutating active question");
+    assert.equal(session.currentQuestion?.id, stagedId, "Delayed writer must preserve the browser's active item identity");
+    assert.equal(session.currentQuestion?.prompt, stagedPrompt, "Delayed writer must preserve the browser's active prompt");
+    const spineSlots = session.factorisation.state.turns.filter((turn: { isElasticProbe?: boolean; slot: number }) => !turn.isElasticProbe && Number.isInteger(turn.slot)).map((turn: { slot: number }) => turn.slot);
+    assert.deepEqual(spineSlots, Array.from({ length: 15 }, (_, index) => index + 1), "Delayed follow-up work must retain all original paper slots");
   });
 
   it("restores slot to PLANNED and serves catalogue question when AI writer fails or exhausts retries", async () => {
