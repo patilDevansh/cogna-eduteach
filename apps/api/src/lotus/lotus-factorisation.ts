@@ -111,6 +111,12 @@ export interface FactorisationState {
   fastSkips: number;
   /** True if high-performing blitzer was escalated to stretch slots */
   ceilingEscalated?: boolean;
+  /**
+   * SPINE_15: the canonical 15-question paper. Every spine slot is asked once, follow-ups are added on
+   * top, and only the Q4/Q5 stuck-student exit (or the time limit) may end the test early.
+   * Absent on legacy 25-slot sessions and focused practice.
+   */
+  paper?: "SPINE_15";
   /** Board alignment */
   board?: LotusBoard;
 }
@@ -1860,25 +1866,32 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       ?? slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     if (!spec) continue;
 
-    // Elastic Runway check: on 15-slot diagnostic spine, insert probe instead of cannibalizing downstream slots
+    // Elastic runway: on the 15-question paper a follow-up is inserted, never put in place of a spine topic.
+    // It goes after the last question the browser may already hold (the staged next one during a
+    // background update), so nothing already on screen moves. At most two per session.
     const elasticCount = state.turns.filter((t) => t.isElasticProbe).length;
-    const is15SpineOrElastic = state.turns.length <= 19 || state.topic === "FACTORISATION";
-    if (is15SpineOrElastic && elasticCount < 2 && state.planTurn > 0) {
-      const parentSlot = state.turns.find((t) => t.turn === state.planTurn)?.slot ?? state.planTurn;
-      actions.push({
-        kind: "INSERT_ELASTIC_PROBE",
-        turn: state.planTurn + 1,
-        afterTurn: state.planTurn,
-        spec,
-        purpose: "CHECK",
-        forSkill: e.skillId,
-        parentSlot: Math.floor(parentSlot),
-        probeSlot: Math.floor(parentSlot) + 0.5,
-        reason: `Elastic runway probe inserted after Q${state.planTurn} to isolate ambiguous slip on ${skillName(e.skillId)} without pruning downstream topics.`,
-        targetMistake: e.mistakes.at(-1),
-      });
-      checkedThisCall.add(e.skillId);
-      continue;
+    if (elasticRunwayApplies(state) && elasticCount < 2 && state.planTurn > 0) {
+      const afterTurn = frozenNext ?? state.planTurn;
+      const after = state.turns.find((t) => t.turn === afterTurn);
+      // Label by the spine question it follows; a follow-up after a follow-up keeps that spine number.
+      const parentSlot = after?.isElasticProbe ? (after.parentSlot ?? Math.floor(after.slot)) : Math.floor(after?.slot ?? afterTurn);
+      const labelTaken = state.turns.some((t) => t.isElasticProbe && t.parentSlot === parentSlot);
+      if (!labelTaken) {
+        actions.push({
+          kind: "INSERT_ELASTIC_PROBE",
+          turn: afterTurn + 1,
+          afterTurn,
+          spec,
+          purpose: "CHECK",
+          forSkill: e.skillId,
+          parentSlot,
+          probeSlot: parentSlot + 0.5,
+          reason: `Follow-up inserted after Q${afterTurn} to check ${skillName(e.skillId)} without dropping a later topic.`,
+          targetMistake: e.mistakes.at(-1),
+        });
+        checkedThisCall.add(e.skillId);
+        continue;
+      }
     }
 
     const turn = pickVictim();
@@ -1899,7 +1912,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 
   // 2. A confirmed gap: remove or reroute later questions that depend on it, then go down.
   // In the canonical 15-item spine, downstream curriculum tiers are never pruned via SKIP.
-  const is15Spine = state.turns.length <= 19 || state.topic === "FACTORISATION";
+  const is15Spine = elasticRunwayApplies(state);
   for (const e of ledger.values()) {
     if (e.state !== "CONFIRMED" || state.handledConfirmed.includes(e.skillId)) continue;
     const freed: number[] = [];
@@ -2305,9 +2318,17 @@ export function buildFactorisationReport(args: {
   const start = confirmed[0];
   // A catch-up is judged only on the skills it was sent for: all of them secure, nothing still suspected, means caught up.
   const focus = args.state.focusSkills;
+  // On the 15-question paper most skills are asked once, so "secure" (two direct successes) is rare even for a
+  // strong student. There, no gap or suspicion, at least 12 answers, 80% right and 8+ skills shown directly is
+  // advancement. The 25-slot rule (5 skills secure) is unchanged.
+  const correctCount = answered.filter((a) => a.verification?.status === "VERIFIED_CORRECT").length;
+  const shownDirectly = entries.filter((e) => e.state === "SECURE" && (assessments.get(e.skillId)?.distinctDirectSuccessCount ?? 0) >= 1).length;
+  const spinePaperClear = (isSpinePaper(args.state) || args.state.ceilingEscalated === true)
+    && suspected.length === 0 && unexplainedTotal < 2 && answered.length >= 12
+    && correctCount / answered.length >= 0.8 && shownDirectly >= 8;
   const caughtUp = focus?.length
     ? focus.every((id) => secureIds.has(id)) && suspected.length === 0
-    : suspected.length === 0 && secure.length >= 5 && unexplainedTotal < 2;
+    : (suspected.length === 0 && secure.length >= 5 && unexplainedTotal < 2) || spinePaperClear;
   const outcome: LotusFinalReport["outcome"] = rushed ? "INSUFFICIENT_OR_CONFLICTING"
     : confirmed.length ? "SOLID_GAP" : caughtUp ? "ADVANCEMENT" : "INSUFFICIENT_OR_CONFLICTING";
   const startingPoint = rushed
@@ -2454,6 +2475,19 @@ export function factorisationTimeLimitSeconds(env: NodeJS.ProcessEnv = process.e
 /** Fewest answers before a starting point may end the test: one confirmed gap needs two questions, and its prerequisites need checking. */
 export const MIN_ANSWERS_FOR_EARLY_STOP = 8;
 
+/**
+ * Whether follow-ups are inserted rather than put in place of planned questions: the 15-question paper,
+ * or a short plan built directly (tests and focused checks). Legacy 25-slot sessions keep the old rules.
+ */
+export function elasticRunwayApplies(state: Pick<FactorisationState, "paper" | "turns">): boolean {
+  return state.paper === "SPINE_15" || state.turns.length <= 17;
+}
+
+/** The canonical 15-question paper (see FactorisationState.paper). */
+export function isSpinePaper(state?: Pick<FactorisationState, "paper">): boolean {
+  return state?.paper === "SPINE_15";
+}
+
 export type FactorisationStop =
   | { reason: "TIME_LIMIT"; note: string }
   | { reason: "STARTING_POINT_FOUND"; skillId: string; note: string }
@@ -2515,8 +2549,9 @@ export function factorisationStopReason(
     }
   }
 
-  if (state?.ceilingEscalated) {
-    // Blitzers never exit early under STARTING_POINT_FOUND.
+  if (state?.ceilingEscalated || isSpinePaper(state)) {
+    // Blitzers never exit early, and the 15-question paper is never cut short by STARTING_POINT_FOUND:
+    // every spine topic is asked. Only the floor exit above (or the time limit) ends it early.
     return null;
   }
 

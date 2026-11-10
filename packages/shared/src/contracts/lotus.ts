@@ -883,7 +883,7 @@ export interface LotusStatusResponse {
 
 export interface LotusDeveloperExitPrompt {
   decisionId: string;
-  reason: "TIME_LIMIT" | "STARTING_POINT_FOUND" | "PLAN_COMPLETE" | "NO_READY_QUESTION";
+  reason: "TIME_LIMIT" | "STARTING_POINT_FOUND" | "FLOOR_EXIT_PARALYSIS" | "PLAN_COMPLETE" | "NO_READY_QUESTION";
   message: string;
   answeredQuestions: number;
   canContinue: boolean;

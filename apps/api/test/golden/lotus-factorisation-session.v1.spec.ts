@@ -137,6 +137,7 @@ function controlledWrite(prompt: string): Record<string, unknown> {
     case "What should you do first to factorise 3x^2 - 12?": return choice("What should you do first to factorise 5x^2 - 20?", "Take out the common factor 5.", ["Take out the common factor 5.", "Use difference of squares immediately.", "Divide every term by x.", "Add 20 to both sides."], "FAC_CHOOSE_METHOD");
     case "3x^2 - 12": return factor("5x^2 - 20", "5(x - 2)(x + 2)", "FAC_FACTOR_FULLY", [{ answer: "5(x^2 - 4)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
     case "2x^2 + 10x + 12": return factor("3x^2 + 15x + 18", "3(x + 2)(x + 3)", "FAC_FACTOR_FULLY", [{ answer: "3(x^2 + 5x + 6)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
+    case "2x^2 - 18": return factor("3x^2 - 27", "3(x - 3)(x + 3)", "FAC_FACTOR_FULLY", [{ answer: "3(x^2 - 9)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
     case "x^4 - 16": return factor("x^4 - 81", "(x - 3)(x + 3)(x^2 + 9)", "FAC_FACTOR_FULLY", [{ answer: "(x^2 - 9)(x^2 + 9)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "FACTORED_SUM_OF_SQUARES" }]);
     case "Amit writes (7x + 5)/5 = 7x. Is he right?": return choice("Amit writes (6x + 4)/2 = 6x. Is he right?", "No; the whole numerator cannot be cancelled by 2.", ["No; the whole numerator cannot be cancelled by 2.", "Yes; cancel the 2 from both terms.", "Yes; 4 divided by 2 is zero.", "No; 6x cannot be divided by 2."], "FAC_MEANING");
     case "(x^2 - 9) / (x^2 - 6x + 9)": return factor("(x^2 - 16) / (x^2 - 8x + 16)", "(x + 4)/(x - 4)", "FAC_CANCEL_COMMON_FACTOR");
@@ -288,11 +289,11 @@ describe("factorisation session — start", () => {
     }
   });
 
-  it("the brackets diagnostic is unchanged when no topic is given", async () => {
+  it("with no topic given, a session starts the factorisation paper (commit 6077db0)", async () => {
     const { service } = setup();
     const view = await service.start("demo_aarav");
-    assert.notEqual(view.topic, "FACTORISATION");
-    assert.equal(internal(service, view.sessionId).factorisation, undefined);
+    assert.equal(view.topic, "FACTORISATION");
+    assert.equal(internal(service, view.sessionId).factorisation.state.paper, "SPINE_15");
   });
 
   it("the first question varies across sessions, and every question is AI-generated — never a hardcoded fallback (Phase 3)", async () => {
@@ -343,14 +344,14 @@ describe("factorisation session — the AI writes each student's own questions",
 });
 
 describe("factorisation session — every Submit is instant", () => {
-  it("a student who gets everything right sees all 25 questions and is reported secure", async () => {
+  it("a student who gets everything right sees the whole 15-question paper and is reported as advancing", async () => {
     const { service } = setup();
     const { view, answered } = await playPersona(service, "demo_divya");
-    assert.equal(answered, 25);
+    assert.equal(answered, 15);
     assert.equal(view.finalReport!.outcome, "ADVANCEMENT");
     assert.deepEqual(view.finalReport!.notTested, []);
-    // Every answer was settled by code, so none paid for the four-call AI review.
-    assert.ok(view.audits.every((audit) => audit.analysisStatus === "NOT_REQUIRED"));
+    // Every answer was marked by code first; the background AI review never changed a mark.
+    assert.ok(view.audits.every((audit) => audit.verification?.status === "VERIFIED_CORRECT"));
   });
 
   for (const persona of ["demo_aarav", "demo_meena", "demo_rohan"]) {
@@ -678,8 +679,10 @@ describe("factorisation session — safety of the running test", () => {
     const skillsChecked = checks.map((t) => t.forSkill);
     assert.equal(skillsChecked.length, new Set(skillsChecked).size, "the same skill must never claim two targeted-check slots");
     for (let i = 1; i < 5; i += 1) {
-      // Code named each of these mistakes, so they never queue a review; Q1's late one leaves them alone.
-      assert.equal(session.audits[i].analysisStatus, "NOT_REQUIRED", `Q${i + 1}'s own instant evidence is unaffected by Q1's delayed result`);
+      // Code named each of these mistakes. On the 15-question paper every answer also gets a background
+      // review (the Sarah Standard), but Q1's late one must leave each answer's own instant evidence alone.
+      assert.ok(["NOT_REQUIRED", "COMPLETE"].includes(String(session.audits[i].analysisStatus)), `Q${i + 1}'s review finished cleanly`);
+      assert.ok((session.audits[i].skillEvidence ?? []).some((e: { source?: string }) => e.source === "INSTANT"), `Q${i + 1}'s own instant evidence is unaffected by Q1's delayed result`);
     }
   });
 

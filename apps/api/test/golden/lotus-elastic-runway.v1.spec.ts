@@ -94,6 +94,8 @@ describe("Elastic Runway Insertion — Expansion Without Cannibalization", () =>
         };
       },
       askedItems: [],
+      // Right after the Q8 answer: the reply carries the new plan, so Q9 is not yet fixed on screen.
+      freezeNext: false,
     });
 
     const insertAction = actions.find((a) => a.kind === "INSERT_ELASTIC_PROBE");
@@ -106,6 +108,17 @@ describe("Elastic Runway Insertion — Expansion Without Cannibalization", () =>
     // Downstream slots 9 to 15 must NOT have SKIP actions
     const skipActions = actions.filter((a) => a.kind === "SKIP");
     assert.equal(skipActions.length, 0, "No downstream slots should be skipped or deleted");
+  });
+
+  it("never moves the question the browser already holds: during a background update the follow-up goes after it", () => {
+    const state = make15TurnSpine();
+    const ledger = new Map<string, SkillLedgerEntry>([["FAC_GROUP_TERMS", { skillId: "FAC_GROUP_TERMS", state: "SUSPECTED", suspectedAt: 8, mistakes: ["PAIRS_SHARE_NOTHING"], notes: ["Q8: ambiguous grouping mistake"], sightings: [{ how: "mistake", mistake: "PAIRS_SHARE_NOTHING" }] } as unknown as SkillLedgerEntry]]);
+    const actions = planAdjustments({ state, ledger, itemAt: () => undefined, askedItems: [] });
+    const insert = actions.find((a) => a.kind === "INSERT_ELASTIC_PROBE");
+    assert.ok(insert && insert.kind === "INSERT_ELASTIC_PROBE", "a follow-up is still inserted");
+    assert.equal(insert.afterTurn, 9, "Q9 is already staged in the browser, so the follow-up goes after it");
+    assert.equal(insert.probeSlot, 9.5);
+    assert.equal(actions.filter((a) => a.kind === "SKIP").length, 0);
   });
 
   it("insertElasticProbe splices in the surgical probe, shifts subsequent turns, and sets probe metadata", () => {

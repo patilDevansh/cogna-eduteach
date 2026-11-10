@@ -35,6 +35,7 @@ import type {
   LotusWorkingPrompt,
   LotusFormatDecision,
   LotusGameKind,
+  LotusDeveloperExitPrompt,
 } from "@cogna/shared";
 import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
@@ -73,9 +74,8 @@ import { isCheckSpec } from "./lotus-skill-checks";
 import {
   curriculumFor,
   skillName,
-  FACTORISATION_STRETCH_SLOTS,
-  adaptPromptForBoard,
 } from "./lotus-factorisation-catalogue";
+import { stretchQuestionFor } from "./lotus-stretch";
 import {
   type FactorisationState,
   type PlanAction,
@@ -86,7 +86,7 @@ import {
   factorisationTimeLimitSeconds,
   foldLedger,
   untestedSkillsLeft,
-  evaluateCeilingEscalation,
+  isCeilingEscalationEligible,
   insertElasticProbe,
   conflictsWithEarlier,
   reachableQuestionsAhead,
@@ -2414,6 +2414,7 @@ Create one materially different question that adds new diagnostic evidence. Test
           handledConfirmed: [],
           handledBroadened: [],
           fastSkips: 0,
+          ...(plan.length === 15 && (topic ?? "FACTORISATION") === "FACTORISATION" && !focus ? { paper: "SPINE_15" as const } : {}),
         },
         versions,
         preferred,
@@ -2997,8 +2998,40 @@ Create one materially different question that adds new diagnostic evidence. Test
     audit.questionSelection.planningNote = audit.questionSelection.planningNote ? `${audit.questionSelection.planningNote} ${note}` : note;
   }
 
+  /**
+   * A student who answered Q1–Q5 correctly, fast and unhedged gets stretch questions for the rest of
+   * the paper. The question the browser already shows (stagedTurn) is never swapped, so the stretch
+   * items start on the turn after it. Each item is complete and code-checked (lotus-stretch.ts).
+   */
+  private applyCeilingEscalation(session: LotusSessionState, stagedTurn: number): void {
+    const f = session.factorisation!;
+    const state = f.state;
+    const open = state.turns.filter((t) => t.turn > stagedTurn && t.status !== "SKIPPED");
+    // With fewer open turns than stretch items, the second algebraic fraction (slot 14) goes first.
+    const slots = [6, 7, 8, 9, 10, 11, 12, 13, 15, 14].slice(0, open.length).sort((a, b) => a - b);
+    state.ceilingEscalated = true;
+    open.forEach((turn, i) => {
+      const slot = slots.at(i);
+      const item = slot === undefined ? null : stretchQuestionFor(slot, session.board ?? "CBSE");
+      if (!item) return;
+      const skillId = item.answerKey.diagnostics!.skillId;
+      turn.status = "PLANNED";
+      // A stretch question maps the ceiling; it is not a check of a suspicion.
+      delete turn.purpose;
+      turn.forSkill = skillId;
+      turn.reason = `Ceiling escalation: stretch question on ${skillName(skillId)} after five fast, unhedged correct answers.`;
+      turn.version += 1;
+      delete turn.held;
+      f.versions[String(turn.turn)] = [item];
+      f.preferred[String(turn.turn)] = item.id;
+    });
+    this.logger.log(`Plan ${session.sessionId.slice(0, 8)} escalated turns ${open.at(0)?.turn ?? "-"}–${open.at(-1)?.turn ?? "-"} to stretch questions`);
+  }
+
   private applyPlanAction(session: LotusSessionState, action: PlanAction): void {
     const f = session.factorisation!;
+    // Stretch questions map the ceiling; later evidence never rewrites them.
+    if (f.state.ceilingEscalated && (action.kind === "INSERT_ELASTIC_PROBE" || (f.versions[String(action.turn)] ?? []).some((item) => item.purpose === "STRETCH"))) return;
     if (action.kind === "INSERT_ELASTIC_PROBE") {
       insertElasticProbe(f.state, action);
       const newTurnNumber = action.afterTurn + 1;
@@ -3110,57 +3143,12 @@ Create one materially different question that adds new diagnostic evidence. Test
     const instant = instantVerdict(currentQuestion, response);
     if (instant.fastSkip) state.fastSkips += 1;
 
-    // Evaluate ceiling escalation after Turn 5
-    if (!state.ceilingEscalated && state.answeredTurns.length >= 4) {
-      const auditsForEscalation = [
-        ...session.audits,
-        {
-          question: currentQuestion,
-          response,
-          verification: instant.verification,
-          skillEvidence: instant.evidence,
-        } as LotusQuestionAudit,
-      ];
-      if (evaluateCeilingEscalation(auditsForEscalation, state, session.board)) {
-        for (const stretchSpec of FACTORISATION_STRETCH_SLOTS) {
-          const slotNum = stretchSpec.slot;
-          const prompt = adaptPromptForBoard(
-            stretchSpec.kind === "FACTORISE"
-              ? `Factorise: ${stretchSpec.shape}`
-              : stretchSpec.kind === "SIMPLIFY"
-              ? `Simplify: ${stretchSpec.shape}`
-              : stretchSpec.shape,
-            session.board ?? "CBSE",
-          );
-          const stretchItem: LotusQuestion = {
-            id: `stretch-${slotNum}-${randomUUID()}`,
-            phase: stretchSpec.phase,
-            subtopic: stretchSpec.skillId,
-            prompt,
-            type: stretchSpec.kind === "CHOICE" ? "MULTIPLE_CHOICE" : "CONSTRUCTED_RESPONSE",
-            options: stretchSpec.kind === "CHOICE" ? stretchSpec.example?.options ?? [] : undefined,
-            asksForWorking: false,
-            purpose: "STRETCH",
-            answerKey: {
-              kind: stretchSpec.kind === "CHOICE" ? "MULTIPLE_CHOICE" : "OPEN_RESPONSE",
-              canonicalAnswer: stretchSpec.example?.answer ?? (stretchSpec.kind === "NUMBER" ? stretchSpec.example?.answer ?? "14" : stretchSpec.shape),
-              workedSolution: [stretchSpec.shape],
-              diagnostics: {
-                slot: slotNum,
-                itemKind: stretchSpec.kind,
-                expression: stretchSpec.shape,
-                skillId: stretchSpec.skillId,
-                level: stretchSpec.level,
-                origin: "CODE",
-                board: session.board,
-              } as any,
-            },
-          };
-          f.versions[String(slotNum)] = [stretchItem];
-          f.preferred[String(slotNum)] = stretchItem.id;
-        }
-      }
-    }
+    // Ceiling escalation is decided from this answer, but applied only once the answer and the
+    // question the browser already staged have been accepted (see applyCeilingEscalation below).
+    const escalate = !state.ceilingEscalated && state.answeredTurns.length >= 4 && isCeilingEscalationEligible([
+      ...session.audits,
+      { question: currentQuestion, response, verification: instant.verification, skillEvidence: instant.evidence } as LotusQuestionAudit,
+    ], state);
 
     // Time box or a found starting point ends the test here, even if the browser has the next question staged.
     const pauseBeforeExit = response.developerMode === true && developerExitAvailable(session);
@@ -3214,6 +3202,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       if (!next && !response.nextQuestionId) next = preferredItem(f, nextTurn);
       if (!next) throw new BadRequestException("The next question was not authorized for this turn.");
     }
+    if (escalate && nextTurn !== null) this.applyCeilingEscalation(session, nextTurn);
 
     // The four-call AI review runs only when code couldn't say what the answer shows (an
     // unpredicted wrong answer, or one it can't read). When code has settled it, a right
@@ -3285,8 +3274,8 @@ Create one materially different question that adds new diagnostic evidence. Test
         source: "RULE_VALIDATED_PLAN",
       };
       if (pauseBeforeExit) {
-        const reason = ((stop?.reason === "FLOOR_EXIT_PARALYSIS" ? "STARTING_POINT_FOUND" : stop?.reason) ?? (state.turns.some((turn) => turn.turn > state.planTurn)
-          ? "NO_READY_QUESTION" : "PLAN_COMPLETE")) as any;
+        const reason: LotusDeveloperExitPrompt["reason"] = stop?.reason ?? (state.turns.some((turn) => turn.turn > state.planTurn)
+          ? "NO_READY_QUESTION" : "PLAN_COMPLETE");
         const message = stop?.note ?? f.endedEarlyNote ?? "All planned questions have been reached.";
         const decisionId = randomUUID();
         session.developmentExitControl ??= { ignoredStops: [], choices: [] };

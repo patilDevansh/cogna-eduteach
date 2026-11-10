@@ -7,6 +7,7 @@ import styles from "./lotus-developer-exit.module.css";
 const REASONS: Record<LotusDeveloperExitPrompt["reason"], string> = {
   TIME_LIMIT: "Time limit reached",
   STARTING_POINT_FOUND: "Learning starting point found",
+  FLOOR_EXIT_PARALYSIS: "Stopped early: the first questions were too hard right now",
   PLAN_COMPLETE: "Question plan complete",
   NO_READY_QUESTION: "No further checked question is ready",
 };

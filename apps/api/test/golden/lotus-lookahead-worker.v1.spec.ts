@@ -559,6 +559,8 @@ describe("Lookahead AI Worker — Suite 3: Successful Queue Swap into Slot N+1 /
       ledger,
       itemAt: () => undefined,
       askedItems: [],
+      // Nothing is staged in this unit test; with a staged Q9 the follow-up goes after it (see lotus-elastic-runway spec).
+      freezeNext: false,
     });
 
     const elasticAction = actions.find((a) => a.kind === "INSERT_ELASTIC_PROBE");
