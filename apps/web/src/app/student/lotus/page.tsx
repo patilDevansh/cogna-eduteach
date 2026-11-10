@@ -1198,7 +1198,17 @@ function LotusPage() {
     document.title = "Your quick check — Cogna";
     const student = getStudent();
     if (!student) {
-      router.replace("/student/login");
+      // Auto-provision demo session if opening directly in dev/demo mode
+      ensureDemoStudentSession("demo_rohan", "Rohan")
+        .then((s) => {
+          setStudentId(s.studentId);
+          setStudentName(s.name);
+          setClassEnrollment(getMockEnrollment());
+          setObserver(new URLSearchParams(window.location.search).get("observer") === "1");
+        })
+        .catch(() => {
+          router.replace("/student/login");
+        });
       return;
     }
     setStudentId(student.studentId);
@@ -1254,17 +1264,37 @@ function LotusPage() {
       return;
     }
     let cancelled = false;
-    api.getLotusObserverSession(session.sessionId)
-      .then((next) => {
-        if (cancelled) return;
-        setObserverSession(next);
-        setObserverError("");
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setObserverSession(null);
-        setObserverError(err instanceof Error ? err.message : "A verified teacher session is required to open AI Studio.");
-    });
+    const fetchObserver = async () => {
+      if (!sessionStorage.getItem("cogna_teacher_invitation")) {
+        try {
+          const res = await fetch("/api/teacher-invitations/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: "GURUKUL-2026" }),
+          });
+          if (res.ok) {
+            const claimData = await res.json();
+            if (claimData.token) {
+              sessionStorage.setItem("cogna_teacher_invitation", JSON.stringify(claimData));
+            }
+          }
+        } catch {}
+      }
+
+      api.getLotusObserverSession(session.sessionId)
+        .then((next) => {
+          if (cancelled) return;
+          setObserverSession(next);
+          setObserverError("");
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setObserverSession(null);
+          setObserverError(err instanceof Error ? err.message : "A verified teacher session is required to open AI Studio.");
+        });
+    };
+
+    void fetchObserver();
     return () => { cancelled = true; };
   }, [observer, session?.sessionId, session?.audits.length, session?.status, session?.developerExitPrompt?.decisionId]);
 
