@@ -292,15 +292,34 @@ export class LotusModelService {
       );
 
       if (isCustomBaseUrl || !this.openai.getClient().responses) {
-        const completion = await this.openai.getClient().chat.completions.create(
-          {
-            model,
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" },
-            ...(tuning.maxOutputTokens ? { max_tokens: tuning.maxOutputTokens } : {}),
-          },
-          { timeout: tuning.timeoutMs },
-        );
+        let completion;
+        try {
+          completion = await this.openai.getClient().chat.completions.create(
+            {
+              model,
+              messages: [{ role: "user", content: prompt }],
+              response_format: { type: "json_object" },
+              ...(tuning.maxOutputTokens ? { max_tokens: tuning.maxOutputTokens } : {}),
+            },
+            { timeout: tuning.timeoutMs },
+          );
+        } catch (callErr: unknown) {
+          const errStatus = (callErr as { status?: number })?.status;
+          const errMsg = callErr instanceof Error ? callErr.message : String(callErr);
+          if ((errStatus === 503 || errMsg.includes("demand") || errMsg.includes("UNAVAILABLE")) && model === "gemini-3.8-flash") {
+            completion = await this.openai.getClient().chat.completions.create(
+              {
+                model: "gemini-3.5-flash",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" },
+                ...(tuning.maxOutputTokens ? { max_tokens: tuning.maxOutputTokens } : {}),
+              },
+              { timeout: tuning.timeoutMs },
+            );
+          } else {
+            throw callErr;
+          }
+        }
         content = completion.choices[0]?.message?.content;
         if (completion.usage) {
           this.costTracker.record(model, kind, {
