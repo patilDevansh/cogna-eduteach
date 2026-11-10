@@ -191,6 +191,8 @@ interface DeferredAnalysisQueue {
   running: number;
   activeTurns: Set<number>;
   idleWaiters: Set<() => void>;
+  /** The latest review attempt for this session failed; cleared when one succeeds. Nobody waits on a failing AI. */
+  failing?: boolean;
 }
 
 interface LotusServiceOptions {
@@ -259,6 +261,12 @@ function preparationTarget(f: FactorisationSession): number {
 }
 /** On the last answer, how long to wait for outstanding AI reviews before writing the report anyway. Later reviews still update it. */
 const FINAL_REPORT_WAIT_MS = 20_000;
+/** The final wait; the fake-model test harness may shorten it so a slowed-AI run fits a test timeout. */
+function finalReportWaitMs(): number {
+  if (process.env.LOTUS_E2E_FAKE_MODEL !== "true") return FINAL_REPORT_WAIT_MS;
+  const configured = Number(process.env.LOTUS_E2E_FINAL_REPORT_WAIT_MS);
+  return Number.isInteger(configured) && configured >= 0 && configured <= FINAL_REPORT_WAIT_MS ? configured : FINAL_REPORT_WAIT_MS;
+}
 /** How long after last activity a finished session stays hot in memory before falling back to a DB reload on next access. */
 const COMPLETE_EVICTION_IDLE_MS = 15 * 60 * 1000;
 /** Well past the diagnostic's own 20-minute hard cap — an active session idle this long is presumed abandoned, not mid-turn. */
@@ -270,7 +278,8 @@ const OUTBOX_JOB_REPLENISH_RESERVE = "lotus.replenishReserve";
 const OUTBOX_JOB_MAX_ATTEMPTS = 3;
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  // Unref'd: a retry pause must never keep a stopping process (or a test run) alive.
+  return new Promise((resolve) => setTimeout(resolve, ms).unref());
 }
 
 /**
@@ -949,8 +958,11 @@ export class LotusService implements OnModuleDestroy {
   }
 
   onModuleDestroy(): void {
+    this.destroyed = true;
     clearInterval(this.sweepTimer);
   }
+  /** Set on shutdown; background review retries stop instead of running on a closed service. */
+  private destroyed = false;
 
   private touch(sessionId: string): void {
     this.lastTouchedAt.set(sessionId, Date.now());
@@ -1508,6 +1520,15 @@ export class LotusService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Before the report: give outstanding AI reviews a short time to land, unless the AI is down or its
+   * reviews are failing; then the report is written now and updated if a retry succeeds (remediation 6.2).
+   */
+  private async waitForReviewsBeforeReport(sessionId: string): Promise<void> {
+    if (this.models.activeOutage || this.analysisQueues.get(sessionId)?.failing) return;
+    await settleWithin(this.waitForSessionAnalyses(sessionId), finalReportWaitMs());
+  }
+
   private waitForSessionAnalyses(sessionId: string): Promise<void> {
     const queue = this.analysisQueues.get(sessionId);
     if (!queue || (queue.running === 0 && queue.pending.length === 0)) return Promise.resolve();
@@ -1686,13 +1707,20 @@ export class LotusService implements OnModuleDestroy {
   ): Promise<void> {
     try {
       await this.runDeferredAnalysis(sessionId, turnIndex, currentQuestion, response, verification, elapsedSeconds, answeredCount);
+      const queue = this.analysisQueues.get(sessionId);
+      if (queue) queue.failing = false;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      const queue = this.analysisQueues.get(sessionId);
+      if (queue) queue.failing = true;
+      // Shutting down: leave the job to the durable outbox for the next start instead of marking it failed.
+      if (this.destroyed) return;
       if (attempt < DEFERRED_ANALYSIS_MAX_ATTEMPTS) {
         this.logger.warn(
           `Deferred analysis attempt ${attempt}/${DEFERRED_ANALYSIS_MAX_ATTEMPTS} failed for session ${sessionId} turn ${turnIndex}, retrying: ${message}`,
         );
         await delay(DEFERRED_ANALYSIS_RETRY_DELAY_MS * attempt);
+        if (this.destroyed) return;
         // The session or turn may have moved on while we waited — the next
         // attempt's own liveSession/slot lookups inside runDeferredAnalysis
         // already guard against that, same as the first attempt.
@@ -2226,7 +2254,7 @@ export class LotusService implements OnModuleDestroy {
       };
     } else {
       session.reportPending = true;
-      await settleWithin(this.waitForSessionAnalyses(sessionId), FINAL_REPORT_WAIT_MS);
+      await this.waitForReviewsBeforeReport(sessionId);
       f.endedEarlyNote = prompt.message;
       this.completeFactorisation(session);
     }
@@ -3346,7 +3374,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       session.reportPending = true;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
       // The report is better with the last reviews in it, but the student shouldn't wait long for them.
-      await settleWithin(this.waitForSessionAnalyses(session.sessionId), FINAL_REPORT_WAIT_MS);
+      await this.waitForReviewsBeforeReport(session.sessionId);
       this.completeFactorisation(session);
       await this.persist(
         session, audit, true,

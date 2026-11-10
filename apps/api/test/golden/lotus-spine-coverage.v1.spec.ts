@@ -56,10 +56,14 @@ async function playThrough(personaId: string) {
 const slotOf = (q: LotusQuestion) => q.answerKey.diagnostics?.slot ?? -1;
 const isFollowUp = (q: LotusQuestion) => (q.answerKey.diagnostics as { isElasticProbe?: boolean } | undefined)?.isElasticProbe === true;
 
+/** The answer formats each persona was given, collected for the Phase 6 format check below. */
+const formatsSeen = new Set<string>();
+
 describe("Phase 2 — every persona sees the whole 15-question paper", () => {
   for (const persona of PERSONA_CATALOGUE) {
     it(`${persona.id}: spine slots 1–15 once each, in order, plus at most two .5 follow-ups`, async () => {
       const { questions, session } = await playThrough(persona.id);
+      for (const q of questions) if (q.game?.kind) formatsSeen.add(q.game.kind);
       const escalated = session.factorisation.state.ceilingEscalated === true;
       const spine = questions.filter((q) => !isFollowUp(q)).map(slotOf);
       const followUps = questions.filter(isFollowUp);
@@ -72,4 +76,11 @@ describe("Phase 2 — every persona sees the whole 15-question paper", () => {
       assert.ok(questions.length <= 17, `${questions.length} questions`);
     });
   }
+});
+
+describe("Phase 6.1 — the promised answer formats are served on the 15-question paper", () => {
+  it("\"four signs\" and \"order the steps\" each appear at least once across the persona runs", () => {
+    assert.ok(formatsSeen.size > 0, "runs after the persona runs above");
+    for (const kind of ["FOUR_SIGNS", "ORDER_STEPS"]) assert.ok(formatsSeen.has(kind), `${kind} was never served; seen: ${[...formatsSeen].join(", ")}`);
+  });
 });
