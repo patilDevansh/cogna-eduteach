@@ -260,7 +260,7 @@ export interface Curriculum {
 const DRAFT_KIND = { EXPRESSION: "EXPAND", NUMBER: "NUMBER", CHOICE: "CHOICE" } as const;
 
 const CURRICULA: Curriculum[] = [
-  { topic: "FACTORISATION", name: LOTUS_TOPIC_NAMES.FACTORISATION, skills: FACTORISATION_SKILLS, slots: FACTORISATION_SLOTS, mistakeNotes: {} },
+  { topic: "FACTORISATION", name: LOTUS_TOPIC_NAMES.FACTORISATION, skills: FACTORISATION_SKILLS, slots: CANONICAL_15_SPINE, mistakeNotes: {} },
   ...GRADE_8_DRAFTS.flatMap((draft): Curriculum[] => {
     const topic = draft.topicId.toUpperCase().replace(/-/g, "_") as LotusPlannedTopic;
     // Linear equations still runs the original brackets test; its draft waits.

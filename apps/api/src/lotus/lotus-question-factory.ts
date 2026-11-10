@@ -108,6 +108,7 @@ function makerPrompt(req: WriteRequest): string {
     );
   } else if (spec.kind === "NUMBER") {
     lines.push(
+      '- IMPORTANT: The question MUST ask for a single numeric answer (like a power, exponent, constant, or fraction), NOT an algebraic expression with variables or brackets.',
       '- "answer" is a single number or fraction such as 36, -3/2 or 37.5: no units or words. Every wrong answer is a number too.',
       '- "check" is plain ASCII arithmetic whose value is the answer, e.g. "(1250 - 1000) / 1250 * 100", or an equation in x that the answer solves, e.g. "3*(x - 4) = 18". Code evaluates it.',
       "Return JSON only:",

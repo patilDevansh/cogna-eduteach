@@ -69,6 +69,7 @@ import { themedGamesEnabled } from "./lotus-game-core";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
 import { codeGameProbeFor } from "./lotus-game-probes";
 import { codeProbeFor } from "./lotus-probes";
+import { isCheckSpec } from "./lotus-skill-checks";
 import {
   curriculumFor,
   skillName,
@@ -2564,8 +2565,8 @@ Create one materially different question that adds new diagnostic evidence. Test
     // garden): built and checked by code, no model call. See lotus-probes.ts.
     const gameRequest = { ...job.request, variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`, avoid: this.testPrints(session, job.turn) };
     // Product rule: factorisation questions come only from the AI, newly written or reused from the checked
-    // bank. Code-built content is off unless LOTUS_CODE_BUILT_QUESTIONS=true (tests of the probes themselves).
-    const game = process.env.LOTUS_CODE_BUILT_QUESTIONS === "true" ? codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest) : null;
+    // bank. Code-built content is off unless LOTUS_CODE_BUILT_QUESTIONS=true or a code-made check spec is requested.
+    const game = (process.env.LOTUS_CODE_BUILT_QUESTIONS === "true" || isCheckSpec(job.request.spec)) ? codeGameProbeFor(gameRequest) ?? codeProbeFor(gameRequest) : null;
     if (game && !checkWrittenItem(gameRequest, game).length) {
       await this.applyGenerated(sessionId, job, { item: game, attempts: 0, ms: 0, rejections: [] }, "GENERATION");
       return;

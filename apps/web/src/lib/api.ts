@@ -21,6 +21,7 @@ import type {
   SubmitDiagnosticV2StepRequest,
   SubmitDiagnosticV2StepResponse,
   LotusFinalReport,
+  LotusClassroomPortfolio,
   LotusSessionView,
   LotusStatusResponse,
   LotusStudentResponse,
@@ -1216,6 +1217,9 @@ export const api = {
 
   listLotusDemoStudioSessions: () =>
     lotusObserverFetch<LotusStudioSessionSummary[]>("/studio/demo-sessions"),
+
+  getLotusClassroomPortfolio: (classroomId: string) =>
+    lotusObserverFetch<LotusClassroomPortfolio>(`/classrooms/${encodeURIComponent(classroomId)}/portfolio`),
 
   /** Server computes the demo answer now that the answer key isn't shipped to the client while a diagnostic is active. Demo student ids only. */
   demoFillLotusResponse: (sessionId: string, studentId: string, gap?: string) =>

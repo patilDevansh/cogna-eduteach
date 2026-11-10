@@ -1008,7 +1008,7 @@ function LotusPage() {
   const lotusTheme = useLotusTheme(studentId);
   const [studentName, setStudentName] = useState("");
   const [classEnrollment, setClassEnrollment] = useState<MockStudentEnrollment | null>(null);
-  const [observer, setObserver] = useState(false);
+  const [observer, setObserver] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("observer") === "1" : false));
   const [status, setStatus] = useState<LotusStatusResponse | null>(null);
   const [session, setSession] = useState<LotusSessionView | null>(null);
   const [observerSession, setObserverSession] = useState<LotusSessionView | null>(null);
@@ -1656,7 +1656,7 @@ function LotusPage() {
   // Only sizes the pond map. The plan's length changes as Lotus adapts, so it
   // is never shown to the student as "of N". Don't derive it from the
   // currently exposed/prefetched list: later questions may still be generating.
-  const totalQuestions = session?.preparation?.totalQuestions ?? (isPlannedLotusTopic(session?.topic) ? 25 : 16);
+  const totalQuestions = session?.preparation?.totalQuestions ?? 15;
   const inputLocked = busy || Boolean(pendingSubmission) || supportPaused || awaitConfidence || Boolean(session?.developerExitPrompt);
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))
@@ -1948,8 +1948,10 @@ function LotusPage() {
                         </span>
                       </div>
                     )}
-                    {/* No "of N": the plan grows and shrinks with the answers, so a total would change mid-test. */}
-                    <strong className={styles.questionNumber}>Question {shownQuestionNumber}</strong>
+                    <strong className={styles.questionNumber}>
+                      Question {shownQuestionNumber} of {totalQuestions}
+                      {session?.board && <span className={styles.boardBadge} style={{ marginLeft: "0.5rem", fontSize: "0.85em", opacity: 0.8 }}>({session.board})</span>}
+                    </strong>
                     {sevenWays && question.game && <h2 className={sevenStyles.gameName}>{gameTitle(question.game.kind, lotusTheme.settings.effective)}</h2>}
                     {sevenWays && question.presentation === "DETECTIVE" && <h2 className={sevenStyles.gameName}>Find the first wrong line</h2>}
                     {sevenWays && question.presentation === "FISHING" && <h2 className={sevenStyles.gameName}>Pick every one that fits</h2>}

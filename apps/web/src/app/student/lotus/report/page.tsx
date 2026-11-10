@@ -342,6 +342,57 @@ function Report({
       </section>
 
       <div className={styles.grid}>
+        {report.startingZone && (
+          <section
+            className={styles.card}
+            style={{
+              gridColumn: "1 / -1",
+              borderLeft: "5px solid var(--accent)",
+              background: "var(--surface)",
+              marginBottom: "1rem",
+              padding: "1.25rem",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+              <span className={styles.eyebrow}>Day 1 Launchpad Node</span>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background:
+                    report.startingZone.scaffoldingLevel === "FOUNDATIONAL_REMEDIATION"
+                      ? "#fee2e2"
+                      : report.startingZone.scaffoldingLevel === "STEPPED_SCAFFOLDING"
+                      ? "#fef3c7"
+                      : "#d1fae5",
+                  color:
+                    report.startingZone.scaffoldingLevel === "FOUNDATIONAL_REMEDIATION"
+                      ? "#991b1b"
+                      : report.startingZone.scaffoldingLevel === "STEPPED_SCAFFOLDING"
+                      ? "#92400e"
+                      : "#065f46",
+                }}
+              >
+                {report.startingZone.scaffoldingLevel.replace(/_/g, " ")}
+              </span>
+            </div>
+            <h2 style={{ fontSize: "1.3rem", margin: "8px 0" }}>{report.startingZone.moduleName}</h2>
+            <p className={styles.muted} style={{ margin: "4px 0 12px" }}>{report.startingZone.rationale}</p>
+            {report.startingZone.microInterventions && report.startingZone.microInterventions.length > 0 && (
+              <div>
+                <strong style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Recommended Micro-Interventions:</strong>
+                <ul style={{ margin: "8px 0 0", paddingLeft: "1.2rem", fontSize: "0.85rem" }}>
+                  {report.startingZone.microInterventions.map((intervention, idx) => (
+                    <li key={idx} style={{ margin: "4px 0" }}>{intervention}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
+
         <section className={styles.startCard}>
           <p className={styles.startEyebrow}>{report.outcome === "SOLID_GAP" ? "Start here" : "Next step"}</p>
           <h2>{start ? start.name : plain(report.recommendedNextStep)}</h2>
@@ -444,6 +495,44 @@ function Report({
                   <span className={styles.groupLabel} data-tone={group.tone}>{group.label} · {items.length}</span>
                   <div className={styles.chips}>
                     {items.map((s) => <span key={s.skillId} className={styles.chip} data-tone={group.tone}>{s.name}</span>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {skills.some((s) => s.rating !== undefined) && (
+        <section className={styles.map} style={{ marginTop: "2rem" }}>
+          <div className={styles.mapHead}>
+            <h3>Competency Ratings (1 to 5)</h3>
+            <p className={styles.muted}>Evidence-based competency levels across curriculum skills.</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px", marginTop: "1rem" }}>
+            {skills.filter((s) => s.rating !== undefined).map((s) => {
+              const stars = "●".repeat(s.rating ?? 0) + "○".repeat(5 - (s.rating ?? 0));
+              const color =
+                s.rating === 1 ? "#ef4444" : s.rating === 2 ? "#f97316" : s.rating === 3 ? "#eab308" : s.rating === 4 ? "#10b981" : "#8b5cf6";
+              return (
+                <div
+                  key={s.skillId}
+                  style={{
+                    padding: "12px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--line)",
+                    background: "var(--surface)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <strong style={{ fontSize: "0.9rem" }}>{s.name}</strong>
+                    <span style={{ fontFamily: "monospace", color, fontWeight: 700 }}>{s.rating}/5</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
+                    <span style={{ fontSize: "1.1rem", color, letterSpacing: "2px" }}>{stars}</span>
+                    <span style={{ fontSize: "0.75rem", fontWeight: 600, color, textTransform: "uppercase" }}>
+                      {(s.ratingStatus ?? "").replace(/_/g, " ")}
+                    </span>
                   </div>
                 </div>
               );

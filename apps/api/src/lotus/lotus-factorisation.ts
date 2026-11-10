@@ -1862,7 +1862,7 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 
     // Elastic Runway check: on 15-slot diagnostic spine, insert probe instead of cannibalizing downstream slots
     const elasticCount = state.turns.filter((t) => t.isElasticProbe).length;
-    const is15SpineOrElastic = state.turns.length <= 17;
+    const is15SpineOrElastic = state.turns.length <= 19 || state.topic === "FACTORISATION";
     if (is15SpineOrElastic && elasticCount < 2 && state.planTurn > 0) {
       const parentSlot = state.turns.find((t) => t.turn === state.planTurn)?.slot ?? state.planTurn;
       actions.push({
@@ -1898,6 +1898,8 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   }
 
   // 2. A confirmed gap: remove or reroute later questions that depend on it, then go down.
+  // In the canonical 15-item spine, downstream curriculum tiers are never pruned via SKIP.
+  const is15Spine = state.turns.length <= 19 || state.topic === "FACTORISATION";
   for (const e of ledger.values()) {
     if (e.state !== "CONFIRMED" || state.handledConfirmed.includes(e.skillId)) continue;
     const freed: number[] = [];
@@ -1907,9 +1909,11 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       if (!d) continue;
       const reason = `Not tested: it depends on ${skillName(e.skillId)}, which isn't secure yet.`;
       if (dependsOnTransitively(d.skillId, e.skillId)) {
-        claimed.add(t.turn);
-        actions.push({ kind: "SKIP", turn: t.turn, reason });
-        freed.push(t.turn);
+        if (!is15Spine) {
+          claimed.add(t.turn);
+          actions.push({ kind: "SKIP", turn: t.turn, reason });
+          freed.push(t.turn);
+        }
       } else if (skillsUsedBy(d).some((u) => dependsOnTransitively(u, e.skillId))) {
         claimed.add(t.turn);
         const spec = slots.find((s) => s.slot === t.slot) ?? null;
