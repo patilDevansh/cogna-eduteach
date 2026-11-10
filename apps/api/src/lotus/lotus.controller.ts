@@ -48,7 +48,7 @@ function observerTeacherGateBypassed(studentId: string): boolean {
   if (isProductionLike()) return false;
   const flag = process.env.LOTUS_DEV_OBSERVER_BYPASS;
   if (flag === "false") return false;
-  return flag === "true" || isDemoStudentId(studentId);
+  return flag === "true" || isDemoStudent(studentId) || isDemoStudentId(studentId);
 }
 
 /**
