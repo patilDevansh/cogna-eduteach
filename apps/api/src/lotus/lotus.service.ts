@@ -1020,7 +1020,7 @@ export class LotusService implements OnModuleDestroy {
    * second tab, a new phone) returns that session where it was left, finished
    * or not, instead of opening a fresh test from question one.
    */
-  async start(studentId: string, topic: LotusTopic = "BRACKETS", classroomAssignmentId?: string): Promise<LotusSessionView> {
+  async start(studentId: string, topic: LotusTopic = "FACTORISATION", classroomAssignmentId?: string): Promise<LotusSessionView> {
     this.models.assertReady();
     const owned = await this.ownAssignment(studentId, classroomAssignmentId);
     if (!owned) return this.startNew(studentId, topic);

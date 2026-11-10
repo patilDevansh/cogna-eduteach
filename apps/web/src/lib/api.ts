@@ -516,9 +516,11 @@ export interface ProductionClassroom {
 
 /** The Lotus test for a class topic id ("algebraic-expressions" → ALGEBRAIC_EXPRESSIONS); linear equations and anything unknown run the brackets test. */
 export function lotusTopicForClassTopic(topicId: string): LotusTopic {
+  if (!topicId) return "FACTORISATION";
   if (/factor/i.test(topicId)) return "FACTORISATION";
   const key = topicId.toUpperCase().replace(/-/g, "_");
-  return (LOTUS_PLANNED_TOPICS as readonly string[]).includes(key) ? (key as LotusTopic) : "BRACKETS";
+  if (key === "BRACKETS") return "BRACKETS";
+  return (LOTUS_PLANNED_TOPICS as readonly string[]).includes(key) ? (key as LotusTopic) : "FACTORISATION";
 }
 
 /** Where a classroom assignment is done. The diagnostic carries its topic so Lotus runs the right test. */
