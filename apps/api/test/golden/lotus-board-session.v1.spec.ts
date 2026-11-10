@@ -26,3 +26,26 @@ describe("Board survives session start and question delivery", () => {
     });
   }
 });
+
+describe("Where the board comes from (remediation 4.1)", () => {
+  // A class test (record wins over the picker) needs the database for the assignment; see the classroom database spec.
+  async function startWith(recorded: string | undefined, chosen: "CBSE" | "ICSE" | "IGCSE" | undefined) {
+    const service = new LotusService(new PersonaFakeModels() as unknown as LotusModelService, null);
+    try {
+      // Stand-in for the student's school record, which needs the database.
+      Object.assign(service as object, { recordedBoard: async () => recorded });
+      const view = await service.start(`demo_board_src_${recorded}_${chosen}`, "FACTORISATION", undefined, chosen);
+      return view.board;
+    } finally { service.onModuleDestroy(); }
+  }
+
+  it("uses the board on the student's record when the student picks none", async () => {
+    assert.equal(await startWith("ICSE", undefined), "ICSE");
+  });
+  it("a board the student picks for their own test wins over the record", async () => {
+    assert.equal(await startWith("ICSE", "IGCSE"), "IGCSE");
+  });
+  it("falls back to CBSE only when nothing is known", async () => {
+    assert.equal(await startWith(undefined, undefined), "CBSE");
+  });
+});

@@ -38,7 +38,7 @@ import type {
   LotusGameKind,
   LotusDeveloperExitPrompt,
 } from "@cogna/shared";
-import { isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
+import { isLotusBoard, type LotusBoard, isLotusDemoGap, isPlannedLotusTopic, lotusActiveSeconds, type LotusDemoGap, type LotusPlannedTopic } from "@cogna/shared";
 import { createHash, randomUUID } from "crypto";
 import { isDemoStudentId, isProductionLike, type AccessActor } from "../access/cogna-access";
 import { isDemoStudent } from "../engines/diagnostic-v2/demo-student";
@@ -1028,9 +1028,13 @@ export class LotusService implements OnModuleDestroy {
    * second tab, a new phone) returns that session where it was left, finished
    * or not, instead of opening a fresh test from question one.
    */
-  async start(studentId: string, topic: LotusTopic = "FACTORISATION", classroomAssignmentId?: string, board: "CBSE" | "ICSE" | "IGCSE" = "CBSE"): Promise<LotusSessionView> {
+  async start(studentId: string, topic: LotusTopic = "FACTORISATION", classroomAssignmentId?: string, chosenBoard?: LotusBoard): Promise<LotusSessionView> {
     this.models.assertReady();
     const owned = await this.ownAssignment(studentId, classroomAssignmentId);
+    // Remediation 4.1: a class test uses the board on the student's school record; a test the student
+    // starts themselves uses the board they picked, else that record. CBSE only when nothing is known.
+    const recorded = await this.recordedBoard(studentId);
+    const board: LotusBoard = (owned ? recorded ?? chosenBoard : chosenBoard ?? recorded) ?? "CBSE";
     if (!owned) return this.startNew(studentId, topic, undefined, board);
     const assignmentId = owned.id;
     // Two tabs opening at once must not both miss the lookup and each start a session.
@@ -1049,7 +1053,19 @@ export class LotusService implements OnModuleDestroy {
     return task;
   }
 
-  private async startNew(studentId: string, topic: LotusTopic, assignmentId?: string, board: "CBSE" | "ICSE" | "IGCSE" = "CBSE"): Promise<LotusSessionView> {
+  /** The exam board on the student's record (Student.curriculum), when it is one Lotus supports. */
+  private async recordedBoard(studentId: string): Promise<LotusBoard | undefined> {
+    if (!this.prisma) return undefined;
+    try {
+      const student = await this.prisma.student.findUnique({ where: { id: studentId }, select: { curriculum: true } });
+      const value = student?.curriculum?.trim().toUpperCase();
+      return isLotusBoard(value) ? value : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async startNew(studentId: string, topic: LotusTopic, assignmentId?: string, board: LotusBoard = "CBSE"): Promise<LotusSessionView> {
     if (isPlannedLotusTopic(topic)) return this.startFactorisation(studentId, topic, await this.catchUpFocus(studentId, assignmentId), assignmentId, board);
     const startedAt = new Date().toISOString();
     const coveragePlan = buildLotusCoveragePlan(studentId).map(withQuestionId);
@@ -2343,7 +2359,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     return Array.isArray(skills) && skills.every((s) => typeof s === "string") && skills.length ? skills as string[] : undefined;
   }
 
-  private async startFactorisation(studentId: string, topic: LotusPlannedTopic = "FACTORISATION", focusSkills?: string[], classroomAssignmentId?: string, board: "CBSE" | "ICSE" | "IGCSE" = "CBSE"): Promise<LotusSessionView> {
+  private async startFactorisation(studentId: string, topic: LotusPlannedTopic = "FACTORISATION", focusSkills?: string[], classroomAssignmentId?: string, board: LotusBoard = "CBSE"): Promise<LotusSessionView> {
     const catchUp = focusSkills ? catchUpSlots(topic, focusSkills) : [];
     const plan = catchUp.length ? catchUp : curriculumFor(topic).slots;
     const focus = catchUp.length ? [...new Set(focusSkills)].filter((id) => catchUp.some((s) => s.skillId === id)) : undefined;

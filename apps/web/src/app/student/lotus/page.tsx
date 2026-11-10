@@ -546,7 +546,9 @@ function AuditCard({
   opening,
   liveProgress,
   reviewModel,
+  board,
 }: {
+  board?: string;
   audit: LotusQuestionAudit;
   audits: LotusQuestionAudit[];
   /** The answers before this one, so the decision can say a mistake is a repeat. */
@@ -634,7 +636,7 @@ function AuditCard({
             </div>
           ) : (
             <p style={{ marginTop: "0.5rem", fontSize: "0.9rem" }}>
-              Known context only: Grade 8 · CBSE. No learner profile or presumed weakness.
+              Known context only: Grade 8{board ? ` · ${board}` : ""}. No learner profile or presumed weakness.
             </p>
           )}
         </section>
@@ -1002,7 +1004,8 @@ function LotusPage() {
   const requestedSessionId = searchParams.get("session");
   const classroomAssignmentId = searchParams.get("assignment");
   const topic: LotusTopic = lotusTopicForClassTopic(searchParams.get("topic") ?? "");
-  const [board, setBoard] = useState<"CBSE" | "ICSE" | "IGCSE">("CBSE");
+  // Undefined = the board on the student's school record (the API resolves it); set only when the student picks one.
+  const [board, setBoard] = useState<"CBSE" | "ICSE" | "IGCSE" | undefined>(undefined);
   const planned = isPlannedLotusTopic(topic);
   const catchUp = planned && searchParams.get("check") === "catch-up";
   const [studentId, setStudentId] = useState("");
@@ -1849,7 +1852,7 @@ function LotusPage() {
           <div className={styles.layoutStudent}>
             <section className={styles.introCard}>
               <div className={styles.phaseRow}>
-                <label className={styles.phaseBadge}>Grade 8 · <select aria-label="Exam board" value={board} onChange={(event) => setBoard(event.target.value as typeof board)}>{["CBSE", "ICSE", "IGCSE"].map(value => <option key={value}>{value}</option>)}</select></label>
+                <label className={styles.phaseBadge}>Grade 8 · <select aria-label="Exam board" value={board ?? ""} onChange={(event) => setBoard((event.target.value || undefined) as typeof board)}><option value="">My school&apos;s board</option>{["CBSE", "ICSE", "IGCSE"].map(value => <option key={value}>{value}</option>)}</select></label>
                 {classEnrollment && <span className={styles.phaseBadge}>{classEnrollment.className} · Roll {classEnrollment.rollNumber}</span>}
                 <span className={styles.phaseBadge}>{catchUp ? `${LOTUS_TOPIC_NAMES[topic]} · catch-up · up to 8 questions` : planned ? `${LOTUS_TOPIC_NAMES[topic]} · 15 questions` : "Up to 20 minutes"}</span>
               </div>
@@ -2265,6 +2268,7 @@ function LotusPage() {
                           audits={observerAudits}
                           earlier={observerAudits.slice(0, index)}
                           opening={index === 0}
+                          board={session?.board}
                           index={index}
                           latest={index === observerAudits.length - 1}
                           reviewModel={observerSession.modelConfiguration.primary}
