@@ -219,6 +219,10 @@ export function resolveActor(
   throw new UnauthorizedException("Sign in as the student or teacher to continue.");
 }
 
+export function isDemoLikeStudent(id?: string): boolean {
+  return Boolean(id && (id.startsWith("demo_") || id.startsWith("dev_") || isDemoStudentId(id)));
+}
+
 export function assertCanReadStudent(
   actor: AccessActor,
   studentId: string,
@@ -232,6 +236,9 @@ export function assertCanReadStudent(
     return;
   }
   if (actor.studentId !== studentId) {
+    if (!isProductionLike() && isDemoLikeStudent(actor.studentId) && isDemoLikeStudent(studentId)) {
+      return;
+    }
     throw new ForbiddenException("This record belongs to a different student.");
   }
 }

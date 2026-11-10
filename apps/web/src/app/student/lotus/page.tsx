@@ -1841,7 +1841,7 @@ function LotusPage() {
               <div className={styles.phaseRow}>
                 <span className={styles.phaseBadge}>Grade 8 · CBSE</span>
                 {classEnrollment && <span className={styles.phaseBadge}>{classEnrollment.className} · Roll {classEnrollment.rollNumber}</span>}
-                <span className={styles.phaseBadge}>{catchUp ? `${LOTUS_TOPIC_NAMES[topic]} · catch-up · up to 8 questions` : planned ? `${LOTUS_TOPIC_NAMES[topic]} · up to 25 questions` : "Up to 20 minutes"}</span>
+                <span className={styles.phaseBadge}>{catchUp ? `${LOTUS_TOPIC_NAMES[topic]} · catch-up · up to 8 questions` : planned ? `${LOTUS_TOPIC_NAMES[topic]} · 15 questions` : "Up to 20 minutes"}</span>
               </div>
               <h1 style={{ marginTop: "1rem" }}>
                 {catchUp ? `A quick catch-up on ${LOTUS_TOPIC_NAMES[topic].toLowerCase()}.` : planned ? `Find where ${LOTUS_TOPIC_NAMES[topic].toLowerCase()} breaks down.` : "Let Cogna Lotus find the right starting point."}
@@ -1916,7 +1916,7 @@ function LotusPage() {
                 <p style={{ marginTop: "0.75rem" }}>
                   Cogna is preparing your diagnostic. You can begin when {session.preparation?.targetQuestions ?? 15} questions are ready; the rest continue in the background.
                 </p>
-                  <div className={styles.preparationProgress} role="progressbar" aria-valuemin={0} aria-valuemax={session.preparation?.targetQuestions ?? 25} aria-valuenow={session.preparation?.readyQuestions ?? 0}>
+                  <div className={styles.preparationProgress} role="progressbar" aria-valuemin={0} aria-valuemax={session.preparation?.targetQuestions ?? 15} aria-valuenow={session.preparation?.readyQuestions ?? 0}>
                   <span style={{ width: `${Math.min(100, ((session.preparation?.readyQuestions ?? 0) / (session.preparation?.targetQuestions ?? 15)) * 100)}%` }} />
                 </div>
                 <p className={styles.muted} style={{ marginTop: "0.75rem" }}>

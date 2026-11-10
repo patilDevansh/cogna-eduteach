@@ -9,7 +9,7 @@ import { Wordmark } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useDevState } from "@/lib/dev-mode";
 import { getStoredLotusSessions, saveStoredLotusSession } from "@/lib/lotus-demo-store";
-import { getStudent } from "@/lib/session";
+import { ensureDemoStudentSession, getStudent } from "@/lib/session";
 import styles from "./report.module.css";
 import { ThemeFinish } from "@/components/lotus-themes/ThemeFinish";
 import { printMarks } from "@/components/lotus-themes/thinking-print";
@@ -62,7 +62,14 @@ function ReportPage() {
   const lessonStarted = useRef(false);
   // Read after mount: the signed-in student lives in browser storage, so reading it during render would differ from the server HTML.
   const [student, setStudent] = useState<ReturnType<typeof getStudent>>(null);
-  useEffect(() => setStudent(getStudent()), []);
+  useEffect(() => {
+    const active = getStudent();
+    if (!active?.studentId) {
+      void ensureDemoStudentSession("demo_rohan", "Rohan").then((s) => setStudent(s));
+    } else {
+      setStudent(active);
+    }
+  }, []);
   const firstName = (student?.name ?? "").split(" ")[0] ?? "";
   // The report wears the look the student took the test in.
   const lotusTheme = useLotusTheme(student?.studentId ?? session?.studentId ?? "");
@@ -77,7 +84,16 @@ function ReportPage() {
     let timer: number | null = null;
     const tick = async () => {
       try {
-        const next = await api.getLotusSession(sessionId);
+        let next: LotusSessionView;
+        try {
+          next = await api.getLotusSession(sessionId);
+        } catch (fetchErr) {
+          try {
+            next = await api.getLotusObserverSession(sessionId);
+          } catch {
+            throw fetchErr;
+          }
+        }
         if (cancelled) return;
         setSession(next);
         if (next.status === "COMPLETE") {

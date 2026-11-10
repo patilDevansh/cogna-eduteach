@@ -121,9 +121,9 @@ export function ThinkingPrint({ seed, marks, share, label }: { seed: string; mar
   return (
     <div className={styles.print} role="img" aria-label={label}>
       <canvas ref={canvas} className={styles.printCanvas} />
-      <svg viewBox="0 0 120 120" className={styles.printRing} aria-hidden="true">
-        <circle cx="60" cy="60" r="56" className={styles.ringBack} />
-        <circle cx="60" cy="60" r="56" className={styles.ringFill} strokeDasharray={circumference} strokeDashoffset={circumference * (1 - peak.current.share)} transform="rotate(-90 60 60)" />
+      <svg viewBox="0 0 120 120" className={styles.printRing} aria-hidden="true" style={{ width: "100%", height: "100%", maxWidth: SIZE, maxHeight: SIZE }}>
+        <circle cx="60" cy="60" r="56" fill="none" className={styles.ringBack} />
+        <circle cx="60" cy="60" r="56" fill="none" className={styles.ringFill} strokeDasharray={circumference} strokeDashoffset={circumference * (1 - peak.current.share)} transform="rotate(-90 60 60)" />
       </svg>
     </div>
   );
