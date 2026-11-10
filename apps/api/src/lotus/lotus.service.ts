@@ -99,6 +99,7 @@ import {
   planAdjustments,
   projectSkillAssessments,
   reviewsStillRunning,
+  isSpinePaper,
 } from "./lotus-factorisation";
 import { checkWrittenItem, LotusQuestionFactory, type WriteRequest, type WriteResult } from "./lotus-question-factory";
 import {
@@ -827,7 +828,8 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     clone.preparation = {
       readyQuestions,
       targetQuestions: preparationTarget(f),
-      totalQuestions: f.state.turns.length,
+      // The true length: questions that will actually be asked (15 + follow-ups on the spine paper, never more than 17).
+      totalQuestions: Math.min(isSpinePaper(f.state) ? 17 : Infinity, f.state.turns.filter((turn) => turn.status !== "SKIPPED").length),
       ready: readyQuestions >= preparationTarget(f),
     };
     // Never expose a legacy/pre-change non-AI item from an old persisted
@@ -2777,6 +2779,11 @@ Create one materially different question that adds new diagnostic evidence. Test
     // confidence actually changes the diagnosis. A plain coverage turn
     // leaves this unset so the student isn't asked every time.
     const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
+    // A follow-up keeps its follow-up label (parent slot + .5) whoever wrote it, so it never reads as a second spine question.
+    if (planTurn?.isElasticProbe && question.answerKey.diagnostics) {
+      question.answerKey.diagnostics.slot = planTurn.slot;
+      Object.assign(question.answerKey.diagnostics, { isElasticProbe: true, parentSlot: planTurn.parentSlot });
+    }
     question.requiresConfidenceProbe = planTurn?.purpose === "CHECK";
     // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
     const previous = f.versions[String(job.turn - 1)]?.find((candidate) => candidate.id === f.preferred[String(job.turn - 1)]);
@@ -3060,8 +3067,7 @@ Create one materially different question that adds new diagnostic evidence. Test
         };
         if (probeItem.answerKey?.diagnostics) {
           probeItem.answerKey.diagnostics.slot = action.probeSlot;
-          (probeItem.answerKey.diagnostics as any).isElasticProbe = true;
-          (probeItem.answerKey.diagnostics as any).parentSlot = action.parentSlot;
+          Object.assign(probeItem.answerKey.diagnostics, { isElasticProbe: true, parentSlot: action.parentSlot });
         }
         f.versions[String(newTurnNumber)] = [probeItem];
         f.preferred[String(newTurnNumber)] = probeItem.id;

@@ -67,6 +67,11 @@ async function main() {
   console.log("4. Navigating to Lotus Factorisation diagnostic with observer=1...");
   await page.goto("http://localhost:3000/student/lotus?topic=factorisation&observer=1");
 
+  // Capture Landing Page
+  const landingPath = path.join(ARTIFACT_DIR, "audit-01-landing.png");
+  await page.screenshot({ path: landingPath, fullPage: false });
+  console.log(`Saved landing page screenshot to: ${landingPath}`);
+
   // Wait for Start button and click it
   console.log("Waiting for Start button...");
   await page.waitForTimeout(1000);
@@ -95,7 +100,7 @@ async function main() {
   console.log(`AI Studio Observer Panel loaded: ${hasAiStudioOverview ? "YES" : "NO"}`);
 
   // Take screenshot of Question 1 + AI Studio
-  const q1Path = path.join(ARTIFACT_DIR, "browser-test-q1.png");
+  const q1Path = path.join(ARTIFACT_DIR, "audit-02-q1-aistudio.png");
   await page.screenshot({ path: q1Path, fullPage: false });
   console.log(`Saved screenshot 1 to: ${q1Path}`);
 
@@ -129,6 +134,13 @@ async function main() {
     const questionLocator = page.locator("div[class*='studentPane'] strong:has-text('Question')").first();
     const isVisible = await questionLocator.isVisible().catch(() => false);
     if (!isVisible) {
+      const dialogExit = await page.$("dialog button:has-text('Finish test'), button:has-text('Finish test')");
+      if (dialogExit && await dialogExit.isVisible()) {
+        console.log("Dialog exit detected while waiting; clicking 'Finish test'...");
+        await dialogExit.click();
+        await page.waitForTimeout(2000);
+        continue;
+      }
       console.log(`Question not visible yet on step ${answeredCount + 1}, waiting 1s...`);
       await page.waitForTimeout(1000);
       continue;
@@ -196,7 +208,7 @@ async function main() {
     // Save screenshot on Turn 2 showing elastic runway probe inserted in AI Studio
     if (answeredCount === 1) {
       await page.waitForTimeout(2000);
-      const elasticPath = path.join(ARTIFACT_DIR, "browser-test-elastic-runway.png");
+      const elasticPath = path.join(ARTIFACT_DIR, "audit-03-elastic-probe.png");
       await page.screenshot({ path: elasticPath, fullPage: false });
       console.log(`Saved elastic runway screenshot to: ${elasticPath}`);
     }
@@ -222,6 +234,8 @@ async function main() {
   if (reportLink) {
     const href = await reportLink.getAttribute("href");
     console.log(`Found direct report link: ${href}`);
+    const match = href.match(/session=([a-f0-9-]+)/);
+    if (match) activeSessionId = match[1];
     await page.goto(`http://localhost:3000${href}`);
   } else {
     // Check localStorage recovery or active session
@@ -239,6 +253,7 @@ async function main() {
     });
 
     if (storedSessionId) {
+      activeSessionId = storedSessionId;
       console.log(`Navigating to report page with stored session ID: ${storedSessionId}`);
       await page.goto(`http://localhost:3000/student/lotus/report?session=${storedSessionId}`);
     }
@@ -254,20 +269,51 @@ async function main() {
   await page.waitForTimeout(4000);
 
   // Take screenshot of Report Page
-  const reportPath = path.join(ARTIFACT_DIR, "browser-test-report.png");
+  const reportPath = path.join(ARTIFACT_DIR, "audit-04-final-report.png");
   await page.screenshot({ path: reportPath, fullPage: true });
   console.log(`Saved report screenshot to: ${reportPath}`);
 
+  // Extract Session Data directly from API
+  let sessionApiData = null;
+  if (activeSessionId) {
+    try {
+      const apiRes = await fetch(`http://localhost:3001/lotus/sessions/${activeSessionId}`);
+      if (apiRes.ok) {
+        sessionApiData = await apiRes.json();
+      }
+    } catch (e) {
+      console.log("API fetch error:", e.message);
+    }
+  }
+
   // Check DOM content
   const pageContent = await page.content();
-  const hasStartingNode = pageContent.includes("Day 1 Launchpad Node") || pageContent.includes("starting point") || pageContent.includes("Starting Node");
-  const hasCompetencyRatings = pageContent.includes("Competency Ratings") || pageContent.includes("Mastery");
-  const hasReportContent = pageContent.includes("Factorisation") || pageContent.includes("Diagnostic");
+  const hasStartingNode = pageContent.includes("DAY 1 LAUNCHPAD NODE") || pageContent.includes("Day 1 Launchpad Node") || pageContent.includes("Foundations:");
+  const hasCompetencyRatings = pageContent.includes("Competency Ratings (1 to 5)");
+  const hasReportContent = pageContent.includes("where to start");
 
   console.log(`\n=== Verification Results ===`);
   console.log(`- Report Header loaded: ${hasReportContent ? "PASS" : "FAIL"}`);
   console.log(`- Day 1 Launchpad Node rendered: ${hasStartingNode ? "PASS" : "FAIL"}`);
   console.log(`- Competency Ratings (1 to 5) rendered: ${hasCompetencyRatings ? "PASS" : "FAIL"}`);
+
+  if (sessionApiData?.finalReport) {
+    const fr = sessionApiData.finalReport;
+    console.log("\n=== Final Report Structured Payload Audit ===");
+    console.log("- Starting Node Module ID:", fr.startingZone?.moduleId);
+    console.log("- Starting Node Module Name:", fr.startingZone?.moduleName);
+    console.log("- Starting Node Scaffolding Level:", fr.startingZone?.scaffoldingLevel);
+    console.log("- Starting Node Rationale:", fr.startingZone?.rationale);
+    console.log("- Starting Node Micro-Interventions:", JSON.stringify(fr.startingZone?.microInterventions));
+    console.log("- Total Evaluated Skills:", fr.skills?.length);
+    console.log("- Competency Ratings Summary:");
+    fr.skills?.forEach((s) => {
+      console.log(`  • ${s.skillId} (${s.skillName}): Rating ${s.rating ?? "untested"}/5 [${s.ratingStatus ?? s.state}]`);
+    });
+  }
+
+  await browser.close();
+  console.log("=== Autonomous Lotus Browser Test Completed Successfully ===");
 
   await browser.close();
   console.log("=== Autonomous Lotus Browser Test Completed Successfully ===");

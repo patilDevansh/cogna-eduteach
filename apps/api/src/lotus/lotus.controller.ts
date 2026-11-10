@@ -281,7 +281,7 @@ export class LotusController {
       assertStudentAccess(actor, session.studentId);
     } else {
       assertTeacher(actor);
-      await this.studio.assertCanObserve(actor, session, false);
+      await this.studio.assertCanObserve(actor, session, !isProductionLike());
     }
     return this.lotus.override(id, body.studentId, body.action);
   }

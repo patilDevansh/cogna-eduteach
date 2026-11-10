@@ -155,7 +155,7 @@ function assertNoHardcodedFallback(service: LotusService, view: LotusSessionView
     // Two more code-built kinds on the 15-question paper: a follow-up inserted after a spine question
     // (a .5 slot, from a checked family) and a ceiling-escalation stretch question.
     const slot = question.answerKey.diagnostics?.slot ?? 0;
-    const followUp = !Number.isInteger(slot) && !!skillFamily(question.answerKey.diagnostics?.skillId ?? "");
+    const followUp = !Number.isInteger(slot) && (question.answerKey.diagnostics as { isElasticProbe?: boolean } | undefined)?.isElasticProbe === true;
     const stretch = question.purpose === "STRETCH";
     if (origin === "CODE") assert.ok(staged.presentation || staged.interaction || staged.game || shortCheck || followUp || stretch, "a code-built item is a staged game, a checked short check, a follow-up or a stretch question");
   }
@@ -379,7 +379,7 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
     const confirmedOf = (view: LotusSessionView) => (view.finalReport!.skills ?? []).filter((s) => s.state === "CONFIRMED").map((s) => s.skillId).sort();
 
     for (const id of ["P02_NUMERIC_HCF_ONLY", "P03_VARIABLE_COMMON_FACTOR_GAP", "P04_DIVIDE_FIRST_TERM_ONLY"]) {
-      it(`${id}: the same confirmed gap with or without the foundation checks, within the 17-question cap`, async () => {
+      it(`${id}: the same confirmed gap with or without the foundation checks, at most two extra questions, within the 17-question cap`, async () => {
         const persona = PERSONA_CATALOGUE.find((p) => p.id === id)!;
         const withChecks = await playPersona(setup().service, persona, `demo_${id}_with`);
         process.env.LOTUS_DISABLE_SKILL_CHECKS = "true";
@@ -387,8 +387,9 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
         try { without = await playPersona(setup().service, persona, `demo_${id}_without`); } finally { delete process.env.LOTUS_DISABLE_SKILL_CHECKS; }
         assert.deepEqual(confirmedOf(withChecks.view), confirmedOf(without.view), "the same gap is confirmed");
         assert.equal(withChecks.view.finalReport!.outcome, without.view.finalReport!.outcome);
-        // The 15-question paper never ends early on a found gap, so the checks can't shorten it; they must not lengthen it past the cap either.
-        assert.ok(withChecks.answered <= without.answered && withChecks.answered <= 17, `${withChecks.answered} questions with the checks, ${without.answered} without`);
+        // On the 15-question paper every spine topic is asked once, so a check can't replace one: it is an extra
+        // follow-up (remediation Phase 2). It may add at most two questions, never past the 17-question cap.
+        assert.ok(withChecks.answered <= without.answered + 2 && withChecks.answered <= 17, `${withChecks.answered} questions with the checks, ${without.answered} without`);
       });
     }
 
@@ -397,7 +398,9 @@ describe("factorisation persona evaluation — deterministic wiring and policy i
       const persona = PERSONA_CATALOGUE.find((p) => p.id === "P05_NEGATIVE_SIGN_ERROR")!;
       const { view } = await playPersona(service, persona, "demo_persona_p05_checks");
       const session = internal(service, view.sessionId);
-      const shown = session.audits.map((a: LotusQuestionAudit) => a.question).filter((q: LotusQuestionAudit["question"]) => (q.answerKey.diagnostics?.slot ?? 0) >= CHECK_SLOT_BASE);
+      // A short check is either on a check slot (100 and up) or, on the 15-question paper, a .5 follow-up built from a check spec.
+      const shown = session.audits.map((a: LotusQuestionAudit) => a.question).filter((q: LotusQuestionAudit["question"]) =>
+        (q.answerKey.diagnostics?.slot ?? 0) >= CHECK_SLOT_BASE || /\(short check\)$/.test(String(q.purpose ?? "")));
       assert.ok(shown.length >= 1, "at least one short foundation check was asked");
       for (const q of shown) {
         assert.equal(q.answerKey.diagnostics?.origin, "CODE");

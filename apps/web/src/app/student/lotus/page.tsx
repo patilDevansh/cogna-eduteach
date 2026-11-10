@@ -1686,7 +1686,8 @@ function LotusPage() {
   // Only sizes the pond map. The plan's length changes as Lotus adapts, so it
   // is never shown to the student as "of N". Don't derive it from the
   // currently exposed/prefetched list: later questions may still be generating.
-  const totalQuestions = session?.preparation?.totalQuestions ?? 15;
+  // The API counts only questions that will be asked (15 + follow-ups, at most 17); never show fewer than the current number.
+  const totalQuestions = Math.max(shownQuestionNumber, session?.preparation?.totalQuestions ?? 15);
   const inputLocked = busy || Boolean(pendingSubmission) || supportPaused || awaitConfidence || Boolean(session?.developerExitPrompt);
   const promptLines = question
     ? studentFacingPrompt(question.prompt, Boolean(question.options?.length))

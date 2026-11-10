@@ -1994,7 +1994,37 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       reason: `${skillName(e.skillId)} was right once; a different representation of the same skill can confirm transfer rather than one memorized shape.`,
     });
   }
-  return actions;
+  return isSpinePaper(state) ? keepSpineIntact(state, actions, frozenNext ?? state.planTurn) : actions;
+}
+
+/**
+ * The 15-question paper asks each spine slot exactly once, in tier order (remediation Phase 2).
+ * Nothing may skip a spine turn or put another question in its place: a re-check or a step down
+ * becomes a follow-up inserted after the staged question (at most two a session), and widening or
+ * avoiding is left out. Follow-up turns are extra, so they may still be changed.
+ */
+export function keepSpineIntact(state: FactorisationState, actions: PlanAction[], afterTurn: number): PlanAction[] {
+  const isFollowUp = (turn: number) => state.turns.find((t) => t.turn === turn)?.isElasticProbe === true;
+  let followUps = state.turns.filter((t) => t.isElasticProbe).length + actions.filter((a) => a.kind === "INSERT_ELASTIC_PROBE").length;
+  const kept: PlanAction[] = [];
+  for (const action of actions) {
+    if (action.kind === "INSERT_ELASTIC_PROBE" || isFollowUp(action.turn)) { kept.push(action); continue; }
+    if (action.kind !== "REPURPOSE" || (action.purpose !== "CHECK" && action.purpose !== "DESCENT")) continue;
+    const spec = action.spec ?? checkSpecFor(action.forSkill);
+    if (!spec || followUps >= 2 || state.planTurn < 1) continue;
+    const after = state.turns.find((t) => t.turn === afterTurn);
+    const parentSlot = after?.isElasticProbe ? (after.parentSlot ?? Math.floor(after.slot)) : Math.floor(after?.slot ?? afterTurn);
+    if (state.turns.some((t) => t.isElasticProbe && t.parentSlot === parentSlot)) continue;
+    if (kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE")) continue;
+    followUps += 1;
+    kept.push({
+      kind: "INSERT_ELASTIC_PROBE", turn: afterTurn + 1, afterTurn, spec, purpose: action.purpose, forSkill: action.forSkill,
+      parentSlot, probeSlot: parentSlot + 0.5,
+      reason: `Follow-up inserted after Q${afterTurn} so no spine topic is dropped. ${action.reason}`,
+      ...(action.targetMistake ? { targetMistake: action.targetMistake } : {}),
+    });
+  }
+  return kept;
 }
 
 /**
