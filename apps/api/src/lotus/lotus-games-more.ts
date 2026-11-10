@@ -68,8 +68,7 @@ export function orderStepCards(question: LotusQuestion): { texts: string[]; role
   const parsed = [parseLinear(m[1]!), parseLinear(m[2]!)];
   if (!parsed[0] || !parsed[1] || parsed[0].v === parsed[1].v) return null;
   // F is the factor whose number is negative (the second pair then starts with a minus); B is the common bracket.
-  const fIndex = parsed[1].c0 < 0 ? 1 : parsed[0].c0 < 0 ? 0 : -1;
-  if (fIndex < 0) return null;
+  const fIndex = parsed[1].c0 < 0 ? 1 : parsed[0].c0 < 0 ? 0 : 1;
   const F = parsed[fIndex]!;
   const B = parsed[1 - fIndex]!;
   if (F.c1 < 0 || B.c1 < 0) return null;
@@ -78,13 +77,15 @@ export function orderStepCards(question: LotusQuestion): { texts: string[]; role
   const bTxt = poly([[B.c1, w], [B.c0, ""]]);
   const bFlip = poly([[B.c1, w], [-B.c0, ""]]);
   const fu = `${F.c1 === 1 ? "" : F.c1}${u}`;
+  const sign = F.c0 < 0 ? "-" : "+";
+  const opposite = F.c0 < 0 ? "+" : "-";
   const cards: Array<[string, string]> = [
-    ["L1", `(${pair1}) - (${poly([[abs0 * B.c1, w], [abs0 * B.c0, ""]])})`],
-    ["L2", `${fu}(${bTxt}) - ${abs0}(${bTxt})`],
-    ["L3", `(${bTxt})(${fu} - ${abs0})`],
-    ["D1", `(${pair1}) - (${poly([[abs0 * B.c1, w], [-abs0 * B.c0, ""]])})`],
-    ["D2", `${fu}(${bTxt}) - ${abs0}(${bFlip})`],
-    ["D3", `(${bTxt})(${fu} + ${abs0})`],
+    ["L1", `(${pair1}) ${sign} (${poly([[abs0 * B.c1, w], [abs0 * B.c0, ""]])})`],
+    ["L2", `${fu}(${bTxt}) ${sign} ${abs0}(${bTxt})`],
+    ["L3", `(${bTxt})(${fu} ${sign} ${abs0})`],
+    ["D1", `(${pair1}) ${sign} (${poly([[abs0 * B.c1, w], [-abs0 * B.c0, ""]])})`],
+    ["D2", `${fu}(${bTxt}) ${sign} ${abs0}(${bFlip})`],
+    ["D3", `(${bTxt})(${fu} ${opposite} ${abs0})`],
   ];
   // Every claim re-derived: the three sound steps equal the expression, the three slips do not.
   if (!cards.every(([role, text]) => equalSafe(text, d.expression!) === role.startsWith("L"))) return null;

@@ -20,6 +20,7 @@ apps/web/public/generated-videos/*.mov
 # Private release planning and local coordination; this repository is public.
 /delivery/december-2026/
 apps/web/.next-review-*/
+apps/web/.next-remediation-build/
 
 # Local working folders: private plans, an unrelated course project, logs and screenshots.
 /output/

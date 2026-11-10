@@ -1,4 +1,5 @@
 import { assertInteractionContext, assertSameInteractionSubmission } from "../learning-evidence/interaction-context";
+import { adaptPromptForBoard } from "./lotus-factorisation-catalogue";
 import type { ClassroomEventsService } from "../classrooms/classroom-events";
 import {
   BadRequestException,
@@ -70,7 +71,7 @@ import { themedGamesEnabled } from "./lotus-game-core";
 import { buildReasonCheck, needsReasonCheck, reasonEvidence } from "./lotus-reasons";
 import { codeGameProbeFor } from "./lotus-game-probes";
 import { codeProbeFor } from "./lotus-probes";
-import { isCheckSpec } from "./lotus-skill-checks";
+import { checkSpecFor, isCheckSpec } from "./lotus-skill-checks";
 import {
   curriculumFor,
   skillName,
@@ -589,7 +590,10 @@ function factorisationOpeningExpression(sessionId: string, alreadyUsed: Readonly
 
 /** The plan slot a turn came from, in the session's own topic. */
 function slotSpec(f: FactorisationSession, slot: number) {
-  return curriculumFor(f.state.topic).slots.find((candidate) => candidate.slot === slot);
+  const slots = curriculumFor(f.state.topic).slots;
+  const turn = f.state.turns.find((candidate) => candidate.slot === slot);
+  if (turn?.isElasticProbe && turn.forSkill) return slots.find((candidate) => candidate.skillId === turn.forSkill) ?? checkSpecFor(turn.forSkill);
+  return slots.find((candidate) => candidate.slot === slot);
 }
 
 /** Factorisation opens on a fresh common-factor expression per session; other topics open on slot 1 as written. */
@@ -818,6 +822,7 @@ export function workingPromptFor(studentId: string, env: NodeJS.ProcessEnv = pro
 
 function publicCopy(session: LotusSessionState): LotusSessionView {
   const clone = structuredClone(session);
+  if (clone.currentQuestion) clone.currentQuestion.prompt = adaptPromptForBoard(clone.currentQuestion.prompt, clone.board);
   delete clone.developmentExitControl;
   const upcoming: LotusQuestion[] = [];
   if (clone.status === "ACTIVE" && clone.factorisation) {
@@ -855,7 +860,7 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
   delete clone.coveragePlan;
   delete clone.authorizedVariants;
   delete clone.preferredFuture;
-  clone.upcomingQuestions = upcoming;
+  clone.upcomingQuestions = upcoming.map(question => ({ ...question, prompt: adaptPromptForBoard(question.prompt, clone.board) }));
   if (clone.status === "COMPLETE") {
     // Input receipts are observer-only, including after the diagnostic ends.
     clone.audits = clone.audits.map((audit) => ({ ...audit, reviewInputFields: undefined, reviewMode: undefined }));
@@ -1023,10 +1028,10 @@ export class LotusService implements OnModuleDestroy {
    * second tab, a new phone) returns that session where it was left, finished
    * or not, instead of opening a fresh test from question one.
    */
-  async start(studentId: string, topic: LotusTopic = "FACTORISATION", classroomAssignmentId?: string): Promise<LotusSessionView> {
+  async start(studentId: string, topic: LotusTopic = "FACTORISATION", classroomAssignmentId?: string, board: "CBSE" | "ICSE" | "IGCSE" = "CBSE"): Promise<LotusSessionView> {
     this.models.assertReady();
     const owned = await this.ownAssignment(studentId, classroomAssignmentId);
-    if (!owned) return this.startNew(studentId, topic);
+    if (!owned) return this.startNew(studentId, topic, undefined, board);
     const assignmentId = owned.id;
     // Two tabs opening at once must not both miss the lookup and each start a session.
     const starting = this.startingForAssignment.get(assignmentId);
@@ -1038,14 +1043,14 @@ export class LotusService implements OnModuleDestroy {
         orderBy: { startedAt: "desc" },
         select: { sessionId: true },
       });
-      return existing ? this.get(existing.sessionId) : this.startNew(studentId, topic, assignmentId);
+      return existing ? this.get(existing.sessionId) : this.startNew(studentId, topic, assignmentId, board);
     })().finally(() => this.startingForAssignment.delete(assignmentId));
     this.startingForAssignment.set(assignmentId, task);
     return task;
   }
 
-  private async startNew(studentId: string, topic: LotusTopic, assignmentId?: string): Promise<LotusSessionView> {
-    if (isPlannedLotusTopic(topic)) return this.startFactorisation(studentId, topic, await this.catchUpFocus(studentId, assignmentId), assignmentId);
+  private async startNew(studentId: string, topic: LotusTopic, assignmentId?: string, board: "CBSE" | "ICSE" | "IGCSE" = "CBSE"): Promise<LotusSessionView> {
+    if (isPlannedLotusTopic(topic)) return this.startFactorisation(studentId, topic, await this.catchUpFocus(studentId, assignmentId), assignmentId, board);
     const startedAt = new Date().toISOString();
     const coveragePlan = buildLotusCoveragePlan(studentId).map(withQuestionId);
     const question = coveragePlan[0]!;
@@ -1080,7 +1085,7 @@ export class LotusService implements OnModuleDestroy {
       studentId,
       ...(assignmentId ? { classroomAssignmentId: assignmentId } : {}),
       grade: 8,
-      board: "CBSE",
+      board,
       status: "ACTIVE",
       experimental: true,
       workingPrompt: workingPromptFor(studentId),
@@ -1740,7 +1745,7 @@ export class LotusService implements OnModuleDestroy {
     slot.debate = analysis.debate;
     slot.conclusion = analysis.conclusion;
     slot.stageAgreement = analysis.stageAgreement;
-    slot.timingMs = analysis.timingMs;
+    slot.timingMs = { ...analysis.timingMs, ...(slot.timingMs?.instantVerdict !== undefined ? { instantVerdict: slot.timingMs.instantVerdict } : {}) };
     slot.analysisStatus = "COMPLETE";
     slot.analysisSource = "AI_REVIEW";
     slot.reviewInputFields = analysis.reviewInputFields;
@@ -2338,7 +2343,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     return Array.isArray(skills) && skills.every((s) => typeof s === "string") && skills.length ? skills as string[] : undefined;
   }
 
-  private async startFactorisation(studentId: string, topic: LotusPlannedTopic = "FACTORISATION", focusSkills?: string[], classroomAssignmentId?: string): Promise<LotusSessionView> {
+  private async startFactorisation(studentId: string, topic: LotusPlannedTopic = "FACTORISATION", focusSkills?: string[], classroomAssignmentId?: string, board: "CBSE" | "ICSE" | "IGCSE" = "CBSE"): Promise<LotusSessionView> {
     const catchUp = focusSkills ? catchUpSlots(topic, focusSkills) : [];
     const plan = catchUp.length ? catchUp : curriculumFor(topic).slots;
     const focus = catchUp.length ? [...new Set(focusSkills)].filter((id) => catchUp.some((s) => s.skillId === id)) : undefined;
@@ -2388,7 +2393,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       studentId,
       ...(classroomAssignmentId ? { classroomAssignmentId } : {}),
       grade: 8,
-      board: "CBSE",
+      board,
       topic,
       ...(focus ? { catchUp: { skills: focus.map(skillName) } } : {}),
       ...(priors.length ? { priors } : {}),
@@ -2590,6 +2595,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     if (this.models.activeOutage) return;
     const result = await this.factory.write({
       ...job.request,
+      board: session.board,
       variation: `${job.request.variation ?? sessionId}:attempt${job.retryCount ?? 0}`,
       avoid: this.testPrints(session, job.turn),
     });
@@ -2629,6 +2635,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       const candidate = structuredClone(row.question) as unknown as Omit<LotusQuestion, "id">;
       const diagnostics = candidate.answerKey?.diagnostics;
       if (diagnostics?.origin !== "AI") continue;
+      if (diagnostics.slot !== job.request.spec.slot || diagnostics.itemKind !== job.request.spec.kind) continue;
       const print = questionPrint(candidate);
       if (existingPrints.has(print)) continue;
       // A historic item is treated exactly like a new writer response: it
@@ -2780,9 +2787,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     // leaves this unset so the student isn't asked every time.
     const planTurn = f.state.turns.find((candidate) => candidate.turn === job.turn);
     // A follow-up keeps its follow-up label (parent slot + .5) whoever wrote it, so it never reads as a second spine question.
-    if (planTurn?.isElasticProbe && question.answerKey.diagnostics) {
+    if (planTurn && question.answerKey.diagnostics) {
       question.answerKey.diagnostics.slot = planTurn.slot;
-      Object.assign(question.answerKey.diagnostics, { isElasticProbe: true, parentSlot: planTurn.parentSlot });
+      if (planTurn.isElasticProbe) Object.assign(question.answerKey.diagnostics, { isElasticProbe: true, parentSlot: planTurn.parentSlot });
+      else {
+        delete question.answerKey.diagnostics.isElasticProbe;
+        delete question.answerKey.diagnostics.parentSlot;
+      }
     }
     question.requiresConfidenceProbe = planTurn?.purpose === "CHECK";
     // Some turns are answered as a tile game; marking is unchanged (see lotus-interactions.ts).
@@ -3021,6 +3032,8 @@ Create one materially different question that adds new diagnostic evidence. Test
       const slot = slots.at(i);
       const item = slot === undefined ? null : stretchQuestionFor(slot, session.board ?? "CBSE");
       if (!item) return;
+      // Catalogue slot identifies the stretch content; the issued item retains its paper position.
+      item.answerKey.diagnostics!.slot = turn.slot;
       const skillId = item.answerKey.diagnostics!.skillId;
       turn.status = "PLANNED";
       // A stretch question maps the ceiling; it is not a check of a suspicion.
@@ -3040,7 +3053,13 @@ Create one materially different question that adds new diagnostic evidence. Test
     // Stretch questions map the ceiling; later evidence never rewrites them.
     if (f.state.ceilingEscalated && (action.kind === "INSERT_ELASTIC_PROBE" || (f.versions[String(action.turn)] ?? []).some((item) => item.purpose === "STRETCH"))) return;
     if (action.kind === "INSERT_ELASTIC_PROBE") {
+      if (f.state.turns.filter((turn) => turn.isElasticProbe).length >= 2) return;
       insertElasticProbe(f.state, action);
+      const queue = this.writeQueues.get(session.sessionId);
+      if (queue) {
+        queue.pending = queue.pending.filter((job) => job.turn <= action.afterTurn);
+        queue.blockedTurns.clear();
+      }
       const newTurnNumber = action.afterTurn + 1;
       for (let t = f.state.turns.length; t > newTurnNumber; t--) {
         if (f.versions[String(t - 1)]) {
@@ -3074,7 +3093,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       } else {
         this.enqueueWrite(session.sessionId, {
           turn: newTurnNumber,
-          version: 0,
+          version: f.state.turns.find((turn) => turn.turn === newTurnNumber)!.version,
           request: {
             spec: action.spec,
             purpose: action.purpose === "DESCENT" ? "BASE" : action.purpose,
@@ -3146,7 +3165,10 @@ Create one materially different question that adds new diagnostic evidence. Test
     const f = session.factorisation!;
     const state = f.state;
     this.acknowledgeAdaptiveItemShown(session, state.planTurn, currentQuestion);
+    const verdictStarted = performance.now();
     const instant = instantVerdict(currentQuestion, response);
+    const verdictMs = performance.now() - verdictStarted;
+    this.logger.log(JSON.stringify({ event: "lotus.instantVerdict", sessionId: session.sessionId, questionId: currentQuestion.id, ms: verdictMs }));
     if (instant.fastSkip) state.fastSkips += 1;
 
     // Ceiling escalation is decided from this answer, but applied only once the answer and the
@@ -3255,7 +3277,7 @@ Create one materially different question that adds new diagnostic evidence. Test
       // A wrong answer code can't explain gets one "How did you get it?" tap instead of written working.
       ...(needsReasonCheck(currentQuestion, instant.verification?.status, instant.evidence, response.didNotKnow) ? { reasonCheck: buildReasonCheck(currentQuestion) } : {}),
       stageAgreement: null,
-      timingMs: null,
+      timingMs: { assessment: 0, debate: 0, closure: 0, total: verdictMs, instantVerdict: verdictMs },
       createdAt: new Date().toISOString(),
     };
     const turnIndex = session.audits.length;

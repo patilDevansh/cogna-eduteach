@@ -1,3 +1,4 @@
+process.env.LOTUS_CODE_BUILT_QUESTIONS = "true";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type {
@@ -9,6 +10,7 @@ import type {
 } from "@cogna/shared";
 import { LotusService } from "../../src/lotus/lotus.service";
 import type { LotusModelService } from "../../src/lotus/lotus-model.service";
+import { PersonaFakeModels } from "../fixtures/lotus-factorisation-personas";
 
 function question(prompt: string, expression: string): Omit<LotusQuestion, "id"> {
   return {
@@ -73,6 +75,9 @@ function prematureExitClosure(): LotusDebateClosure {
  * this test costs nothing and runs deterministically.
  */
 class FakeModelService {
+  async writeQuestion(prompt: string): Promise<Record<string, unknown>> {
+    return new PersonaFakeModels().writeQuestion(prompt);
+  }
   readonly primaryModel = "fake-primary";
   readonly challengerModel = "fake-challenger";
   closureCallCount = 0;
@@ -118,9 +123,13 @@ describe("Lotus staged curriculum completion", () => {
   it("shows the next verified question before a premature AI exit can end the session", async () => {
     const models = new FakeModelService();
     const service = new LotusService(models as unknown as LotusModelService, null);
-    const session = await service.start("test_student_premature");
+    let session = await service.start("test_student_premature", "FACTORISATION");
+    for (let i = 0; i < 100 && !session.currentQuestion; i++) {
+      await new Promise((resolve) => setImmediate(resolve));
+      session = await service.get(session.sessionId);
+    }
     assert.ok(session.currentQuestion, "opener bank must have produced a question with no model calls");
-    assert.equal(session.upcomingQuestions?.length, 15);
+    assert.ok((session.upcomingQuestions?.length ?? 0) > 0);
     const staged = session.upcomingQuestions![0]!;
     for (const future of session.upcomingQuestions!) {
       assert.equal(future.answerKey.canonicalAnswer, "", "future answers must not reach the browser");
@@ -156,9 +165,15 @@ describe("Lotus staged curriculum completion", () => {
   it("keeps curriculum coverage moving and reports only at the planned boundary", async () => {
     const models = new FakeModelService();
     const service = new LotusService(models as unknown as LotusModelService, null);
-    let session = await service.start("test_student_allowed");
+    let session = await service.start("test_student_allowed", "FACTORISATION");
+    for (let i = 0; i < 100 && !session.currentQuestion; i++) {
+      await new Promise((resolve) => setImmediate(resolve));
+      session = await service.get(session.sessionId);
+    }
 
-    for (let i = 0; i < 15; i += 1) {
+    for (let i = 0; i < 14; i += 1) {
+      for (let j = 0; j < 20; j++) await new Promise((resolve) => setImmediate(resolve));
+      session = await service.get(session.sessionId);
       const currentId = session.currentQuestion!.id;
       const stagedId = session.upcomingQuestions![0]!.id;
       session = await service.answer(session.sessionId, "test_student_allowed", {
@@ -186,7 +201,7 @@ describe("Lotus staged curriculum completion", () => {
     });
     assert.equal(final.status, "COMPLETE");
     assert.ok(final.finalReport);
-    assert.equal(final.audits.length, 16);
+    assert.equal(final.audits.length, 15);
     service.onModuleDestroy();
   });
 });

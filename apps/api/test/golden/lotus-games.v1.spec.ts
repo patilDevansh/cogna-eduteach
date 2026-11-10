@@ -37,6 +37,19 @@ const play = (q: LotusQuestion, game: unknown, extra: Partial<LotusStudentRespon
 const status = (q: LotusQuestion, r: LotusStudentResponse) => instantVerdict(q, r).verification.status;
 
 describe("Lotus themed games: issuing", () => {
+  it("reserves paper turns for order steps and four signs", () => {
+    const env = { LOTUS_THEMED_GAMES: "true" };
+    const grouping = question();
+    grouping.answerKey.diagnostics!.skillId = "FAC_GROUP_SIGN";
+    grouping.answerKey.diagnostics!.expression = "6xy - 4y - 9x + 6";
+    grouping.answerKey.canonicalAnswer = "(2y - 3)(3x - 2)";
+    assert.equal(chooseLotusGame(grouping, { turn: 10, repurposed: false }, env)?.kind, "ORDER_STEPS");
+    grouping.answerKey.diagnostics!.skillId = "FAC_GROUP_TERMS";
+    grouping.answerKey.diagnostics!.expression = "2xy + 2y + 3x + 3";
+    grouping.answerKey.canonicalAnswer = "(2y + 3)(x + 1)";
+    assert.equal(chooseLotusGame(grouping, { turn: 8, repurposed: false }, env)?.kind, "ORDER_STEPS");
+    assert.equal(chooseLotusGame(question(), { turn: 13, repurposed: false }, env)?.kind, "FOUR_SIGNS");
+  });
   it("builds all three games from the checked question and shows no answer", () => {
     const two = buildLotusGame(question(), "TWO_NUMBERS")!;
     assert.equal(two.kind, "TWO_NUMBERS");

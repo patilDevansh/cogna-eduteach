@@ -346,7 +346,7 @@ function Report({
         {isPlannedLotusTopic(session.topic) && session.audits.length > 0 && (
           <div className={styles.bloom}><ThemeFinish theme={theme} answered={session.audits.length} print={{ seed: session.sessionId, marks: printMarks(session.audits) }} /></div>
         )}
-        <p className={styles.eyebrow}>Your diagnostic report</p>
+        <p className={styles.eyebrow}>Your diagnostic report · {session.board}</p>
         <h1>{heading.title}</h1>
         <p className={styles.lede}>{heading.lede}</p>
         <div className={styles.stats}>
@@ -550,6 +550,7 @@ function Report({
                       {(s.ratingStatus ?? "").replace(/_/g, " ")}
                     </span>
                   </div>
+                  {s.evidence.filter(note => /retroactively cleared/i.test(note)).map(note => <p key={note} style={{ fontSize: "0.8rem", lineHeight: 1.5, marginBottom: 0 }}>{note}</p>)}
                 </div>
               );
             })}

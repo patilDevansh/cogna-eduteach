@@ -199,6 +199,7 @@ function controlledWrite(prompt: string): Record<string, unknown> {
     case "6xy - 4y - 9x + 6": return factor("4xy - 6y - 2x + 3", "(2y - 1)(2x - 3)", "FAC_GROUP_SIGN");
     case "Riya says x^2 - 5x + 6 = (x - 2)(x + 3). Is she right?": return choice("Riya says x^2 - 7x + 12 = (x - 3)(x - 4). Is she right?", "Yes; expanding gives x^2 - 7x + 12.", ["Yes; expanding gives x^2 - 7x + 12.", "No; it gives x^2 + 7x + 12.", "No; it gives x^2 - x - 12.", "Yes; the constants multiply to 7."], "FAC_VERIFY_EXPAND");
     case "What should you do first to factorise 3x^2 - 12?": return choice("What should you do first to factorise 5x^2 - 20?", "Take out the common factor 5.", ["Take out the common factor 5.", "Use difference of squares immediately.", "Divide every term by x.", "Add 20 to both sides."], "FAC_CHOOSE_METHOD");
+    case "2x^2 - 18":
     case "3x^2 - 12": return factor("5x^2 - 20", "5(x - 2)(x + 2)", "FAC_FACTOR_FULLY", [{ answer: "5(x^2 - 4)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
     case "2x^2 + 10x + 12": return factor("3x^2 + 15x + 18", "3(x + 2)(x + 3)", "FAC_FACTOR_FULLY", [{ answer: "3(x^2 + 5x + 6)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "SKIPPED_COMMON_FACTOR_CHECK" }]);
     case "x^4 - 16": return factor("x^4 - 81", "(x - 3)(x + 3)(x^2 + 9)", "FAC_FACTOR_FULLY", [{ answer: "(x^2 - 9)(x^2 + 9)", mistake: "INCOMPLETE_FACTORISATION" }, { answer: "1", mistake: "FACTORED_SUM_OF_SQUARES" }]);

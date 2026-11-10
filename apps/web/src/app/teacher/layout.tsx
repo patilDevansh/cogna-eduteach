@@ -14,6 +14,7 @@ const links = [
   ["Students", "/teacher/students"],
   ["AI Studio", "/teacher/ai-studio"],
   ["Reports", "/teacher/reports"],
+  ["Lotus summary", "/teacher/lotus-portfolio"],
   ["Pilot story", "/teacher/pilot-story"],
 ];
 

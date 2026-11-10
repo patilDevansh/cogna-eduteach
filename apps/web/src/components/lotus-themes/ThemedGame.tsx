@@ -322,6 +322,7 @@ function TwoMoves({ theme, game, disabled, onChange }: { theme: LotusTheme; game
         <div className={styles.moves}>
           <div className={styles.moveCard}>
             <span className={styles.moveLabel}>{words.move1}</span>
+            <p>Include the signs in these numbers. For x² − 11x + 24, enter −3 and −8, then keep those same signs in the brackets.</p>
             <div className={styles.steppers}>
               <Stepper label={words.first} value={numbers.n1} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n1: v }))} />
               <Stepper label={words.second} value={numbers.n2} range={game.range} disabled={disabled} onChange={(v) => setNumbers((c) => ({ ...c, n2: v }))} />

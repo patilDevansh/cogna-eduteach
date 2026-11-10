@@ -1,5 +1,7 @@
 # Cogna 10.0
 
+Lotus maintenance (10 November 2026): report evidence qualification, board terminology, teacher portfolio access and diagnostic paper ordering are undergoing local verification. Browser acceptance and the complete regression suite remain open; see `docs/audits/phase-2.md` and `phase-3.md` for observed results.
+
 Production classroom orchestration is the active engineering era. The canonical contract is [`../docs/mvp-10.0/README.md`](../docs/mvp-10.0/README.md).
 
 3 November 2026: Signed-in teachers can open AI Studio from their workspace to inspect saved Lotus diagnostic evidence for currently owned, actively enrolled classes. The local demo teacher can inspect standalone demo diagnostics in development only. This is an observer view, not a diagnostic-quality or learning-efficacy claim.

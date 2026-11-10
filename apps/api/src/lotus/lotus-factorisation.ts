@@ -68,6 +68,7 @@ import {
   skillsUsedBy,
   SOFT_PREREQUISITES,
   FACTORISATION_STRETCH_SLOTS,
+  FACTORISATION_SLOTS,
 } from "./lotus-factorisation-catalogue";
 import { checkSpecFor } from "./lotus-skill-checks";
 import { SHARED_PATTERNS } from "./lotus-skill-map";
@@ -818,6 +819,10 @@ export function calculateSkillRating(
   audits: LotusQuestionAudit[] = [],
   curriculum?: Curriculum,
 ): { rating: LotusCompetencyRating; ratingStatus: LotusCompetencyStatus } | undefined {
+  const answeredEvidence = audits.some((audit) => audit.response && !audit.response.didNotKnow &&
+    (audit.question?.answerKey?.diagnostics?.skillId === entry.skillId ||
+      (audit.skillEvidence ?? []).some((e) => e.skillId === entry.skillId)));
+  if (!answeredEvidence) return undefined;
   // 1. Untested skill with zero evidence: leave rating undefined per contract
   const hasEvidence =
     entry.notes.length > 0 ||
@@ -911,35 +916,35 @@ export const RETROACTIVE_CLEARANCE_RULES: RetroactiveClearanceRule[] = [
     compositeSkillId: "FAC_GROUP_SIGN",
     prerequisiteSkillId: "FAC_GCF_NEGATIVE",
     eligibleMistakes: ["KEPT_ORIGINAL_SIGNS", "FLIPPED_ONE_SIGN"],
-    expressionValidator: (expr: string) => /-\s*\d*x\s*\+\s*\d+/.test(expr) || /-\s*\d+[a-z]\s*[+-]\s*\d+/.test(expr) || expr.includes("-"),
+    expressionValidator: (expr: string) => /^\d*[a-z]{2}\s*[+-]\s*\d*[a-z]\s*-\s*\d*[a-z]\s*[+-]\s*\d+$/.test(expr.replace(/−/g, "-").trim()),
   },
   // 2. 4-Term Grouping with negative pair clears Signed Mul/Div
   {
     compositeSkillId: "FAC_GROUP_SIGN",
     prerequisiteSkillId: "FND_SIGN_MUL_DIV",
     eligibleMistakes: ["SIGN_PRODUCT_ERROR", "ADDED_INSTEAD", "SIGN_PAIR_ERROR"],
-    expressionValidator: (expr: string) => expr.includes("-"),
+    expressionValidator: (expr: string) => /^\d*[a-z]{2}\s*[+-]\s*\d*[a-z]\s*-\s*\d*[a-z]\s*[+-]\s*\d+$/.test(expr.replace(/−/g, "-").trim()),
   },
   // 3. Monic Trinomial with mixed/negative signs clears Product-Sum Pair Search
   {
     compositeSkillId: "FAC_MONIC_TRINOMIAL",
     prerequisiteSkillId: "FAC_PAIR_PRODUCT_SUM",
     eligibleMistakes: ["SIGN_PAIR_ERROR", "WRONG_FACTOR_PAIR_SUM", "PRODUCT_SUM_SWAPPED"],
-    expressionValidator: (expr: string) => /-\s*\d*x/.test(expr) || /-\s*\d+$/.test(expr.trim()) || expr.includes("-"),
+    expressionValidator: (expr: string) => /^[a-z](?:\^2|²)\s*(?:-\s*\d*[a-z]\s*[+-]\s*\d+|\+\s*\d*[a-z]\s*-\s*\d+)$/.test(expr.replace(/−/g, "-").trim()),
   },
   // 4. Monic Trinomial with negative constant clears Signed Mul/Div & Add/Sub
   {
     compositeSkillId: "FAC_MONIC_TRINOMIAL",
     prerequisiteSkillId: "FND_SIGN_MUL_DIV",
     eligibleMistakes: ["SIGN_PRODUCT_ERROR", "SIGN_PAIR_ERROR"],
-    expressionValidator: (expr: string) => /-\s*\d+$/.test(expr.trim()) || expr.includes("-"),
+    expressionValidator: (expr: string) => /^[a-z](?:\^2|²)\s*[+-]\s*\d*[a-z]\s*-\s*\d+$/.test(expr.replace(/−/g, "-").trim()),
   },
   // 5. Perfect Square with Minus clears Signed Mul/Div
   {
     compositeSkillId: "FAC_PERFECT_SQUARE_MINUS",
     prerequisiteSkillId: "FND_SIGN_MUL_DIV",
     eligibleMistakes: ["SIGN_PRODUCT_ERROR", "WRONG_MIDDLE_SIGN"],
-    expressionValidator: (expr: string) => expr.includes("-"),
+    expressionValidator: (expr: string) => /^\d*[a-z](?:\^2|²)\s*-\s*\d*[a-z]{1,2}\s*\+\s*\d+(?:[a-z](?:\^2|²))?$/.test(expr.replace(/−/g, "-").trim()),
   },
 ];
 
@@ -949,6 +954,8 @@ export function applySarahRetroactiveClearance(audits: LotusQuestionAudit[], led
     const q = i + 1;
     if (audit.verification?.status !== "VERIFIED_CORRECT") continue;
     if (audit.response?.didNotKnow) continue;
+    const gameEffect = audit.response?.gameReading?.diagnosis?.effect;
+    if (gameEffect && gameEffect !== "SECURE") continue;
     const hasHedge = (audit.skillEvidence ?? []).some((ev) => ev.hedge);
     if (hasHedge) continue;
 
@@ -961,10 +968,12 @@ export function applySarahRetroactiveClearance(audits: LotusQuestionAudit[], led
 
       const prereqEntry = ledger.get(rule.prerequisiteSkillId);
       if (!prereqEntry) continue;
-      if (prereqEntry.state !== "SUSPECTED" && prereqEntry.state !== "CONFIRMED") continue;
+      if (prereqEntry.state !== "SUSPECTED" && prereqEntry.state !== "CONFIRMED" &&
+        !(prereqEntry.state === "SECURE" && prereqEntry.clearedAfterSlip !== undefined && !prereqEntry.retroactivelyCleared)) continue;
 
       const lastMistakeTurn = Math.max(
         prereqEntry.confirmedAt ?? 0,
+        prereqEntry.clearedAfterSlip ?? 0,
         prereqEntry.suspectedAt ?? 0,
         ...(prereqEntry.sightings ?? []).filter((s) => s.how === "mistake").map((s) => s.q),
       );
@@ -1263,7 +1272,11 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         // A re-check is settled only by a question aimed at the skill itself,
         // not by one where it is a single step among others.
         const direct = audit.question?.answerKey?.diagnostics?.skillId === skillId;
-        if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
+        if (e.state === "SUSPECTED" && audit.response?.gameReading?.diagnosis?.effect === "NEEDS_ANOTHER") {
+          e.needsComparableCheck = true;
+          if (sightingsOfLatest(e).length >= 2 && e.shakyRightAt === undefined) e.shakyRightAt = q;
+          e.notes.push(`Q${q}: assisted success; an independent answer is still needed to settle the earlier concern`);
+        } else if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
           isWeakerCheck(audits[e.suspectedAt - 1], audit, skillId)) {
           e.needsComparableCheck = true;
           e.notes.push(`Q${q}: right on a weaker check; the ${e.suspectedAt ? `concern from Q${e.suspectedAt}` : "earlier concern"} needs a comparable independent check`);
@@ -1662,7 +1675,8 @@ export function untestedSkillsLeft(topic: LotusPlannedTopic | undefined, ledger:
 
 export function planAdjustments(input: PlanInput): PlanAction[] {
   const { state, ledger, itemAt } = input;
-  const slots = curriculumFor(state.topic).slots;
+  const slots = (!state.topic || state.topic === "FACTORISATION") && !isSpinePaper(state)
+    ? FACTORISATION_SLOTS : curriculumFor(state.topic).slots;
   const actions: PlanAction[] = [];
   const frozenNext = input.freezeNext === false ? state.planTurn : nextOpenTurn(state, state.planTurn);
   const askedSlots = new Set(
@@ -2005,10 +2019,17 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
  */
 export function keepSpineIntact(state: FactorisationState, actions: PlanAction[], afterTurn: number): PlanAction[] {
   const isFollowUp = (turn: number) => state.turns.find((t) => t.turn === turn)?.isElasticProbe === true;
-  let followUps = state.turns.filter((t) => t.isElasticProbe).length + actions.filter((a) => a.kind === "INSERT_ELASTIC_PROBE").length;
+  let followUps = state.turns.filter((t) => t.isElasticProbe).length;
   const kept: PlanAction[] = [];
   for (const action of actions) {
-    if (action.kind === "INSERT_ELASTIC_PROBE" || isFollowUp(action.turn)) { kept.push(action); continue; }
+    if (action.kind === "INSERT_ELASTIC_PROBE") {
+      if (followUps >= 2 || kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE") ||
+        state.turns.some((t) => t.isElasticProbe && t.parentSlot === action.parentSlot)) continue;
+      followUps += 1;
+      kept.push(action);
+      continue;
+    }
+    if (isFollowUp(action.turn)) { kept.push(action); continue; }
     if (action.kind !== "REPURPOSE" || (action.purpose !== "CHECK" && action.purpose !== "DESCENT")) continue;
     const spec = action.spec ?? checkSpecFor(action.forSkill);
     if (!spec || followUps >= 2 || state.planTurn < 1) continue;
@@ -2046,11 +2067,13 @@ export function insertElasticProbe(
   const afterTurn = input.afterTurn;
   const newTurnNumber = afterTurn + 1;
   const probeSlot = input.probeSlot ?? input.parentSlot + 0.5;
+  const generation = Math.max(0, ...state.turns.map((t) => t.version)) + 1;
 
   // Shift all future turns > afterTurn by +1
   for (const t of state.turns) {
     if (t.turn > afterTurn) {
       t.turn += 1;
+      t.version = generation;
     }
   }
 
@@ -2061,7 +2084,7 @@ export function insertElasticProbe(
     purpose: input.purpose ?? "CHECK",
     forSkill: input.spec.skillId,
     reason: input.reason ?? `Elastic runway probe inserted after Q${afterTurn} to isolate ambiguous slip on ${skillName(input.spec.skillId)} without pruning downstream topics.`,
-    version: 0,
+    version: generation,
     isElasticProbe: true,
     parentSlot: input.parentSlot,
     probeLabel: `Q${input.parentSlot}.5`,
@@ -2264,6 +2287,17 @@ export function calculateStartingZone(
     };
   }
 
+  const coreSkills = [...new Set((curriculum ?? curriculumFor("FACTORISATION")).slots.map((slot) => slot.skillId))];
+  const allCoreFluent = coreSkills.every((id) => ratedEntries.some((r) => r.entry.skillId === id && r.rating.rating >= 4));
+  if (!allCoreFluent) {
+    return {
+      moduleId: "MOD_FACT_QUADRATICS",
+      moduleName: "Factorisation Evidence Check",
+      scaffoldingLevel: "STEPPED_SCAFFOLDING",
+      rationale: "No confirmed gap remains, but some core skills need more independent evidence before choosing advanced work. Begin with fresh checks of the uncertain or untested skills.",
+      microInterventions: ["Ask fresh independent questions on uncertain and untested skills before assigning remediation or stretch work."],
+    };
+  }
   // Case 4: Independent Mastery (All core skills fluent, ratings 4-5)
   microInterventions.push(
     "Non-monic splitting middle term warmup: 6x² - 11x - 10 (5 mins)",
@@ -2397,7 +2431,9 @@ export function buildFactorisationReport(args: {
       return {
         skillId: e.skillId,
         name: skillName(e.skillId),
-        state: e.state === "SECURE" && !secureIds.has(e.skillId) ? ("OBSERVED" as const) : e.state,
+        state: !ratingResult && (args.audits?.length ?? 0) > 0 ? ("UNTESTED" as const)
+          : e.state === "UNTESTED" || (e.state === "SECURE" && (!secureIds.has(e.skillId) || (ratingResult?.rating ?? 0) < 4))
+            ? ("OBSERVED" as const) : e.state,
         rating: ratingResult?.rating,
         ratingStatus: ratingResult?.ratingStatus,
         evidence: e.notes,
@@ -2510,7 +2546,7 @@ export const MIN_ANSWERS_FOR_EARLY_STOP = 8;
  * or a short plan built directly (tests and focused checks). Legacy 25-slot sessions keep the old rules.
  */
 export function elasticRunwayApplies(state: Pick<FactorisationState, "paper" | "turns">): boolean {
-  return state.paper === "SPINE_15" || state.turns.length <= 17;
+  return state.paper === "SPINE_15";
 }
 
 /** The canonical 15-question paper (see FactorisationState.paper). */

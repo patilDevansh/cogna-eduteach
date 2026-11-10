@@ -68,8 +68,6 @@ export function assertStudentAccess(actor: WebApiActor, studentId: string, schoo
     return;
   }
   if (actor.studentId !== studentId) {
-    const isDemoLike = (id?: string) => Boolean(id && (id.startsWith("demo_") || id.startsWith("dev_")));
-    if (process.env.NODE_ENV !== "production" && isDemoLike(actor.studentId) && isDemoLike(studentId)) return;
     throw Object.assign(new Error("This record belongs to a different student."), { status: 403 });
   }
 }

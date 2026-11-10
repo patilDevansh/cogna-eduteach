@@ -1,5 +1,7 @@
 # Build plan
 
+10 November 2026 Lotus maintenance: implement evidence-qualified ratings/clearance notes, board-aware sessions, rated classroom summaries, bounded follow-ups and stable paper slots. Acceptance remains open until fresh HTTP/browser gates and regression checks pass.
+
 ## Teacher AI Studio access — 3 November 2026
 
 - [x] Add teacher workspace entry and saved Lotus diagnostic list, with answer, evidence, uncertainty, decision and report details.

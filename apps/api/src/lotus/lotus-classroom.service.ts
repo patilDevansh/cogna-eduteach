@@ -27,6 +27,9 @@ export function calculateClassroomPortfolio(params: {
 }): LotusClassroomPortfolio {
   const { classroomId, totalEnrolled, studentReports } = params;
   const completedTests = studentReports.length;
+  const ratedReports = studentReports.filter(({ report }) => (report.skills ?? []).some(
+    ({ rating }) => typeof rating === "number" && Number.isInteger(rating) && rating >= 1 && rating <= 5,
+  ));
 
   if (completedTests === 0) {
     return {
@@ -66,6 +69,7 @@ export function calculateClassroomPortfolio(params: {
 
   for (const [skillId, meta] of skillMap.entries()) {
     const ratings = meta.ratings;
+    if (ratings.length === 0) continue;
     const criticalCount = ratings.filter((r) => r === 1 || r === 2).length;
     const emergingCount = ratings.filter((r) => r === 3).length;
     const fluentCount = ratings.filter((r) => r === 4 || r === 5).length;
@@ -75,9 +79,9 @@ export function calculateClassroomPortfolio(params: {
         ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 10) / 10
         : 0;
 
-    const criticalPercent = Math.round((criticalCount / completedTests) * 100);
-    const emergingPercent = Math.round((emergingCount / completedTests) * 100);
-    const fluentPercent = Math.round((fluentCount / completedTests) * 100);
+    const criticalPercent = Math.round((criticalCount / ratings.length) * 100);
+    const emergingPercent = Math.round((emergingCount / ratings.length) * 100);
+    const fluentPercent = Math.round((fluentCount / ratings.length) * 100);
 
     skills.push({
       skillId,
@@ -114,7 +118,7 @@ export function calculateClassroomPortfolio(params: {
   let studentEmerging = 0;
   let studentFluent = 0;
 
-  for (const entry of studentReports) {
+  for (const entry of ratedReports) {
     const studentRatings = (entry.report.skills ?? [])
       .map((s) => s.rating)
       .filter((r): r is LotusCompetencyRating => typeof r === "number");
@@ -128,17 +132,20 @@ export function calculateClassroomPortfolio(params: {
     }
   }
 
-  const fluentPct = Math.round((studentFluent / completedTests) * 100);
-  const emergingPct = Math.round((studentEmerging / completedTests) * 100);
-  const criticalPct = Math.round((studentCritical / completedTests) * 100);
+  const fluentPct = Math.round((studentFluent / (ratedReports.length || 1)) * 100);
+  const emergingPct = Math.round((studentEmerging / (ratedReports.length || 1)) * 100);
+  const criticalPct = Math.round((studentCritical / (ratedReports.length || 1)) * 100);
 
   const briefParts: string[] = [];
   briefParts.push(`${completedTests} of ${totalEnrolled} enrolled students have completed the diagnostic.`);
+  briefParts.push(`${ratedReports.length} students have rated results. Skill percentages use only students rated on that skill; overall bands classify each rated student once by their lowest rating.`);
   briefParts.push(
     `Overall distribution: ${studentFluent} fluent (${fluentPct}%), ${studentEmerging} emerging (${emergingPct}%), and ${studentCritical} critical (${criticalPct}%).`,
   );
 
-  if (wholeClassFocusAreas.length > 0) {
+  if (ratedReports.length === 0) {
+    briefParts.push("There is not enough rated evidence yet to recommend whole-class instruction or stretch work.");
+  } else if (wholeClassFocusAreas.length > 0) {
     briefParts.push(`Whole-class focus should center on: ${wholeClassFocusAreas.join(", ")}.`);
     briefParts.push(
       `Recommended next step: Dedicate 10–15 minutes of whole-class instruction to ${wholeClassFocusAreas[0]} before advancing to independent practice.`,

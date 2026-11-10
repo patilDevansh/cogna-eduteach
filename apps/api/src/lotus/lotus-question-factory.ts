@@ -23,6 +23,7 @@ import {
 type Item = Omit<LotusQuestion, "id">;
 
 export interface WriteRequest {
+  board?: "CBSE" | "ICSE" | "IGCSE";
   spec: SlotSpec;
   purpose: "BASE" | "CHECK" | "AVOID";
   /** Per-session nonce so the model cannot deterministically replay the same opener across sessions. */
@@ -58,7 +59,7 @@ function makerPrompt(req: WriteRequest): string {
   const isFactorisation = !curriculum || curriculum.topic === "FACTORISATION";
   const minWrong = Math.min(2, spec.mistakes.length);
   const lines = [
-    `You write ONE diagnostic maths question for a Grade 8 CBSE student taking a ${topicName} diagnostic.`,
+    `You write ONE diagnostic maths question for a Grade 8 ${req.board ?? "CBSE"} student taking a ${topicName} diagnostic. Use ${req.board === "IGCSE" ? "GCF and factorisation by grouping" : req.board === "ICSE" ? "HCF and grouping method" : "HCF and regrouping terms"} terminology.`,
     "",
     `Skill tested: ${spec.skillId} — ${skillName(spec.skillId)}`,
     `Difficulty: ${spec.level}`,

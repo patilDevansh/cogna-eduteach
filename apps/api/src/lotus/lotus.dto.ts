@@ -17,6 +17,9 @@ import {
 import { LOTUS_TOPICS, type EditHistorySample, type LotusGameResponse, type LotusOverrideAction, type LotusTopic, type TileBuildResponse } from "@cogna/shared";
 
 export class StartLotusSessionDto {
+  @IsOptional()
+  @IsIn(["CBSE", "ICSE", "IGCSE"])
+  board?: "CBSE" | "ICSE" | "IGCSE";
   @IsString()
   @IsNotEmpty()
   studentId!: string;

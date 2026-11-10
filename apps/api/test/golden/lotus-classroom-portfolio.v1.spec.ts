@@ -718,12 +718,25 @@ describe("Golden Suite: Lotus Classroom Portfolio Aggregation (M5)", () => {
       assert.equal(fully.criticalCount, 0);
       assert.equal(fully.emergingCount, 0);
       assert.equal(fully.classAverage, 4.0); // 20 / 5 = 4.0, not divided by 10!
-      assert.equal(fully.fluentPercent, 50); // 5 of 10 completed students = 50%
+      assert.equal(fully.fluentPercent, 100); // all five students rated on this skill
       assert.ok(!Number.isNaN(fully.classAverage), "Average must not be NaN");
     });
   });
 
   describe("7. Controller Authorization and School Boundaries", () => {
+    it("omits unrated skills and withholds readiness claims for completed but unrated reports", () => {
+      const portfolio = calculateClassroomPortfolio({
+        classroomId: "unrated", totalEnrolled: 2,
+        studentReports: ["a", "b"].map(studentId => ({ studentId, report: makeFinalReport([
+          { ...SKILL_NUMERIC, rating: undefined },
+        ]) })),
+      });
+      assert.equal(portfolio.completedTests, 2);
+      assert.deepEqual(portfolio.skills, []);
+      assert.match(portfolio.teacherBrief, /0 students have rated results/);
+      assert.match(portfolio.teacherBrief, /not enough rated evidence/);
+      assert.doesNotMatch(portfolio.teacherBrief, /strong readiness|Proceed to independent/);
+    });
     const validTeacherHeaders = {
       "x-cogna-teacher-token": issueTeacherToken("teacher@school.test", "school-1"),
     };

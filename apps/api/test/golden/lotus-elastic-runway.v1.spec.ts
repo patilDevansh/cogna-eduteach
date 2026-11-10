@@ -25,6 +25,7 @@ import {
 
 function make15TurnSpine(): FactorisationState {
   return {
+    paper: "SPINE_15",
     topic: "FACTORISATION",
     planTurn: 8,
     turns: CANONICAL_15_SPINE.map((spec, i) => ({

@@ -246,6 +246,12 @@ export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): Lo
  */
 export function chooseLotusGame(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind; preferredKinds?: readonly LotusGameKind[] }, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
   if (!themedGamesEnabled(env)) return undefined;
+  // Reserve two late spine turns for the promised formats before normal rotation.
+  const paperKind = ["FAC_GROUP_SIGN", "FAC_GROUP_TERMS"].includes(question.answerKey.diagnostics?.skillId ?? "") ? "ORDER_STEPS" : context.turn === 13 ? "FOUR_SIGNS" : undefined;
+  if (paperKind) {
+    const paperGame = buildLotusGame(question, paperKind);
+    if (paperGame) return paperGame;
+  }
   const wanted = gameOfPreferredKind(question, context.preferredKinds ?? [], context.previousKind);
   if (wanted) return wanted;
   const h = hashOf(question.id);

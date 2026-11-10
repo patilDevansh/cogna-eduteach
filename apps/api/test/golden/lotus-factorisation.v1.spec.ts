@@ -524,9 +524,9 @@ describe("fixes from the held-out scorecard v1", () => {
       const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
       assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
       assert.match(report.startingPoint, /Not asked in this test: cancelling factors, never terms/);
-      assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: not asked in this test/.test(a)));
+      assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: no question in this test covers it/.test(a)));
       assert.match(report.recommendedNextStep, /cancelling factors, never terms, rearranging terms to group.* weren't asked/);
-      assert.ok(report.limitations.some((l) => /planned but not asked/.test(l) && /cancelling factors/.test(l)));
+      assert.ok(report.limitations.some((l) => /No question in this test covers/.test(l) && /cancelling factors/.test(l)));
       assert.deepEqual(report.skills!.filter((s) => s.skillId === "FAC_CANCEL_COMMON_FACTOR").map((s) => s.state), ["UNTESTED"]);
     });
 
@@ -598,8 +598,8 @@ describe("fixes from the held-out scorecard v1", () => {
       state.turns[23]!.status = "SKIPPED"; // slot 24: cancelling
       state.turns[23]!.reason = "Not tested: it depends on something.";
       const report = buildFactorisationReport({ ledger: allButCancel(), state, pendingAnalyses: 0 });
-      assert.ok(!report.uncertainAreas.some((a) => /Cancelling factors/.test(a)));
-      assert.equal(report.notTested!.length, 1);
+      assert.ok(report.uncertainAreas.some((a) => /Cancelling factors/.test(a)), "obsolete slot removal cannot hide an untested skill");
+      assert.equal(report.notTested!.length, 0, "obsolete slot 24 is outside the canonical 15-question curriculum");
     });
 
     it("a catch-up asks only about its own skills, so nothing is 'not reached'", () => {
@@ -873,9 +873,8 @@ describe("buildFactorisationReport", () => {
     const report = buildFactorisationReport({ ledger, state, pendingAnalyses: 1 });
     assert.equal(report.outcome, "SOLID_GAP");
     assert.match(report.startingPoint, /negative common factor/i);
-    assert.equal(report.notTested!.length, 1);
-    assert.match(report.notTested![0]!, /^Grouping when the second pair starts with a minus — not tested/);
-    assert.ok(report.skills!.some((s) => s.skillId === "FAC_GROUP_SIGN" && s.state === "NOT_TESTED_DEPENDENCY"));
+    assert.equal(report.notTested!.length, 0, "obsolete slot 17 is outside the canonical paper");
+    assert.ok(report.skills!.some((s) => s.skillId === "FAC_GROUP_SIGN" && s.state === "UNTESTED"));
     assert.ok(report.limitations.some((l) => /1 answer\(s\) didn't finish/.test(l)));
   });
 

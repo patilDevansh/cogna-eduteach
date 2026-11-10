@@ -61,9 +61,9 @@ describe("Phase 2 — every persona sees the whole 15-question paper", () => {
     it(`${persona.id}: spine slots 1–15 once each, in order, plus at most two .5 follow-ups`, async () => {
       const { questions, session } = await playThrough(persona.id);
       const escalated = session.factorisation.state.ceilingEscalated === true;
-      const spine = questions.filter((q) => !isFollowUp(q) && q.purpose !== "STRETCH").map(slotOf);
+      const spine = questions.filter((q) => !isFollowUp(q)).map(slotOf);
       const followUps = questions.filter(isFollowUp);
-      const expected = Array.from({ length: escalated ? spine.length : 15 }, (_, i) => i + 1);
+      const expected = Array.from({ length: 15 }, (_, i) => i + 1);
       assert.deepEqual(spine, expected, `spine slots asked: ${spine.join(", ")}`);
       if (escalated) assert.ok(spine.length >= 5 && questions.length === 15, "after the harder-question switch the rest of the 15 are stretch questions");
       assert.ok(followUps.length <= 2, `${followUps.length} follow-ups`);

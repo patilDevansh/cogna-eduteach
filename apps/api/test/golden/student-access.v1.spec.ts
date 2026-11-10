@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ForbiddenException, NotFoundException, UnauthorizedException } from "@nestjs/common";
-import { issueStudentToken, issueTeacherToken } from "../../src/access/cogna-access";
+import { assertCanReadStudent, issueStudentToken, issueTeacherToken } from "../../src/access/cogna-access";
 import { StudentAccessService } from "../../src/access/student-access.service";
 
 process.env.COGNA_SESSION_SECRET = process.env.COGNA_SESSION_SECRET ?? "test-session-secret";
@@ -20,6 +20,12 @@ const clerk = { resolveParentId: async () => "parent-1" };
 const access = new StudentAccessService(prisma as never, clerk as never);
 
 describe("per-student access", () => {
+  it("demo and dev identities cannot cross-read through the shared access guard", () => {
+    for (const studentId of ["demo_meena", "dev_observer"]) {
+      assert.throws(() => assertCanReadStudent({ role: "student", studentId }, "demo_aarav"), ForbiddenException);
+    }
+    assert.doesNotThrow(() => assertCanReadStudent({ role: "student", studentId: "demo_aarav" }, "demo_aarav"));
+  });
   it("nobody signed in gets nothing", async () => {
     await assert.rejects(() => access.read({}, "demo_aarav"), UnauthorizedException);
     assert.throws(() => access.write({}, "demo_aarav"), UnauthorizedException);

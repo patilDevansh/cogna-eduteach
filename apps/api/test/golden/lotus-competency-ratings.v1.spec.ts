@@ -244,7 +244,7 @@ describe("Lotus Competency Ratings (1–5) and Starting Zone", () => {
     ];
 
     const result = calculateSkillRating(entry, audits);
-    assert.deepEqual(result, { rating: 1, ratingStatus: "CRITICAL_BLOCKER" });
+    assert.equal(result, undefined, "IDK-only evidence cannot justify a numeric competency rating");
   });
 
   it("leaves rating and ratingStatus undefined for untested skills with zero evidence", () => {
@@ -342,7 +342,7 @@ describe("Lotus Competency Ratings (1–5) and Starting Zone", () => {
       assert.equal(zone.scaffoldingLevel, "STEPPED_SCAFFOLDING");
     });
 
-    it("routes a blitzer with fluent mastery across skills to MOD_FACT_ADVANCED_SYNTHESIS and INDEPENDENT", () => {
+    it("requires evidence on every core skill before advanced independent work", () => {
       const ledger = new Map<string, SkillLedgerEntry>([
         ["FAC_GCF_NUMBER", { skillId: "FAC_GCF_NUMBER", state: "SECURE", mistakes: [], notes: ["Demonstration 1", "Demonstration 2"] }],
         ["FAC_COMMON_BINOMIAL", { skillId: "FAC_COMMON_BINOMIAL", state: "SECURE", mistakes: [], notes: ["Demonstration 1", "Demonstration 2"] }],
@@ -359,9 +359,9 @@ describe("Lotus Competency Ratings (1–5) and Starting Zone", () => {
       ];
 
       const zone = calculateStartingZone(ledger, audits, undefined, "CBSE");
-      assert.equal(zone.moduleId, "MOD_FACT_ADVANCED_SYNTHESIS");
-      assert.equal(zone.scaffoldingLevel, "INDEPENDENT");
-      assert.ok(zone.microInterventions.some((m) => m.toLowerCase().includes("non-monic")));
+      assert.equal(zone.moduleId, "MOD_FACT_QUADRATICS");
+      assert.equal(zone.scaffoldingLevel, "STEPPED_SCAFFOLDING");
+      assert.match(zone.rationale, /need more independent evidence/);
     });
   });
 

@@ -1,5 +1,7 @@
 # Build care
 
+10 November 2026 Lotus maintenance: preserve independent versus assisted evidence, require answered evidence for numeric ratings, retain explicit clearance notes, and prevent student cross-reading even for demo identities. Diagnostic insertions invalidate shifted asynchronous writes. Verify with fresh sessions after rebuilding shared contracts and API; use a separate Next output directory for production builds while development runs.
+
 ## Teacher AI Studio access — 3 November 2026
 
 - Observer access uses the current classroom owner, active enrollment and diagnostic assignment, including in-progress saved sessions. A teacher who loses class ownership or enrollment access loses the read. Standalone demo diagnostics are visible only to the named local demo teacher outside production; they cannot use teacher override on those sessions.

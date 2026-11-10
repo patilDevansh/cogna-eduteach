@@ -2,7 +2,7 @@ name: Test gates
 
 on:
   push:
-    branches: [feat/mvp-2.0-build, main, master, codex/2026-08-12-improvements]
+    branches: [feat/mvp-2.0-build, feat/lotus-new-architecture, main, master, codex/2026-08-12-improvements]
   pull_request:
 
 jobs:
@@ -29,6 +29,11 @@ jobs:
       # CI-only test values: sign student sessions, and let the scenario CLI call ops routes.
       COGNA_SESSION_SECRET: ci-only-session-secret
       COGNA_JOB_WORKER_TOKEN: ci-only-worker-token
+      LOTUS_AUTONOMOUS_EVAL_TOKEN: ci-only-lotus-eval-token
+      LOTUS_E2E_FAKE_MODEL: "true"
+      LOTUS_E2E_DISABLE_QUESTION_BANK: "true"
+      LOTUS_CODE_BUILT_QUESTIONS: "true"
+      ALLOW_DEMO_STUDENT_SESSIONS: "true"
     steps:
       - uses: actions/checkout@v4
       # No version here: the action reads "packageManager" from package.json (pnpm@9.15.0).
@@ -39,6 +44,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install
+      - run: pnpm exec playwright install --with-deps chromium
       # The apps import these workspace packages from their built dist/ (gitignored), so build all three.
       - run: pnpm --filter @cogna/shared build
       - run: pnpm --filter @cogna/database generate
@@ -70,6 +76,14 @@ jobs:
         run: pnpm test:scenario:all
       - name: UI smoke
         run: pnpm test:smoke:ui:mvp2
+      - name: Lotus live answer-route personas and browser reports
+        run: node --import tsx tests/e2e/lotus-remediation-gates.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lotus-remediation-evidence
+          path: test-results/lotus-remediation
+          if-no-files-found: error
       - name: Playwright UI (may SKIP playwright deps)
         run: pnpm test:ui:e2e
         continue-on-error: true

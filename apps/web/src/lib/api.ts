@@ -1200,10 +1200,10 @@ export const api = {
   /** Cogna Lotus — experimental dual-model AI Lab, isolated from diagnostic-v2. */
   getLotusStatus: () => lotusFetch<LotusStatusResponse>("/status"),
 
-  startLotusSession: (studentId: string, topic?: LotusTopic, classroomAssignmentId?: string) =>
+  startLotusSession: (studentId: string, topic?: LotusTopic, classroomAssignmentId?: string, board?: "CBSE" | "ICSE" | "IGCSE") =>
     lotusFetch<LotusSessionView>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ studentId, topic, ...(classroomAssignmentId ? { classroomAssignmentId } : {}) }),
+      body: JSON.stringify({ studentId, topic, board, ...(classroomAssignmentId ? { classroomAssignmentId } : {}) }),
     }),
 
   getLotusSession: (sessionId: string) =>

@@ -1002,6 +1002,7 @@ function LotusPage() {
   const requestedSessionId = searchParams.get("session");
   const classroomAssignmentId = searchParams.get("assignment");
   const topic: LotusTopic = lotusTopicForClassTopic(searchParams.get("topic") ?? "");
+  const [board, setBoard] = useState<"CBSE" | "ICSE" | "IGCSE">("CBSE");
   const planned = isPlannedLotusTopic(topic);
   const catchUp = planned && searchParams.get("check") === "catch-up";
   const [studentId, setStudentId] = useState("");
@@ -1215,11 +1216,19 @@ function LotusPage() {
     setStudentName(student.name);
     setClassEnrollment(getMockEnrollment());
     setObserver(new URLSearchParams(window.location.search).get("observer") === "1");
-    api.getLotusStatus().then(setStatus).catch((err) => {
-      setError(err instanceof Error ? err.message : "Can't reach Cogna right now. Check your internet connection and reload the page.");
-    });
     if (classroomAssignmentId) void api.startClassroomAssignment(classroomAssignmentId).catch(() => undefined);
   }, [router, classroomAssignmentId]);
+
+  // A first visit provisions the demo identity asynchronously. Fetch readiness
+  // after that identity exists as well as for a previously signed-in student.
+  useEffect(() => {
+    if (!studentId) return;
+    let cancelled = false;
+    api.getLotusStatus().then(value => { if (!cancelled) setStatus(value); }).catch((err) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : "Can't reach Cogna right now. Check your internet connection and reload the page.");
+    });
+    return () => { cancelled = true; };
+  }, [studentId]);
 
   // "Carry on" from the class page: rejoin the session already started for this assignment.
   const resumeRef = useRef(false);
@@ -1270,7 +1279,7 @@ function LotusPage() {
           const res = await fetch("/api/teacher-invitations/claim", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code: "GURUKUL-2026" }),
+            body: JSON.stringify({ email: "ananya@gurukul.edu", inviteCode: "GURUKUL-2026" }),
           });
           if (res.ok) {
             const claimData = await res.json();
@@ -1524,7 +1533,7 @@ function LotusPage() {
         ? await ensureDemoStudentSession(studentId, studentName, { forceRefresh: true })
         : { studentId };
       // For a class assignment this may be the session already started for it (a refresh, another tab).
-      const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined);
+      const next = await api.startLotusSession(activeStudent.studentId, topic, classroomAssignmentId ?? undefined, board);
       if(recoveryStarted.current !== requestScope)return;
       if (next.status === "COMPLETE" || next.reportPending) {
         openReport(next.sessionId);
@@ -1732,7 +1741,7 @@ function LotusPage() {
         setStudentId(activeStudent.studentId);
         setStudentName(story.name);
         reportOpenedRef.current = false;
-        view = await api.startLotusSession(activeStudent.studentId, topic);
+        view = await api.startLotusSession(activeStudent.studentId, topic, undefined, board);
         setPreviewQuestion(null);
         setPendingSubmission(null);
         setSession(view);
@@ -1840,7 +1849,7 @@ function LotusPage() {
           <div className={styles.layoutStudent}>
             <section className={styles.introCard}>
               <div className={styles.phaseRow}>
-                <span className={styles.phaseBadge}>Grade 8 · CBSE</span>
+                <label className={styles.phaseBadge}>Grade 8 · <select aria-label="Exam board" value={board} onChange={(event) => setBoard(event.target.value as typeof board)}>{["CBSE", "ICSE", "IGCSE"].map(value => <option key={value}>{value}</option>)}</select></label>
                 {classEnrollment && <span className={styles.phaseBadge}>{classEnrollment.className} · Roll {classEnrollment.rollNumber}</span>}
                 <span className={styles.phaseBadge}>{catchUp ? `${LOTUS_TOPIC_NAMES[topic]} · catch-up · up to 8 questions` : planned ? `${LOTUS_TOPIC_NAMES[topic]} · 15 questions` : "Up to 20 minutes"}</span>
               </div>

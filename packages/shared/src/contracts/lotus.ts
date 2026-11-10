@@ -83,6 +83,8 @@ export interface LotusItemDiagnostics {
   stepSkills: string[];
   predictedMistakes: LotusPredictedMistake[];
   slot?: number;
+  isElasticProbe?: boolean;
+  parentSlot?: number;
   level?: "easy" | "medium" | "hard";
   /** CODE: a game question built and checked by code (see lotus-probes.ts), accepted like a checked AI item. */
   origin: "FALLBACK" | "AI" | "CODE";
@@ -597,6 +599,7 @@ export interface LotusStageAgreement {
 }
 
 export interface LotusStageTimingMs {
+  instantVerdict?: number;
   assessment: number;
   debate: number;
   closure: number;

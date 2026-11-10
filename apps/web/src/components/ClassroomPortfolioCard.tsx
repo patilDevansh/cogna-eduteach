@@ -27,7 +27,7 @@ export function ClassroomPortfolioCard({ portfolio }: Props) {
           <strong style={{ fontSize: "0.85rem", color: "#991b1b" }}>Priority Whole-Class Needs:</strong>
           <ul style={{ margin: "4px 0 0", paddingLeft: "1.2rem", fontSize: "0.85rem", color: "#7f1d1d" }}>
             {portfolio.wholeClassFocusAreas.map((skill, idx) => (
-              <li key={idx}>{skill} (&gt; 30% of class in Critical tier)</li>
+              <li key={idx}>{skill}</li>
             ))}
           </ul>
         </div>
@@ -41,6 +41,7 @@ export function ClassroomPortfolioCard({ portfolio }: Props) {
 
       <div style={{ marginTop: "1.25rem" }}>
         <h3 style={{ fontSize: "0.95rem", marginBottom: "8px" }}>Skill Competency Breakdown</h3>
+        <p style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>Averages and percentages include only students with a rating on that skill.</p>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {portfolio.skills.map((skill) => (
             <div key={skill.skillId} style={{ padding: "10px 12px", borderRadius: "8px", background: "rgba(0,0,0,0.02)", border: "1px solid var(--line)" }}>

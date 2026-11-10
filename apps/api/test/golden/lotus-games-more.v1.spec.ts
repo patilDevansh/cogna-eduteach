@@ -280,7 +280,7 @@ describe("Order the steps", () => {
     const plus = grouping("g3");
     plus.answerKey.canonicalAnswer = "(3x + 2)(2y + 3)";
     plus.answerKey.diagnostics!.expression = "6xy + 9x + 4y + 6";
-    assert.equal(buildLotusGame(plus, "ORDER_STEPS"), undefined);
+    assert.equal(buildLotusGame(plus, "ORDER_STEPS")?.kind, "ORDER_STEPS", "positive grouping in the spine also supports ordering checked steps");
   });
   it("reads the order and the slips; the last card placed is what is marked", () => {
     const right = [idx("L1"), idx("L2"), idx("L3")];

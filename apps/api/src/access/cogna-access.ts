@@ -236,9 +236,6 @@ export function assertCanReadStudent(
     return;
   }
   if (actor.studentId !== studentId) {
-    if (!isProductionLike() && isDemoLikeStudent(actor.studentId) && isDemoLikeStudent(studentId)) {
-      return;
-    }
     throw new ForbiddenException("This record belongs to a different student.");
   }
 }
