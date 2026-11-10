@@ -66,7 +66,7 @@ it("persists a teaching-first run across clients with ownership, replay and revi
     await assert.rejects(() => service.startSelf(actor, { flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId: `${prefix}_fifth` }), /No unused independent check remains/);
     await db.classroomEnrollment.create({ data: { classroomId: classroom.id, studentId: otherId } });
     const classLaunchId = `${prefix}_atomic_failure`;
-    await assert.rejects(() => service.assignClass({ role: "teacher", teacherEmail, schoolId }, { flow: "MODULE_LEARNING_V1", classroomId: classroom.id, moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId: classLaunchId, studentIds: [otherId, studentId] }), /No unused independent check remains/);
+    await assert.rejects(() => service.assignClass({ role: "teacher", teacherEmail, schoolId }, { flow: "MODULE_LEARNING_V1", classroomId: classroom.id, moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId: classLaunchId, studentIds: [otherId, studentId] }), /has no unused independent check left, so nobody was assigned/);
     assert.equal(await db.rawEvent.count({ where: { eventId: `MODULE_START_${classLaunchId}_${otherId}` } }), 0);
     const assignedRunId = assigned.runs[0]!.identity.runId;
     const paused = await service.act({ role: "teacher", teacherEmail, schoolId }, assignedRunId, { eventId: `${prefix}_teacher_pause`, expectedRevision: 0, action: { kind: "TEACHER_PAUSE" } });
@@ -109,6 +109,38 @@ it("reserves different independent exit items for simultaneous launches", { skip
     const [first, second] = await Promise.all(["first", "second"].map(suffix => service.startSelf({ role: "student", studentId }, { flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId: `${prefix}_${suffix}` })));
     assert.notEqual(first.identity.runId, second.identity.runId);
     assert.deepEqual(new Set([first.state.exitItemId, second.state.exitItemId]), new Set(["EXIT_FACT_01", "EXIT_FACT_02"]));
+  } finally {
+    await db.rawEvent.deleteMany({ where: { studentId, eventType: { startsWith: "MODULE_" } } });
+    await db.student.delete({ where: { id: studentId } }).catch(() => undefined);
+    await db.$disconnect();
+    if (oldFlag === undefined) delete process.env.MODULE_LEARNING_ENABLED; else process.env.MODULE_LEARNING_ENABLED = oldFlag;
+  }
+});
+
+it("a run that ended unresolved frees its unseen independent item for the next run", { skip: !allowed }, async () => {
+  const db = new PrismaClient({ datasourceUrl: url! });
+  const prefix = `module_unresolved_${randomUUID()}`;
+  const studentId = `${prefix}_student`;
+  const oldFlag = process.env.MODULE_LEARNING_ENABLED;
+  process.env.MODULE_LEARNING_ENABLED = "true";
+  try {
+    await db.student.create({ data: { id: studentId, primaryParentId: `${prefix}_parent`, name: "Unresolved synthetic learner", accessCodeHash: "fixture" } });
+    const service = new ModuleLearningService(db as any);
+    const actor = { role: "student", studentId } as const;
+    let n = 0;
+    const act = async (run: any, action: Record<string, unknown>) => service.act(actor, run.identity.runId, { eventId: `${prefix}_${++n}`, expectedRevision: run.state.revision, action });
+    const unresolvedRun = async (i: number) => {
+      let run: any = await service.startSelf(actor, { flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId: `${prefix}_start_${i}` });
+      run = await act(run, { kind: "PRESENTED", segmentId: run.state.segmentId, representation: "STATIC_TEXT" });
+      run = await act(run, { kind: "ANSWER", itemId: run.state.itemId, answer: "not sure" });   // ambiguous: alternate lesson
+      run = await act(run, { kind: "PRESENTED", segmentId: run.state.segmentId, representation: "STATIC_TEXT" });
+      run = await act(run, { kind: "ANSWER", itemId: run.state.itemId, answer: "still not sure" }); // return item wrong: unresolved
+      assert.equal(run.state.workflow, "UNRESOLVED");
+      return run;
+    };
+    for (let i = 0; i < 5; i++) await unresolvedRun(i); // more runs than there are independent items
+    const next = await service.startSelf(actor, { flow: "MODULE_LEARNING_V1", moduleId: "MATH_8_FACT_MONIC_TRINOMIAL", requestId: `${prefix}_after` });
+    assert.equal(next.state.workflow, "ACTIVE", "five unresolved attempts do not lock the learner out");
   } finally {
     await db.rawEvent.deleteMany({ where: { studentId, eventType: { startsWith: "MODULE_" } } });
     await db.student.delete({ where: { id: studentId } }).catch(() => undefined);

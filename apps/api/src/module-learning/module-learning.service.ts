@@ -73,7 +73,10 @@ export class ModuleLearningService {
     }
     const starts = await tx.rawEvent.findMany({ where: { studentId: input.studentId, eventType: "MODULE_RUN_CREATED_V1" }, orderBy: [{ createdAt: "desc" }, { eventId: "desc" }] });
     const identities = starts.map(row => (row.payload as unknown as { identity?: ModuleRunIdentity }).identity).filter((identity): identity is ModuleRunIdentity => !!identity);
-    const reserved = new Set(starts.map(row => (row.payload as unknown as { state?: ModuleState }).state?.exitItemId ?? "EXIT_FACT_01"));
+    // A run that ended UNRESOLVED never showed its independent item (that happens only after
+    // RECHECK/RETURN, before INDEPENDENT_EXIT), so its item is free again. UNRESOLVED is terminal.
+    const ended = new Set((await tx.rawEvent.findMany({ where: { sessionId: { in: starts.map(row => row.sessionId).filter((id): id is string => !!id) }, eventType: { startsWith: "MODULE_" }, payload: { path: ["state", "workflow"], equals: "UNRESOLVED" } }, select: { sessionId: true } })).map(row => row.sessionId));
+    const reserved = new Set(starts.filter(row => !ended.has(row.sessionId)).map(row => (row.payload as unknown as { state?: ModuleState }).state?.exitItemId ?? "EXIT_FACT_01"));
     const exitItem = FACTORISATION_REFERENCE_PACK_V1.exitChecks.find(item => !reserved.has(item.id));
     if (!exitItem) throw new ServiceUnavailableException("No unused independent check remains for this learner. Earlier work is preserved; a reviewed new item is needed before repeating this module.");
     const repeatOfRunId = identities.find(identity => identity.source === input.source && identity.moduleId === input.moduleId && identity.classroomId === input.classroomId)?.runId ?? null;
@@ -113,7 +116,7 @@ export class ModuleLearningService {
     if (!teacher) throw new ForbiddenException("Teacher account is unavailable.");
     const classroom = await this.prisma.classroom.findFirst({ where: { id: body.classroomId, teacherId: teacher.id, schoolId: actor.schoolId, archivedAt: null }, select: { id: true, grade: true } });
     if (!classroom || classroom.grade !== 8) throw new ForbiddenException("This Grade 8 classroom is unavailable.");
-    const enrollments = await this.prisma.classroomEnrollment.findMany({ where: { classroomId: classroom.id, leftAt: null, student: { deletedAt: null } }, select: { studentId: true } });
+    const enrollments = await this.prisma.classroomEnrollment.findMany({ where: { classroomId: classroom.id, leftAt: null, student: { deletedAt: null } }, select: { studentId: true, student: { select: { name: true } } } });
     const eligible = new Set(enrollments.map(enrollment => enrollment.studentId));
     const targets = body.studentIds === undefined ? [...eligible] : body.studentIds;
     if (!Array.isArray(targets) || !targets.length || new Set(targets).size !== targets.length || targets.some(id => typeof id !== "string" || !eligible.has(id))) throw new BadRequestException("Choose eligible enrolled students without duplicates.");
@@ -123,7 +126,14 @@ export class ModuleLearningService {
     try {
       started = await this.prisma.$transaction(async tx => {
         const rows = [];
-        for (const studentId of [...targets].sort()) rows.push(await this.createStartInTransaction(tx, { studentId, source: "TEACHER_ASSIGNED", moduleId: selectedModule, requestId: launchId, classroomId: classroom.id, teacherId: teacher.id }));
+        for (const studentId of [...targets].sort()) {
+          try { rows.push(await this.createStartInTransaction(tx, { studentId, source: "TEACHER_ASSIGNED", moduleId: selectedModule, requestId: launchId, classroomId: classroom.id, teacherId: teacher.id })); }
+          catch (error) {
+            // Name the learner, so the teacher knows who is blocking the launch.
+            if (error instanceof ServiceUnavailableException) throw new ServiceUnavailableException(`${enrollments.find(e => e.studentId === studentId)?.student.name ?? "One learner"} has no unused independent check left, so nobody was assigned. Their earlier work is preserved; a new reviewed check is needed before this class can be assigned again.`);
+            throw error;
+          }
+        }
         return rows;
       }, { timeout: 30000 });
     } catch (error) {

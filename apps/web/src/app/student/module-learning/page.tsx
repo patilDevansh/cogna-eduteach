@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, type ModuleRunView } from "@/lib/api";
+import { api, ApiError, type ModuleRunView } from "@/lib/api";
 import { getStudent } from "@/lib/session";
 
 type PendingAction = { eventId: string; expectedRevision: number; action: Record<string, unknown> };
@@ -10,6 +10,8 @@ const activeKey = (studentId: string) => `cogna_module_learning_active_v1_${stud
 const startKey = (studentId: string) => `cogna_module_learning_start_request_v1_${studentId}`;
 const pendingKey = (runId: string) => `cogna_module_learning_pending_v1_${runId}`;
 const draftKey = (runId: string, itemId: string) => `cogna_module_learning_draft_v1_${runId}_${itemId}`;
+// The stages where the server accepts REQUEST_HELP (module-learning.state.ts).
+const HELP_STAGES = ["CHECKPOINT", "PREREQUISITE_CHECK", "SUPPORTED_PRACTICE"];
 
 export default function ModuleLearningPage() {
   const router = useRouter();
@@ -80,6 +82,15 @@ export default function ModuleLearningPage() {
       setRun(updated);
       setRuns(previous => previous.map(item => item.identity.runId === updated.identity.runId ? updated : item));
     } catch (err) {
+      // The server refused this step (it changed, or isn't allowed here): retrying can never succeed,
+      // so drop it and show the current step. Only a network or server failure is worth retrying.
+      if (err instanceof ApiError && (err.status === 400 || err.status === 409)) {
+        localStorage.removeItem(pendingKey(run.identity.runId));
+        setPending(null);
+        setError("That step couldn't be saved, so here is your current step. Your earlier work is safe.");
+        await refresh(run.identity.runId).catch(() => undefined);
+        return;
+      }
       setError(`${err instanceof Error ? err.message : "Could not save."} Your current answer is kept in this browser. Retry saving before moving on.`);
     } finally { setBusy(false); }
   }
@@ -106,7 +117,7 @@ export default function ModuleLearningPage() {
         {!run.state.paused && !run.state.teacherPaused && <>
           {run.asset && <><h2>{run.asset.staticSlides[0]?.title}</h2><p>Take your time with each step. The equations and explanation remain available if animation or narration is unavailable.</p>{run.asset.staticSlides.map(slide => <div key={slide.step} style={{ borderLeft: "4px solid #148063", padding: "8px 16px", margin: "14px 0", background: "#f7faf6" }}><strong>Step {slide.step}: {slide.title}</strong>{slide.equations.map((equation, index) => <p key={index} style={{ fontSize: 22, fontWeight: 700, overflowWrap: "anywhere" }}>{equation}</p>)}<p>{slide.explanation}</p></div>)}<button disabled={busy || !!pending} onClick={() => send({ kind: "PRESENTED", segmentId: run.asset!.segmentId, representation: "STATIC_TEXT", elapsedMs: Date.now() - presentedAt.current })}>Continue after reading</button></>}
           {run.question && <><h2>{run.question.independent ? "Try this independently" : run.state.stage === "PREREQUISITE_CHECK" ? "Check one earlier idea" : "Try this question"}</h2><p style={{ fontSize: 20 }}>{run.question.prompt}</p>{run.question.independent && <p>This is a fresh check without hints. Work in your notebook if you like.</p>}{run.question.options ? <div style={{ display: "grid", gap: 8 }}>{run.question.options.map(option => <button key={option} type="button" disabled={busy || !!pending} onClick={() => { setAnswer(option); localStorage.setItem(draftKey(run.identity.runId, run.question!.id), option); }} style={{ padding: 10, textAlign: "left", background: answer === option ? "#daf2e8" : "white", border: "1px solid #9bbdaf", borderRadius: 8 }}>{option}</button>)}</div> : <input aria-label="Your answer" value={answer} onChange={event => { setAnswer(event.target.value); localStorage.setItem(draftKey(run.identity.runId, run.question!.id), event.target.value); }} placeholder="Type your answer" style={{ width: "100%", padding: 12, fontSize: 20, border: "1px solid #9bbdaf", borderRadius: 8 }} />}
-            <div style={{ display: "flex", gap: 12, marginTop: 16 }}><button type="button" disabled={busy || !!pending || !answer.trim()} onClick={() => send({ kind: "ANSWER", itemId: run.question!.id, answer, elapsedMs: Date.now() - presentedAt.current })}>Check and save</button>{!run.question.independent && <button type="button" disabled={busy || !!pending} onClick={() => send({ kind: "REQUEST_HELP" })}>I need another explanation</button>}</div></>}
+            <div style={{ display: "flex", gap: 12, marginTop: 16 }}><button type="button" disabled={busy || !!pending || !answer.trim()} onClick={() => send({ kind: "ANSWER", itemId: run.question!.id, answer, elapsedMs: Date.now() - presentedAt.current })}>Check and save</button>{HELP_STAGES.includes(run.state.stage) && <button type="button" disabled={busy || !!pending} onClick={() => send({ kind: "REQUEST_HELP" })}>I need another explanation</button>}</div></>}
           {run.state.lastResult && <p>Last saved answer: {run.state.lastResult.verdict === "CORRECT" ? "correct" : "needs another look"}. {run.state.lastResult.assistance === "NONE" ? "Independent check" : "Learning practice"}.</p>}
           {run.state.workflow === "COMPLETE" && <><h2>Module complete</h2><p>Your independent check was {run.state.independentResult?.verdict === "CORRECT" ? "correct" : "not yet correct"}. That result is saved separately from the lesson practice.</p></>}
           {run.state.workflow === "UNRESOLVED" && <><h2>More support is needed</h2><p>Cogna saved the difficulty and stopped repeating this path. Your teacher can help, or you can return later.</p></>}
