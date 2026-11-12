@@ -168,7 +168,7 @@ describe("Elastic Runway Insertion — Expansion Without Cannibalization", () =>
     }
   });
 
-  it("allows a second elastic probe but respects the 2-probe ceiling (turns.length <= 17)", () => {
+  it("allows a second elastic probe but respects the 4-probe ceiling (turns.length <= 19)", () => {
     const state = make15TurnSpine();
 
     const probeSpec = FACTORISATION_SLOTS.find((s) => s.skillId === "FAC_GROUP_TERMS") ?? {
@@ -207,11 +207,15 @@ describe("Elastic Runway Insertion — Expansion Without Cannibalization", () =>
     });
     assert.equal(state.turns.length, 17);
 
-    // Now 2 elastic probes exist: elasticCount === 2
-    const elasticCount = state.turns.filter((t) => t.isElasticProbe).length;
-    assert.equal(elasticCount, 2);
+    insertElasticProbe(state, { afterTurn: 3, spec: probeSpec, parentSlot: 3, probeSlot: 3.5 });
+    insertElasticProbe(state, { afterTurn: 5, spec: probeSpec, parentSlot: 4, probeSlot: 4.5 });
+    assert.equal(state.turns.length, 19);
 
-    // Verify planAdjustments will NOT generate a 3rd elastic probe
+    // Now the limit of 4 elastic probes is reached
+    const elasticCount = state.turns.filter((t) => t.isElasticProbe).length;
+    assert.equal(elasticCount, 4);
+
+    // Verify planAdjustments will NOT generate a 5th elastic probe
     state.planTurn = 13;
     const ledger = new Map<string, SkillLedgerEntry>([
       [
@@ -235,7 +239,7 @@ describe("Elastic Runway Insertion — Expansion Without Cannibalization", () =>
     });
 
     const thirdProbeAction = actions.find((a) => a.kind === "INSERT_ELASTIC_PROBE");
-    assert.equal(thirdProbeAction, undefined, "Must enforce 2-probe ceiling and not insert a 3rd elastic probe");
+    assert.equal(thirdProbeAction, undefined, "Must enforce the 4-probe ceiling and not insert a 5th");
   });
 
   it("is idempotent: after probe is inserted, subsequent planAdjustments does not insert duplicate probes", () => {

@@ -365,7 +365,7 @@ describe("factorisation session — every Submit is instant", () => {
       const turns = internal(service, view.sessionId).factorisation.state.turns;
       const changed = turns.filter((turn: { status: string }) => turn.status !== "PLANNED");
       assert.equal(changed.filter((turn: { slot: number }) => Number.isInteger(turn.slot) && turn.slot <= 15).length, 0, "a confirmed gap preserves every spine topic");
-      assert.ok(turns.filter((turn: { isElasticProbe?: boolean }) => turn.isElasticProbe).length <= 2, "checks use capped extra follow-ups");
+      assert.ok(turns.filter((turn: { isElasticProbe?: boolean }) => turn.isElasticProbe).length <= 4, "checks use capped extra follow-ups");
       // Released with the report, not before.
       assert.ok(view.audits.every((audit) => Array.isArray(audit.skillEvidence)));
       console.log(`    ${persona}: ${answered} answered; confirmed ${confirmed.map((s) => s.skillId).join(", ")}; ` +

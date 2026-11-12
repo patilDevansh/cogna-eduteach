@@ -192,14 +192,14 @@ const canonicalRaw: Array<[string, SlotSpec["kind"], Level, LotusPhase, string, 
   ["FAC_MEANING", "CHOICE", "medium", "EXPLORE", "Is 2y(x + 1) + 3(x + 1) fully factorised? Why?", ["ALG_IDENTIFY_STRUCTURE"], ["SUM_ACCEPTED_AS_FACTORISED", "BRACKET_NOT_SEEN_AS_FACTOR"], "Tier 2: What Factorised Means"],
   // Tier 3: Grouping (Q7-Q8)
   ["FAC_COMMON_BINOMIAL", "FACTORISE", "easy", "EXPLORE", "3(x - 2) + y(x - 2)", ["FAC_MEANING"], ["LEFTOVERS_MULTIPLIED", "BRACKET_NOT_SEEN_AS_FACTOR"], "Tier 3: Common Binomial"],
-  ["FAC_GROUP_TERMS", "FACTORISE", "easy", "EXPLORE", "2xy + 2y + 3x + 3", ["FAC_COMMON_BINOMIAL", "FAC_MEANING"], ["PAIRS_SHARE_NOTHING", "SUM_ACCEPTED_AS_FACTORISED"], "Tier 3: 4-Term Grouping"],
+  ["FAC_GROUP_SIGN", "FACTORISE", "medium", "EXPLORE", "6xy - 4y - 9x + 6", ["FAC_GROUP_TERMS", "FAC_COMMON_BINOMIAL", "FAC_GCF_NEGATIVE"], ["SIGN_NOT_FLIPPED_IN_GROUP", "PAIRS_SHARE_NOTHING", "SUM_ACCEPTED_AS_FACTORISED"], "Tier 3: 4-Term Grouping, second pair starts with a minus"],
   // Tier 4: Identities (Q9-Q11)
   ["FAC_DIFF_SQUARES", "FACTORISE", "easy", "EXPLORE", "x^2 - 9", ["ID_REVERSE_PATTERN"], ["WROTE_PERFECT_SQUARE", "DROPPED_SQUARE"], "Tier 4: Difference of Squares Basic"],
   ["FAC_DIFF_SQUARES", "FACTORISE", "medium", "EXPLORE", "49a^2 - 25b^2", ["FND_RECOGNISE_SQUARE"], ["COEFFICIENT_NOT_ROOTED", "WROTE_PERFECT_SQUARE"], "Tier 4: Difference of Squares with Coefficients"],
-  ["FAC_PERFECT_SQUARE_PLUS", "FACTORISE", "easy", "EXPLORE", "x^2 + 6x + 9", ["ID_REVERSE_PATTERN"], ["SQUARED_WITHOUT_ROOT", "WROTE_DIFF_OF_SQUARES"], "Tier 4: Perfect Square Trinomial"],
+  ["FAC_PERFECT_SQUARE_MINUS", "FACTORISE", "easy", "EXPLORE", "4y^2 - 12y + 9", ["FAC_PERFECT_SQUARE_PLUS", "ID_REVERSE_PATTERN", "FND_SIGN_MUL_DIV"], ["WRONG_MIDDLE_SIGN", "WROTE_DIFF_OF_SQUARES"], "Tier 4: Perfect Square Trinomial with a minus"],
   // Tier 5: Quadratics & Synthesis (Q12-Q15)
   ["FAC_PAIR_PRODUCT_SUM", "CHOICE", "medium", "EXPLORE", "Which two numbers have a product of 12 and a sum of -7?", ["FND_FACTOR_PAIRS", "FND_SIGN_ADD_SUB"], ["WRONG_FACTOR_PAIR_SUM", "WRONG_FACTOR_PAIR_PRODUCT", "SIGN_PAIR_ERROR"], "Tier 5: Product-Sum Pair Search"],
-  ["FAC_MONIC_TRINOMIAL", "FACTORISE", "easy", "EXPLORE", "x^2 + 5x + 6", ["FAC_PAIR_PRODUCT_SUM"], ["WRONG_FACTOR_PAIR_SUM", "PRODUCT_SUM_SWAPPED"], "Tier 5: Monic Quadratic Positive"],
+  ["FAC_CANCEL_COMMON_FACTOR", "SIMPLIFY", "hard", "EXPLORE", "(x^2 - 9) / (x^2 - 6x + 9)", ["FAC_DIFF_SQUARES", "FAC_PERFECT_SQUARE_MINUS", "FAC_MEANING"], ["CANCELLED_TERMS_NOT_FACTORS", "DIVIDED_ONE_TERM_ONLY"], "Tier 5: Cancelling factors, never terms"],
   ["FAC_MONIC_TRINOMIAL", "FACTORISE", "hard", "DIAGNOSE", "x^2 - x - 12", ["FAC_PAIR_PRODUCT_SUM", "FND_SIGN_MUL_DIV"], ["SIGNS_SWAPPED", "WRONG_FACTOR_PAIR_SUM"], "Tier 5: Monic Quadratic Mixed Signs"],
   ["FAC_FACTOR_FULLY", "FACTORISE", "medium", "CONFIRM", "2x^2 - 18", ["FAC_COMMON_MONOMIAL", "FAC_DIFF_SQUARES"], ["INCOMPLETE_FACTORISATION", "SKIPPED_COMMON_FACTOR_CHECK"], "Tier 5: Multi-Step Synthesis"],
 ];
@@ -344,15 +344,43 @@ export function assertFixedItemIsValid(item: any, label: string): void {
   }
   const expression = d.expression;
   if (!expression || !normalizeMathText(item.prompt).includes(normalizeMathText(expression))) throw new Error(`${label}: prompt must show expression`);
-  const classify = (answer: string) => d.itemKind === "EXPAND" ? classifyExpansion(answer, expression)
-    : d.itemKind === "SIMPLIFY" ? classifyReducedForm(answer, expression) : classifyFactorisation(answer, expression);
-  const verdict = classify(key);
+  const verdict = classifyKey(d.itemKind, key, expression);
   if (verdict !== "CORRECT") throw new Error(`${label}: answer is ${verdict}`);
   for (const p of d.predictedMistakes ?? []) {
-    const v = d.itemKind === "SIMPLIFY" ? classifySimplification(p.answer, expression, key) : classify(p.answer);
-    if (v === "CORRECT" || v === "UNREADABLE") throw new Error(`${label}: invalid predicted answer`);
-    if (v === "UNFINISHED" && d.itemKind !== "EXPAND" && !UNFINISHED_MISTAKES.has(p.mistake)) throw new Error(`${label}: invalid unfinished mistake`);
+    const problem = predictionProblem(d, expression, key, p);
+    if (problem) throw new Error(`${label}: ${problem}`);
   }
+}
+
+function classifyKey(itemKind: string, answer: string, expression: string) {
+  return itemKind === "EXPAND" ? classifyExpansion(answer, expression)
+    : itemKind === "SIMPLIFY" ? classifyReducedForm(answer, expression) : classifyFactorisation(answer, expression);
+}
+
+function predictionProblem(d: { itemKind: string }, expression: string, key: string, p: { answer: string; mistake: string }): string | null {
+  const v = d.itemKind === "SIMPLIFY" ? classifySimplification(p.answer, expression, key) : classifyKey(d.itemKind, p.answer, expression);
+  if (v === "CORRECT" || v === "UNREADABLE") return "invalid predicted answer";
+  if (v === "UNFINISHED" && d.itemKind !== "EXPAND" && !UNFINISHED_MISTAKES.has(p.mistake)) return "invalid unfinished mistake";
+  return null;
+}
+
+/**
+ * A question whose own task and right answer check out should not be thrown away because one of the
+ * AI's guesses about wrong answers was unusable. Removes only those guesses and reports them; every
+ * other check (including how many valid wrong answers must remain) still applies afterwards.
+ */
+export function dropInvalidPredictions(item: any): string[] {
+  const d = item?.answerKey?.diagnostics;
+  if (!d?.expression || !Array.isArray(d.predictedMistakes) || !["FACTORISE", "EXPAND", "SIMPLIFY"].includes(d.itemKind)) return [];
+  const key = String(item.answerKey.canonicalAnswer);
+  if (classifyKey(d.itemKind, key, d.expression) !== "CORRECT") return [];
+  const dropped: string[] = [];
+  d.predictedMistakes = d.predictedMistakes.filter((p: { answer: string; mistake: string }) => {
+    const problem = predictionProblem(d, d.expression, key, p);
+    if (problem) dropped.push(`${p.mistake} "${p.answer}" (${problem})`);
+    return !problem;
+  });
+  return dropped;
 }
 
 for (const c of CURRICULA) {

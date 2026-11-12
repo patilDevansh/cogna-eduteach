@@ -93,6 +93,8 @@ export function withLotusInteraction(question: LotusQuestion, context: { turn: n
 export function redressedQuestion(question: LotusQuestion, kinds: readonly LotusGameKind[], previousKind: LotusGameKind | undefined, newId: string): LotusQuestion | undefined {
   if (question.presentation || question.interaction) return undefined;
   if (question.game && !DRESSABLE_KINDS.includes(question.game.kind)) return undefined;
+  // The paper's own four-signs question keeps its format: it is the one place that format is promised.
+  if (question.game?.kind === "FOUR_SIGNS" && !(question.answerKey.diagnostics as { isElasticProbe?: boolean } | undefined)?.isElasticProbe) return undefined;
   const game = gameOfPreferredKind(question, kinds, previousKind);
   if (!game || game.kind === question.game?.kind) return undefined;
   const next = withGame({ ...structuredClone(question), id: newId }, game);

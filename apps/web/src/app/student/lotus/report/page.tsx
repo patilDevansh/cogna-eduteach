@@ -232,6 +232,14 @@ function Preparing({ session }: { session: LotusSessionView | null }) {
       </section>
     );
   }
+  if (session?.reportReview?.failing) {
+    return (
+      <section className={styles.centerCard} aria-live="polite">
+        <h1>Your report is still being reviewed</h1>
+        <p>All your answers are saved. The AI review of {session.reportReview.outstanding} of them hasn&apos;t finished yet, so we&apos;re holding your report until it&apos;s complete. You can close this page and come back later.</p>
+      </section>
+    );
+  }
   const steps = [
     { label: "Your answers are saved", done: saved },
     { label: "Two AI reviewers are checking your last answers", done: false, active: saved },

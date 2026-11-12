@@ -48,7 +48,10 @@ describe("Lotus themed games: issuing", () => {
     grouping.answerKey.diagnostics!.expression = "2xy + 2y + 3x + 3";
     grouping.answerKey.canonicalAnswer = "(2y + 3)(x + 1)";
     assert.equal(chooseLotusGame(grouping, { turn: 8, repurposed: false }, env)?.kind, "ORDER_STEPS");
-    assert.equal(chooseLotusGame(question(), { turn: 13, repurposed: false }, env)?.kind, "FOUR_SIGNS");
+    // Four signs belongs to the paper's x² + bx + c question (slot 14), wherever follow-ups put its turn.
+    const monic = question();
+    monic.answerKey.diagnostics!.slot = 14;
+    assert.equal(chooseLotusGame(monic, { turn: 16, repurposed: true }, env)?.kind, "FOUR_SIGNS");
   });
   it("builds all three games from the checked question and shows no answer", () => {
     const two = buildLotusGame(question(), "TWO_NUMBERS")!;

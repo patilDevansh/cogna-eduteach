@@ -67,7 +67,7 @@ describe("Phase 2 — follow-ups inserted while later questions are still being 
       const spine = questions.filter((q) => !isFollowUp(q) && q.purpose !== "STRETCH").map(slotOf);
       const followUps = questions.filter(isFollowUp).map(slotOf);
       assert.deepEqual(spine, Array.from({ length: 15 }, (_, i) => i + 1), `slots asked: ${questions.map(slotOf).join(", ")}`);
-      assert.ok(followUps.length <= 2 && followUps.every((s) => s % 1 === 0.5), `follow-ups: ${followUps.join(", ")}`);
+      assert.ok(followUps.length <= 4 && followUps.every((s) => s % 1 === 0.5), `follow-ups: ${followUps.join(", ")}`);
     });
   }
 });

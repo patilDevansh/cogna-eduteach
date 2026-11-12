@@ -819,6 +819,8 @@ export interface LotusSessionView {
    * immediately instead of waiting on the final review.
    */
   reportPending?: boolean;
+  /** While the report waits for AI reviews: how many remain, and whether they are currently failing. */
+  reportReview?: { outstanding: number; failing: boolean };
   experimental: true;
   phase: LotusPhase;
   /**
@@ -854,6 +856,8 @@ export interface LotusSessionView {
      * resumes on its own once the provider answers again.
      */
     blockedReason?: string;
+    /** A needed question used up all its writing attempts, so this paper will not become ready by waiting. */
+    cannotFinish?: boolean;
   };
 }
 

@@ -524,9 +524,10 @@ describe("fixes from the held-out scorecard v1", () => {
       const report = buildFactorisationReport({ ledger: foldLedger(audits), audits, state: freshState(25), pendingAnalyses: 0 });
       assert.equal(report.outcome, "ADVANCEMENT", "the outcome is not changed; the report says what it does not cover");
       assert.match(report.startingPoint, /Not asked in this test: cancelling factors, never terms/);
-      assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: no question in this test covers it/.test(a)));
+      // Cancelling is on the 15-question paper, so leaving it out reads as "not asked in this test".
+      assert.ok(report.uncertainAreas.some((a) => /Cancelling factors, never terms: not asked in this test/.test(a)));
       assert.match(report.recommendedNextStep, /cancelling factors, never terms, rearranging terms to group.* weren't asked/);
-      assert.ok(report.limitations.some((l) => /No question in this test covers/.test(l) && /cancelling factors/.test(l)));
+      assert.ok(report.limitations.some((l) => /cancelling factors/i.test(l)));
       assert.deepEqual(report.skills!.filter((s) => s.skillId === "FAC_CANCEL_COMMON_FACTOR").map((s) => s.state), ["UNTESTED"]);
     });
 

@@ -105,7 +105,9 @@ function lackAnswer(student: HeldOutStudent, question: PersonaQuestionLike, lack
   const family = /SIGN/.test(code) ? (m: string) => /SIGN/.test(m) : (m: string) => listed.has(m);
   const pick = predicted.find((p) => p.mistake === code) ?? predicted.find((p) => family(p.mistake)) ?? predicted[0];
   const typed = d.itemKind === "FACTORISE" || d.itemKind === "SIMPLIFY" || d.itemKind === "EXPAND";
-  const answer = pick?.answer ?? (typed ? "(x + 1)(x + 2)" : "No");
+  // A choice question with no predicted wrong answer: pick a real wrong option, as a child would, never an answer not on offer.
+  const wrongOption = (question as { options?: string[] }).options?.find((o) => o !== correct);
+  const answer = pick?.answer ?? (typed ? "(x + 1)(x + 2)" : wrongOption ?? "No");
   return {
     answer: answer === correct ? `${correct} + 1` : answer,
     working: `I used the rule I know for this, and I think my answer is ${answer}.`,

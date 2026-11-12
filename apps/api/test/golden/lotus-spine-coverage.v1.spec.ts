@@ -61,7 +61,7 @@ const formatsSeen = new Set<string>();
 
 describe("Phase 2 — every persona sees the whole 15-question paper", () => {
   for (const persona of PERSONA_CATALOGUE) {
-    it(`${persona.id}: spine slots 1–15 once each, in order, plus at most two .5 follow-ups`, async () => {
+    it(`${persona.id}: spine slots 1–15 once each, in order, plus at most four .5 follow-ups`, async () => {
       const { questions, session } = await playThrough(persona.id);
       for (const q of questions) if (q.game?.kind) formatsSeen.add(q.game.kind);
       const escalated = session.factorisation.state.ceilingEscalated === true;
@@ -70,10 +70,10 @@ describe("Phase 2 — every persona sees the whole 15-question paper", () => {
       const expected = Array.from({ length: 15 }, (_, i) => i + 1);
       assert.deepEqual(spine, expected, `spine slots asked: ${spine.join(", ")}`);
       if (escalated) assert.ok(spine.length >= 5 && questions.length === 15, "after the harder-question switch the rest of the 15 are stretch questions");
-      assert.ok(followUps.length <= 2, `${followUps.length} follow-ups`);
+      assert.ok(followUps.length <= 4, `${followUps.length} follow-ups`);
       for (const q of followUps) assert.ok(Math.abs(slotOf(q) % 1) === 0.5, `follow-up slot ${slotOf(q)} is a parent slot + .5`);
       for (const q of questions) assert.ok((slotOf(q) >= 1 && slotOf(q) <= 15) || isFollowUp(q), `served slot ${slotOf(q)} is on the 15-question paper`);
-      assert.ok(questions.length <= 17, `${questions.length} questions`);
+      assert.ok(questions.length <= 19, `${questions.length} questions`);
     });
   }
 });

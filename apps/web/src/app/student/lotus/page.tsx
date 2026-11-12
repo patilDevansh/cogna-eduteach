@@ -1934,9 +1934,14 @@ function LotusPage() {
                 </div>
                 <p className={styles.muted} style={{ marginTop: "0.75rem" }}>
                   {session.preparation?.readyQuestions ?? 0} of {session.preparation?.targetQuestions ?? 15} questions ready
-                  {session.preparation?.blockedReason ? "" : " · usually takes 3 minutes"}
+                  {session.preparation?.blockedReason || session.preparation?.cannotFinish ? "" : " · usually takes 3 minutes"}
                 </p>
-                {session.preparation?.blockedReason ? (
+                {session.preparation?.cannotFinish ? (
+                  <div className={styles.error} style={{ marginTop: "1rem" }} role="alert">
+                    <strong>We couldn&apos;t finish making this test.</strong>{" "}
+                    This isn&apos;t anything you did, and you haven&apos;t lost any answers. Please tell your teacher or come back later.
+                  </div>
+                ) : session.preparation?.blockedReason ? (
                   <div className={styles.error} style={{ marginTop: "1rem" }} role="alert">
                     <strong>We can&apos;t finish making your questions right now.</strong>{" "}
                     The AI that writes them isn&apos;t available. This page carries on by itself as soon as it&apos;s back, or you can

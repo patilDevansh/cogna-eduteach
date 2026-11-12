@@ -60,7 +60,7 @@ async function playWithAi(mode: Exclude<Mode, "ON">, personaId: string) {
   models.mode = mode;
   let answered = 0;
   const times: number[] = [];
-  while (view.status === "ACTIVE" && answered < 20) {
+  while (view.status === "ACTIVE" && !view.reportPending && answered < 20) {
     const staged = view.upcomingQuestions?.[0];
     assert.ok(view.currentQuestion, `Q${answered + 1}: a question is on screen with the AI ${mode}`);
     const plan = chooseResponse(persona, internal(service, view.sessionId).currentQuestion, answered + 1);
@@ -79,11 +79,12 @@ async function playWithAi(mode: Exclude<Mode, "ON">, personaId: string) {
 describe("Phase 6.2 — the test carries on when the AI stops", () => {
   for (const mode of ["OFF", "SLOW"] as const) {
     for (const id of ["P01_SECURE_ADVANCED", "P05_NEGATIVE_SIGN_ERROR"]) {
-      it(`AI ${mode === "OFF" ? "switched off" : "hanging"}, ${id}: every answer returns at once and the test reaches its report`, async () => {
+      it(`AI ${mode === "OFF" ? "switched off" : "hanging"}, ${id}: every answer returns at once and the report is held for the AI reviews`, async () => {
         const { view, answered, times } = await playWithAi(mode, id);
-        assert.equal(view.status, "COMPLETE", `still ${view.status} after ${answered} answers`);
+        assert.equal(view.status, "ACTIVE", `${view.status} after ${answered} answers`);
+        assert.equal(view.reportPending, true, "the student is told the report is coming");
         assert.ok(answered >= 15, `${answered} answered`);
-        assert.ok(view.finalReport, "a report is produced");
+        assert.equal(view.finalReport, null, "no rule-only report is issued");
         const beforeLast = Math.max(...times.slice(0, -1));
         assert.ok(beforeLast < 1_000, `slowest answer before the last took ${Math.round(beforeLast)} ms`);
         // A failing AI is not waited for at all; a slow one gets the short, capped wait before the report.

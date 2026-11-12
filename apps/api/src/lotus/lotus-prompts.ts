@@ -118,10 +118,10 @@ export function evidenceLogForPrompt(audits: LotusQuestionAudit[]): string {
  * synthesizing prior conclusions is the actual job — never to the
  * independent-assessment step (see evidenceLogForPrompt).
  */
-export function hypothesisLedgerForPrompt(audits: LotusQuestionAudit[]): string {
+export function hypothesisLedgerForPrompt(audits: LotusQuestionAudit[], detailWindow = LEDGER_DETAIL_WINDOW): string {
   if (audits.length === 0) return "No prior reconciliations yet — this is the first one.";
-  const older = audits.slice(0, -LEDGER_DETAIL_WINDOW);
-  const recent = audits.slice(-LEDGER_DETAIL_WINDOW);
+  const older = audits.slice(0, -detailWindow);
+  const recent = audits.slice(-detailWindow);
   const lines: string[] = [];
   if (older.length > 0) {
     const states = Array.from(new Set(older.map((audit) => audit.conclusion.evidenceState)));
@@ -376,11 +376,13 @@ Describe knowledge and skills only. Never comment on intelligence, personality, 
 All answers, in order (facts):
 ${evidenceLogForPrompt(args.audits)}
 
-Per-answer reviews so far (interpretation, revisable):
-${hypothesisLedgerForPrompt(args.audits)}
+Per-answer reviews, every question (interpretation, revisable):
+${hypothesisLedgerForPrompt(args.audits, Math.max(1, args.audits.length))}
 
 The code's record:
 ${args.codeRecord.join("\n")}
+
+Before writing, go through every wrong answer above and every per-answer review. Your view must account for each of them: never say the student got everything right, or has no gaps, while any answer was marked wrong or any review found a misunderstanding. A skill that went wrong more than once in the same way is not a slip.
 
 Return JSON only:
 {

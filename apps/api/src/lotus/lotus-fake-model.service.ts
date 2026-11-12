@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 /**
  * A deterministic, free, no-network stand-in for LotusModelService — the
  * "controlled model adapter" the Deterministic Wiring Suite calls for
@@ -228,7 +229,12 @@ export class FakeLotusModelService {
     return new LotusCostTracker().snapshot();
   }
   assertReady(): void {}
-  async primaryAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }
+  /** Test-only: while this file exists, reviews fail as they would in an AI outage. */
+  private failIfOutage(): void {
+    const flag = process.env.LOTUS_E2E_REVIEW_OUTAGE_FILE;
+    if (flag && existsSync(flag)) throw new Error("Simulated AI review outage");
+  }
+  async primaryAssessment(): Promise<LotusModelAssessment> { this.failIfOutage(); return ASSESSMENT; }
   async challengerAssessment(): Promise<LotusModelAssessment> { return ASSESSMENT; }
   async primaryDebate(): Promise<LotusGptDebateResponse> { return DEBATE; }
   async challengerClosure(): Promise<LotusDebateClosure> {
@@ -237,6 +243,7 @@ export class FakeLotusModelService {
     return { ...closure(), firstWrongStep: configuredFirstWrongStep() };
   }
   async singleReview(prompt?: string): Promise<LotusDebateClosure> {
+    this.failIfOutage();
     return this.challengerClosure();
   }
   async reviseQuestion(): Promise<Omit<LotusQuestion, "id">> {

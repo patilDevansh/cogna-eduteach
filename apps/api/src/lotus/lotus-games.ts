@@ -247,7 +247,10 @@ export function buildLotusGame(question: LotusQuestion, kind: LotusGameKind): Lo
 export function chooseLotusGame(question: LotusQuestion, context: { turn: number; repurposed: boolean; previousKind?: LotusGameKind; preferredKinds?: readonly LotusGameKind[] }, env: NodeJS.ProcessEnv = process.env): LotusGameConfig | undefined {
   if (!themedGamesEnabled(env)) return undefined;
   // Reserve two late spine turns for the promised formats before normal rotation.
-  const paperKind = ["FAC_GROUP_SIGN", "FAC_GROUP_TERMS"].includes(question.answerKey.diagnostics?.skillId ?? "") ? "ORDER_STEPS" : context.turn === 13 ? "FOUR_SIGNS" : undefined;
+  // Four signs fits two monic brackets, so it goes on the paper's x² + bx + c question (it used to be pinned to turn 13).
+  const skill = question.answerKey.diagnostics?.skillId ?? "";
+  const paperKind = ["FAC_GROUP_SIGN", "FAC_GROUP_TERMS"].includes(skill) ? "ORDER_STEPS"
+    : skill === "FAC_MONIC_TRINOMIAL" && question.answerKey.diagnostics?.slot === 14 ? "FOUR_SIGNS" : undefined;
   if (paperKind) {
     const paperGame = buildLotusGame(question, paperKind);
     if (paperGame) return paperGame;

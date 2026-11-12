@@ -100,6 +100,7 @@ import {
   planAdjustments,
   projectSkillAssessments,
   reviewsStillRunning,
+  MAX_FOLLOW_UPS,
   isSpinePaper,
 } from "./lotus-factorisation";
 import { checkWrittenItem, LotusQuestionFactory, type WriteRequest, type WriteResult } from "./lotus-question-factory";
@@ -124,6 +125,8 @@ interface LotusSessionState extends LotusSessionView {
   preferredFuture?: Record<string, string>;
   /** Factorisation topic only: the planned test and how it has changed. Server-only, never sent to the browser. */
   factorisation?: FactorisationSession;
+  /** Every question is answered, but the report waits until each AI review has landed. */
+  heldForReviews?: boolean;
   /** C1: the AI's read of the whole finished test, attached to the report. */
   overallReview?: LotusOverallReview;
 }
@@ -262,6 +265,14 @@ function preparationTarget(f: FactorisationSession): number {
 /** On the last answer, how long to wait for outstanding AI reviews before writing the report anyway. Later reviews still update it. */
 const FINAL_REPORT_WAIT_MS = 20_000;
 /** The final wait; the fake-model test harness may shorten it so a slowed-AI run fits a test timeout. */
+/** How often a report held for reviews retries the ones that failed. */
+function heldReviewRetryMs(): number {
+  const configured = Number(process.env.LOTUS_E2E_REVIEW_RETRY_MS);
+  return process.env.LOTUS_E2E_FAKE_MODEL === "true" && Number.isInteger(configured) && configured >= 100 ? configured : 2 * 60_000;
+}
+function reviewsOutstanding(session: Pick<LotusSessionView, "audits">): boolean {
+  return (session.audits ?? []).some((a) => a.analysisStatus === "PENDING" || a.analysisStatus === "FAILED");
+}
 function finalReportWaitMs(): number {
   if (process.env.LOTUS_E2E_FAKE_MODEL !== "true") return FINAL_REPORT_WAIT_MS;
   const configured = Number(process.env.LOTUS_E2E_FINAL_REPORT_WAIT_MS);
@@ -841,8 +852,8 @@ function publicCopy(session: LotusSessionState): LotusSessionView {
     clone.preparation = {
       readyQuestions,
       targetQuestions: preparationTarget(f),
-      // The true length: questions that will actually be asked (15 + follow-ups on the spine paper, never more than 17).
-      totalQuestions: Math.min(isSpinePaper(f.state) ? 17 : Infinity, f.state.turns.filter((turn) => turn.status !== "SKIPPED").length),
+      // The true length: questions that will actually be asked (15 + follow-ups on the spine paper, never more than 15 plus MAX_FOLLOW_UPS).
+      totalQuestions: Math.min(isSpinePaper(f.state) ? 15 + MAX_FOLLOW_UPS : Infinity, f.state.turns.filter((turn) => turn.status !== "SKIPPED").length),
       ready: readyQuestions >= preparationTarget(f),
     };
     // Never expose a legacy/pre-change non-AI item from an old persisted
@@ -1011,6 +1022,7 @@ export class LotusService implements OnModuleDestroy {
    * session is only a cache and can safely be reloaded after eviction.
    */
   private sweepStaleSessions(): void {
+    for (const session of this.sessions.values()) this.retryHeldReviews(session);
     if (!lotusPersistenceEnabled(this.prisma)) return;
     const now = Date.now();
     for (const [sessionId, session] of this.sessions) {
@@ -1141,7 +1153,39 @@ export class LotusService implements OnModuleDestroy {
   async get(sessionId: string): Promise<LotusSessionView> {
     const session = await this.requireSession(sessionId);
     this.ensureFactorisationWrites(session);
+    this.retryHeldReviews(session);
     return this.withPreparationBlock(publicCopy(session));
+  }
+
+  private readonly heldReviewRetryAt = new Map<string, number>();
+
+  /** A report is never final without its AI reviews, so failed ones are tried again until they land. */
+  private retryHeldReviews(session: LotusSessionState): void {
+    if (!session.heldForReviews || this.models.activeOutage) return;
+    if (Date.now() - (this.heldReviewRetryAt.get(session.sessionId) ?? 0) < heldReviewRetryMs()) return;
+    this.heldReviewRetryAt.set(session.sessionId, Date.now());
+    session.audits.forEach((audit, index) => {
+      if ((audit.analysisStatus !== "FAILED" && audit.analysisStatus !== "PENDING") || !audit.response || !audit.verification) return;
+      audit.analysisStatus = "PENDING";
+      const elapsedSeconds = Math.max(0, Math.floor((new Date(audit.createdAt).getTime() - new Date(session.startedAt).getTime()) / 1000));
+      this.scheduleDeferredAnalysis(session, index, audit.question, audit.response, audit.verification, elapsedSeconds, index + 1);
+    });
+  }
+
+  private holdReportForReviews(session: LotusSessionState): void {
+    session.heldForReviews = true;
+    session.reportPending = true;
+    session.currentQuestion = null;
+    session.liveProgress = null;
+    this.writeQueues.delete(session.sessionId);
+    this.inFlightAnswers.delete(session.sessionId);
+  }
+
+  private finishHeldReportIfReady(session: LotusSessionState): void {
+    if (!session.heldForReviews || reviewsOutstanding(session)) return;
+    this.heldReviewRetryAt.delete(session.sessionId);
+    delete session.heldForReviews;
+    this.completeFactorisation(session);
   }
 
   /**
@@ -1151,9 +1195,19 @@ export class LotusService implements OnModuleDestroy {
    * any successful call clears it.
    */
   private withPreparationBlock(view: LotusSessionView): LotusSessionView {
+    if (view.reportPending) {
+      const unfinished = (view.audits ?? []).filter((a) => a.analysisStatus === "PENDING" || a.analysisStatus === "FAILED");
+      if (unfinished.length) view.reportReview = { outstanding: unfinished.length, failing: unfinished.some((a) => a.analysisStatus === "FAILED") || Boolean(this.models.activeOutage) };
+    }
     const outage = this.models.lastOutage;
     if (outage && view.preparation && !view.preparation.ready) {
       view.preparation.blockedReason = `The AI that writes your questions is unavailable: ${outage.reason}.`;
+    }
+    // A question that has used all its attempts will never arrive by waiting, so don't ask the student to wait.
+    if (view.preparation && !view.preparation.ready) {
+      const target = view.preparation.targetQuestions;
+      const stuck = [...(this.writeQueues.get(view.sessionId)?.blockedTurns ?? [])].some(([turn, b]) => turn <= target && b.until === Number.POSITIVE_INFINITY);
+      if (stuck) view.preparation.cannotFinish = true;
     }
     return view;
   }
@@ -1803,7 +1857,7 @@ export class LotusService implements OnModuleDestroy {
         slot.verification?.status === "VERIFIED_CORRECT",
         slot.verification?.status === "VERIFIED_UNFINISHED",
       );
-      if (liveSession.status === "ACTIVE" && !slot.analysisLate && !liveSession.developerExitPrompt) {
+      if (liveSession.status === "ACTIVE" && !liveSession.heldForReviews && !slot.analysisLate && !liveSession.developerExitPrompt) {
         const forceCheckSkills = analysis.conclusion.action === "ASK"
           ? [...new Set((slot.skillEvidence ?? [])
             .filter((e) => !e.hedge && (e.kind === "MISTAKE" || e.kind === "UNFINISHED" || e.kind === "DID_NOT_KNOW"))
@@ -1823,7 +1877,7 @@ export class LotusService implements OnModuleDestroy {
         this.reconcileInstalledDecision(liveSession, slot);
         this.noteDoubtCheck(liveSession, slot);
         if (analysis.conclusion.action === "ASK") this.steerNextFormat(liveSession, slot, { proposed: analysis.conclusion.nextFormat, reason: analysis.conclusion.nextFormatReason });
-      } else if (liveSession.status === "ACTIVE" && !liveSession.developerExitPrompt) {
+      } else if (liveSession.status === "ACTIVE" && !liveSession.heldForReviews && !liveSession.developerExitPrompt) {
         slot.adaptiveDecision = {
           action: "KEEP",
           observedError: slot.skillEvidence?.find((e) => e.kind !== "SECURE")?.description
@@ -1839,6 +1893,7 @@ export class LotusService implements OnModuleDestroy {
         };
       }
       else if (liveSession.status === "COMPLETE") { liveSession.finalReport = this.factorisationReport(liveSession); this.maybeRunOverallReview(liveSession); }
+      this.finishHeldReportIfReady(liveSession);
     } else if (liveSession.coveragePlan) {
       if (!slot.analysisLate) {
         this.stageLaterProbe(liveSession, analysis.conclusion.nextQuestion);
@@ -2518,6 +2573,7 @@ Create one materially different question that adds new diagnostic evidence. Test
 
   /** Recover jobs lost during a rejected write, hot reload, or process restart. */
   private ensureFactorisationWrites(session: LotusSessionState): void {
+    if (session.heldForReviews) return;
     const f = session.factorisation;
     if (session.status !== "ACTIVE" || !f) return;
     const queue = this.writeQueues.get(session.sessionId);
@@ -2790,7 +2846,7 @@ Create one materially different question that adds new diagnostic evidence. Test
           `Question write ${sessionId.slice(0, 8)} turn ${job.turn} exhausted ${FACTORY_MAX_RETRIES} regeneration rounds ` +
           `(${totalAttempts}/${WRITE_LIFETIME_ATTEMPT_CAP} lifetime attempts); ` +
           (exhaustedLifetime
-            ? "permanently blocked — this catalogue shape has no remaining distinct expression; needs a content or uniqueness-rule fix, not another retry."
+            ? "permanently blocked — no written version passed the checks after every attempt; see the rejection reasons above."
             : "backing off before the next automatic retry instead of serving an unchecked item."),
         );
         return;
@@ -3096,7 +3152,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     // Stretch questions map the ceiling; later evidence never rewrites them.
     if (f.state.ceilingEscalated && (action.kind === "INSERT_ELASTIC_PROBE" || (f.versions[String(action.turn)] ?? []).some((item) => item.purpose === "STRETCH"))) return;
     if (action.kind === "INSERT_ELASTIC_PROBE") {
-      if (f.state.turns.filter((turn) => turn.isElasticProbe).length >= 2) return;
+      if (f.state.turns.filter((turn) => turn.isElasticProbe).length >= MAX_FOLLOW_UPS) return;
       insertElasticProbe(f.state, action);
       const queue = this.writeQueues.get(session.sessionId);
       if (queue) {
@@ -3216,7 +3272,8 @@ Create one materially different question that adds new diagnostic evidence. Test
 
     // Ceiling escalation is decided from this answer, but applied only once the answer and the
     // question the browser already staged have been accepted (see applyCeilingEscalation below).
-    const escalate = !state.ceilingEscalated && state.answeredTurns.length >= 4 && isCeilingEscalationEligible([
+    // On the 15-question paper every student gets every planned topic, however fast they start.
+    const escalate = !isSpinePaper(state) && !state.ceilingEscalated && state.answeredTurns.length >= 4 && isCeilingEscalationEligible([
       ...session.audits,
       { question: currentQuestion, response, verification: instant.verification, skillEvidence: instant.evidence } as LotusQuestionAudit,
     ], state);
@@ -3278,7 +3335,7 @@ Create one materially different question that adds new diagnostic evidence. Test
     // The four-call AI review runs only when code couldn't say what the answer shows (an
     // unpredicted wrong answer, or one it can't read). When code has settled it, a right
     // Sarah Standard: Deterministic referee does not silence the background diagnostician.
-    // For 15-slot canonical sessions (turns <= 17) or when LOTUS_SARAH_STANDARD is active,
+    // For 15-slot canonical sessions (turns <= 19) or when LOTUS_SARAH_STANDARD is active,
     // every turn's payload is dispatched asynchronously to the background AI worker during student
     // think time (~20s) whenever !instant.fastSkip. Legacy conditional review gating (needsAnalysis || conflictsWithEarlier)
     // is preserved only for historical 25-slot sessions when LOTUS_SARAH_STANDARD is not active.
@@ -3372,9 +3429,10 @@ Create one materially different question that adds new diagnostic evidence. Test
       session.currentQuestion = null;
       session.reportPending = true;
       if (analyse) this.scheduleDeferredAnalysis(session, turnIndex, currentQuestion, response, instant.verification, elapsedSeconds, answeredCount);
-      // The report is better with the last reviews in it, but the student shouldn't wait long for them.
+      // The student stops waiting after this short window, but the report is not final until every review is in.
       await this.waitForReviewsBeforeReport(session.sessionId);
-      this.completeFactorisation(session);
+      if (reviewsOutstanding(session)) this.holdReportForReviews(session);
+      else this.completeFactorisation(session);
       await this.persist(
         session, audit, true,
         analyse && audit.analysisStatus === "PENDING" ? [deferredAnalysisJobSpec(session.sessionId, turnIndex)] : [],

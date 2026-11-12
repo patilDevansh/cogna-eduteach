@@ -187,14 +187,14 @@ describe("Canonical 15-spine and stretch slots catalogue assertions", () => {
     assert.equal(CANONICAL_15_SPINE[5].kind, "CHOICE");
     // Tier 3 (7-8)
     assert.equal(CANONICAL_15_SPINE[6].shape, "3(x - 2) + y(x - 2)");
-    assert.equal(CANONICAL_15_SPINE[7].shape, "2xy + 2y + 3x + 3");
+    assert.equal(CANONICAL_15_SPINE[7].shape, "6xy - 4y - 9x + 6");
     // Tier 4 (9-11)
     assert.equal(CANONICAL_15_SPINE[8].shape, "x^2 - 9");
     assert.equal(CANONICAL_15_SPINE[9].shape, "49a^2 - 25b^2");
-    assert.equal(CANONICAL_15_SPINE[10].shape, "x^2 + 6x + 9");
+    assert.equal(CANONICAL_15_SPINE[10].shape, "4y^2 - 12y + 9");
     // Tier 5 (12-15)
     assert.equal(CANONICAL_15_SPINE[11].kind, "CHOICE");
-    assert.equal(CANONICAL_15_SPINE[12].shape, "x^2 + 5x + 6");
+    assert.equal(CANONICAL_15_SPINE[12].shape, "(x^2 - 9) / (x^2 - 6x + 9)");
     assert.equal(CANONICAL_15_SPINE[13].shape, "x^2 - x - 12");
     assert.equal(CANONICAL_15_SPINE[14].shape, "2x^2 - 18");
   });

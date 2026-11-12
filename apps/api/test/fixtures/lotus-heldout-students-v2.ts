@@ -101,7 +101,7 @@ function lackAnswerV2(question: PersonaQuestionLike, lackedSkill: string, code: 
   let answer: string;
   if (own) answer = own.answer;
   else if (typed) answer = unpredictedWrong(correct, predicted.map((p) => p.answer));
-  else answer = predicted[0]?.answer ?? "No"; // a choice has only listed options to pick from
+  else answer = predicted[0]?.answer ?? (question as { options?: string[] }).options?.find((o) => o !== correct) ?? "No"; // a choice has only listed options to pick from
   return {
     answer: answer === correct ? `${correct} + 1` : answer,
     working: `I used the rule I know for this, and I think my answer is ${answer}.`,

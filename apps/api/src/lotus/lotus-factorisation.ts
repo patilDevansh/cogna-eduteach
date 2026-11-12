@@ -69,6 +69,7 @@ import {
   SOFT_PREREQUISITES,
   FACTORISATION_STRETCH_SLOTS,
   FACTORISATION_SLOTS,
+  FACTORISATION_SKILLS,
 } from "./lotus-factorisation-catalogue";
 import { checkSpecFor } from "./lotus-skill-checks";
 import { SHARED_PATTERNS } from "./lotus-skill-map";
@@ -479,7 +480,12 @@ function markedVerdict(question: LotusQuestion, response: LotusStudentResponse):
   const reading = d.itemKind === "FACTORISE" ? (readCommonFactor(typed, expression) ?? readCommonFactor(typed, expression, true)) : null;
   // The square-pattern beliefs are also read from the answer's shape, so a mistake the item didn't list is still named.
   const shape = d.itemKind === "FACTORISE" ? squarePatternMistake(typed, expression) : null;
-  const mistake = reading?.mistake ?? predicted?.mistake ?? shape ?? undefined;
+  // A validated item's declared predicted answer is the most specific
+  // attribution available.  Structural parsing can describe the same text
+  // more generically (for example, an intended non-common-variable choice
+  // can also look like an unreduced exponent), but must not erase the
+  // microskill the item was explicitly designed to discriminate.
+  const mistake = predicted?.mistake ?? reading?.mistake ?? shape ?? undefined;
   // A predicted wrong answer after working that already reached the right
   // one is most likely a copying slip, not the misconception it resembles:
   // leave it to the AI review (which labels slips) instead of counting it.
@@ -1793,9 +1799,42 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
       reason: `A split-chip response favoured the correct answer but gave weight to an alternative; a fresh ${skillName(e.skillId)} check may clarify the uncertainty.` });
   }
 
+  // 0. One cause, many gaps: when two or more shaky skills all build on the same untested skill, ask that
+  // skill first. Its question goes before their second looks, and those second looks wait for it, so the
+  // few follow-ups are not used up on symptoms before the cause is reached.
+  {
+    const shaky = [...ledger.values()].filter((e) => e.state === "SUSPECTED" || e.state === "CONFIRMED").map((e) => e.skillId);
+    // A step down already went wrong: confirming it (below) comes before looking for another shared cause.
+    const digWentWrong = state.turns.some((t) => t.purpose === "DESCENT" && ledger.get(t.forSkill ?? "")?.state === "SUSPECTED");
+    if (shaky.length >= 2 && !digWentWrong) {
+      const shared = FACTORISATION_SKILLS
+        .filter((k) => !shaky.includes(k.id) && (ledger.get(k.id)?.state ?? "UNTESTED") === "UNTESTED")
+        .map((k) => ({ id: k.id, group: k.group, under: shaky.filter((s) => dependsOnTransitively(s, k.id)) }))
+        // Symptoms from one wrong answer are one piece of evidence: the pattern needs at least two different questions.
+        .filter((c) => new Set(c.under.map((s) => { const e = ledger.get(s); return e?.state === "CONFIRMED" ? `c:${s}` : e?.suspectedAt; })).size >= 2)
+        .filter((c) => c.under.length >= 2 && !state.turns.some((t) => t.purpose === "DESCENT" && t.forSkill === c.id))
+        .map((c) => ({ ...c, spec: slots.find((s) => s.skillId === c.id) ?? checkSpecFor(c.id) }))
+        .filter((c) => !!c.spec)
+        .sort((a, b) => b.under.length - a.under.length || a.group - b.group)[0];
+      if (shared && !checkedThisCall.has(shared.id)) {
+        const turn = pickVictim();
+        if (turn !== null) {
+          claimed.add(turn); protectedTurns.add(turn); checkedThisCall.add(shared.id);
+          actions.push({
+            kind: "REPURPOSE", turn, purpose: "DESCENT", forSkill: shared.id, spec: shared.spec!,
+            reason: `${shared.under.map(skillName).join(", ")} all went wrong and all build on ${skillName(shared.id)}; checking that first.`,
+          });
+          for (const s of shared.under) checkedThisCall.add(s);
+        }
+      }
+    }
+  }
+
   // 1. Every suspicion needs a later question that can confirm or clear it. The weightiest mistake is
   // handled first, so when there is room for one check it goes to the misconception, not the miss.
-  for (const e of [...ledger.values()].sort((a, b) => mistakeRank(a.mistakes.at(-1)) - mistakeRank(b.mistakes.at(-1)))) {
+  // A suspected skill that a step down reached is the likely cause, so its second look goes first.
+  const dugTo = (id: string) => (state.turns.some((t) => t.purpose === "DESCENT" && t.forSkill === id) ? 0 : 1);
+  for (const e of [...ledger.values()].sort((a, b) => dugTo(a.skillId) - dugTo(b.skillId) || mistakeRank(a.mistakes.at(-1)) - mistakeRank(b.mistakes.at(-1)))) {
     // A support signal is not evidence of a mathematical gap, but it does
     // justify one lower-prerequisite question. Handle it before the
     // suspicion-only confirmation path, or a pure "I don't know" remains
@@ -1877,14 +1916,16 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
     const sourceSlot = e.needsComparableCheck && e.suspectedAt
       ? input.askedItems[e.suspectedAt - 1]?.answerKey.diagnostics?.slot : undefined;
     const spec = (sourceSlot !== undefined ? slots.find((s) => s.slot === sourceSlot) : undefined)
-      ?? slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
+      ?? slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId)
+      // A skill the paper only uses as a step (plain grouping under the minus-grouping question) is checked from the full list.
+      ?? FACTORISATION_SLOTS.find((s) => s.skillId === e.skillId);
     if (!spec) continue;
 
     // Elastic runway: on the 15-question paper a follow-up is inserted, never put in place of a spine topic.
     // It goes after the last question the browser may already hold (the staged next one during a
     // background update), so nothing already on screen moves. At most two per session.
     const elasticCount = state.turns.filter((t) => t.isElasticProbe).length;
-    if (elasticRunwayApplies(state) && elasticCount < 2 && state.planTurn > 0) {
+    if (elasticRunwayApplies(state) && elasticCount < MAX_FOLLOW_UPS && state.planTurn > 0) {
       const afterTurn = frozenNext ?? state.planTurn;
       const after = state.turns.find((t) => t.turn === afterTurn);
       // Label by the spine question it follows; a follow-up after a follow-up keeps that spine number.
@@ -2014,16 +2055,17 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
 /**
  * The 15-question paper asks each spine slot exactly once, in tier order (remediation Phase 2).
  * Nothing may skip a spine turn or put another question in its place: a re-check or a step down
- * becomes a follow-up inserted after the staged question (at most two a session), and widening or
+ * becomes a follow-up inserted after the staged question (at most MAX_FOLLOW_UPS a session), and widening or
  * avoiding is left out. Follow-up turns are extra, so they may still be changed.
  */
 export function keepSpineIntact(state: FactorisationState, actions: PlanAction[], afterTurn: number): PlanAction[] {
   const isFollowUp = (turn: number) => state.turns.find((t) => t.turn === turn)?.isElasticProbe === true;
   let followUps = state.turns.filter((t) => t.isElasticProbe).length;
   const kept: PlanAction[] = [];
+  const deferred = new Set<string>();
   for (const action of actions) {
     if (action.kind === "INSERT_ELASTIC_PROBE") {
-      if (followUps >= 2 || kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE") ||
+      if (followUps >= MAX_FOLLOW_UPS || kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE") ||
         state.turns.some((t) => t.isElasticProbe && t.parentSlot === action.parentSlot)) continue;
       followUps += 1;
       kept.push(action);
@@ -2032,11 +2074,15 @@ export function keepSpineIntact(state: FactorisationState, actions: PlanAction[]
     if (isFollowUp(action.turn)) { kept.push(action); continue; }
     if (action.kind !== "REPURPOSE" || (action.purpose !== "CHECK" && action.purpose !== "DESCENT")) continue;
     const spec = action.spec ?? checkSpecFor(action.forSkill);
-    if (!spec || followUps >= 2 || state.planTurn < 1) continue;
+    if (!spec || followUps >= MAX_FOLLOW_UPS || state.planTurn < 1) continue;
     const after = state.turns.find((t) => t.turn === afterTurn);
     const parentSlot = after?.isElasticProbe ? (after.parentSlot ?? Math.floor(after.slot)) : Math.floor(after?.slot ?? afterTurn);
-    if (state.turns.some((t) => t.isElasticProbe && t.parentSlot === parentSlot)) continue;
-    if (kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE")) continue;
+    if (state.turns.some((t) => t.isElasticProbe && t.parentSlot === parentSlot) || kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE")) {
+      // No room after this question. A step down must not be lost: let the confirmed gap above it be
+      // planned again after the next question, where a follow-up can go.
+      if (action.purpose === "DESCENT" && followUps < MAX_FOLLOW_UPS) deferred.add(action.forSkill);
+      continue;
+    }
     followUps += 1;
     kept.push({
       kind: "INSERT_ELASTIC_PROBE", turn: afterTurn + 1, afterTurn, spec, purpose: action.purpose, forSkill: action.forSkill,
@@ -2044,6 +2090,9 @@ export function keepSpineIntact(state: FactorisationState, actions: PlanAction[]
       reason: `Follow-up inserted after Q${afterTurn} so no spine topic is dropped. ${action.reason}`,
       ...(action.targetMistake ? { targetMistake: action.targetMistake } : {}),
     });
+  }
+  if (deferred.size && !kept.some((a) => a.kind === "INSERT_ELASTIC_PROBE" && a.purpose === "DESCENT")) {
+    state.handledConfirmed = state.handledConfirmed.filter((id) => !(findSkill(id)?.dependsOn ?? []).some((p) => deferred.has(p) || [...deferred].some((d) => dependsOnTransitively(p, d))));
   }
   return kept;
 }
@@ -2537,6 +2586,9 @@ export function factorisationTimeLimitSeconds(env: NodeJS.ProcessEnv = process.e
   const minutes = Number(env.LOTUS_TIME_LIMIT_MINUTES);
   return (Number.isFinite(minutes) && minutes > 0 ? minutes : 15) * 60;
 }
+
+/** Extra checks a student who shows a problem may receive on the 15-question paper. */
+export const MAX_FOLLOW_UPS = 4;
 
 /** Fewest answers before a starting point may end the test: one confirmed gap needs two questions, and its prerequisites need checking. */
 export const MIN_ANSWERS_FOR_EARLY_STOP = 8;

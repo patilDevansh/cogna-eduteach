@@ -77,17 +77,15 @@ const asPersona = (p: PersonaProfile) => (q: unknown, turn: number) => chooseRes
 
 describe("Phase 1 — a fast, accurate student finishes the paper", () => {
   for (const paceMs of [4_000, 9_000]) {
-    it(`all correct at ${paceMs / 1000} s an answer: harder questions switch on, every answer saves, the report is reached`, async () => {
+    it(`all correct at ${paceMs / 1000} s an answer: every planned question is asked, every answer saves, the report is reached`, async () => {
       const service = setup();
       const p = persona("P01_SECURE_ADVANCED");
       const { view, answered, session } = await play(service, `demo_fast_${paceMs}`, asPersona(p), paceMs);
       assert.equal(view.status, "COMPLETE");
       assert.equal(answered, 15, "the whole 15-question paper is answered");
-      assert.ok(session.factorisation.state.ceilingEscalated, "the harder-question switch fired");
+      assert.ok(!session.factorisation.state.ceilingEscalated, "a fast start does not replace the planned questions");
       const purposes = session.audits.map((a: { question: { purpose?: string } }) => a.question.purpose);
-      // The switch is decided on the Q5 answer; Q6 was already on screen, so stretch questions start at Q7.
-      assert.ok(purposes.slice(0, 6).every((x: string | undefined) => x !== "STRETCH"), "Q1–Q6 are spine questions");
-      assert.ok(purposes.slice(6).every((x: string | undefined) => x === "STRETCH"), "Q7–Q15 are stretch questions");
+      assert.ok(purposes.every((x: string | undefined) => x !== "STRETCH"), "all 15 are the planned questions");
       assert.ok(session.audits.every((a: { verification?: { status?: string } }) => a.verification?.status === "VERIFIED_CORRECT"), "every stretch answer is marked by code");
       assert.equal(view.finalReport?.outcome, "ADVANCEMENT");
     });
@@ -110,7 +108,7 @@ describe("Phase 1 — only the stuck-student exit ends the paper early", () => {
       const p = persona(id);
       const { view, answered, session } = await play(service, `demo_${id}`, asPersona(p), p.paceMsBand[0]);
       assert.equal(view.status, "COMPLETE");
-      assert.ok(answered >= 15 && answered <= 17, `${answered} answered; the paper is 15 plus at most 2 follow-ups`);
+      assert.ok(answered >= 15 && answered <= 19, `${answered} answered; the paper is 15 plus at most 4 follow-ups`);
       assert.doesNotMatch(String(session.factorisation.endedEarlyNote ?? ""), /starting point/i, "the old starting-point stop must not end the paper");
     });
   }

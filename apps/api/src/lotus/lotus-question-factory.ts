@@ -17,8 +17,7 @@ import {
   curriculumOfSkill,
   dependsOnTransitively,
   findSkill,
-  skillName,
-} from "./lotus-factorisation-catalogue";
+  skillName, dropInvalidPredictions, UNFINISHED_MISTAKES } from "./lotus-factorisation-catalogue";
 
 type Item = Omit<LotusQuestion, "id">;
 
@@ -90,6 +89,10 @@ function makerPrompt(req: WriteRequest): string {
     "",
     `Mistakes this question must be able to catch — give at least ${minWrong} wrong answer(s), each EXACTLY what a student making that mistake would write, as a whole answer in the same form as the right one, because it may be shown beside the right answer as a choice:`,
     ...spec.mistakes.map((m) => `- ${m}${curriculum?.mistakeNotes[m] ? `: ${curriculum.mistakeNotes[m]}` : ""}`),
+    ...(spec.kind === "FACTORISE" ? [
+      "",
+      `Every predicted wrong answer must expand to something different from the expression. The only exception is a correct but incomplete factorisation, and that may only be labelled ${spec.mistakes.filter((m) => UNFINISHED_MISTAKES.has(m)).join(" or ") || "with none of this slot's codes, so do not use one here"}. An answer that is just the right factorisation rearranged is not a wrong answer.`,
+    ] : []),
     "",
     "Rules:",
     `- One clear task. The student-facing prompt is ${isFactorisation ? 25 : 40} words or fewer. Describe any figure, table or graph in words: the student sees no picture.`,
@@ -338,6 +341,8 @@ export class LotusQuestionFactory {
       }
       const item = toItem(req, raw);
       if (typeof item === "string") { rejections.push(`attempt ${attempt}: ${item}`); continue; }
+      const dropped = dropInvalidPredictions(item);
+      if (dropped.length) rejections.push(`attempt ${attempt}: question kept; removed unusable predicted answer(s): ${dropped.join("; ")}`);
       const reasons = checkWrittenItem(req, item);
       if (!reasons.length && req.spec.kind === "NUMBER") {
         try {
