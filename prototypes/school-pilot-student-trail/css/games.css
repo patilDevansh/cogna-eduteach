@@ -1,0 +1,73 @@
+/* OWNER: Agent E (games). t- classes only, cogna.css variables only. */
+
+.t-game { display: flex; flex-direction: column; gap: var(--s-3); width: 100%; max-width: 560px; margin: 0 auto; }
+.t-game-instr { font-size: var(--text-sm); color: var(--ink-soft); }
+.t-game-instr strong { color: var(--ink); }
+.t-game-controls { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.t-game-controls .btn { padding: 0.6rem 1.1rem; font-size: var(--text-sm); }
+.t-game-fb:empty { display: none; }
+.t-game-readout { font-family: var(--font-math); font-size: var(--text-sm); color: var(--ink); min-height: 1.6em; }
+
+/* the board */
+.t-board {
+  display: block; width: 100%; height: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.t-g-grid { stroke: var(--line); stroke-width: 0.04; fill: none; }
+.t-g-grid-fine { stroke: var(--line); stroke-width: 0.03; stroke-dasharray: 0.12 0.12; fill: none; }
+.t-g-shape { fill: var(--accent-wash); stroke: var(--ink); stroke-width: 0.08; stroke-linejoin: round; }
+.t-g-shape-soft { fill: var(--accent-wash); stroke: none; }
+.t-g-ink { fill: none; stroke: var(--ink); stroke-width: 0.08; stroke-linejoin: round; stroke-linecap: round; }
+.t-g-hl { fill: none; stroke: var(--accent); stroke-width: 0.12; stroke-linecap: round; stroke-linejoin: round; }
+.t-g-hl-dash { fill: none; stroke: var(--accent); stroke-width: 0.1; stroke-dasharray: 0.25 0.18; stroke-linecap: round; stroke-linejoin: round; }
+.t-g-wrong { fill: none; stroke: var(--t-wrong-stroke); stroke-width: 0.14; stroke-linecap: round; }
+.t-g-wrong-dash { fill: none; stroke: var(--t-wrong-stroke); stroke-width: 0.1; stroke-dasharray: 0.2 0.15; }
+.t-g-label { font-family: var(--font-math); font-size: 0.5px; fill: var(--ink); }
+.t-g-label-soft { font-family: var(--font-math); font-size: 0.42px; fill: var(--ink-soft); }
+.t-g-label-big { font-family: var(--font-display); font-weight: 600; font-size: 0.62px; fill: var(--accent-deep); }
+.t-g-tray { fill: var(--surface); stroke: var(--line-strong); stroke-width: 0.06; stroke-dasharray: 0.2 0.15; }
+.t-g-tile { fill: var(--accent); fill-opacity: 0.88; stroke: var(--surface); stroke-width: 0.05; }
+.t-g-ghost { fill: var(--accent); fill-opacity: 0.6; stroke: var(--accent-deep); stroke-width: 0.06; pointer-events: none; }
+.t-g-target { fill: none; stroke: var(--accent); stroke-width: 0.09; pointer-events: none; }
+.t-g-target-bad { fill: none; stroke: var(--t-wrong-stroke); stroke-width: 0.09; pointer-events: none; }
+.t-g-drag { cursor: grab; }
+.t-g-dragging { cursor: grabbing; }
+
+/* cut-slide */
+.t-g-knife { stroke: var(--ink); stroke-width: 0.09; stroke-dasharray: 0.3 0.2; }
+.t-g-knife-grip { fill: var(--ink); }
+.t-g-hit-rect { fill: transparent; }
+.t-g-piece { fill: var(--accent-wash); stroke: var(--ink); stroke-width: 0.08; stroke-linejoin: round; }
+.t-g-piece-move { fill: var(--accent); fill-opacity: 0.35; stroke: var(--accent-deep); stroke-width: 0.1; stroke-linejoin: round; cursor: grab; }
+
+/* pick-height */
+.t-ph-steps { display: flex; align-items: center; gap: var(--s-2); font-size: var(--text-sm); color: var(--ink-soft); }
+.t-ph-pip { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); transition: background-color var(--dur-fast) var(--ease-settle); }
+.t-ph-pip[data-state="now"] { background: var(--ink); }
+.t-ph-pip[data-state="done"] { background: var(--accent); }
+.t-g-cand { cursor: pointer; outline: none; }
+.t-g-hit { fill: none; stroke: transparent; stroke-width: 1.6; stroke-linecap: round; pointer-events: stroke; }
+.t-g-candline { fill: none; stroke: var(--accent); stroke-width: 0.11; stroke-dasharray: 0.25 0.18; stroke-linecap: round; transition: stroke-width var(--dur-fast) var(--ease-settle); }
+.t-g-cand:hover .t-g-candline,
+.t-g-cand:focus-visible .t-g-candline { stroke-width: 0.22; }
+.t-g-cand[data-state="right"] .t-g-candline { stroke-dasharray: none; stroke-width: 0.2; }
+.t-g-cand[data-state="wrong"] .t-g-candline { stroke: var(--t-wrong-stroke); stroke-dasharray: none; stroke-width: 0.2; }
+.t-g-cand[data-locked="1"] { pointer-events: none; }
+
+/* split-shape */
+.t-g-cell { fill: var(--accent-wash); stroke: none; }
+.t-g-cell-bad { fill: none; stroke: var(--t-wrong-stroke); stroke-width: 0.07; stroke-dasharray: 0.15 0.12; }
+.t-g-edge-guide { stroke: var(--line-strong); stroke-width: 0.04; }
+.t-g-split { stroke: var(--accent); stroke-width: 0.17; stroke-linecap: round; }
+.t-g-edge-hover { stroke: var(--accent); stroke-opacity: 0.45; stroke-width: 0.17; stroke-linecap: round; pointer-events: none; }
+
+/* floor-tiles */
+.t-g-tilegrid { stroke: var(--accent); stroke-width: 0.05; opacity: 0; transition: opacity var(--dur-calm) var(--ease-settle); }
+.t-g-tilegrid[data-on="1"] { opacity: 0.8; }
+.t-game-numrow { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: flex-end; }
+.t-game-numrow .field { flex: 0 1 11rem; }
+.t-game-numrow .btn { min-height: 48px; }
+.t-game-controls [hidden] { display: none; }

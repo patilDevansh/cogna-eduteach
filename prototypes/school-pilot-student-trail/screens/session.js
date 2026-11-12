@@ -1,0 +1,791 @@
+/* Cogna prototype — session player, step renderers, retest.
+   OWNER: Agent C. Registers Cogna.screens.session, Cogna.screens.retest, Cogna.steps[type], Cogna.session.
+
+   Player:  #/day/N  -> header, progress dots, one step in a .card on .grid-air, sticky Continue bar.
+            Continue is disabled until the step calls ctx.complete(). Re-entering resumes at the
+            first step not in state.completedSteps[N]. `fix` steps are skipped unless
+            state.shouldShowFix(day, step.mixup) is true at the moment we reach them.
+   Retest:  #/retest -> 12 questions from Cogna.data.retest, confidence required, no feedback,
+            each answer -> state.recordRetest. "See my growth" -> completeDay(10) -> #/growth.
+
+   Step renderer signature: Cogna.steps[type](el, step, ctx)
+     ctx = { day, state, complete(), record(info), next(),
+             onCleanup(fn)  // extra: run fn when the step is left (destroy controllers)
+             setAuto(fn)    // extra: fn() fills + submits this step with right answers (may return a Promise) }
+
+   Demo hooks (for the orchestrator's drawer):
+     Cogna.session.autoAnswer()  -> Promise<boolean>. Fills and submits the CURRENT step of the live player
+                                    (or the retest) with right answers: every question answered correctly and
+                                    "Sure"; worked blanks filled; explain gets a strong answer built from the
+                                    first keyword of each keyIdeas group (resolves after the 1.2 s "reading"
+                                    pause); animation/game/teacher are simply marked done. Resolves true once
+                                    the step has called ctx.complete(); false if no player is mounted.
+     Cogna.session.advance()     -> clicks Continue if it is enabled (finish day / see growth on the last step).
+     Cogna.session.isComplete()  -> boolean, whether Continue is currently enabled.
+   A full auto-play of a day is:  autoAnswer().then(advance) repeated. */
+(function () {
+  "use strict";
+  var C = window.Cogna, h = C.h;
+  var current = null; // the live player: { el, cleanups[], auto, advance, isComplete }
+
+  /* ------------------------------------------------------------------ helpers */
+  function icon(kind) {
+    var d = kind === "ok" ? "M5 12.5l4.5 4.5L19 7.5" : "M6 6l12 12M18 6L6 18";
+    return C.svg("svg", { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", "stroke-width": 1.5, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", class: kind === "ok" ? "check-draw t-icon" : "t-icon" }, C.svg("path", { d: d }));
+  }
+  function hashStr(s) { var x = 2166136261; s = String(s); for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return x >>> 0; }
+  function shuffled(arr, key) {
+    var a = arr.slice(), seed = hashStr(key);
+    function rnd() { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  /** First number in a string: "48", "48 cm²", "4.8", "1,000" -> number, or null. */
+  function parseNum(s) {
+    var m = String(s).replace(/(\d),(?=\d{3}\b)/g, "$1").match(/-?\d+(?:\.\d+)?|-?\.\d+/);
+    return m ? parseFloat(m[0]) : null;
+  }
+  function mixupInfo(id) { return (C.data.mixups || []).filter(function (m) { return m.id === id; })[0]; }
+  function correctText(q) {
+    if (q.kind === "mcq") { var o = (q.options || []).filter(function (x) { return x.correct; })[0]; return o ? o.text : ""; }
+    return q.answer + (q.unit ? " " + q.unit : "");
+  }
+  function teacherName() {
+    var t = (C.data.student && C.data.student.teacher) || "Ms. Rao";
+    var parts = t.split(/\s+/);
+    return parts.length > 1 ? parts[0] + " " + parts[parts.length - 1] : t;
+  }
+  function runCleanups(list) { while (list.length) { try { list.pop()(); } catch (e) { console.error("[session] cleanup", e); } } }
+  function destroyCurrent() { if (current) { runCleanups(current.cleanups); current = null; } }
+  C.bus.on("route:changed", function () { if (current && !current.el.isConnected) destroyCurrent(); });
+
+  function dots(n, label) {
+    var box = h("div", { class: "progress-dots", role: "img", "aria-label": label || "" });
+    function set(items, now) {
+      box.innerHTML = "";
+      items.forEach(function (done, i) { box.appendChild(h("span", { class: i === now ? "now" : (done ? "done" : "") })); });
+    }
+    return { el: box, set: set };
+  }
+
+  /* ------------------------------------------------------------------ one question */
+  /* o: { needSure, feedback:'instant'|'none', tries, neutral, anything, reveal, checkLabel,
+          record(info), onResult(res, final) } */
+  function questionView(q, o) {
+    var root = h("div", { class: "t-q" });
+    var tries = o.tries || 1;
+    var opts = q.kind === "mcq" ? shuffled(q.options || [], q.id) : null;
+    var S = { pick: -1, sure: null, attempts: 0, locked: false, text: "" };
+    var R = {}; // element refs
+    var uid = "q-" + hashStr(q.id + Math.random());
+
+    function hasAnswer() { return q.kind === "mcq" ? S.pick >= 0 : S.text.trim() !== ""; }
+    function ready() { return hasAnswer() && (!o.needSure || S.sure !== null); }
+    function refresh() {
+      R.check.disabled = S.locked || !ready();
+      R.need.hidden = !(o.needSure && hasAnswer() && S.sure === null && !S.locked);
+    }
+
+    function evaluate() {
+      if (q.kind === "mcq") {
+        var p = opts[S.pick];
+        return { correct: !!p.correct, mixup: p.correct ? null : (p.mixup || null), why: p.correct ? null : (p.why || null), answer: p.text };
+      }
+      var v = parseNum(S.text);
+      if (v === null) return o.anything ? { correct: false, mixup: null, why: null, answer: S.text.trim() } : { invalid: true };
+      var res = { correct: Math.abs(v - q.answer) <= (q.tol || 0) + 1e-9, mixup: null, why: null, answer: S.text.trim() };
+      if (!res.correct) {
+        (q.wrongMixups || []).some(function (w) {
+          if (Math.abs(v - w.value) <= 1e-9) { res.mixup = w.mixup || null; res.why = w.why || null; return true; }
+          return false;
+        });
+      }
+      return res;
+    }
+
+    function selectOpt(i) {
+      if (S.locked) return;
+      S.pick = i;
+      R.optBtns.forEach(function (b, j) { b.setAttribute("aria-checked", j === i ? "true" : "false"); b.classList.toggle("is-picked", j === i); });
+      refresh();
+    }
+    function setSure(v) {
+      if (S.locked) return;
+      S.sure = v;
+      R.sureBtns.forEach(function (b) { var on = (b.getAttribute("data-sure") === "1") === v; b.setAttribute("aria-pressed", on ? "true" : "false"); b.classList.toggle("is-selected", on); });
+      refresh();
+    }
+    function setText(t) { if (S.locked) return; S.text = t; R.input.value = t; R.err.textContent = ""; refresh(); }
+
+    function lock(res, final) {
+      S.locked = true;
+      if (R.optBtns) R.optBtns.forEach(function (b, j) {
+        b.disabled = true;
+        if (o.feedback === "instant" && !o.neutral) {
+          if (j === S.pick) b.classList.add(res.correct ? "is-right" : "is-wrong");
+          else if (final && !res.correct && opts[j].correct) b.classList.add("is-right");
+        }
+      });
+      if (R.input) R.input.disabled = true;
+      R.sureBtns.forEach(function (b) { b.disabled = true; });
+      R.check.hidden = true; R.need.hidden = true;
+      if (R.hintBtn) R.hintBtn.hidden = true;
+    }
+
+    function showFeedback(res, final) {
+      var box = R.fb; box.innerHTML = "";
+      if (o.neutral) {
+        box.appendChild(h("div", { class: "feedback t-note settle" }, h("div", null,
+          h("strong", null, res.correct ? "You already had it." : "Here's how it works"),
+          o.reveal || q.explain || "")));
+        return;
+      }
+      var body = h("div", null);
+      if (res.correct) {
+        body.appendChild(h("strong", null, "Right."));
+        if (q.explain) body.appendChild(h("span", null, q.explain));
+        box.appendChild(h("div", { class: "feedback feedback-correct t-right settle" }, icon("ok"), body));
+        return;
+      }
+      body.appendChild(h("strong", null, final ? "Not quite." : "Not quite. Have another go."));
+      if (res.why) body.appendChild(h("span", { class: "t-fb-line" }, res.why));
+      if (res.mixup) {
+        var mi = mixupInfo(res.mixup);
+        body.appendChild(h("span", { class: "t-fb-line t-mixup-line" }, "This is a mix-up we've seen before" + (mi ? ": " + mi.name : ".")));
+      }
+      if (final) {
+        body.appendChild(h("span", { class: "t-fb-line" }, "The answer is " + correctText(q) + "."));
+        if (q.explain) body.appendChild(h("span", { class: "t-fb-line" }, q.explain));
+      } else {
+        if (q.hint) body.appendChild(h("span", { class: "t-fb-line" }, "Hint: " + q.hint));
+        body.appendChild(h("button", { type: "button", class: "btn btn-ghost t-retry", on: { click: function () { render(true); R.focus(); } } }, "Try again"));
+      }
+      box.appendChild(h("div", { class: "feedback feedback-incorrect t-wrong settle" }, icon("x"), body));
+    }
+
+    function check() {
+      if (S.locked || !ready()) return;
+      var res = evaluate();
+      if (res.invalid) { R.err.textContent = "Type a number to answer."; R.input.focus(); return; }
+      S.attempts++;
+      var final = res.correct || S.attempts >= tries;
+      o.record({ qid: q.id, skill: q.skill, correct: res.correct, mixup: res.mixup, guards: q.guards, sure: o.needSure ? S.sure : undefined, answer: res.answer });
+      lock(res, final);
+      if (o.feedback === "instant") showFeedback(res, final);
+      o.onResult(res, final);
+    }
+
+    function render(keepSure) {
+      var sure = keepSure ? S.sure : null;
+      S.pick = -1; S.text = ""; S.locked = false; S.sure = sure;
+      root.innerHTML = "";
+      root.appendChild(h("p", { class: "t-q-prompt", id: uid + "-p" }, q.prompt));
+      if (q.figure) { var f = C.fromHTML(q.figure); if (f) root.appendChild(f); }
+
+      if (q.kind === "mcq") {
+        var grp = h("div", { class: "t-options", role: "radiogroup", "aria-labelledby": uid + "-p" });
+        R.optBtns = opts.map(function (op, i) {
+          var b = h("button", { type: "button", class: "t-opt", role: "radio", "aria-checked": "false", "aria-label": op.text, on: { click: function () { selectOpt(i); } } },
+            h("span", { class: "t-opt-key", "aria-hidden": "true" }, String.fromCharCode(65 + i)), h("span", { class: "t-opt-text" }, op.text));
+          grp.appendChild(b); return b;
+        });
+        root.appendChild(grp);
+        R.input = null;
+        R.focus = function () { R.optBtns[0].focus(); };
+      } else {
+        R.optBtns = null;
+        R.input = h("input", { class: "input t-num-input", type: "text", inputmode: "decimal", autocomplete: "off", "aria-labelledby": uid + "-p", placeholder: "Your answer",
+          on: { input: function (e) { S.text = e.target.value; R.err.textContent = ""; refresh(); }, keydown: function (e) { if (e.key === "Enter") { e.preventDefault(); check(); } } } });
+        root.appendChild(h("div", { class: "t-num" }, R.input, q.unit ? h("span", { class: "t-num-unit" }, q.unit) : null));
+        R.focus = function () { R.input.focus(); };
+      }
+      R.err = h("p", { class: "t-q-err", role: "alert" });
+      root.appendChild(R.err);
+
+      R.sureBtns = [];
+      if (o.needSure) {
+        var cg = h("div", { class: "t-conf", role: "group", "aria-label": "How sure are you?" }, h("span", { class: "t-conf-label" }, "How sure are you?"));
+        var row = h("div", { class: "t-conf-choices" });
+        [[true, "Sure"], [false, "Not sure"]].forEach(function (pair) {
+          var b = h("button", { type: "button", class: "t-conf-btn", "data-sure": pair[0] ? "1" : "0", "aria-pressed": "false", on: { click: function () { setSure(pair[0]); } } }, pair[1]);
+          R.sureBtns.push(b); row.appendChild(b);
+        });
+        cg.appendChild(row); root.appendChild(cg);
+      }
+
+      R.hintBtn = null;
+      if (q.hint && !o.neutral) {
+        var hintP = h("p", { class: "t-hint", hidden: true }, "Hint: " + q.hint);
+        R.hintBtn = h("button", { type: "button", class: "btn-link t-hint-btn", on: { click: function () { hintP.hidden = !hintP.hidden; R.hintBtn.textContent = hintP.hidden ? "Show a hint" : "Hide the hint"; } } }, "Show a hint");
+        root.appendChild(R.hintBtn); root.appendChild(hintP);
+      }
+
+      R.need = h("p", { class: "t-need", hidden: true }, "Pick Sure or Not sure to check your answer.");
+      R.check = h("button", { type: "button", class: "btn btn-primary t-check", disabled: true, on: { click: check } }, o.checkLabel || "Check");
+      root.appendChild(h("div", { class: "t-q-actions" }, R.check, R.need));
+      R.fb = h("div", { class: "t-fb", role: "status", "aria-live": "polite" });
+      root.appendChild(R.fb);
+      if (keepSure && sure !== null) setSure(sure);
+      refresh();
+    }
+    render(false);
+
+    return {
+      el: root,
+      focus: function () { if (R.focus) R.focus(); },
+      /** Fill and submit with the right answer, "Sure". */
+      auto: function () {
+        if (S.locked) return;
+        if (q.kind === "mcq") {
+          var i = 0; opts.forEach(function (op, j) { if (op.correct) i = j; });
+          selectOpt(i);
+        } else { setText(String(q.answer)); }
+        if (o.needSure) setSure(true);
+        check();
+      },
+    };
+  }
+
+  /* ------------------------------------------------------------------ a run of questions */
+  /* o: { label, mode:'instant'|'deferred'|'none', needSure, tries, noMastery, anything, reveal,
+          record(info), onProgress(i, n), onFinish(results) } */
+  function runQuestions(host, questions, o) {
+    var n = questions.length, i = 0, view = null, finished = false, pendingNext = null, results = [];
+
+    function show(k) {
+      i = k; pendingNext = null;
+      host.innerHTML = "";
+      if (o.onProgress) o.onProgress(i, n);
+      var q = questions[i];
+      var head = h("div", { class: "t-q-head" }, h("p", { class: "eyebrow" }, o.label + (n > 1 ? " · " + (i + 1) + " of " + n : "")));
+      var actions = h("div", { class: "t-q-next" });
+      view = questionView(q, {
+        needSure: o.needSure, feedback: o.mode === "instant" ? "instant" : "none", tries: o.tries, anything: o.anything,
+        neutral: o.neutral, reveal: o.reveal, checkLabel: o.mode === "none" || o.mode === "deferred" ? (i < n - 1 ? "Lock in and continue" : "Lock in answer") : "Check",
+        record: o.record,
+        onResult: function (res, final) {
+          if (!final) return;
+          results.push({ q: q, res: res });
+          if (o.mode === "instant") {
+            if (i < n - 1) {
+              var nb = h("button", { type: "button", class: "btn btn-primary", on: { click: function () { pendingNext = null; show(i + 1); focusView(); } } }, "Next question");
+              actions.appendChild(nb); pendingNext = function () { nb.click(); };
+              nb.focus({ preventScroll: false });
+            } else { finish(); }
+          } else if (i < n - 1) { show(i + 1); focusView(); }
+          else { finish(); }
+        },
+      });
+      host.appendChild(head); host.appendChild(view.el); host.appendChild(actions);
+    }
+    function focusView() { if (view) view.focus(); }
+    function finish() {
+      finished = true;
+      if (o.mode === "deferred") renderSummary(host, results);
+      else if (o.mode === "instant") host.appendChild(h("p", { class: "t-done-note" }, "That's the set. Press Continue when you're ready."));
+      if (o.onFinish) o.onFinish(results);
+    }
+    if (!n) { finished = true; if (o.onFinish) o.onFinish([]); return { auto: function () {}, finished: function () { return true; } }; }
+    show(0);
+    return {
+      finished: function () { return finished; },
+      auto: function () {
+        var guard = 0;
+        while (!finished && guard++ < 60) { view.auto(); if (!finished && pendingNext) pendingNext(); }
+      },
+    };
+  }
+
+  function renderSummary(host, results) {
+    var right = results.filter(function (r) { return r.res.correct; }).length;
+    var box = h("div", { class: "t-summary phase-in" }, h("h3", { class: "t-summary-title" }, "You got " + right + " of " + results.length + " right."));
+    results.forEach(function (r) {
+      var ok = r.res.correct;
+      var body = h("div", { class: "t-sum-body" }, h("p", { class: "t-sum-q" }, r.q.prompt));
+      if (!ok) {
+        body.appendChild(h("p", { class: "t-sum-line" }, "You said " + r.res.answer + ". The answer is " + correctText(r.q) + "."));
+        if (r.res.why) body.appendChild(h("p", { class: "t-sum-line" }, r.res.why));
+        if (r.res.mixup) { var mi = mixupInfo(r.res.mixup); body.appendChild(h("p", { class: "t-sum-line t-mixup-line" }, "This is a mix-up we've seen before" + (mi ? ": " + mi.name : "."))); }
+      }
+      if (r.q.explain) body.appendChild(h("p", { class: "t-sum-line t-sum-explain" }, r.q.explain));
+      box.appendChild(h("div", { class: "t-sum-item " + (ok ? "t-right" : "t-wrong") }, icon(ok ? "ok" : "x"), body));
+    });
+    host.appendChild(box);
+  }
+
+  /* ------------------------------------------------------------------ animation / game blocks */
+  function placeholder(kind, id, btnLabel, onClick) {
+    return h("div", { class: "t-placeholder" },
+      h("p", { class: "t-placeholder-title" }, (kind === "anim" ? "Animation" : "Game") + " “" + id + "” isn't ready yet."),
+      h("p", { class: "muted" }, "It will appear here once it has been built."),
+      btnLabel ? h("button", { type: "button", class: "btn btn-ghost", on: { click: onClick } }, btnLabel) : null);
+  }
+
+  /** o: { skill, onEnd, onBeat, markButton } -> { el, destroy, play } */
+  function animBlock(id, o) {
+    var A = C.anims[id], el = h("div", { class: "t-anim" });
+    var out = { el: el, destroy: function () {}, play: function () {}, ended: false };
+    if (!A) { el.appendChild(placeholder("anim", id, o.markButton ? "Mark as watched" : null, function () { out.ended = true; if (o.onEnd) o.onEnd(); })); return out; }
+    var stage = h("div", { class: "t-anim-stage" });
+    var caption = h("p", { class: "t-caption", role: "status", "aria-live": "polite" }, "Press Play to watch.");
+    var toggle = h("button", { type: "button", class: "btn btn-ghost" }, "Play");
+    var replay = h("button", { type: "button", class: "btn btn-ghost" }, "Replay");
+    var skip = h("button", { type: "button", class: "btn-link", hidden: true }, "Mark as watched");
+    el.appendChild(stage); el.appendChild(caption);
+    el.appendChild(h("div", { class: "t-row t-anim-controls" }, toggle, replay, skip));
+    var ctl = null, playing = false, timer = null;
+    function ended() { playing = false; toggle.textContent = "Play"; skip.hidden = true; clearTimeout(timer); if (!out.ended) { out.ended = true; if (o.onEnd) o.onEnd(); } }
+    try {
+      ctl = A.mount(stage, { onEnd: ended, onBeat: function (c) { if (c) caption.textContent = c; if (o.onBeat) o.onBeat(c); } });
+    } catch (e) { console.error("[session] anim mount", id, e); stage.appendChild(placeholder("anim", id, "Mark as watched", function () { ended(); })); return out; }
+    function start() { playing = true; toggle.textContent = "Pause"; try { ctl.play(); } catch (e) { console.error(e); } }
+    toggle.addEventListener("click", function () {
+      if (playing) { playing = false; toggle.textContent = "Play"; try { ctl.pause(); } catch (e) { console.error(e); } }
+      else if (out.ended) { playing = true; toggle.textContent = "Pause"; try { ctl.replay(); } catch (e) { console.error(e); } }
+      else start();
+    });
+    replay.addEventListener("click", function () { playing = true; toggle.textContent = "Pause"; try { ctl.replay(); } catch (e) { console.error(e); } });
+    skip.addEventListener("click", ended);
+    timer = setTimeout(function () { if (!out.ended) skip.hidden = false; }, (A.durationMs || 20000) + 5000);
+    out.play = start; out.destroy = function () { clearTimeout(timer); try { ctl && ctl.destroy(); } catch (e) { /* ignore */ } };
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ step renderers */
+  var T = C.steps;
+
+  T.teacher = function (el, step, ctx) {
+    var name = teacherName();
+    var btn = h("button", { type: "button", class: "btn btn-primary t-board-btn" }, "I've listened");
+    var board = h("div", { class: "t-board" },
+      h("p", { class: "eyebrow t-board-eyebrow" }, name + " at the board"),
+      h("p", { class: "t-board-what" }, step.what || ""),
+      step.boardSvg ? h("div", { class: "t-board-fig" }, C.fromHTML(step.boardSvg)) : null,
+      step.trap ? h("div", { class: "t-board-trap" }, h("span", { class: "t-board-label" }, "The trap she'll show"), h("p", null, step.trap)) : null,
+      step.classNote ? h("p", { class: "t-board-note" }, step.classNote) : null,
+      btn);
+    function done() { btn.disabled = true; btn.textContent = "Listened"; ctx.complete(); }
+    btn.addEventListener("click", done);
+    el.appendChild(board);
+    ctx.setAuto(done);
+  };
+
+  function questionStep(label, mode, needSure) {
+    return function (el, step, ctx) {
+      var qs = step.questions || [];
+      var host = h("div", { class: "t-qrun" });
+      el.appendChild(host);
+      var run = runQuestions(host, qs, {
+        label: label, mode: mode, needSure: needSure,
+        record: function (info) {
+          var due = step.type === "recall" && info.correct && C.state.revisitsDue(ctx.day).indexOf(info.skill) !== -1;
+          ctx.record(info);
+          if (due) C.state.clearRevisit(info.skill);
+        },
+        onProgress: function (i, n) { ctx.progress && ctx.progress(i, n); },
+        onFinish: function () { ctx.complete(); },
+      });
+      ctx.setAuto(function () { run.auto(); });
+    };
+  }
+  T.recall = questionStep("Quick recall", "instant", false);
+  T.practice = questionStep("Practice", "instant", true);
+  T.exit = questionStep("Exit check", "deferred", true);
+
+  T.try = function (el, step, ctx) {
+    el.appendChild(h("p", { class: "t-nopressure" }, "No pressure: you haven't been taught this yet"));
+    var host = h("div", { class: "t-qrun" });
+    el.appendChild(host);
+    var run = runQuestions(host, [step.q], {
+      label: "Try first", mode: "instant", needSure: false, anything: true, neutral: true, reveal: step.reveal,
+      record: function (info) { info.noMastery = true; ctx.record(info); },
+      onFinish: function () { ctx.complete(); },
+    });
+    ctx.setAuto(function () { run.auto(); });
+  };
+
+  T.worked = function (el, step, ctx) {
+    var lines = step.lines || [], shown = 0;
+    var yt = step.yourTurn;
+    el.appendChild(h("p", { class: "eyebrow" }, "Worked example"));
+    if (step.figure) { var f = C.fromHTML(step.figure); if (f) el.appendChild(f); }
+    var list = h("div", { class: "t-worked", "aria-live": "polite" });
+    var nextBtn = h("button", { type: "button", class: "btn btn-ghost" }, "Next step");
+    var turn = h("div", { class: "t-turn", hidden: true });
+    el.appendChild(list); el.appendChild(nextBtn); el.appendChild(turn);
+
+    function revealOne() {
+      if (shown >= lines.length) return;
+      list.appendChild(h("p", { class: "worked-line math-sm phase-in t-worked-line" }, lines[shown]));
+      shown++;
+      if (shown >= lines.length) { nextBtn.hidden = true; startTurn(); }
+      else nextBtn.textContent = "Next step";
+    }
+    nextBtn.addEventListener("click", revealOne);
+
+    var turnStarted = false, inputs = [], tries = 0, finished = false, msg;
+    function finishWorked() {
+      if (finished) return; finished = true;
+      if (step.skill) C.state.markTaught(step.skill, ctx.day);
+      ctx.complete();
+    }
+    function startTurn() {
+      if (turnStarted) return; turnStarted = true;
+      if (!yt || !(yt.blanks || []).length) { finishWorked(); return; }
+      turn.hidden = false;
+      turn.appendChild(h("p", { class: "t-turn-prompt" }, yt.prompt || "Your turn"));
+      yt.blanks.forEach(function (b, k) {
+        var inp = h("input", { class: "input t-blank-input", type: "text", inputmode: "decimal", autocomplete: "off", "aria-label": b.label,
+          on: { keydown: function (e) { if (e.key === "Enter") { e.preventDefault(); check(); } } } });
+        inputs.push(inp);
+        turn.appendChild(h("div", { class: "t-blank" }, h("span", { class: "t-blank-label math-sm" }, b.label), inp, b.unit ? h("span", { class: "t-num-unit" }, b.unit) : null));
+      });
+      msg = h("div", { class: "t-fb", role: "status", "aria-live": "polite" });
+      var chk = h("button", { type: "button", class: "btn btn-primary t-check", on: { click: check } }, "Check");
+      turn.appendChild(h("div", { class: "t-q-actions" }, chk)); turn.appendChild(msg);
+      el._chk = chk; inputs[0].focus();
+    }
+    function check() {
+      if (finished) return;
+      var allOk = true;
+      yt.blanks.forEach(function (b, k) {
+        var v = parseNum(inputs[k].value), ok = v !== null && Math.abs(v - b.answer) <= (b.tol || 0) + 1e-9;
+        inputs[k].classList.toggle("is-right", ok); inputs[k].classList.toggle("is-wrong", !ok);
+        inputs[k].setAttribute("aria-invalid", ok ? "false" : "true");
+        if (!ok) allOk = false;
+      });
+      msg.innerHTML = "";
+      if (allOk) {
+        msg.appendChild(h("div", { class: "feedback feedback-correct t-right settle" }, icon("ok"), h("div", null, h("strong", null, "Right."), "Same steps, new numbers.")));
+        lockTurn(); finishWorked(); return;
+      }
+      tries++;
+      if (tries >= 2) {
+        yt.blanks.forEach(function (b, k) { inputs[k].value = String(b.answer); inputs[k].classList.remove("is-wrong"); inputs[k].classList.add("is-right"); });
+        msg.appendChild(h("div", { class: "feedback feedback-incorrect t-wrong settle" }, icon("x"), h("div", null, h("strong", null, "Here's the answer."),
+          yt.blanks.map(function (b) { return h("span", { class: "t-fb-line" }, b.label + " " + b.answer + (b.unit ? " " + b.unit : "")); }))));
+        lockTurn(); finishWorked();
+      } else {
+        msg.appendChild(h("div", { class: "feedback feedback-incorrect t-wrong settle" }, icon("x"), h("div", null, h("strong", null, "Not quite. Have another go."), "Look back at the steps above and follow them one at a time.")));
+      }
+    }
+    function lockTurn() { inputs.forEach(function (i) { i.disabled = true; }); if (el._chk) el._chk.hidden = true; }
+
+    if (!lines.length) startTurn(); else revealOne();
+    ctx.setAuto(function () {
+      while (shown < lines.length) revealOne();
+      startTurn();
+      if (yt && yt.blanks && !finished) { yt.blanks.forEach(function (b, k) { inputs[k].value = String(b.answer); }); check(); }
+    });
+  };
+
+  T.animation = function (el, step, ctx) {
+    var a = C.anims[step.anim];
+    el.appendChild(h("p", { class: "eyebrow" }, "Watch"));
+    el.appendChild(h("h2", { class: "t-step-title" }, (a && a.title) || "Watch and think"));
+    var blk = animBlock(step.anim, {
+      markButton: true,
+      onEnd: function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); },
+    });
+    el.appendChild(blk.el);
+    ctx.onCleanup(blk.destroy);
+    ctx.setAuto(function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); });
+  };
+
+  T.game = function (el, step, ctx) {
+    var g = C.games[step.game], n = 0;
+    el.appendChild(h("p", { class: "eyebrow" }, "Play"));
+    el.appendChild(h("h2", { class: "t-step-title" }, (g && g.title) || "Have a go"));
+    var note = h("p", { class: "t-done-note", hidden: true, role: "status" }, "Nice work. You can continue.");
+    var finished = false;
+    // Finishing the game counts as ONE right answer for the skill (it shows the idea works for him).
+    function ok() {
+      if (!finished) {
+        finished = true;
+        if (step.skill) {
+          C.state.markTaught(step.skill, ctx.day);
+          ctx.record({ qid: step.id + "-done", skill: step.skill, correct: true, answer: "game finished" });
+        }
+      }
+      note.hidden = false; ctx.complete();
+    }
+    if (!g) {
+      el.appendChild(placeholder("game", step.game, "Mark as played", ok));
+    } else {
+      var stage = h("div", { class: "t-game-stage" });
+      el.appendChild(stage);
+      try {
+        var ctl = g.mount(stage, {
+          onSuccess: ok,
+          onEvent: function (e) {
+            if (!e || e.kind !== "answer") return;
+            // Orchestrator rule: single moves inside a game don't move the meter (placing 11 tiles is not
+            // 11 right answers, and a fumble is not a maths mistake). Every move is still logged.
+            // Only a wrong move that shows a known mix-up (e.g. picking the slanted side) counts against the skill.
+            var mixupWrong = !e.correct && !!e.mixup;
+            ctx.record({ qid: step.id + "-g" + (++n), skill: step.skill, correct: !!e.correct, mixup: e.mixup, guards: e.guards,
+              noMastery: !mixupWrong, answer: e.answer !== undefined ? e.answer : "game" });
+          },
+        });
+        ctx.onCleanup(function () { try { ctl && ctl.destroy && ctl.destroy(); } catch (e) { /* ignore */ } });
+      } catch (err) { console.error("[session] game mount", step.game, err); stage.appendChild(placeholder("game", step.game, "Mark as played", ok)); }
+    }
+    el.appendChild(note);
+    ctx.setAuto(ok);
+  };
+
+  T.fix = function (el, step, ctx) {
+    var mi = mixupInfo(step.mixup);
+    el.appendChild(h("p", { class: "eyebrow" }, "Let's look at that mix-up"));
+    el.appendChild(h("h2", { class: "t-step-title" }, mi ? mi.name : "A common mix-up"));
+    if (mi && mi.plain) el.appendChild(h("p", { class: "lead" }, mi.plain));
+    var blk = animBlock(step.anim, { markButton: false });
+    el.appendChild(blk.el);
+    ctx.onCleanup(blk.destroy);
+    el.appendChild(h("p", { class: "t-fix-ask" }, "Now try one."));
+    var host = h("div", { class: "t-qrun" });
+    el.appendChild(host);
+    var run = runQuestions(host, [step.check], {
+      label: "Check", mode: "instant", needSure: false, tries: 2,
+      record: function (info) { ctx.record(info); },
+      onFinish: function () { ctx.complete(); },
+    });
+    ctx.setAuto(function () { run.auto(); });
+  };
+
+  function judgeExplain(step, text) {
+    var low = String(text).toLowerCase(), words = low.trim().split(/\s+/).filter(Boolean).length;
+    var groups = step.keyIdeas || [], hits = 0;
+    groups.forEach(function (g) { if (g.some(function (w) { return low.indexOf(String(w).toLowerCase()) !== -1; })) hits++; });
+    if (words < 6) return "nudge";
+    if (!groups.length || hits === groups.length) return "strong";
+    return hits >= 1 ? "close" : "nudge";
+  }
+  T.explain = function (el, step, ctx) {
+    el.appendChild(h("p", { class: "eyebrow" }, "In your own words"));
+    el.appendChild(h("h2", { class: "t-step-title", id: "ex-prompt" }, step.prompt));
+    var ta = h("textarea", { class: "input t-explain-input", rows: 4, "aria-labelledby": "ex-prompt", placeholder: "Type your thinking here" });
+    var send = h("button", { type: "button", class: "btn btn-primary t-check" }, "Send");
+    var out = h("div", { class: "t-fb", role: "status", "aria-live": "polite" });
+    el.appendChild(ta); el.appendChild(h("div", { class: "t-q-actions" }, send)); el.appendChild(out);
+    var submissions = 0, busy = false, timers = [], resolveAuto = null;
+    ctx.onCleanup(function () { timers.forEach(clearTimeout); });
+
+    function submit() {
+      if (busy) return;
+      var text = ta.value.trim();
+      if (!text) { ta.focus(); return; }
+      busy = true; send.disabled = true; ta.disabled = true; out.innerHTML = "";
+      out.appendChild(h("div", { class: "t-reading" }, h("div", { class: "skeleton t-reading-bar" }), h("p", { class: "t-reading-text" }, "Cogna is reading your answer…")));
+      timers.push(setTimeout(function () {
+        var verdict = judgeExplain(step, text);
+        submissions++;
+        C.state.recordExplain({ day: ctx.day, stepId: step.id, skill: step.skill, text: text, verdict: verdict, saveAs: step.saveAs });
+        out.innerHTML = "";
+        var r = (step.responses || {})[verdict] || "";
+        var body = h("div", null, h("strong", null, verdict === "strong" ? "That's it." : verdict === "close" ? "Close." : "Let's try again."), r);
+        if (verdict === "nudge" && step.starter) body.appendChild(h("span", { class: "t-fb-line t-starter" }, "Try starting like this: " + step.starter));
+        out.appendChild(h("div", { class: "feedback " + (verdict === "strong" ? "feedback-correct t-right" : "feedback-incorrect t-wrong") + " settle" }, icon(verdict === "strong" ? "ok" : "x"), body));
+        var canRetry = submissions < 2 && verdict !== "strong";
+        if (canRetry) {
+          out.appendChild(h("button", { type: "button", class: "btn btn-ghost t-retry", on: { click: function () { out.innerHTML = ""; ta.disabled = false; send.disabled = false; busy = false; send.textContent = "Send again"; ta.focus(); } } }, verdict === "close" ? "Add to your answer" : "Try again"));
+        }
+        if (verdict !== "close" || !canRetry) ctx.complete();
+        busy = false;
+        if (resolveAuto) { resolveAuto(); resolveAuto = null; }
+      }, 1200));
+    }
+    send.addEventListener("click", submit);
+    ctx.setAuto(function () {
+      if (ctx.isComplete()) return null;
+      var kws = (step.keyIdeas || []).map(function (g) { return g[0]; });
+      ta.disabled = false; busy = false;
+      ta.value = "My answer: it depends on " + (kws.join(" and ") || "the idea we just saw") + " and how they fit together.";
+      var p = new Promise(function (res) { resolveAuto = res; });
+      submit();
+      return p;
+    });
+  };
+
+  /* ------------------------------------------------------------------ session screen */
+  C.screens.session = function (el, params) {
+    destroyCurrent();
+    var day = params.day, state = C.state;
+    var d = (C.data.days || []).filter(function (x) { return x.n === day; })[0];
+    var steps = (d && d.steps) || [];
+    var P = { el: el, cleanups: [], auto: null, advance: null, isComplete: function () { return false; } };
+    current = P;
+    var idx = -1, stepCleanups = [], completed = false, advancing = false;
+    var dt = dots(0, "");
+
+    var continueBtn = h("button", { type: "button", class: "btn btn-primary t-continue", disabled: true }, "Continue");
+    var barNote = h("span", { class: "t-bar-note" }, "");
+    var card = h("div", { class: "card t-step-card", tabindex: "-1" });
+    var stage = h("div", { class: "t-stage grid-air" }, card);
+    var title = "Day " + day + (d ? " · " + d.title : "");
+    var head = h("div", { class: "t-session-head" },
+      h("div", null, h("p", { class: "eyebrow" }, "Today"), h("h1", { class: "t-session-title" }, title)),
+      h("div", { class: "t-session-tools" }, dt.el, h("a", { class: "btn btn-quiet", href: "#/trail" }, "Leave")));
+    var bar = h("div", { class: "t-bar" }, h("div", { class: "t-bar-inner" }, barNote, continueBtn));
+    el.appendChild(h("section", { class: "shell t-page t-session" }, head, stage, bar));
+
+    function nextIndex(from) {
+      for (var i = from; i < steps.length; i++) {
+        var s = steps[i];
+        if (s.type === "fix" && !state.shouldShowFix(day, s.mixup)) continue;
+        if (state.isStepDone(day, s.id)) continue;
+        return i;
+      }
+      return -1;
+    }
+    function visible() { return steps.filter(function (s, i) { return s.type !== "fix" || i === idx || state.shouldShowFix(day, s.mixup); }); }
+    function drawDots() {
+      var vis = visible(), cur = vis.indexOf(steps[idx]);
+      dt.set(vis.map(function (s, i) { return i < cur || state.isStepDone(day, s.id); }), cur);
+      dt.el.setAttribute("aria-label", "Step " + (cur + 1) + " of " + vis.length);
+      barNote.textContent = "Step " + (cur + 1) + " of " + vis.length;
+    }
+    function updateBar() {
+      continueBtn.disabled = !completed;
+      continueBtn.textContent = nextIndex(idx + 1) === -1 ? "Finish day" : "Continue";
+    }
+    function finishDay() {
+      if (!state.isDayDone(day)) state.completeDay(day);
+      C.router.go("#/day/" + day + "/done");
+    }
+    function advance() {
+      if (!completed || advancing) return;
+      advancing = true;
+      var s = steps[idx];
+      if (s) state.completeStep(day, s.id);
+      runCleanups(stepCleanups);
+      var n = nextIndex(idx + 1);
+      if (n === -1) { finishDay(); return; }
+      showStep(n);
+    }
+    P.advance = advance; P.isComplete = function () { return completed; };
+    continueBtn.addEventListener("click", advance);
+
+    function showStep(i) {
+      runCleanups(stepCleanups);
+      idx = i; completed = false; advancing = false; P.auto = null;
+      var step = steps[i];
+      var fresh = h("div", { class: "card t-step-card phase-in", tabindex: "-1" });
+      stage.replaceChild(fresh, card); card = fresh;
+      drawDots(); updateBar();
+      var ctx = {
+        day: day, state: state,
+        complete: function () {
+          if (completed) return;
+          completed = true; updateBar();
+          C.bus.emit("step:complete", { day: day, stepId: step.id });
+        },
+        isComplete: function () { return completed; },
+        record: function (info) {
+          var o = {}; Object.keys(info).forEach(function (k) { o[k] = info[k]; });
+          o.day = day; o.stepId = step.id;
+          state.recordAnswer(o);
+        },
+        next: advance,
+        onCleanup: function (fn) { stepCleanups.push(fn); },
+        setAuto: function (fn) { P.auto = fn; },
+      };
+      var render = C.steps[step.type];
+      try {
+        if (render) render(card, step, ctx);
+        else {
+          card.appendChild(h("div", { class: "t-placeholder" }, h("p", { class: "t-placeholder-title" }, "This step type (" + step.type + ") isn't ready yet."),
+            h("button", { type: "button", class: "btn btn-ghost", on: { click: ctx.complete } }, "Mark done")));
+          P.auto = ctx.complete;
+        }
+      } catch (e) {
+        console.error("[session] step failed", step, e);
+        card.appendChild(h("div", { class: "t-placeholder" }, h("p", { class: "t-placeholder-title" }, "This step hit a problem: " + e.message),
+          h("button", { type: "button", class: "btn btn-ghost", on: { click: ctx.complete } }, "Skip this step")));
+        P.auto = ctx.complete;
+      }
+      window.scrollTo(0, 0);
+      try { card.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+    P.cleanups.push(function () { runCleanups(stepCleanups); });
+
+    if (!steps.length) {
+      dt.el.hidden = true; barNote.textContent = "";
+      card.appendChild(h("p", { class: "eyebrow" }, "Content coming"));
+      card.appendChild(h("h2", { class: "t-step-title" }, "Today's lesson is still being written"));
+      card.appendChild(h("p", { class: "lead" }, "Ms. Rao is putting the finishing touches on this one. You can carry on to see how the next day unlocks."));
+      completed = true; continueBtn.disabled = false; continueBtn.textContent = "Continue";
+      continueBtn.onclick = function () { finishDay(); };
+      continueBtn.removeEventListener("click", advance);
+      P.auto = function () {}; P.advance = function () { finishDay(); }; P.isComplete = function () { return true; };
+      return;
+    }
+    var first = nextIndex(0);
+    if (first === -1) { finishDay(); return; }
+    showStep(first);
+  };
+
+  /* ------------------------------------------------------------------ retest screen */
+  C.screens.retest = function (el) {
+    destroyCurrent();
+    var qs = C.data.retest || [], state = C.state;
+    var P = { el: el, cleanups: [], auto: null, advance: null, isComplete: function () { return false; } };
+    current = P;
+    var days = C.data.days || [], d10 = days.filter(function (x) { return x.n === 10; })[0];
+    var title = "Day 10 · " + ((d10 && d10.title) || "Check-in again");
+    var dt = dots(0, "");
+    var btn = h("button", { type: "button", class: "btn btn-primary t-continue", disabled: true }, "See my growth");
+    var barNote = h("span", { class: "t-bar-note" }, "");
+    var card = h("div", { class: "card t-step-card phase-in", tabindex: "-1" });
+    var head = h("div", { class: "t-session-head" },
+      h("div", null, h("p", { class: "eyebrow" }, "Same kind of questions as day 0"), h("h1", { class: "t-session-title" }, title)),
+      h("div", { class: "t-session-tools" }, dt.el, h("a", { class: "btn btn-quiet", href: "#/trail" }, "Leave")));
+    el.appendChild(h("section", { class: "shell t-page t-session" }, head, h("div", { class: "t-stage grid-air" }, card),
+      h("div", { class: "t-bar" }, h("div", { class: "t-bar-inner" }, barNote, btn))));
+
+    function toGrowth() { state.completeDay(10); C.router.go("#/growth"); }
+    if (!qs.length) {
+      dt.el.hidden = true;
+      card.appendChild(h("p", { class: "eyebrow" }, "Content coming"));
+      card.appendChild(h("h2", { class: "t-step-title" }, "The check-in questions aren't ready yet"));
+      card.appendChild(h("p", { class: "lead" }, "Once they're written, you'll answer 12 questions here and then see how far you've come."));
+      btn.disabled = false; btn.textContent = "Continue"; btn.addEventListener("click", toGrowth);
+      P.auto = function () {}; P.advance = toGrowth; P.isComplete = function () { return true; };
+      return;
+    }
+    var ready = false;
+    var host = h("div", { class: "t-qrun" });
+    card.appendChild(h("p", { class: "t-retest-intro" }, "Answer on your own. You won't see right or wrong until the end of the course. Pick how sure you are each time."));
+    card.appendChild(host);
+    var run = runQuestions(host, qs, {
+      label: "Check-in", mode: "none", needSure: true,
+      record: function (info) { state.recordRetest({ qid: info.qid, skill: info.skill, correct: info.correct, sure: info.sure, answer: info.answer, mixup: info.mixup, guards: info.guards }); },
+      onProgress: function (i, n) {
+        var all = []; for (var k = 0; k < n; k++) all.push(k < i);
+        dt.set(all, i); dt.el.setAttribute("aria-label", "Question " + (i + 1) + " of " + n); barNote.textContent = "Question " + (i + 1) + " of " + n;
+      },
+      onFinish: function () {
+        ready = true; btn.disabled = false; barNote.textContent = "All " + qs.length + " answered";
+        host.innerHTML = "";
+        host.appendChild(h("div", { class: "t-summary phase-in" }, h("h3", { class: "t-summary-title" }, "All done."), h("p", { class: "lead" }, "Your answers are saved. Press “See my growth” to compare with day 0.")));
+        btn.focus();
+      },
+    });
+    btn.addEventListener("click", function () { if (ready) toGrowth(); });
+    P.auto = function () { run.auto(); };
+    P.advance = function () { if (ready) toGrowth(); };
+    P.isComplete = function () { return ready; };
+  };
+
+  /* ------------------------------------------------------------------ demo hooks */
+  C.session = {
+    autoAnswer: function () {
+      if (!current || !current.el.isConnected) return Promise.resolve(false);
+      var r = null;
+      try { r = current.auto ? current.auto() : null; } catch (e) { console.error("[session] autoAnswer", e); }
+      return Promise.resolve(r).then(function () { return true; });
+    },
+    advance: function () { if (current && current.el.isConnected && current.advance) current.advance(); },
+    isComplete: function () { return !!(current && current.el.isConnected && current.isComplete()); },
+  };
+})();

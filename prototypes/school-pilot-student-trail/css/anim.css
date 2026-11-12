@@ -1,0 +1,60 @@
+/* OWNER: Agent D (animations). t- classes only, cogna.css variables only. */
+
+.t-anim { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; }
+.t-anim .t-grid line { stroke: var(--line); stroke-width: 0.035; }
+
+/* shapes */
+.t-anim .t-shape   { fill: var(--accent-wash); stroke: var(--ink); stroke-width: 0.08; stroke-linejoin: round; }
+.t-anim .t-plain   { fill: var(--surface); stroke: var(--ink); stroke-width: 0.08; stroke-linejoin: round; }
+.t-anim .t-outline { fill: none; stroke: var(--ink); stroke-width: 0.08; stroke-linejoin: round; }
+.t-anim .t-ghost   { fill: none; stroke: var(--line-strong); stroke-width: 0.06; stroke-dasharray: 0.2 0.15; stroke-linejoin: round; }
+.t-anim .t-copy    { fill: none; stroke: var(--ink-soft); stroke-width: 0.08; stroke-dasharray: 0.2 0.15; stroke-linejoin: round; }
+.t-anim .t-tint    { fill: var(--accent); fill-opacity: 0.22; stroke: var(--accent); stroke-width: 0.08; stroke-linejoin: round; }
+.t-anim .t-hi      { fill: none; stroke: var(--accent); stroke-width: 0.14; stroke-linecap: round; stroke-linejoin: round; }
+.t-anim .t-height  { fill: none; stroke: var(--accent); stroke-width: 0.09; stroke-dasharray: 0.28 0.2; }
+.t-anim .t-bad     { fill: none; stroke: var(--t-wrong-stroke); stroke-width: 0.16; stroke-linecap: round; }
+.t-anim .t-mark    { fill: none; stroke: var(--ink-soft); stroke-width: 0.07; }
+.t-anim .t-dim     { fill: none; stroke: var(--ink-soft); stroke-width: 0.05; }
+.t-anim .t-fence   { fill: none; stroke: var(--accent); stroke-width: 0.18; stroke-linejoin: round; stroke-linecap: round; }
+.t-anim .t-cell    { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 0.05; }
+.t-anim .t-cell-a  { fill: var(--accent); fill-opacity: 0.28; stroke: var(--accent); stroke-width: 0.05; }
+.t-anim .t-cell-b  { fill: var(--surface); stroke: var(--accent); stroke-width: 0.05; }
+.t-anim .t-hair    { stroke: var(--line-strong); stroke-width: 0.02; }
+.t-anim .t-strip   { fill: var(--accent); fill-opacity: 0.35; stroke: none; }
+
+/* text */
+.t-anim text { font-family: var(--font-math); font-size: 0.6px; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+.t-anim text.t-start { text-anchor: start; }
+.t-anim text.t-end { text-anchor: end; }
+.t-anim text.t-sm { font-size: 0.5px; }
+.t-anim text.t-big { font-size: 0.8px; }
+.t-anim text.t-soft { fill: var(--ink-soft); }
+.t-anim text.t-acc { fill: var(--accent-deep); }
+.t-anim text.t-badtext { fill: var(--t-wrong-stroke); }
+
+/* motion */
+.t-anim .t-fade { opacity: 0; transition: opacity var(--dur-phase) var(--ease-settle); }
+.t-anim .t-fade.on { opacity: 1; }
+.t-anim .t-fade.t-slow { transition-duration: var(--dur-calm); }
+.t-anim .t-pop { opacity: 0; transform: scale(0.4); transform-box: fill-box; transform-origin: center;
+  transition: opacity var(--dur-fast) var(--ease-settle), transform var(--dur-fast) var(--ease-settle); }
+.t-anim .t-pop.on { opacity: 1; transform: none; }
+.t-anim .t-mv { transition: transform var(--dur-calm) var(--ease-settle), opacity var(--dur-phase) var(--ease-settle); }
+.t-anim .t-rot { transition: transform calc(var(--dur-calm) * 1.6) var(--ease-settle), opacity var(--dur-phase) var(--ease-settle); }
+.t-anim .t-draw { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset calc(var(--dur-calm) * 1.4) var(--ease-settle); }
+.t-anim .t-draw.on { stroke-dashoffset: 0; }
+.t-anim .t-grow { transform: scaleY(0); transition: transform var(--dur-calm) var(--ease-settle); }
+.t-anim .t-grow.on { transform: none; }
+.t-anim .t-ink { transition: fill-opacity var(--dur-phase) var(--ease-settle), opacity var(--dur-phase) var(--ease-settle); }
+
+@media (prefers-reduced-motion: reduce) {
+  .t-anim *, .t-anim *::before, .t-anim *::after { transition: none !important; }
+}
+
+/* gallery page only */
+.t-gallery { max-width: 720px; margin: 0 auto; padding: var(--s-6) var(--s-4); }
+.t-gallery-item { margin: var(--s-6) 0; padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.t-gallery-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.t-gallery-cap { min-height: 3em; margin: var(--s-3) 0 0; font-size: var(--text-md, 1rem); color: var(--ink); }
+.t-gallery-end { font-family: var(--font-math); font-size: var(--text-sm); color: var(--ink-faint); }
+.t-gallery-end.is-done { color: var(--accent-deep); }

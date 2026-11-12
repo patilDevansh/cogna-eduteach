@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cogna games gallery</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="../cogna.css" />
+<link rel="stylesheet" href="../proto.css" />
+<link rel="stylesheet" href="../css/games.css" />
+<style>
+  .gal { display: grid; gap: var(--s-5); padding-bottom: var(--s-7); }
+  .gal-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--s-5); display: grid; gap: var(--s-4); }
+  .gal-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+  .gal-log { margin: 0; padding: var(--s-3); list-style: none; background: var(--bg); border-radius: var(--radius); font-family: var(--font-math); font-size: var(--text-xs); max-height: 9rem; overflow: auto; }
+  .gal-log li { padding: 2px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .gal-log li.ok { color: var(--accent-deep); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar"><span class="wordmark">cogna<span class="dot">.</span></span><span class="muted">Games gallery</span></div>
+  <div class="gal" id="gal"></div>
+</div>
+<script src="../core.js"></script>
+<script src="tile-cover.js"></script>
+<script src="cut-slide.js"></script>
+<script src="pick-height.js"></script>
+<script src="join-triangles.js"></script>
+<script src="split-shape.js"></script>
+<script src="floor-tiles.js"></script>
+<script>
+  (function () {
+    var h = Cogna.h, gal = document.getElementById("gal");
+    ["tile-cover", "cut-slide", "pick-height", "join-triangles", "split-shape", "floor-tiles"].forEach(function (id) {
+      var game = Cogna.games[id], ctl = null;
+      var log = h("ul", { class: "gal-log", id: "log-" + id, "aria-label": "Event log" }, h("li", null, "(no events yet)"));
+      var stage = h("div", { id: "stage-" + id });
+      function line(t, cls) {
+        if (log.firstChild && log.firstChild.textContent === "(no events yet)") log.textContent = "";
+        log.appendChild(h("li", { class: cls || "" }, t)); log.scrollTop = log.scrollHeight;
+      }
+      function start() {
+        if (ctl) ctl.destroy();
+        stage.textContent = ""; log.textContent = ""; log.appendChild(h("li", null, "(no events yet)"));
+        ctl = game.mount(stage, {
+          onEvent: function (e) { line("onEvent " + JSON.stringify(e)); },
+          onSuccess: function (r) { line("onSuccess " + JSON.stringify(r), "ok"); },
+        });
+      }
+      gal.appendChild(h("section", { class: "gal-card", id: id },
+        h("div", { class: "gal-head" }, h("h2", null, game.title + " (" + id + ")"),
+          h("button", { class: "btn btn-quiet", type: "button", on: { click: start } }, "Restart")),
+        stage, log));
+      start();
+    });
+  })();
+</script>
+</body>
+</html>

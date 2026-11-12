@@ -1,0 +1,99 @@
+/* Cogna prototype — shared layout classes (t- prefix). Built ONLY from cogna.css variables.
+   CONTRACT FILE (owned by the orchestrator). Agents add their own css/<agent>.css, never edit this. */
+
+/* ---------- tone colours (copied from apps/web student/lotus/report/report.module.css) ---------- */
+:root {
+  --t-secure-bg: var(--success-wash); --t-secure-ink: #115a3d; --t-secure-label: var(--success);
+  --t-shaky-bg: var(--caution-wash);  --t-shaky-ink: #7a4c08;  --t-shaky-label: var(--caution);
+  --t-missing-bg: #fdebe1;            --t-missing-ink: #8f330a; --t-missing-line: #f6c9ae; --t-missing-label: #b4400c;
+  --t-right-bg: #dff3e9; --t-right-ink: #176648;
+  --t-wrong-bg: #fae5df; --t-wrong-ink: #8b3428;
+  --t-wrong-stroke: #b4400c; /* "wrong" highlight in figures and animations */
+}
+
+/* ---------- shell ---------- */
+.t-topbar { border-bottom: 1px solid var(--line); }
+.t-navlink { font-size: var(--text-sm); color: var(--ink-soft); text-decoration: none; padding: var(--s-1) 0; border-bottom: 2px solid transparent; }
+.t-navlink:hover { color: var(--ink); }
+.t-navlink.is-active { color: var(--ink); border-bottom-color: var(--accent); }
+.t-who { font-size: var(--text-xs); color: var(--ink-faint); font-family: var(--font-math); }
+.t-main { min-height: calc(100vh - 72px); padding-bottom: var(--s-8); }
+.t-main:focus { outline: none; }
+.t-page { padding-top: var(--s-6); }
+.t-section { margin-top: var(--s-6); }
+.t-section-title { font-size: var(--text-lg); margin-bottom: var(--s-3); }
+.t-row { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
+.t-split { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s-6); align-items: start; }
+@media (max-width: 860px) { .t-split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) {
+  .shell, .shell-narrow, .shell-letter { padding: 0 var(--s-4); }
+  .card, .panel { padding: var(--s-5); }
+  .t-who { display: none; }
+}
+
+/* ---------- status chips ---------- */
+.t-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--text-xs); font-weight: 600; line-height: 1;
+  padding: 6px 10px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap;
+}
+.t-chip[data-tone="secure"]   { background: var(--t-secure-bg);  color: var(--t-secure-ink); }
+.t-chip[data-tone="shaky"]    { background: var(--t-shaky-bg);   color: var(--t-shaky-ink); }
+.t-chip[data-tone="missing"]  { background: var(--t-missing-bg); color: var(--t-missing-ink); border-color: var(--t-missing-line); }
+.t-chip[data-tone="untaught"] { background: transparent; color: var(--ink-faint); border-color: var(--line); border-style: dashed; }
+.t-tone-label[data-tone="secure"]  { color: var(--t-secure-label); }
+.t-tone-label[data-tone="shaky"]   { color: var(--t-shaky-label); }
+.t-tone-label[data-tone="missing"] { color: var(--t-missing-label); }
+.t-tone-label[data-tone="untaught"]{ color: var(--ink-faint); }
+
+/* ---------- 3-segment skill meter: missing | shaky | secure ---------- */
+.t-meter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 84px; height: 8px; }
+.t-meter > i { border-radius: 2px; background: var(--line); transition: background-color var(--dur-phase) var(--ease-settle); }
+.t-meter[data-tone="missing"] > i:nth-child(1) { background: var(--t-missing-label); }
+.t-meter[data-tone="shaky"]   > i:nth-child(-n+2) { background: var(--caution); }
+.t-meter[data-tone="secure"]  > i { background: var(--success); }
+.t-meter[data-tone="untaught"] > i { background: transparent; border: 1px dashed var(--line-strong); }
+.t-meter-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+.t-meter-row:last-child { border-bottom: none; }
+
+/* ---------- right / wrong feedback (colours from components/lotus.module.css) ---------- */
+.t-right { background: var(--t-right-bg); color: var(--t-right-ink); }
+.t-wrong { background: var(--t-wrong-bg); color: var(--t-wrong-ink); }
+
+/* ---------- figures (inline SVG on the 1-unit grid) ---------- */
+.t-figure { display: block; width: 100%; max-width: 360px; height: auto; margin: var(--s-3) auto; overflow: visible; }
+.t-figure .grid { stroke: var(--line); stroke-width: 0.04; }
+.t-figure .shape { fill: var(--accent-wash); stroke: var(--ink); stroke-width: 0.08; }
+.t-figure .height { stroke: var(--accent); stroke-width: 0.08; stroke-dasharray: 0.25 0.18; }
+.t-figure .wrong { stroke: var(--t-wrong-stroke); stroke-width: 0.1; }
+.t-figure .label { font-family: var(--font-math); font-size: 0.55px; fill: var(--ink); }
+
+/* ---------- learning surface ---------- */
+.t-surface { border-radius: var(--radius-lg); }
+
+/* ---------- demo drawer (orchestrator) ---------- */
+.t-demo-fab { position: fixed; right: var(--s-4); bottom: var(--s-4); z-index: 60; background: var(--surface); border-color: var(--line-strong); color: var(--ink-soft); box-shadow: var(--shadow-soft); font-size: var(--text-sm); }
+/* keep the Demo button clear of the session's sticky Continue bar */
+body:has(#app[data-route="session"]) .t-demo-fab,
+body:has(#app[data-route="retest"]) .t-demo-fab { bottom: auto; top: 76px; }
+body:has(#app[data-route="session"]) .t-demo-panel,
+body:has(#app[data-route="retest"]) .t-demo-panel { bottom: auto; top: 132px; }
+@media (max-width: 860px) {
+  body:has(#app[data-route="session"]) .t-demo-fab,
+  body:has(#app[data-route="retest"]) .t-demo-fab { top: auto; bottom: 112px; }
+  body:has(#app[data-route="session"]) .t-demo-panel,
+  body:has(#app[data-route="retest"]) .t-demo-panel { top: auto; bottom: 168px; }
+}
+.t-demo-panel { position: fixed; right: var(--s-4); bottom: calc(var(--s-4) + 56px); z-index: 60; width: min(320px, calc(100vw - 2 * var(--s-4)));
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); padding: var(--s-5); display: flex; flex-direction: column; gap: var(--s-2); }
+.t-demo-panel[hidden] { display: none; }
+.t-demo-note { font-size: var(--text-xs); color: var(--ink-faint); }
+.t-demo-label { font-size: var(--text-xs); color: var(--ink-soft); font-weight: 600; margin-top: var(--s-2); }
+.t-demo-links { display: flex; gap: var(--s-4); font-size: var(--text-sm); }
+.t-demo-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.t-demo-day { min-height: 40px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-family: var(--font-math); }
+.t-demo-day:hover { border-color: var(--accent); color: var(--accent-deep); }
+.t-demo-wide { width: 100%; min-height: 40px; padding: 0.5rem 1rem; font-size: var(--text-sm); }
+
+/* ---------- utility ---------- */
+.t-visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

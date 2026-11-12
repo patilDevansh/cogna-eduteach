@@ -114,6 +114,20 @@
       "env": {
         "NEXT_PUBLIC_API_URL": "http://127.0.0.1:4311"
       }
+    },
+    {
+      "name": "student-trail",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4480",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "prototypes/school-pilot-student-trail"
+      ],
+      "port": 4480
     }
   ]
 }

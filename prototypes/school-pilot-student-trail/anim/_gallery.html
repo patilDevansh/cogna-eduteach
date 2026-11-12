@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson animations gallery</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="../cogna.css" />
+<link rel="stylesheet" href="../proto.css" />
+<link rel="stylesheet" href="../css/anim.css" />
+</head>
+<body>
+<main class="t-gallery" id="main">
+  <h1>Lesson animations</h1>
+  <p class="muted">Standalone check page. Each animation waits for Play, shows its caption, and marks "ended" once.</p>
+  <div id="list"></div>
+</main>
+<script src="../core.js"></script>
+<script src="timeline.js"></script>
+<script src="pyth-squares.js"></script>
+<script src="quad-heights.js"></script>
+<script src="cut-move.js"></script>
+<script src="para-to-rect.js"></script>
+<script src="tri-half.js"></script>
+<script src="trap-double.js"></script>
+<script src="poly-split.js"></script>
+<script src="units-10000.js"></script>
+<script src="fix-slant.js"></script>
+<script src="fix-perim.js"></script>
+<script src="fix-half.js"></script>
+<script>
+(function () {
+  var h = Cogna.h;
+  var list = document.getElementById("list");
+  Object.keys(Cogna.anims).forEach(function (id) {
+    var a = Cogna.anims[id];
+    var stage = h("div", { "data-stage": id });
+    var cap = h("p", { class: "t-gallery-cap", "data-cap": id }, "(press Play)");
+    var end = h("span", { class: "t-gallery-end", "data-end": id }, "not ended");
+    var count = 0, ctl;
+    function mk(label, fn) { return h("button", { class: "btn btn-ghost", type: "button", "data-act": id + ":" + label.toLowerCase(), on: { click: fn } }, label); }
+    ctl = a.mount(stage, {
+      onBeat: function (c) { cap.textContent = c; },
+      onEnd: function () { count++; end.textContent = "ended ✓ (" + count + "x)"; end.classList.add("is-done"); },
+    });
+    var bar = h("div", { class: "t-gallery-bar" },
+      mk("Play", function () { ctl.play(); }),
+      mk("Pause", function () { ctl.pause(); }),
+      mk("Replay", function () { end.textContent = "not ended"; end.classList.remove("is-done"); ctl.replay(); }),
+      end,
+      h("span", { class: "t-gallery-end" }, "~" + Math.round(a.durationMs / 1000) + " s"));
+    list.appendChild(h("section", { class: "t-gallery-item", id: id },
+      h("h2", { style: { fontSize: "var(--text-lg, 1.2rem)", margin: "0 0 var(--s-3)" } }, id + " · " + a.title),
+      stage, cap, bar));
+  });
+})();
+</script>
+</body>
+</html>
