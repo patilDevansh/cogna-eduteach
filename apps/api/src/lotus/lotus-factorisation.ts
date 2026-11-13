@@ -797,6 +797,14 @@ function itemCouldShow(item: LotusQuestion | undefined | null, mistake: string |
  */
 const LEVEL_RANK = { easy: 1, medium: 2, hard: 3 } as const;
 
+/**
+ * A right answer the game or the typing itself says needs another (the rule was on screen, or the draft was
+ * the mistake) is not independent evidence against a mistake. A doubt-only suspicion has its own shaky rule.
+ */
+function needsAnother(audit: LotusQuestionAudit): boolean {
+  return audit.response?.gameReading?.diagnosis?.effect === "NEEDS_ANOTHER" || audit.response?.typingReading?.diagnosis?.effect === "NEEDS_ANOTHER";
+}
+
 /** A suspicion needs an independent, relevant and comparable success to settle it. */
 function isWeakerCheck(original: LotusQuestionAudit | undefined, current: LotusQuestionAudit, skillId: string): boolean {
   // A deliberately installed targeted check is the comparable evidence the
@@ -946,7 +954,7 @@ export function foldLedger(audits: LotusQuestionAudit[], priors: LotusLedgerPrio
         // not by one where it is a single step among others.
         const direct = audit.question?.answerKey?.diagnostics?.skillId === skillId;
         if (e.state === "SUSPECTED" && e.suspectedAt !== undefined && q > e.suspectedAt &&
-          isWeakerCheck(audits[e.suspectedAt - 1], audit, skillId)) {
+          (isWeakerCheck(audits[e.suspectedAt - 1], audit, skillId) || (!e.fromHedge && needsAnother(audit)))) {
           e.needsComparableCheck = true;
           e.notes.push(`Q${q}: right on a weaker check; the ${e.suspectedAt ? `concern from Q${e.suspectedAt}` : "earlier concern"} needs a comparable independent check`);
         } else if (e.recheck && e.state === "SUSPECTED") {
@@ -1476,6 +1484,10 @@ export function planAdjustments(input: PlanInput): PlanAction[] {
   for (const e of ledger.values()) {
     if (!e.splitDoubtAt || e.state === "SUSPECTED" || e.state === "CONFIRMED" || checkedThisCall.has(e.skillId)) continue;
     if (state.turns.some((t) => t.purpose === "CHECK" && t.forSkill === e.skillId && t.turn > e.splitDoubtAt! && t.turn > state.planTurn && t.status !== "SKIPPED")) continue;
+    // An upcoming question that already asks this skill directly is that check: keep it rather than book another.
+    const planned = state.turns.find((t) => t.turn > e.splitDoubtAt! && t.turn >= state.planTurn && t.status !== "SKIPPED" &&
+      itemAt(t.turn)?.answerKey.diagnostics?.skillId === e.skillId);
+    if (planned) { protectedTurns.add(planned.turn); continue; }
     const spec = slots.find((s) => s.skillId === e.skillId) ?? checkSpecFor(e.skillId);
     const turn = spec ? pickVictim() : null;
     if (!spec || turn === null) continue;
