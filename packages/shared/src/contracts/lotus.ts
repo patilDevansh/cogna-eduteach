@@ -180,6 +180,8 @@ export interface LotusStudentResponse {
   /** What the student reported, 0-100. Absent when no confidence was given (not asked, or skipped): never a stand-in value. */
   confidence?: number;
   responseTimeMs: number;
+  /** Set by the server only when it capped `responseTimeMs` at the on-screen time: the value the browser sent, so a resend with a different time is still recognised as changed. */
+  reportedResponseTimeMs?: number;
   didNotKnow: boolean;
   /** Idempotent submit of the question visible when the student pressed Submit. */
   submissionId?: string;
