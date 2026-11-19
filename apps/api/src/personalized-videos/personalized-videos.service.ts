@@ -39,7 +39,7 @@ import {
   type LessonEvidenceReceipt,
 } from "@cogna/shared";
 import { isPlannedLotusTopic, type AuthoredTask } from "@cogna/shared";
-import { lessonEvidence, loadLearnerModel, memoryLines, writeEvidence } from "../learner/learner-memory";
+import { habitLines, lessonEvidence, loadLearnerModel, memoryLines, writeEvidence } from "../learner/learner-memory";
 import { randomUUID } from "crypto";
 import { readFile } from "node:fs/promises";
 import type { TtsProvider } from "../ai/tts.service";
@@ -338,6 +338,8 @@ export class PersonalizedVideosService {
     const remembered = memory?.skills.find((s) => s.skillId === microBrief!.targetSkill.id);
     const history = memory && remembered ? memoryLines(memory, { only: [remembered.skillId] }) : [];
     if (microBrief && history.length) microBrief.history = history;
+    const habits = habitLines(memory?.profile ?? null);
+    if (microBrief && habits.length) microBrief.habits = habits;
     // Short lesson or video, from the size of the gap. A small gap gets the 20-second lesson on the
     // student's own answer and nothing else, so no AI lesson is written for it.
     const chosenFormat = microBrief && trusted.session ? chooseLessonFormat({
@@ -1319,7 +1321,7 @@ export class PersonalizedVideosService {
     // The main final check is what the lesson achieved: remembered against the skill it taught.
     const remembered = item === 0 ? lessonEvidence({
       studentId: assignment.studentId, assignmentId, taught: script?.authoring?.brief ?? script?.micro?.brief,
-      format: script?.format, exitPrompt: script?.exit?.prompt, answer, correct, at: new Date(),
+      format: script?.format, exitPrompt: script?.exit?.prompt, check: script?.exitCheck, answer, correct, at: new Date(),
     }) : null;
     if (remembered) {
       await writeEvidence(this.prisma, [remembered])

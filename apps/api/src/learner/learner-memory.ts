@@ -10,7 +10,8 @@
  * Read back by: the AI review of a new test (planningContext), the lesson brief, and the report.
  */
 import type { PrismaClient } from "@cogna/database";
-import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type LotusLedgerPrior, type LotusQuestionAudit, type LotusSessionView, type LotusTopic } from "@cogna/shared";
+import { LOTUS_TOPIC_NAMES, isPlannedLotusTopic, type AuthoredTask, type LotusLedgerPrior, type LotusQuestionAudit, type LotusSessionView, type LotusTopic } from "@cogna/shared";
+import { finalCheckMistake } from "./final-check-mistakes";
 import { depth, foldLedger } from "../lotus/lotus-factorisation";
 import { dependsOnTransitively, skillName } from "../lotus/lotus-factorisation-catalogue";
 import { mistakeInWords } from "../lotus/lotus-reasons";
@@ -40,6 +41,10 @@ export interface EvidenceRow {
   detail: Record<string, unknown>;
   observedAt: Date;
 }
+
+/** Secure again at least this long after it was first secure counts as kept, not just recalled. */
+export const RETAINED_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The whole-student row's skill id. */
 export const PROFILE_SKILL = "*";
@@ -136,6 +141,8 @@ export function lessonEvidence(input: {
   taught?: { topic: string; targetSkill: { id: string } } | null;
   format?: string;
   exitPrompt?: string;
+  /** The final check's own question, so a wrong answer can be read as a named mistake. */
+  check?: { task: AuthoredTask; expression: string };
   answer: string;
   correct: boolean;
   at: Date;
@@ -144,7 +151,12 @@ export function lessonEvidence(input: {
   if (!input.taught || !topic) return null;
   return {
     studentId: input.studentId, topic, skillId: input.taught.targetSkill.id, source: "LESSON", sourceId: input.assignmentId,
-    state: input.correct ? "LESSON_PASSED" : "LESSON_FAILED", mistakes: [],
+    state: input.correct ? "LESSON_PASSED" : "LESSON_FAILED",
+    // Which misconception survived the lesson, when code can say exactly.
+    mistakes: (() => {
+      const code = !input.correct && input.check ? finalCheckMistake(input.check.task, input.check.expression, input.answer) : undefined;
+      return code ? [{ code, question: tidy(tidyExpression(input.check!.expression), 100), answer: tidy(input.answer, 80) }] : [];
+    })(),
     detail: { format: input.format ?? "VIDEO", exitPrompt: input.exitPrompt ?? "", answer: input.answer },
     observedAt: input.at,
   };
@@ -152,16 +164,19 @@ export function lessonEvidence(input: {
 
 // ---------- the student's current picture ----------
 
-export type SkillStatus = "GAP" | "SUSPECTED" | "UNCLEAR" | "SECURE" | "FIXED" | "TAUGHT" | "TAUGHT_NOT_YET";
+export type SkillStatus = "GAP" | "SUSPECTED" | "UNCLEAR" | "SECURE" | "FIXED" | "FORGOTTEN" | "TAUGHT" | "TAUGHT_NOT_YET";
 
 export interface SkillMemory {
   skillId: string;
   name: string;
   /**
    * GAP/SUSPECTED/UNCLEAR/SECURE: what the latest test said. FIXED: secure now, but a gap or a lesson
-   * before. TAUGHT / TAUGHT_NOT_YET: a lesson since the latest test, its final check right / wrong.
+   * before. FORGOTTEN: a gap now, though an earlier test found it secure. TAUGHT / TAUGHT_NOT_YET: a
+   * lesson since the latest test, its final check right / wrong.
    */
   status: SkillStatus;
+  /** Secure since this date, through at least RETAINED_DAYS of later tests: evidence the learning lasted. */
+  keptSince?: string;
   tests: number;
   gapTests: number;
   firstSeenAt: string;
@@ -209,7 +224,16 @@ export function foldLearnerModel(studentId: string, stored: StoredRow[]): Learne
     } else {
       const s = latestTest!.state;
       const hadTrouble = mine.some((r) => r !== latestTest && (r.state === "GAP" || r.source === "LESSON"));
-      status = s === "SECURE" ? (hadTrouble ? "FIXED" : "SECURE") : s === "GAP" ? "GAP" : s === "SUSPECTED" ? "SUSPECTED" : "UNCLEAR";
+      const wasSecure = tests.some((r) => r !== latestTest && r.state === "SECURE");
+      status = s === "SECURE" ? (hadTrouble ? "FIXED" : "SECURE") : s === "GAP" ? (wasSecure ? "FORGOTTEN" : "GAP") : s === "SUSPECTED" ? "SUSPECTED" : "UNCLEAR";
+    }
+    // How long it has stayed secure: the start of the latest unbroken run of secure tests.
+    let keptSince: string | undefined;
+    if (latestTest?.state === "SECURE") {
+      let i = tests.length - 1;
+      while (i > 0 && tests[i - 1]!.state === "SECURE") i -= 1;
+      const since = iso(tests[i]!.observedAt);
+      if (Date.parse(iso(latestTest.observedAt)) - Date.parse(since) >= RETAINED_DAYS * DAY_MS) keptSince = since;
     }
     const byCode = new Map<string, SkillMemory["mistakes"][number] & { sourceIds: Set<string> }>();
     for (const row of mine) {
@@ -228,6 +252,7 @@ export function foldLearnerModel(studentId: string, stored: StoredRow[]): Learne
       skillId,
       name: skillName(skillId),
       status,
+      ...(keptSince ? { keptSince } : {}),
       tests: tests.length,
       gapTests: tests.filter((r) => r.state === "GAP").length,
       firstSeenAt: iso(mine[0]!.observedAt),
@@ -266,8 +291,8 @@ export function priorsFromMemory(model: LearnerModel, env: NodeJS.ProcessEnv = p
   const all = model.skills.flatMap((s): LotusLedgerPrior[] => {
     const mistakes = s.mistakes.slice(0, 2).map((m) => m.code);
     if (s.status === "TAUGHT") return [{ skillId: s.skillId, reason: "TAUGHT", mistakes, note: `taught on ${day(s.lessons.at(-1)!.at)}; checking it stuck` }];
-    if (s.status === "GAP" || s.status === "SUSPECTED" || s.status === "TAUGHT_NOT_YET") {
-      const what = s.status === "GAP" ? "a gap" : s.status === "SUSPECTED" ? "shaky" : "still wrong after a lesson";
+    if (s.status === "GAP" || s.status === "SUSPECTED" || s.status === "TAUGHT_NOT_YET" || s.status === "FORGOTTEN") {
+      const what = s.status === "GAP" ? "a gap" : s.status === "SUSPECTED" ? "shaky" : s.status === "FORGOTTEN" ? "secure before, then a gap again" : "still wrong after a lesson";
       return [{ skillId: s.skillId, reason: "GAP", mistakes, note: `${what} on ${day(s.lastSeenAt)}${mistakes[0] && mistakeInWords(mistakes[0]) ? ` (${mistakeInWords(mistakes[0])})` : ""}` }];
     }
     return [];
@@ -291,6 +316,8 @@ export function memoryLines(model: LearnerModel, opts: { only?: string[]; before
       lines.push(`${s.name}: the same mistake in ${m.sources} tests or lessons${m.inWords ? ` (${m.inWords})` : ""}, most recently ${day(m.lastSeenAt)}, e.g. wrote ${m.example.answer} for ${m.example.question}.`);
     }
     if (s.status === "FIXED") lines.push(`${s.name}: had trouble before, secure since ${day(s.lastSeenAt)}.`);
+    if (s.status === "FORGOTTEN") lines.push(`${s.name}: secure in an earlier test, but a gap again on ${day(s.lastSeenAt)}, so it hasn't lasted.`);
+    if (s.keptSince) lines.push(`${s.name}: secure on ${day(s.keptSince)} and still secure on ${day(s.lastSeenAt)}, so it has lasted.`);
     const lesson = s.lessons.at(-1);
     if (s.status === "TAUGHT_NOT_YET" && lesson) lines.push(`${s.name}: taught on ${day(lesson.at)}${lesson.format ? ` (${lesson.format.toLowerCase()} lesson)` : ""}, but the final check was still wrong.`);
     if (s.status === "TAUGHT" && lesson) lines.push(`${s.name}: taught on ${day(lesson.at)} and the final check was right; not yet re-checked in a test.`);
@@ -303,6 +330,20 @@ export function memoryLines(model: LearnerModel, opts: { only?: string[]; before
   const p = model.profile;
   if (p && p.tests >= 1 && p.slipShare >= 0.4) lines.push(`Across ${p.tests} test${p.tests === 1 ? "" : "s"}, many wrong answers were slips: careless rather than confused.`);
   if (p && p.confidentButWrong >= 3) lines.push(`Often sure of answers that turn out wrong (${p.confidentButWrong} times so far).`);
+  return lines;
+}
+
+/**
+ * How the student tends to work, for whoever teaches them next (the lesson author): from every test
+ * so far, only once there is enough to go on.
+ */
+export function habitLines(profile: LearnerProfile | null): string[] {
+  if (!profile || profile.answered < 10) return [];
+  const lines: string[] = [];
+  if (profile.slipShare >= 0.4) lines.push("Often slips (a miscopied sign or number) rather than misunderstanding: build in checking the answer by multiplying it back out.");
+  if (profile.confidentButWrong >= 3) lines.push("Often sure of answers that are wrong: have them predict, then check, before the right answer is shown.");
+  if (profile.saidDidNotKnow / profile.answered >= 0.2) lines.push("Often says \"I don't know\": start from what they can already do, in small steps.");
+  if (profile.unsureButRight >= 3) lines.push("Often right but unsure: say plainly what they did right, so they trust the method.");
   return lines;
 }
 
@@ -363,10 +404,10 @@ export async function backfillLearnerMemory(
     select: { studentId: true, assignmentId: true, exitPrompt: true, exitAnswer: true, exitCorrect: true, createdAt: true, assignment: { select: { script: true } } },
   });
   for (const exit of exits) {
-    const script = exit.assignment.script as { authoring?: { brief?: { topic: string; targetSkill: { id: string } } }; micro?: { brief?: { topic: string; targetSkill: { id: string } } }; format?: string } | null;
+    const script = exit.assignment.script as { authoring?: { brief?: { topic: string; targetSkill: { id: string } } }; micro?: { brief?: { topic: string; targetSkill: { id: string } } }; format?: string; exitCheck?: { task: AuthoredTask; expression: string } } | null;
     const row = lessonEvidence({
       studentId: exit.studentId, assignmentId: exit.assignmentId, taught: script?.authoring?.brief ?? script?.micro?.brief,
-      format: script?.format, exitPrompt: exit.exitPrompt ?? undefined, answer: exit.exitAnswer ?? "", correct: exit.exitCorrect === true, at: exit.createdAt,
+      format: script?.format, exitPrompt: exit.exitPrompt ?? undefined, check: script?.exitCheck, answer: exit.exitAnswer ?? "", correct: exit.exitCorrect === true, at: exit.createdAt,
     });
     if (!row || !(await write([row]))) continue;
     lessons += 1; rows += 1;
