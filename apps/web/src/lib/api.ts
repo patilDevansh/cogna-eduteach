@@ -131,7 +131,9 @@ async function apiFetch<T>(path: string, options?: RequestInit, sendSession = tr
     const detail = err instanceof Error ? err.message : "Network error";
     throw new ApiError(
       detail === "Failed to fetch"
-        ? `API unavailable at ${API_URL} — start the API (port 3001) and retry.`
+        ? process.env.NODE_ENV === "production"
+          ? "We couldn't reach Cogna. Check your internet connection, then try again."
+          : `API unavailable at ${API_URL} — start the API (port 3001) and retry.`
         : `API request failed: ${detail}`,
       0,
       path,
