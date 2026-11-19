@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cogna voice samples</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../cogna.css">
+<style>
+  .t-voices { max-width: 640px; margin: 0 auto; padding: var(--s-6, 32px) 16px; display: grid; gap: var(--s-4, 16px); }
+  .t-voice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .t-voice-name { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); }
+  .t-voice audio { width: min(320px, 100%); }
+</style>
+</head>
+<body>
+<main class="t-voices">
+  <p class="eyebrow">Prototype · narration</p>
+  <h1>Indian English voices</h1>
+  <p class="lead">Each voice reads the same line: “The square on side a holds 3 × 3, which is 9. So a² + b² = c², and c is 5.”
+    The lessons use <strong>Priya</strong>. To switch, re-run the recorder with <code>--voice=&lt;name&gt;</code>.</p>
+  <div class="t-voice"><span class="t-voice-name">Priya · female (in use)</span><audio controls preload="none" src="priya.mp3"></audio></div>
+  <div class="t-voice"><span class="t-voice-name">Kavya · female</span><audio controls preload="none" src="kavya.mp3"></audio></div>
+  <div class="t-voice"><span class="t-voice-name">Ritu · female</span><audio controls preload="none" src="ritu.mp3"></audio></div>
+  <div class="t-voice"><span class="t-voice-name">Neha · female</span><audio controls preload="none" src="neha.mp3"></audio></div>
+  <div class="t-voice"><span class="t-voice-name">Aditya · male</span><audio controls preload="none" src="aditya.mp3"></audio></div>
+  <div class="t-voice"><span class="t-voice-name">Shubh · male</span><audio controls preload="none" src="shubh.mp3"></audio></div>
+  <div class="t-voice"><span class="t-voice-name">Rahul · male</span><audio controls preload="none" src="rahul.mp3"></audio></div>
+</main>
+</body>
+</html>
