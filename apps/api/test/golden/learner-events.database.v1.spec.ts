@@ -21,8 +21,9 @@ describe("durable presentation, history and contextual support",{skip:!enabled},
    await f.lotusController.answer(f.headers,f.lotusId,{studentId:f.studentId,answer:"9",working:"",confidence:60,responseTimeMs:3000,didNotKnow:false,questionId:lotus.id,nextQuestionId:f.questions[1]!.id,submissionId:`${f.lotusId}_answer`,interactionContext:sampleContext("LOTUS",lotus.id)});
    await assert.rejects(()=>f.practice.submitAnswer(f.headers,{eventId:randomUUID(),eventType:"ANSWER_SUBMITTED",studentId:f.studentId,sessionId:f.sessionId,questionId:f.questionId,questionVersion:1,submittedAnswer:"1",timeToFirstResponseMs:100,totalTimeMs:4200,idleTimeMs:0,attemptNumber:1,hintCount:0,highestHintLevel:0,selfRatedConfidence:null,answerChangedBeforeSubmit:true,clientTimestamp:new Date().toISOString(),interactionContext:sampleContext("EXERCISE",f.questionId)}));
    const history=await s.history(f.studentId);
-   assert.deepEqual(history.events.filter(e=>e.kind==="LEARNER_DRAFT_CHECKPOINT").map(e=>e.draft?.candidate).sort(),["","1","9"]);
-   assert.equal(history.events.find(e=>e.id===last.eventId)?.draft?.elapsedMs,4200);
+   // DATA-015: drafts are stored but no person's view shows them, the student's own history included.
+   assert.equal(await db.rawEvent.count({where:{studentId:f.studentId,eventType:"LEARNER_DRAFT_CHECKPOINT"}}),3);
+   assert.equal(history.events.some(e=>e.kind==="LEARNER_DRAFT_CHECKPOINT"),false);
    assert.equal(history.events.find(e=>e.kind==="ANSWER_SUBMITTED")?.submittedAnswer,"1");
    assert.equal(history.related.find(e=>e.source==="LOTUS"&&e.kind==="ANSWER")?.submittedAnswer,"9");
    assert.equal(JSON.stringify(history).includes("2x+6"),false);
