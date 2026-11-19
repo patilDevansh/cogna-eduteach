@@ -8,6 +8,8 @@ import styles from "./practice.module.css";
 import { FactorSafe, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { BracketRush, MarkersDesk, RectangleGame } from "@/components/games/PracticeGames";
 import { SavedPracticeCard } from "./SavedPracticeCard";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { PracticeBuddy, type BuddyReaction } from "@/components/games/PracticeBuddy";
 
 /**
  * Independent practice after the targeted lesson. Every answer is checked
@@ -55,6 +57,8 @@ export function PracticeArena({
   const [streak, setStreak] = useState(0);
   const [theme, setTheme] = useState<LessonThemeChoice>("classic");
   const [resumeItem, setResumeItem] = useState<string | null>(null);
+  const [reaction, setReaction] = useState<BuddyReaction>({ kind: "idle", n: 0 });
+  const react = (kind: BuddyReaction["kind"]) => setReaction((r) => ({ kind, n: r.n + 1 }));
 
   useEffect(() => {
     setTheme(readTheme(studentId));
@@ -106,11 +110,15 @@ export function PracticeArena({
   }
 
   return (
+    <MotionConfig reducedMotion="user">
     <section className={styles.arena} data-theme={theme}>
       <header className={styles.top}>
-        <div>
+        <div className={styles.heading}>
+          <PracticeBuddy reaction={reaction} className={styles.buddy} />
+          <div>
           <p className={styles.eyebrow}>Practice · {set.skillName}</p>
           <h2 className={styles.title}>{finished ? world.done : `Question ${index + 1} of ${total}`}</h2>
+          </div>
         </div>
         <div className={styles.meter} aria-label={`${earned} of ${total} ${world.unit}`}>
           {set.items.map((item, i) => (
@@ -122,6 +130,8 @@ export function PracticeArena({
         </div>
       </header>
 
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div key={resumed ? `resume-${resumed.id}` : finished ? "finale" : set.items[index]!.id} exit={{ opacity: 0, x: -32, transition: { duration: 0.18 } }}>
       {resumed?.format === "type-answer" && set.learning ? (
         <div>
           <p className={styles.note}>Welcome back. Continue your saved question.</p>
@@ -149,7 +159,7 @@ export function PracticeArena({
           studentId={studentId}
           item={set.items[index] as Extract<PracticeItemView, { format: "type-answer" }>}
           learning={set.learning}
-          onResolved={record}
+          onResolved={(outcome) => { record(outcome); react(outcome.correct ? "right" : "wrong"); }}
           onNext={() => {
             const existing = set.learning?.items[set.items[index]!.id];
             if (existing?.resolved && outcomes.length <= index) record({ firstTry: existing.firstTry, correct: existing.correct });
@@ -163,11 +173,15 @@ export function PracticeArena({
           item={set.items[index]!}
           devMode={devMode}
           onResolved={(outcome) => record(outcome)}
+          onVerdict={react}
           onNext={() => setIndex((i) => i + 1)}
         />
       )}
+      </motion.div>
+      </AnimatePresence>
       {devMode && <p className={styles.dev}>Dev · practice source {set.source === "AI_VERIFIED" ? "AI-written, verified" : "code-generated"} · answers checked on the server</p>}
     </section>
+    </MotionConfig>
   );
 }
 
@@ -176,12 +190,15 @@ function ItemCard({
   item,
   devMode,
   onResolved,
+  onVerdict,
   onNext,
 }: {
   assignmentId: string;
   item: PracticeItemView;
   devMode: boolean;
   onResolved: (outcome: Outcome) => void;
+  /** What the companion should show: thinking while the server checks, then its verdict. */
+  onVerdict: (kind: BuddyReaction["kind"]) => void;
   onNext: () => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -202,9 +219,11 @@ function ItemCard({
     if (busy || result?.verdict === "CORRECT") return;
     setBusy(true);
     setPicked(pickedIndex);
+    onVerdict("thinking");
     try {
       const next = await api.checkPracticeAnswer(assignmentId, item.id, answer);
       setResult(next);
+      onVerdict(next.verdict === "CORRECT" ? "right" : next.verdict === "UNREADABLE" ? "idle" : "wrong");
       if (next.verdict === "UNREADABLE") return;
       const attempt = tries + 1;
       setTries(attempt);
@@ -214,6 +233,7 @@ function ItemCard({
         onResolved({ firstTry: next.verdict === "CORRECT" && attempt === 1, correct: next.verdict === "CORRECT" });
       }
     } catch (err) {
+      onVerdict("idle");
       setResult({ itemId: item.id, verdict: "UNREADABLE", feedback: err instanceof Error ? err.message : "That answer couldn't be checked.", attempt: tries });
     } finally {
       setBusy(false);
@@ -225,6 +245,7 @@ function ItemCard({
     if (resolvedRef.current) return;
     resolvedRef.current = true;
     setGameDone(true);
+    onVerdict(outcome.correct ? "right" : "wrong");
     onResolved(outcome);
   }
 
