@@ -31,6 +31,8 @@
 @keyframes dots { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-6px); } }
 
 .top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.heading { display: flex; align-items: center; gap: 12px; }
+.buddy { width: 88px; height: 88px; flex: none; border-radius: 50%; overflow: hidden; background: var(--pa-paper); box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.35); }
 .eyebrow { margin: 0; font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--pa-accent); }
 .title { margin: 4px 0 0; font-size: var(--text-xl); }
 
