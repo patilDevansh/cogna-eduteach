@@ -10,6 +10,7 @@
      #/day/N/done       -> 'dayDone'   params {day:N}
      #/retest           -> 'retest'
      #/growth           -> 'growth'
+     #/lesson/<id>      -> 'lesson'    params {id}      (one lesson on its own, for demos)
 */
 (function () {
   "use strict";
@@ -26,13 +27,14 @@
     { re: /^\/day\/(\d+)\/done$/, name: "dayDone", day: true },
     { re: /^\/retest$/, name: "retest" },
     { re: /^\/growth$/, name: "growth" },
+    { re: /^\/lesson\/([a-z0-9-]+)$/, name: "lesson", id: true },
   ];
 
   function parse(hash) {
     var path = (hash || "").replace(/^#/, "");
     for (var i = 0; i < ROUTES.length; i++) {
       var m = path.match(ROUTES[i].re);
-      if (m) return { name: ROUTES[i].name, params: ROUTES[i].day ? { day: parseInt(m[1], 10) } : {}, path: path };
+      if (m) return { name: ROUTES[i].name, params: ROUTES[i].day ? { day: parseInt(m[1], 10) } : (ROUTES[i].id ? { id: m[1] } : {}), path: path };
     }
     return { name: "welcome", params: {}, path: "/welcome" };
   }

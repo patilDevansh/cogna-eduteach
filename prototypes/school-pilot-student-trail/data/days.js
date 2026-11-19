@@ -27,6 +27,51 @@
     F.label(4.5, 7.2, "8 cm"), F.label(-0.1, 3.6, "6 cm", "end"), F.label(4.9, 3.2, "?", "start"),
   ], { alt: "Right triangle with legs 6 cm and 8 cm." });
 
+
+  /* Day 1 adaptive pool helpers (plain data out; see DAY1_PERSONALISED.md). */
+  function ptri(a, b, la, lb, lc) { // a = bottom leg, b = vertical leg
+    var k = 6 / Math.max(a, b), W = a * k, H = b * k;
+    return F.wrap(W + 1, H + 1, [
+      F.poly([[0.5, H + 0.5], [W + 0.5, H + 0.5], [0.5, 0.5]]), F.right(0.5, H + 0.5),
+      F.label(W / 2 + 0.5, H + 1.3, la), F.label(-0.1, H / 2 + 0.7, lb, "end"), F.label(W / 2 + 0.9, H / 2 + 0.3, lc, "start"),
+    ], { alt: "Right triangle with the sides labelled " + la + ", " + lb + " and " + lc + "." });
+  }
+  function pc(id, level, a, b, c, themes) { // find the longest side
+    return { id: id, skill: "pyth", level: level, kind: "number", answer: c, themes: themes,
+      figure: ptri(a, b, String(b), String(a), "?"),
+      wrongMixups: [
+        { value: a + b, mixup: "addsides", why: "That's " + a + " + " + b + ". Square first: " + a * a + " + " + b * b + " = " + (a * a + b * b) + ", then take the root." },
+        { value: a * a + b * b, mixup: "noroot", why: a * a + b * b + " is c squared. Take the square root: \u221a" + (a * a + b * b) + " = " + c + "." },
+      ],
+      explain: a + "\u00b2 + " + b + "\u00b2 = " + a * a + " + " + b * b + " = " + c * c + ", and \u221a" + c * c + " = " + c + "." };
+  }
+  function pl(id, level, c, a, b, themes, r1) { // find a missing leg: c longest, a known leg, b answer
+    var w = Math.round(Math.sqrt(c * c + a * a) * 10) / 10;
+    return { id: id, skill: "pyth", level: level, kind: "number", answer: b, themes: themes,
+      figure: ptri(b, a, "?", String(a), String(c)),
+      wrongMixups: [
+        { value: c - a, mixup: "wrongc", why: "That's " + c + " \u2212 " + a + ". Sides don't subtract like that. Use squares: " + c * c + " \u2212 " + a * a + " = " + b * b + ", then take the root." },
+        { value: c * c + a * a, mixup: "wrongc", why: "You added the squares, as if " + a + " were a short side and the answer were c. The longest side is " + c + ", so subtract: " + c * c + " \u2212 " + a * a + "." },
+        { value: w, mixup: "wrongc", why: "You added " + c * c + " + " + a * a + ". But " + c + " is the longest side (c), so take " + a * a + " away from " + c * c + " instead." },
+        { value: c + a, mixup: "addsides", why: "That's " + c + " + " + a + ". Work with squares: " + c * c + " \u2212 " + a * a + " = " + b * b + ", then take the root." },
+        { value: c * c - a * a, mixup: "noroot", why: b * b + " is the square of the missing side. Take the root: \u221a" + b * b + " = " + b + "." },
+      ],
+      explain: c + "\u00b2 \u2212 " + a + "\u00b2 = " + c * c + " \u2212 " + a * a + " = " + b * b + ", and \u221a" + b * b + " = " + b + "." };
+  }
+  function prc(id, level, text, a, b, c, isRight, themes) { // "is it right-angled?" mcq
+    var sq = a * a + " + " + b * b + " = " + (a * a + b * b);
+    var yes = { text: "Yes, it's right-angled" }, no = { text: "No, it isn't" }, cant = { text: "Can't tell without a picture", why: "The numbers are enough: if the two short sides squared add up to the long side squared, it's right-angled." };
+    if (isRight) {
+      yes.correct = true;
+      no.mixup = "addsides"; no.why = "Adding the short sides (" + a + " + " + b + " = " + (a + b) + ") isn't the test. Square them: " + sq + " = " + c + "\u00b2, so it is right-angled.";
+    } else {
+      no.correct = true;
+      yes.why = "Check the squares: " + sq + ", but " + c + "\u00b2 = " + c * c + ". They don't match, so it isn't right-angled.";
+    }
+    return { id: id, skill: "pyth", level: level, kind: "mcq", themes: themes, options: [yes, no, cant],
+      explain: isRight ? sq + " = " + c * c + " = " + c + "\u00b2, so yes." : sq + " but " + c + "\u00b2 = " + c * c + ", so no." };
+  }
+
   C.data.days = [
     {
       n: 1, title: "Bridge: the right-angle rule", skills: ["pyth"],
@@ -47,31 +92,80 @@
             explain: "7 × 7 = 49." },
         ] },
         { id: "s3", type: "animation", anim: "pyth-squares", skill: "pyth" },
-        { id: "s4", type: "worked", skill: "pyth",
-          lines: [
-            "The two shorter sides (the legs) are 6 cm and 8 cm.",
-            "Square each one: 6² + 8² = 36 + 64",
-            "Add them: 36 + 64 = 100",
-            "Undo the square: longest side = √100 = 10 cm",
-          ],
-          figure: tri68,
-          yourTurn: { prompt: "Your turn: the legs are 9 cm and 12 cm.",
-            blanks: [{ label: "9² + 12² =", answer: 225 }, { label: "Longest side =", answer: 15, unit: "cm" }] } },
-        { id: "s5", type: "practice", questions: [
-          { id: "d1p1", skill: "pyth", kind: "mcq", prompt: "A right triangle has legs 3 cm and 4 cm. How long is the longest side?", figure: tri345,
-            options: [{ text: "5 cm", correct: true }, { text: "7 cm", why: "That's 3 + 4. Square first: 9 + 16 = 25, then √25." }, { text: "25 cm", why: "25 is the square of the longest side. Take the square root: √25 = 5." }],
-            explain: "3² + 4² = 9 + 16 = 25, and √25 = 5 cm." },
-          { id: "d1p2", skill: "pyth", kind: "number", unit: "cm", prompt: "Legs 5 cm and 12 cm. Longest side = ? cm", answer: 13,
-            wrongMixups: [{ value: 17, why: "That's 5 + 12. Square, add, then take the root: 25 + 144 = 169, √169 = 13." }, { value: 169, why: "169 is the square. √169 = 13." }],
-            explain: "25 + 144 = 169, √169 = 13 cm." },
-          { id: "d1p3", skill: "pyth", kind: "mcq", prompt: "Is a triangle with sides 6, 8 and 10 a right triangle?",
-            options: [{ text: "Yes", correct: true }, { text: "No", why: "Check: 6² + 8² = 36 + 64 = 100 = 10². It fits the rule, so it has a right angle." }, { text: "Can't tell without a picture", why: "You can tell from the numbers alone: if the two short sides squared add up to the long side squared, it's right-angled." }],
-            explain: "36 + 64 = 100 = 10², so yes." },
-          { id: "d1p4", skill: "pyth", kind: "number", unit: "cm", prompt: "The longest side is 10 cm and one leg is 6 cm. The other leg = ? cm", answer: 8,
-            wrongMixups: [{ value: 4, why: "That's 10 − 6. Work with squares: 100 − 36 = 64, √64 = 8." }, { value: 64, why: "64 is the square. √64 = 8." }],
-            explain: "10² − 6² = 100 − 36 = 64, √64 = 8 cm." },
-        ] },
-        { id: "s6", type: "explain", skill: "pyth",
+        { id: "s4", type: "adaptive", skill: "pyth",
+          openers: { addsides: "pyth-why-not-add", noroot: "pyth-undo-square" },
+          fixes: { addsides: "pyth-why-not-add", noroot: "pyth-undo-square", wrongc: "pyth-which-c" },
+          maxQuestions: 8,
+          pool: [
+            // ---- Level 1: find c, small triples ----
+            pc("d1a1", 1, 3, 4, 5, {
+              cricket: "A cricket pitch has a right-angled corner. One side is 3 m and the next is 4 m. How long is the diagonal across the corner? (in m)",
+              music: "A guitar neck brace makes a right angle. Its two straight sides are 3 cm and 4 cm. How long is the sloping side? (in cm)",
+              default: "A right triangle has legs 3 cm and 4 cm. How long is the longest side? (in cm)" }),
+            pc("d1a2", 1, 6, 8, 10, {
+              cricket: "A rope runs from the top of a 6 m floodlight pole to a peg 8 m from its base on level ground. How long is the rope? (in m)",
+              music: "A ramp up to a stage rises 6 m and runs 8 m along the floor. How long is the sloping ramp? (in m)",
+              default: "A right triangle has legs 6 cm and 8 cm. How long is the longest side? (in cm)" }),
+            pc("d1a3", 1, 12, 16, 20, {
+              cricket: "A fielder runs 12 m up the pitch, turns a right angle and runs 16 m to the boundary. How far is he now from where he started, in a straight line? (in m)",
+              music: "A speaker stand's side brace forms a right angle with sides 12 cm and 16 cm. How long is the slanted bar? (in cm)",
+              default: "A right triangle has legs 12 cm and 16 cm. How long is the longest side? (in cm)" }),
+            pc("d1a4", 1, 30, 40, 50, {
+              cricket: "A practice area is a right-angled triangle with sides 30 m and 40 m. How long is the edge across the slope? (in m)",
+              music: "A stage is a right-angled triangle with straight edges of 30 m and 40 m. How long is the front edge across the slope? (in m)",
+              default: "A right triangle has legs 30 cm and 40 cm. How long is the longest side? (in cm)" }),
+            // ---- Level 2: find c, bigger triples + right-angle checks ----
+            pc("d1b1", 2, 5, 12, 13, {
+              cricket: "A fielder stands 5 m along the pitch from the stumps, then 12 m out to the side at a right angle. How far is he from the stumps in a straight line? (in m)",
+              music: "A guitar leans so its foot is 5 cm from an amp and its top touches the amp 12 cm up. What is the guitar's length along the lean? (in cm)",
+              default: "A right triangle has legs 5 cm and 12 cm. How long is the longest side? (in cm)" }),
+            prc("d1b2", 2, "", 8, 15, 17, true, {
+              cricket: "A groundsman marks a corner of the pitch with sides of 8 m and 15 m, and a diagonal of 17 m. Is the corner a right angle?",
+              music: "A speaker stand has sides of 8 cm and 15 cm, and a slanted bar of 17 cm. Is the corner a right angle?",
+              default: "A triangle has sides 8, 15 and 17. Is it a right triangle?" }),
+            pc("d1b3", 2, 9, 12, 15, {
+              cricket: "A bat leans against the pavilion wall. Its foot is 9 cm from the wall and its top touches the wall 12 cm up. How long is the bat? (in cm)",
+              music: "A keyboard stand's frame is a right angle with sides 9 cm and 12 cm. How long is the slanted bar? (in cm)",
+              default: "A right triangle has legs 9 cm and 12 cm. How long is the longest side? (in cm)" }),
+            pc("d1b4", 2, 8, 15, 17, {
+              cricket: "A cricket pitch corner has sides 8 m and 15 m at a right angle. How long is the diagonal? (in m)",
+              music: "A guitar neck brace makes a right angle with sides 8 cm and 15 cm. How long is the slanted side? (in cm)",
+              default: "A right triangle has legs 8 cm and 15 cm. How long is the longest side? (in cm)" }),
+            pc("d1b5", 2, 7, 24, 25, {
+              cricket: "A boundary rope is fixed 7 m up a pole and pegged 24 m from its base. How long is the rope? (in m)",
+              music: "A speaker cable goes from the top of a 7 m stand to a socket 24 m from its base. How long is the cable? (in m)",
+              default: "A right triangle has legs 7 cm and 24 cm. How long is the longest side? (in cm)" }),
+            prc("d1b6", 2, "", 6, 7, 9, false, {
+              cricket: "A bat rest has sides of 6 cm and 7 cm and a slanted side of 9 cm. Is its corner a right angle?",
+              music: "A guitar stand has sides of 6 cm and 7 cm and a slanted bar of 9 cm. Is its corner a right angle?",
+              default: "A triangle has sides 6, 7 and 9. Is it a right triangle?" }),
+            // ---- Level 3: find a missing leg (+ one word problem) ----
+            pl("d1c1", 3, 10, 6, 8, {
+              cricket: "A rope of 10 m runs from a peg to the top of a 6 m pole. How far is the peg from the base of the pole? (in m)",
+              music: "A slanted speaker stand bar is 10 cm long. One short side is 6 cm. How long is the other short side? (in cm)",
+              default: "A right triangle's longest side is 10 cm and one leg is 6 cm. How long is the other leg? (in cm)" }),
+            pl("d1c2", 3, 13, 5, 12, {
+              cricket: "A 13 m diagonal crosses a pitch corner. One side of the corner is 5 m. How long is the other side? (in m)",
+              music: "A guitar neck brace has a slanted side of 13 cm and one straight side of 5 cm. How long is the other straight side? (in cm)",
+              default: "A right triangle's longest side is 13 cm and one leg is 5 cm. How long is the other leg? (in cm)" }),
+            pl("d1c3", 3, 17, 8, 15, {
+              cricket: "A bat of 17 cm leans against a wall, its foot 8 cm from the wall. How high up the wall does it touch? (in cm)",
+              music: "A guitar of 17 cm (a model) leans against an amp, its foot 8 cm from the amp. How high up the amp does it touch? (in cm)",
+              default: "A right triangle's longest side is 17 cm and one leg is 8 cm. How long is the other leg? (in cm)" }),
+            pl("d1c4", 3, 25, 7, 24, {
+              cricket: "A rope of 25 m runs from the top of a floodlight pole to a peg 7 m from its base. How tall is the pole? (in m)",
+              music: "A cable of 25 m runs from the top of a speaker tower to a point 7 m from its base. How tall is the tower? (in m)",
+              default: "A right triangle's longest side is 25 cm and one leg is 7 cm. How long is the other leg? (in cm)" }),
+            pl("d1c5", 3, 5, 3, 4, {
+              cricket: "A 5 m net pole leans against the pavilion wall with its foot 3 m from the wall. How high up the wall does it reach? (in m)",
+              music: "A 5 m cable stays a speaker tower, with its foot 3 m from the tower base. How high up the tower does it reach? (in m)",
+              default: "A 5 m ladder leans against a wall with its foot 3 m from the wall. How high up the wall does it reach? (in m)" }),
+            pl("d1c6", 3, 15, 9, 12, {
+              cricket: "A 15 m cable runs from the top of a scoreboard to a peg 9 m from its base. How tall is the scoreboard? (in m)",
+              music: "A 15 m cable runs from the top of a stage light stand to a peg 9 m from its base. How tall is the stand? (in m)",
+              default: "A right triangle's longest side is 15 cm and one leg is 9 cm. How long is the other leg? (in cm)" }),
+          ] },
+        { id: "s5", type: "explain", skill: "pyth",
           prompt: "Why does a² + b² = c² only work for right triangles?",
           keyIdeas: [["right angle", "90", "right-angled", "right angled", "square corner"], ["longest", "hypotenuse", "opposite", "c is"]],
           starter: "It only works when the triangle has a… and c has to be the…",
@@ -80,7 +174,7 @@
             close: "You're close. You mentioned one key idea. What about which side c has to be?",
             nudge: "Let's try again. Think about the corner of the triangle and which side is c.",
           } },
-        { id: "s7", type: "exit", questions: [
+        { id: "s6", type: "exit", questions: [
           { id: "d1e1", skill: "pyth", kind: "number", unit: "cm", prompt: "Legs 9 cm and 12 cm. Longest side = ? cm", answer: 15,
             wrongMixups: [{ value: 21, why: "That's 9 + 12. 81 + 144 = 225, √225 = 15." }], explain: "81 + 144 = 225, √225 = 15 cm." },
           { id: "d1e2", skill: "pyth", kind: "number", unit: "cm", prompt: "Longest side 13 cm, one leg 5 cm. Other leg = ? cm", answer: 12,
@@ -198,8 +292,7 @@
         ] },
         { id: "s3", type: "animation", anim: "cut-move", skill: "a1" },
         { id: "s4", type: "game", game: "tile-cover", skill: "a1" },
-        { id: "s5", type: "animation", anim: "para-to-rect", skill: "a2" },
-        { id: "s6", type: "game", game: "cut-slide", skill: "a2" },
+        { id: "s5", type: "animation", anim: "para-field", skill: "a2" },   // hands-on: replaces the para-to-rect video + the cut-slide game
         { id: "s7", type: "practice", questions: [
           mcq("d3p1", "a1", "Each small square is 1 cm². What is the area of this shape?", [
             bad("18 cm²", "18 is the distance round the edge (5 + 2 + 3 + 2 + 2 + 4). Area counts the squares inside.", "perim"),
@@ -759,4 +852,7 @@
     if (o.leg) p.push(F.label((xl + xtl) / 2 - 0.25, my + 0.3, o.leg, "end"));
     return F.wrap(W, H, p, { alt: o.alt || ("Trapezium" + (o.bot ? " with parallel sides " + o.top + " and " + o.bot : "") + "."), pad: 1.2 });
   }
+  /* Product decision (2026-11-16): no teacher-at-the-board step. Every lesson is a narrated
+     Cogna audio-visual lesson (the animation steps), so teacher steps are removed from every day. */
+  C.data.days.forEach(function (d) { d.steps = (d.steps || []).filter(function (s) { return s.type !== "teacher"; }); });
 })();

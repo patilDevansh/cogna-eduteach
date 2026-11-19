@@ -12,7 +12,8 @@
 */
 (function () {
   "use strict";
-  var KEY = "cogna-trail-v1";
+  var KEY = "cogna-trail-v1"; // suffixed per student at first use (see keyFor)
+  function keyFor() { return KEY + "-" + (window.Cogna.studentId || "aarav"); }
   var memory = null; // in-memory fallback when localStorage is unavailable
   var S = null;
 
@@ -48,7 +49,7 @@
 
   function load() {
     try {
-      var raw = window.localStorage.getItem(KEY);
+      var raw = window.localStorage.getItem(keyFor());
       if (raw) { var parsed = JSON.parse(raw); if (parsed && parsed.version === 1) return parsed; }
     } catch (e) { /* storage blocked */ }
     if (memory) return clone(memory);
@@ -57,7 +58,7 @@
 
   function save() {
     memory = clone(S);
-    try { window.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage blocked: memory only */ }
+    try { window.localStorage.setItem(keyFor(), JSON.stringify(S)); } catch (e) { /* storage blocked: memory only */ }
     window.Cogna.bus.emit("state:changed", S);
   }
 
@@ -193,7 +194,7 @@
 
     reset: function () {
       memory = null;
-      try { window.localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+      try { window.localStorage.removeItem(keyFor()); } catch (e) { /* ignore */ }
       S = fresh();
       save();
     },

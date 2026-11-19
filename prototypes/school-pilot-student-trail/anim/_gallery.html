@@ -16,8 +16,16 @@
   <div id="list"></div>
 </main>
 <script src="../core.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js"></script>
 <script src="timeline.js"></script>
+<script src="lesson.js"></script>
+<script src="sfx.js"></script>
+<script src="para-field.js"></script>
 <script src="pyth-squares.js"></script>
+<script src="pyth-why-not-add.js"></script>
+<script src="pyth-undo-square.js"></script>
+<script src="pyth-which-c.js"></script>
 <script src="quad-heights.js"></script>
 <script src="cut-move.js"></script>
 <script src="para-to-rect.js"></script>
@@ -40,7 +48,7 @@
     var count = 0, ctl;
     function mk(label, fn) { return h("button", { class: "btn btn-ghost", type: "button", "data-act": id + ":" + label.toLowerCase(), on: { click: fn } }, label); }
     ctl = a.mount(stage, {
-      onBeat: function (c) { cap.textContent = c; },
+      onBeat: function (c, done) { cap.textContent = c; if (done) done(false); },
       onEnd: function () { count++; end.textContent = "ended ✓ (" + count + "x)"; end.classList.add("is-done"); },
     });
     var bar = h("div", { class: "t-gallery-bar" },

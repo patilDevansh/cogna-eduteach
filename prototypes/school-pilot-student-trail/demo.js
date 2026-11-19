@@ -85,6 +85,25 @@
       switch (step.type) {
         case "recall": case "practice": case "exit":
           playQuestions(d, step, target, counter); break;
+        case "adaptive":
+          // Replay this student's story (profile.story), then right answers, using the pool in level order.
+          (function () {
+            var story = (C.data.profile && C.data.profile.story) || [];
+            var level = (C.data.profile && C.data.profile.startLevel) || 1, streak = 0, used = {}, k = 0;
+            for (var guard = 0; guard < (step.maxQuestions || 8); guard++) {
+              var q = (step.pool || []).find(function (p) { return p.level === level && !used[p.id]; });
+              if (!q) break;
+              used[q.id] = true;
+              var plan = story[k++] || { correct: true };
+              var w = plan.correct ? null : storyWrong(q, plan.mixup || null);
+              var correct = !w;
+              S.recordAnswer({ day: d, stepId: step.id, qid: q.id, skill: step.skill, correct: correct, mixup: w ? w.mixup : null,
+                guards: q.guards, sure: correct || d <= 4, answer: w ? w.answer : (q.kind === "mcq" ? rightOption(q).text : q.answer) });
+              if (correct) { if (++streak === 2) { if (level === 3) break; level++; streak = 0; } }
+              else { streak = 0; if (!w.mixup) level = Math.max(1, level - 1); }
+            }
+          })();
+          break;
         case "animation":
           if (step.skill) S.markTaught(step.skill, d); break;
         case "worked":
@@ -137,6 +156,25 @@
 
   /* ---------- drawer UI ---------- */
   var open = false;
+  /** Voice: every voice recorded by tools/record-narration.mjs (audio/voices.js). Lines a voice hasn't recorded use the default. */
+  function voicePicker() {
+    var sets = C.voiceSets || {}, ids = Object.keys(sets);
+    if (ids.length < 2) return null;
+    var pick = null;
+    try { pick = window.localStorage.getItem("cogna-voice-set"); } catch (e) { /* ignore */ }
+    if (!sets[pick]) pick = "sarvam-priya";
+    return h("div", null,
+      h("p", { class: "t-demo-label" }, "Voice"),
+      h("div", { class: "t-demo-voices" }, ids.map(function (id) {
+        var on = id === pick;
+        return h("button", { class: on ? "btn btn-primary t-demo-wide" : "btn btn-ghost t-demo-wide", type: "button", "aria-pressed": String(on),
+          on: { click: function () {
+            try { window.localStorage.setItem("cogna-voice-set", id); } catch (e) { /* ignore */ }
+            if (C.voice) C.voice.stop();
+            build();
+          } } }, sets[id].label);
+      })));
+  }
   function build() {
     var root = document.getElementById("demo-root");
     if (!root) return;
@@ -150,6 +188,13 @@
     var panel = h("div", { class: "t-demo-panel", id: "t-demo-panel", role: "dialog", "aria-label": "Demo controls", hidden: !open },
       h("p", { class: "eyebrow" }, "Demo controls"),
       h("p", { class: "t-demo-note" }, "Prototype: answers and AI feedback are scripted."),
+      h("p", { class: "t-demo-label" }, "Student"),
+      h("div", { class: "t-demo-links" }, Object.keys(C.data.students || {}).map(function (id) {
+        var s = C.data.students[id], on = id === C.studentId;
+        return h("button", { class: on ? "btn btn-primary t-demo-wide" : "btn btn-ghost t-demo-wide", type: "button", "aria-pressed": String(on),
+          on: { click: function () { if (!on) C.switchStudent(id); } } }, s.name.split(" ")[0]);
+      })),
+      voicePicker(),
       h("p", { class: "t-demo-label" }, "Go to"),
       h("div", { class: "t-demo-links" },
         h("a", { href: "#/welcome", on: { click: function () { toggle(false); } } }, "Welcome"),

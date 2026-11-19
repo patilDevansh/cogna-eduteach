@@ -243,6 +243,21 @@
         if (o.needSure) setSure(true);
         check();
       },
+      locked: function () { return S.locked; },
+      /** Fill and submit a WRONG answer (the one that shows mix-up `mixupId` when there is one), "Sure". */
+      autoWrong: function (mixupId) {
+        if (S.locked) return;
+        if (q.kind === "mcq") {
+          var wrong = [], hit = -1;
+          opts.forEach(function (op, j) { if (!op.correct) { wrong.push(j); if (mixupId && op.mixup === mixupId && hit < 0) hit = j; } });
+          selectOpt(hit >= 0 ? hit : (mixupId ? wrong[0] : wrong[wrong.length - 1]));
+        } else {
+          var wm = (q.wrongMixups || []), m = wm.filter(function (w) { return mixupId && w.mixup === mixupId; })[0];
+          setText(String(m ? m.value : (mixupId && wm[0] ? wm[0].value : q.answer + 1000)));
+        }
+        if (o.needSure) setSure(true);
+        check();
+      },
     };
   }
 
@@ -321,6 +336,87 @@
       btnLabel ? h("button", { type: "button", class: "btn btn-ghost", on: { click: onClick } }, btnLabel) : null);
   }
 
+  /* ------------------------------------------------------------------ narration (Cogna's voice)
+     Every animation caption is read aloud with the browser's speech engine, so each animation is a
+     narrated audio-visual lesson. The on/off choice is remembered per browser. */
+  var voice = (function () {
+    var KEY = "cogna-voice", on = true, chosen = null;
+    try { on = window.localStorage.getItem(KEY) !== "off"; } catch (e) { /* ignore */ }
+    var synth = window.speechSynthesis || null;
+    // Fallback only (used when a caption has no recording): natural-ish voices first, novelty voices never.
+    var PREFER = [/natural/i, /neural/i, /premium/i, /enhanced/i, /^Google UK English Female/i, /^Google US English/i,
+      /^Samantha/i, /^Microsoft (Neerja|Aria|Jenny|Sonia)/i, /^Daniel/i, /^Karen/i, /^Moira/i];
+    function pick() {
+      if (!synth || chosen) return chosen;
+      var vs = (synth.getVoices() || []).filter(function (v) { return /^en/i.test(v.lang); });
+      for (var i = 0; i < PREFER.length && !chosen; i++) chosen = vs.find(function (v) { return PREFER[i].test(v.name); }) || null;
+      return chosen;
+    }
+    if (synth && synth.addEventListener) synth.addEventListener("voiceschanged", function () { chosen = null; pick(); });
+
+    /** Must match hash()/spoken() in tools/record-narration.mjs */
+    function narrationKey(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
+    /** The chosen voice's recording of a line (Demo drawer > Voice), else the default voice's, else none. */
+    function recordingFor(text) {
+      var k = narrationKey(text), pick = null;
+      try { pick = window.localStorage.getItem("cogna-voice-set"); } catch (e) { /* ignore */ }
+      var set = pick && C.voiceSets && C.voiceSets[pick];
+      return (set && set.map && set.map[k]) || (C.narration && C.narration[k]) || null;
+    }
+    function spokenText(t) {
+      return String(t)
+        .replace(/\b([bch])\b/g, function (m, l) { return l.toUpperCase(); })
+        .replace(/(^|[\s(+=×−])a(?=\s*(?:²|[+=×−)]|[.,]|$))/g, "$1A")
+        .replace(/\ba(?= and B\b| is \d| = )/g, "A")
+        .replace(/\bside a\b/g, "side A")
+        .replace(/ \+ /g, " plus ").replace(/Baudhāyana/g, "Baudhayana").replace(/Śulba Sūtras/g, "Shulba Sutras")
+        .replace(/²/g, " square").replace(/√/g, "the square root of ").replace(/−/g, " minus ").replace(/×/g, " times ").replace(/=/g, " equals ").replace(/½/g, "half");
+    }
+
+    var audio = null, pending = null, doneCb = null; // current recorded line, the next one waiting, and who to tell when it ends
+    function report(spoken) { var d = doneCb; doneCb = null; if (d) try { d(spoken); } catch (e) { console.error(e); } }
+    function stopAll() {
+      if (pending && pending.done) try { pending.done(false); } catch (e) { /* ignore */ }
+      pending = null; report(false);
+      if (audio) { audio.onended = null; audio.pause(); audio = null; }
+      if (synth) synth.cancel();
+    }
+    function playRec(rec, done) {
+      doneCb = done || null;
+      audio = new Audio(rec);
+      audio.onended = function () { audio = null; report(true); if (pending) { var p = pending; pending = null; playRec(p.rec, p.done); } };
+      audio.play().catch(function () { audio = null; report(false); /* autoplay blocked: captions still show */ });
+    }
+    /** done(spoken) is called once the line has finished (true) or will not be heard (false). */
+    function say(text, done) {
+      if (!on || !text) { if (done) done(false); return; }
+      var rec = recordingFor(String(text));
+      // Let a recorded sentence finish instead of cutting it off; only the newest waiting line is kept.
+      if (rec && audio && !audio.paused) { if (pending && pending.done) pending.done(false); pending = { rec: rec, done: done }; return; }
+      stopAll();
+      if (rec) { playRec(rec, done); return; }
+      if (!synth) { if (done) done(false); return; }
+      var u = new SpeechSynthesisUtterance(spokenText(text));
+      var v = pick(); if (v) { u.voice = v; u.lang = v.lang; }
+      u.rate = 0.95; u.pitch = 1;
+      doneCb = done || null;
+      u.onend = function () { report(true); };
+      u.onerror = function () { report(false); };
+      synth.speak(u);
+    }
+    return {
+      available: !!synth || !!C.narration,
+      isOn: function () { return on; },
+      set: function (v) { on = v; try { window.localStorage.setItem(KEY, v ? "on" : "off"); } catch (e) { /* ignore */ } if (!v) stopAll(); },
+      say: say,
+      pause: function () { if (audio) audio.pause(); if (synth) synth.pause(); },
+      resume: function () { if (audio) audio.play().catch(function () {}); if (synth) synth.resume(); },
+      stop: stopAll,
+    };
+  })();
+  C.voice = voice;
+  C.bus.on("route:changed", function () { voice.stop(); });
+
   /** o: { skill, onEnd, onBeat, markButton } -> { el, destroy, play } */
   function animBlock(id, o) {
     var A = C.anims[id], el = h("div", { class: "t-anim" });
@@ -331,23 +427,31 @@
     var toggle = h("button", { type: "button", class: "btn btn-ghost" }, "Play");
     var replay = h("button", { type: "button", class: "btn btn-ghost" }, "Replay");
     var skip = h("button", { type: "button", class: "btn-link", hidden: true }, "Mark as watched");
+    var sound = h("button", { type: "button", class: "btn btn-quiet t-sound", "aria-pressed": String(voice.isOn()), hidden: !voice.available },
+      voice.isOn() ? "Sound on" : "Sound off");
+    sound.addEventListener("click", function () {
+      voice.set(!voice.isOn());
+      sound.textContent = voice.isOn() ? "Sound on" : "Sound off";
+      sound.setAttribute("aria-pressed", String(voice.isOn()));
+      if (voice.isOn() && playing) voice.say(caption.textContent);
+    });
     el.appendChild(stage); el.appendChild(caption);
-    el.appendChild(h("div", { class: "t-row t-anim-controls" }, toggle, replay, skip));
+    el.appendChild(h("div", { class: "t-row t-anim-controls" }, toggle, replay, sound, skip));
     var ctl = null, playing = false, timer = null;
     function ended() { playing = false; toggle.textContent = "Play"; skip.hidden = true; clearTimeout(timer); if (!out.ended) { out.ended = true; if (o.onEnd) o.onEnd(); } }
     try {
-      ctl = A.mount(stage, { onEnd: ended, onBeat: function (c) { if (c) caption.textContent = c; if (o.onBeat) o.onBeat(c); } });
+      ctl = A.mount(stage, { onEnd: ended, onBeat: function (c, done) { if (c) { caption.textContent = c; voice.say(c, done); } else if (done) done(false); if (o.onBeat) o.onBeat(c); } });
     } catch (e) { console.error("[session] anim mount", id, e); stage.appendChild(placeholder("anim", id, "Mark as watched", function () { ended(); })); return out; }
     function start() { playing = true; toggle.textContent = "Pause"; try { ctl.play(); } catch (e) { console.error(e); } }
     toggle.addEventListener("click", function () {
-      if (playing) { playing = false; toggle.textContent = "Play"; try { ctl.pause(); } catch (e) { console.error(e); } }
-      else if (out.ended) { playing = true; toggle.textContent = "Pause"; try { ctl.replay(); } catch (e) { console.error(e); } }
-      else start();
+      if (playing) { playing = false; toggle.textContent = "Play"; voice.pause(); try { ctl.pause(); } catch (e) { console.error(e); } }
+      else if (out.ended) { playing = true; toggle.textContent = "Pause"; voice.stop(); try { ctl.replay(); } catch (e) { console.error(e); } }
+      else { voice.resume(); start(); }
     });
-    replay.addEventListener("click", function () { playing = true; toggle.textContent = "Pause"; try { ctl.replay(); } catch (e) { console.error(e); } });
+    replay.addEventListener("click", function () { playing = true; toggle.textContent = "Pause"; voice.stop(); try { ctl.replay(); } catch (e) { console.error(e); } });
     skip.addEventListener("click", ended);
     timer = setTimeout(function () { if (!out.ended) skip.hidden = false; }, (A.durationMs || 20000) + 5000);
-    out.play = start; out.destroy = function () { clearTimeout(timer); try { ctl && ctl.destroy(); } catch (e) { /* ignore */ } };
+    out.play = start; out.destroy = function () { clearTimeout(timer); voice.stop(); try { ctl && ctl.destroy(); } catch (e) { /* ignore */ } };
     return out;
   }
 
@@ -481,8 +585,11 @@
 
   T.animation = function (el, step, ctx) {
     var a = C.anims[step.anim];
-    el.appendChild(h("p", { class: "eyebrow" }, "Watch"));
-    el.appendChild(h("h2", { class: "t-step-title" }, (a && a.title) || "Watch and think"));
+    el.appendChild(h("p", { class: "eyebrow" }, "Cogna lesson"));
+    el.appendChild(h("h2", { class: "t-step-title" }, (a && a.title) || "Watch and listen"));
+    el.appendChild(h("p", { class: "muted t-lesson-hint" }, a && a.interactive
+      ? "Press Play. Cogna explains out loud, and stops to let you try things yourself."
+      : "Press Play. Cogna explains each step out loud; captions follow along."));
     var blk = animBlock(step.anim, {
       markButton: true,
       onEnd: function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); },
@@ -551,6 +658,166 @@
       onFinish: function () { ctx.complete(); },
     });
     ctx.setAuto(function () { run.auto(); });
+  };
+
+  /* ---- adaptive practice (Day 1 personalised; see DAY1_PERSONALISED.md rules 1-11) ---- */
+  T.adaptive = function (el, step, ctx) {
+    var P = C.data.profile || {}, pool = step.pool || [], maxQ = step.maxQuestions || 8;
+    var level = P.startLevel || 1, streak = 0, asked = 0, used = {}, bonusUsed = false, done = false;
+    var path = [], view = null, lastInfo = null, blk = null, nextBtn = null, openerBtn = null;
+    var resolveAuto = null, autoTimer = null, story = P.story || [];
+    var queue = Object.keys(P.causes || {}).filter(function (k) { return step.openers && step.openers[k]; });
+
+    var status = h("p", { class: "t-adapt-status", role: "status", "aria-live": "polite" });
+    var pathBox = h("div", { class: "t-path", hidden: true });
+    var host = h("div", { class: "t-qrun t-adapt-host" });
+    el.appendChild(h("p", { class: "eyebrow" }, "Practice that follows you"));
+    el.appendChild(status); el.appendChild(pathBox); el.appendChild(host);
+    ctx.onCleanup(function () { clearTimeout(autoTimer); autoTimer = null; destroyBlk(); });
+
+    function destroyBlk() { if (blk) { blk.destroy(); blk = null; } }
+    function drawStatus() {
+      status.textContent = done ? "" : "Level " + level + " of 3 · " + streak + " in a row";
+      status.hidden = done || (queue.length > 0 && asked === 0 && !view);
+    }
+    function drawPath() {
+      pathBox.hidden = !path.length; pathBox.innerHTML = "";
+      if (!path.length) return;
+      var row = h("div", { class: "t-path-row" });
+      path.forEach(function (p, i) {
+        row.appendChild(h("span", { class: "t-path-item" },
+          h("span", { class: "t-path-dot " + (p.right ? "is-right" : "is-wrong"), role: "img", "aria-label": "Question " + (i + 1) + ", level " + p.level + ", " + (p.right ? "right" : "not quite") }, String(p.level)),
+          h("span", { class: "t-path-tag" }, p.tag || "")));
+      });
+      row.appendChild(h("span", { class: "t-path-now" }, "Now: level " + level));
+      pathBox.appendChild(h("p", { class: "t-path-label" }, "Your path")); pathBox.appendChild(row);
+    }
+
+    /* openers: the animations for this student's own check-in mix-ups */
+    function showOpener(i) {
+      destroyBlk(); host.innerHTML = ""; openerBtn = null;
+      if (i >= queue.length) { askNext(); return; }
+      var id = queue[i], mi = mixupInfo(id);
+      host.appendChild(h("h2", { class: "t-step-title" }, mi ? mi.name : "A common mix-up"));
+      host.appendChild(h("p", { class: "lead t-adapt-from" }, "From your check-in: " + (mi && mi.plain ? mi.plain : "")));
+      blk = animBlock(step.openers[id], { markButton: false });
+      host.appendChild(blk.el);
+      openerBtn = h("button", { type: "button", class: "btn btn-primary t-adapt-go", on: { click: function () { openerBtn = null; showOpener(i + 1); } } }, i + 1 < queue.length ? "Next" : "Start practising");
+      host.appendChild(h("div", { class: "t-q-actions" }, openerBtn));
+      if (step.skill) C.state.markTaught(step.skill, ctx.day);
+      window.scrollTo(0, 0);
+    }
+
+    function pickQuestion() {
+      for (var d = 0; d < 3; d++) {
+        var tries = d === 0 ? [level] : [level - d, level + d];
+        for (var t = 0; t < tries.length; t++) {
+          var q = pool.filter(function (x) { return x.level === tries[t] && !used[x.id]; })[0];
+          if (q) return q;
+        }
+      }
+      return null;
+    }
+    function themed(q) {
+      var c = {}; Object.keys(q).forEach(function (k) { c[k] = q[k]; });
+      var th = q.themes || {};
+      c.prompt = th[P.interest] || th["default"] || q.prompt || "";
+      return c;
+    }
+
+    function askNext() {
+      destroyBlk(); host.innerHTML = ""; nextBtn = null; view = null;
+      var q = pickQuestion();
+      if (asked >= maxQ || !q) { finish(false); return; }
+      used[q.id] = true;
+      var qLevel = q.level || level;
+      var qq = themed(q);
+      host.appendChild(h("div", { class: "t-q-head" }, h("p", { class: "eyebrow" }, "Practice · question " + (asked + 1))));
+      var after = h("div", { class: "t-adapt-after" });
+      view = questionView(qq, {
+        needSure: true, feedback: "instant", tries: 1, checkLabel: "Check",
+        record: function (info) { lastInfo = info; ctx.record(info); },
+        onResult: function (res) { handle(res, qLevel, after); },
+      });
+      host.appendChild(view.el); host.appendChild(after);
+      drawStatus();
+      if (!resolveAuto) view.focus();
+    }
+
+    function say(box, text) { box.appendChild(h("p", { class: "t-adapt-msg" }, text)); }
+    function handle(res, qLevel, box) {
+      asked++;
+      var sure = lastInfo && lastInfo.sure === true;
+      var entry = { right: !!res.correct, level: qLevel, tag: "" };
+      var finishedSecure = false;
+      if (res.correct) {
+        if (!sure && !bonusUsed) {
+          bonusUsed = true; entry.tag = "extra";
+          say(box, "Right, but you weren't sure. One more at level " + level + " to be certain.");
+        } else {
+          streak++;
+          if (streak >= 2) {
+            if (level >= 3) { finishedSecure = true; }
+            else { level++; streak = 0; entry.tag = "up"; say(box, "Two in a row. Moving up to level " + level + "."); }
+          } else say(box, "One in a row. One more right answer to move up.");
+        }
+      } else {
+        streak = 0;
+        if (sure) box.appendChild(h("div", { class: "feedback t-note settle" }, h("div", null, h("strong", null, "You felt sure, so this one's worth a closer look."))));
+        var fixId = res.mixup && step.fixes ? step.fixes[res.mixup] : null;
+        if (fixId) {
+          entry.tag = "fix";
+          var mi = mixupInfo(res.mixup);
+          blk = animBlock(fixId, { markButton: false });
+          box.appendChild(h("div", { class: "t-adapt-fix settle" },
+            h("p", { class: "eyebrow" }, "A closer look" + (mi ? ": " + mi.name : "")),
+            mi && mi.plain ? h("p", { class: "t-adapt-fix-plain" }, mi.plain) : null, blk.el));
+          blk.play();
+          say(box, "Here's another one at level " + level + ", now that you've seen it.");
+        } else {
+          if (level > 1) { level--; entry.tag = "down"; say(box, "Let's step back to level " + level + " and build up again."); }
+          else say(box, "Let's try another at level 1.");
+        }
+      }
+      path.push(entry); drawPath(); drawStatus();
+      if (finishedSecure) { finish(true); return; }
+      if (asked >= maxQ) { finish(false); return; }
+      nextBtn = h("button", { type: "button", class: "btn btn-primary t-adapt-next", on: { click: function () { nextBtn = null; askNext(); } } }, "Next question");
+      box.appendChild(h("div", { class: "t-q-next" }, nextBtn));
+      try { nextBtn.focus({ preventScroll: false }); } catch (e) { /* ignore */ }
+    }
+
+    function finish(secure) {
+      done = true; nextBtn = null; drawStatus(); drawPath();
+      if (step.skill) C.state.markTaught(step.skill, ctx.day);
+      var target = host.querySelector(".t-adapt-after") || host;
+      target.appendChild(h("div", { class: "feedback feedback-correct t-right t-adapt-done settle" }, icon("ok"), h("div", null,
+        h("strong", null, secure ? "Secure: two in a row at the hardest level." : "We'll keep practising this tomorrow."),
+        secure ? "Press Continue when you're ready." : "You can press Continue now.")));
+      ctx.complete();
+      if (resolveAuto) { var r = resolveAuto; resolveAuto = null; clearTimeout(autoTimer); r(); }
+    }
+
+    /* demo auto-play: follows profile.story by answer number, then answers right */
+    function tick() {
+      autoTimer = null;
+      if (!resolveAuto) return;
+      if (done) { var r = resolveAuto; resolveAuto = null; r(); return; }
+      if (openerBtn && openerBtn.isConnected) openerBtn.click();
+      else if (nextBtn && nextBtn.isConnected) nextBtn.click();
+      else if (view && !view.locked()) {
+        var s = story[asked];
+        if (s && !s.correct) view.autoWrong(s.mixup); else view.auto();
+      }
+      autoTimer = setTimeout(tick, 150);
+    }
+    ctx.setAuto(function () {
+      if (done) return null;
+      return new Promise(function (resolve) { resolveAuto = resolve; clearTimeout(autoTimer); tick(); });
+    });
+
+    drawStatus();
+    if (queue.length) showOpener(0); else askNext();
   };
 
   function judgeExplain(step, text) {
@@ -775,6 +1042,18 @@
     P.auto = function () { run.auto(); };
     P.advance = function () { if (ready) toGrowth(); };
     P.isComplete = function () { return ready; };
+  };
+
+  /* ------------------------------------------------------------------ one lesson on its own: #/lesson/<id> (for demos) */
+  C.screens.lesson = function (el, params) {
+    var A = C.anims[params.id], blk = animBlock(params.id, { markButton: false });
+    el.appendChild(h("section", { class: "shell t-page" },
+      h("div", { class: "card t-lesson-page" },
+        h("p", { class: "eyebrow" }, "Lesson"),
+        h("h1", { class: "t-lesson-page-title" }, A ? A.title : params.id),
+        blk.el,
+        h("p", { class: "t-lesson-page-foot" }, h("a", { href: "#/trail" }, "Back to the trail")))));
+    var off = C.bus.on("route:changed", function () { if (!el.isConnected || !blk.el.isConnected) { try { blk.destroy(); } catch (e) { /* ignore */ } if (typeof off === "function") off(); } });
   };
 
   /* ------------------------------------------------------------------ demo hooks */

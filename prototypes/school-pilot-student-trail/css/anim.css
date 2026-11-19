@@ -58,3 +58,178 @@
 .t-gallery-cap { min-height: 3em; margin: var(--s-3) 0 0; font-size: var(--text-md, 1rem); color: var(--ink); }
 .t-gallery-end { font-family: var(--font-math); font-size: var(--text-sm); color: var(--ink-faint); }
 .t-gallery-end.is-done { color: var(--accent-deep); }
+
+/* pyth-squares redesign (orchestrator): b-squares in gold so a and b read as two different amounts */
+.t-anim .t-cell-gold { fill: var(--caution); fill-opacity: 0.25; stroke: var(--caution); stroke-width: 0.05; }
+.t-anim .t-cfill { fill: var(--accent-wash); stroke: none; }
+.t-anim text.t-gold { fill: #7a4c08; }
+.t-anim text.t-end { text-anchor: end; }
+.t-anim .t-hl { stroke: var(--accent); stroke-width: 0.14; stroke-linecap: round; }
+
+/* ---------- interactive lessons (anim/lesson.js + pyth-squares) ---------- */
+.t-lesson { display: grid; gap: var(--s-3); padding-bottom: var(--s-3); }
+.t-anim .t-lesson-svg, .t-lesson-svg { max-width: 600px; max-height: min(54vh, 470px); touch-action: manipulation; }
+.t-lesson-svg.is-dragging-ok { touch-action: none; }
+.t-lesson-board { min-height: 2.4em; display: block; text-align: center; padding: 0.35em var(--s-3) 0;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); color: var(--ink); line-height: 1.35; }
+.t-lesson-board.is-empty { visibility: hidden; }
+.t-lesson-board.is-new { animation: t-board-in 420ms var(--ease-settle); }
+@keyframes t-board-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.t-lesson-board .t-ka { color: var(--accent-deep); font-weight: 600; }
+.t-lesson-board .t-kb { color: #7a4c08; font-weight: 600; }
+.t-lesson-board .t-kc { color: var(--ink); font-weight: 600; }
+.t-lesson-board .t-rule { display: block; font-size: 1.6em; letter-spacing: 0.02em; }
+.t-lesson-board .t-rule-note { display: block; margin-top: var(--s-1); font-family: var(--font-body); font-size: var(--text-sm); color: var(--ink-soft); }
+.t-lesson-task { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s-3); padding: 0 var(--s-3); }
+.t-lesson-task[hidden] { display: none; }
+.t-lesson-ask { font-weight: 600; }
+.t-lesson-choices { display: flex; flex-wrap: wrap; gap: var(--s-2); justify-content: center; }
+.t-lesson-choice { min-width: 4.5rem; font-family: var(--font-math); }
+.t-lesson-choice.is-picked { border-color: var(--accent); background: var(--accent-wash); color: var(--accent-deep); }
+.t-lesson-num { width: 6rem; font-family: var(--font-math); font-size: var(--text-lg); text-align: center; }
+.t-lesson-msg { flex-basis: 100%; margin: 0; text-align: center; color: var(--ink-soft); min-height: 1.4em; }
+.t-anim .t-cellc-a { fill: var(--accent); fill-opacity: 0.28; stroke: var(--accent); stroke-width: 0.05; }
+.t-anim .t-cellc-b { fill: var(--caution); fill-opacity: 0.25; stroke: var(--caution); stroke-width: 0.05; }
+.t-anim .t-edge-lit { stroke: var(--accent); stroke-width: 0.26; stroke-linecap: round; }
+.t-anim .t-hitline { stroke: transparent; stroke-width: 0.9; stroke-linecap: round; pointer-events: stroke; cursor: pointer; }
+.t-anim .t-hitline:focus-visible { stroke: var(--accent-wash); outline: none; }
+.t-anim .t-hitline.is-wrong { stroke: var(--danger-wash, var(--accent-wash)); }
+.t-lesson-go {min-width: 9rem; animation: t-nudge 1.6s var(--ease-settle) infinite; }
+@keyframes t-nudge { 0%, 100% { transform: none; } 50% { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(14, 107, 84, 0.25); } }
+
+.t-anim .t-ground { fill: var(--success-wash); stroke: var(--success); stroke-width: 0.05; }
+.t-anim .t-trail { fill: none; stroke: var(--ink-soft); stroke-width: 0.09; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; }
+.t-anim .t-short { fill: none; stroke: var(--accent); stroke-width: 0.11; stroke-linecap: round; stroke-dasharray: 1; }
+.t-anim .t-pole { stroke: var(--ink); stroke-width: 0.05; }
+.t-anim .t-flagcloth { fill: #b4400c; }
+.t-anim .t-walker { fill: var(--accent); stroke: var(--surface); stroke-width: 0.05; }
+.t-anim .t-walker-ring { fill: none; stroke: var(--accent); stroke-width: 0.05; transform-box: fill-box; transform-origin: center; animation: t-ring 1.8s ease-out infinite; }
+@keyframes t-ring { from { transform: scale(0.6); opacity: 0.9; } to { transform: scale(1.6); opacity: 0; } }
+
+.t-anim .t-tri { fill: var(--surface); stroke: none; }
+.t-anim .t-leg-a { stroke: var(--accent); stroke-width: 0.13; stroke-linecap: round; }
+.t-anim .t-leg-b { stroke: var(--caution); stroke-width: 0.13; stroke-linecap: round; }
+.t-anim .t-leg-c { stroke: var(--ink); stroke-width: 0.13; stroke-linecap: round; }
+.t-anim .t-mark2 { fill: none; stroke: var(--ink-soft); stroke-width: 0.06; }
+.t-anim .t-sq { fill: none; stroke-width: 0.07; stroke-linejoin: round; }
+.t-anim .t-sq-a { stroke: var(--accent); }
+.t-anim .t-sq-b { stroke: var(--caution); }
+.t-anim .t-sq-c { stroke: var(--ink); stroke-dasharray: 0.25 0.15; }
+.t-anim .t-water-a { fill: var(--accent); fill-opacity: 0.5; }
+.t-anim .t-water-b { fill: var(--caution); fill-opacity: 0.55; }
+.t-anim .t-surface { stroke: var(--surface); stroke-width: 0.07; stroke-linecap: round; }
+.t-anim .t-stream { stroke-width: 0.24; stroke-linecap: round; stroke-dasharray: 0.55 0.25; }
+.t-anim .t-stream-a { stroke: var(--accent); }
+.t-anim .t-stream-b { stroke: var(--caution); }
+.t-anim .t-gridc line { stroke: var(--surface); stroke-width: 0.035; }
+.t-anim .t-glow { fill: none; stroke: var(--accent); stroke-width: 0.22; stroke-linejoin: round; }
+
+.t-anim text.t-lab { font-size: 0.62px; font-weight: 500; }
+.t-anim text.t-lab-l { font-size: 0.7px; font-weight: 600; font-style: italic; }
+.t-anim text.t-lab-big { font-size: 1.05px; font-weight: 600; }
+.t-anim text.t-lab-a { fill: var(--accent-deep); }
+.t-anim text.t-lab-b { fill: #7a4c08; }
+.t-anim text.t-lab-c, .t-anim text.t-lab-acc { fill: var(--ink); }
+.t-anim text.t-lab-acc { fill: var(--accent-deep); }
+.t-anim text.t-sm { font-size: 0.48px; }
+
+.t-anim .t-post { stroke: var(--ink-soft); stroke-width: 0.12; stroke-linecap: round; }
+.t-anim .t-beam { stroke: var(--ink); stroke-width: 0.14; stroke-linecap: round; transition: stroke var(--dur-fast) var(--ease-settle); }
+.t-anim .t-beam.is-level { stroke: var(--accent); }
+.t-anim .t-pivot { fill: var(--ink); }
+.t-anim .t-string { stroke: var(--ink-faint); stroke-width: 0.035; }
+.t-anim .t-pan { fill: var(--surface); stroke: var(--ink-soft); stroke-width: 0.07; }
+.t-anim .t-pc { fill: var(--ink); fill-opacity: 0.18; stroke: var(--ink); stroke-width: 0.04; }
+.t-anim .t-arc { fill: none; stroke: var(--ink-faint); stroke-width: 0.05; }
+.t-anim .t-handle { fill: var(--accent); stroke: var(--surface); stroke-width: 0.06; pointer-events: none; }
+.t-anim .t-handle-ring { fill: none; stroke: var(--accent); stroke-width: 0.06; pointer-events: none; transform-box: fill-box; transform-origin: center; animation: t-ring 1.8s ease-out infinite; }
+.t-anim .t-hit { fill: transparent; pointer-events: all; cursor: grab; }
+.t-anim .t-hit:active { cursor: grabbing; }
+
+/* ---------- hands-on lessons (para-field): land you can cut, pick up and set down ----------
+   Colours come from the Cogna tokens. The mixed ones are worked out from them: grass is --success with a light lime,
+   soil is --caution darkened with --ink, and gold (things you can move or have counted) is a brighter --caution. */
+.t-pf { --pf-grass: #6fb36f; --pf-soil: #8d5c0f; --pf-soil-edge: #6e470c; --pf-gold: #dca03a; --pf-gold-wash: #fff4d8; --pf-red: var(--t-wrong-stroke, #b4400c); }
+.t-pf .t-lesson-svg { max-width: 760px; width: 100%; max-height: min(62vh, 540px); }
+.t-pf .t-lesson-svg text { font-family: var(--font-body); font-weight: 600; fill: var(--ink); text-anchor: middle; dominant-baseline: central;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 6px; stroke-linejoin: round; }
+.t-pf .t-lesson-svg text.t-pf-lab { font-size: 26px; }
+.t-pf .t-lesson-svg text.t-pf-end { text-anchor: end; }
+.t-pf .t-lesson-svg text.t-pf-start { text-anchor: start; }
+
+/* the land: a soft shadow, a slab of soil, grass on top */
+.t-pf .t-pf-shadow { fill: var(--ink); pointer-events: none; }
+.t-pf .t-pf-soil { fill: var(--pf-soil); stroke: var(--pf-soil-edge); stroke-width: 1.5; stroke-linejoin: round; }
+.t-pf .t-pf-grass { fill: var(--pf-grass); }
+.t-pf .t-pf-stripe { fill: var(--success); opacity: 0.13; }
+.t-pf .t-pf-grid { stroke: #fff; stroke-opacity: 0.45; stroke-width: 2; fill: none; }
+.t-pf .t-pf-edge { fill: none; stroke: var(--success); stroke-width: 3; stroke-linejoin: round; }
+.t-pf .t-pf-piece.is-movable { cursor: grab; }
+.t-pf .t-pf-piece.is-movable:active { cursor: grabbing; }
+.t-pf .t-pf-piece.is-movable .t-pf-edge { stroke: var(--pf-gold); stroke-width: 5; }
+.t-pf .t-pf-piece:focus { outline: none; }
+.t-pf .t-pf-piece:focus-visible .t-pf-edge { stroke: var(--focus); stroke-width: 7; }
+
+/* pictures on top of the land never catch the pointer */
+.t-pf .t-pf-broken, .t-pf .t-pf-cells, .t-pf .t-pf-marks, .t-pf .t-pf-fx, .t-pf .t-pf-tree, .t-pf .t-pf-sign { pointer-events: none; }
+.t-pf .t-pf-hatch { fill: var(--pf-red); fill-opacity: 0.5; }
+.t-pf .t-pf-brokenbit { stroke: var(--pf-red); stroke-width: 2.5; stroke-linejoin: round; }
+.t-pf .t-pf-badge circle { fill: var(--surface); stroke: var(--pf-red); stroke-width: 3; }
+.t-pf .t-lesson-svg text.t-pf-badgeq { font-family: var(--font-display); font-size: 19px; font-weight: 700; fill: var(--pf-red); stroke-width: 0; }
+
+/* cutting */
+.t-pf .t-lesson-svg.is-cutting { cursor: crosshair; }
+.t-pf .t-pf-knife { fill: none; stroke: var(--ink); stroke-width: 4; stroke-dasharray: 12 9; stroke-linecap: round; }
+.t-pf .t-pf-knife.is-ready { stroke: var(--pf-gold); stroke-width: 6; stroke-dasharray: none; }
+.t-pf .t-pf-hintline { stroke: #fff; stroke-width: 4; stroke-dasharray: 10 9; stroke-linecap: round; }
+.t-pf .t-pf-knife.is-bad { stroke: var(--pf-red); stroke-width: 5; stroke-dasharray: none; }
+.t-pf .t-pf-knife.is-cut { stroke: #fff; stroke-width: 3; stroke-dasharray: none; }
+.t-pf .t-pf-guide { stroke: #fff; stroke-width: 3; stroke-dasharray: 3 9; stroke-linecap: round; }
+.t-pf .t-pf-blade-halo { stroke: var(--pf-gold); stroke-width: 16; stroke-linecap: round; opacity: 0.5; }
+.t-pf .t-pf-blade-core { stroke: #fff; stroke-width: 5; stroke-linecap: round; }
+.t-pf .t-pf-bit { fill: var(--success); }
+.t-pf .t-pf-bit.is-light { fill: #b9dd9b; }
+.t-pf .t-pf-finger-pad { fill: var(--surface); stroke: var(--ink); stroke-width: 2.5; }
+.t-pf .t-pf-finger-dot { fill: var(--ink); }
+.t-pf .t-pf-cuthit { fill: transparent; }
+.t-pf .t-pf-cuthit:focus { outline: none; }
+
+/* moving the piece */
+.t-pf .t-pf-ghost { fill: var(--pf-gold-wash); fill-opacity: 0.55; stroke: var(--pf-gold); stroke-width: 4; stroke-dasharray: 12 8; pointer-events: none; }
+.t-pf .t-pf-ghost.is-hot { fill-opacity: 0.85; stroke-width: 5; stroke-dasharray: none; }
+.t-pf .t-pf-match { fill: none; stroke: var(--pf-gold); stroke-width: 9; stroke-linecap: round; opacity: 0; pointer-events: none; }
+.t-pf .t-pf-seam-halo { fill: none; stroke: var(--pf-gold); stroke-width: 16; stroke-linecap: round; opacity: 0.55; }
+.t-pf .t-pf-seam-core { fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: round; }
+
+/* counting and measuring */
+.t-pf .t-pf-outline { fill: none; stroke: var(--pf-gold); stroke-width: 5; stroke-linejoin: round; }
+.t-pf .t-pf-cell rect { fill: var(--pf-gold-wash); fill-opacity: 0.94; stroke: var(--pf-gold); stroke-width: 2; }
+.t-pf .t-lesson-svg text.t-pf-cellnum { font-family: var(--font-display); font-size: 22px; font-weight: 700; fill: #7a4c08; stroke-width: 0; }
+.t-pf .t-pf-bracket { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; }
+.t-pf .t-lesson-svg text.t-pf-dim { font-family: var(--font-display); font-size: 30px; font-weight: 700; }
+
+/* the sign and the scenery */
+.t-pf .t-pf-signbox { fill: var(--surface); stroke: var(--pf-gold); stroke-width: 3; }
+.t-pf .t-pf-signshadow { fill: var(--ink); opacity: 0.16; }
+.t-pf .t-lesson-svg text.t-pf-signlab { font-size: 15px; letter-spacing: 0.14em; fill: var(--ink-soft); stroke-width: 0; }
+.t-pf .t-lesson-svg text.t-pf-signval { font-family: var(--font-display); font-size: 32px; font-weight: 700; stroke-width: 0; }
+.t-pf .t-pf-trunk { fill: var(--pf-soil); }
+.t-pf .t-pf-crown { fill: var(--success); }
+.t-pf .t-pf-crown.is-back { fill: var(--accent); }
+.t-pf .t-pf-crown-hi { fill: #fff; opacity: 0.16; }
+.t-pf .t-pf-treeshadow { fill: var(--ink); opacity: 0.1; }
+
+/* field 2 (lean it) and field 3 (your turn) */
+.t-pf .t-pf-rectghost { fill: none; stroke: var(--ink-faint); stroke-width: 3; stroke-dasharray: 10 8; }
+.t-pf .t-pf-gap { fill: var(--caution-wash); stroke: var(--caution); stroke-width: 3; stroke-dasharray: 8 6; }
+.t-pf .t-pf-extra { fill: var(--caution); fill-opacity: 0.42; stroke: none; pointer-events: none; }
+.t-pf .t-pf-height { stroke: var(--ink); stroke-width: 3; stroke-dasharray: 9 7; }
+.t-pf .t-pf-mark { fill: none; stroke: var(--ink); stroke-width: 2.5; }
+.t-pf .t-pf-glow { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; }
+.t-pf .t-pf-handle { fill: var(--caution); stroke: var(--surface); stroke-width: 4; pointer-events: none; }
+.t-pf .t-pf-handle-ring { fill: none; stroke: var(--caution); stroke-width: 4; opacity: 0; pointer-events: none; }
+.t-pf .t-pf-handleg.is-live .t-pf-handle-ring { opacity: 1; transform-box: fill-box; transform-origin: center; animation: t-ring 1.8s ease-out infinite; }
+.t-pf .t-pf-hit { fill: transparent; cursor: grab; }
+.t-pf .t-pf-hit:focus { outline: none; }
+.t-pf .t-pf-hit:focus-visible { stroke: var(--accent); stroke-width: 4; outline: none; }
+@media (prefers-reduced-motion: reduce) { .t-pf .t-pf-handleg.is-live .t-pf-handle-ring { animation: none; } }

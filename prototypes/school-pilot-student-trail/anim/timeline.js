@@ -15,10 +15,15 @@
     var list = beats.slice().sort(function (a, b) { return a.at - b.at; });
     var endAt = opts.endAt != null ? opts.endAt : (list.length ? list[list.length - 1].at + 2500 : 0);
     var idx = 0, elapsed = 0, last = 0, raf = 0, playing = false, ended = false, dead = false;
+    // Voice pacing: after a spoken caption, the clock will not reach the next beat until the line has been heard.
+    var run = 0, waitingVoice = false, waitedMs = 0;
 
     function fire(b) {
       try { if (b.run) b.run(opts.getCtx ? opts.getCtx() : null); } catch (e) { console.error("[anim beat]", e); }
-      if (b.caption != null && opts.onBeat) { try { opts.onBeat(b.caption); } catch (e) { console.error(e); } }
+      if (b.caption != null && opts.onBeat) {
+        var me = run; waitingVoice = true; waitedMs = 0;
+        try { opts.onBeat(b.caption, function () { if (me === run) waitingVoice = false; }); } catch (e) { console.error(e); waitingVoice = false; }
+      }
     }
     function finish() {
       if (ended) return;
@@ -31,7 +36,15 @@
       if (!playing || dead) return;
       var dt = now - last; last = now;
       if (dt > 250) dt = 250; // tab was in the background; do not skip beats
-      elapsed += dt;
+      if (dt < 0) dt = 0;
+      var nextT = elapsed + dt;
+      if (waitingVoice) {
+        waitedMs += dt;
+        if (waitedMs > 15000) waitingVoice = false; // never stall for good
+        var limit = (idx < list.length ? list[idx].at : endAt) - 1;
+        if (nextT > limit) nextT = Math.max(elapsed, limit);
+      }
+      elapsed = nextT;
       while (idx < list.length && list[idx].at <= elapsed) fire(list[idx++]);
       if (idx >= list.length && elapsed >= endAt) { finish(); return; }
       raf = requestAnimationFrame(tick);
@@ -57,7 +70,7 @@
     function replay() {
       if (dead) return;
       pause();
-      idx = 0; elapsed = 0; ended = false;
+      idx = 0; elapsed = 0; ended = false; run++; waitingVoice = false;
       if (opts.reset) opts.reset();
       play();
     }
