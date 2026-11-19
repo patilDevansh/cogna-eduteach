@@ -15,6 +15,32 @@ import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/
 import { MicroLessonCard } from "@/components/games/MicroLessonCard";
 import type { MicroLessonView } from "@cogna/shared";
 import { useDevState } from "@/lib/dev-mode";
+import type { TileBuildResponse } from "@cogna/shared";
+
+/**
+ * DATA-014: an independent answer that was sent but not yet confirmed. Kept on this device (frozen, with its
+ * id) until the server confirms it, so a lost reply or a refresh resends the same answer, which the server
+ * counts once.
+ */
+type PendingExit = { submissionId: string; answer: string; working: string; interaction?: TileBuildResponse };
+const pendingKey = (assignmentId: string, step: number) => `cogna_exit_pending_${assignmentId}_${step}`;
+function readPending(assignmentId: string, step: number): PendingExit | null {
+  try {
+    const raw = sessionStorage.getItem(pendingKey(assignmentId, step));
+    const p = raw ? (JSON.parse(raw) as PendingExit) : null;
+    return p && typeof p.submissionId === "string" && typeof p.answer === "string" ? p : null;
+  } catch {
+    return null;
+  }
+}
+function writePending(assignmentId: string, step: number, pending: PendingExit | null): void {
+  try {
+    if (pending) sessionStorage.setItem(pendingKey(assignmentId, step), JSON.stringify(pending));
+    else sessionStorage.removeItem(pendingKey(assignmentId, step));
+  } catch {
+    /* private mode: the answer still sends; only refresh recovery is lost */
+  }
+}
 
 type Stage = "lesson" | "practice" | "exit" | "result";
 
@@ -45,6 +71,8 @@ function PersonalizedVideoPage() {
   /** A tile exit's picks; the server rebuilds the answer from them. */
   const [exitTiles, setExitTiles] = useState<TileGameState | null>(null);
   const [sealing, setSealing] = useState(false);
+  /** The independent answer's save: idle, sending, or sent but unconfirmed (offer to send the same answer again). */
+  const [exitSave, setExitSave] = useState<"idle" | "saving" | "retry">("idle");
   const [correct, setCorrect] = useState<boolean | null>(null);
   const watchedRef = useRef(false);
   const restoredAssignment = useRef<string | null>(null);
@@ -208,14 +236,32 @@ function PersonalizedVideoPage() {
   /** Which exit question is on screen: 0, then 1 (the transfer question) when there is one. */
   const exitStep = assignment?.exitAttempt && assignment.exit?.transfer ? 1 : 0;
 
+  // After a refresh, an answer that was sent but never confirmed comes back, ready to send again.
+  useEffect(() => {
+    if (!assignment || stage !== "exit") return;
+    const pending = readPending(assignment.id, exitStep);
+    if (!pending) return;
+    // The server already has this answer (the reply was lost, not the save): nothing to resend.
+    if (exitStep === 0 ? assignment.exitAttempt : assignment.exitTransferAttempt) return writePending(assignment.id, exitStep, null);
+    setAnswer(pending.answer);
+    setWorking(pending.working);
+    setExitSave("retry");
+  }, [assignment?.id, assignment?.exitAttempt, assignment?.exitTransferAttempt, stage, exitStep]);
+
   async function submitExit() {
-    if (!assignment) return;
+    if (!assignment || exitSave === "saving") return;
     const step = exitStep;
     const tileExit = step === 1 ? assignment.exit?.transfer?.interaction : assignment.exit?.interaction;
+    // The answer is frozen with its id before it is sent; a resend uses exactly the same one.
+    const pending: PendingExit = readPending(assignment.id, step) ?? (tileExit && exitTiles?.answer
+      ? { submissionId: crypto.randomUUID(), answer: exitTiles.answer, working: "", interaction: { format: tileExit.format, picks: exitTiles.picks, changes: exitTiles.changes } }
+      : { submissionId: crypto.randomUUID(), answer, working });
+    writePending(assignment.id, step, pending);
+    setExitSave("saving");
     try {
-      const result = tileExit && exitTiles?.answer
-        ? await api.submitPersonalizedVideoExit(assignment.id, exitTiles.answer, "", { format: tileExit.format, picks: exitTiles.picks, changes: exitTiles.changes }, step)
-        : await api.submitPersonalizedVideoExit(assignment.id, answer, working, undefined, step);
+      const result = await api.submitPersonalizedVideoExit(assignment.id, pending.answer, pending.working, pending.interaction, step, pending.submissionId);
+      writePending(assignment.id, step, null);
+      setExitSave("idle");
       setAssignment(result);
       setExitTiles(null);
       setAnswer("");
@@ -250,7 +296,15 @@ function PersonalizedVideoPage() {
         return;
       }
       setSealing(false);
-      setError(err instanceof Error ? err.message : "The independent check could not be stored.");
+      if (err instanceof ApiError && err.status === 409) {
+        // Another answer to this question was already saved (another tab): show what was saved.
+        writePending(assignment.id, step, null);
+        setExitSave("idle");
+        try { setAssignment(await api.getPersonalizedVideoById(assignment.id)); } catch { /* the result screen shows on the next load */ }
+        return;
+      }
+      // Sent, but not confirmed: keep the frozen answer and offer to send the same one again.
+      setExitSave("retry");
     }
   }
 
@@ -510,11 +564,11 @@ function PersonalizedVideoPage() {
               <>
                 <label className={L.field}>
                   <span>Your answer</span>
-                  <input autoCorrect="off" autoCapitalize="off" spellCheck={false} value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
+                  <input autoCorrect="off" autoCapitalize="off" spellCheck={false} value={answer} readOnly={exitSave !== "idle"} onChange={(event) => setAnswer(event.target.value)} placeholder="e.g. (x − 3)(x − 4)" />
                 </label>
                 <label className={L.field}>
                   <span>Your working</span>
-                  <textarea autoCorrect="off" autoCapitalize="off" spellCheck={false} value={working} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
+                  <textarea autoCorrect="off" autoCapitalize="off" spellCheck={false} value={working} readOnly={exitSave !== "idle"} onChange={(event) => setWorking(event.target.value)} placeholder="Write at least one step" rows={4} />
                 </label>
               </>
             )}
@@ -533,21 +587,27 @@ function PersonalizedVideoPage() {
               {(exitStep === 1 ? assignment.exit?.transfer?.interaction : assignment.exit?.interaction) ? (
                 <button
                   className={L.primary}
-                  disabled={!exitTiles?.answer || sealing}
+                  disabled={(!exitTiles?.answer && exitSave !== "retry") || sealing || exitSave === "saving"}
                   onClick={() => {
+                    if (exitSave === "retry") return void submitExit();
                     // The scene plays its finishing move, then the one attempt is sent.
                     setSealing(true);
                     window.setTimeout(() => void submitExit(), 900);
                   }}
                 >
-                  Seal my answer <span aria-hidden="true">→</span>
+                  {exitSave === "saving" ? "Saving your answer…" : exitSave === "retry" ? "Send my answer again" : <>Seal my answer <span aria-hidden="true">→</span></>}
                 </button>
               ) : (
-                <button className={L.primary} disabled={!answer.trim() || !working.trim()} onClick={() => void submitExit()}>
-                  Check my answer <span aria-hidden="true">→</span>
+                <button className={L.primary} disabled={!answer.trim() || !working.trim() || exitSave === "saving"} onClick={() => void submitExit()}>
+                  {exitSave === "saving" ? "Saving your answer…" : exitSave === "retry" ? "Send my answer again" : <>Check my answer <span aria-hidden="true">→</span></>}
                 </button>
               )}
             </div>
+            {exitSave === "retry" && (
+              <p className={L.taskNote} role="alert">
+                We couldn&apos;t confirm your answer was saved. Send it again: it will only count once, and you won&apos;t lose your one attempt.
+              </p>
+            )}
           </section>
         )}
 

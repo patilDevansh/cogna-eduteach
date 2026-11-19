@@ -23,6 +23,13 @@ export class PersonalizedVideosController {
     private readonly prisma: PrismaService,
   ) {}
 
+  /** DATA-014: lessons with two or more stored answers to one independent question (from before the database enforced one). Worker-only; nothing is deleted. */
+  @Get("duplicate-exits")
+  duplicateExits(@Headers() headers: Record<string, string | string[] | undefined>) {
+    assertWorker(resolveActor(headers));
+    return this.videos.duplicateExits();
+  }
+
   @Get("teacher-report")
   teacherReport(
     @Headers() headers: Record<string, string | string[] | undefined>,

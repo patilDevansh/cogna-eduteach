@@ -1609,6 +1609,15 @@ model PersonalizedVideoEvent {
   exitCorrect  Boolean?
   /// Which exit question this answers: 0 = the main item, 1 = the transfer item. Null on older rows means 0.
   exitItem     Int?
+  /// DATA-014: one independent answer per lesson and question, enforced here ("<assignmentId>:<exitItem>").
+  /// Null on older rows, which a unique index ignores; duplicates among them are reported, not deleted.
+  exitSlot       String?  @unique
+  /// The browser's id for this answer: a resend with the same id is the same answer, not a second attempt.
+  submissionId   String?
+  /// The lesson content the student answered (lessonContentVersion); null on older rows.
+  contentVersion String?
+  /// What help the exit screen offered while answering, e.g. NONE_OFFERED; null on older rows (unknown).
+  helpStatus     String?
   createdAt    DateTime                      @default(now())
 
   @@index([assignmentId, createdAt])

@@ -1327,10 +1327,10 @@ export const api = {
     }),
 
   /** One attempt. A tile exit sends its picks; the server rebuilds and marks the answer itself. */
-  submitPersonalizedVideoExit: (id: string, answer: string, working: string, interaction?: TileBuildResponse, item = 0) =>
+  submitPersonalizedVideoExit: (id: string, answer: string, working: string, interaction?: TileBuildResponse, item = 0, submissionId?: string) =>
     personalizedVideoFetch<PersonalizedVideoAssignmentView>(`/assignments/${id}/exit`, {
       method: "POST",
-      body: JSON.stringify({ answer, working, item, ...(interaction ? { interaction } : {}) }),
+      body: JSON.stringify({ answer, working, item, ...(interaction ? { interaction } : {}), ...(submissionId ? { submissionId } : {}) }),
     }),
 
   getPersonalizedVideoTeacherReport: (demo = false) =>
