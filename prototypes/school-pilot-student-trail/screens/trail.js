@@ -142,6 +142,7 @@
     var found = null;
     (day.steps || []).forEach(function (s) {
       var qs = (s.questions || []).concat(s.q ? [s.q] : []).concat(s.check ? [s.check] : []);
+      qs = qs.concat(qs.filter(function (q) { return q && q.retry; }).map(function (q) { return q.retry; }));   // a replay's fresh question
       qs.forEach(function (q) { if (q && q.id === qid) found = q; });
     });
     return found;
@@ -149,7 +150,7 @@
   function stepOf(day, id) {
     return day ? (day.steps || []).filter(function (s) { return s.id === id; })[0] : null;
   }
-  var STEP_LABEL = { recall: "Quick recall", practice: "Practice", exit: "Exit check", try: "Try first", game: "Game", fix: "Fix the mix-up", explain: "In your words", worked: "Worked example" };
+  var STEP_LABEL = { recall: "Quick recall", practice: "Practice", exit: "Exit check", try: "Try first", game: "Game", fix: "Fix the mix-up", explain: "In your words", worked: "Worked example", rive: "Area Lab" };
   function answerText(a) {
     if (a === null || a === undefined || a === "") return "(no answer saved)";
     return String(a);

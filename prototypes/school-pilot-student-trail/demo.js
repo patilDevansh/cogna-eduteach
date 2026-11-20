@@ -8,12 +8,13 @@
   /* ---------- the story ---------- */
   /* One tempting wrong answer on these days:
      day 2 + 4: the slanted-side mix-up (day 4's shows the fix step);
-     day 6: a slip on the LAST exit question, so trapeziums end the day shaky and get revisited on day 7;
+     day 6: a slip on the LAST check question (Day 6 has no exit check since its 2026-11-19 rebuild), so trapeziums
+            end the day shaky and get revisited on day 7;
      day 8: the slanted-side mix-up comes back once. */
   var STORY = {
     2: { type: "practice", mixup: "slant", pick: "first" },
     4: { type: "practice", mixup: "slant", pick: "first" },
-    6: { type: "exit", mixup: null, pick: "last" },
+    6: { type: "practice", mixup: null, pick: "last" },
     8: { type: "practice", mixup: "slant", pick: "first" },
   };
   var STORY_TEXT = {

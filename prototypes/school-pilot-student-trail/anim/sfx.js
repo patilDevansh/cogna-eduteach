@@ -1,5 +1,5 @@
 /* Cogna.sfx — small lesson sound effects, made in the browser with Web Audio (no sound files, nothing to license).
-   tick(i) rising count · snap · cut · pickup · oops · chime · pop · whoosh · slice · sparkle
+   tick(i) rising count · snap · cut · pickup · oops · chime · pop · whoosh · slice · sparkle · thud
    Quiet next to the voice, and silent when the student has turned sound off. */
 (function () {
   "use strict";
@@ -69,6 +69,8 @@
     whoosh: function () { noise(0.32, "bandpass", 350, 1600, 0.1); },
     /** a blade slicing through: a fast swish, then a crisp snip */
     slice: function () { noise(0.17, "bandpass", 1600, 7500, 0.3); noise(0.05, "highpass", 5200, 5200, 0.2, 0.15); tone(1900, 1500, 0.09, "triangle", 0.05, 0.15); },
+    /** a piece of land setting down on the ground */
+    thud: function () { tone(150, 55, 0.14, "sine", 0.5); noise(0.07, "lowpass", 900, 300, 0.25); },
     /** two edges matching up: a quick bright sparkle */
     sparkle: function () { [1568, 2093, 2637, 3136].forEach(function (f, i) { tone(f, f, 0.24, "sine", 0.07, i * 0.045); }); },
   };

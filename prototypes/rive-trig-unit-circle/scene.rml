@@ -1,0 +1,67 @@
+<Rive version="1" kind="fragment">
+    <!-- The scene only hosts the lesson script (main.luau) and its assets.
+         Everything on screen is drawn by the script from the angle. -->
+    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="Lesson" id="0:2">
+        <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+        <Fill name="Background">
+            <SolidColor colorValue="FFF4F7F3" name="Color"/>
+        </Fill>
+        <LayoutComponent width="1280" height="760" styleId="0:11" name="Root Layout" id="0:10">
+            <LayoutComponentStyle layoutWidthScaleType="1" layoutHeightScaleType="1" widthUnitsValue="3" heightUnitsValue="3" name="Layout Style" id="0:11"/>
+            <ScriptedLayout scriptAssetId="0:80" name="Lesson" id="0:12">
+                <!-- keyboard: arrows step and nudge, space plays -->
+                <FocusData/>
+            </ScriptedLayout>
+        </LayoutComponent>
+
+        <StateMachine name="State Machine 1" id="0:7">
+            <StateMachineLayer name="Layer 1" id="0:8">
+                <AnyState x="200" y="-120"/>
+                <ExitState x="400" y="-120"/>
+                <EntryState>
+                    <StateTransition stateToId="0:13"/>
+                </EntryState>
+                <!-- focus the lesson as the machine starts, so keys work when embedded too -->
+                <AnimationState x="200" animationId="0:6" id="0:13">
+                    <FocusActionTarget targetId="0:12"/>
+                </AnimationState>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <LinearAnimation duration="60" name="Idle" id="0:6"/>
+    </Artboard>
+
+    <ScriptAsset file="main.luau" name="main" id="0:80"/>
+
+    <FontAsset file="Display.ttf" name="Display"/>
+    <FontAsset file="Body.ttf" name="Body"/>
+    <FontAsset file="Mono.ttf" name="Mono"/>
+    <FontAsset file="MathItalic.ttf" name="MathItalic"/>
+
+    <!-- sound effects, made by tools/make-sfx.py -->
+    <AudioAsset file="sfx/snap.wav" volume="0.6" name="snap"/>
+    <AudioAsset file="sfx/pickup.wav" volume="0.6" name="pickup"/>
+    <AudioAsset file="sfx/drop.wav" volume="0.5" name="drop"/>
+    <AudioAsset file="sfx/pop.wav" volume="0.5" name="pop"/>
+    <AudioAsset file="sfx/chime.wav" volume="0.6" name="chime"/>
+    <AudioAsset file="sfx/sparkle.wav" volume="0.6" name="sparkle"/>
+    <AudioAsset file="sfx/whoosh.wav" volume="0.5" name="whoosh"/>
+    <AudioAsset file="sfx/tick.wav" volume="0.5" name="tick"/>
+
+    <!-- Cogna's voice (Sarvam priya), recorded by tools/record-voice.mjs -->
+    <AudioAsset file="voice/step1.mp3" name="v_step1"/>
+    <AudioAsset file="voice/step2.mp3" name="v_step2"/>
+    <AudioAsset file="voice/step3.mp3" name="v_step3"/>
+    <AudioAsset file="voice/step4.mp3" name="v_step4"/>
+    <AudioAsset file="voice/step5.mp3" name="v_step5"/>
+    <AudioAsset file="voice/step6.mp3" name="v_step6"/>
+    <AudioAsset file="voice/done1.mp3" name="v_done1"/>
+    <AudioAsset file="voice/done2.mp3" name="v_done2"/>
+    <AudioAsset file="voice/done3.mp3" name="v_done3"/>
+    <AudioAsset file="voice/done4.mp3" name="v_done4"/>
+    <AudioAsset file="voice/done5.mp3" name="v_done5"/>
+    <AudioAsset file="voice/found45.mp3" name="v_found45"/>
+    <AudioAsset file="voice/found225.mp3" name="v_found225"/>
+    <AudioAsset file="voice/foundBoth.mp3" name="v_foundBoth"/>
+    <AudioAsset file="voice/hint6.mp3" name="v_hint6"/>
+</Rive>

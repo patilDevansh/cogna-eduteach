@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sheru in 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="../cogna.css" />
+<style>
+  /* Sheru, Cogna's tiger cub, as a solid 3D vinyl toy. Drag to turn him; tap him to excite him. */
+  html, body { height: 100%; margin: 0; }
+  body { background: radial-gradient(120% 90% at 50% 30%, #ffffff 0%, var(--bg) 60%, #e6eee8 100%); overflow: hidden; }
+  #view { position: fixed; inset: 0; }
+  .ui { position: fixed; left: 0; right: 0; bottom: 28px; display: grid; justify-items: center; gap: 10px; pointer-events: none; }
+  .ui h1 { margin: 0; font-size: var(--text-xl); }
+  .ui p { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); }
+  .moods { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; pointer-events: auto; padding: 0 16px; }
+  .moods button { min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: 600 var(--text-sm) var(--font-body); cursor: pointer; }
+  .moods button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .hint { position: fixed; top: 16px; left: 0; right: 0; text-align: center; color: var(--ink-faint); font-size: var(--text-xs); pointer-events: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="view" aria-label="Sheru the tiger cub in 3D. Drag to turn him, tap him to make him excited."></div>
+<p class="hint">Drag to turn Sheru · tap him · keys 1–4 switch moods</p>
+<div class="ui">
+  <h1>Sheru</h1>
+  <p id="moodLine">feeling idle</p>
+  <div class="moods" role="group" aria-label="Mood">
+    <button type="button" data-m="0">idle</button>
+    <button type="button" data-m="1">excited</button>
+    <button type="button" data-m="2">playful</button>
+    <button type="button" data-m="3">thinking</button>
+  </div>
+</div>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const view = document.getElementById("view");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+camera.position.set(0, 2.1, 8.2);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.45, 0);
+controls.enablePan = false; controls.enableDamping = true;
+controls.minDistance = 5; controls.maxDistance = 11;
+controls.minPolarAngle = 0.6; controls.maxPolarAngle = 1.62;
+
+// light: soft sky, a warm key light with soft shadows, a cool rim
+scene.add(new THREE.HemisphereLight(0xffffff, 0xcfe3d6, 1.1));
+const key = new THREE.DirectionalLight(0xfff3e0, 2.4);
+key.position.set(-3, 6, 4); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6;
+Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xbfe8d6, 1.2); rim.position.set(4, 3, -4); scene.add(rim);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 64), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+// vinyl-toy materials
+const M = (color, rough = 0.5, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0, ...extra });
+const FUR = M(0xf08a24, 0.48), FUR_D = M(0xd96f1c, 0.5), CREAM = M(0xfff1d6, 0.55), INK = M(0x2b1d14, 0.4),
+  PINK = M(0xf49aa6, 0.45), EYE = M(0x16120e, 0.12), WHITE = M(0xffffff, 0.2), GREEN = M(0x0e6b54, 0.3), GOLD = M(0xf2c94c, 0.3, { emissive: 0x8a6400, emissiveIntensity: 0.35 });
+
+function ball(r, mat, sx = 1, sy = 1, sz = 1, seg = 48) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg / 1.5), mat);
+  m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; return m;
+}
+function capsule(r, len, mat) {
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 8, 20), mat); m.castShadow = true; return m;
+}
+/** a stripe lying on a sphere of radius R at (lat, lon), turned by spin */
+function stripe(parent, R, lat, lon, len, spin, width = 0.045) {
+  const s = capsule(width, len, INK);
+  const p = new THREE.Vector3().setFromSphericalCoords(R, Math.PI / 2 - lat, lon);
+  s.position.copy(p);
+  s.lookAt(p.clone().multiplyScalar(2));
+  s.rotateZ(spin); // lie flat along the surface, turned within it
+  s.scale.set(1, 1, 0.35);
+  parent.add(s);
+}
+
+const sheru = new THREE.Group(); scene.add(sheru);
+const hopper = new THREE.Group(); sheru.add(hopper);
+
+// body
+const body = new THREE.Group(); body.position.y = 0.9; hopper.add(body);
+const torso = ball(0.72, FUR, 1, 1.12, 0.92); body.add(torso);
+const belly = ball(0.5, CREAM, 0.95, 1.1, 0.6); belly.position.set(0, -0.08, 0.38); body.add(belly);
+for (const side of [-1, 1]) for (const [lat, len] of [[0.35, 0.34], [0.0, 0.4], [-0.35, 0.32]]) stripe(torso, 0.72, lat, side * 1.25, len, 0.15 * side);
+// haunches and feet
+for (const s of [-1, 1]) {
+  const hip = ball(0.36, FUR, 1, 0.9, 1.1); hip.position.set(0.48 * s, -0.5, -0.05); body.add(hip);
+  const foot = ball(0.2, CREAM, 1.2, 0.7, 1.4); foot.position.set(0.42 * s, -0.78, 0.32); body.add(foot);
+}
+// arms: pivot at the shoulder
+const arms = [];
+for (const s of [-1, 1]) {
+  const pivot = new THREE.Group(); pivot.position.set(0.5 * s, 0.32, 0.25); body.add(pivot);
+  const arm = capsule(0.15, 0.5, FUR); arm.position.y = -0.36; pivot.add(arm);
+  const paw = ball(0.17, CREAM, 1.1, 0.85, 1.1); paw.position.y = -0.72; pivot.add(paw);
+  pivot.rotation.z = 0.12 * s;
+  arms.push(pivot);
+}
+// tail: a chain of beads, striped, dark tip
+const tail = new THREE.Group(); tail.position.set(0.25, -0.55, -0.55); body.add(tail);
+const beads = [];
+for (let i = 0; i < 10; i++) {
+  const b = ball(0.17 - i * 0.007, i >= 8 || i % 3 === 2 ? INK : FUR, 1, 1, 1, 24);
+  tail.add(b); beads.push(b);
+}
+
+// head
+const head = new THREE.Group(); head.position.y = 2.05; hopper.add(head);
+const skull = ball(0.74, FUR, 1.12, 0.98, 1); head.add(skull);
+for (const [lon, len] of [[0, 0.3], [-0.28, 0.22], [0.28, 0.22]]) stripe(skull, 0.74, 0.78, lon, len, 0, 0.05);
+for (const s of [-1, 1]) for (const lat of [0.12, -0.08]) stripe(skull, 0.74, lat, s * 1.32, 0.22, Math.PI / 2, 0.042);
+const muzzle = ball(0.34, CREAM, 1.35, 0.85, 0.85); muzzle.position.set(0, -0.2, 0.6); head.add(muzzle);
+const nose = ball(0.085, PINK, 1.4, 0.8, 0.9); nose.position.set(0, -0.08, 0.89); head.add(nose);
+// mouths: a "w" smile, an open laugh, a small "o"
+const smile = new THREE.Group(); head.add(smile);
+for (const s of [-1, 1]) {
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.017, 10, 24, Math.PI), INK);
+  arc.position.set(0.075 * s, -0.24, 0.875); arc.rotation.z = Math.PI; smile.add(arc);
+}
+const laugh = new THREE.Group(); head.add(laugh);
+const lip = ball(0.14, INK, 1.1, 0.8, 0.4); lip.position.set(0, -0.28, 0.86); laugh.add(lip);
+const tongue = ball(0.08, PINK, 1.2, 0.6, 0.4); tongue.position.set(0, -0.33, 0.9); laugh.add(tongue);
+const ooh = ball(0.055, INK, 1, 1.15, 0.5); ooh.position.set(0, -0.27, 0.89); head.add(ooh);
+// eyes, with a white catchlight; happy eyes are little arches
+const eyes = [], happy = [];
+for (const s of [-1, 1]) {
+  const e = new THREE.Group(); e.position.set(0.3 * s, 0.1, 0.66); head.add(e);
+  e.add(ball(0.1, EYE, 1, 1.15, 0.6));
+  const shine = ball(0.032, WHITE); shine.position.set(-0.03, 0.045, 0.06); e.add(shine);
+  eyes.push(e);
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.022, 10, 24, Math.PI), INK);
+  arch.position.set(0.3 * s, 0.08, 0.7); head.add(arch); happy.push(arch);
+}
+for (const s of [-1, 1]) { const ck = ball(0.09, PINK, 1.3, 0.8, 0.4); ck.material = PINK.clone(); ck.material.transparent = true; ck.material.opacity = 0.55; ck.position.set(0.5 * s, -0.12, 0.55); head.add(ck); }
+// ears
+const ears = [];
+for (const s of [-1, 1]) {
+  const ear = new THREE.Group(); ear.position.set(0.52 * s, 0.6, -0.05); ear.rotation.z = -0.35 * s; head.add(ear);
+  const shell = ball(0.24, FUR, 0.9, 1.05, 0.5); ear.add(shell);
+  const inner = ball(0.14, PINK, 0.85, 0.95, 0.4); inner.position.z = 0.08; ear.add(inner);
+  ears.push(ear);
+}
+
+// props for the moods
+const toy = ball(0.22, GREEN); scene.add(toy);
+const shine2 = ball(0.06, WHITE); shine2.position.set(-0.08, 0.1, 0.16); toy.add(shine2);
+const sparkles = [];
+for (let i = 0; i < 6; i++) { const sp = new THREE.Mesh(new THREE.OctahedronGeometry(0.11), GOLD); scene.add(sp); sparkles.push(sp); }
+function qmark() {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d"); g.fillStyle = "#0e6b54"; g.font = "bold 200px Bricolage Grotesque, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("?", 128, 140);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }));
+  sp.scale.set(0.75, 0.75, 0.75); return sp;
+}
+const question = qmark(); scene.add(question);
+
+// moods ---------------------------------------------------------------------
+const NAMES = ["idle", "excited", "playful", "thinking"];
+let mood = 0, burst = 0;
+const buttons = [...document.querySelectorAll(".moods button")];
+function setMood(m) { mood = m; burst = 0; buttons.forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.m === m))); }
+buttons.forEach((b) => b.addEventListener("click", () => setMood(+b.dataset.m)));
+window.addEventListener("keydown", (e) => { if (e.key >= "1" && e.key <= "4") setMood(+e.key - 1); });
+setMood(0);
+window.sheru = { setMood };
+
+// tap Sheru: a burst of excitement
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 6) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  if (ray.intersectObject(sheru, true).length) burst = 2.4;
+});
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const s = { hop: 0, armL: 0.12, armR: -0.12, tilt: 0, yaw: 0, earL: -0.35, eyeY: 0.1, lean: 0 };
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
+  burst = Math.max(0, burst - dt);
+  const m = burst > 0 ? 1 : mood;
+  document.getElementById("moodLine").textContent = "feeling " + NAMES[m];
+  const k = 1 - Math.exp(-dt * 8);
+
+  // targets for this mood
+  let hop = 0, armL = 0.12, armR = -0.12, tilt = 0, yaw = Math.sin(t * 0.6) * 0.25, earL = -0.35, eyeY = 0.1, lean = 0, tailSpeed = 1.6, tailAmp = 0.35;
+  let blink = (t % 3.6) < 0.12;
+  if (m === 1) {
+    hop = Math.abs(Math.sin(t * 6.5)) * 0.42; armL = 2.5 + Math.sin(t * 13) * 0.25; armR = -2.5 - Math.sin(t * 13) * 0.25;
+    yaw = 0; tailSpeed = 9; tailAmp = 0.6; blink = false;
+  } else if (m === 2) {
+    const ph = (t % 1.6) / 1.6;
+    const bx = -1.15 + Math.sin(ph * Math.PI * 2) * 0.25, by = 0.22 + Math.abs(Math.sin(ph * Math.PI * 2)) * 0.9;
+    toy.position.set(bx, by, 0.9);
+    const near = by < 0.5;
+    armR = near ? -0.2 : -0.12; armL = near ? 1.4 : 0.5;
+    yaw = -0.55; lean = near ? 0.15 : 0.05; tailSpeed = 7; tailAmp = 0.55;
+  } else if (m === 3) {
+    tilt = 0.28; earL = -0.05; eyeY = 0.16; armR = 2.45; yaw = 0.2; tailSpeed = 0.8; tailAmp = 0.25;
+  }
+  s.hop = lerp(s.hop, hop, m === 1 ? 1 : k); s.armL = lerp(s.armL, armL, k); s.armR = lerp(s.armR, armR, k);
+  s.tilt = lerp(s.tilt, tilt, k); s.yaw = lerp(s.yaw, yaw, k); s.earL = lerp(s.earL, earL, k); s.eyeY = lerp(s.eyeY, eyeY, k); s.lean = lerp(s.lean, lean, k);
+
+  // squash on landing, stretch in the air
+  hopper.position.y = s.hop;
+  const squash = m === 1 && s.hop < 0.06 ? 0.9 : 1, stretch = m === 1 ? 1 + s.hop * 0.12 : 1;
+  const breath = 1 + Math.sin(t * 2.2) * 0.018;
+  hopper.scale.set(1 / Math.sqrt(squash * stretch), squash * stretch * breath, 1 / Math.sqrt(squash * stretch));
+  hopper.rotation.z = s.lean;
+  head.rotation.set(0, s.yaw, s.tilt);
+  arms[0].rotation.z = -s.armL; arms[1].rotation.z = -s.armR;
+  if (m === 3) { arms[1].rotation.x = 0.95; } else arms[1].rotation.x = lerp(arms[1].rotation.x, 0, k);
+  ears[0].rotation.z = -s.earL; ears[1].rotation.z = -0.35;
+  eyes.forEach((e) => { e.position.y = s.eyeY; e.scale.y = blink ? 0.12 : 1; e.visible = m !== 1; });
+  happy.forEach((a) => (a.visible = m === 1));
+  smile.visible = m === 0 || (m === 2 && toy.position.y > 0.5);
+  laugh.visible = m === 1 || (m === 2 && toy.position.y <= 0.5);
+  ooh.visible = m === 3;
+  // tail wave
+  beads.forEach((b, i) => {
+    const a = Math.sin(t * tailSpeed - i * 0.5) * tailAmp * (i / 10);
+    b.position.set(Math.sin(a) * i * 0.09 + i * 0.045, i * 0.095 + Math.sin(i * 0.35) * 0.03, -i * 0.03);
+  });
+  // props
+  toy.visible = m === 2;
+  sparkles.forEach((sp, i) => {
+    sp.visible = m === 1;
+    const a = t * 1.5 + (i / 6) * Math.PI * 2;
+    sp.position.set(Math.cos(a) * 1.35, 2.2 + Math.sin(a * 2) * 0.5 + s.hop, Math.sin(a) * 0.6);
+    sp.rotation.set(t * 2, t * 3, 0);
+    sp.scale.setScalar(0.7 + 0.3 * Math.sin(t * 8 + i));
+  });
+  question.visible = m === 3 && (t % 1.6) < 1.25;
+  question.position.set(0.95, 3.15 + Math.sin(t * 2) * 0.06, 0.2);
+
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+window.addEventListener("resize", resize); resize();
+frame();
+</script>
+</body>
+</html>

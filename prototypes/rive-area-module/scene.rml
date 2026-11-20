@@ -1,0 +1,77 @@
+<Rive version="1" kind="fragment">
+    <!-- The Area module. The scene only hosts the module script (main.luau), its lesson
+         modules and their assets; everything on screen is drawn by the scripts. -->
+    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="Area" id="0:2">
+        <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+        <Fill name="Background">
+            <SolidColor colorValue="FFF4F7F3" name="Color"/>
+        </Fill>
+        <LayoutComponent width="1280" height="760" styleId="0:11" name="Root Layout" id="0:10">
+            <LayoutComponentStyle layoutWidthScaleType="1" layoutHeightScaleType="1" widthUnitsValue="3" heightUnitsValue="3" name="Layout Style" id="0:11"/>
+            <ScriptedLayout scriptAssetId="0:80" name="Module" id="0:12">
+                <!-- keyboard: arrows step, Esc goes back to the lessons, M mutes; lessons add their own -->
+                <FocusData/>
+            </ScriptedLayout>
+        </LayoutComponent>
+
+        <StateMachine name="State Machine 1" id="0:7">
+            <StateMachineLayer name="Layer 1" id="0:8">
+                <AnyState x="200" y="-120"/>
+                <ExitState x="400" y="-120"/>
+                <EntryState>
+                    <StateTransition stateToId="0:13"/>
+                </EntryState>
+                <!-- focus the module as the machine starts, so keys work when embedded too -->
+                <AnimationState x="200" animationId="0:6" id="0:13">
+                    <FocusActionTarget targetId="0:12"/>
+                </AnimationState>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <LinearAnimation duration="60" name="Idle" id="0:6"/>
+    </Artboard>
+
+    <!-- modules first: require() only finds a module declared above the script that needs it -->
+    <ScriptAsset file="kit.luau" isModule="true" name="kit" id="0:90"/>
+    <ScriptAsset file="lines.luau" isModule="true" name="lines" id="0:91"/>
+    <ScriptAsset file="l1.luau" isModule="true" name="l1" id="0:92"/>
+    <ScriptAsset file="l2.luau" isModule="true" name="l2" id="0:93"/>
+    <ScriptAsset file="l3.luau" isModule="true" name="l3" id="0:94"/>
+    <ScriptAsset file="l4.luau" isModule="true" name="l4" id="0:95"/>
+    <ScriptAsset file="l5.luau" isModule="true" name="l5" id="0:96"/>
+    <ScriptAsset file="l6.luau" isModule="true" name="l6" id="0:97"/>
+    <ScriptAsset file="l7.luau" isModule="true" name="l7" id="0:98"/>
+    <ScriptAsset file="main.luau" name="main" id="0:80"/>
+
+    <FontAsset file="Display.ttf" name="Display"/>
+    <FontAsset file="Body.ttf" name="Body"/>
+    <FontAsset file="Mono.ttf" name="Mono"/>
+    <FontAsset file="MathItalic.ttf" name="MathItalic"/>
+
+    <!-- sound effects, made by tools/make-sfx.py -->
+    <AudioAsset file="sfx/snap.wav" volume="0.6" name="snap"/>
+    <AudioAsset file="sfx/pickup.wav" volume="0.6" name="pickup"/>
+    <AudioAsset file="sfx/drop.wav" volume="0.5" name="drop"/>
+    <AudioAsset file="sfx/pop.wav" volume="0.5" name="pop"/>
+    <AudioAsset file="sfx/chime.wav" volume="0.6" name="chime"/>
+    <AudioAsset file="sfx/sparkle.wav" volume="0.6" name="sparkle"/>
+    <AudioAsset file="sfx/whoosh.wav" volume="0.5" name="whoosh"/>
+    <AudioAsset file="sfx/slice.wav" volume="0.6" name="slice"/>
+    <AudioAsset file="sfx/thud.wav" volume="0.6" name="thud"/>
+    <AudioAsset file="sfx/oops.wav" volume="0.6" name="oops"/>
+    <AudioAsset file="sfx/fanfare.wav" volume="0.6" name="fanfare"/>
+    <AudioAsset file="sfx/tick0.wav" volume="0.5" name="tick0"/>
+    <AudioAsset file="sfx/tick1.wav" volume="0.5" name="tick1"/>
+    <AudioAsset file="sfx/tick2.wav" volume="0.5" name="tick2"/>
+    <AudioAsset file="sfx/tick3.wav" volume="0.5" name="tick3"/>
+    <AudioAsset file="sfx/tick4.wav" volume="0.5" name="tick4"/>
+    <AudioAsset file="sfx/tick5.wav" volume="0.5" name="tick5"/>
+    <AudioAsset file="sfx/tick6.wav" volume="0.5" name="tick6"/>
+    <AudioAsset file="sfx/tick7.wav" volume="0.5" name="tick7"/>
+    <AudioAsset file="sfx/tick8.wav" volume="0.5" name="tick8"/>
+    <AudioAsset file="sfx/tick9.wav" volume="0.5" name="tick9"/>
+    <AudioAsset file="sfx/tick10.wav" volume="0.5" name="tick10"/>
+    <AudioAsset file="sfx/tick11.wav" volume="0.5" name="tick11"/>
+
+    <!-- Kiara's voice (Cartesia), recorded by tools/record-voice.mjs: one AudioAsset v_<key> per line in lines.luau -->
+</Rive>

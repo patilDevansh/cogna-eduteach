@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cogna pets</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="../cogna.css" />
+<link rel="stylesheet" href="../proto.css" />
+<link rel="stylesheet" href="pets.css" />
+</head>
+<body>
+<div class="shell pk-page">
+  <div class="topbar"><span class="wordmark">cogna<span class="dot">.</span></span><span class="muted">Pets gallery</span></div>
+  <section class="pk-intro">
+    <p class="eyebrow">Pet options</p>
+    <h1>A pet for Cogna</h1>
+    <p>Each pet plays with the student and teaches one idea from the Area unit really well. Every card plays a short demo on its own; touch it to play yourself (drag, tap, or use the buttons). Sounds start once you touch a card.</p>
+    <div class="pk-tools"><button type="button" class="btn btn-ghost" id="pk-sound" aria-pressed="true">Sound on</button></div>
+  </section>
+  <table class="pk-table" id="pk-table">
+    <thead><tr><th>Pet</th><th>Teaches</th><th>Fixes the mix-up</th><th>To build</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="pk-grid" id="pk-grid"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="../core.js"></script>
+<script src="../data/fig.js"></script>
+<script src="../data/skills.js"></script>
+<script src="../anim/sfx.js"></script>
+<script src="kit.js"></script>
+<script src="dori.js"></script>
+<script src="tilu.js"></script>
+<script src="mitthu.js"></script>
+<script>
+  (function () {
+    var K = Cogna.petKit, h = Cogna.h;
+    var grid = document.getElementById("pk-grid"), tbody = document.querySelector("#pk-table tbody");
+    K.order.forEach(function (id, i) {
+      var p = Cogna.pets[id], m = p.meta;
+      var stageHost = h("div"), actions = h("div", { class: "pk-actions" });
+      var card = h("article", { class: "pk-card", id: id },
+        h("div", { class: "pk-head" },
+          h("span", { class: "pk-num" }, String(i + 1).padStart(2, "0")),
+          h("h2", null, m.name), h("span", { class: "pk-kind" }, m.kind),
+          h("span", { class: "pk-effort" }, "To build: " + m.effort)),
+        h("p", { class: "pk-line" }, m.line),
+        stageHost, actions,
+        h("dl", { class: "pk-facts" },
+          h("dt", null, "Teaches"), h("dd", null, m.teaches),
+          h("dt", null, "Fixes the mix-up"), h("dd", null, m.mixups.map(function (x) { return h("span", { class: "pk-mix" }, x); })),
+          h("dt", null, "How the student plays"), h("dd", null, m.play),
+          h("dt", null, "Best on"), h("dd", null, m.days),
+          h("dt", null, "Grows over 2 weeks"), h("dd", null, m.grows)));
+      grid.appendChild(card);
+      try { p.mount({ stage: stageHost, actions: actions }); }
+      catch (e) { console.error("[pets]", id, e); stageHost.textContent = "This pet failed to load: " + e.message; }
+      tbody.appendChild(h("tr", null,
+        h("td", null, h("a", { href: "#" + id }, m.name), " ", h("span", { class: "muted" }, m.kind)),
+        h("td", null, m.teaches), h("td", null, m.mixups.join("; ")), h("td", null, m.effort)));
+    });
+    var snd = document.getElementById("pk-sound");
+    function paint() { snd.textContent = K.sound.on() ? "Sound on" : "Sound off"; snd.setAttribute("aria-pressed", String(K.sound.on())); }
+    snd.addEventListener("click", function () { K.sound.set(!K.sound.on()); paint(); });
+    paint();
+  })();
+</script>
+</body>
+</html>

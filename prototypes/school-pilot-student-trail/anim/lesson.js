@@ -4,8 +4,10 @@
    so the session player needs no special case.
 
    define({ id, title, w, h, durationMs, build(svg, L) -> c, frame?(c, L), steps: [Step] })
-   Step = { caption?, run?(c, L), hold?: ms, gap?: ms, task?(c, L, done) }
-        | { branch(c, L) -> index, options: [Step, ...] }
+   Step = { caption?, run?(c, L), hold?: ms, gap?: ms, task?(c, L, done), skip?(c, L) -> true to leave it out }
+        | { branch(c, L) -> index, options: [Step, ...], skip?(c, L) }
+   mount(el, { flags }) hands the step's flags to the lesson as L.flags (e.g. { afterLesson: true } when a lesson
+   video has already introduced the shape, so a hands-on lesson can skip its own introduction).
    A step moves on only when ALL of these are true:
      - its caption has been spoken to the end (or, with sound off, the time it takes to read it)
      - `hold` ms have passed
@@ -69,7 +71,7 @@
 
         var now = 0, last = 0, raf = 0, playing = false, dead = false, ended = false, started = false;
         var timers = [], tweens = [], gen = 0, idx = -1, cur = null, wantNext = false, c = null;
-        var L = { G: G, ease: EASE, svg: svg, state: {}, reduced: reduced };
+        var L = { G: G, ease: EASE, svg: svg, state: {}, reduced: reduced, flags: o.flags || {} };
         var gs = [], drags = [], offs = [];   // GSAP tweens, Draggables and listeners made by this lesson (paused, resumed and removed with it)
         function gsPause() { gs = gs.filter(function (t) { return t.progress() < 1; }); gs.forEach(function (t) { t.pause(); }); }
         function gsResume() { gs.forEach(function (t) { t.resume(); }); }
@@ -131,6 +133,11 @@
           gen++; idx = i;
           if (i >= spec.steps.length) { finish(); return; }
           var s = spec.steps[i];
+          if (s.skip) {
+            var leave = false;
+            try { leave = !!s.skip(c, L); } catch (e) { console.error("[lesson skip]", i, e); }
+            if (leave) { startStep(i + 1); return; }
+          }
           if (s.branch) s = s.options[s.branch(c, L)] || s.options[0];
           cur = { holds: 1 };
           var me = cur;
@@ -260,6 +267,7 @@
 
         function build() {
           while (svg.firstChild) svg.removeChild(svg.firstChild);
+          svg.classList.remove("is-dragging-ok", "is-cutting");   // a replay must not inherit a task's touch settings
           L.clearBar(); L.board(""); L.state = {};
           c = spec.build(svg, L) || {};
           if (spec.frame) spec.frame(c, L);

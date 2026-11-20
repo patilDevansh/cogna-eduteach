@@ -70,7 +70,8 @@
 
   /* ------------------------------------------------------------------ one question */
   /* o: { needSure, feedback:'instant'|'none', tries, neutral, anything, reveal, checkLabel,
-          record(info), onResult(res, final) } */
+          reactions (a sound + a little pop or shake on every answer), replays (a wrong answer with `replay:` plays
+          that mistake replay next, so its feedback stays short), record(info), onResult(res, final) } */
   function questionView(q, o) {
     var root = h("div", { class: "t-q" });
     var tries = o.tries || 1;
@@ -89,14 +90,15 @@
     function evaluate() {
       if (q.kind === "mcq") {
         var p = opts[S.pick];
-        return { correct: !!p.correct, mixup: p.correct ? null : (p.mixup || null), why: p.correct ? null : (p.why || null), answer: p.text };
+        return { correct: !!p.correct, mixup: p.correct ? null : (p.mixup || null), why: p.correct ? null : (p.why || null), answer: p.text,
+          replay: p.correct ? null : (p.replay || null) };
       }
       var v = parseNum(S.text);
       if (v === null) return o.anything ? { correct: false, mixup: null, why: null, answer: S.text.trim() } : { invalid: true };
-      var res = { correct: Math.abs(v - q.answer) <= (q.tol || 0) + 1e-9, mixup: null, why: null, answer: S.text.trim() };
+      var res = { correct: Math.abs(v - q.answer) <= (q.tol || 0) + 1e-9, mixup: null, why: null, answer: S.text.trim(), replay: null };
       if (!res.correct) {
         (q.wrongMixups || []).some(function (w) {
-          if (Math.abs(v - w.value) <= 1e-9) { res.mixup = w.mixup || null; res.why = w.why || null; return true; }
+          if (Math.abs(v - w.value) <= 1e-9) { res.mixup = w.mixup || null; res.why = w.why || null; res.replay = w.replay || null; return true; }
           return false;
         });
       }
@@ -148,6 +150,13 @@
         return;
       }
       body.appendChild(h("strong", null, final ? "Not quite." : "Not quite. Have another go."));
+      if (final && o.replays && res.replay && C.anims[res.replay]) {
+        // show, don't write: the replay below works through this exact answer, then a fresh question follows
+        body.appendChild(h("span", { class: "t-fb-line" }, "Watch where " + res.answer + " comes from."));
+        if (res.mixup) { var mi0 = mixupInfo(res.mixup); body.appendChild(h("span", { class: "t-fb-line t-mixup-line" }, "This is a mix-up we've seen before" + (mi0 ? ": " + mi0.name : "."))); }
+        box.appendChild(h("div", { class: "feedback feedback-incorrect t-wrong settle" }, icon("x"), body));
+        return;
+      }
       if (res.why) body.appendChild(h("span", { class: "t-fb-line" }, res.why));
       if (res.mixup) {
         var mi = mixupInfo(res.mixup);
@@ -172,7 +181,17 @@
       o.record({ qid: q.id, skill: q.skill, correct: res.correct, mixup: res.mixup, guards: q.guards, sure: o.needSure ? S.sure : undefined, answer: res.answer });
       lock(res, final);
       if (o.feedback === "instant") showFeedback(res, final);
+      if (o.reactions && o.feedback === "instant" && !o.neutral) react(res.correct);
       o.onResult(res, final);
+    }
+    /** a sound and a little movement on every answer: a pop when right, a shake when not */
+    function react(right) {
+      root.classList.remove("is-right-now", "is-shake"); void root.offsetWidth;
+      root.classList.add(right ? "is-right-now" : "is-shake");
+      if (C.sfx) {
+        if (right) { C.sfx.snap(); setTimeout(function () { C.sfx.chime(); }, 90); }
+        else C.sfx.oops();
+      }
     }
 
     function render(keepSure) {
@@ -262,7 +281,8 @@
   }
 
   /* ------------------------------------------------------------------ a run of questions */
-  /* o: { label, mode:'instant'|'deferred'|'none', needSure, tries, noMastery, anything, reveal,
+  /* o: { label, mode:'instant'|'deferred'|'none', needSure, tries, noMastery, anything, reveal, reactions,
+          onReplay(res, q, afterBox, next)  // instant mode: a wrong answer with a replay hands over here; call next() when done
           record(info), onProgress(i, n), onFinish(results) } */
   function runQuestions(host, questions, o) {
     var n = questions.length, i = 0, view = null, finished = false, pendingNext = null, results = [];
@@ -274,24 +294,30 @@
       var q = questions[i];
       var head = h("div", { class: "t-q-head" }, h("p", { class: "eyebrow" }, o.label + (n > 1 ? " · " + (i + 1) + " of " + n : "")));
       var actions = h("div", { class: "t-q-next" });
+      var after = h("div", { class: "t-q-after" });   // a mistake replay and its fresh question go here
       view = questionView(q, {
         needSure: o.needSure, feedback: o.mode === "instant" ? "instant" : "none", tries: o.tries, anything: o.anything,
         neutral: o.neutral, reveal: o.reveal, checkLabel: o.mode === "none" || o.mode === "deferred" ? (i < n - 1 ? "Lock in and continue" : "Lock in answer") : "Check",
+        reactions: o.reactions, replays: o.mode === "instant" && !!o.onReplay,
         record: o.record,
         onResult: function (res, final) {
           if (!final) return;
           results.push({ q: q, res: res });
-          if (o.mode === "instant") {
-            if (i < n - 1) {
-              var nb = h("button", { type: "button", class: "btn btn-primary", on: { click: function () { pendingNext = null; show(i + 1); focusView(); } } }, "Next question");
-              actions.appendChild(nb); pendingNext = function () { nb.click(); };
-              nb.focus({ preventScroll: false });
-            } else { finish(); }
-          } else if (i < n - 1) { show(i + 1); focusView(); }
-          else { finish(); }
+          function next() {
+            if (o.mode === "instant") {
+              if (i < n - 1) {
+                var nb = h("button", { type: "button", class: "btn btn-primary", on: { click: function () { pendingNext = null; show(i + 1); focusView(); } } }, "Next question");
+                actions.appendChild(nb); pendingNext = function () { nb.click(); };
+                nb.focus({ preventScroll: false });
+              } else { finish(); }
+            } else if (i < n - 1) { show(i + 1); focusView(); }
+            else { finish(); }
+          }
+          if (o.mode === "instant" && o.onReplay && !res.correct && res.replay && C.anims[res.replay]) { o.onReplay(res, q, after, next); return; }
+          next();
         },
       });
-      host.appendChild(head); host.appendChild(view.el); host.appendChild(actions);
+      host.appendChild(head); host.appendChild(view.el); host.appendChild(after); host.appendChild(actions);
     }
     function focusView() { if (view) view.focus(); }
     function finish() {
@@ -361,7 +387,12 @@
       var k = narrationKey(text), pick = null;
       try { pick = window.localStorage.getItem("cogna-voice-set"); } catch (e) { /* ignore */ }
       var set = pick && C.voiceSets && C.voiceSets[pick];
-      return (set && set.map && set.map[k]) || (C.narration && C.narration[k]) || null;
+      if (set && set.map && set.map[k]) return set.map[k];
+      if (C.narration && C.narration[k]) return C.narration[k];
+      // no Sarvam recording yet (credits ran out 2026-11-19): use another recorded voice before the browser's
+      var FALLBACK = ["elevenlabs-cgsgspj2msm6clmckdw9", "gemini-sulafat", "cartesia-kiara"];
+      for (var i = 0; i < FALLBACK.length; i++) { var f = C.voiceSets && C.voiceSets[FALLBACK[i]]; if (f && f.map && f.map[k]) return f.map[k]; }
+      return null;
     }
     function spokenText(t) {
       return String(t)
@@ -417,7 +448,7 @@
   C.voice = voice;
   C.bus.on("route:changed", function () { voice.stop(); });
 
-  /** o: { skill, onEnd, onBeat, markButton } -> { el, destroy, play } */
+  /** o: { skill, onEnd, onBeat, markButton, flags } -> { el, destroy, play }  (flags reach a Cogna.lesson as L.flags) */
   function animBlock(id, o) {
     var A = C.anims[id], el = h("div", { class: "t-anim" });
     var out = { el: el, destroy: function () {}, play: function () {}, ended: false };
@@ -440,7 +471,7 @@
     var ctl = null, playing = false, timer = null;
     function ended() { playing = false; toggle.textContent = "Play"; skip.hidden = true; clearTimeout(timer); if (!out.ended) { out.ended = true; if (o.onEnd) o.onEnd(); } }
     try {
-      ctl = A.mount(stage, { onEnd: ended, onBeat: function (c, done) { if (c) { caption.textContent = c; voice.say(c, done); } else if (done) done(false); if (o.onBeat) o.onBeat(c); } });
+      ctl = A.mount(stage, { flags: o.flags || {}, onEnd: ended, onBeat: function (c, done) { if (c) { caption.textContent = c; voice.say(c, done); } else if (done) done(false); if (o.onBeat) o.onBeat(c); } });
     } catch (e) { console.error("[session] anim mount", id, e); stage.appendChild(placeholder("anim", id, "Mark as watched", function () { ended(); })); return out; }
     function start() { playing = true; toggle.textContent = "Pause"; try { ctl.play(); } catch (e) { console.error(e); } }
     toggle.addEventListener("click", function () {
@@ -474,22 +505,53 @@
     ctx.setAuto(done);
   };
 
+  /* step.reactions: true -> a sound and a little pop or shake on every answer.
+     A wrong answer whose option / wrongMixups entry has `replay: "<anim id>"` (instant steps only) plays that mistake
+     replay straight away, starting from the student's own number, then asks `q.retry`: a fresh question of the same kind. */
   function questionStep(label, mode, needSure) {
     return function (el, step, ctx) {
       var qs = step.questions || [];
       var host = h("div", { class: "t-qrun" });
       el.appendChild(host);
+      var replays = [], retryView = null;
+      ctx.onCleanup(function () { replays.forEach(function (b) { try { b.destroy(); } catch (e) { /* ignore */ } }); replays = []; });
+      function record(info) {
+        var due = step.type === "recall" && info.correct && C.state.revisitsDue(ctx.day).indexOf(info.skill) !== -1;
+        ctx.record(info);
+        if (due) C.state.clearRevisit(info.skill);
+      }
+      function onReplay(res, q, box, next) {
+        var watched = false;
+        var blk = animBlock(res.replay, { markButton: true, onEnd: afterWatch });
+        replays.push(blk);
+        var panel = h("div", { class: "t-replay settle" },
+          h("p", { class: "eyebrow" }, "Let's look closer"),
+          h("h3", { class: "t-replay-title" }, "Your answer: " + res.answer),
+          blk.el);
+        box.appendChild(panel);
+        blk.play();
+        try { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) { /* ignore */ }
+        function afterWatch() {
+          if (watched) return; watched = true;
+          if (!q.retry) { next(); return; }
+          var rb = h("div", { class: "t-replay-retry settle" }, h("p", { class: "t-fix-ask" }, "Now try one like it."));
+          box.appendChild(rb);
+          retryView = questionView(q.retry, {
+            needSure: needSure, feedback: "instant", tries: 1, reactions: !!step.reactions, record: record,
+            onResult: function (r2, final) { if (final) { retryView = null; next(); } },
+          });
+          rb.appendChild(retryView.el);
+          try { rb.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) { /* ignore */ }
+          retryView.focus();
+        }
+      }
       var run = runQuestions(host, qs, {
-        label: label, mode: mode, needSure: needSure,
-        record: function (info) {
-          var due = step.type === "recall" && info.correct && C.state.revisitsDue(ctx.day).indexOf(info.skill) !== -1;
-          ctx.record(info);
-          if (due) C.state.clearRevisit(info.skill);
-        },
+        label: label, mode: mode, needSure: needSure, reactions: !!step.reactions, onReplay: mode === "instant" ? onReplay : null,
+        record: record,
         onProgress: function (i, n) { ctx.progress && ctx.progress(i, n); },
         onFinish: function () { ctx.complete(); },
       });
-      ctx.setAuto(function () { run.auto(); });
+      ctx.setAuto(function () { if (retryView && !retryView.locked()) retryView.auto(); run.auto(); });
     };
   }
   T.recall = questionStep("Quick recall", "instant", false);
@@ -583,19 +645,22 @@
     });
   };
 
+  /* step: { anim, skill?, eyebrow? (default "Cogna lesson"), autoplay? (short pieces: the reminder, the progress moment),
+             flags? (handed to the lesson, e.g. { afterLesson: true }) } */
   T.animation = function (el, step, ctx) {
     var a = C.anims[step.anim];
-    el.appendChild(h("p", { class: "eyebrow" }, "Cogna lesson"));
+    el.appendChild(h("p", { class: "eyebrow" }, step.eyebrow || "Cogna lesson"));
     el.appendChild(h("h2", { class: "t-step-title" }, (a && a.title) || "Watch and listen"));
-    el.appendChild(h("p", { class: "muted t-lesson-hint" }, a && a.interactive
+    if (!step.autoplay) el.appendChild(h("p", { class: "muted t-lesson-hint" }, a && a.interactive
       ? "Press Play. Cogna explains out loud, and stops to let you try things yourself."
       : "Press Play. Cogna explains each step out loud; captions follow along."));
     var blk = animBlock(step.anim, {
-      markButton: true,
+      markButton: true, flags: step.flags,
       onEnd: function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); },
     });
     el.appendChild(blk.el);
     ctx.onCleanup(blk.destroy);
+    if (step.autoplay) blk.play();
     ctx.setAuto(function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); });
   };
 
@@ -639,6 +704,36 @@
     }
     el.appendChild(note);
     ctx.setAuto(ok);
+  };
+
+  /* step: { type: "rive", lessons: [4] | 4, title? } — the Area Lab: the Rive Area module (data/lab.js) playing on a canvas.
+     It opens on its lesson list (no deep link), so the step says which lesson to tap. It cannot report back, so it records no
+     mastery; the student presses Continue when done. */
+  T.rive = function (el, step, ctx) {
+    var lab = C.lab || {}, ls = [].concat(step.lessons || step.lesson || []);
+    var names = ls.map(function (n) { return "lesson " + n + (lab.lessons && lab.lessons[n] ? ", “" + lab.lessons[n] + "”" : ""); });
+    el.appendChild(h("p", { class: "eyebrow" }, "Area Lab"));
+    el.appendChild(h("h2", { class: "t-step-title" }, step.title || "Try it with your own hands"));
+    el.appendChild(h("p", { class: "muted t-lesson-hint" }, names.length
+      ? "Tap " + names.join(" and ") + ". Cogna talks you through it, and the gold things can be dragged. When you've finished, press Continue."
+      : "Pick a lesson, and do the tasks with your own hands. When you've finished, press Continue."));
+    var done = false;
+    function finish() { if (done) return; done = true; if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); }
+    var stage = h("div", { class: "t-lab-stage" });
+    el.appendChild(stage);
+    var msg = h("p", { class: "muted t-lab-note", role: "status" }, "Loading the lab…");
+    el.appendChild(msg);
+    var run = lab.mount ? lab.mount(stage, function (m) {
+      msg.textContent = m + " You can skip it for now.";
+    }) : null;
+    if (run) ctx.onCleanup(run.destroy);
+    // the lab has its own narrator (Kiara), so the app's guide steps aside while it plays
+    var gr = C.guide && C.guide.root;
+    if (gr) { gr.style.display = "none"; ctx.onCleanup(function () { gr.style.display = ""; }); }
+    el.appendChild(h("button", { type: "button", class: "btn btn-primary t-lab-go", on: { click: finish } }, "I've finished the lab, continue"));
+    var shown = setTimeout(function () { if (msg.textContent === "Loading the lab…") msg.textContent = "Tap the lesson, then use your finger or mouse. The sound button is top right."; }, 4000);
+    ctx.onCleanup(function () { clearTimeout(shown); });
+    ctx.setAuto(finish);
   };
 
   T.fix = function (el, step, ctx) {

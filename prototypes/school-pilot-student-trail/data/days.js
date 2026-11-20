@@ -293,6 +293,7 @@
         { id: "s3", type: "animation", anim: "cut-move", skill: "a1" },
         { id: "s4", type: "game", game: "tile-cover", skill: "a1" },
         { id: "s5", type: "animation", anim: "para-field", skill: "a2" },   // hands-on: replaces the para-to-rect video + the cut-slide game
+        { id: "s6", type: "rive", lessons: [1, 2, 3], title: "Area Lab: squares, fences and the wonky field" },
         { id: "s7", type: "practice", questions: [
           mcq("d3p1", "a1", "Each small square is 1 cm². What is the area of this shape?", [
             bad("18 cm²", "18 is the distance round the edge (5 + 2 + 3 + 2 + 2 + 4). Area counts the squares inside.", "perim"),
@@ -352,9 +353,8 @@
             bad("11 cm²", "11 is 8 + 3. Area multiplies the sides."),
           ], "8 × 3 = 24 cm².", { guards: ["perim"] }),
         ] },
-        { id: "s3", type: "animation", anim: "tri-half", skill: "a3" },
-        { id: "s4", type: "game", game: "join-triangles", skill: "a3" },
-        { id: "s5", type: "game", game: "pick-height", skill: "a3" },
+        { id: "s3", type: "animation", anim: "tri-field", skill: "a3" },   // hands-on: replaces the tri-half video
+        { id: "s4", type: "rive", lessons: [4], title: "Area Lab: two triangles, one field" },   // replaces the join-triangles and pick-height games: tri-field now does both
         { id: "s6", type: "practice", questions: [
           num("d4p1", "a3", "Find the area of this right triangle. The 4 cm side is the height. Area = ? cm²", 12,
             "½ × 6 × 4 = 12 cm².",
@@ -483,13 +483,13 @@
       summaryLine: "A trapezium is half of a parallelogram made from two copies: area = ½ × (a + b) × h.",
       teacherNote: "Both parallel sides count, Aarav. Add them, multiply by the height, then halve.",
       tomorrow: "Any shape: split it into pieces you already know.",
+      /* Rebuilt 2026-11-19 on the animation flow (see anim/trap-day.js and anim/trap-fixes.js):
+         quick reminder -> quick recall -> try first -> lesson video with 2 guess stops -> hands-on field (the aha and the
+         play: copy, spin, slide; stretch the top; make exactly 14) -> check questions with a reaction on every answer
+         and a mistake replay after the common wrong answers, each followed by a fresh question -> progress. */
       steps: [
-        { id: "s1", type: "teacher",
-          what: "Ms. Rao shows a trapezium with two parallel sides, a and b, and the straight-up height h between them.",
-          boardSvg: trap(10, 6, 2, 4, { bot: "b = 10 cm", top: "a = 6 cm", h: "h = 4 cm", hl: true, rm: true, alt: "Trapezium with parallel sides a = 6 cm and b = 10 cm, and height 4 cm." }),
-          trap: "Using the slanted leg as the height, or multiplying (a + b) × h and forgetting to halve.",
-          classNote: "Trapeziums are the trickiest shape of the unit, so Ms. Rao slows down here." },
-        { id: "s2", type: "recall", questions: [
+        { id: "d6-remind", type: "animation", anim: "trap-remind", eyebrow: "Quick reminder", autoplay: true },
+        { id: "d6-recall", type: "recall", reactions: true, questions: [
           num("d6r1", "a3", "A triangle has base 12 cm and height 5 cm. Area = ? cm²", 30, "½ × 12 × 5 = 30 cm².", { unit: "cm²", wrongMixups: [{ value: 60, why: "60 is the whole rectangle. A triangle is half: 30." }] }),
           num("d6r2", "a2", "A parallelogram has base 9 cm and height 7 cm. Area = ? cm²", 63, "9 × 7 = 63 cm².", { unit: "cm²" }),
           mcq("d6r3", "a1", "A room is 5 m by 8 m. Its floor area is…", [
@@ -498,48 +498,48 @@
             bad("13 m²", "13 is 5 + 8. Area multiplies the sides."),
           ], "5 × 8 = 40 m².", { guards: ["perim"] }),
         ] },
-        { id: "s3", type: "try", skill: "a4",
+        { id: "d6-try", type: "try", skill: "a4",
           q: num("d6t1", "a4", "A trapezium has parallel sides 8 cm and 4 cm, and height 3 cm. Take a guess at its area (cm²).", 18, "The area is ½ × (8 + 4) × 3 = 18 cm².",
             { figure: trap(8, 4, 2, 3, { bot: "8 cm", top: "4 cm", h: "3 cm", hl: true }), unit: "cm²" }),
           reveal: "The area is 18 cm². You'll see exactly where that comes from: ½ × (8 + 4) × 3. No worry if your guess was different." },
-        { id: "s4", type: "animation", anim: "trap-double", skill: "a4" },
-        { id: "s5", type: "worked", skill: "a4",
-          lines: [
-            "The parallel sides are a = 6 cm and b = 10 cm. The height between them is h = 4 cm.",
-            "Add the parallel sides: a + b = 6 + 10 = 16",
-            "Two copies make a parallelogram with base 16 and height 4: 16 × 4 = 64",
-            "The trapezium is half of that: ½ × 16 × 4 = 32 cm²",
-          ],
-          figure: trap(10, 6, 2, 4, { bot: "b = 10 cm", top: "a = 6 cm", h: "h = 4 cm", hl: true, rm: true }),
-          yourTurn: { prompt: "Your turn: a trapezium has a = 5 cm, b = 9 cm and h = 6 cm.",
-            blanks: [{ label: "a + b =", answer: 14 }, { label: "Area = ½ × 14 × 6 =", answer: 42, unit: "cm²" }] } },
-        { id: "s6", type: "practice", questions: [
-          mcq("d6p1", "a4", "Find the area of this trapezium.", [
-            bad("100 cm²", "(8 + 12) × 5 = 100 is the area of the doubled shape. The trapezium is only half of it: 50."),
+        { id: "d6-lesson", type: "animation", anim: "trap-lesson", skill: "a4" },
+        { id: "d6-hands", type: "animation", anim: "trap-field", skill: "a4", eyebrow: "Now you try", flags: { afterLesson: true } },
+        { id: "d6-check", type: "practice", reactions: true, questions: [
+          mcq("d6c1", "a4", "Find the area of this trapezium.", [
+            rep(bad("100 cm²", "(8 + 12) × 5 = 100 is two trapeziums put together. Yours is half of it: 50."), "trap-fix-100"),
             ok("50 cm²"),
-            bad("60 cm²", "12 × 5 uses only the bottom side. Both parallel sides count: ½ × (8 + 12) × 5."),
+            rep(bad("60 cm²", "12 × 5 uses only the bottom side. Both parallel sides count: ½ × (8 + 12) × 5."), "trap-fix-60"),
           ], "½ × (8 + 12) × 5 = ½ × 20 × 5 = 50 cm².",
-            { figure: trap(12, 8, 2, 5, { bot: "12 cm", top: "8 cm", h: "5 cm", hl: true, rm: true }) }),
-          num("d6p2", "a4", "A trapezium has parallel sides 7 cm and 13 cm, and height 6 cm. Area = ? cm²", 60, "½ × (7 + 13) × 6 = ½ × 20 × 6 = 60 cm².",
-            { unit: "cm²", wrongMixups: [{ value: 120, why: "(7 + 13) × 6 = 120 forgets the ½. The trapezium is half: 60." }, { value: 78, why: "78 is 13 × 6. Both parallel sides count: ½ × (7 + 13) × 6." }] }),
-          mcq("d6p3", "a4", "Find the area of this trapezium.", [
-            bad("35 cm²", "½ × 14 × 5 uses the 5 cm slanted leg as the height. The height is the straight-up 4 cm.", "slant"),
+            { figure: trap(12, 8, 2, 5, { bot: "12 cm", top: "8 cm", h: "5 cm", hl: true, rm: true }),
+              retry: num("d6c1b", "a4", "A trapezium has parallel sides 7 cm and 9 cm, and height 6 cm. Area = ? cm²", 48, "½ × (7 + 9) × 6 = ½ × 16 × 6 = 48 cm².",
+                { unit: "cm²", wrongMixups: [
+                  { value: 96, why: "(7 + 9) × 6 = 96 is two trapeziums. Yours is half of it: 48." },
+                  { value: 54, why: "9 × 6 uses only the bottom side. Both parallel sides count: ½ × (7 + 9) × 6." },
+                  { value: 42, why: "7 × 6 uses only the top side. Both parallel sides count: ½ × (7 + 9) × 6." }] }) }),
+          mcq("d6c2", "a4", "Find the area of this trapezium.", [
+            rep(bad("35 cm²", "½ × 14 × 5 uses the 5 cm slanted side as the height. The height is the straight-up 4 cm.", "slant"), "trap-fix-35"),
             ok("28 cm²"),
-            bad("56 cm²", "(9 + 5) × 4 = 56 forgets the ½."),
+            bad("56 cm²", "(9 + 5) × 4 = 56 forgets the ½. That's two trapeziums; yours is half: 28."),
           ], "½ × (9 + 5) × 4 = ½ × 14 × 4 = 28 cm².",
-            { figure: trap(9, 5, 3, 4, { bot: "9 cm", top: "5 cm", leg: "5 cm", h: "4 cm", hl: true }), guards: ["slant"] }),
-          num("d6p4", "a4", "A trapezium has area 36 cm² and parallel sides 5 cm and 7 cm. Its height = ? cm", 6, "36 = ½ × 12 × h = 6 × h, so h = 6 cm.",
+            { figure: trap(9, 5, 3, 4, { bot: "9 cm", top: "5 cm", leg: "5 cm", h: "4 cm", hl: true }), guards: ["slant"],
+              retry: mcq("d6c2b", "a4", "Find the area of this trapezium.", [
+                bad("40 cm²", "½ × 16 × 5 uses the 5 cm slanted side as the height. The height is the straight-up 4 cm.", "slant"),
+                ok("32 cm²"),
+                bad("64 cm²", "(11 + 5) × 4 = 64 forgets the ½. Yours is half: 32."),
+              ], "½ × (11 + 5) × 4 = ½ × 16 × 4 = 32 cm². The slanted sides are 5 cm, but the height is 4 cm.",
+                { figure: trap(11, 5, 3, 4, { bot: "11 cm", top: "5 cm", leg: "5 cm", h: "4 cm", hl: true }), guards: ["slant"] }) }),
+          mcq("d6c3", "a4", "Ramesh uncle has three more fields. Which two have the same area?", [
+            ok("P and Q"),
+            bad("P and R", "P and R share a bottom of 8 m, but nothing else. P is ½ × (4 + 8) × 5 = 30 m², and R is ½ × (6 + 8) × 4 = 28 m²."),
+            bad("Q and R", "Q is ½ × (2 + 10) × 5 = 30 m², but R is ½ × (6 + 8) × 4 = 28 m²."),
+          ], "P is ½ × (4 + 8) × 5 = 30 m² and Q is ½ × (2 + 10) × 5 = 30 m². They look different, but top + bottom is 12 in both, and the heights match.",
+            { figure: trio([["P", 8, 4, 5], ["Q", 10, 2, 5], ["R", 8, 6, 4]],
+                "Three trapezium fields. P: parallel sides 4 m and 8 m, height 5 m. Q: parallel sides 2 m and 10 m, height 5 m. R: parallel sides 6 m and 8 m, height 4 m.") }),
+          num("d6c4", "a4", "A trapezium has area 36 cm² and parallel sides 5 cm and 7 cm. Its height = ? cm", 6, "36 = ½ × 12 × h = 6 × h, so h = 6 cm.",
             { unit: "cm", wrongMixups: [{ value: 3, why: "36 ÷ 12 = 3 forgets the ½. 36 = ½ × 12 × h = 6 × h, so h = 6." }, { value: 24, why: "24 is 36 − 12. Use the area rule backwards: 36 = ½ × (5 + 7) × h." }] }),
         ] },
-        { id: "s7", type: "exit", questions: [
-          num("d6e1", "a4", "A trapezium has parallel sides 4 cm and 10 cm, and height 3 cm. Area = ? cm²", 21, "½ × (4 + 10) × 3 = ½ × 14 × 3 = 21 cm².",
-            { unit: "cm²", wrongMixups: [{ value: 42, why: "(4 + 10) × 3 = 42 forgets the ½. The trapezium is half: 21." }] }),
-          mcq("d6e2", "a4", "A trapezium has parallel sides 6 cm and 8 cm, and height 5 cm. Its area is…", [
-            bad("70 cm²", "(6 + 8) × 5 = 70 forgets the ½."),
-            bad("40 cm²", "8 × 5 uses only one parallel side. Both count."),
-            ok("35 cm²"),
-          ], "½ × (6 + 8) × 5 = ½ × 14 × 5 = 35 cm²."),
-        ] },
+        { id: "d6-lab", type: "rive", lessons: [5], title: "Area Lab: two parallel sides" },
+        { id: "d6-progress", type: "animation", anim: "trap-progress", eyebrow: "Today's progress", autoplay: true },
       ],
     },
 
@@ -566,6 +566,7 @@
         ] },
         { id: "s3", type: "animation", anim: "poly-split", skill: "a5" },
         { id: "s4", type: "game", game: "split-shape", skill: "a5" },
+        { id: "s4b", type: "rive", lessons: [6], title: "Area Lab: awkward corners" },
         { id: "s5", type: "practice", questions: [
           mcq("d7p1", "a5", "Each small square is 1 cm². What is the area of this shape?", [
             bad("35 cm²", "7 × 5 is the whole box. The bottom-right corner isn't part of the shape."),
@@ -624,6 +625,7 @@
         ] },
         { id: "s3", type: "animation", anim: "units-10000", skill: "a6" },
         { id: "s4", type: "game", game: "floor-tiles", skill: "a6" },
+        { id: "s4b", type: "rive", lessons: [7], title: "Area Lab: square metres and square centimetres" },
         { id: "s5", type: "practice", questions: [
           num("d8p1", "a6", "A classroom floor is 5 m by 4 m. Its area = ? m²", 20, "5 × 4 = 20 m².",
             { unit: "m²", guards: ["perim"], wrongMixups: [{ value: 18, mixup: "perim", why: "18 is 5 + 4 + 5 + 4, the distance round. Area is 5 × 4 = 20." }] }),
@@ -788,6 +790,8 @@
   // ================= helpers (function declarations are hoisted) =================
   function ok(text) { return { text: text, correct: true }; }
   function bad(text, why, mixup) { var o = { text: text, why: why }; if (mixup) o.mixup = mixup; return o; }
+  /** this wrong answer plays the mistake replay `anim` (an anim id from anim/trap-fixes.js) before the question's retry */
+  function rep(option, anim) { option.replay = anim; return option; }
   function mcq(id, skill, prompt, options, explain, extra) {
     var q = { id: id, skill: skill, kind: "mcq", prompt: prompt, options: options, explain: explain };
     if (extra) Object.keys(extra).forEach(function (k) { q[k] = extra[k]; });
@@ -851,6 +855,23 @@
     if (o.top) p.push(F.label((xtl + xtr) / 2, 0.65, o.top));
     if (o.leg) p.push(F.label((xl + xtl) / 2 - 0.25, my + 0.3, o.leg, "end"));
     return F.wrap(W, H, p, { alt: o.alt || ("Trapezium" + (o.bot ? " with parallel sides " + o.top + " and " + o.bot : "") + "."), pad: 1.2 });
+  }
+  /* Three trapezium fields side by side, named P, Q, R: list = [[name, bottom, top, height], ...] in metres.
+     Drawn at half scale (no grid) so the labels stay readable in one wide figure. */
+  function trio(list, alt) {
+    var s = 0.5, gap = 1.6, x = 0, parts = [], H = 0;
+    list.forEach(function (f) { H = Math.max(H, f[3] * s); });
+    list.forEach(function (f) {
+      var bot = f[1] * s, top = f[2] * s, hh = f[3] * s, off = (bot - top) / 2, yb = H + 0.9, yt = yb - hh;
+      parts.push(F.poly([[x, yb], [x + bot, yb], [x + off + top, yt], [x + off, yt]]));
+      parts.push(F.line(x + off, yt, x + off, yb, "height"));
+      parts.push(F.label(x + off + top / 2, yt - 0.3, f[2] + " m"));
+      parts.push(F.label(x + bot / 2, yb + 0.75, f[1] + " m"));
+      parts.push(F.label(x + off + 0.15, (yt + yb) / 2 + 0.2, f[3] + " m", "start"));
+      parts.push('<text class="name" x="' + (x + bot / 2) + '" y="' + (yb + 1.75) + '" text-anchor="middle">' + f[0] + "</text>");
+      x += bot + gap;
+    });
+    return F.wrap(x - gap, H + 2.2, parts, { alt: alt, pad: 0.8 }).replace('class="t-figure"', 'class="t-figure t-figure-wide"');
   }
   /* Product decision (2026-11-16): no teacher-at-the-board step. Every lesson is a narrated
      Cogna audio-visual lesson (the animation steps), so teacher steps are removed from every day. */

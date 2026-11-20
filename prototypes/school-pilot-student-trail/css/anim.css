@@ -221,15 +221,49 @@
 
 /* field 2 (lean it) and field 3 (your turn) */
 .t-pf .t-pf-rectghost { fill: none; stroke: var(--ink-faint); stroke-width: 3; stroke-dasharray: 10 8; }
-.t-pf .t-pf-gap { fill: var(--caution-wash); stroke: var(--caution); stroke-width: 3; stroke-dasharray: 8 6; }
-.t-pf .t-pf-extra { fill: var(--caution); fill-opacity: 0.42; stroke: none; pointer-events: none; }
+/* gold means "the bit that moves, and where it goes": the slot (gap) and the bit that sticks out (extra) */
+.t-pf .t-pf-gap { fill: var(--pf-gold-wash); fill-opacity: 0.6; stroke: var(--pf-gold); stroke-width: 3; stroke-dasharray: 10 7; pointer-events: none; }
+.t-pf .t-pf-extra { fill: var(--pf-gold); fill-opacity: 0.3; stroke: var(--pf-gold); stroke-width: 3; stroke-dasharray: 10 7; pointer-events: none; }
+.t-pf .t-pf-over, .t-pf .t-pf-labs, .t-pf .t-pf-finger2 { pointer-events: none; }
+.t-pf .t-pf-tagbg { fill: var(--surface); stroke: var(--pf-gold); stroke-width: 3; }
+.t-pf .t-lesson-svg text.t-pf-tagtxt { font-size: 24px; font-weight: 700; fill: #7a4c08; stroke-width: 0; }
 .t-pf .t-pf-height { stroke: var(--ink); stroke-width: 3; stroke-dasharray: 9 7; }
 .t-pf .t-pf-mark { fill: none; stroke: var(--ink); stroke-width: 2.5; }
 .t-pf .t-pf-glow { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; }
-.t-pf .t-pf-handle { fill: var(--caution); stroke: var(--surface); stroke-width: 4; pointer-events: none; }
-.t-pf .t-pf-handle-ring { fill: none; stroke: var(--caution); stroke-width: 4; opacity: 0; pointer-events: none; }
+/* the handle: a gold knob with arrows, a soft shadow, and a ring that pulses until it is used */
+.t-pf .t-pf-handle { fill: var(--pf-gold); stroke: #fff; stroke-width: 4; pointer-events: none; }
+.t-pf .t-pf-handle-shadow { fill: var(--ink); opacity: 0.3; pointer-events: none; }
+.t-pf .t-pf-chev { fill: none; stroke: #fff; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.t-pf .t-pf-handle-ring { fill: none; stroke: var(--pf-gold); stroke-width: 4; opacity: 0; pointer-events: none; }
 .t-pf .t-pf-handleg.is-live .t-pf-handle-ring { opacity: 1; transform-box: fill-box; transform-origin: center; animation: t-ring 1.8s ease-out infinite; }
+.t-pf .t-pf-handleg.is-held .t-pf-handle-ring { opacity: 0; animation: none; }
+.t-pf .t-pf-finger-ring { fill: none; stroke: var(--ink); stroke-width: 3; }
 .t-pf .t-pf-hit { fill: transparent; cursor: grab; }
 .t-pf .t-pf-hit:focus { outline: none; }
 .t-pf .t-pf-hit:focus-visible { stroke: var(--accent); stroke-width: 4; outline: none; }
 @media (prefers-reduced-motion: reduce) { .t-pf .t-pf-handleg.is-live .t-pf-handle-ring { animation: none; } }
+
+/* ---------- tri-field / trap-field: the copy, its spin knob, and lines to tap ---------- */
+.t-pf .t-pf-piece.is-copy .t-pf-grass { fill: #9ccf8a; }
+.t-pf .t-pf-piece.is-copy .t-pf-edge { stroke: #5c9c55; }
+.t-pf .t-pf-twin .t-pf-hit { cursor: grab; }
+.t-pf .t-pf-twin .t-pf-handleg.is-held .t-pf-hit { cursor: grabbing; }
+.t-pf .t-pf-piece .t-pf-lift:focus { outline: none; }
+.t-pf .t-pf-piece .t-pf-lift:focus-visible .t-pf-edge { stroke: var(--focus); stroke-width: 7; }
+.t-tf .t-tf-pick { pointer-events: none; }
+.t-tf .t-tf-line { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; opacity: 0; transition: opacity 160ms, stroke 160ms, stroke-width 160ms; }
+.t-tf .t-tf-pick.is-drop .t-tf-line { opacity: 1; stroke-dasharray: 9 7; }
+.t-tf .t-tf-hitline { stroke: transparent; stroke-width: 34; stroke-linecap: round; }
+.t-tf .t-tf-pick.is-live .t-tf-hitline { pointer-events: stroke; cursor: pointer; }
+.t-tf .t-tf-pick.is-live:hover .t-tf-line, .t-tf .t-tf-pick.is-live .t-tf-hitline:focus-visible ~ .t-tf-line { opacity: 1; stroke: var(--pf-gold); stroke-width: 7; }
+.t-tf .t-tf-hitline:focus { outline: none; }
+.t-tf .t-tf-pick.is-live:has(.t-tf-hitline:focus-visible) .t-tf-line { opacity: 1; stroke: var(--focus); stroke-width: 7; }
+.t-tf .t-tf-pick.is-wrong .t-tf-line { opacity: 1; stroke: var(--pf-red); stroke-width: 7; stroke-dasharray: none; }
+.t-tf .t-tf-pick.is-hint .t-tf-line { stroke: var(--pf-gold); stroke-width: 6; animation: t-tf-blink 0.9s ease-in-out infinite; }
+.t-tf .t-tf-pick.is-correct .t-tf-line { opacity: 1; stroke: var(--pf-gold); stroke-width: 7; stroke-dasharray: none; }
+.t-tf .t-tf-mark3 { fill: none; stroke: var(--pf-gold); stroke-width: 4; pointer-events: none; }
+@keyframes t-tf-blink { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .t-tf .t-tf-pick.is-hint .t-tf-line { animation: none; } }
+.t-tf .t-tp-arrow { fill: none; stroke: #fff; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.t-tf .t-pf-bracket.is-copy { stroke: #5c9c55; }
+.t-tf .t-lesson-svg text.t-pf-dim.is-copy { fill: #3f7a39; }
