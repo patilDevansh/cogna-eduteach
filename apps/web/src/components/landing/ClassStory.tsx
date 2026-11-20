@@ -23,7 +23,7 @@ type Light = { gi: number; k: number; slot: number; col: number; row: number; ph
 /**
  * Forty lights are a class seated in rows. Scrolling brings one forward; it opens into that student's
  * working, Cogna catches the mistake, and the class regroups by what each student needs.
- * Drawn on a 2D canvas (soft orbs and dust need nothing heavier). Reduced motion keeps the beats, drops the drift.
+ * Drawn on a 2D canvas (soft orbs need nothing heavier). Reduced motion keeps the beats, drops the drift.
  */
 export function ClassStory() {
   const root = useRef<HTMLElement>(null);
@@ -39,7 +39,6 @@ export function ClassStory() {
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 
-    const dust = Array.from({ length: 500 }, () => [(rnd() - 0.5) * 60, (rnd() - 0.5) * 36, (rnd() - 0.5) * 40 - 6]);
     const lights: Light[] = [];
     GROUPS.forEach((g, gi) => { for (let k = 0; k < g.n; k++) lights.push({ gi, k } as Light); });
     const slots = lights.map((_, i) => i).sort(() => rnd() - 0.5);
@@ -83,14 +82,6 @@ export function ClassStory() {
         const dz = camZ - z;
         return dz < 0.1 ? null : { x: w / 2 + ((x - cx) * f) / dz, y: h / 2 - ((y - cy) * f) / dz, k: f / dz };
       };
-
-      // dust, slowly turning
-      const a = t * 0.012, ca = Math.cos(a), sa = Math.sin(a);
-      ctx!.fillStyle = "rgba(143, 179, 163, 0.35)";
-      for (const [x, y, z] of dust) {
-        const q = proj(x * ca + z * sa, y, -x * sa + z * ca);
-        if (q) { const s = Math.max(1, 0.07 * q.k); ctx!.fillRect(q.x - s / 2, q.y - s / 2, s, s); }
-      }
 
       const come = ease(range(p, 0.14, 0.45)) * (1 - ease(range(p, 0.7, 0.8)));
       const regroup = ease(range(p, 0.8, 0.9));

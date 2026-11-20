@@ -16,6 +16,8 @@
   height: 100dvh;
   overflow: hidden;
   background:
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 28px 28px,
     radial-gradient(60% 50% at 30% 20%, rgba(242, 177, 52, 0.1), transparent 70%),
     radial-gradient(80% 70% at 50% 45%, #e6f0e9, #f5f2ea 72%);
 }
