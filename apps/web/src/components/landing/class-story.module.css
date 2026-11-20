@@ -1,6 +1,6 @@
 /* Scroll story: a pinned field of forty soft orbs, an iris into a sheet of paper, then the class regrouped. */
 .story {
-  --serif: "Fraunces", Georgia, serif;
+  --serif: var(--font-serif);
   --ink-blue: #1f2f4f;
   --rule: #d3dde6;
   --margin: #e2a1a1;
