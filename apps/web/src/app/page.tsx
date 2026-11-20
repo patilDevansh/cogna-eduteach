@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/ui";
-import { Maths } from "@/components/maths";
+import { HeroPractice } from "@/components/landing/HeroPractice";
 import { InteractiveMicroscope } from "@/components/landing/InteractiveMicroscope";
 import styles from "./landing.module.css";
 
@@ -51,37 +51,7 @@ export default function Landing() {
             </nav>
           </div>
 
-          <div className={styles.stage} aria-hidden="true">
-            <div className={styles.practice}>
-              <div className={styles.practiceTop}>
-                <span>Question 4 of 8</span>
-                <span className={styles.bar}><i /></span>
-              </div>
-              <p className={styles.prompt}>Solve for <Maths>x</Maths></p>
-              <ol className={styles.lines}>
-                <li><Maths>3(x + 4) = 21</Maths></li>
-                <li className={styles.flagged}>
-                  <Maths>3x + 4 = 21</Maths>
-                  <span className={styles.flag}>Check this line</span>
-                </li>
-                <li className={styles.fixed}><Maths>3x + 12 = 21</Maths></li>
-              </ol>
-              <div className={styles.hint}>
-                <strong>Hint</strong>
-                <span>The 3 multiplies everything inside the bracket, the 4 as well.</span>
-              </div>
-            </div>
-            <div className={`${styles.float} ${styles.caught}`}>
-              <span className={styles.dot} />
-              Caught at line 2 · bracket expansion
-            </div>
-            <div className={`${styles.float} ${styles.ready}`}>
-              <span>Grade 8 · Section A</span>
-              <strong>27 of 34</strong>
-              <em>ready to move on</em>
-              <span className={styles.miniBar}><i /></span>
-            </div>
-          </div>
+          <HeroPractice />
         </section>
 
         <section className={styles.demo}>

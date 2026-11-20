@@ -76,7 +76,7 @@
 .roleMain .roleArrow { color: #fff; }
 
 /* ---------- the product stage ---------- */
-.stage { position: relative; padding: 2.4rem 0 5.8rem 2.2rem; isolation: isolate; }
+.stage { --px: 0; --py: 0; position: relative; padding: 2.4rem 0 5.8rem 2.2rem; isolation: isolate; }
 .stage::before {
   content: ""; position: absolute; inset: 0 -6% -4% 10%; z-index: -1;
   background: radial-gradient(closest-side, rgba(14, 107, 84, 0.16), transparent 72%);
@@ -85,6 +85,8 @@
   max-width: 460px; margin-left: auto;
   background: #fff; border-radius: 24px; border: 1px solid rgba(22, 36, 29, 0.06);
   padding: clamp(1.25rem, 2.4vw, 1.85rem); box-shadow: var(--shadow-3);
+  transform: perspective(1400px) rotateX(calc(var(--py) * -6deg)) rotateY(calc(var(--px) * 7deg));
+  transition: transform 600ms var(--ease-settle);
 }
 .practiceTop { display: flex; align-items: center; gap: 0.8rem; font-size: var(--text-xs); font-weight: 600; color: var(--ink-faint); }
 .bar, .miniBar { flex: 1; height: 8px; border-radius: 99px; background: #e8eee9; overflow: hidden; }
@@ -102,36 +104,56 @@
 }
 .lines li:nth-child(1) { animation-delay: 250ms; }
 .lines li:nth-child(2) { animation-delay: 650ms; }
-.lines li:nth-child(3) { animation-delay: 2300ms; }
 
 .lines .flagged { background: var(--caution-wash); animation: rise 600ms var(--ease-settle) 650ms both, flagIn 500ms var(--ease-settle) 1400ms both; }
-.flagged :global(.maths) { text-decoration: line-through 2px rgba(162, 102, 13, 0.5); animation: strike 400ms ease 2300ms both; }
+.flagged :global(.maths) { text-decoration: line-through 2px transparent; transition: text-decoration-color 400ms ease; }
+.struck :global(.maths) { text-decoration-color: rgba(162, 102, 13, 0.5); }
+.struck .flag { color: var(--accent-deep); }
 .flag {
   font-size: 0.72rem; font-weight: 700; color: var(--caution); white-space: nowrap;
   background: #fff; border-radius: 99px; padding: 0.2rem 0.6rem; box-shadow: var(--shadow-1);
   animation: pop 450ms var(--spring) 1500ms both;
 }
-.lines .fixed { background: var(--success-wash); color: var(--accent-deep); }
+.lines .fixed { background: var(--success-wash); color: var(--accent-deep); animation: pop 520ms var(--spring) both; }
+
+.ask { margin-top: 1rem; animation: rise 600ms var(--ease-settle) 1700ms both; }
+.ask p { font-size: var(--text-sm); font-weight: 600; color: var(--ink-soft); }
+.choices { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+.choice {
+  min-height: 44px; padding: 0.45rem 0.85rem; border-radius: 12px; cursor: pointer;
+  font-size: 1.15rem; color: #10201a; background: #fff; border: 1px solid var(--line-strong); box-shadow: var(--shadow-1);
+  transition: transform 220ms var(--spring), border-color 180ms ease, box-shadow 220ms ease;
+}
+.choice:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow-2); }
+.choice:active { transform: scale(0.97); }
+.choice:focus-visible { outline: none; box-shadow: var(--ring); }
+.choice.nope { cursor: default; transform: none; color: #9a4a37; background: #fff4f0; border-color: #e3b6aa; box-shadow: none; animation: shake 380ms ease; }
+@keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 
 .hint {
   margin-top: 1rem; display: grid; gap: 0.15rem;
   padding: 0.85rem 1rem; border-radius: 14px; background: #f5f8f6; border: 1px solid var(--line);
   font-size: var(--text-sm); color: var(--ink-soft); line-height: 1.45;
-  animation: rise 600ms var(--ease-settle) 2900ms both;
+  animation: rise 500ms var(--ease-settle) both;
 }
 .hint strong { font-size: var(--text-xs); color: var(--accent-deep); }
+.hintDone { background: var(--success-wash); border-color: rgba(14, 107, 84, 0.18); }
+.again { justify-self: start; margin-top: 0.35rem; padding: 0; background: none; border: 0; font-weight: 600; color: var(--accent-deep); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
 .float {
   position: absolute; z-index: 1;
   background: rgba(255, 255, 255, 0.94); border: 1px solid rgba(22, 36, 29, 0.07);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   border-radius: 16px; box-shadow: var(--shadow-2); font-size: var(--text-sm);
+  translate: calc(var(--px) * -22px) calc(var(--py) * -16px);
+  transition: translate 600ms var(--ease-settle);
 }
 .caught {
   top: 0.4rem; left: 0; display: flex; align-items: center; gap: 0.55rem;
   padding: 0.6rem 0.95rem; font-weight: 600; color: var(--ink);
   animation: pop 500ms var(--spring) 1700ms both, drift 7s ease-in-out 2.4s infinite;
 }
+.caughtDone .dot { background: var(--accent); box-shadow: 0 0 0 4px rgba(14, 107, 84, 0.15); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--caution); box-shadow: 0 0 0 4px rgba(162, 102, 13, 0.15); }
 .ready {
   bottom: 0; left: -0.4rem; width: 220px; display: grid; gap: 0.3rem; padding: 0.95rem 1.05rem;
@@ -141,13 +163,13 @@
 .ready strong { font-family: var(--font-serif); font-weight: 500; font-size: 1.7rem; line-height: 1; letter-spacing: -0.02em; color: #10201a; font-variation-settings: "opsz" 72; }
 .ready em { font-style: normal; font-size: var(--text-sm); color: var(--ink-soft); }
 .miniBar { height: 6px; margin-top: 0.3rem; flex: none; }
-.miniBar i { width: 79%; animation-delay: 3.6s; }
+.miniBar i { width: 79%; animation-delay: 3.6s; transition: width 900ms var(--spring); }
+.miniUp i { width: 82%; }
 
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(0.96); } }
 @keyframes grow { from { transform: scaleX(0); } }
 @keyframes flagIn { from { background-color: transparent; } }
-@keyframes strike { from { text-decoration-color: transparent; } }
 @keyframes drift { 50% { transform: translateY(-6px); } }
 
 /* ---------- demo ---------- */

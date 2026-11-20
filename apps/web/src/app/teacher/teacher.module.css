@@ -58,6 +58,10 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 24px 48px -24px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
+.storyGlimpse { transition: transform 400ms var(--spring), background-color 300ms ease, border-color 300ms ease; }
+.storyGlimpse:hover { transform: translateY(-4px) rotate(-0.6deg); background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.22); }
+.storyGlimpse:hover .glimpseBar i { width: 82%; }
+.glimpseBar i { transition: width 900ms var(--spring); }
 .storyGlimpse > span:first-child { font-size: .8rem; font-weight: 600; color: #a9c8bb; }
 .storyGlimpse strong { font-family: var(--font-serif); font-weight: 500; font-size: 2rem; line-height: 1; letter-spacing: -0.02em; font-variation-settings: "opsz" 72; }
 .storyGlimpse strong em { font-family: var(--font-body); font-style: normal; font-size: .95rem; font-weight: 500; letter-spacing: 0; color: #d7e8e0; margin-left: .4rem; }
