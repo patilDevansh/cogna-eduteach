@@ -13,7 +13,8 @@ const MACHINE = "Login Machine";
 
 export type BuddyReaction = { kind: "thinking" | "right" | "wrong" | "idle"; n: number };
 
-export function PracticeBuddy({ reaction, className }: { reaction: BuddyReaction; className?: string }) {
+/** look: where the bear's eyes point, 0 (far left) to 100 (far right); defaults to straight ahead. */
+export function PracticeBuddy({ reaction, look: lookAt = 50, className }: { reaction: BuddyReaction; look?: number; className?: string }) {
   const [ready, setReady] = useState(false);
   const { rive, RiveComponent } = useRive({ src: BUDDY_SRC, stateMachines: MACHINE, autoplay: true, onLoad: () => setReady(true) });
   const checking = useStateMachineInput(rive, MACHINE, "isChecking");
@@ -26,11 +27,14 @@ export function PracticeBuddy({ reaction, className }: { reaction: BuddyReaction
     // Decoration only: a missing or torn-down bear must never break practice.
     try {
       if (checking) checking.value = reaction.kind === "thinking";
-      if (look) look.value = 50;
       if (reaction.kind === "right") success?.fire();
       if (reaction.kind === "wrong") fail?.fire();
     } catch { /* bear gone */ }
-  }, [reaction, rive, checking, look, success, fail]);
+  }, [reaction, rive, checking, success, fail]);
+
+  useEffect(() => {
+    try { if (rive && look) look.value = lookAt; } catch { /* bear gone */ }
+  }, [lookAt, rive, look]);
 
   // Hidden until loaded, so an offline or blocked fetch leaves no empty frame.
   return (
