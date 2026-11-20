@@ -1,0 +1,94 @@
+/* Scroll story: a pinned field of forty soft orbs, an iris into a sheet of paper, then the class regrouped. */
+.story {
+  --serif: var(--font-serif);
+  --ink-blue: #1f2f4f;
+  --rule: #d3dde6;
+  --margin: #e2a1a1;
+  --amber: #a2660d;
+  --amber-wash: #f7eedd;
+  position: relative;
+  height: 700vh;
+}
+
+.pin {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.tint {
+  position: absolute; inset: 0; opacity: var(--enter, 1);
+  background:
+    radial-gradient(60% 50% at 30% 20%, rgba(242, 177, 52, 0.1), transparent 70%),
+    radial-gradient(80% 70% at 50% 45%, rgba(214, 233, 220, 0.6), rgba(247, 240, 226, 0.55) 72%);
+}
+
+.canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.layer { position: absolute; inset: 0; pointer-events: none; }
+
+.serif { font-family: var(--serif); font-weight: 300; letter-spacing: -0.02em; font-variation-settings: "opsz" 144, "SOFT" 60; }
+.serif em { font-style: italic; color: var(--accent); }
+
+.cap { position: absolute; left: 50%; bottom: max(8dvh, 44px); width: min(92%, 680px); transform: translateX(-50%); text-align: center; opacity: 0; }
+.cap h2 { font-size: clamp(1.7rem, 4.4vw, 3rem); line-height: 1.06; color: var(--ink); text-wrap: balance; }
+.cap p { margin-top: 8px; color: var(--ink-soft); }
+
+/* the paper: a light that opens like an iris; the wrapper's shadow follows the circle */
+.paperWrap { position: absolute; inset: 0; filter: drop-shadow(0 24px 48px rgba(12, 52, 40, 0.18)); }
+.paper {
+  position: absolute; inset: 0; clip-path: circle(0% at 50% 50%);
+  display: grid; place-items: center; padding-inline: var(--s-4);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .28 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(90% 80% at 50% 40%, #ffffff, #f6f2e8);
+}
+.sheet { position: relative; width: min(100%, 640px); padding-left: 68px; }
+.sheet::before { content: ""; position: absolute; top: -40vh; bottom: -40vh; left: 48px; width: 2px; background: var(--margin); opacity: 0.7; }
+.rules { position: absolute; left: -50vw; right: -50vw; top: -40vh; bottom: -40vh; z-index: -1; opacity: 0.8; background: repeating-linear-gradient(transparent 0 47px, var(--rule) 47px 48px); background-position: 0 30px; }
+.say { font-size: clamp(1.3rem, 3vw, 1.9rem); margin-bottom: 26px; color: var(--ink); }
+.q { font-size: 0.82rem; font-weight: 600; color: var(--ink-soft); height: 48px; display: flex; align-items: center; }
+.lines { list-style: none; margin: 0; padding: 0; }
+.lines li {
+  position: relative; height: 48px; display: flex; align-items: center; gap: 14px; opacity: 0;
+  font: 300 clamp(1.7rem, 5.6vw, 2.3rem) var(--serif); letter-spacing: -0.01em; font-variation-settings: "opsz" 96, "SOFT" 60; color: var(--ink-blue);
+}
+.w { position: relative; white-space: nowrap; clip-path: inset(-20% var(--clip, 100%) -20% 0); }
+.flag::after { content: ""; position: absolute; inset: 3px auto 3px -16px; width: calc(100% + 32px); max-width: 560px; border-radius: 10px; background: var(--amber-wash); z-index: -1; opacity: var(--glow, 0); }
+.strike { position: absolute; left: 0; top: 54%; height: 2.5px; border-radius: 2px; background: rgba(162, 102, 13, 0.6); width: var(--strike, 0%); }
+.note { font-size: 0.74rem; font-weight: 700; color: var(--amber); background: #fff; border-radius: 99px; padding: 5px 11px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 18px -8px rgba(0, 0, 0, 0.25); opacity: var(--note, 0); transform: translateY(calc((1 - var(--note, 0)) * 6px)); }
+.lines li.fix { font: 500 clamp(1.4rem, 4.6vw, 1.8rem) var(--font-math); color: var(--accent-deep); }
+.fix::before { content: "Cogna"; position: absolute; left: -64px; font: 700 0.64rem var(--font-body); letter-spacing: 0.05em; color: var(--accent); }
+
+.chip { position: absolute; left: 0; top: 0; translate: -50% -100%; display: grid; justify-items: center; gap: 2px; opacity: 0; text-align: center; }
+.chip b { font: 400 1.6rem/1 var(--serif); color: var(--c); font-variation-settings: "opsz" 72; }
+.chip span { font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+
+.dash {
+  position: absolute; left: 50%; top: max(9dvh, 60px); translate: -50% 0; width: min(88vw, 360px);
+  padding: 18px 20px; border-radius: 22px; display: grid; gap: 6px; opacity: 0;
+  background: rgba(255, 255, 255, 0.78); border: 1px solid rgba(22, 36, 29, 0.06);
+  box-shadow: 0 2px 4px rgba(12, 52, 40, 0.05), 0 30px 60px -24px rgba(12, 52, 40, 0.3);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.dash > span:first-child { font-size: 0.78rem; font-weight: 600; color: var(--ink-faint); }
+.dash strong { font: 400 2.3rem/1 var(--serif); letter-spacing: -0.02em; }
+.dash strong em { font: 500 0.95rem var(--font-body); font-style: normal; color: var(--ink-soft); margin-left: 6px; }
+.bar { height: 6px; border-radius: 99px; background: #e3ebe5; overflow: hidden; }
+.bar i { display: block; height: 100%; width: calc(var(--fill, 0) * 67.5%); background: linear-gradient(90deg, #2c9b78, #4fc39b); border-radius: inherit; }
+.dash p { font-size: 0.9rem; color: var(--ink-soft); }
+.dash p b { color: var(--amber); font-weight: 600; }
+
+.rail { position: absolute; left: var(--s-4); top: 50%; translate: 0 -50%; display: grid; gap: 14px; }
+.rail span { display: flex; align-items: center; gap: 10px; font-size: 0.74rem; font-weight: 600; color: var(--ink-faint); transition: color 0.4s; }
+.rail span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; transition: transform 0.4s, box-shadow 0.4s; }
+.rail span[data-on="true"] { color: var(--accent-deep); }
+.rail span[data-on="true"]::before { transform: scale(1.5); box-shadow: 0 0 0 4px rgba(14, 107, 84, 0.15); }
+
+@media (max-width: 700px) {
+  .story { height: 600vh; }
+  .rail b { display: none; }
+  .sheet { padding-left: 56px; }
+  .sheet::before { left: 38px; }
+  .fix::before { left: -54px; }
+}
