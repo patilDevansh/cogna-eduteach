@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import styles from "@/app/landing.module.css";
 
-const WORDS = ["desk", "mistake", "question", "student"];
+const WORDS = ["desk", "mistake", "question", "step"];
 
 /** The last word of the hero headline, swapping every few seconds. Still for reduced motion. */
 export function KineticWord() {

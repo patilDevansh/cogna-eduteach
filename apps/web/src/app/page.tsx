@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TopBar } from "@/components/ui";
 import { KineticWord } from "@/components/landing/KineticWord";
+import { ClassStory } from "@/components/landing/ClassStory";
 import { InteractiveMicroscope } from "@/components/landing/InteractiveMicroscope";
 import styles from "./landing.module.css";
 
@@ -51,6 +52,9 @@ export default function Landing() {
             </Link>
           </div>
         </section>
+
+        {/* Scroll story: forty lights are a class; one opens into its working; the class regroups by need. */}
+        <ClassStory />
 
         {/* Live Interactive Verification Demo */}
         <InteractiveMicroscope />
