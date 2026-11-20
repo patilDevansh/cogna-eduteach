@@ -155,7 +155,9 @@ export function ClassStory() {
       draw(cur, calm ? 0 : (now - t0) / 1000);
       raf = visible ? requestAnimationFrame(loop) : 0;
     };
-    const onScroll = () => { target = read(); };
+    // the section's tint fades in over the screen-height before it pins
+    const tint = () => el.style.setProperty("--enter", String(clamp(1 - el.getBoundingClientRect().top / innerHeight)));
+    const onScroll = () => { target = read(); tint(); };
     const onMove = (e: PointerEvent) => { if (e.pointerType === "mouse" && !calm) { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; } };
     // only animate while the story is on screen
     const io = new IntersectionObserver(([entry]) => {
@@ -163,7 +165,7 @@ export function ClassStory() {
       if (visible && !raf) raf = requestAnimationFrame(loop);
     });
     const ro = new ResizeObserver(size);
-    size();
+    size(); tint();
     io.observe(el); ro.observe(canvas);
     addEventListener("scroll", onScroll, { passive: true });
     addEventListener("pointermove", onMove);
@@ -176,6 +178,7 @@ export function ClassStory() {
   return (
     <section ref={root} className={styles.story} aria-label="How Cogna sees a class">
       <div className={styles.pin}>
+        <div className={styles.tint} aria-hidden="true" />
         <canvas className={styles.canvas} aria-hidden="true" />
         <div className={styles.layer} aria-hidden="true">
           {GROUPS.map((g) => (
