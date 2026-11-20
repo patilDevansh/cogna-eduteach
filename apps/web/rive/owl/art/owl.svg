@@ -1,0 +1,199 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <!-- A spotted owlet (Athene brama). Each part that moves is its own group, drawn around its own pivot:
+       Owl at the feet, Head at the neck, wings at the shoulders, eyes at their centres, lids at their hinge. -->
+  <defs>
+    <radialGradient id="halo" cx="250" cy="250" r="235" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF4DD"/>
+      <stop offset="0.7" stop-color="#FFF4DD" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFF4DD" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bark" x1="0" y1="428" x2="0" y2="462" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9A6B45"/>
+      <stop offset="1" stop-color="#5B3B24"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="-14" x2="0" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9BD27C"/>
+      <stop offset="1" stop-color="#4E8E45"/>
+    </linearGradient>
+    <radialGradient id="body" cx="-40" cy="-175" r="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A88264"/>
+      <stop offset="0.55" stop-color="#7E5C42"/>
+      <stop offset="1" stop-color="#5A3F2C"/>
+    </radialGradient>
+    <radialGradient id="belly" cx="0" cy="-120" r="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF8EC"/>
+      <stop offset="1" stop-color="#EAD5B4"/>
+    </radialGradient>
+    <linearGradient id="wing" x1="0" y1="-5" x2="0" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7F5C41"/>
+      <stop offset="1" stop-color="#4A3122"/>
+    </linearGradient>
+    <linearGradient id="toe" x1="0" y1="-8" x2="0" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD067"/>
+      <stop offset="1" stop-color="#E3951C"/>
+    </linearGradient>
+    <radialGradient id="head" cx="-55" cy="-130" r="270" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#B08A69"/>
+      <stop offset="0.5" stop-color="#86644A"/>
+      <stop offset="1" stop-color="#5F4330"/>
+    </radialGradient>
+    <radialGradient id="disc" cx="0" cy="-70" r="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF9EF"/>
+      <stop offset="0.75" stop-color="#F3E4CB"/>
+      <stop offset="1" stop-color="#E4CFAC"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="-10" cy="-12" r="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFEA8F"/>
+      <stop offset="0.55" stop-color="#FFC22E"/>
+      <stop offset="1" stop-color="#EE860A"/>
+    </radialGradient>
+    <linearGradient id="lid" x1="0" y1="0" x2="0" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9C7758"/>
+      <stop offset="1" stop-color="#7A5A41"/>
+    </linearGradient>
+    <linearGradient id="beak" x1="0" y1="-18" x2="0" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD46A"/>
+      <stop offset="1" stop-color="#E28E1A"/>
+    </linearGradient>
+    <clipPath id="eyeClipL"><circle cx="0" cy="0" r="44"/></clipPath>
+    <clipPath id="eyeClipR"><circle cx="0" cy="0" r="44"/></clipPath>
+  </defs>
+
+  <circle id="Halo" cx="250" cy="250" r="235" fill="url(#halo)"/>
+
+  <g id="Branch">
+    <path d="M28 440 C 150 428 350 427 472 436 C 478 437 480 452 472 454 C 350 449 150 452 30 462 C 20 463 18 441 28 440 Z" fill="url(#bark)"/>
+    <path d="M40 442 C 150 432 340 431 462 439" fill="none" stroke="#B88A60" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+    <ellipse cx="120" cy="448" rx="9" ry="4" fill="#4B2F1C" opacity="0.45"/>
+    <ellipse cx="380" cy="445" rx="7" ry="3.5" fill="#4B2F1C" opacity="0.45"/>
+    <g id="LeavesL" transform="translate(52 440)">
+      <path d="M0 0 C -14 -10 -40 -10 -52 -2 C -40 8 -14 10 0 0 Z" fill="url(#leaf)" transform="rotate(-24)"/>
+      <path d="M0 0 C -14 -10 -40 -10 -52 -2 C -40 8 -14 10 0 0 Z" fill="url(#leaf)" transform="rotate(16)"/>
+      <path d="M-6 -2 L -44 -18" stroke="#D7F0C2" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+    </g>
+    <g id="LeavesR" transform="translate(450 436)">
+      <path d="M0 0 C 14 -10 40 -10 52 -2 C 40 8 14 10 0 0 Z" fill="url(#leaf)" transform="rotate(20)"/>
+      <path d="M0 0 C 14 -10 40 -10 52 -2 C 40 8 14 10 0 0 Z" fill="url(#leaf)" transform="rotate(-28)"/>
+      <path d="M6 -3 L 42 -24" stroke="#D7F0C2" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+    </g>
+  </g>
+
+  <ellipse id="Shadow" cx="250" cy="441" rx="92" ry="7" fill="#3B2A1D" opacity="0.2"/>
+
+  <g id="Owl" transform="translate(250 432)">
+    <path id="Tail" d="M-24 -14 L 24 -14 L 15 30 C 8 40 -8 40 -15 30 Z" fill="#5A3F2C"/>
+
+    <g id="Body">
+      <path d="M0 -234 C 72 -234 118 -172 118 -102 C 118 -40 68 -2 0 -2 C -68 -2 -118 -40 -118 -102 C -118 -172 -72 -234 0 -234 Z" fill="url(#body)"/>
+      <ellipse cx="0" cy="-86" rx="80" ry="84" fill="url(#belly)"/>
+      <g id="Chevrons" fill="none" stroke="#B48B63" stroke-width="3.2" stroke-linecap="round" opacity="0.8">
+        <path d="M-32 -142 Q -22 -134 -12 -142"/><path d="M12 -142 Q 22 -134 32 -142"/>
+        <path d="M-54 -120 Q -44 -112 -34 -120"/><path d="M-10 -120 Q 0 -112 10 -120"/><path d="M34 -120 Q 44 -112 54 -120"/>
+        <path d="M-64 -97 Q -54 -89 -44 -97"/><path d="M-28 -97 Q -18 -89 -8 -97"/><path d="M8 -97 Q 18 -89 28 -97"/><path d="M44 -97 Q 54 -89 64 -97"/>
+        <path d="M-58 -74 Q -48 -66 -38 -74"/><path d="M-20 -74 Q -10 -66 0 -74"/><path d="M18 -74 Q 28 -66 38 -74"/><path d="M50 -76 Q 56 -70 62 -76"/>
+        <path d="M-42 -51 Q -32 -43 -22 -51"/><path d="M-8 -51 Q 2 -43 12 -51"/><path d="M26 -51 Q 36 -43 46 -51"/>
+        <path d="M-22 -29 Q -12 -21 -2 -29"/><path d="M8 -29 Q 18 -21 28 -29"/>
+      </g>
+    </g>
+
+    <g id="Feet">
+      <g transform="translate(-34 -4)">
+        <ellipse cx="-11" cy="5" rx="6.5" ry="11" fill="url(#toe)" transform="rotate(18 -11 5)"/>
+        <ellipse cx="0" cy="7" rx="6.5" ry="12" fill="url(#toe)"/>
+        <ellipse cx="11" cy="5" rx="6.5" ry="11" fill="url(#toe)" transform="rotate(-18 11 5)"/>
+      </g>
+      <g transform="translate(34 -4)">
+        <ellipse cx="-11" cy="5" rx="6.5" ry="11" fill="url(#toe)" transform="rotate(18 -11 5)"/>
+        <ellipse cx="0" cy="7" rx="6.5" ry="12" fill="url(#toe)"/>
+        <ellipse cx="11" cy="5" rx="6.5" ry="11" fill="url(#toe)" transform="rotate(-18 11 5)"/>
+      </g>
+    </g>
+
+    <g id="WingL" transform="translate(-100 -168)">
+      <path d="M2 -4 C -26 8 -38 64 -27 116 C -20 144 4 150 19 130 C 32 100 28 30 12 -2 C 9 -7 6 -7 2 -4 Z" fill="url(#wing)"/>
+      <g fill="#F3E3C7" opacity="0.9">
+        <circle cx="-8" cy="30" r="4.5"/><circle cx="8" cy="46" r="4"/><circle cx="-16" cy="60" r="4.2"/>
+        <circle cx="2" cy="76" r="4"/><circle cx="-12" cy="92" r="3.6"/><circle cx="6" cy="104" r="3.4"/>
+      </g>
+      <path d="M-20 118 C -12 128 0 132 10 126 M-23 104 C -16 112 -6 116 4 112" fill="none" stroke="#33221A" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+    </g>
+    <g id="WingR" transform="translate(100 -168)">
+      <path d="M-2 -4 C 26 8 38 64 27 116 C 20 144 -4 150 -19 130 C -32 100 -28 30 -12 -2 C -9 -7 -6 -7 -2 -4 Z" fill="url(#wing)"/>
+      <g fill="#F3E3C7" opacity="0.9">
+        <circle cx="8" cy="30" r="4.5"/><circle cx="-8" cy="46" r="4"/><circle cx="16" cy="60" r="4.2"/>
+        <circle cx="-2" cy="76" r="4"/><circle cx="12" cy="92" r="3.6"/><circle cx="-6" cy="104" r="3.4"/>
+      </g>
+      <path d="M20 118 C 12 128 0 132 -10 126 M23 104 C 16 112 6 116 -4 112" fill="none" stroke="#33221A" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+    </g>
+
+    <g id="Head" transform="translate(0 -205)">
+      <path d="M-150 -80 C -150 -128 -142 -160 -126 -184 C -100 -165 -62 -153 0 -153 C 62 -153 100 -165 126 -184 C 142 -160 150 -128 150 -80 C 150 -10 84 28 0 28 C -84 28 -150 -10 -150 -80 Z" fill="url(#head)"/>
+      <g fill="#F6E8D0" opacity="0.85">
+        <circle cx="-100" cy="-160" r="4"/><circle cx="-76" cy="-157" r="3.4"/><circle cx="-118" cy="-146" r="3.2"/>
+        <circle cx="100" cy="-160" r="4"/><circle cx="76" cy="-157" r="3.4"/><circle cx="118" cy="-146" r="3.2"/>
+        <circle cx="0" cy="-138" r="3.4"/><circle cx="-20" cy="-145" r="3"/><circle cx="20" cy="-145" r="3"/>
+        <circle cx="-140" cy="-100" r="3"/><circle cx="140" cy="-100" r="3"/>
+      </g>
+      <path d="M-126 -184 C -120 -166 -112 -158 -98 -152 M-130 -170 C -126 -160 -120 -154 -110 -150 M126 -184 C 120 -166 112 -158 98 -152 M130 -170 C 126 -160 120 -154 110 -150" fill="none" stroke="#4A3324" stroke-width="2.6" stroke-linecap="round" opacity="0.55"/>
+      <path d="M0 -110 C 22 -140 70 -152 104 -128 C 136 -104 134 -52 108 -28 C 80 -2 34 0 0 -6 C -34 0 -80 -2 -108 -28 C -134 -52 -136 -104 -104 -128 C -70 -152 -22 -140 0 -110 Z" fill="url(#disc)" stroke="#6B4A33" stroke-opacity="0.22" stroke-width="3"/>
+      <ellipse cx="-97" cy="-40" rx="17" ry="10" fill="#F2A09B" opacity="0.5"/>
+      <ellipse cx="97" cy="-40" rx="17" ry="10" fill="#F2A09B" opacity="0.5"/>
+
+      <g id="EyeL" transform="translate(-54 -80)">
+        <circle r="51" fill="#E2CBA6" opacity="0.7"/>
+        <circle r="44" fill="#2A1C12"/>
+        <circle r="39" fill="url(#iris)"/>
+        <g id="PupilL">
+          <circle r="22" fill="#1B120B"/>
+          <circle cx="-8" cy="-9" r="9" fill="#FFFFFF" opacity="0.95"/>
+          <circle cx="9" cy="8" r="4" fill="#FFFFFF" opacity="0.85"/>
+        </g>
+        <g id="LidsL" clip-path="url(#eyeClipL)">
+          <g id="LidL" transform="translate(0 -46)">
+            <path d="M-52 -2 L 52 -2 L 52 66 C 32 96 -32 96 -52 66 Z" fill="url(#lid)" stroke="#2A1C12" stroke-width="3.5"/>
+          </g>
+          <g id="LowLidL" transform="translate(0 46)">
+            <path d="M-52 2 L 52 2 L 52 -58 C 32 -88 -32 -88 -52 -58 Z" fill="#F3E4CB" stroke="#2A1C12" stroke-width="3.5"/>
+          </g>
+        </g>
+      </g>
+      <g id="EyeR" transform="translate(54 -80)">
+        <circle r="51" fill="#E2CBA6" opacity="0.7"/>
+        <circle r="44" fill="#2A1C12"/>
+        <circle r="39" fill="url(#iris)"/>
+        <g id="PupilR">
+          <circle r="22" fill="#1B120B"/>
+          <circle cx="-8" cy="-9" r="9" fill="#FFFFFF" opacity="0.95"/>
+          <circle cx="9" cy="8" r="4" fill="#FFFFFF" opacity="0.85"/>
+        </g>
+        <g id="LidsR" clip-path="url(#eyeClipR)">
+          <g id="LidR" transform="translate(0 -46)">
+            <path d="M-52 -2 L 52 -2 L 52 66 C 32 96 -32 96 -52 66 Z" fill="url(#lid)" stroke="#2A1C12" stroke-width="3.5"/>
+          </g>
+          <g id="LowLidR" transform="translate(0 46)">
+            <path d="M-52 2 L 52 2 L 52 -58 C 32 -88 -32 -88 -52 -58 Z" fill="#F3E4CB" stroke="#2A1C12" stroke-width="3.5"/>
+          </g>
+        </g>
+      </g>
+
+      <g id="Beak" transform="translate(0 -40)">
+        <path d="M-15 -8 C -13 -19 13 -19 15 -8 L 3.5 22 C 1.5 27 -1.5 27 -3.5 22 Z" fill="url(#beak)"/>
+        <ellipse cx="-5" cy="-8" rx="5" ry="3" fill="#FFFFFF" opacity="0.45"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="Thought" opacity="0">
+    <circle id="Dot1" cx="388" cy="92" r="7" fill="#FFFFFF" stroke="#D9C7A8" stroke-width="2"/>
+    <circle id="Dot2" cx="410" cy="68" r="9" fill="#FFFFFF" stroke="#D9C7A8" stroke-width="2"/>
+    <circle id="Dot3" cx="436" cy="40" r="12" fill="#FFFFFF" stroke="#D9C7A8" stroke-width="2"/>
+  </g>
+
+  <g id="Sparkles" opacity="0" transform="translate(250 200)">
+    <path d="M-155 -95 Q -152 -84 -141 -81 Q -152 -78 -155 -67 Q -158 -78 -169 -81 Q -158 -84 -155 -95 Z" fill="#FFD25E"/>
+    <path d="M160 -120 Q 164 -105 179 -101 Q 164 -97 160 -82 Q 156 -97 141 -101 Q 156 -105 160 -120 Z" fill="#FFD25E"/>
+    <path d="M176 18 Q 179 28 189 31 Q 179 34 176 44 Q 173 34 163 31 Q 173 28 176 18 Z" fill="#FFE9A6"/>
+    <path d="M-175 40 Q -171 54 -157 58 Q -171 62 -175 76 Q -179 62 -193 58 Q -179 54 -175 40 Z" fill="#FFD25E"/>
+    <path d="M-20 -190 Q -17 -180 -7 -177 Q -17 -174 -20 -164 Q -23 -174 -33 -177 Q -23 -180 -20 -190 Z" fill="#FFE9A6"/>
+  </g>
+</svg>
