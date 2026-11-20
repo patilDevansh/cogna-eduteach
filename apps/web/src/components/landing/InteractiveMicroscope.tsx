@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Maths } from "@/components/maths";
 import styles from "./interactive-microscope.module.css";
 
 interface ExampleCase {
@@ -42,7 +43,7 @@ const CASES: ExampleCase[] = [
       enteredNote: "The 3 multiplied x, but missed the +4 inside the bracket.",
       correctMath: "3(x + 4) → 3x + 12",
       correctNote: "3 is multiplied by every term: 3·x + 3·4 = 3x + 12.",
-      ruleTitle: "The mathematical invariant",
+      ruleTitle: "The rule",
       ruleText: "A bracket factor multiplies the entire sum inside, not just the leading variable.",
     },
   },
@@ -62,7 +63,7 @@ const CASES: ExampleCase[] = [
       enteredNote: "The negative was preserved on y, but dropped when expanding the second term.",
       correctMath: "−2 × (−5) → +10",
       correctNote: "Negative multiplied by negative gives positive 10: −2y + 10 = 16.",
-      ruleTitle: "The mathematical invariant",
+      ruleTitle: "The rule",
       ruleText: "When multiplying signed factors, (−a) × (−b) = +ab.",
     },
   },
@@ -82,11 +83,22 @@ const CASES: ExampleCase[] = [
       enteredNote: "Subtracted 2x from both sides, but subtracted 7 instead of adding 7 to cancel −7.",
       correctMath: "8 + 7 → 15",
       correctNote: "To eliminate −7 on the left, add 7 to both sides: 3x = 15 → x = 5.",
-      ruleTitle: "The mathematical invariant",
+      ruleTitle: "The rule",
       ruleText: "Inverse operations undo terms: add to cancel subtraction across the equal sign.",
     },
   },
 ];
+
+/** "a → b": each side stays whole, so a narrow box breaks the line only at the arrow. */
+function Rewrite({ text }: { text: string }) {
+  const [from, to] = text.split(" → ");
+  return (
+    <span className={styles.contrastMath}>
+      <Maths>{from ?? text}</Maths>
+      {to !== undefined && <> → <Maths>{to}</Maths></>}
+    </span>
+  );
+}
 
 export function InteractiveMicroscope() {
   const [activeCaseId, setActiveCaseId] = useState<string>("brackets");
@@ -107,9 +119,9 @@ export function InteractiveMicroscope() {
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          Mistake Microscope · Live Verification
+          Mistake microscope
         </div>
-        <span className={styles.hint}>Click any case to inspect where algebra breaks</span>
+        <span className={styles.hint}>Pick a line to look at it closely</span>
       </div>
 
       <div className={styles.tabs} role="tablist">
@@ -124,7 +136,7 @@ export function InteractiveMicroscope() {
               onClick={() => selectCase(c.id)}
             >
               <span>{c.name}</span>
-              <span className={styles.tabMath}>({c.equation})</span>
+              <Maths className={styles.tabMath}>{c.equation}</Maths>
             </button>
           );
         })}
@@ -133,7 +145,7 @@ export function InteractiveMicroscope() {
       <div className={styles.body}>
         {/* Left: Steps */}
         <div className={styles.stepList}>
-          <div className={styles.stepTitle}>Step-by-step verification</div>
+          <div className={styles.stepTitle}>Each line, checked</div>
           {activeCase.steps.map((step, idx) => {
             const isSelected = idx === selectedStepIndex;
             return (
@@ -145,7 +157,7 @@ export function InteractiveMicroscope() {
                 }`}
                 onClick={() => setSelectedStepIndex(idx)}
               >
-                <span>{step.text}</span>
+                <Maths>{step.text}</Maths>
                 <span
                   className={`${styles.stepLabel} ${step.isBroken ? styles.stepLabelBroken : ""} ${
                     isSelected ? styles.stepLabelActive : ""
@@ -166,14 +178,14 @@ export function InteractiveMicroscope() {
 
           <div className={styles.contrastRow}>
             <div className={`${styles.contrastBox} ${styles.contrastBoxBroken}`}>
-              <span className={`${styles.contrastTag} ${styles.contrastTagBroken}`}>Student step entered</span>
-              <span className={styles.contrastMath}>{activeCase.breakdown.enteredMath}</span>
+              <span className={`${styles.contrastTag} ${styles.contrastTagBroken}`}>What the student wrote</span>
+              <Rewrite text={activeCase.breakdown.enteredMath} />
               <span className={styles.contrastDesc}>{activeCase.breakdown.enteredNote}</span>
             </div>
 
             <div className={`${styles.contrastBox} ${styles.contrastBoxCorrect}`}>
-              <span className={`${styles.contrastTag} ${styles.contrastTagCorrect}`}>Deterministic balance</span>
-              <span className={styles.contrastMath}>{activeCase.breakdown.correctMath}</span>
+              <span className={`${styles.contrastTag} ${styles.contrastTagCorrect}`}>The correct step</span>
+              <Rewrite text={activeCase.breakdown.correctMath} />
               <span className={styles.contrastDesc}>{activeCase.breakdown.correctNote}</span>
             </div>
           </div>

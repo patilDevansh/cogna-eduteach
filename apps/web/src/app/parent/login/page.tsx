@@ -60,7 +60,7 @@ export default function ParentLoginPage() {
 
   if (isClerkEnabled()) {
     return (
-      <div className={styles.stage}>
+      <div className={`${styles.stage} grain`}>
         <Chrome />
         <div className={`${styles.parentWrap} phase-in`}>
           <div className={styles.parentCard}>
@@ -105,7 +105,7 @@ export default function ParentLoginPage() {
   }
 
   return (
-    <div className={styles.stage}>
+    <div className={`${styles.stage} grain`}>
       <Chrome />
       <div className={`${styles.parentWrap} phase-in`}>
         <div className={styles.parentCard}>

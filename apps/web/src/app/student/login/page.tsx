@@ -55,7 +55,7 @@ export default function StudentLoginPage() {
   }
 
   return (
-    <div className={styles.stage}>
+    <div className={`${styles.stage} grain`}>
       <div className={styles.chrome}>
         <Link href="/" className="wordmark">
           Cogna<span className="dot">.</span>
@@ -66,21 +66,6 @@ export default function StudentLoginPage() {
       </div>
 
       <div className={`${styles.studentCard} phase-in`}>
-        <div className={styles.pathArt}>
-          <svg viewBox="0 0 200 60" aria-hidden="true">
-            <path
-              d="M 10 45 C 45 10, 75 55, 110 25 S 165 10, 190 25"
-              fill="none"
-              stroke="var(--line-strong)"
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-            <circle cx="10" cy="45" r="6" fill="var(--accent)" />
-            <circle cx="110" cy="25" r="5" fill="var(--accent-deep)" />
-            <circle cx="190" cy="25" r="5" fill="var(--line-strong)" />
-          </svg>
-        </div>
-
         <div className={styles.loginHead}>
           <h1>Let&apos;s pick up where you left off</h1>
           <p>Enter your sign-in code to continue.</p>
@@ -109,15 +94,6 @@ export default function StudentLoginPage() {
           </button>
         </form>
 
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={useDemoCode}
-          disabled={loading}
-        >
-          Use demo code
-        </button>
-
         <p className={styles.helperLine}>
           Don&apos;t have a code? Ask your teacher, or the grown-up who set up your account.
         </p>
@@ -142,9 +118,14 @@ export default function StudentLoginPage() {
           </Link>
         </div>
 
-        <Link href="/prototype/classroom/join" className={styles.mockLink}>
-          Open mock classroom demo
-        </Link>
+        <div className={styles.demoRow}>
+          <button type="button" className={styles.demoButton} onClick={useDemoCode} disabled={loading}>
+            Use demo code
+          </button>
+          <Link href="/prototype/classroom/join" className={styles.demoButton}>
+            Open mock classroom
+          </Link>
+        </div>
       </div>
     </div>
   );

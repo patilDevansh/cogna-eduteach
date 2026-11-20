@@ -25,10 +25,22 @@
   --grid: rgba(14, 107, 84, 0.07);
   --focus: #0e6b54;
 
-  /* type */
-  --font-display: "Bricolage Grotesque", "Avenir Next", "Trebuchet MS", sans-serif;
-  --font-body: "Instrument Sans", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-math: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  /* type: the student voice is the friendly grotesque; parents and teachers also get the serif */
+  --font-display: var(--nf-display, "Bricolage Grotesque"), "Avenir Next", "Trebuchet MS", sans-serif;
+  --font-body: var(--nf-body, "Instrument Sans"), "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-math: var(--nf-mono, "IBM Plex Mono"), "SFMono-Regular", Consolas, monospace;
+  --font-serif: var(--nf-serif, "Fraunces"), Georgia, "Times New Roman", serif;
+  --font-maths: var(--nf-maths, "STIX Two Text"), "Cambria Math", "Times New Roman", serif;
+
+  /* depth: shadows carry the spruce hue, light from above */
+  --shadow-1: 0 1px 2px rgba(12, 52, 40, 0.06), 0 2px 6px -2px rgba(12, 52, 40, 0.06);
+  --shadow-2: 0 1px 2px rgba(12, 52, 40, 0.05), 0 12px 32px -14px rgba(12, 52, 40, 0.22);
+  --shadow-3: 0 2px 4px rgba(12, 52, 40, 0.05), 0 30px 60px -24px rgba(12, 52, 40, 0.32);
+  --ring: 0 0 0 4px rgba(14, 107, 84, 0.16);
+  --spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ambient-wash:
+    radial-gradient(1200px 520px at 78% -10%, rgba(242, 177, 52, 0.10), transparent 60%),
+    radial-gradient(900px 600px at 10% 0%, rgba(14, 107, 84, 0.09), transparent 62%);
 
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
@@ -54,7 +66,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; color-scheme: light; }
 body {
   margin: 0;
   background: var(--bg);
@@ -65,8 +77,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 { font-family: var(--font-display); line-height: 1.12; margin: 0; letter-spacing: -0.015em; }
-p { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.12; margin: 0; letter-spacing: -0.015em; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+::selection { background: rgba(14, 107, 84, 0.18); }
 a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 button { font: inherit; cursor: pointer; }
 input, select { font: inherit; }
@@ -121,16 +134,23 @@ input, select { font: inherit; }
   min-height: 48px;
   font-weight: 600;
   font-size: var(--text-md);
+  letter-spacing: -0.005em;
   text-decoration: none;
   transition: background-color var(--dur-fast) var(--ease-settle),
               transform var(--dur-fast) var(--ease-settle),
+              box-shadow var(--dur-fast) var(--ease-settle),
               border-color var(--dur-fast) var(--ease-settle);
 }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-deep); }
+/* A pressable surface: a lit top edge, a tinted drop, and a lift on hover. */
+.btn-primary {
+  background: linear-gradient(180deg, #13785f, var(--accent));
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 1px 2px rgba(8, 70, 58, 0.3), 0 8px 18px -10px rgba(8, 70, 58, 0.6);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #0f6e57, var(--accent-deep)); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 4px rgba(8, 70, 58, 0.3), 0 14px 26px -12px rgba(8, 70, 58, 0.6); }
 .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
-.btn-ghost:hover { border-color: var(--ink-soft); background: var(--surface); }
+.btn-ghost:hover { border-color: var(--ink-soft); background: var(--surface); box-shadow: var(--shadow-1); }
 .btn-quiet { background: transparent; color: var(--ink-soft); border: none; padding: 0.6rem 0.9rem; min-height: 44px; font-weight: 500; }
 .btn-quiet:hover { color: var(--ink); }
 .btn-lg { padding: 1rem 2rem; font-size: var(--text-lg); border-radius: var(--radius-lg); }
@@ -147,9 +167,12 @@ input, select { font: inherit; }
   min-height: 48px;
   color: var(--ink);
   width: 100%;
-  transition: border-color var(--dur-fast) var(--ease-settle);
+  box-shadow: inset 0 1px 2px rgba(12, 52, 40, 0.04);
+  transition: border-color var(--dur-fast) var(--ease-settle), box-shadow var(--dur-fast) var(--ease-settle);
 }
-.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-wash); }
+.input:hover { border-color: var(--ink-faint); }
+.input:focus { border-color: var(--accent); outline: none; box-shadow: var(--ring); }
+.input::placeholder { color: #a3b0a8; }
 .input-code {
   font-family: var(--font-math);
   font-size: var(--text-xl);
@@ -188,6 +211,12 @@ input, select { font: inherit; }
   overflow-wrap: anywhere;
 }
 .math-sm { font-family: var(--font-math); font-size: var(--text-lg); }
+/* Typeset maths (see components/maths.tsx): upright numbers, italic letters, spaced operators. */
+.maths { font-family: var(--font-maths); font-variant-numeric: lining-nums; letter-spacing: 0; white-space: nowrap; }
+.maths i { font-style: italic; padding-right: 0.04em; }
+
+/* Ambient page: a warm wash from above and a whisper of grain, instead of the graph paper. */
+.ambient { min-height: 100dvh; background: var(--ambient-wash), var(--bg); }
 
 /* ---------- phases & motion ---------- */
 @keyframes phase-in {

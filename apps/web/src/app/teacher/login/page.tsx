@@ -23,8 +23,14 @@ export default function TeacherLoginPage() {
         <Link href="/" className={styles.lightWordmark}>Cogna<span>.</span></Link>
         <div className={styles.storyCopy}>
           <p className="eyebrow" style={{ color: "#8ad2b8" }}>Teacher workspace</p>
-          <h1>Return to what your class needs next.</h1>
+          <h1>Return to what your class <em>needs next.</em></h1>
           <p>Your latest class evidence, readiness decision, and next teaching move are waiting in one concise view.</p>
+          <div className={styles.storyGlimpse} aria-hidden="true">
+            <span>Grade 8 · Section A</span>
+            <strong>27 of 34<em>ready to move on</em></strong>
+            <span className={styles.glimpseBar}><i /></span>
+            <p>Next move: reteach bracket expansion to 7 students.</p>
+          </div>
         </div>
         <p className={styles.trustNote}>Cogna reports what students demonstrated. It does not score or rank teachers.</p>
       </section>
