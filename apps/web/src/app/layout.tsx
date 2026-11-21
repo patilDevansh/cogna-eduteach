@@ -14,7 +14,7 @@ const maths = STIX_Two_Text({ subsets: ["latin"], style: ["normal", "italic"], v
 
 export const metadata: Metadata = {
   title: {
-    default: "Cogna — practice that pays attention",
+    default: "Cogna · A personal tutor at every desk",
     template: "%s — Cogna",
   },
   description:
