@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cogna · Cricket scene</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Mono:wght@500&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* Prototype: the bracket lesson as a cricket scene. Every cricket object is a piece of the maths. */
+  :root {
+    --out: #0f3d2e; --panel: #0a2b21; --cell: #061d16; --line: rgba(243, 236, 216, 0.16);
+    --cream: #f3ecd8; --soft: rgba(243, 236, 216, 0.62); --ball: #d2543a; --miss: #e9b949;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: #08241b; color: var(--cream); font-family: "Instrument Sans", system-ui, sans-serif; }
+  .stage {
+    position: relative; width: min(960px, 100%); padding: clamp(18px, 3vw, 30px); border-radius: 20px; overflow: hidden;
+    /* mown stripes */
+    background: repeating-linear-gradient(90deg, transparent 0 80px, rgba(255, 255, 255, 0.025) 80px 160px), var(--out);
+  }
+  header, footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  header { font-size: 13px; font-weight: 600; color: var(--soft); letter-spacing: 0.04em; margin-bottom: 18px; }
+  header b { color: var(--cream); }
+
+  /* scoreboard: the equation lives here */
+  .board { position: relative; background: var(--panel); border-radius: 14px; padding: 40px 22px 20px; display: grid; gap: 10px; font: 500 clamp(26px, 5vw, 44px) "IBM Plex Mono", ui-monospace, monospace; }
+  .ln { display: flex; align-items: center; gap: 8px; min-height: 1.6em; width: fit-content; padding-bottom: 6px; background: linear-gradient(var(--cream), var(--cream)) left bottom / 0 2px no-repeat; transition: background-size 720ms var(--ease); }
+  .ln.done { background-size: 100% 2px; }
+  .cell { font: inherit; color: inherit; min-width: 1.5em; padding: 0.08em 0.3em; text-align: center; background: var(--cell); border: 0; border-bottom: 2px solid transparent; border-radius: 6px; transform-origin: top; transition: opacity 420ms var(--ease), border-color 420ms var(--ease); }
+  .cell[data-tag] { position: relative; }
+  .cell[data-tag]::before { content: attr(data-tag); position: absolute; left: 50%; bottom: calc(100% + 7px); translate: -50% 0; font: 600 10px "Instrument Sans", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--soft); }
+  .cell.op { background: none; min-width: 0; padding: 0.08em 0; color: var(--soft); }
+  .cell.dim { opacity: 0.4; }
+  .cell.miss { border-bottom-color: var(--miss); }
+  button.cell:not(:disabled) { cursor: pointer; outline: 1.5px dashed var(--soft); outline-offset: 3px; }
+  button.cell:not(:disabled):hover, button.cell:focus-visible { outline: 2px solid var(--cream); }
+  button.cell:disabled { opacity: 1; }
+  button.cell.dim:disabled { opacity: 0.4; }
+  .replay { position: absolute; right: 16px; top: 14px; font: 600 11px "Instrument Sans", sans-serif; letter-spacing: 0.14em; color: var(--miss); opacity: 0; transition: opacity 240ms; }
+  .replay.on { opacity: 1; }
+
+  .field { display: grid; grid-template-columns: 1fr 400px; gap: 22px; align-items: center; margin-top: 20px; }
+  /* overs: one over is one copy of the bracket */
+  .overs { display: grid; gap: 10px; }
+  .over { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; }
+  .over small { width: 4.2em; font-size: 12px; font-weight: 600; color: var(--soft); }
+  .chip { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--soft); border-radius: 8px; font: italic 22px Georgia, serif; transition: background 240ms, color 240ms; }
+  .chip.on { background: var(--cream); color: var(--out); }
+  .plus { color: var(--soft); }
+  .dots { display: flex; gap: 7px; flex-wrap: wrap; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--soft); transition: background 240ms, border-color 240ms; }
+  .dot.missed { border-color: var(--miss); }
+  .dot.on { background: var(--cream); border-color: var(--cream); }
+  .tally { min-height: 1.5em; margin-top: 4px; font: 500 19px "IBM Plex Mono", monospace; color: var(--cream); padding-left: 14px; margin-top: 10px; }
+
+  /* wagon wheel: one shot per multiplication */
+  .wheel { width: 100%; height: auto; display: block; }
+  .wheel .rope { fill: none; stroke: var(--cream); stroke-opacity: 0.5; stroke-width: 1.5; transition: stroke-opacity 420ms; }
+  .wheel .rope.hit { stroke-opacity: 1; }
+  .wheel .ring { fill: none; stroke: var(--cream); stroke-opacity: 0.2; stroke-dasharray: 3 5; }
+  .wheel .pitch { fill: var(--cream); fill-opacity: 0.85; }
+  .wheel .shot { stroke: var(--cream); stroke-width: 1.5; stroke-dasharray: 1; }
+  .wheel text { fill: var(--cream); font: 500 14px "IBM Plex Mono", monospace; }
+
+  .cap { min-height: 3.2em; margin: 20px 0 14px; font: 500 clamp(17px, 2.4vw, 21px)/1.45 "Bricolage Grotesque", sans-serif; text-wrap: balance; }
+  .steps { display: flex; gap: 8px; }
+  .steps i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+  .steps i.on { background: var(--cream); }
+  .btn { font: 600 15px "Instrument Sans", sans-serif; color: var(--out); background: var(--cream); border: 0; border-radius: 999px; padding: 12px 22px; min-height: 44px; cursor: pointer; transition: opacity 240ms; }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  .btn.quiet { background: none; color: var(--soft); padding: 12px 8px; }
+  .btn:focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; }
+
+  .ball { position: absolute; left: 0; top: 0; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--ball); opacity: 0; pointer-events: none; }
+
+  @media (max-width: 680px) { .field { grid-template-columns: 1fr; } .wheel { max-width: 320px; margin: 0 auto; } }
+</style>
+</head>
+<body>
+<main class="stage">
+  <header><span><b>Cricket</b> · Opening a bracket</span><button class="btn quiet" id="again">Start again</button></header>
+
+  <section class="board" aria-live="polite">
+    <span class="replay" id="replay">REPLAY</span>
+    <div class="ln" id="l1"></div>
+    <div class="ln" id="l2"></div>
+  </section>
+
+  <section class="field">
+    <div>
+      <div class="overs" id="overs"></div>
+      <div class="tally" id="tally"></div>
+    </div>
+    <svg class="wheel" id="wheel" viewBox="-84 -6 408 252" aria-hidden="true"></svg>
+  </section>
+
+  <p class="cap" id="cap" aria-live="polite"></p>
+  <footer><div class="steps" id="steps"></div><button class="btn" id="next">Next</button></footer>
+  <i class="ball" id="ball"></i>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const EASE = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+const ms = (n) => (RM ? 1 : n);
+const sleep = (n) => new Promise((r) => setTimeout(r, ms(n)));
+const say = (t) => ($("cap").textContent = t);
+
+// k(a + b) = ra + rb. The maths is fixed here; the scene only shows it.
+const TEACH = { k: 3, a: "x", b: 4 };
+const TURN = { k: 2, a: "y", b: 5 };
+const products = (e) => ({ ra: `${e.k}${e.a}`, rb: String(e.k * e.b) });
+
+let ex, cells, bowled;
+
+function cell(text, op) {
+  const el = document.createElement(op ? "span" : "button");
+  el.className = "cell" + (op ? " op" : "");
+  el.textContent = text;
+  if (!op) el.disabled = true;
+  return el;
+}
+function flip(el, text) {
+  el.textContent = text;
+  return el.animate([{ transform: "rotateX(-90deg)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: ms(420), easing: EASE }).finished;
+}
+
+function setup(example) {
+  ex = example; bowled = { a: false, b: false };
+  cells = { k: cell(ex.k), a: cell(ex.a), b: cell(ex.b), ra: cell(" "), plus: cell(" ", true), rb: cell(" ") };
+  cells.k.dataset.tag = "overs"; cells.a.dataset.tag = "bat"; cells.b.dataset.tag = "extras";
+  $("l1").replaceChildren(cells.k, cell("(", true), cells.a, cell("+", true), cells.b, cell(")", true));
+  $("l2").replaceChildren(cell("=", true), cells.ra, cells.plus, cells.rb);
+  $("l2").classList.remove("done");
+  $("overs").replaceChildren(...Array.from({ length: ex.k }, (_, i) => {
+    const over = document.createElement("div");
+    over.className = "over";
+    over.innerHTML = `<small>Over ${i + 1}</small><span class="chip">${ex.a}</span><span class="plus">+</span><span class="dots">${'<i class="dot"></i>'.repeat(ex.b)}</span>`;
+    return over;
+  }));
+  $("tally").textContent = "";
+  $("wheel").innerHTML = '<circle class="rope" cx="120" cy="120" r="108"/><circle class="ring" cx="120" cy="120" r="58"/><rect class="pitch" x="113" y="98" width="14" height="44" rx="2"/>';
+  for (const el of [...$("l1").children, ...$("overs").children]) el.animate([{ opacity: 0, transform: "translateY(8px)", filter: "blur(6px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }], { duration: ms(420), easing: EASE });
+}
+
+/** The ball leaves the number outside the bracket and lands on a term inside. */
+async function bowl(to, slow) {
+  const stage = document.querySelector(".stage").getBoundingClientRect();
+  const at = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2 - stage.left, r.top + r.height / 2 - stage.top]; };
+  const [fx, fy] = at(cells.k), [tx, ty] = at(to);
+  await $("ball").animate([
+    { transform: `translate(${fx}px, ${fy}px)`, opacity: 1 },
+    { transform: `translate(${(fx + tx) / 2}px, ${Math.min(fy, ty) - 34}px)`, opacity: 1 },
+    { transform: `translate(${tx}px, ${ty}px)`, opacity: 1 },
+  ], { duration: ms(slow ? 1500 : 700), easing: "ease-in-out" }).finished;
+  to.animate({ boxShadow: ["0 0 0 0 rgba(243, 236, 216, 0.55)", "0 0 0 12px rgba(243, 236, 216, 0)"] }, { duration: ms(600), easing: EASE });
+}
+
+function shot(deg, label) {
+  const a = (deg * Math.PI) / 180, x = 120 + 108 * Math.cos(a), y = 120 + 108 * Math.sin(a);
+  $("wheel").insertAdjacentHTML("beforeend", `<line class="shot" pathLength="1" x1="120" y1="120" x2="${x}" y2="${y}"/><circle r="3.5" cx="${x}" cy="${y}" fill="var(--cream)"/><text x="${120 + 119 * Math.cos(a)}" y="${120 + 119 * Math.sin(a) + 4}" text-anchor="${Math.cos(a) > 0 ? "start" : "end"}">${label}</text>`);
+  const [line, end, text] = [...$("wheel").children].slice(-3);
+  end.animate({ opacity: [0, 1] }, { duration: ms(240), delay: ms(560), fill: "backwards" });
+  line.animate({ strokeDashoffset: [1, 0] }, { duration: ms(720), easing: EASE });
+  text.animate({ opacity: [0, 1] }, { duration: ms(420), delay: ms(400), fill: "backwards" });
+}
+
+/** One delivery: the ball reaches a term, its product goes on the board, the overs and the wheel show why. */
+async function deliver(which, slow) {
+  const { ra, rb } = products(ex);
+  bowled[which] = true;
+  if (which === "a") {
+    await bowl(cells.a, slow);
+    flip(cells.ra, ra);
+    shot(-38, `${ex.k} × ${ex.a} = ${ra}`);
+    for (const chip of document.querySelectorAll(".chip")) { chip.classList.add("on"); await sleep(220); }
+    $("tally").textContent = `${Array(ex.k).fill(ex.a).join(" + ")} = ${ra}`;
+  } else {
+    await bowl(cells.b, slow);
+    flip(cells.plus, "+"); flip(cells.rb, rb);
+    shot(205, `${ex.k} × ${ex.b} = ${rb}`);
+    let n = 0;
+    for (const over of document.querySelectorAll(".over")) {
+      for (const dot of over.querySelectorAll(".dot")) { dot.classList.add("on"); await sleep(70); }
+      n += ex.b; $("tally").textContent = `${n} extras`;
+      await sleep(160);
+    }
+    $("tally").textContent = `${Array(ex.k).fill(ex.b).join(" + ")} = ${rb}`;
+  }
+}
+const complete = () => { $("l2").classList.add("done"); document.querySelector(".rope").classList.add("hit"); };
+
+const SCENES = [
+  async () => {
+    setup(TEACH);
+    say("3 overs. In each over, x runs off the bat and 4 extras.");
+  },
+  async () => {
+    say("The 3 outside the bracket bowls at every term inside.");
+    await deliver("a"); await sleep(500);
+    await deliver("b"); await sleep(300);
+    complete();
+    say("3(x + 4) = 3x + 12. Three overs of everything.");
+  },
+  async () => {
+    setup(TEACH);
+    say("Now Meena's line. The 3 reached x, then stopped.");
+    await deliver("a"); await sleep(500);
+    flip(cells.plus, "+"); await flip(cells.rb, "4");
+    cells.b.classList.add("miss"); cells.rb.classList.add("miss", "dim");
+    document.querySelectorAll(".dot").forEach((d) => d.classList.add("missed"));
+    say("The 4 never faced a ball. One delivery left in the over.");
+  },
+  async () => {
+    $("replay").classList.add("on");
+    say("Third umpire. Play that one again.");
+    await sleep(600);
+    await flip(cells.rb, " ");
+    cells.rb.classList.remove("miss", "dim");
+    document.querySelectorAll(".dot").forEach((d) => d.classList.remove("missed"));
+    await deliver("b", true);
+    cells.b.classList.remove("miss");
+    $("replay").classList.remove("on");
+    complete();
+    say("3 × 4 = 12. Now the over is complete.");
+  },
+  async () => {
+    setup(TURN);
+    say("Your over. Tap each term the 2 has to reach, then call the over.");
+    $("next").textContent = "Call the over";
+    for (const which of ["a", "b"]) {
+      cells[which].disabled = false;
+      cells[which].onclick = async () => {
+        cells[which].disabled = true; cells[which].classList.remove("miss");
+        $("next").disabled = true;
+        await deliver(which);
+        $("next").disabled = false;
+      };
+    }
+  },
+];
+
+let scene = -1, finished = false;
+function callOver() {
+  const left = ["a", "b"].filter((w) => !bowled[w]);
+  if (left.length) {
+    for (const w of left) cells[w].classList.add("miss");
+    return say(`${left.length === 2 ? "No ball bowled yet" : "One ball left in the over"}. The 2 has to reach every term.`);
+  }
+  complete(); finished = true;
+  say("Both terms reached. 2(y + 5) = 2y + 10.");
+  $("next").textContent = "Done"; $("next").disabled = true;
+}
+async function next() {
+  if (scene === SCENES.length - 1) return callOver();
+  scene++;
+  [...$("steps").children].forEach((dot, i) => dot.classList.toggle("on", i <= scene));
+  $("next").disabled = true;
+  await SCENES[scene]();
+  $("next").disabled = false;
+}
+$("steps").innerHTML = "<i></i>".repeat(SCENES.length);
+$("next").onclick = next;
+$("again").onclick = () => location.reload();
+next();
+</script>
+</body>
+</html>

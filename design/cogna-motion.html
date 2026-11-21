@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cogna Motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,500;1,400;1,500&display=swap">
+<style>
+/* Motion study for Cogna. Same tokens as apps/web/src/app/globals.css; light only, like the product.
+   Rule of the whole page: only type and hairlines move, always on one curve, never past their target. */
+:root {
+  color-scheme: light;
+  --bg: #f4f7f3; --ink: #16241d; --ink-soft: #51635a; --ink-faint: #7d8c84;
+  --accent: #0e6b54; --accent-wash: #e3efe9; --caution: #a2660d;
+  --surface: #ffffff; --line: #dce4dd; --line-strong: #b9c6bc; --grid: rgba(14,107,84,.07);
+  --shadow-2: 0 1px 2px rgba(12,52,40,.05), 0 12px 32px -14px rgba(12,52,40,.22);
+  --ring: 0 0 0 4px rgba(14,107,84,.16);
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Instrument Sans", "Helvetica Neue", system-ui, sans-serif;
+  --f-maths: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  /* the whole motion system */
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --dur-fast: 240ms; --dur-phase: 420ms; --dur-travel: 720ms;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--ink); font: 16px/1.55 var(--f-body); -webkit-font-smoothing: antialiased;
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--bg);
+}
+h1, h2, h3 { font-family: var(--f-display); margin: 0; letter-spacing: -.015em; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+button { font: inherit; color: inherit; }
+main { max-width: 1120px; margin: 0 auto; padding: 72px 24px 120px; }
+
+.intro { max-width: 640px; }
+.intro h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.05; font-weight: 600; }
+.intro p { margin-top: 20px; font-size: 1.125rem; color: var(--ink-soft); }
+.tokens { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 8px 40px; margin: 40px 0 0; padding-top: 20px; border-top: 1px solid var(--line-strong); }
+.tokens dt { font-size: .8125rem; color: var(--ink-faint); }
+.tokens dd { margin: 0; font: 500 .875rem var(--f-mono); grid-row: 2; }
+
+.study { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 40px; align-items: start; margin-top: 96px; }
+.stage {
+  position: relative; min-height: 360px; padding: 40px 28px; border-radius: 16px;
+  background: var(--surface); box-shadow: var(--shadow-2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; overflow: hidden;
+}
+.notes h2 { font-size: 1.6rem; font-weight: 600; }
+.notes > p { margin-top: 12px; color: var(--ink-soft); }
+.notes dl { margin: 24px 0 0; display: grid; gap: 14px; }
+.notes dt { font-size: .8125rem; color: var(--ink-faint); }
+.notes dd { margin: 2px 0 0; font: .8125rem/1.6 var(--f-mono); color: var(--ink); }
+.replay {
+  margin-top: 24px; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface);
+  cursor: pointer; font-weight: 500; transition: transform var(--dur-fast) var(--ease), border-color var(--dur-fast), opacity var(--dur-fast);
+}
+.replay:hover { border-color: var(--ink-soft); }
+.replay:active { transform: scale(.98); }
+.replay:focus-visible, .check:focus-visible { outline: none; box-shadow: var(--ring); }
+.replay:disabled { opacity: .45; cursor: default; }
+
+/* ---- the equation: every term is its own element, so it can travel ---- */
+.eq { position: relative; display: inline-flex; align-items: baseline; white-space: nowrap; font: 400 clamp(2rem, 4.6vw, 3.1rem)/1.3 var(--f-maths); min-height: 1.3em; }
+.eq.small { font-size: clamp(1.25rem, 2.6vw, 1.6rem); }
+.tok { position: relative; display: inline-block; margin: 0 .16em; transition: opacity var(--dur-phase) var(--ease), color var(--dur-phase) var(--ease); }
+.tok.tl { margin-left: 0; } .tok.tr { margin-right: 0; }
+.tok.v { font-style: italic; }
+.tok.op { color: var(--ink-soft); }
+.tok.dim { opacity: .22; }
+.tok.hot { color: var(--caution); }
+.tok.ok { color: var(--accent); }
+/* the ruled worked-line: one hairline that draws left to right. Under a term it marks; under a line it concludes. */
+.tok::after, .eq::after, .field::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: .02em; height: 1.5px; background: currentColor;
+  transform: scaleX(0); transform-origin: left; transition: transform var(--dur-phase) var(--ease);
+}
+.eq::after { bottom: -.22em; left: -.2em; right: -.2em; background: var(--accent); transition-duration: var(--dur-travel); }
+.tok.mark::after, .eq.ruled::after { transform: scaleX(1); }
+
+.caption { min-height: 3.1em; max-width: 34ch; text-align: center; color: var(--ink-soft); }
+.whose { font-size: .875rem; color: var(--ink-faint); }
+
+/* ---- answer ---- */
+.ask { width: min(100%, 380px); display: grid; gap: 22px; }
+.ask .prompt { color: var(--ink-soft); }
+.ask label { display: block; font-size: .875rem; color: var(--ink-soft); margin-bottom: 6px; }
+.row { display: flex; align-items: flex-end; gap: 16px; }
+.field { position: relative; flex: 1; border-bottom: 1.5px solid var(--line-strong); color: var(--accent); }
+.field.no { color: var(--caution); }
+.field.on::after { transform: scaleX(1); }
+.field::after { bottom: -1.5px; }
+.field input { width: 100%; border: 0; outline: 0; background: none; padding: 4px 2px; font: 400 2rem/1.3 var(--f-maths); color: var(--ink); }
+.field:focus-within { border-bottom-color: var(--ink-soft); }
+.check { padding: 11px 22px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; transition: transform var(--dur-fast) var(--ease); }
+.check:active { transform: scale(.98); }
+.verdict { min-height: 3.1em; font-size: .9375rem; color: var(--ink-soft); }
+
+/* ---- next question ---- */
+.quiz { width: min(100%, 420px); display: grid; gap: 22px; }
+.count { display: flex; align-items: baseline; gap: .35em; font-size: .9375rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.roll { position: relative; display: inline-block; overflow: hidden; height: 1.3em; line-height: 1.3; vertical-align: bottom; color: var(--ink); font-weight: 600; }
+.roll > span { display: inline-block; }
+.segs { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; }
+.segs i { height: 2px; background: var(--line); position: relative; }
+.segs i::after { content: ""; position: absolute; inset: 0; background: var(--ink); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-travel) var(--ease); }
+.segs i.done::after { transform: scaleX(1); }
+.body { display: grid; gap: 10px; min-height: 7.5em; align-content: start; }
+.body .ln { color: var(--ink-soft); }
+.body .ln.m { font: 400 clamp(2rem, 4.6vw, 2.9rem)/1.3 var(--f-maths); color: var(--ink); }
+
+/* ---- lesson being written ---- */
+.writing { width: min(100%, 420px); display: grid; gap: 20px; }
+.st { display: grid; gap: 8px; color: var(--ink-faint); transition: color var(--dur-phase) var(--ease); }
+.st.live, .st.done { color: var(--ink); }
+.st u { display: block; height: 1.5px; background: var(--line); position: relative; overflow: hidden; }
+.st u::after { content: ""; position: absolute; inset: 0; background: var(--accent); transform: translateX(-101%); }
+/* the one loop in the system: a live state the student is genuinely waiting on */
+.st.live u::after { width: 30%; animation: sweep 1.5s ease-in-out infinite; }
+.st.done u::after { transform: none; transition: transform var(--dur-travel) var(--ease); }
+@keyframes sweep { from { transform: translateX(-101%); } to { transform: translateX(335%); } }
+.ready { min-height: 2.8em; font: 600 1.375rem/1.25 var(--f-display); letter-spacing: -.01em; }
+.ready span { display: inline-block; margin-right: .28em; }
+
+/* ---- figure ---- */
+.fig { position: relative; width: min(100%, 360px); aspect-ratio: 380 / 300; }
+.fig svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fig path { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; vector-effect: non-scaling-stroke; }
+.fig path.q { stroke: var(--accent); }
+.fig .lab { position: absolute; translate: -50% -50%; /* not transform: the enter animation owns that */ font: 400 1.0625rem/1.3 var(--f-maths); opacity: 0; }
+.fig .lab.q { color: var(--accent); }
+
+@media (max-width: 860px) {
+  main { padding: 48px 16px 80px; }
+  .tokens { grid-template-columns: 1fr 1fr; } .tokens dd { grid-row: auto; margin-bottom: 8px; }
+  .study { grid-template-columns: 1fr; gap: 24px; margin-top: 64px; }
+  .stage { min-height: 320px; padding: 32px 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; }
+  .st.live u::after { animation: none; transform: none; width: 100%; opacity: .35; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="intro">
+    <h1>The maths moves. Nothing else does.</h1>
+    <p>Six moves for the app and the lessons. No mascots, stamps, stars or drawn props. A term keeps its identity and travels to where the algebra sends it, and one ruled line says a step is finished.</p>
+    <dl class="tokens">
+      <dt>Feedback</dt><dd>240ms</dd>
+      <dt>Enter and exit</dt><dd>420ms</dd>
+      <dt>Travel</dt><dd>720ms</dd>
+      <dt>One curve, no overshoot</dt><dd>cubic-bezier(.2, .8, .2, 1)</dd>
+    </dl>
+  </header>
+
+  <section class="study" id="carry">
+    <div class="stage">
+      <div class="eq" aria-live="off"></div>
+      <p class="caption"></p>
+    </div>
+    <div class="notes">
+      <h2>Carry</h2>
+      <p>A term that moves in the algebra moves on screen. The 5 that crosses the equals sign is the same 5, so the student watches the rule happen instead of comparing two lines.</p>
+      <dl>
+        <div><dt>Replaces</dt><dd>equationPop, PopMath, Ring, pulse, Arrow</dd></div>
+        <div><dt>Used in</dt><dd>lesson scenes, worked solutions, hints</dd></div>
+      </dl>
+      <button class="replay">Replay</button>
+    </div>
+  </section>
+
+  <section class="study" id="lens">
+    <div class="stage">
+      <span class="whose">Meena's answer</span>
+      <div class="eq"></div>
+      <p class="caption"></p>
+    </div>
+    <div class="notes">
+      <h2>Lens</h2>
+      <p>For a mistake, the rest of the line goes quiet and one hairline marks the exact term. Then the missing step is carried in. No red, no shake, no cross.</p>
+      <dl>
+        <div><dt>Replaces</dt><dd>shake, strike, diagnosticSlipShake, the "mistake" slide</dd></div>
+        <div><dt>Used in</dt><dd>personal lesson opening, mistake microscope, teacher report</dd></div>
+      </dl>
+      <button class="replay">Replay</button>
+    </div>
+  </section>
+
+  <section class="study" id="answer">
+    <div class="stage">
+      <form class="ask" novalidate>
+        <div>
+          <p class="prompt">Solve for x</p>
+          <div class="eq small" style="margin-top:6px"><span class="tok tr">2</span><span class="tok v tl">x</span><span class="tok op">+</span><span class="tok">5</span><span class="tok">=</span><span class="tok">11</span></div>
+        </div>
+        <div>
+          <label for="ans">Your answer</label>
+          <div class="row">
+            <div class="field"><input id="ans" inputmode="numeric" autocomplete="off" aria-describedby="verdict"></div>
+            <button class="check" type="submit">Check</button>
+          </div>
+        </div>
+        <p class="verdict" id="verdict" role="status"></p>
+      </form>
+    </div>
+    <div class="notes">
+      <h2>Answer</h2>
+      <p>Right: the answer line draws itself in green, once. Not yet: the field gives one small nudge and the line turns amber with a hint. Type an answer and press Check.</p>
+      <dl>
+        <div><dt>Replaces</dt><dd>pop, stamp, stampIn, starPlaced, shine, glow, fall, draw-check</dd></div>
+        <div><dt>Used in</dt><dd>practice, exit check, diagnostic, tile games</dd></div>
+      </dl>
+      <button class="replay">Replay</button>
+    </div>
+  </section>
+
+  <section class="study" id="next">
+    <div class="stage">
+      <div class="quiz">
+        <div class="count"><span>Question</span><span class="roll"><span>4</span></span><span>of 9</span></div>
+        <div class="segs"></div>
+        <div class="body"></div>
+      </div>
+    </div>
+    <div class="notes">
+      <h2>Next question</h2>
+      <p>The old question lifts away and the new one comes into focus line by line. The count rolls like a counter and one segment fills. The page itself never moves.</p>
+      <dl>
+        <div><dt>Replaces</dt><dd>lotusQuestionArrive, sceneIn, phase-in, qzPhaseIn, slideIn, hop</dd></div>
+        <div><dt>Used in</dt><dd>every step change: diagnostic, practice, lesson slides, route changes</dd></div>
+      </dl>
+      <button class="replay">Next</button>
+    </div>
+  </section>
+
+  <section class="study" id="writing">
+    <div class="stage">
+      <div class="writing">
+        <div class="st"><span>Reading your answers</span><u></u></div>
+        <div class="st"><span>Writing your lesson</span><u></u></div>
+        <div class="st"><span>Checking every step</span><u></u></div>
+        <p class="ready"></p>
+      </div>
+    </div>
+    <div class="notes">
+      <h2>Lesson being written</h2>
+      <p>The wait shows the three real stages of the pipeline. The current one carries a slow sweep, a finished one closes its line. It is the only looping motion in the product.</p>
+      <dl>
+        <div><dt>Replaces</dt><dd>spin, lotusSpin, skeleton, bars, dots, pip mascot loops</dd></div>
+        <div><dt>Used in</dt><dd>lesson preparing, report loading, any wait over a second</dd></div>
+      </dl>
+      <button class="replay">Replay</button>
+    </div>
+  </section>
+
+  <section class="study" id="figure">
+    <div class="stage">
+      <div class="fig"><svg viewBox="0 0 380 300" aria-hidden="true"></svg></div>
+      <div class="eq small"></div>
+    </div>
+    <div class="notes">
+      <h2>Figure</h2>
+      <p>Diagrams are drawn the way a teacher draws them: outline first, then each angle, then the unknown. One stroke weight, no fills, and the answer rolls in where the question mark was.</p>
+      <dl>
+        <div><dt>Replaces</dt><dd>shape, chart and grid slides appearing whole; star, planet and cricket-ball backdrops</dd></div>
+        <div><dt>Used in</dt><dd>geometry, mensuration, data handling and graph lessons</dd></div>
+      </dl>
+      <button class="replay">Replay</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const EASE = 'cubic-bezier(.2,.8,.2,1)';
+const D = { fast: 240, phase: 420, travel: 720 };
+const ms = (d) => (RM ? 1 : d);
+const wait = (d) => new Promise((r) => setTimeout(r, d));
+const IN = [{ opacity: 0, filter: 'blur(6px)', transform: 'translateY(8px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }];
+const OUT = [{ opacity: 1, filter: 'blur(0)', transform: 'none' }, { opacity: 0, filter: 'blur(4px)', transform: 'translateY(-8px)' }];
+const enter = (el, delay = 0) => el.animate(IN, { duration: ms(D.phase), delay: RM ? 0 : delay, easing: EASE, fill: 'backwards' }).finished;
+const leave = (el, delay = 0) => el.animate(OUT, { duration: ms(D.fast), delay: RM ? 0 : delay, easing: EASE, fill: 'forwards' }).finished;
+
+/**
+ * An equation whose terms keep their identity between steps (FLIP).
+ * set(tokens): tokens are {id, text, cls?, arc?, copyOf?, from?}.
+ *   same id as before  -> the term travels to its new place
+ *   copyOf: id         -> a new term that sets off from an existing one (distributing)
+ *   from: [ids]        -> a new term the listed, departing terms fold into (11 − 5 -> 6)
+ */
+class Equation {
+  constructor(el) { this.el = el; this.nodes = new Map(); }
+  clear() { this.el.replaceChildren(); this.nodes.clear(); this.el.classList.remove('ruled'); }
+  set(tokens) {
+    const first = new Map([...this.nodes].map(([id, n]) => [id, n.getBoundingClientRect()]));
+    const keep = new Set(tokens.map((t) => t.id));
+    const ghosts = [...this.nodes].filter(([id]) => !keep.has(id));
+    for (const [id, n] of ghosts) { this.nodes.delete(id); n.style.position = 'absolute'; n.style.margin = 0; }
+    for (const t of tokens) {
+      const n = this.nodes.get(t.id) ?? document.createElement('span');
+      n.className = 'tok ' + (t.cls ?? '');
+      n.textContent = t.text;
+      this.el.append(n);
+      this.nodes.set(t.id, n);
+    }
+    const host = this.el.getBoundingClientRect();
+    const last = new Map([...this.nodes].map(([id, n]) => [id, n.getBoundingClientRect()]));
+    const done = [];
+    const travel = (n, dx, dy, arc) => {
+      done.push(n.animate({ translate: [`${dx}px ${dy}px`, '0px 0px'] }, { duration: ms(D.travel), easing: EASE }).finished);
+      if (arc) n.animate([{ transform: 'translateY(0)', easing: 'ease-out' }, { transform: `translateY(${-Math.min(30, 10 + Math.abs(dx) * .12)}px)`, easing: 'ease-in' }, { transform: 'translateY(0)' }], { duration: ms(D.travel) });
+    };
+    const moving = tokens.some((t) => first.has(t.id) || t.copyOf);
+    tokens.forEach((t, i) => {
+      const n = this.nodes.get(t.id), to = last.get(t.id), src = first.get(t.id) ?? first.get(t.copyOf);
+      if (src) { if (Math.abs(src.left - to.left) + Math.abs(src.top - to.top) > 1) travel(n, src.left - to.left, src.top - to.top, t.arc); }
+      else done.push(enter(n, moving ? D.travel * .45 : i * 45));
+    });
+    for (const [id, n] of ghosts) {
+      const r = first.get(id);
+      n.style.left = r.left - host.left + 'px'; n.style.top = r.top - host.top + 'px';
+      const target = tokens.find((t) => t.from?.includes(id));
+      const end = () => n.remove();
+      if (!target) { leave(n).then(end); continue; }
+      const g = last.get(target.id);
+      const dx = g.left + g.width / 2 - (r.left + r.width / 2);
+      n.animate({ translate: ['0px 0px', `${dx}px 0px`], opacity: [1, 1, 0] }, { duration: ms(D.travel), easing: EASE, fill: 'forwards' }).finished.then(end);
+    }
+    return Promise.all(done);
+  }
+}
+
+const T = (id, text, cls = '', more = {}) => ({ id, text, cls, ...more });
+async function say(el, text) {
+  if (el.textContent) await el.animate(OUT, { duration: ms(160), easing: EASE }).finished;
+  el.textContent = text;
+  enter(el);
+}
+function roll(el, text) {
+  const old = el.firstElementChild, next = document.createElement('span');
+  next.textContent = text; el.append(next);
+  if (!old) return;
+  old.style.cssText = 'position:absolute;left:0;top:0';
+  old.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(-70%)', opacity: 0 }], { duration: ms(D.phase), easing: EASE }).finished.then(() => old.remove());
+  next.animate([{ transform: 'translateY(70%)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: ms(D.phase), easing: EASE });
+}
+/** Plays once when scrolled into view, and again from its button. */
+function study(id, run) {
+  const root = document.getElementById(id), btn = root.querySelector('.replay');
+  const go = async () => { btn.disabled = true; try { await run(root); } finally { btn.disabled = false; } };
+  btn.addEventListener('click', go);
+  new IntersectionObserver(([e], io) => { if (e.isIntersecting) { io.disconnect(); go(); } }, { threshold: .5 }).observe(root.querySelector('.stage'));
+}
+
+// ---------- 1. Carry ----------
+study('carry', async (root) => {
+  const eq = new Equation(root.querySelector('.eq')), cap = root.querySelector('.caption');
+  eq.clear(); cap.textContent = '';
+  say(cap, 'Start with the equation.');
+  await eq.set([T('two', '2', 'tr'), T('x', 'x', 'v tl'), T('plus', '+', 'op'), T('five', '5'), T('eq', '='), T('c', '11')]);
+  await wait(1300);
+  say(cap, 'Move 5 across. Crossing the equals sign turns plus into minus.');
+  await eq.set([T('two', '2', 'tr'), T('x', 'x', 'v tl'), T('eq', '='), T('c', '11'), T('minus', '−', 'op'), T('five', '5', '', { arc: true })]);
+  await wait(1700);
+  say(cap, '11 minus 5 is 6.');
+  await eq.set([T('two', '2', 'tr'), T('x', 'x', 'v tl'), T('eq', '='), T('six', '6', '', { from: ['c', 'minus', 'five'] })]);
+  await wait(1300);
+  say(cap, 'x is multiplied by 2, so divide both sides by 2.');
+  await eq.set([T('x', 'x', 'v'), T('eq', '='), T('six', '6'), T('div', '÷', 'op'), T('two', '2', '', { arc: true })]);
+  await wait(1700);
+  say(cap, 'x is 3.');
+  await eq.set([T('x', 'x', 'v'), T('eq', '='), T('three', '3', 'ok', { from: ['six', 'div', 'two'] })]);
+  eq.el.classList.add('ruled');
+  await wait(900);
+});
+
+// ---------- 2. Lens ----------
+study('lens', async (root) => {
+  const eq = new Equation(root.querySelector('.eq')), cap = root.querySelector('.caption');
+  eq.clear(); cap.textContent = '';
+  const line = (dim, tail) => [
+    T('k', '3', 'tr' + (dim > 1 ? '' : dim ? ' dim' : '')), T('lp', '(', 'tl tr' + (dim ? ' dim' : '')), T('x', 'x', 'v tl' + (dim ? ' dim' : '')),
+    T('plus', '+', 'op' + (dim ? ' dim' : '')), T('four', '4', 'tr' + (dim ? ' dim' : '')), T('rp', ')', 'tl' + (dim ? ' dim' : '')), T('eq', '=', dim ? 'dim' : ''),
+    T('k2', '3', 'tr' + (dim ? ' dim' : '')), T('x2', 'x', 'v tl' + (dim ? ' dim' : '')), T('plus2', '+', 'op' + (dim ? ' dim' : '')), ...tail,
+  ];
+  say(cap, 'This is what you wrote.');
+  await eq.set(line(0, [T('four2', '4')]));
+  await wait(1400);
+  say(cap, 'The 3 reached x. It never reached the 4.');
+  await eq.set(line(1, [T('four2', '4', 'hot mark')]));
+  await wait(2000);
+  say(cap, 'Everything inside the bracket is multiplied by 3.');
+  await eq.set(line(2, [T('k3', '3', 'tr', { copyOf: 'k', arc: true }), T('dot', '·', 'tl tr op'), T('four2', '4', 'tl hot mark')]));
+  await wait(1900);
+  say(cap, '3 times 4 is 12, so 3(x + 4) = 3x + 12.');
+  await eq.set(line(0, [T('twelve', '12', 'ok', { from: ['k3', 'dot', 'four2'] })]));
+  eq.el.classList.add('ruled');
+  await wait(900);
+});
+
+// ---------- 3. Answer ----------
+{
+  const root = document.getElementById('answer'), form = root.querySelector('form'), input = form.querySelector('input');
+  const field = form.querySelector('.field'), verdict = form.querySelector('.verdict');
+  const reset = () => { field.classList.remove('on', 'no'); verdict.textContent = ''; };
+  const check = () => {
+    const value = input.value.trim();
+    if (!value) return;
+    const right = Number(value) === 3;
+    field.classList.toggle('no', !right);
+    field.classList.add('on');
+    verdict.textContent = right ? 'Correct. x = 3.' : 'Not yet. Check the sign of the 5 once it has crossed over.';
+    enter(verdict, 120);
+    // one damped nudge, not a shake: out, half back, home
+    if (!right) field.animate({ translate: ['0px', '-7px', '4px', '-1.5px', '0px'] }, { duration: ms(D.phase), easing: 'ease-out' });
+  };
+  form.addEventListener('submit', (e) => { e.preventDefault(); check(); });
+  input.addEventListener('input', reset);
+  study('answer', async () => {
+    input.disabled = true;
+    for (const value of ['8', '3']) {
+      reset(); input.value = '';
+      await wait(500);
+      input.value = value;
+      await wait(600);
+      check();
+      await wait(2200);
+    }
+    input.disabled = false;
+  });
+}
+
+// ---------- 4. Next question ----------
+{
+  const QUESTIONS = [['Solve for x', '3x − 7 = 11'], ['Expand', '4(y + 2)'], ['Solve for m', 'm ÷ 5 + 2 = 6'], ['Simplify', '5a + 3 − 2a']];
+  const root = document.getElementById('next'), body = root.querySelector('.body'), segs = root.querySelector('.segs'), count = root.querySelector('.roll');
+  segs.innerHTML = '<i></i>'.repeat(9);
+  let at = 0;
+  const draw = () => {
+    const [prompt, maths] = QUESTIONS[at];
+    body.innerHTML = `<p class="ln"></p><p class="ln m"></p>`;
+    body.children[0].textContent = prompt; body.children[1].textContent = maths;
+    [...segs.children].forEach((s, i) => s.classList.toggle('done', i < 3 + at));
+  };
+  draw();
+  study('next', async () => {
+    await Promise.all([...body.children].map((ln, i) => leave(ln, i * 40)));
+    at = (at + 1) % QUESTIONS.length;
+    draw();
+    roll(count, String(4 + at));
+    await Promise.all([...body.children].map((ln, i) => enter(ln, i * 70)));
+  });
+}
+
+// ---------- 5. Lesson being written ----------
+study('writing', async (root) => {
+  const stages = [...root.querySelectorAll('.st')], ready = root.querySelector('.ready');
+  stages.forEach((s) => s.classList.remove('live', 'done')); ready.textContent = '';
+  await wait(300);
+  for (const s of stages) {
+    s.classList.add('live');
+    await wait(2100);
+    s.classList.replace('live', 'done');
+  }
+  await wait(350);
+  ready.innerHTML = 'Meena, your lesson on opening a bracket'.split(' ').map((w) => `<span>${w}</span>`).join('');
+  await Promise.all([...ready.children].map((w, i) => enter(w, i * 55)));
+});
+
+// ---------- 6. Figure ----------
+{
+  const root = document.getElementById('figure'), fig = root.querySelector('.fig'), svg = fig.querySelector('svg');
+  // A real quadrilateral with interior angles 80°, 95°, 110° and 75° (they add to 360°).
+  const P = [[0, 0], [300, 0], [313.07, 149.43], [48.12, 272.9]].map(([x, y]) => [34 + x * .9, 276 - y * .9]);
+  const ANGLES = ['80°', '95°', '110°', '?'];
+  const el = (d, cls = '') => { const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', d); p.setAttribute('pathLength', 1); p.setAttribute('class', cls); svg.append(p); return p; };
+  const outline = el('M' + P.map((p) => p.join(' ')).join(' L') + ' Z');
+  const arcs = P.map((v, i) => {
+    const unit = (p) => { const dx = p[0] - v[0], dy = p[1] - v[1], d = Math.hypot(dx, dy); return [dx / d, dy / d]; };
+    const a = unit(P[(i + 3) % 4]), b = unit(P[(i + 1) % 4]), r = 24;
+    const sweep = a[0] * b[1] - a[1] * b[0] > 0 ? 1 : 0;
+    const arc = el(`M${v[0] + a[0] * r} ${v[1] + a[1] * r} A${r} ${r} 0 0 ${sweep} ${v[0] + b[0] * r} ${v[1] + b[1] * r}`, i === 3 ? 'q' : '');
+    const m = Math.hypot(a[0] + b[0], a[1] + b[1]);
+    const lab = document.createElement('span');
+    lab.className = 'lab' + (i === 3 ? ' q roll' : '');
+    lab.style.left = ((v[0] + ((a[0] + b[0]) / m) * 46) / 380) * 100 + '%';
+    lab.style.top = ((v[1] + ((a[1] + b[1]) / m) * 46) / 300) * 100 + '%';
+    fig.append(lab);
+    return { arc, lab };
+  });
+  const stroke = (p, dur, delay = 0) => p.animate({ strokeDashoffset: [1, 0] }, { duration: ms(dur), delay: RM ? 0 : delay, easing: EASE, fill: 'forwards' }).finished;
+  study('figure', async (root) => {
+    const eq = new Equation(root.querySelector('.eq'));
+    eq.clear();
+    [outline, ...arcs.map((a) => a.arc)].forEach((p) => p.getAnimations().forEach((a) => a.cancel()));
+    arcs.forEach(({ lab }, i) => { lab.getAnimations().forEach((a) => a.cancel()); lab.innerHTML = `<span>${ANGLES[i]}</span>`; });
+    await stroke(outline, 1300);
+    await Promise.all(arcs.map(({ arc, lab }, i) => {
+      lab.animate(IN, { duration: ms(D.phase), delay: RM ? 0 : i * 220 + 200, easing: EASE, fill: 'forwards' });
+      return stroke(arc, D.phase, i * 220);
+    }));
+    await wait(500);
+    await eq.set([T('a', '80°'), T('p1', '+', 'op'), T('b', '95°'), T('p2', '+', 'op'), T('c', '110°'), T('p3', '+', 'op'), T('q', '?', 'ok'), T('eq', '='), T('s', '360°')]);
+    await wait(1500);
+    roll(arcs[3].lab, '75°');
+    await eq.set([T('a', '80°'), T('p1', '+', 'op'), T('b', '95°'), T('p2', '+', 'op'), T('c', '110°'), T('p3', '+', 'op'), T('ans', '75°', 'ok mark', { from: ['q'] }), T('eq', '='), T('s', '360°')]);
+    await wait(900);
+  });
+}
+</script>
+</body>
+</html>
