@@ -1,13 +1,14 @@
 /* Scroll story: a pinned field of forty soft orbs, an iris into a sheet of paper, then the class regrouped. */
 .story {
-  --serif: var(--font-serif);
+  --serif: var(--font-display);
   --ink-blue: #1f2f4f;
   --rule: #d3dde6;
   --margin: #e2a1a1;
   --amber: #a2660d;
   --amber-wash: #f7eedd;
   position: relative;
-  height: 700vh;
+  height: 380vh;
+  margin-top: -12vh; /* the dots sit mid-screen, so pull the story up towards the hero */
 }
 
 .pin {
@@ -17,20 +18,13 @@
   overflow: hidden;
 }
 
-.tint {
-  position: absolute; inset: 0; opacity: var(--enter, 1);
-  background:
-    radial-gradient(60% 50% at 30% 20%, rgba(242, 177, 52, 0.1), transparent 70%),
-    radial-gradient(80% 70% at 50% 45%, rgba(214, 233, 220, 0.6), rgba(247, 240, 226, 0.55) 72%);
-}
-
 .canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .layer { position: absolute; inset: 0; pointer-events: none; }
 
-.serif { font-family: var(--serif); font-weight: 300; letter-spacing: -0.02em; font-variation-settings: "opsz" 144, "SOFT" 60; }
-.serif em { font-style: italic; color: var(--accent); }
+.serif { font-family: var(--serif); font-weight: 600; letter-spacing: -0.03em; }
+.serif em { font-style: normal; color: var(--accent); }
 
-.cap { position: absolute; left: 50%; bottom: max(8dvh, 44px); width: min(92%, 680px); transform: translateX(-50%); text-align: center; opacity: 0; }
+.cap { position: absolute; left: 50%; bottom: max(9dvh, 60px); width: min(92%, 680px); transform: translateX(-50%); text-align: center; opacity: 0; }
 .cap h2 { font-size: clamp(1.7rem, 4.4vw, 3rem); line-height: 1.06; color: var(--ink); text-wrap: balance; }
 .cap p { margin-top: 8px; color: var(--ink-soft); }
 
@@ -79,16 +73,18 @@
 .dash p { font-size: 0.9rem; color: var(--ink-soft); }
 .dash p b { color: var(--amber); font-weight: 600; }
 
-.rail { position: absolute; left: var(--s-4); top: 50%; translate: 0 -50%; display: grid; gap: 14px; }
-.rail span { display: flex; align-items: center; gap: 10px; font-size: 0.74rem; font-weight: 600; color: var(--ink-faint); transition: color 0.4s; }
-.rail span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; transition: transform 0.4s, box-shadow 0.4s; }
+/* progress: a row of five dots under the caption; only the current beat shows its name */
+.rail { position: absolute; left: 50%; bottom: 18px; translate: -50% 0; display: flex; align-items: center; gap: 12px; }
+.rail span { display: flex; align-items: center; gap: 8px; font-size: 0.74rem; font-weight: 600; color: var(--ink-faint); transition: color 0.4s; }
+.rail span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rail b { display: none; font-weight: 600; white-space: nowrap; }
 .rail span[data-on="true"] { color: var(--accent-deep); }
-.rail span[data-on="true"]::before { transform: scale(1.5); box-shadow: 0 0 0 4px rgba(14, 107, 84, 0.15); }
+.rail span[data-on="true"] b { display: inline; }
 
 @media (max-width: 700px) {
-  .story { height: 600vh; }
-  .rail b { display: none; }
+  .story { height: 340vh; }
   .sheet { padding-left: 56px; }
   .sheet::before { left: 38px; }
   .fix::before { left: -54px; }
 }
+

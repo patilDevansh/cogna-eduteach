@@ -1,9 +1,6 @@
 .wrap { animation: settle var(--dur-phase) var(--ease-settle); }
 
-@keyframes settle {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
+@keyframes settle { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
 
 /* ---------- world picker ---------- */
 
@@ -137,10 +134,7 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
   animation: rise 320ms var(--ease-settle);
 }
-@keyframes rise {
-  from { transform: translateY(24px); opacity: 0; }
-  to { transform: none; opacity: 1; }
-}
+@keyframes rise { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
 .qLabel {
   margin: 0;
   font-size: var(--text-xs);
@@ -166,10 +160,7 @@
 .option:hover { border-color: var(--accent); background: var(--accent-wash); transform: translateY(-2px); }
 .option[data-state="right"] { border-color: var(--success); background: var(--success-wash); color: var(--success); }
 .option[data-state="wrong"] { border-color: #c2410c; background: #fdebe1; color: #8f330a; animation: shake 360ms; }
-@keyframes shake {
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
+@keyframes shake { 30% { transform: translateX(-7px); } 60% { transform: translateX(4px); } 85% { transform: translateX(-1.5px); } }
 
 .feedback { margin: 12px 0 0; font-size: var(--text-sm); line-height: 1.5; }
 .feedback[data-correct="true"] { color: var(--success); font-weight: 600; }

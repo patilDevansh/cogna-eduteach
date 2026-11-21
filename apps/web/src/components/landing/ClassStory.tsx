@@ -23,7 +23,7 @@ type Light = { gi: number; k: number; slot: number; col: number; row: number; ph
 /**
  * Forty lights are a class seated in rows. Scrolling brings one forward; it opens into that student's
  * working, Cogna catches the mistake, and the class regroups by what each student needs.
- * Drawn on a 2D canvas (soft orbs need nothing heavier). Reduced motion keeps the beats, drops the drift.
+ * Drawn as solid dots on a 2D canvas. Reduced motion keeps the beats, drops the drift.
  */
 export function ClassStory() {
   const root = useRef<HTMLElement>(null);
@@ -42,7 +42,7 @@ export function ClassStory() {
     const lights: Light[] = [];
     GROUPS.forEach((g, gi) => { for (let k = 0; k < g.n; k++) lights.push({ gi, k } as Light); });
     const slots = lights.map((_, i) => i).sort(() => rnd() - 0.5);
-    lights.forEach((L, i) => Object.assign(L, { slot: slots[i], ph: rnd() * 10, sp: 0.7 + rnd() * 0.6, size: 0.75 + rnd() * 0.35 }));
+    lights.forEach((L, i) => Object.assign(L, { slot: slots[i], ph: rnd() * 10, sp: 0.7 + rnd() * 0.6, size: 0.9 + rnd() * 0.2 }));
     const chosen = lights.find((L) => L.gi === 1)!;
 
     let narrow = false;
@@ -69,14 +69,13 @@ export function ClassStory() {
       (li.firstElementChild as HTMLElement).style.setProperty("--clip", `${100 - range(p, a, a + len) * 100}%`);
     };
 
-    let w = 0, h = 0, mx = 0, my = 0, smx = 0, smy = 0;
+    let w = 0, h = 0;
 
     function draw(p: number, t: number) {
       ctx!.clearRect(0, 0, w, h);
       const camZ = (narrow ? 19 : 13) - ease(range(p, 0.1, 0.42)) * 2.6 + ease(range(p, 0.7, 0.86)) * 3.4;
       const lift = ease(range(p, 0.9, 0.95)) * (narrow ? 2.2 : 1.6);
-      smx += (mx - smx) * 0.05; smy += (my - smy) * 0.05;
-      const cx = smx * 0.8, cy = lift - smy * 0.5;
+      const cx = 0, cy = lift;
       const f = h / 2 / Math.tan(((narrow ? 58 : 45) * Math.PI) / 360);
       const proj = (x: number, y: number, z: number) => {
         const dz = camZ - z;
@@ -92,7 +91,7 @@ export function ClassStory() {
         let x = L.home[0] + (L.cluster[0] - L.home[0]) * regroup;
         let y = L.home[1] + wave * 0.06 + (L.cluster[1] + settle - L.home[1] - wave * 0.06) * regroup;
         let z = wave * 0.25 * (1 - regroup);
-        const tw = 1 + Math.sin(t * 2 * L.sp + L.ph) * 0.08;
+        const tw = 1 + Math.sin(t * 2 * L.sp + L.ph) * 0.04;
         let size = L.size * tw, alpha = 1 - dim * 0.7;
         if (L === chosen) { x *= 1 - come; y *= 1 - come; z += (camZ - 5 - z) * come; size *= 1 + come * 0.5; alpha = 1; }
         const rgb = SEATED.map((c, i) => Math.round(c + (GROUPS[L.gi].rgb[i] - c) * regroup));
@@ -102,11 +101,11 @@ export function ClassStory() {
       for (const o of orbs) {
         const q = proj(o.x, o.y, o.z);
         if (!q) continue;
-        const R = o.size * q.k * 0.5, [r, g, b] = o.rgb;
-        const grad = ctx!.createRadialGradient(q.x, q.y, 0, q.x, q.y, R);
-        [[0, 1], [0.13, 0.95], [0.22, 0.5], [0.4, 0.16], [0.65, 0.04], [1, 0]].forEach(([s, al]) => grad.addColorStop(s, `rgba(${r},${g},${b},${al * o.alpha})`));
-        ctx!.fillStyle = grad;
-        ctx!.fillRect(q.x - R, q.y - R, R * 2, R * 2);
+        const R = o.size * q.k * 0.13, [r, g, b] = o.rgb;
+        ctx!.fillStyle = `rgba(${r},${g},${b},${o.alpha})`;
+        ctx!.beginPath();
+        ctx!.arc(q.x, q.y, R, 0, Math.PI * 2);
+        ctx!.fill();
       }
 
       // the chosen light opens into paper
@@ -155,30 +154,25 @@ export function ClassStory() {
       draw(cur, calm ? 0 : (now - t0) / 1000);
       raf = visible ? requestAnimationFrame(loop) : 0;
     };
-    // the section's tint fades in over the screen-height before it pins
-    const tint = () => el.style.setProperty("--enter", String(clamp(1 - el.getBoundingClientRect().top / innerHeight)));
-    const onScroll = () => { target = read(); tint(); };
-    const onMove = (e: PointerEvent) => { if (e.pointerType === "mouse" && !calm) { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; } };
+    const onScroll = () => { target = read(); };
     // only animate while the story is on screen
     const io = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       if (visible && !raf) raf = requestAnimationFrame(loop);
     });
     const ro = new ResizeObserver(size);
-    size(); tint();
+    size();
     io.observe(el); ro.observe(canvas);
     addEventListener("scroll", onScroll, { passive: true });
-    addEventListener("pointermove", onMove);
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); ro.disconnect();
-      removeEventListener("scroll", onScroll); removeEventListener("pointermove", onMove);
+      removeEventListener("scroll", onScroll);
     };
   }, []);
 
   return (
     <section ref={root} className={styles.story} aria-label="How Cogna sees a class">
       <div className={styles.pin}>
-        <div className={styles.tint} aria-hidden="true" />
         <canvas className={styles.canvas} aria-hidden="true" />
         <div className={styles.layer} aria-hidden="true">
           {GROUPS.map((g) => (

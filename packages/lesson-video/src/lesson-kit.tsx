@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from "react";
+import { carry, tokenize } from "./morph";
 import { AbsoluteFill, Audio, Easing, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
 import type { KitBeat, KitScene } from "./lesson-types";
@@ -71,53 +72,6 @@ export function ThemeRoot({ theme, children }: { theme?: string; children: React
 }
 export const ThemeContext = createContext<LessonThemeId>("classic");
 
-/** Quiet, theme-specific art behind every scene. Deterministic (no randomness) so frames render identically. */
-export function ThemeBackdrop() {
-  const theme = useContext(ThemeContext);
-  const frame = useCurrentFrame();
-  if (theme === "space") {
-    const stars = Array.from({ length: 70 }, (_, i) => ({
-      x: (i * 197) % 1280,
-      y: (i * 113 + (i % 7) * 41) % 720,
-      r: 0.8 + (i % 3) * 0.6,
-      tw: 0.35 + 0.35 * Math.sin(frame / 22 + i),
-    }));
-    return (
-      <svg width={1280} height={720} style={{ position: "absolute", inset: 0 }} aria-hidden>
-        {stars.map((s, i) => (
-          <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#ffffff" opacity={s.tw} />
-        ))}
-        <g transform={`translate(1150 ${118 + Math.sin(frame / 40) * 6})`} opacity={0.9}>
-          <circle r={34} fill="#6d5bd0" />
-          <circle r={34} fill="none" stroke="#b9a8ff" strokeWidth={3} opacity={0.5} />
-          <ellipse rx={62} ry={14} fill="none" stroke="#ffc857" strokeWidth={4} transform="rotate(-18)" opacity={0.85} />
-        </g>
-      </svg>
-    );
-  }
-  if (theme === "cricket") {
-    const spin = (frame * 4) % 360;
-    return (
-      <svg width={1280} height={720} style={{ position: "absolute", inset: 0 }} aria-hidden>
-        {Array.from({ length: 8 }, (_, i) => (
-          <rect key={i} x={0} y={600 + i * 16} width={1280} height={8} fill="#1d7a3c" opacity={i % 2 ? 0.05 : 0.09} />
-        ))}
-        <g transform="translate(1160 64)" opacity={0.85}>
-          {[0, 14, 28].map((dx) => (
-            <rect key={dx} x={dx} y={0} width={7} height={70} rx={3} fill="#c8a165" />
-          ))}
-          <rect x={-3} y={-6} width={42} height={6} rx={3} fill="#a67c42" />
-        </g>
-        <g transform={`translate(1110 ${118}) rotate(${spin})`}>
-          <circle r={13} fill="#c0262d" />
-          <path d="M -9 -9 Q 0 0 -9 9 M 9 -9 Q 0 0 9 9" stroke="#fff" strokeWidth={1.6} fill="none" opacity={0.8} />
-        </g>
-      </svg>
-    );
-  }
-  return null;
-}
-
 export const MATH_FONT = '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
 export const UI_FONT = '"Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif';
 export const WIDTH = 1280;
@@ -133,6 +87,9 @@ export interface BeatClock {
   starts: number[];
   lengths: number[];
 }
+
+/** The one curve every lesson movement uses (the web's --ease-settle). */
+export const EASE = Easing.bezier(0.2, 0.8, 0.2, 1);
 
 export function useBeatClock(scene: KitScene): BeatClock {
   const frame = useCurrentFrame();
@@ -150,14 +107,14 @@ export function beatP(clock: BeatClock, beat: number, from: number, to: number):
   return interpolate(clock.frame, [start, Math.max(end, start + 1)], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.inOut(Easing.cubic),
+    easing: EASE,
   });
 }
 
-/** Springy 0→1 pop starting at a fraction of a beat. */
+/** 0→1 arrival starting at a fraction of a beat. Critically damped: it never passes 1. */
 export function beatPop(clock: BeatClock, beat: number, at: number): number {
   const start = clock.starts[beat]! + clock.lengths[beat]! * at;
-  return spring({ frame: clock.frame - start, fps: clock.fps, config: { damping: 13, mass: 0.6 } });
+  return spring({ frame: clock.frame - start, fps: clock.fps, config: { damping: 200 } });
 }
 
 export function currentBeat(clock: BeatClock): number {
@@ -168,7 +125,8 @@ export function currentBeat(clock: BeatClock): number {
   return index;
 }
 
-export const pulse = (clock: BeatClock, amount: number) => 1 + 0.05 * Math.sin((clock.frame / clock.fps) * Math.PI * 2) * amount;
+/** Kept for lesson files that still call it: nothing in a lesson pulses any more. */
+export const pulse = (_clock: BeatClock, _amount: number) => 1;
 
 // ---------- math text ----------
 
@@ -197,6 +155,89 @@ export function textWidth(text: string, size: number): number {
   return [...text].reduce((w, ch) => w + (CHAR_EM[ch] ?? (/\d/.test(ch) ? 0.56 : /[a-z]/.test(ch) ? 0.52 : 0.6)) * size, 0);
 }
 
+/** Width of maths as it will be set: real font metrics in a browser, the table above where there is no canvas. */
+let ruler: CanvasRenderingContext2D | null | undefined;
+export function mathWidth(text: string, size: number, italic = false): number {
+  if (ruler === undefined) ruler = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+  if (!ruler) return textWidth(text, size);
+  ruler.font = `${italic ? "italic " : ""}${size}px ${MATH_FONT}`;
+  return ruler.measureText(text).width;
+}
+
+// ---------- carry: a line of maths whose terms come from the line above ----------
+
+/**
+ * One line of maths. With `from`, every term that was already in that line
+ * lifts off it and travels here (`rise` px below it); terms that are new come
+ * into focus once the travellers are nearly home. `marks` puts the hairline
+ * under single terms and quietens the rest (the lens); `ruled` draws the
+ * finishing line under the whole line.
+ */
+export function CarryLine({
+  text,
+  from,
+  size,
+  t,
+  rise = 0,
+  align = "left",
+  color = C.ink,
+  marks,
+  markP = 0,
+  ruled = 0,
+}: {
+  text: string;
+  from?: string;
+  size: number;
+  /** 0→1 arrival of this line. */
+  t: number;
+  rise?: number;
+  /** How this line and `from` are placed: sharing a left edge, or both centred. */
+  align?: "left" | "center";
+  color?: string;
+  marks?: boolean[];
+  markP?: number;
+  ruled?: number;
+}) {
+  const v = useContext(VarContext);
+  const tokens = tokenize(text);
+  const widths = (list: string[]) => list.map((tok) => mathWidth(tok, size, tok === v));
+  const starts = (w: number[]) => w.map((_, i) => w.slice(0, i).reduce((a, b) => a + b, 0));
+  const w = widths(tokens), x = starts(w);
+  const prev = from === undefined ? [] : tokenize(from);
+  const pw = widths(prev), px = starts(pw);
+  const sources = from === undefined ? tokens.map(() => -1) : carry(prev, tokens);
+  const total = (list: number[]) => list.reduce((a, b) => a + b, 0);
+  const shift = align === "center" ? (total(w) - total(pw)) / 2 : 0;
+  const fresh = interpolate(t, [0.45, 0.9], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <div style={{ position: "relative", display: "flex", alignItems: "baseline", whiteSpace: "pre", fontFamily: MATH_FONT, fontSize: size, lineHeight: 1.3, color }}>
+      {tokens.map((tok, i) => {
+        const src = sources[i]!;
+        const travels = src >= 0;
+        const show = travels ? Math.min(1, t * 5) : fresh;
+        const marked = marks?.[i];
+        return (
+          <span
+            key={i}
+            style={{
+              position: "relative",
+              display: "inline-block",
+              fontStyle: tok === v ? "italic" : "normal",
+              opacity: show * (marks && !marked ? 1 - 0.72 * markP : 1),
+              transform: travels ? `translate(${(px[src]! + shift - x[i]!) * (1 - t)}px, ${-rise * (1 - t)}px)` : `translateY(${(1 - fresh) * 8}px)`,
+              filter: !travels && fresh < 1 ? `blur(${(1 - fresh) * 6}px)` : undefined,
+            }}
+          >
+            {tok}
+            {marked && <span style={{ position: "absolute", left: 0, right: 0, bottom: "0.04em", height: 3, background: C.fix, transform: `scaleX(${markP})`, transformOrigin: "left" }} />}
+          </span>
+        );
+      })}
+      {ruled > 0 && <span style={{ position: "absolute", left: -10, right: -10, bottom: "-0.18em", height: 3, background: C.green, transform: `scaleX(${ruled})`, transformOrigin: "left" }} />}
+    </div>
+  );
+}
+
 // ---------- arrows ----------
 
 export function Arrow({
@@ -205,7 +246,7 @@ export function Arrow({
   progress,
   color,
   dashed,
-  width = 4,
+  width = 2.5,
   below,
 }: {
   from: { x: number; y: number };
@@ -224,7 +265,7 @@ export function Arrow({
   const d = `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}`;
   // Arrowhead oriented along the curve's end tangent (control → end).
   const angle = Math.atan2(to.y - cy, to.x - cx);
-  const head = 15;
+  const head = 11;
   const p1 = { x: to.x - head * Math.cos(angle - 0.45), y: to.y - head * Math.sin(angle - 0.45) };
   const p2 = { x: to.x - head * Math.cos(angle + 0.45), y: to.y - head * Math.sin(angle + 0.45) };
   const headOpacity = interpolate(progress, [0.85, 1], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
@@ -258,25 +299,7 @@ export function Svg({ children }: { children: React.ReactNode }) {
 
 export function Tick({ x, y, p }: { x: number; y: number; p: number }) {
   return (
-    <div
-      style={{
-        position: "absolute",
-        left: x - 15,
-        top: y - 15,
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        background: C.green,
-        color: C.onAccent,
-        fontFamily: UI_FONT,
-        fontWeight: 800,
-        fontSize: 18,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transform: `scale(${p})`,
-      }}
-    >
+    <div style={{ position: "absolute", left: x - 15, top: y - 15, width: 30, height: 30, color: C.green, fontFamily: UI_FONT, fontWeight: 700, fontSize: 24, lineHeight: "30px", textAlign: "center", opacity: Math.min(1, p) }}>
       ✓
     </div>
   );
@@ -289,15 +312,14 @@ export function Tag({ x, y, p, text, color, bg }: { x: number; y: number; p: num
         position: "absolute",
         left: x,
         top: y,
-        transform: `translate(-50%, -50%) scale(${0.9 + 0.1 * Math.min(1, p)})`,
+        transform: `translate(-50%, calc(-50% + ${(1 - Math.min(1, p)) * 8}px))`,
         opacity: Math.min(1, p),
         background: bg,
         color,
-        border: `2px solid ${color}`,
-        borderRadius: 999,
-        padding: "6px 16px",
+        borderRadius: 8,
+        padding: "6px 14px",
         fontSize: 22,
-        fontWeight: 700,
+        fontWeight: 600,
         whiteSpace: "nowrap",
       }}
     >
@@ -329,7 +351,8 @@ export function PopMath({
         position: "absolute",
         left: x,
         top: y,
-        transform: `translate(-50%, -50%) scale(${0.6 + 0.4 * Math.min(p, 1.2)})`,
+        transform: `translate(-50%, calc(-50% + ${(1 - Math.min(1, p)) * 10}px))`,
+        filter: p < 1 ? `blur(${(1 - Math.min(1, p)) * 6}px)` : undefined,
         opacity: Math.min(1, p * 1.4),
         fontSize: size,
         color,
@@ -344,23 +367,9 @@ export function PopMath({
   );
 }
 
-export function Ring({ cx, cy, w, h, p, scale }: { cx: number; cy: number; w: number; h: number; p: number; scale: number }) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: cx - w / 2,
-        top: cy - h / 2,
-        width: w,
-        height: h,
-        borderRadius: 999,
-        border: `4px dashed ${C.miss}`,
-        background: C.missSoft,
-        opacity: Math.min(1, p),
-        transform: `scale(${scale})`,
-      }}
-    />
-  );
+/** Marks a term with one drawn hairline under it. (Named Ring for the lesson files that place it.) */
+export function Ring({ cx, cy, w, h, p }: { cx: number; cy: number; w: number; h: number; p: number; scale?: number }) {
+  return <div style={{ position: "absolute", left: cx - w / 2, top: cy + h / 2 - 6, width: w, height: 3, background: C.fix, transform: `scaleX(${Math.min(1, p)})`, transformOrigin: "left" }} />;
 }
 
 // ---------- chrome: header, captions, scene fade ----------
@@ -442,7 +451,6 @@ export function SceneFrame({
   const fadeOut = interpolate(clock.frame, [durationInFrames - 8, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
   return (
     <AbsoluteFill style={{ background: C.paper, opacity: Math.min(fadeIn, fadeOut) }}>
-      <ThemeBackdrop />
       <Header lesson={lesson} sceneIndex={sceneIndex} />
       {children(clock)}
       <Caption clock={clock} scene={scene} />
@@ -469,8 +477,7 @@ export function Card({ x, p, accent, children }: { x: number; p: number; accent:
         background: C.surface,
         borderRadius: 20,
         border: `1px solid ${C.line}`,
-        borderTop: `6px solid ${accent}`,
-        boxShadow: "0 10px 30px rgba(11,59,51,0.08)",
+        borderTop: `2px solid ${accent}`,
         padding: "18px 26px",
         opacity: p,
         transform: `translateY(${(1 - p) * 20}px)`,
@@ -505,14 +512,12 @@ export function InlinePill({ p, text }: { p: number; text: string }) {
     <span
       style={{
         opacity: Math.min(1, p),
-        transform: `scale(${0.8 + 0.2 * Math.min(1, p)})`,
         background: C.greenSoft,
         color: C.green,
-        border: `2px solid ${C.green}`,
-        borderRadius: 999,
-        padding: "4px 14px",
+        borderRadius: 8,
+        padding: "4px 12px",
         fontFamily: UI_FONT,
-        fontWeight: 700,
+        fontWeight: 600,
         fontSize: 20,
       }}
     >

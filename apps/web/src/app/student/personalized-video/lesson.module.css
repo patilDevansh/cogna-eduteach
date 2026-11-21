@@ -129,10 +129,7 @@ li[data-state="done"] .journeyDot { border-color: var(--accent); background: var
 }
 .meta .metaGood { background: var(--success-wash); border-color: transparent; color: var(--success); }
 
-@keyframes settle {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
+@keyframes settle { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
 
 /* ---------- player ---------- */
 
@@ -242,58 +239,22 @@ details[open] .chev { transform: rotate(180deg); }
 .making p, .panel p { margin: 8px 0 0; color: var(--ink-soft); max-width: 58ch; }
 @media (max-width: 640px) { .making { flex-direction: column; align-items: flex-start; } }
 
-.makingArt {
-  flex: none;
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  width: 120px;
-  height: 90px;
-  padding: 16px;
-  border-radius: 20px;
-  background: var(--accent-wash);
-}
-.makingArt span {
-  flex: 1;
-  border-radius: 4px;
-  background: var(--accent);
-  animation: bars 1.2s ease-in-out infinite;
-}
-.makingArt span:nth-child(2) { animation-delay: 0.15s; }
-.makingArt span:nth-child(3) { animation-delay: 0.3s; }
-.makingArt span:nth-child(4) { animation-delay: 0.45s; }
-.makingArt span:nth-child(5) { animation-delay: 0.6s; }
-@keyframes bars {
-  0%, 100% { height: 20%; opacity: 0.5; }
-  50% { height: 100%; opacity: 1; }
-}
-
-.makingSteps { list-style: none; margin: 16px 0 0; padding: 0; }
+/* The wait, as the three real stages: a finished stage closes its line, the current one carries a slow sweep. */
+.makingSteps { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 14px; max-width: 420px; }
 .makingSteps li {
   position: relative;
-  padding: 6px 0 6px 28px;
+  overflow: hidden;
+  padding: 0 0 9px;
   font-size: var(--text-sm);
   color: var(--ink-faint);
+  transition: color var(--dur-phase) var(--ease-settle);
 }
-.makingSteps li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--line-strong);
-}
-.makingSteps li[data-state="done"] { color: var(--ink); }
-.makingSteps li[data-state="done"]::before { background: var(--success); border-color: var(--success); }
-.makingSteps li[data-state="active"] { color: var(--ink); font-weight: 600; }
-.makingSteps li[data-state="active"]::before {
-  border-color: var(--accent);
-  border-top-color: transparent;
-  animation: spin 0.9s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+.makingSteps li::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.5px; background: var(--line); }
+.makingSteps li::after { content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: 1.5px; background: var(--accent); transform: translateX(-101%); }
+.makingSteps li[data-state="done"], .makingSteps li[data-state="active"] { color: var(--ink); }
+.makingSteps li[data-state="done"]::after { transform: none; transition: transform var(--dur-travel) var(--ease-settle); }
+.makingSteps li[data-state="active"]::after { width: 30%; animation: sweep 1.5s ease-in-out infinite; }
+@keyframes sweep { from { transform: translateX(-101%); } to { transform: translateX(335%); } } }
 
 /* ---------- task cards (challenge, exit, result) ---------- */
 
@@ -371,11 +332,7 @@ details[open] .chev { transform: rotate(180deg); }
 }
 .resultGood { background: var(--success-wash); color: var(--success); box-shadow: 0 0 0 10px rgba(23, 115, 79, 0.08); }
 .resultAgain { background: var(--caution-wash); color: var(--caution); box-shadow: 0 0 0 10px rgba(162, 102, 13, 0.08); }
-@keyframes pop {
-  0% { transform: scale(0.5); opacity: 0; }
-  70% { transform: scale(1.08); opacity: 1; }
-  100% { transform: scale(1); }
-}
+@keyframes pop { from { opacity: 0; transform: scale(0.96); filter: blur(4px); } }
 .recap {
   display: grid;
   grid-template-columns: 1fr 1fr;

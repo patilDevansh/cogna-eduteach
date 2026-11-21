@@ -73,6 +73,7 @@ export {
   type TrinomialLessonProps,
 } from "./trinomial/trinomial";
 export { LESSON_THEMES, lessonTheme, type LessonThemeId } from "./themes";
+export { carry, tokenize } from "./morph";
 export type { LessonCheckpoint } from "./lesson-types";
 export {
   authoredDurationInFrames,

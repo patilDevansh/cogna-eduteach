@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cogna · Cricket situations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Mono:wght@500&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* Prototype: three real cricket situations a student works with their hands. The maths is the situation itself. */
+  :root {
+    --out: #0f3d2e; --panel: #0a2b21; --line: rgba(243, 236, 216, 0.16);
+    --cream: #f3ecd8; --soft: rgba(243, 236, 216, 0.62); --off: #e9b949; --good: #8fe0b0;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: #08241b; color: var(--cream); font-family: "Instrument Sans", system-ui, sans-serif; }
+  .stage { width: min(880px, 100%); padding: clamp(18px, 3vw, 30px); border-radius: 20px; background: repeating-linear-gradient(90deg, transparent 0 80px, rgba(255, 255, 255, 0.025) 80px 160px), var(--out); }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .tabs button { font: 600 14px "Instrument Sans", sans-serif; color: var(--soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px; min-height: 44px; cursor: pointer; }
+  .tabs button small { font-weight: 400; margin-left: 6px; opacity: 0.8; }
+  .tabs button[aria-pressed="true"] { color: var(--out); background: var(--cream); border-color: var(--cream); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; }
+
+  .ask { margin: 0; font: 500 clamp(19px, 2.8vw, 25px)/1.35 "Bricolage Grotesque", sans-serif; text-wrap: balance; max-width: 32em; }
+  .ask b { font-weight: 700; }
+  .panel { margin-top: 20px; padding: 22px; background: var(--panel); border-radius: 14px; }
+  .board { margin-top: 14px; font: 500 clamp(20px, 3.6vw, 30px) "IBM Plex Mono", monospace; display: flex; flex-wrap: wrap; gap: 6px 22px; }
+  .board em { font: 600 0.6em "Instrument Sans", sans-serif; color: var(--soft); display: block; letter-spacing: 0.1em; text-transform: uppercase; }
+  .say { min-height: 6.5em; margin: 14px 0 0; font-size: 17px; line-height: 1.5; color: var(--soft); }
+  .say[data-state="good"] { color: var(--good); }
+  .say[data-state="off"] { color: var(--off); }
+  .why { margin-top: 6px; color: var(--cream); font: 500 16px/1.6 "IBM Plex Mono", monospace; }
+
+  label.ctl { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; margin-top: 18px; font-size: 14px; font-weight: 600; color: var(--soft); }
+  label.ctl output { color: var(--cream); font: 500 18px "IBM Plex Mono", monospace; }
+  input[type="range"] { grid-column: 1 / -1; width: 100%; height: 44px; margin: 0; accent-color: #f3ecd8; cursor: pointer; }
+  label.ctl:has(input:disabled) { opacity: 0.35; }
+
+  /* 1. The chase: runs you have, then one block per over, up to the target line */
+  .track { position: relative; display: flex; height: 64px; margin: 34px 0 6px; border-radius: 8px; background: rgba(243, 236, 216, 0.05); }
+  .track i { font: 500 15px "IBM Plex Mono", monospace; display: grid; place-items: center; overflow: hidden; white-space: nowrap; transition: width 420ms var(--ease), border-color 240ms; }
+  .track .have { background: var(--cream); color: var(--out); border-radius: 8px 0 0 8px; }
+  .track .ov { border: 1.5px solid var(--cream); border-left-width: 0; }
+  .track[data-state="off"] .ov { border-color: var(--off); }
+  .track[data-state="good"] .ov { border-color: var(--good); }
+  .track .target { position: absolute; top: -26px; bottom: -8px; border-left: 2px dashed var(--cream); padding-left: 8px; font: 600 12px "Instrument Sans", sans-serif; letter-spacing: 0.06em; white-space: nowrap; }
+
+  /* 2. Catching up: the two scores, over by over */
+  .worm { display: block; width: 100%; height: auto; }
+  .worm .grid { stroke: var(--line); }
+  .worm text { fill: var(--soft); font: 500 11px "IBM Plex Mono", monospace; }
+  .worm .them { stroke: var(--soft); stroke-width: 2; stroke-dasharray: 5 5; }
+  .worm .you { stroke: var(--cream); stroke-width: 2.5; }
+  .worm .now { stroke: var(--cream); stroke-opacity: 0.35; }
+  .worm .key { fill: var(--cream); font-size: 12px; }
+
+  /* 3. Strike rate: one over, ball by ball */
+  .balls { display: flex; gap: 10px; flex-wrap: wrap; }
+  .balls i { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; border: 1.5px dashed var(--soft); font: 500 20px "IBM Plex Mono", monospace; }
+  .balls i.played { border-style: solid; border-color: var(--cream); background: var(--cream); color: var(--out); }
+  .balls i.new { animation: land 420ms var(--ease); }
+  @keyframes land { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
+  .shots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .shots button { font: 500 18px "IBM Plex Mono", monospace; color: var(--cream); background: none; border: 1.5px solid var(--cream); border-radius: 10px; min-width: 52px; min-height: 48px; cursor: pointer; }
+  .shots button:hover:not(:disabled) { background: var(--cream); color: var(--out); }
+  .shots button:disabled { opacity: 0.3; cursor: default; }
+  .shots .quiet { border-color: var(--line); color: var(--soft); font: 600 14px "Instrument Sans", sans-serif; padding: 0 14px; }
+  .gauge { position: relative; height: 10px; margin: 34px 0 4px; border-radius: 99px; background: rgba(243, 236, 216, 0.1); }
+  .gauge i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--cream); transition: width 420ms var(--ease), background 240ms; }
+  .gauge b { position: absolute; left: 25%; top: -22px; bottom: -6px; border-left: 2px dashed var(--cream); padding-left: 6px; font: 600 12px "Instrument Sans", sans-serif; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main class="stage">
+  <nav class="tabs" id="tabs"></nav>
+
+  <!-- 1. Linear equation: 12 + 4x = 48 -->
+  <section id="chase">
+    <p class="ask">You have <b>12 runs</b>. The target is <b>48</b>. There are <b>4 overs</b> left. How many runs do you need in each over?</p>
+    <div class="panel">
+      <div class="track" id="c-track">
+        <i class="have" style="width: 20%">12</i><i class="ov"></i><i class="ov"></i><i class="ov"></i><i class="ov"></i>
+        <b class="target" style="left: 80%">TARGET 48</b>
+      </div>
+      <label class="ctl">Runs in each over <output id="c-out"></output>
+        <input type="range" id="c-rate" min="0" max="12" step="1" value="4">
+      </label>
+      <div class="board" id="c-board"></div>
+    </div>
+    <p class="say" id="c-say" aria-live="polite"></p>
+  </section>
+
+  <!-- 2. Two lines meeting: 20 + 6t = 8t -->
+  <section id="catch" hidden>
+    <p class="ask">The Tigers already have <b>20 runs</b> and score <b>6 an over</b>. You start at 0 and score <b id="k-rateword">8 an over</b>. Slide through the overs. When are you level?</p>
+    <div class="panel">
+      <svg class="worm" id="k-worm" viewBox="0 0 640 300" role="img" aria-label="Graph of both scores, over by over"></svg>
+      <label class="ctl">Overs played <output id="k-out"></output>
+        <input type="range" id="k-over" min="0" max="15" step="1" value="0">
+      </label>
+      <label class="ctl">Your runs an over <output id="k-rout"></output>
+        <input type="range" id="k-rate" min="7" max="12" step="1" value="8" disabled>
+      </label>
+      <div class="board" id="k-board"></div>
+    </div>
+    <p class="say" id="k-say" aria-live="polite"></p>
+  </section>
+
+  <!-- 3. Rate and percentage: runs / balls x 100 -->
+  <section id="strike" hidden>
+    <p class="ask">Strike rate is how many runs you would score off <b>100 balls</b>. Bat one over. Can you finish on a strike rate of exactly <b>150</b>?</p>
+    <div class="panel">
+      <div class="balls" id="s-balls"></div>
+      <div class="shots" id="s-shots"></div>
+      <div class="gauge"><i id="s-fill"></i><b>150</b></div>
+      <div class="board" id="s-board"></div>
+    </div>
+    <p class="say" id="s-say" aria-live="polite"></p>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function say(id, state, text, why) {
+  $(id).dataset.state = state;
+  $(id).innerHTML = text + (why ? `<div class="why">${why}</div>` : "");
+}
+
+/* ---------- tabs ---------- */
+const SCENES = [["chase", "The chase", "linear equations"], ["catch", "Catching up", "where two lines meet"], ["strike", "Strike rate", "rates and percentages"]];
+$("tabs").innerHTML = SCENES.map(([id, name, topic]) => `<button data-id="${id}">${name}<small>${topic}</small></button>`).join("");
+function show(id) {
+  for (const [sid] of SCENES) $(sid).hidden = sid !== id;
+  for (const b of $("tabs").children) b.setAttribute("aria-pressed", String(b.dataset.id === id));
+}
+$("tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.id); };
+
+/* ---------- 1. the chase ---------- */
+const HAVE = 12, TARGET = 48, OVERS = 4, SCALE = 60;
+function chase() {
+  const x = +$("c-rate").value, total = HAVE + OVERS * x, gap = TARGET - total;
+  $("c-out").textContent = x;
+  for (const ov of document.querySelectorAll("#c-track .ov")) { ov.style.width = `${(x / SCALE) * 100}%`; ov.textContent = x >= 3 ? x : ""; }
+  $("c-board").innerHTML = `<span><em>Your score</em>${HAVE} + ${OVERS} × ${x} = ${total}</span>`;
+  const state = gap === 0 ? "good" : "off";
+  $("c-track").dataset.state = state;
+  if (gap > 0) say("c-say", state, `${gap} short of the target.`);
+  else if (gap < 0) say("c-say", state, `${-gap} past the target. You only need to reach it.`);
+  else say("c-say", state, `Exactly ${TARGET}. You need ${x} runs in each over.`,
+    `Without trying every number:<br>${TARGET} − ${HAVE} = ${TARGET - HAVE} runs still needed<br>${TARGET - HAVE} ÷ ${OVERS} overs = ${x} an over`);
+}
+$("c-rate").oninput = chase;
+
+/* ---------- 2. catching up ---------- */
+const START = 20, THEIRS = 6, MAXT = 15, MAXV = 190;
+const X = (t) => 44 + (582 * t) / MAXT, Y = (v) => 270 - (250 * v) / MAXV;
+function catchUp() {
+  const t = +$("k-over").value, r = +$("k-rate").value, them = START + THEIRS * t, you = r * t;
+  $("k-out").textContent = t; $("k-rout").textContent = r; $("k-rateword").textContent = `${r} an over`;
+  let g = "";
+  for (let v = 0; v <= MAXV; v += 40) g += `<line class="grid" x1="44" x2="626" y1="${Y(v)}" y2="${Y(v)}"/><text x="38" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  for (let o = 0; o <= MAXT; o += 5) g += `<text x="${X(o)}" y="290" text-anchor="${o === MAXT ? "end" : o ? "middle" : "start"}">${o ? `over ${o}` : "start"}</text>`;
+  $("k-worm").innerHTML = g
+    + `<line class="them" x1="${X(0)}" y1="${Y(START)}" x2="${X(MAXT)}" y2="${Y(START + THEIRS * MAXT)}"/>`
+    + `<line class="you" x1="${X(0)}" y1="${Y(0)}" x2="${X(MAXT)}" y2="${Y(r * MAXT)}"/>`
+    + `<line class="now" x1="${X(t)}" x2="${X(t)}" y1="20" y2="270"/>`
+    + `<circle cx="${X(t)}" cy="${Y(them)}" r="6" fill="#0a2b21" stroke="#f3ecd8" stroke-width="2"/>`
+    + `<circle cx="${X(t)}" cy="${Y(you)}" r="6" fill="#f3ecd8"/>`
+    + `<text class="key" x="${X(MAXT)}" y="${Y(START + THEIRS * MAXT) + 18}" text-anchor="end">Tigers</text><text class="key" x="${X(MAXT) - 4}" y="${Y(r * MAXT) - 8}" text-anchor="end">You</text>`;
+  $("k-board").innerHTML = `<span><em>Tigers</em>${START} + ${THEIRS} × ${t} = ${them}</span><span><em>You</em>${r} × ${t} = ${you}</span>`;
+  const gain = r - THEIRS;
+  if (you < them) say("k-say", "off", `After ${t} overs you are ${them - you} behind. You gain ${gain} on them every over.`);
+  else if (you > them) say("k-say", "off", `After ${t} overs you are ${you - them} ahead. Go back to the over where you were level.`);
+  else {
+    $("k-rate").disabled = false;
+    say("k-say", "good", `Level at ${you} each, after ${t} overs.`,
+      `${START} + ${THEIRS}t = ${r}t<br>They start ${START} ahead. You gain ${gain} an over.<br>${START} ÷ ${gain} = ${t} overs${r === 8 ? "<br>Now change your runs an over and find the new level point." : ""}`);
+  }
+}
+$("k-over").oninput = $("k-rate").oninput = catchUp;
+
+/* ---------- 3. strike rate ---------- */
+const BALLS = 6, WANT = 150;
+let over = [];
+function strike(fresh) {
+  const runs = over.reduce((a, b) => a + b, 0), n = over.length, rate = n ? Math.round((runs / n) * 100) : 0;
+  $("s-balls").innerHTML = Array.from({ length: BALLS }, (_, i) => `<i class="${i < n ? "played" : ""}${fresh && i === n - 1 ? " new" : ""}">${i < n ? over[i] : ""}</i>`).join("");
+  $("s-shots").innerHTML = [0, 1, 2, 4, 6].map((v) => `<button data-v="${v}" ${n === BALLS ? "disabled" : ""} aria-label="Score ${v}">${v}</button>`).join("")
+    + `<button class="quiet" data-v="undo" ${n ? "" : "disabled"}>Take back a ball</button><button class="quiet" data-v="again" ${n ? "" : "disabled"}>Bat again</button>`;
+  $("s-fill").style.width = `${Math.min(100, (rate / 600) * 100)}%`;
+  $("s-fill").style.background = n === BALLS ? (rate === WANT ? "var(--good)" : "var(--off)") : "var(--cream)";
+  $("s-board").innerHTML = `<span><em>Strike rate</em>${n ? `${runs} ÷ ${n} × 100 = ${rate}` : "runs ÷ balls × 100"}</span>`;
+  if (!n) say("s-say", "", "Pick what you score off each ball.");
+  else if (n < BALLS) say("s-say", "", `${runs} off ${n} ${n === 1 ? "ball" : "balls"}. ${BALLS - n} to go.`);
+  else if (rate === WANT) say("s-say", "good", `${runs} runs off ${BALLS} balls. Strike rate ${WANT}.`, `${runs} ÷ ${BALLS} = 1.5 runs a ball<br>1.5 × 100 balls = ${WANT}`);
+  else say("s-say", "off", `Strike rate ${rate}. ${rate > WANT ? "Too many" : "Not enough"} runs.`, `${WANT} means 1.5 runs a ball.<br>How many runs is that off ${BALLS} balls? Bat again.`);
+}
+$("s-shots").onclick = (e) => {
+  const v = e.target.closest("button")?.dataset.v;
+  if (v === undefined) return;
+  const scored = v !== "undo" && v !== "again";
+  if (v === "undo") over.pop(); else if (v === "again") over = []; else if (over.length < BALLS) over.push(+v);
+  strike(scored);
+};
+
+show("chase"); chase(); catchUp(); strike();
+</script>
+</body>
+</html>

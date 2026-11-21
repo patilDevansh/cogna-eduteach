@@ -1229,34 +1229,13 @@
 
 .diagnosticDecision strong { color: var(--ink); }
 
-.analysisSpinner {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border: 3px solid #d9ccef;
-  border-top-color: #8669af;
-  border-radius: 50%;
-  animation: lotusSpin 0.8s linear infinite;
-}
+.analysisSpinner { flex: 0 0 auto; position: relative; width: 36px; height: 2px; overflow: hidden; background: var(--line); }
+.analysisSpinner::after { content: ""; position: absolute; inset: 0; width: 30%; background: var(--accent); animation: lotusSpin 1.5s ease-in-out infinite; }
 
-.preparationSpinner {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto var(--s-5);
-  border: 6px solid var(--accent-wash);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: lotusSpin 1s linear infinite;
-}
+.preparationSpinner { position: relative; width: 160px; height: 2px; margin: var(--s-4) auto var(--s-6); overflow: hidden; background: var(--line); }
+.preparationSpinner::after { content: ""; position: absolute; inset: 0; width: 30%; background: var(--accent); animation: lotusSpin 1.5s ease-in-out infinite; }
 
-.preparationSpinner span {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 2px dotted var(--accent-deep);
-  border-radius: 50%;
-  animation: lotusSpin 2.4s linear infinite reverse;
-}
+.preparationSpinner span { display: none; }
 
 .preparationProgress {
   height: 10px;
@@ -1300,10 +1279,7 @@
   animation: lotusToast 420ms ease both;
 }
 
-@keyframes lotusQuestionArrive {
-  from { opacity: 0.35; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes lotusQuestionArrive { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
 
 @keyframes lotusToast {
   from { opacity: 0; transform: translateY(-5px); }
@@ -1312,7 +1288,7 @@
   to { opacity: 0; }
 }
 
-@keyframes lotusSpin { to { transform: rotate(360deg); } }
+@keyframes lotusSpin { from { transform: translateX(-101%); } to { transform: translateX(335%); } }
 
 .pulse {
   width: 8px;
@@ -1322,9 +1298,7 @@
   animation: lotusPulse 1.2s ease-in-out infinite;
 }
 
-@keyframes lotusPulse {
-  50% { opacity: 0.25; transform: scale(0.72); }
-}
+@keyframes lotusPulse { 50% { opacity: 0.25; } }
 
 @media (max-width: 1000px) {
   .layout { grid-template-columns: 1fr; }
