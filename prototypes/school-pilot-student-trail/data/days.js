@@ -292,7 +292,7 @@
         ] },
         { id: "s3", type: "animation", anim: "cut-move", skill: "a1" },
         { id: "s4", type: "game", game: "tile-cover", skill: "a1" },
-        { id: "s5", type: "animation", anim: "para-field", skill: "a2" },   // hands-on: replaces the para-to-rect video + the cut-slide game
+        { id: "s5", type: "animation", anim: "para-plain", skill: "a2" },   // hands-on: replaces the para-to-rect video + the cut-slide game
         { id: "s6", type: "rive", lessons: [1, 2, 3], title: "Area Lab: squares, fences and the wonky field" },
         { id: "s7", type: "practice", questions: [
           mcq("d3p1", "a1", "Each small square is 1 cm². What is the area of this shape?", [

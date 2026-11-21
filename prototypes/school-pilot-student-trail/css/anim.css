@@ -267,3 +267,32 @@
 .t-tf .t-tp-arrow { fill: none; stroke: #fff; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
 .t-tf .t-pf-bracket.is-copy { stroke: #5c9c55; }
 .t-tf .t-lesson-svg text.t-pf-dim.is-copy { fill: #3f7a39; }
+
+/* ---------- para-plain: ink on paper. One stroke weight, no scenery, nothing bounces. ---------- */
+.t-pp .t-lesson-svg { max-width: 760px; width: 100%; max-height: min(58vh, 430px); }
+.t-pp .t-lesson-svg * { vector-effect: non-scaling-stroke; }
+.t-pp .t-pp-grid line { stroke: var(--line); stroke-width: 1; }
+.t-pp .t-pp-shape { fill: var(--accent-wash); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+.t-pp .t-pp-piece.is-live { cursor: grab; fill: var(--surface); stroke: var(--accent); }
+.t-pp .t-pp-piece.is-live:active { cursor: grabbing; }
+.t-pp .t-pp-piece:focus-visible, .t-pp .t-pp-handle:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.t-pp .t-pp-cut { stroke: var(--accent); stroke-width: 1.5; }
+.t-pp .t-pp-seam { stroke: var(--accent); stroke-width: 1.5; opacity: 0.45; }
+.t-pp .t-pp-dash { stroke: var(--ink-soft); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.t-pp .t-lesson-svg text.t-pp-lab { font-family: var(--font-math); font-size: 22px; fill: var(--ink); text-anchor: middle; }
+.t-pp .t-lesson-svg text.t-pp-start { text-anchor: start; }
+.t-pp .t-lesson-svg text.t-pp-end { text-anchor: end; }
+.t-pp .t-lesson-svg text.t-pp-quiet { fill: var(--ink-soft); }
+.t-pp .t-lesson-svg text.t-pp-name { font-family: var(--font-body); font-size: 17px; fill: var(--ink-soft); text-anchor: start; }
+.t-pp .t-pp-handle { cursor: ew-resize; touch-action: none; }
+.t-pp .t-pp-handle circle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+.t-pp .t-pp-handle .t-pp-hit { fill: transparent; stroke: none; }
+.t-pp .t-pp-handle.is-done { pointer-events: none; }
+.t-pp .t-lesson-board { font-family: var(--font-math); font-weight: 500; }
+.t-pp .t-pp-sum { font-size: 1.35em; }
+/* the ruled worked-line: drawn once under the rule the lesson ends on */
+.t-pp .t-pp-ruled { position: relative; display: inline-block; font-size: 1.35em; padding-bottom: 6px; }
+.t-pp .t-pp-ruled::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.5px; background: var(--accent);
+  transform-origin: left; animation: t-pp-rule 720ms var(--ease-settle) 300ms both; }
+@keyframes t-pp-rule { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .t-pp .t-pp-ruled::after { animation: none; } }
