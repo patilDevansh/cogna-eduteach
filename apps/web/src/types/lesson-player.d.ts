@@ -25,6 +25,10 @@ declare module "@cogna/lesson-video/player" {
     LessonThemeId,
     { id: LessonThemeId; label: string; blurb: string; palette: { paper: string; accent: string; line: string; ink: string } }
   >;
+  /** A line of maths split into numbers, words, single letters, symbols and spaces. */
+  export function tokenize(line: string): string[];
+  /** For each token of `next`: the index of the `prev` token it is the same term as, or -1 if it is new. */
+  export function carry(prev: string[], next: string[]): number[];
   export const TrinomialLesson: ComponentType<Record<string, unknown>>;
   export const DistributionLesson: ComponentType<Record<string, unknown>>;
   export const AuthoredLesson: ComponentType<Record<string, unknown>>;

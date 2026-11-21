@@ -50,8 +50,8 @@
 .readAloud { border: 1px solid #dce4dd; background: #f4f7f3; border-radius: 999px; padding: 4px 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; justify-self: start; }
 .readAloud:disabled { opacity: 0.6; cursor: default; }
 
-@keyframes hop { 40% { transform: translateY(-20px); } }
-@keyframes pop { 0% { transform: scale(0.85); } 70% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes hop { 40% { transform: translateY(-4px); } }
+@keyframes pop { from { transform: scale(0.96); } }
 @keyframes float { to { transform: translate(var(--fx), var(--fy)); } }
 @keyframes bob { 50% { transform: translateY(-4px); } }
 @keyframes swim { to { transform: translateX(calc(100cqi - 100% - 20px)); } }

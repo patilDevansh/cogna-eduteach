@@ -55,7 +55,7 @@
 .rushTitle { font-weight: 800; font-size: 1.4rem; }
 .rushScore { font-weight: 800; font-size: 2.2rem; color: #0e6b54; }
 
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes stamp { from { transform: rotate(-12deg) scale(2.2); opacity: 0; } to { transform: rotate(-12deg) scale(1); opacity: 1; } }
-@keyframes paperIn { from { transform: translateX(60%) rotate(6deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
+@keyframes stamp { from { transform: rotate(-12deg) translateY(6px); opacity: 0; filter: blur(4px); } }
+@keyframes paperIn { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
 @media (prefers-reduced-motion: reduce) { .rect *, .desk *, .rush * { animation-duration: 1ms !important; transition-duration: 1ms !important; } }

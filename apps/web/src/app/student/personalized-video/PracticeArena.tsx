@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LessonThemeChoice, PracticeAnswer, PracticeCheckResult, PracticeItemView, PracticeSetView } from "@cogna/shared";
 import { prettyMath } from "@cogna/lesson-video/player";
 import { api } from "@/lib/api";
@@ -8,6 +8,7 @@ import styles from "./practice.module.css";
 import { FactorSafe, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { BracketRush, MarkersDesk, RectangleGame } from "@/components/games/PracticeGames";
 import { SavedPracticeCard } from "./SavedPracticeCard";
+import { CarrySteps } from "@/components/carry-steps";
 
 /**
  * Independent practice after the targeted lesson. Every answer is checked
@@ -89,7 +90,7 @@ export function PracticeArena({
   if (!set) {
     return (
       <section className={styles.arena} aria-busy="true">
-        <div className={styles.loadingDots}><span /><span /><span /></div>
+        <div className={styles.loading} role="status" aria-label="Loading your practice"><span className="wait-line" /></div>
       </section>
     );
   }
@@ -413,12 +414,13 @@ function ItemCard({
       {result?.reveal && result.reveal.steps.length > 0 && (item.format === "type-answer" || item.format === "pair-hunt" || item.format === "factor-safe" || item.format === "build" || item.format === "rectangle") && (
         <div className={styles.worked}>
           <p className={styles.workedLabel}>{result.verdict === "CORRECT" ? "Check" : "Here's how it goes"}</p>
-          {result.reveal.steps.map((step, i) => (
-            <div key={i} className={styles.workedStep} style={{ animationDelay: `${i * 450}ms` }}>
-              {(item.format === "type-answer" || item.format === "build") && i > 0 && <span className={styles.lineNo}>=</span>}
-              {item.format === "type-answer" || item.format === "build" ? prettyMath(step) : step}
-            </div>
-          ))}
+          {item.format === "type-answer" || item.format === "build" ? (
+            <div className={styles.workedCarry}><CarrySteps steps={result.reveal.steps.map(prettyMath)} equals /></div>
+          ) : (
+            result.reveal.steps.map((step, i) => (
+              <div key={i} className={styles.workedStep} style={{ animationDelay: `${i * 450}ms` }}>{step}</div>
+            ))
+          )}
         </div>
       )}
 
@@ -466,14 +468,8 @@ function Finale({
 }) {
   const correct = outcomes.filter((o) => o.correct).length;
   const firstTry = outcomes.filter((o) => o.firstTry).length;
-  const confetti = useMemo(() => Array.from({ length: 18 }, (_, i) => ({ left: (i * 37) % 100, delay: (i % 6) * 90, hue: i % 3 })), []);
   return (
     <div className={styles.finale}>
-      <div className={styles.confetti} aria-hidden="true">
-        {confetti.map((c, i) => (
-          <span key={i} style={{ left: `${c.left}%`, animationDelay: `${c.delay}ms` }} data-hue={c.hue} />
-        ))}
-      </div>
       <div className={styles.score}>
         <strong>{correct}</strong>
         <span>/ {outcomes.length} {world.unit}</span>

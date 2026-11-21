@@ -5,7 +5,7 @@ import { ProductLoop } from "./ProductLoop";
 import { DistributionLesson } from "./distribution/DistributionLesson";
 import { TrinomialLesson } from "./trinomial/TrinomialLesson";
 import { AuthoredLesson } from "./authored/AuthoredLesson";
-import { authoredDurationInFrames, type AuthoredLessonProps } from "./authored/build";
+import { authoredDurationInFrames, buildAuthoredLesson, type AuthoredLessonProps } from "./authored/build";
 import {
   AARAV_TRINOMIAL_EXAMPLE,
   buildTrinomialLesson,
@@ -39,7 +39,32 @@ const aaravTrinomialPreview: TrinomialLessonProps = buildTrinomialLesson(AARAV_T
 
 const emptyProps: LessonVideoProps = { title: "Approved lesson", scenes: [] };
 
-const emptyAuthored: AuthoredLessonProps = { studentName: "", topic: "", variable: "x", scenes: [], checkpoints: [] };
+// A short lesson that touches each kind of motion, so Studio shows something for AuthoredLesson.
+const authoredPreview: AuthoredLessonProps = buildAuthoredLesson({
+  studentName: "Meena",
+  draft: {
+    title: "Opening a bracket",
+    objective: "Multiply every term inside the bracket.",
+    checkpoints: [],
+    scenes: [
+      {
+        title: "What happened in your answer",
+        beats: [
+          { say: "Here is the bracket you opened.", visual: { type: "expression", expr: "3(x + 4)", highlight: ["4"], caption: "Both terms are inside the bracket" } },
+          { say: "The 3 reached x, but it never reached the 4.", visual: { type: "mistake", expr: "3(x + 4)", task: "expand", wrong: "3x + 4", wrongKind: "incorrect", right: "3x + 12", note: "The 3 multiplies every term inside the bracket." } },
+          { say: "The 3 goes to each term in turn.", visual: { type: "distribute", outside: "3", inside: ["x", "4"], result: ["3x", "12"] } },
+        ],
+      },
+      {
+        title: "Using it",
+        beats: [
+          { say: "Open the bracket, then collect the numbers.", visual: { type: "steps", steps: ["3(x + 4) + 2", "3x + 12 + 2", "3x + 14"], caption: "Fully simplified" } },
+          { say: "Four angles of a quadrilateral add to 360 degrees.", visual: { type: "shape", angles: [80, 95, 110, null], caption: "80 + 95 + 110 + ? = 360" } },
+        ],
+      },
+    ],
+  },
+});
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -87,7 +112,7 @@ export const RemotionRoot: React.FC = () => {
         fps={lessonFps()}
         width={LESSON_VIDEO_WIDTH}
         height={LESSON_VIDEO_HEIGHT}
-        defaultProps={emptyAuthored}
+        defaultProps={authoredPreview}
         calculateMetadata={({ props }) => ({
           durationInFrames: authoredDurationInFrames(props, lessonFps()),
         })}
