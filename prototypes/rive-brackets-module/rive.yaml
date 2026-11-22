@@ -1,0 +1,5 @@
+name: rive-brackets-module
+main: Brackets
+logs:
+  file: build/rive.log
+  problems: build/problems.log

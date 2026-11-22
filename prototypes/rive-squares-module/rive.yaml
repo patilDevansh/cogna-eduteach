@@ -1,0 +1,5 @@
+name: rive-squares-module
+main: Squares
+logs:
+  file: build/rive.log
+  problems: build/problems.log
