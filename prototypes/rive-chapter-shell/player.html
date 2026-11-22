@@ -1,0 +1,143 @@
+<!doctype html>
+<!-- Lab player: the smallest page that hosts a chapter lab the way the app will.
+     The lab (a signed .riv in labs/) draws only the board. This page draws the title, the task, Kiara's caption
+     and Back / Next, tells the lab which lesson and step to show, and hears every answer back.
+     Open it as  player.html?lab=squares-roots&lesson=3&step=1   or with a mistake code from the diagnostic:
+                 player.html?lab=squares-roots&mistake=HALVED_NOT_ROOTED
+     The link is the Lab view model (see any chapter's scene.rml and rive-chapter-shell/main.luau).
+     Needs a signed build:  rive <chapter folder> --publish , then copy build/*.riv to labs/<file in labs.json>. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab player</title>
+<style>
+  :root { --ink: #16241d; --soft: #51635a; --line: #d6e0d9; --page: #f4f7f3; --surface: #fff; --accent: #0e6b54; --accent-wash: #e3efe9; --gold: #dca03a; --red: #b4400c; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: var(--page); color: var(--ink); font: 16px/1.4 system-ui, sans-serif; height: 100dvh; }
+  header { padding: 10px 16px 0; }
+  .kicker { margin: 0; font: 600 11px/1.4 ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  h1 { margin: 2px 0 6px; font-size: 20px; line-height: 1.2; }
+  .task { display: inline-flex; align-items: center; gap: 8px; margin: 0 16px 8px; padding: 6px 14px; border-radius: 18px; background: var(--accent-wash); color: #08463a; font-size: 14px; align-self: flex-start; }
+  .task[data-done="true"] { background: var(--accent); color: #fff; }
+  .task b { font: 600 11px ui-monospace, monospace; letter-spacing: .06em; white-space: nowrap; }
+  .stage { flex: 1; min-height: 0; margin: 0 8px; border-radius: 18px; overflow: hidden; background: var(--surface); box-shadow: 0 4px 22px rgb(22 36 29 / .08); }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .caption { margin: 8px 12px 0; padding: 10px 16px; min-height: 44px; border: 1.5px solid var(--line); border-radius: 22px; background: var(--surface); color: var(--soft); font-size: 15px; }
+  footer { display: flex; align-items: center; gap: 8px; padding: 10px 12px 12px; }
+  .dots { display: flex; gap: 8px; margin-right: auto; padding-left: 6px; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+  .dots i[data-on="true"] { background: var(--accent); }
+  button { min-height: 44px; padding: 0 14px; white-space: nowrap; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+  button.primary { border-color: var(--accent); background: var(--accent); color: #fff; min-width: 104px; }
+  button.primary[data-ready="true"] { box-shadow: 0 0 0 4px rgb(14 107 84 / .25); }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  details { margin: 0 12px 8px; font: 12px/1.5 ui-monospace, monospace; color: var(--soft); }
+  #log { max-height: 96px; overflow: auto; margin: 4px 0 0; white-space: pre-wrap; }
+  .fail { margin: 24px 16px; color: var(--red); }
+  @media (min-width: 900px) { h1 { font-size: 26px; } .stage { margin: 0 24px; } header, .caption, footer, details { margin-left: 12px; margin-right: 12px; } }
+</style>
+</head>
+<body>
+<header>
+  <p class="kicker" id="kicker">Lab</p>
+  <h1 id="title">Loading the lab</h1>
+</header>
+<p class="task" id="task" data-done="false"><b id="taskTag">YOUR TURN</b> <span id="taskText"></span></p>
+<div class="stage"><canvas id="canvas" tabindex="0" aria-label="Hands-on lab. Drag the gold handles; the keys in each task also work."></canvas></div>
+<p class="caption" id="caption" aria-live="polite"></p>
+<footer>
+  <span class="dots" id="dots" aria-hidden="true"></span>
+  <button type="button" id="mute" aria-pressed="false">Sound</button>
+  <button type="button" id="back">Back</button>
+  <button type="button" id="next" class="primary">Next</button>
+</footer>
+<details><summary>What the lab told the page</summary><p id="log"></p></details>
+
+<script src="https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.52.0/rive.js"></script>
+<script>
+(async function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const fail = (msg) => { $("title").textContent = "The lab could not start"; $("caption").textContent = msg; };
+  if (!window.rive) return fail("The Rive runtime did not load. Check the connection and reload.");
+
+  const q = new URLSearchParams(location.search);
+  const labs = await (await fetch("labs/labs.json")).json();
+  const lab = labs[q.get("lab") || "squares-roots"];
+  if (!lab) return fail("No lab called " + q.get("lab") + " in labs/labs.json.");
+
+  // where to open: a lesson and step, or the step built for a mistake the diagnostic found
+  let lesson = Number(q.get("lesson")) || 1, step = Number(q.get("step")) || 1, steps = 3;
+  const mistake = q.get("mistake");
+  if (mistake) lab.lessons.forEach((l, i) => { if (l.mistakes[mistake]) { lesson = i + 1; step = l.mistakes[mistake]; } });
+
+  const canvas = $("canvas");
+  let vin = null;
+  const log = (line) => { $("log").textContent = line + "\n" + $("log").textContent; };
+
+  function show() { // ask the lab for this lesson and step (step first, so the lesson opens straight at it)
+    if (!vin) return;
+    vin.step.value = step;
+    vin.lesson.value = lesson;
+    $("back").disabled = lesson === 1 && step === 1;
+  }
+
+  const r = new rive.Rive({
+    src: "labs/" + lab.file, canvas, autoplay: true, stateMachines: "State Machine 1", autoBind: true,
+    layout: new rive.Layout({ fit: rive.Fit.Layout }),
+    onLoadError: () => fail("labs/" + lab.file + " did not load. It has to be a signed build (rive --publish)."),
+    onLoad: () => {
+      r.resizeDrawingSurfaceToCanvas();
+      const vm = r.viewModelInstance;
+      if (!vm) return fail("This lab has no Lab view model bound.");
+      vin = { lesson: vm.number("lesson"), step: vm.number("step"), muted: vm.boolean("muted") };
+      const out = { seq: vm.number("seq"), event: vm.string("event"), atLesson: vm.number("atLesson"), atStep: vm.number("atStep"), steps: vm.number("steps"),
+        skill: vm.string("skill"), answer: vm.string("answer"), mistake: vm.string("mistake"), title: vm.string("title"), task: vm.string("task"),
+        caption: vm.string("caption"), stepDone: vm.boolean("stepDone") };
+
+      out.caption.on(() => { $("caption").textContent = out.caption.value; });
+      out.seq.on(() => {
+        const e = out.event.value, done = out.stepDone.value;
+        steps = out.steps.value || steps;
+        $("kicker").textContent = lab.name + " · lesson " + out.atLesson.value + " of " + lab.lessons.length;
+        $("title").textContent = out.title.value;
+        $("taskText").textContent = out.task.value;
+        $("taskTag").textContent = done ? "DONE" : "YOUR TURN";
+        $("task").dataset.done = String(done);
+        $("next").dataset.ready = String(done);
+        $("next").textContent = out.atStep.value >= steps ? (out.atLesson.value >= lab.lessons.length ? "Finish" : "Next lesson") : "Next";
+        $("dots").innerHTML = Array.from({ length: steps }, (_, i) => '<i data-on="' + (i + 1 <= out.atStep.value) + '"></i>').join("");
+        // In the app, this line is the call that records the event (as engagement, never as mastery).
+        log(e + "  " + out.skill.value + "  lesson " + out.atLesson.value + " step " + out.atStep.value +
+          (out.answer.value ? "  answer " + out.answer.value : "") + (out.mistake.value ? "  mistake " + out.mistake.value : ""));
+      });
+      show();
+    },
+  });
+
+  $("next").onclick = () => {
+    if (step < steps) step += 1;
+    else if (lesson < lab.lessons.length) { lesson += 1; step = 1; }
+    else return void ($("caption").textContent = "That is the whole lab. In the app, your practice questions come next.");
+    show();
+  };
+  $("back").onclick = () => {
+    if (step > 1) step -= 1;
+    else if (lesson > 1) { lesson -= 1; step = 1; }
+    show();
+  };
+  $("mute").onclick = () => {
+    if (!vin) return;
+    vin.muted.value = !vin.muted.value;
+    $("mute").textContent = vin.muted.value ? "Muted" : "Sound";
+    $("mute").setAttribute("aria-pressed", String(vin.muted.value));
+  };
+  // the lab fits itself to the canvas, so the page only has to say when the canvas changed size
+  new ResizeObserver(() => { try { r.resizeDrawingSurfaceToCanvas(); } catch (e) { /* not loaded yet */ } }).observe(canvas);
+})();
+</script>
+</body>
+</html>

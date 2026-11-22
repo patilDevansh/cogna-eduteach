@@ -4,6 +4,7 @@
 --   3. a square garden of 81 sq m on the keypad -> side 9 (40 or 41 is the "halved, not rooted" slip)
 
 local kit = require('kit')
+local lab = require('lab')
 type G = kit.G
 type Keypad = kit.Keypad
 
@@ -23,9 +24,40 @@ type St = {
     solvedAt: number,
 }
 
-local TX, TY, TU, N1 = 150, 206, 34, 36 -- step 1
-local OX, OY, OU, N2 = 150, 204, 38, 40 -- step 2
+local N1, N2 = 36, 40
+-- Where things go: place() sets these for the wide board, or for the upright frame on a phone (see lab.luau).
+local TX, TY, TU = 150, 206, 34 -- step 1: the 36 tiles
+local OX, OY, OU = 150, 204, 38 -- step 2: the square being tried
+local RX, RY, RW = 660, 196, 500 -- steps 1 and 2: the readout column
+local A1, A2, RUL = 142, 200, 268 -- step 2: the two attempts and the rule card, measured down from RY
 local FX, FY, FU = 170, 226, 34 -- step 3: the garden
+local KX, KY = 860, 172 -- step 3: the keypad
+local WX, WY = 668, 300 -- step 3: the rule card, once solved
+local SMALL = 12
+
+local function place()
+    if lab.portrait then
+        local st, pn = lab.stage, lab.panel
+        TX, TY, TU = st.x + 36, st.y + 34, 30
+        OX, OY, OU = st.x + 40, st.y + 34, 34
+        RX, RY, RW = pn.x, pn.y, pn.w
+        A1, A2, RUL = 138, 192, 252
+        FU = 28
+        FX, FY = st.x + (st.w - 9 * FU) / 2 + 20, st.y + 54
+        KX, KY = (lab.PW - 286) / 2, 340
+        WX, WY = lab.PW / 2, 150
+        SMALL = 14
+    else
+        TX, TY, TU = 150, 206, 34
+        OX, OY, OU = 150, 204, 38
+        RX, RY, RW = 660, 196, 500
+        A1, A2, RUL = 142, 200, 268
+        FX, FY, FU = 170, 226, 34
+        KX, KY = 860, 172
+        WX, WY = 668, 300
+        SMALL = 12
+    end
+end
 
 local S: St = {
     w = 12, s = 5, px = {}, py = {}, dragging = false, held = 0, sign = 0, touched = false, doneAt = -1,
@@ -143,22 +175,22 @@ local function drawStep1(g: G, r: Renderer)
     end
 
     -- readout
-    local bx = 660
-    r:drawPath(kit.rrect(bx, 196, 500, 140, 22), kit.fill(if sq then kit.ACCENT_WASH else kit.PAGE))
-    r:drawPath(kit.rrect(bx, 196, 500, 140, 22), kit.stroke(if sq then kit.ACCENT else kit.LINE, 2))
-    kit.label(r, f, 'THE SHAPE OF 36 TILES', f.mono, 12, kit.INK_SOFT, bx + 24, 222, 0)
+    local bx = RX
+    r:drawPath(kit.rrect(bx, RY, RW, 140, 22), kit.fill(if sq then kit.ACCENT_WASH else kit.PAGE))
+    r:drawPath(kit.rrect(bx, RY, RW, 140, 22), kit.stroke(if sq then kit.ACCENT else kit.LINE, 2))
+    kit.label(r, f, 'THE SHAPE OF 36 TILES', f.mono, SMALL, kit.INK_SOFT, bx + 24, RY + 26, 0)
     local big = if left == 0 then w .. ' × ' .. rows .. ' = 36' else w .. ' × ' .. (rows - 1) .. ' + ' .. left .. ' = 36'
     local sc = 1 + 0.1 * math.sin(kit.clamp(S.sign, 0, 1) * math.pi)
     r:save()
-    r:transform(Mat2D.withTranslation(bx + 24, 274) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(bx + 24), -274))
-    kit.label(r, f, big, f.display, 46, if sq then kit.ACCENT_DEEP else kit.INK, bx + 24, 274, 0)
+    r:transform(Mat2D.withTranslation(bx + 24, RY + 78) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(bx + 24), -(RY + 78)))
+    kit.label(r, f, big, f.display, 46, if sq then kit.ACCENT_DEEP else kit.INK, bx + 24, RY + 78, 0)
     r:restore()
     local note = if sq then 'A perfect square: as wide as it is tall.'
         elseif left == 0 then 'A rectangle: ' .. w .. ' wide and ' .. rows .. ' tall.'
         else 'Not a rectangle: the last row has only ' .. left .. '.'
-    kit.label(r, f, note, f.body, 16, if sq then kit.ACCENT_DEEP else kit.INK_SOFT, bx + 24, 316, 0)
+    kit.label(r, f, note, f.body, 16, if sq then kit.ACCENT_DEEP else kit.INK_SOFT, bx + 24, RY + 120, 0)
     if S.doneAt >= 0 then
-        rootRule(r, f, '36', '= 6', 'the side of the square that 36 tiles make', kit.clamp((g.t - S.doneAt - 0.4) * 1.5, 0, 1), 910, 372)
+        rootRule(r, f, '36', '= 6', 'the side of the square that 36 tiles make', kit.clamp((g.t - S.doneAt - 0.4) * 1.5, 0, 1), bx + RW / 2, RY + 176)
     end
 end
 
@@ -194,7 +226,7 @@ local function judge2(g: G)
         S.doneAt = g.t
         g.done()
         g.sfx('sparkle')
-        g.burst(910, 420, 40)
+        g.burst(RX + RW / 2, RY + A2, 40)
         g.say('l3s2done')
     else
         g.sfx('pop')
@@ -204,18 +236,18 @@ end
 
 local function attempt(g: G, r: Renderer, y: number, side: number, at: number, verdict: string)
     local f = g.fonts
-    local bx = 660
+    local bx = RX
     local on = at >= 0
-    r:drawPath(kit.rrect(bx, y, 500, 48, 16), kit.fill(if on then kit.SURFACE else kit.PAGE))
-    r:drawPath(kit.rrect(bx, y, 500, 48, 16), kit.stroke(if on then kit.ACCENT else kit.LINE, if on then 2 else 1.5))
+    r:drawPath(kit.rrect(bx, y, RW, 48, 16), kit.fill(if on then kit.SURFACE else kit.PAGE))
+    r:drawPath(kit.rrect(bx, y, RW, 48, 16), kit.stroke(if on then kit.ACCENT else kit.LINE, if on then 2 else 1.5))
     if on then
         r:drawPath(kit.circle(bx + 28, y + 24, 12), kit.fill(kit.ACCENT))
         r:drawPath(kit.check(bx + 28, y + 24, 12), kit.stroke(kit.SURFACE, 2.4))
         kit.label(r, f, side .. ' × ' .. side .. ' = ' .. (side * side), f.display, 22, kit.INK, bx + 52, y + 24, 0)
-        kit.label(r, f, verdict, f.body, 16, kit.INK_SOFT, bx + 476, y + 25, 1)
+        kit.label(r, f, verdict, f.body, 16, kit.INK_SOFT, bx + RW - 24, y + 25, 1)
     else
         kit.label(r, f, side .. ' × ' .. side .. ' = ?', f.display, 22, kit.INK_FAINT, bx + 24, y + 24, 0)
-        kit.label(r, f, 'try a side of ' .. side, f.body, 16, kit.INK_FAINT, bx + 476, y + 25, 1)
+        kit.label(r, f, 'try a side of ' .. side, f.body, 16, kit.INK_FAINT, bx + RW - 24, y + 25, 1)
     end
 end
 
@@ -257,20 +289,20 @@ local function drawStep2(g: G, r: Renderer)
     end
 
     -- readout
-    local bx = 660
-    r:drawPath(kit.rrect(bx, 196, 500, 124, 22), kit.fill(kit.PAGE))
-    r:drawPath(kit.rrect(bx, 196, 500, 124, 22), kit.stroke(kit.LINE, 2))
-    kit.label(r, f, '40 TILES, A SIDE OF ' .. s, f.mono, 12, kit.INK_SOFT, bx + 24, 220, 0)
+    local bx = RX
+    r:drawPath(kit.rrect(bx, RY, RW, 124, 22), kit.fill(kit.PAGE))
+    r:drawPath(kit.rrect(bx, RY, RW, 124, 22), kit.stroke(kit.LINE, 2))
+    kit.label(r, f, '40 TILES, A SIDE OF ' .. s, f.mono, SMALL, kit.INK_SOFT, bx + 24, RY + 24, 0)
     local sc = 1 + 0.1 * math.sin(kit.clamp(S.sign, 0, 1) * math.pi)
     r:save()
-    r:transform(Mat2D.withTranslation(bx + 24, 264) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(bx + 24), -264))
-    kit.label(r, f, s .. ' × ' .. s .. ' = ' .. (s * s), f.display, 42, kit.INK, bx + 24, 264, 0)
+    r:transform(Mat2D.withTranslation(bx + 24, RY + 68) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(bx + 24), -(RY + 68)))
+    kit.label(r, f, s .. ' × ' .. s .. ' = ' .. (s * s), f.display, 42, kit.INK, bx + 24, RY + 68, 0)
     r:restore()
-    kit.label(r, f, if over > 0 then over .. ' tiles left over: the square is too small.' else -over .. ' tiles short: the square is too big.', f.body, 16, kit.INK_SOFT, bx + 24, 302, 0)
-    attempt(g, r, 338, 6, S.tried6, 'too small, 4 left over')
-    attempt(g, r, 396, 7, S.tried7, 'too big, 9 short')
+    kit.label(r, f, if over > 0 then over .. ' tiles left over: the square is too small.' else -over .. ' tiles short: the square is too big.', f.body, 16, kit.INK_SOFT, bx + 24, RY + 106, 0)
+    attempt(g, r, RY + A1, 6, S.tried6, 'too small, 4 left over')
+    attempt(g, r, RY + A2, 7, S.tried7, 'too big, 9 short')
     if S.doneAt >= 0 then
-        rootRule(r, f, '40', 'is between 6 and 7', 'because 40 is between 36 and 49', kit.clamp((g.t - S.doneAt - 0.4) * 1.5, 0, 1), 910, 464)
+        rootRule(r, f, '40', 'is between 6 and 7', 'because 40 is between 36 and 49', kit.clamp((g.t - S.doneAt - 0.4) * 1.5, 0, 1), bx + RW / 2, RY + RUL)
     end
 end
 
@@ -279,8 +311,10 @@ end
 local function drawStep3(g: G, r: Renderer)
     local f = g.fonts
     local side = 9 * FU
-    kit.tree(r, 574, 520, 1, g.t)
-    kit.tree(r, 640, 548, 0.7, g.t)
+    if not lab.portrait then -- the trees stand beside the garden, and upright there is no beside
+        kit.tree(r, 574, 520, 1, g.t)
+        kit.tree(r, 640, 548, 0.7, g.t)
+    end
     local P = { Vector.xy(FX, FY), Vector.xy(FX + side, FY), Vector.xy(FX + side, FY + side), Vector.xy(FX, FY + side) }
     kit.land(r, P, kit.style(FU, Vector.xy(FX, FY)))
     kit.halo(r, f, '81 sq m', f.display, 26, kit.INK, FX + side / 2, FY + side / 2, 0.5)
@@ -295,20 +329,23 @@ local function drawStep3(g: G, r: Renderer)
     kit.label(r, f, label, f.display, 26, c, FX - 44, FY + side / 2, 1)
     r:restore()
     if S.solvedAt >= 0 then
-        rootRule(r, f, '81', '= 9', 'because 9 × 9 = 81', kit.clamp((g.t - S.solvedAt) * 1.5, 0, 1), 668, 300)
+        rootRule(r, f, '81', '= 9', 'because 9 × 9 = 81', kit.clamp((g.t - S.solvedAt) * 1.5, 0, 1), WX, WY)
     end
     kit.keypadDraw(r, f, S.kp, 'Side of the square garden', 'm', g.t)
 end
 
 local function check(g: G)
-    local v = tonumber(S.kp.value) or -1
+    local typed = S.kp.value
+    local v = tonumber(typed) or -1
     if v == 9 then
         S.kp.okT = 3
+        lab.answer(typed, true, '')
         S.solvedAt = g.t
         g.done()
-        g.burst(1000, 300, 40)
+        g.burst(KX + 143, KY + 130, 40)
         g.say('l3s3done')
     else
+        lab.answer(typed, false, if v == 40 or v == 41 then 'HALVED_NOT_ROOTED' else '') -- the syllabus mistake this answer shows, if it is a known one
         g.sfx('oops')
         kit.keypadWrong(S.kp, 'Not quite. Have another go.')
         g.say(if v == 40 or v == 41 then 'l3n40' else 'l3nx')
@@ -318,6 +355,7 @@ end
 -- protocol ---------------------------------------------------------------------------------
 
 L.id = 'SQ_ROOT_MEANING'
+lab.upright[L.id] = true
 L.tag = 'WHAT A SQUARE ROOT IS'
 L.title = 'Back from the tiles to the side'
 L.blurb = 'Shuffle the tiles into a square.'
@@ -328,10 +366,11 @@ L.steps = {
 }
 
 function L.enter(g: G, step: number)
+    place()
     S.w, S.s = 12, 5
     S.dragging, S.held, S.sign, S.touched, S.doneAt = false, 0, 0, false, -1
     S.tried6, S.tried7 = -1, -1
-    S.kp = kit.keypad(860, 172)
+    S.kp = kit.keypad(KX, KY)
     S.solvedAt = -1
     S.px, S.py = {}, {}
     for i = 0, (if step == 1 then N1 else N2) - 1 do

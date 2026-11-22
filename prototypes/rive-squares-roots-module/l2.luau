@@ -4,6 +4,7 @@
 --   3. 1 + 3 + 5 + 7 + 9 + 11 on the keypad -> 36 (six borders, 6 × 6)
 
 local kit = require('kit')
+local lab = require('lab')
 type G = kit.G
 type Keypad = kit.Keypad
 
@@ -29,9 +30,51 @@ type St = {
     solvedAt: number,
 }
 
-local GX, GY, U, MAXN = 170, 204, 60, 5
+local MAXN = 5
+-- Where things go: layout() sets these for the wide board, or for the upright frame on a phone (see lab.luau).
+local GX, GY, U = 170, 204, 60 -- step 1: the square that grows
+local RX, RY, RW = 660, 196, 500 -- step 1: the sum
 local BX, BY, BU = 170, 204, 56 -- step 2: the 4 by 4 square
+local HX1, HY1, HX2, HY2, HX3, HY3 = 540, 204, 630, 204, 630, 300 -- step 2: where the three pieces wait
+local SGX, SGY = 920, 200 -- step 2: the border count
+local R1X, R1Y, R2Y = 900, 316, 436 -- step 2: the two rule cards
 local CX, CY, CU = 170, 252, 46 -- step 3: the 6 by 6 square
+local SUMX, SUMY = 170, 206 -- step 3: the sum above it
+local KX, KY = 860, 172 -- step 3: the keypad
+local WX, WY = 668, 330 -- step 3: the rule card, once solved
+local SMALL = 12
+
+local function layout()
+    if lab.portrait then
+        local st, pn = lab.stage, lab.panel
+        U = 56
+        GX, GY = st.x + (st.w - MAXN * U) / 2, st.y + 20
+        RX, RY, RW = pn.x, pn.y, pn.w
+        BU = 52
+        BX, BY = st.x + (st.w - 5 * BU) / 2 + 10, st.y + 40
+        HX1, HY1, HX2, HY2, HX3, HY3 = pn.x + 20, pn.y + 14, pn.x + 100, pn.y + 14, pn.x + 100, pn.y + 90
+        SGX, SGY = pn.x + 230, pn.y + 80
+        R1X, R1Y, R2Y = lab.PW / 2, pn.y + 104, pn.y + 216
+        CU = 40
+        CX, CY = (lab.PW - 6 * CU) / 2, st.y + 48
+        SUMX, SUMY = (lab.PW - 300) / 2, st.y + 18
+        KX, KY = (lab.PW - 286) / 2, 340
+        WX, WY = lab.PW / 2, 136
+        SMALL = 14
+    else
+        GX, GY, U = 170, 204, 60
+        RX, RY, RW = 660, 196, 500
+        BX, BY, BU = 170, 204, 56
+        HX1, HY1, HX2, HY2, HX3, HY3 = 540, 204, 630, 204, 630, 300
+        SGX, SGY = 920, 200
+        R1X, R1Y, R2Y = 900, 316, 436
+        CX, CY, CU = 170, 252, 46
+        SUMX, SUMY = 170, 206
+        KX, KY = 860, 172
+        WX, WY = 668, 330
+        SMALL = 12
+    end
+end
 local GAP = 0.07 -- seconds between one tile of a border and the next
 
 -- one colour for each border, and a darker one for its number in the sum
@@ -40,9 +83,9 @@ local TERM: { Color } = { kit.INK, kit.ACCENT, kit.GOLD_DEEP, kit.BLUE, kit.RED,
 
 local function newPieces(): { Piece }
     return {
-        { w = 1, h = 4, hx = 540, hy = 204, sx = BX + 4 * BU, sy = BY, x = 540, y = 204, placed = false, at = -1 },
-        { w = 4, h = 1, hx = 630, hy = 204, sx = BX, sy = BY + 4 * BU, x = 630, y = 204, placed = false, at = -1 },
-        { w = 1, h = 1, hx = 630, hy = 300, sx = BX + 4 * BU, sy = BY + 4 * BU, x = 630, y = 300, placed = false, at = -1 },
+        { w = 1, h = 4, hx = HX1, hy = HY1, sx = BX + 4 * BU, sy = BY, x = HX1, y = HY1, placed = false, at = -1 },
+        { w = 4, h = 1, hx = HX2, hy = HY2, sx = BX, sy = BY + 4 * BU, x = HX2, y = HY2, placed = false, at = -1 },
+        { w = 1, h = 1, hx = HX3, hy = HY3, sx = BX + 4 * BU, sy = BY + 4 * BU, x = HX3, y = HY3, placed = false, at = -1 },
     }
 end
 
@@ -158,25 +201,32 @@ local function drawStep1(g: G, r: Renderer)
     end
     -- how many the last border added
     if n > 1 then
-        kit.tag(r, f, '+ ' .. (2 * n - 1) .. ' tiles', GX + math.min(n + 1, MAXN) * U + 76, GY + n * U - U / 2, kit.clamp((g.t - S.addAt - (2 * n - 1) * GAP) * 3, 0, 1))
+        local edge = math.min(n + 1, MAXN) * U
+        local tk = kit.clamp((g.t - S.addAt - (2 * n - 1) * GAP) * 3, 0, 1)
+        if lab.portrait then -- no room beside the square: the count goes under it
+            kit.tag(r, f, '+ ' .. (2 * n - 1) .. ' tiles', GX + edge / 2, GY + edge + 32, tk)
+        else
+            kit.tag(r, f, '+ ' .. (2 * n - 1) .. ' tiles', GX + edge + 76, GY + n * U - U / 2, tk)
+        end
     end
 
     -- the sum
-    local bx = 660
+    local bx = RX
     local full = S.doneAt >= 0
-    r:drawPath(kit.rrect(bx, 196, 500, 168, 22), kit.fill(if full then kit.ACCENT_WASH else kit.PAGE))
-    r:drawPath(kit.rrect(bx, 196, 500, 168, 22), kit.stroke(if full then kit.ACCENT else kit.LINE, 2))
-    kit.label(r, f, 'TILES SO FAR', f.mono, 12, kit.INK_SOFT, bx + 24, 222, 0)
-    drawSum(r, f, n, bx + 24, 268, 40, S.sign)
+    r:drawPath(kit.rrect(bx, RY, RW, 168, 22), kit.fill(if full then kit.ACCENT_WASH else kit.PAGE))
+    r:drawPath(kit.rrect(bx, RY, RW, 168, 22), kit.stroke(if full then kit.ACCENT else kit.LINE, 2))
+    kit.label(r, f, 'TILES SO FAR', f.mono, SMALL, kit.INK_SOFT, bx + 24, RY + 26, 0)
+    drawSum(r, f, n, bx + 24, RY + 72, 40, S.sign)
     local total = if settled then n * n else (n - 1) * (n - 1) + S.landed
-    kit.label(r, f, '= ' .. total, f.display, 34, kit.INK, bx + 24, 326, 0)
+    kit.label(r, f, '= ' .. total, f.display, 34, kit.INK, bx + 24, RY + 130, 0)
     if settled then
         local w = kit.width(f, '= ' .. total, f.display, 34)
-        kit.label(r, f, '= ' .. n .. ' × ' .. n, f.display, 34, kit.ACCENT_DEEP, bx + 24 + w + 18, 326, 0)
+        kit.label(r, f, '= ' .. n .. ' × ' .. n, f.display, 34, kit.ACCENT_DEEP, bx + 24 + w + 18, RY + 130, 0)
     end
-    kit.label(r, f, 'Each border has its own colour, in the square and in the sum.', f.body, 15, kit.INK_SOFT, bx, 392, 0)
+    kit.label(r, f, 'Each border has its own colour, in the square and in the sum.', f.body, 15, kit.INK_SOFT, bx, RY + 196, 0)
     if full then
-        kit.rule(r, f, '1 + 3 + 5 + 7 + 9 = 5 × 5', 'five odd numbers make a 5 by 5 square', kit.clamp((g.t - S.doneAt - 0.6) * 1.5, 0, 1), 910, 428)
+        -- the upright frame is too narrow for the whole sum again, so it gets the short form
+        kit.rule(r, f, if lab.portrait then '25 = 5 × 5' else '1 + 3 + 5 + 7 + 9 = 5 × 5', 'five odd numbers make a 5 by 5 square', kit.clamp((g.t - S.doneAt - 0.6) * 1.5, 0, 1), bx + RW / 2, RY + 232)
     end
 end
 
@@ -262,7 +312,7 @@ local function drawStep2(g: G, r: Renderer)
         local a = if k < 0.1 then k / 0.1 elseif k > 0.8 then (1 - k) / 0.2 else 1
         local e = kit.smooth((k - 0.15) / 0.6)
         local pc = S.pieces[1]
-        kit.finger(r, kit.lerp(pc.hx, pc.sx, e) + BU / 2, pc.hy + 2 * BU, a, true)
+        kit.finger(r, kit.lerp(pc.hx, pc.sx, e) + BU / 2, kit.lerp(pc.hy, pc.sy, e) + 2 * BU, a, true)
     end
 
     -- the border, counted
@@ -276,13 +326,18 @@ local function drawStep2(g: G, r: Renderer)
             text ..= ' = 9'
         end
     end
-    kit.sign(r, f, 'TILES IN THE BORDER', text, S.sign, 920, 200)
+    -- upright, the count moves up into the space the pieces leave once they are all on
+    local sgx, sgy = SGX, SGY
+    if lab.portrait and S.allAt >= 0 then
+        sgx, sgy = (lab.PW - 210) / 2, lab.panel.y + 8
+    end
+    kit.sign(r, f, 'TILES IN THE BORDER', text, S.sign, sgx, sgy)
     if S.allAt >= 0 then
         local age = g.t - S.allAt
         local big = { Vector.xy(BX, BY), Vector.xy(BX + 5 * BU, BY), Vector.xy(BX + 5 * BU, BY + 5 * BU), Vector.xy(BX, BY + 5 * BU) }
         r:drawPath(kit.partialOutline(big, (age - 0.2) / 1.0), kit.stroke(kit.ACCENT, 4))
-        kit.rule(r, f, '16 + 9 = 25', 'the 4 by 4 square and its border make 5 by 5', kit.clamp((age - 1.2) * 1.5, 0, 1), 900, 316)
-        kit.rule(r, f, 'side + side + 1', 'two equal strips and a corner: always odd', kit.clamp((age - 2.6) * 1.5, 0, 1), 900, 436)
+        kit.rule(r, f, '16 + 9 = 25', 'the 4 by 4 square and its border make 5 by 5', kit.clamp((age - 1.2) * 1.5, 0, 1), R1X, R1Y)
+        kit.rule(r, f, 'side + side + 1', 'two equal strips and a corner: always odd', kit.clamp((age - 2.6) * 1.5, 0, 1), R1X, R2Y)
     end
 end
 
@@ -290,7 +345,7 @@ end
 
 local function drawStep3(g: G, r: Renderer)
     local f = g.fonts
-    drawSum(r, f, 6, CX, 206, 30, 0)
+    drawSum(r, f, 6, SUMX, SUMY, 30, 0)
     for row = 0, 5 do
         for c = 0, 5 do
             local layer = math.max(row, c) + 1
@@ -303,20 +358,23 @@ local function drawStep3(g: G, r: Renderer)
         end
     end
     if S.solvedAt >= 0 then
-        kit.rule(r, f, '6 × 6 = 36', 'six borders build a 6 by 6 square', kit.clamp((g.t - S.solvedAt) * 1.5, 0, 1), 668, 330)
+        kit.rule(r, f, '6 × 6 = 36', 'six borders build a 6 by 6 square', kit.clamp((g.t - S.solvedAt) * 1.5, 0, 1), WX, WY)
     end
     kit.keypadDraw(r, f, S.kp, '1 + 3 + 5 + 7 + 9 + 11', 'tiles', g.t)
 end
 
 local function check(g: G)
-    local v = tonumber(S.kp.value) or -1
+    local typed = S.kp.value
+    local v = tonumber(typed) or -1
     if v == 36 then
         S.kp.okT = 3
+        lab.answer(typed, true, '')
         S.solvedAt = g.t
         g.done()
-        g.burst(1000, 300, 40)
+        g.burst(KX + 143, KY + 130, 40)
         g.say('l2s3done')
     else
+        lab.answer(typed, false, 'ODD_SUM_MISCOUNTED') -- the syllabus mistake this answer shows, if it is a known one
         g.sfx('oops')
         kit.keypadWrong(S.kp, 'Not quite. Have another go.')
         g.say(if v == 12 then 'l2n12' else 'l2nx')
@@ -326,6 +384,7 @@ end
 -- protocol ---------------------------------------------------------------------------------
 
 L.id = 'SQ_PATTERNS'
+lab.upright[L.id] = true
 L.tag = 'SQUARE PATTERNS'
 L.title = 'Odd numbers build squares'
 L.blurb = 'Wrap a border round it: 3, 5, 7, 9.'
@@ -336,9 +395,10 @@ L.steps = {
 }
 
 function L.enter(g: G, step: number)
+    layout()
     S.n, S.bornAt, S.addAt, S.landed, S.sign, S.doneAt = 1, { [0] = g.t }, -9, 0, 0, -1
     S.pieces, S.drag, S.held, S.order, S.allAt = newPieces(), 0, 0, {}, -1
-    S.kp = kit.keypad(860, 172)
+    S.kp = kit.keypad(KX, KY)
     S.solvedAt = -1
 end
 

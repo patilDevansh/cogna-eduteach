@@ -4,6 +4,7 @@
 --   3. 7² on the keypad -> 49 (14 is the "doubled, not squared" slip)
 
 local kit = require('kit')
+local lab = require('lab')
 type G = kit.G
 type Keypad = kit.Keypad
 type Choice = kit.Choice
@@ -28,9 +29,46 @@ type St = {
     solvedAt: number,
 }
 
-local GX, GY, GU, MAXN = 150, 200, 56, 6
+local MAXN = 6
+-- Where things go. place() sets these for the frame the shell gives: the wide board, or the upright one on a phone
+-- (figure in lab.stage, readouts underneath in lab.panel).
+local GX, GY, GU = 150, 200, 56 -- step 1: the growing square
+local RX, RY, RW = 660, 196, 500 -- step 1: the readout column
+local CHIP, PITCH = 75, 85 -- step 1: the square-number chips
 local PX, PY, PU = 190, 210, 60 -- step 2: where a pile builds its square
+local CX, CY = 950, 214 -- step 2: the piles to pick from (centre, top)
 local QX, QY, QU = 170, 226, 44 -- step 3: the 7 by 7 square
+local KX, KY = 860, 172 -- step 3: the keypad
+local WX, WY = 668, 320 -- step 3: the rule card, once solved
+local SMALL = 12 -- the small capital labels
+
+local function place()
+    if lab.portrait then
+        local st, pn = lab.stage, lab.panel
+        GU = 52
+        GX, GY = st.x + (st.w - MAXN * GU) / 2 + 14, st.y + 40
+        RX, RY, RW = pn.x, pn.y, pn.w
+        CHIP, PITCH = 66, (pn.w - 66) / 5
+        PU = 52
+        PX, PY = st.x + (st.w - 4 * PU) / 2 + 12, st.y + 60
+        CX, CY = pn.x + pn.w / 2, pn.y + 20
+        QU = 36
+        QX, QY = st.x + (st.w - 7 * QU) / 2 + 14, st.y + 48
+        KX, KY = (lab.PW - 286) / 2, 340
+        WX, WY = lab.PW / 2, 110
+        SMALL = 14
+    else
+        GX, GY, GU = 150, 200, 56
+        RX, RY, RW = 660, 196, 500
+        CHIP, PITCH = 75, 85
+        PX, PY, PU = 190, 210, 60
+        CX, CY = 950, 214
+        QX, QY, QU = 170, 226, 44
+        KX, KY = 860, 172
+        WX, WY = 668, 320
+        SMALL = 12
+    end
+end
 local DROP_GAP = 0.05 -- seconds between one tile of a pile and the next
 
 local S: St = {
@@ -126,28 +164,28 @@ local function drawStep1(g: G, r: Renderer)
     end
 
     -- readout
-    local bx = 660
+    local bx = RX
     local N = S.n * S.n
-    r:drawPath(kit.rrect(bx, 196, 500, 140, 22), kit.fill(if full then kit.ACCENT_WASH else kit.PAGE))
-    r:drawPath(kit.rrect(bx, 196, 500, 140, 22), kit.stroke(if full then kit.ACCENT else kit.LINE, 2))
-    kit.label(r, f, 'TILES IN THE SQUARE', f.mono, 12, kit.INK_SOFT, bx + 24, 222, 0)
+    r:drawPath(kit.rrect(bx, RY, RW, 140, 22), kit.fill(if full then kit.ACCENT_WASH else kit.PAGE))
+    r:drawPath(kit.rrect(bx, RY, RW, 140, 22), kit.stroke(if full then kit.ACCENT else kit.LINE, 2))
+    kit.label(r, f, 'TILES IN THE SQUARE', f.mono, SMALL, kit.INK_SOFT, bx + 24, RY + 26, 0)
     local sc = 1 + 0.1 * math.sin(kit.clamp(S.sign, 0, 1) * math.pi)
     r:save()
-    r:transform(Mat2D.withTranslation(bx + 24, 274) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(bx + 24), -274))
-    kit.label(r, f, S.n .. ' × ' .. S.n .. ' = ' .. N, f.display, 46, if full then kit.ACCENT_DEEP else kit.INK, bx + 24, 274, 0)
+    r:transform(Mat2D.withTranslation(bx + 24, RY + 78) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(bx + 24), -(RY + 78)))
+    kit.label(r, f, S.n .. ' × ' .. S.n .. ' = ' .. N, f.display, 46, if full then kit.ACCENT_DEEP else kit.INK, bx + 24, RY + 78, 0)
     r:restore()
-    kit.label(r, f, 'We write ' .. S.n .. '² = ' .. N .. ' and say ' .. S.n .. ' squared.', f.body, 16, kit.INK_SOFT, bx + 24, 316, 0)
+    kit.label(r, f, 'We write ' .. S.n .. '² = ' .. N .. ' and say ' .. S.n .. ' squared.', f.body, 16, kit.INK_SOFT, bx + 24, RY + 120, 0)
 
     -- the square numbers met so far
-    kit.label(r, f, 'SQUARE NUMBERS SO FAR', f.mono, 12, kit.INK_SOFT, bx, 378, 0)
+    kit.label(r, f, 'SQUARE NUMBERS SO FAR', f.mono, SMALL, kit.INK_SOFT, bx, RY + 182, 0)
     for i = 1, MAXN do
-        local x, y = bx + (i - 1) * 85, 396
+        local x, y = bx + (i - 1) * PITCH, RY + 200
         local on = i <= S.maxN
         local cur = i == S.n
-        r:drawPath(kit.rrect(x, y, 75, 54, 16), kit.fill(if on then kit.SURFACE else kit.PAGE))
-        r:drawPath(kit.rrect(x, y, 75, 54, 16), kit.stroke(if cur then kit.GOLD elseif on then kit.ACCENT else kit.LINE, if cur then 3 elseif on then 2 else 1.5))
-        kit.label(r, f, if on then tostring(i * i) else '?', f.display, 24, if on then kit.INK else kit.INK_FAINT, x + 37.5, y + 27, 0.5)
-        kit.label(r, f, i .. '²', f.mono, 14, kit.INK_SOFT, x + 37.5, y + 74, 0.5)
+        r:drawPath(kit.rrect(x, y, CHIP, 54, 16), kit.fill(if on then kit.SURFACE else kit.PAGE))
+        r:drawPath(kit.rrect(x, y, CHIP, 54, 16), kit.stroke(if cur then kit.GOLD elseif on then kit.ACCENT else kit.LINE, if cur then 3 elseif on then 2 else 1.5))
+        kit.label(r, f, if on then tostring(i * i) else '?', f.display, 24, if on then kit.INK else kit.INK_FAINT, x + CHIP / 2, y + 27, 0.5)
+        kit.label(r, f, i .. '²', f.mono, SMALL + 2, kit.INK_SOFT, x + CHIP / 2, y + 74, 0.5)
     end
 end
 
@@ -202,20 +240,24 @@ local function drawStep2(g: G, r: Renderer)
         if over > 0 then
             r:save()
             r:modulateOpacity(k)
-            kit.label(r, f, over .. ' left over', f.display, 22, kit.RED, PX + over * PU + 18, PY + side + 24 + PU / 2, 0)
+            if lab.portrait then -- no room beside the row: the count goes under it
+                kit.label(r, f, over .. ' left over', f.display, 22, kit.RED, PX + over * PU / 2, PY + side + 24 + PU + 18, 0.5)
+            else
+                kit.label(r, f, over .. ' left over', f.display, 22, kit.RED, PX + over * PU + 18, PY + side + 24 + PU / 2, 0)
+            end
             r:restore()
         end
     end
 
     -- the piles
-    kit.label(r, f, 'HOW MANY TILES IN THE PILE?', f.mono, 12, kit.INK_SOFT, 950, 214, 0.5)
+    kit.label(r, f, 'HOW MANY TILES IN THE PILE?', f.mono, SMALL, kit.INK_SOFT, CX, CY, 0.5)
     kit.choicesDraw(r, f, S.piles, lastHover, if S.solved then 16 else -1, g.t)
     if S.judged then
         local k = kit.clamp((age - n * DROP_GAP - 0.9) * 1.5, 0, 1)
         if over > 0 then
-            kit.rule(r, f, n .. ' = ' .. s .. ' × ' .. s .. ' + ' .. over, over .. ' left over, so not a square number', k, 950, 340)
+            kit.rule(r, f, n .. ' = ' .. s .. ' × ' .. s .. ' + ' .. over, over .. ' left over, so not a square number', k, CX, CY + 126)
         else
-            kit.rule(r, f, n .. ' = ' .. s .. ' × ' .. s, 'none left over: a square number', k, 950, 340)
+            kit.rule(r, f, n .. ' = ' .. s .. ' × ' .. s, 'none left over: a square number', k, CX, CY + 126)
         end
     end
 end
@@ -239,20 +281,23 @@ local function drawStep3(g: G, r: Renderer)
     kit.bracket(r, f, Vector.xy(QX, QY - 24), Vector.xy(QX + side, QY - 24), 0, -1, '7', k, kit.INK)
     kit.bracket(r, f, Vector.xy(QX - 26, QY), Vector.xy(QX - 26, QY + side), -1, 0, '7', k, kit.INK)
     if S.solvedAt >= 0 then
-        kit.rule(r, f, '7² = 7 × 7 = 49', 'seven rows of seven', kit.clamp((g.t - S.solvedAt) * 1.5, 0, 1), 668, 320)
+        kit.rule(r, f, '7² = 7 × 7 = 49', 'seven rows of seven', kit.clamp((g.t - S.solvedAt) * 1.5, 0, 1), WX, WY)
     end
     kit.keypadDraw(r, f, S.kp, 'Tiles in the square: 7²', 'tiles', g.t)
 end
 
 local function check(g: G)
-    local v = tonumber(S.kp.value) or -1
+    local typed = S.kp.value
+    local v = tonumber(typed) or -1
     if v == 49 then
         S.kp.okT = 3
+        lab.answer(typed, true, '')
         S.solvedAt = g.t
         g.done()
-        g.burst(1000, 300, 40)
+        g.burst(KX + 143, KY + 130, 40)
         g.say('l1s3done')
     else
+        lab.answer(typed, false, if v == 14 then 'DOUBLED_NOT_SQUARED' else '') -- the syllabus mistake this answer shows, if it is a known one
         g.sfx('oops')
         kit.keypadWrong(S.kp, 'Not quite. Have another go.')
         g.say(if v == 14 then 'l1n14' else 'l1nx')
@@ -262,6 +307,7 @@ end
 -- protocol ---------------------------------------------------------------------------------
 
 L.id = 'SQ_SQUARE'
+lab.upright[L.id] = true
 L.tag = 'SQUARING A NUMBER'
 L.title = 'A number times itself'
 L.blurb = 'Grow a square and count its tiles.'
@@ -272,10 +318,11 @@ L.steps = {
 }
 
 function L.enter(g: G, step: number)
+    place()
     S.n, S.maxN, S.dragging, S.held, S.sign, S.bornAt, S.doneAt = 1, 1, false, 0, 0, {}, -1
-    S.piles = kit.choices(g.fonts, { '12', '16', '20' }, { 12, 16, 20 }, 950, 236)
+    S.piles = kit.choices(g.fonts, { '12', '16', '20' }, { 12, 16, 20 }, CX, CY + 22)
     S.pile, S.pileAt, S.landed, S.judged, S.solved = 0, 0, 0, false, false
-    S.kp = kit.keypad(860, 172)
+    S.kp = kit.keypad(KX, KY)
     S.solvedAt = -1
 end
 

@@ -5,6 +5,7 @@
 --   3. (10 + 2)² on the keypad -> 144
 
 local kit = require('kit')
+local lab = require('lab')
 type G = kit.G
 type Keypad = kit.Keypad
 
@@ -29,28 +30,77 @@ type St = {
     solvedAt: number,
 }
 
-local A, B, U = 5, 3, 42
-local FX, FY = 170, 220
-local PX, PW = 720, 440 -- the working-out, on the right
-local U2, F2X, F2Y = 36, 120, 232 -- step 2
-local A3, B3, U3, GAP3 = 10, 2, 20, 14 -- step 3
-local F3X, F3Y = 160, 236
+local A, B = 5, 3
+local A3, B3, GAP3 = 10, 2, 14 -- step 3
 local SQUARES = kit.ACCENT_DEEP -- the colour of the two squares in the sums
 local STRIPS = Color.rgb(74, 150, 70) -- …and of the two strips
+-- Where things go. place() sets these for the frame the shell gives: the wide board, or the upright one on a phone
+-- (figure in lab.stage, readouts underneath in lab.panel).
+local FX, FY, U = 170, 220, 42 -- step 1: the growing square
+local PX, PY, PW = 720, 200, 440 -- step 1: the working-out (beside the square, or under it)
+local LY, LP, RY = 372, 30, 470 -- …its key to the pieces (first row, row to row) and its rule card
+local F2X, F2Y, U2 = 120, 232, 36 -- step 2: the 8 by 8 square
+local H1X, H1Y, H2X, H2Y = 470, 232, 470, 442 -- step 2: where the tall strip and the wide strip wait
+local QX, QY = 940, 196 -- step 2: the 5² + 3² card (centre, top)
+local NX, NY = 835, 322 -- step 2: the FILLED SO FAR sign
+local EX, EY = 940, 436 -- step 2: the rule card, once both strips are in
+local F3X, F3Y, U3 = 160, 236, 20 -- step 3: the square
+local TX, TY = 668, 300 -- step 3: the question
+local KX, KY = 860, 172 -- step 3: the keypad
+local WX, WY = 280, 516 -- step 3: the rule card, once solved
+local SMALL = 12 -- the small capital labels
+
+local function place()
+    if lab.portrait then
+        local st, pn = lab.stage, lab.panel
+        U = 34
+        FX, FY = st.x + (st.w - (A + B) * U) / 2 + 20, st.y + 60 -- 20: the bracket down the left side takes room too
+        PX, PY, PW = pn.x, pn.y, pn.w
+        LY, LP, RY = pn.y + 158, 26, pn.y + 234
+        U2 = 32
+        F2X, F2Y = st.x + (st.w - (A + B) * U2) / 2 + 27, st.y + 72
+        -- the panel, top to bottom: the 5² + 3² card (230 wide) beside the sign (210 wide), then the strips
+        -- waiting side by side; the last rule card takes the strips' place once they are in
+        QX, QY = 129, pn.y
+        NX, NY = 256, pn.y + 6
+        H1X, H1Y = (lab.PW - (A + B) * U2 - 40) / 2, pn.y + 114
+        H2X, H2Y = H1X + B * U2 + 40, H1Y + (A - B) * U2 / 2
+        EX, EY = lab.PW / 2, H1Y + (A * U2 - 96) / 2
+        U3 = 16
+        F3X, F3Y = st.x + (st.w - (A3 + B3) * U3) / 2 + 30, st.y + 65
+        TX, TY = lab.PW / 2, 314
+        KX, KY = (lab.PW - 286) / 2, 340
+        WX, WY = lab.PW / 2, pn.y
+        SMALL = 14
+    else
+        FX, FY, U = 170, 220, 42
+        PX, PY, PW = 720, 200, 440
+        LY, LP, RY = 372, 30, 470
+        F2X, F2Y, U2 = 120, 232, 36
+        H1X, H1Y, H2X, H2Y = 470, 232, 470, 442
+        QX, QY = 940, 196
+        NX, NY = 835, 322
+        EX, EY = 940, 436
+        F3X, F3Y, U3 = 160, 236, 20
+        TX, TY = 668, 300
+        KX, KY = 860, 172
+        WX, WY = 280, 516
+        SMALL = 12
+    end
+end
 
 local function newStrips(): { Strip }
-    local hx = F2X + (A + B) * U2 + 62
     return {
         -- the tall one fits the gap top right, the wide one the gap bottom left
-        { x = hx, y = F2Y, hx = hx, hy = F2Y, tx = F2X + A * U2, ty = F2Y, w = B, h = A, placed = false, held = 0 },
-        { x = hx, y = F2Y + A * U2 + 30, hx = hx, hy = F2Y + A * U2 + 30, tx = F2X, ty = F2Y + A * U2, w = A, h = B, placed = false, held = 0 },
+        { x = H1X, y = H1Y, hx = H1X, hy = H1Y, tx = F2X + A * U2, ty = F2Y, w = B, h = A, placed = false, held = 0 },
+        { x = H2X, y = H2Y, hx = H2X, hy = H2Y, tx = F2X, ty = F2Y + A * U2, w = A, h = B, placed = false, held = 0 },
     }
 end
 
 local S: St = {
     b = 0, bs = 0, dragging = false, held = 0, sign = 0, grownAt = -1,
     strips = newStrips(), drag = 0, grabX = 0, grabY = 0, nPlaced = 0, fullAt = -1,
-    kp = kit.keypad(860, 172), solvedAt = -1,
+    kp = kit.keypad(KX, KY), solvedAt = -1,
 }
 
 local L = {}
@@ -68,6 +118,7 @@ local function sum(r: Renderer, f: kit.Fonts, terms: { { s: string, c: Color } }
 end
 
 L.id = 'AE_IDENTITY_SQ_PLUS'
+lab.upright[L.id] = true
 L.tag = 'THE IDENTITY (a + b)² = a² + 2ab + b²'
 L.title = 'The square of a sum'
 L.blurb = 'Grow a square: (a + b)² has two strips.'
@@ -78,9 +129,10 @@ L.steps = {
 }
 
 function L.enter(g: G, step: number)
+    place()
     S.b, S.bs, S.dragging, S.held, S.sign, S.grownAt = 0, 0, false, 0, 0, -1
     S.strips, S.drag, S.nPlaced, S.fullAt = newStrips(), 0, 0, -1
-    S.kp = kit.keypad(860, 172)
+    S.kp = kit.keypad(KX, KY)
     S.solvedAt = -1
 end
 
@@ -151,23 +203,23 @@ local function drawStep1(g: G, r: Renderer)
     -- the working-out
     local side = A + b
     local done = b == B
-    r:drawPath(kit.rrect(PX, 200, PW, 136, 22), kit.fill(if done then kit.ACCENT_WASH else kit.PAGE))
-    r:drawPath(kit.rrect(PX, 200, PW, 136, 22), kit.stroke(if done then kit.ACCENT else kit.LINE, 2))
-    kit.label(r, f, 'AREA OF THE SQUARE NOW', f.mono, 12, kit.INK_SOFT, PX + 24, 226, 0)
+    r:drawPath(kit.rrect(PX, PY, PW, 136, 22), kit.fill(if done then kit.ACCENT_WASH else kit.PAGE))
+    r:drawPath(kit.rrect(PX, PY, PW, 136, 22), kit.stroke(if done then kit.ACCENT else kit.LINE, 2))
+    kit.label(r, f, 'AREA OF THE SQUARE NOW', f.mono, SMALL, kit.INK_SOFT, PX + 24, PY + 26, 0)
     local sc = 1 + 0.06 * math.sin(kit.clamp(S.sign, 0, 1) * math.pi)
     r:save()
-    r:transform(Mat2D.withTranslation(PX + 24, 272) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(PX + 24), -272))
+    r:transform(Mat2D.withTranslation(PX + 24, PY + 72) * Mat2D.withScale(sc, sc) * Mat2D.withTranslation(-(PX + 24), -(PY + 72)))
     if b == 0 then
-        sum(r, f, { { s = '25', c = SQUARES } }, PX + 24, 272, 34)
+        sum(r, f, { { s = '25', c = SQUARES } }, PX + 24, PY + 72, 34)
     else
         sum(r, f, {
             { s = '25', c = SQUARES }, { s = '+', c = kit.INK_SOFT }, { s = tostring(A * b), c = STRIPS }, { s = '+', c = kit.INK_SOFT },
             { s = tostring(A * b), c = STRIPS }, { s = '+', c = kit.INK_SOFT }, { s = tostring(b * b), c = SQUARES },
             { s = '=', c = kit.INK }, { s = tostring(side * side), c = kit.INK },
-        }, PX + 24, 272, 34)
+        }, PX + 24, PY + 72, 34)
     end
     r:restore()
-    kit.label(r, f, if b == 0 then '5 × 5' else '(5 + ' .. b .. ') × (5 + ' .. b .. ') = ' .. side .. ' × ' .. side, f.body, 17, kit.INK_SOFT, PX + 24, 312, 0)
+    kit.label(r, f, if b == 0 then '5 × 5' else '(5 + ' .. b .. ') × (5 + ' .. b .. ') = ' .. side .. ' × ' .. side, f.body, 17, kit.INK_SOFT, PX + 24, PY + 112, 0)
     -- which piece is which
     if b > 0 then
         local rows = {
@@ -176,14 +228,14 @@ local function drawStep1(g: G, r: Renderer)
             { s = 'the new corner, ' .. b .. ' × ' .. b, c = kit.GRASS },
         }
         for i, row in rows do
-            local y = 372 + (i - 1) * 30
+            local y = LY + (i - 1) * LP
             r:drawPath(kit.rrect(PX + 24, y - 9, 18, 18, 4), kit.fill(row.c))
             r:drawPath(kit.rrect(PX + 24, y - 9, 18, 18, 4), kit.stroke(kit.GRASS_EDGE, 1.5))
             kit.label(r, f, row.s, f.body, 16, kit.INK_SOFT, PX + 54, y, 0)
         end
     end
     if S.grownAt >= 0 then
-        kit.rule(r, f, '8 × 8 = 64', '(5 + 3)² = 5² + 2 × 15 + 3²', kit.clamp((g.t - S.grownAt - 0.6) * 1.5, 0, 1), PX + PW / 2, 470)
+        kit.rule(r, f, '8 × 8 = 64', '(5 + 3)² = 5² + 2 × 15 + 3²', kit.clamp((g.t - S.grownAt - 0.6) * 1.5, 0, 1), PX + PW / 2, RY)
     end
 end
 
@@ -191,9 +243,23 @@ local function near(st: Strip): number
     return math.sqrt((st.x - st.tx) ^ 2 + (st.y - st.ty) ^ 2)
 end
 
+-- step 2's working-out
+local function drawTally(g: G, r: Renderer)
+    local f = g.fonts
+    local total = 34 + 15 * S.nPlaced
+    kit.rule(r, f, '5² + 3² = 34', 'is that all of (5 + 3)²?', 1, QX, QY)
+    kit.sign(r, f, 'FILLED SO FAR', total .. ' of 64', S.sign, NX, NY)
+    if S.fullAt >= 0 then
+        kit.rule(r, f, '25 + 15 + 15 + 9 = 64', '(5 + 3)² = 5² + 2 × 15 + 3²', kit.clamp((g.t - S.fullAt - 0.6) * 1.5, 0, 1), EX, EY)
+    end
+end
+
 local function drawStep2(g: G, r: Renderer)
     local f = g.fonts
     local e, s3 = A * U2, B * U2
+    if lab.portrait then -- upright the strips are carried up across the working-out, so it goes underneath
+        drawTally(g, r)
+    end
     local side = e + s3
     -- the whole square, (5 + 3) on each side
     r:drawPath(kit.rect(F2X, F2Y, side, side), kit.fill(kit.alpha(kit.PAGE, 0.9)))
@@ -248,13 +314,8 @@ local function drawStep2(g: G, r: Renderer)
         local m = kit.smooth((k - 0.1) / 0.7)
         kit.finger(r, kit.lerp(st.hx, st.tx, m) + st.w * U2 / 2, kit.lerp(st.hy, st.ty, m) + st.h * U2 / 2 + 30, al, true)
     end
-
-    -- the working-out
-    local total = 34 + 15 * S.nPlaced
-    kit.rule(r, f, '5² + 3² = 34', 'is that all of (5 + 3)²?', 1, PX + PW / 2, 196)
-    kit.sign(r, f, 'FILLED SO FAR', total .. ' of 64', S.sign, PX + PW / 2 - 105, 322)
-    if S.fullAt >= 0 then
-        kit.rule(r, f, '25 + 15 + 15 + 9 = 64', '(5 + 3)² = 5² + 2 × 15 + 3²', kit.clamp((g.t - S.fullAt - 0.6) * 1.5, 0, 1), PX + PW / 2, 436)
+    if not lab.portrait then
+        drawTally(g, r)
     end
 end
 
@@ -276,10 +337,15 @@ local function drawStep3(g: G, r: Renderer)
     kit.bracket(r, f, Vector.xy(F3X + e + o, top), Vector.xy(F3X + e + s + o, top), 0, -1, '2', 1, kit.INK)
     kit.bracket(r, f, Vector.xy(left, F3Y - o), Vector.xy(left, F3Y + e - o), -1, 0, '10', 1, kit.INK)
     kit.bracket(r, f, Vector.xy(left, F3Y + e + o), Vector.xy(left, F3Y + e + s + o), -1, 0, '2', 1, kit.INK)
-    kit.label(r, f, '(10 + 2)²', f.display, 40, kit.INK, 668, 300, 0.5)
-    kit.label(r, f, '= (10 + 2) × (10 + 2)', f.body, 19, kit.INK_SOFT, 668, 344, 0.5)
+    local age = if S.solvedAt >= 0 then g.t - S.solvedAt else 0
+    local k = kit.clamp((age - 1.2) * 1.5, 0, 1) -- the rule card, rising in once it is solved
+    if lab.portrait then -- one line, under the square
+        kit.label(r, f, '(10 + 2)² = (10 + 2) × (10 + 2)', f.display, 24, kit.INK, TX, TY, 0.5)
+    else
+        kit.label(r, f, '(10 + 2)²', f.display, 40, kit.INK, TX, TY, 0.5)
+        kit.label(r, f, '= (10 + 2) × (10 + 2)', f.body, 19, kit.INK_SOFT, TX, TY + 44, 0.5)
+    end
     if S.solvedAt >= 0 then
-        local age = g.t - S.solvedAt
         local function worth(v: number, x: number, y: number, at: number)
             local k = kit.clamp((age - at) * 3, 0, 1)
             if k > 0 then
@@ -293,9 +359,13 @@ local function drawStep3(g: G, r: Renderer)
         worth(20, F3X + e + o + s / 2, F3Y - o + e / 2, 0.25)
         worth(20, F3X - o + e / 2, F3Y + e + o + s / 2, 0.5)
         worth(4, F3X + e + o + s / 2, F3Y + e + o + s / 2, 0.75)
-        kit.rule(r, f, '100 + 20 + 20 + 4 = 144', '(a + b)² = a² + 2ab + b²', kit.clamp((age - 1.2) * 1.5, 0, 1), F3X + (A3 + B3) * U3 / 2, 516)
     end
+    -- upright there is no room for both: the keypad makes way for the rule card
+    r:save()
+    r:modulateOpacity(if lab.portrait then 1 - k else 1)
     kit.keypadDraw(r, f, S.kp, '(10 + 2)² = ?', '', g.t)
+    r:restore()
+    kit.rule(r, f, '100 + 20 + 20 + 4 = 144', '(a + b)² = a² + 2ab + b²', k, WX, WY)
 end
 
 function L.draw(g: G, r: Renderer)
@@ -330,7 +400,7 @@ local function settle(g: G)
     end
 end
 
-local function place(g: G, i: number)
+local function placeStrip(g: G, i: number)
     local st = S.strips[i]
     st.x, st.y, st.placed = st.tx, st.ty, true
     S.nPlaced += 1
@@ -350,14 +420,17 @@ local function place(g: G, i: number)
 end
 
 local function check(g: G)
-    local v = tonumber(S.kp.value) or -1
+    local typed = S.kp.value
+    local v = tonumber(typed) or -1
     if v == 144 then
         S.kp.okT = 3
+        lab.answer(typed, true, '')
         S.solvedAt = g.t
         g.done()
-        g.burst(1000, 300, 40)
+        g.burst(KX + 140, KY + 128, 40)
         g.say('l3s3done')
     else
+        lab.answer(typed, false, if v == 104 then 'SQUARE_DISTRIBUTES' elseif v == 124 then 'MIDDLE_NOT_DOUBLED' else '') -- the syllabus mistake this answer shows, if it is a known one
         g.sfx('oops')
         kit.keypadWrong(S.kp, 'Not quite. Have another go.')
         g.say(if v == 104 then 'l3n104' elseif v == 124 then 'l3n124' else 'l3nx')
@@ -422,7 +495,7 @@ function L.up(g: G, p: Vector)
         local other = S.strips[3 - i]
         S.drag = 0
         if near(st) < 1.5 * U2 then
-            place(g, i)
+            placeStrip(g, i)
         elseif not other.placed and kit.inRect(Vector.xy(st.x + st.w * U2 / 2, st.y + st.h * U2 / 2), other.tx, other.ty, other.w * U2, other.h * U2) then
             g.sfx('oops')
             g.say('l3s2wrong')
@@ -441,7 +514,7 @@ function L.key(g: G, k: number): boolean
     elseif g.step == 2 and k == 32 then -- space places the next strip
         for i, st in S.strips do
             if not st.placed then
-                place(g, i)
+                placeStrip(g, i)
                 return true
             end
         end

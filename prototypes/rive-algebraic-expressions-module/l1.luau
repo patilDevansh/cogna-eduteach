@@ -4,6 +4,7 @@
 --   3. 7 × 12 on the keypad, already cut at 10 -> 84
 
 local kit = require('kit')
+local lab = require('lab')
 type G = kit.G
 type Keypad = kit.Keypad
 
@@ -27,17 +28,49 @@ type St = {
     solvedAt: number,
 }
 
-local ROWS, COLS, U = 6, 14, 40
-local FX, FY = 110, 250
+local ROWS, COLS = 6, 14
+local R3, C3 = 7, 12 -- step 3
 local GAP = 18
-local R3, C3, U3 = 7, 12, 36 -- step 3
-local F3X, F3Y = 130, 228
-local PX, PW = 770, 400 -- the working-out, on the right
+-- Where things go. place() sets these for the frame the shell gives: the wide board, or the upright one on a phone
+-- (figure in lab.stage, readouts underneath in lab.panel).
+local FX, FY, U = 110, 250, 40 -- steps 1 and 2: the field
+local PX, PY, PW = 770, 200, 400 -- the working-out (beside the field, or under it): a card per piece
+local HY, SY, TY = 236, 366, 500 -- …the whole field's card before the cut, the sum, and step 2's "always 84" tag
+local F3X, F3Y, U3 = 130, 228, 36 -- step 3: the field
+local QX, QY = 718, 300 -- step 3: the question
+local KX, KY = 860, 172 -- step 3: the keypad
+local WX, WY = 346, 512 -- step 3: the rule card, once solved
+local SMALL = 12 -- the small capital labels
+
+local function place()
+    if lab.portrait then
+        local st, pn = lab.stage, lab.panel
+        U = 26
+        FX, FY = st.x + (st.w - COLS * U) / 2 + 29, st.y + 100 -- 29: the bracket down the left side takes room too
+        PX, PY, PW = pn.x, pn.y, pn.w
+        HY, SY, TY = pn.y, pn.y + 154, pn.y + 278
+        U3 = 28
+        F3X, F3Y = st.x + (st.w - C3 * U3) / 2 + 29, st.y + 56
+        QX, QY = lab.PW / 2, 304
+        KX, KY = (lab.PW - 286) / 2, 340
+        WX, WY = lab.PW / 2, pn.y
+        SMALL = 14
+    else
+        FX, FY, U = 110, 250, 40
+        PX, PY, PW = 770, 200, 400
+        HY, SY, TY = 236, 366, 500
+        F3X, F3Y, U3 = 130, 228, 36
+        QX, QY = 718, 300
+        KX, KY = 860, 172
+        WX, WY = 346, 512
+        SMALL = 12
+    end
+end
 
 local S: St = {
     cut = 0, shown = 7, cutAt = -1, a = nil, b = nil, live = 0, gap = { x = 0, v = 0 },
     dragging = false, held = 0, seen = {}, nSeen = 0, tagAt = -1, told = false,
-    kp = kit.keypad(860, 172), solvedAt = -1,
+    kp = kit.keypad(KX, KY), solvedAt = -1,
 }
 
 local L = {}
@@ -63,6 +96,7 @@ local function judge(a: Vector, b: Vector): number
 end
 
 L.id = 'AE_MONO_POLY'
+lab.upright[L.id] = true
 L.tag = 'MULTIPLYING A MONOMIAL BY A POLYNOMIAL'
 L.title = 'Split a multiplication'
 L.blurb = 'Cut a field in two: a(b + c) = ab + ac.'
@@ -73,10 +107,11 @@ L.steps = {
 }
 
 function L.enter(g: G, step: number)
+    place()
     S.cut, S.shown, S.cutAt, S.a, S.b, S.live = 0, 7, -1, nil, nil, 0
     S.gap = { x = 0, v = 0 }
     S.dragging, S.held, S.seen, S.nSeen, S.tagAt, S.told = false, 0, {}, 0, -1, false
-    S.kp = kit.keypad(860, 172)
+    S.kp = kit.keypad(KX, KY)
     S.solvedAt = -1
     if step == 2 then
         -- the field arrives cut down the middle
@@ -159,16 +194,16 @@ end
 local function drawWorking(g: G, r: Renderer, age: number)
     local f = g.fonts
     if S.cut <= 0 then
-        r:drawPath(kit.rrect(PX, 236, PW, 124, 22), kit.fill(kit.PAGE))
-        r:drawPath(kit.rrect(PX, 236, PW, 124, 22), kit.stroke(kit.LINE, 2))
-        kit.label(r, f, 'THE WHOLE FIELD', f.mono, 12, kit.INK_SOFT, PX + 24, 264, 0)
-        kit.label(r, f, ROWS .. ' × ' .. COLS .. ' = ?', f.display, 44, kit.INK, PX + 24, 316, 0)
+        r:drawPath(kit.rrect(PX, HY, PW, 124, 22), kit.fill(kit.PAGE))
+        r:drawPath(kit.rrect(PX, HY, PW, 124, 22), kit.stroke(kit.LINE, 2))
+        kit.label(r, f, 'THE WHOLE FIELD', f.mono, SMALL, kit.INK_SOFT, PX + 24, HY + 28, 0)
+        kit.label(r, f, ROWS .. ' × ' .. COLS .. ' = ?', f.display, 44, kit.INK, PX + 24, HY + 80, 0)
         return
     end
     local a, b = ROWS * S.cut, ROWS * (COLS - S.cut)
-    pieceCard(g, r, 200, false, ROWS .. ' × ' .. S.cut .. ' = ' .. a, kit.clamp((age - 0.5) * 2, 0, 1))
-    pieceCard(g, r, 276, true, ROWS .. ' × ' .. (COLS - S.cut) .. ' = ' .. b, kit.clamp((age - 1.3) * 2, 0, 1))
-    kit.rule(r, f, a .. ' + ' .. b .. ' = ' .. (a + b), 'the whole field, ' .. ROWS .. ' × ' .. COLS, kit.clamp((age - 2.2) * 1.5, 0, 1), PX + PW / 2, 366)
+    pieceCard(g, r, PY, false, ROWS .. ' × ' .. S.cut .. ' = ' .. a, kit.clamp((age - 0.5) * 2, 0, 1))
+    pieceCard(g, r, PY + 76, true, ROWS .. ' × ' .. (COLS - S.cut) .. ' = ' .. b, kit.clamp((age - 1.3) * 2, 0, 1))
+    kit.rule(r, f, a .. ' + ' .. b .. ' = ' .. (a + b), 'the whole field, ' .. ROWS .. ' × ' .. COLS, kit.clamp((age - 2.2) * 1.5, 0, 1), PX + PW / 2, SY)
 end
 
 local function drawStroke(r: Renderer)
@@ -223,22 +258,31 @@ local function drawStep2(g: G, r: Renderer)
     end
     drawWorking(g, r, 99)
     if S.tagAt >= 0 then
-        kit.tag(r, f, 'the total is always 84', PX + PW / 2, 500, kit.clamp((g.t - S.tagAt) * 3, 0, 1))
+        kit.tag(r, f, 'the total is always 84', PX + PW / 2, TY, kit.clamp((g.t - S.tagAt) * 3, 0, 1))
     end
 end
 
 local function drawStep3(g: G, r: Renderer)
     local f = g.fonts
+    local age = if S.solvedAt >= 0 then g.t - S.solvedAt else 0
+    local k = kit.clamp((age - 1) * 1.5, 0, 1) -- the rule card, rising in once it is solved
     drawField(r, F3X, F3Y, U3, R3, C3, 10, GAP)
     drawDims(g, r, F3X, F3Y, U3, R3, C3, 10, 10, GAP)
-    kit.label(r, f, '7 × 12', f.display, 40, kit.INK, 718, 300, 0.5)
-    kit.label(r, f, '= 7 × (10 + 2)', f.body, 19, kit.INK_SOFT, 718, 344, 0.5)
-    if S.solvedAt >= 0 then
-        local age = g.t - S.solvedAt
-        drawProducts(g, r, F3X, F3Y, U3, R3, C3, 10, 10, GAP, kit.clamp(age * 2, 0, 1), kit.clamp((age - 0.5) * 2, 0, 1))
-        kit.rule(r, f, '7 × 10 + 7 × 2 = 84', 'a(b + c) = ab + ac', kit.clamp((age - 1) * 1.5, 0, 1), F3X + C3 * U3 / 2, 512)
+    if lab.portrait then -- one line, under the field
+        kit.label(r, f, '7 × 12 = 7 × (10 + 2)', f.display, 24, kit.INK, QX, QY, 0.5)
+    else
+        kit.label(r, f, '7 × 12', f.display, 40, kit.INK, QX, QY, 0.5)
+        kit.label(r, f, '= 7 × (10 + 2)', f.body, 19, kit.INK_SOFT, QX, QY + 44, 0.5)
     end
+    if S.solvedAt >= 0 then
+        drawProducts(g, r, F3X, F3Y, U3, R3, C3, 10, 10, GAP, kit.clamp(age * 2, 0, 1), kit.clamp((age - 0.5) * 2, 0, 1))
+    end
+    -- upright there is no room for both: the keypad makes way for the rule card
+    r:save()
+    r:modulateOpacity(if lab.portrait then 1 - k else 1)
     kit.keypadDraw(r, f, S.kp, '7 × 12 = ?', '', g.t)
+    r:restore()
+    kit.rule(r, f, '7 × 10 + 7 × 2 = 84', 'a(b + c) = ab + ac', k, WX, WY)
 end
 
 function L.draw(g: G, r: Renderer)
@@ -297,14 +341,17 @@ local function settle(g: G)
 end
 
 local function check(g: G)
-    local v = tonumber(S.kp.value) or -1
+    local typed = S.kp.value
+    local v = tonumber(typed) or -1
     if v == 84 then
         S.kp.okT = 3
+        lab.answer(typed, true, '')
         S.solvedAt = g.t
         g.done()
-        g.burst(1000, 300, 40)
+        g.burst(KX + 140, KY + 128, 40)
         g.say('l1s3done')
     else
+        lab.answer(typed, false, if v == 70 then 'FIRST_TERM_ONLY' else '') -- the syllabus mistake this answer shows, if it is a known one
         g.sfx('oops')
         kit.keypadWrong(S.kp, 'Not quite. Have another go.')
         g.say(if v == 70 then 'l1n70' elseif v == 14 then 'l1n14' else 'l1nx')

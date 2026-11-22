@@ -8,9 +8,17 @@
 --   l1 …    the lessons
 -- and takes kit, the fonts and the sounds from rive-area-module. Everything is drawn every frame.
 --
+-- The page that hosts the module talks to it through the Lab view model (scene.rml):
+--   in   lesson, step, muted          lesson 0 is the lesson map; 1 or more is "embedded"
+--   out  seq, event, atLesson, atStep, steps, skill, answer, mistake, title, task, caption, stepDone
+-- Embedded, the module draws only the board, fitted to whatever size the canvas is: the page shows the
+-- title, the task, Kiara's caption and Next itself, and moves on by setting `step`. A canvas taller than
+-- it is wide gets the upright frame in lab.luau, for phones.
+--
 -- Keys: ← → steps · Esc back to the lessons · M mute. Lessons add their own.
 
 local kit = require('kit')
+local lab = require('lab')
 local lines = require('lines')
 
 type Fonts = kit.Fonts
@@ -26,6 +34,8 @@ local SFX = {
 }
 
 type Bit = { x: number, y: number, vx: number, vy: number, life: number, rot: number, spin: number, size: number, col: Color, kind: number }
+
+type Out = { kind: string, li: number, step: number, answer: string, mistake: string }
 
 type Area = {
     fonts: Fonts?,
@@ -54,6 +64,34 @@ type Area = {
     hintAge: number,
     hover: Vector,
     downOn: string,
+    -- the link to the page
+    vm: ViewModel?,
+    inLesson: Property<number>?,
+    inStep: Property<number>?,
+    inMuted: Property<boolean>?,
+    outSeq: Property<number>?,
+    outEvent: Property<string>?,
+    outLesson: Property<number>?,
+    outStep: Property<number>?,
+    outSteps: Property<number>?,
+    outSkill: Property<string>?,
+    outAnswer: Property<string>?,
+    outMistake: Property<string>?,
+    outTitle: Property<string>?,
+    outTask: Property<string>?,
+    outCaption: Property<string>?,
+    outDone: Property<boolean>?,
+    embedded: boolean,
+    appliedLesson: number,
+    appliedStep: number,
+    appliedMuted: boolean,
+    outbox: { Out },
+    -- the canvas, and how the design is fitted to it this frame
+    viewW: number,
+    viewH: number,
+    sc: number,
+    ox: number,
+    oy: number,
 }
 
 local function key(li: number, s: number): string
@@ -94,6 +132,10 @@ local function say(self: Area, k: string)
     self.voiceAge = 0
     self.caption = lines[k] or ''
     self.captionAge = 0
+    local pc = self.outCaption
+    if pc ~= nil then
+        pc.value = self.caption
+    end
     if self.muted then
         return
     end
@@ -150,6 +192,48 @@ local function lesson(self: Area): Lesson
     return LESSONS[self.li]
 end
 
+-- Events for the page are queued here and sent one a frame (see flush), so none is overwritten before it is read.
+--   step · done · complete · right · wrong
+local function post(self: Area, kind: string, answer: string, mistake: string)
+    table.insert(self.outbox, { kind = kind, li = self.li, step = self.step, answer = answer, mistake = mistake })
+end
+
+local function flush(self: Area)
+    local o = table.remove(self.outbox, 1)
+    if o == nil then
+        return
+    end
+    local L = LESSONS[o.li]
+    local st = L.steps[o.step]
+    local function str(p: Property<string>?, v: string)
+        if p ~= nil then
+            p.value = v
+        end
+    end
+    local function num(p: Property<number>?, v: number)
+        if p ~= nil then
+            p.value = v
+        end
+    end
+    str(self.outEvent, o.kind)
+    num(self.outLesson, o.li)
+    num(self.outStep, o.step)
+    num(self.outSteps, #L.steps)
+    str(self.outSkill, L.id)
+    str(self.outAnswer, o.answer)
+    str(self.outMistake, o.mistake)
+    str(self.outTitle, st.title)
+    str(self.outTask, st.task)
+    local pd = self.outDone
+    if pd ~= nil then
+        pd.value = self.done[key(o.li, o.step)] == true
+    end
+    local ps = self.outSeq
+    if ps ~= nil then
+        ps.value += 1
+    end
+end
+
 local function enterStep(self: Area, s: number)
     local L = lesson(self)
     self.step = s
@@ -160,6 +244,7 @@ local function enterStep(self: Area, s: number)
     if g ~= nil then
         L.enter(g, s)
     end
+    post(self, 'step', '', '')
     say(self, L.steps[s].line)
 end
 
@@ -206,9 +291,63 @@ local function prevStep(self: Area)
     end
 end
 
+-- The upright frame is for an embedded lesson, on a canvas taller than it is wide, that has an upright layout.
+local function wantsUpright(self: Area): boolean
+    return self.embedded and self.viewH > self.viewW * 1.1 and lab.upright[LESSONS[self.li].id] == true
+end
+
+-- What the page asked for: a lesson and step to show (embedded), or the lesson map.
+local function applyInputs(self: Area)
+    local pm = self.inMuted
+    if pm ~= nil and pm.value ~= self.appliedMuted then
+        self.appliedMuted = pm.value
+        self.muted = pm.value
+        if self.muted then
+            stopVoice(self)
+            self.queue = {}
+        end
+    end
+    local li, st = 0, 1
+    local pl, ps = self.inLesson, self.inStep
+    if pl ~= nil then
+        li = math.floor(pl.value + 0.5)
+    end
+    if ps ~= nil then
+        st = math.max(1, math.floor(ps.value + 0.5))
+    end
+    if li == self.appliedLesson and st == self.appliedStep then
+        return
+    end
+    self.appliedLesson, self.appliedStep = li, st
+    if li >= 1 and li <= #LESSONS then
+        self.embedded = true
+        self.li = li
+        lab.portrait = wantsUpright(self)
+        self.screen = 'lesson'
+        self.screenAge = 0
+        enterStep(self, math.min(st, #LESSONS[li].steps))
+    elseif self.embedded then
+        self.embedded = false
+        lab.portrait = false
+        goHome(self)
+    end
+end
+
 -- Layout protocol ----------------------------------------------------------------
 
 function init(self: Area, context: Context): boolean
+    -- The first init runs before the view model is bound, on an instance that is then thrown away: wait for the real one.
+    local vm = context:viewModel()
+    if vm == nil then
+        return true
+    end
+    self.vm = vm
+    self.inLesson, self.inStep, self.inMuted = vm:getNumber('lesson'), vm:getNumber('step'), vm:getBoolean('muted')
+    self.outSeq, self.outEvent = vm:getNumber('seq'), vm:getString('event')
+    self.outLesson, self.outStep, self.outSteps = vm:getNumber('atLesson'), vm:getNumber('atStep'), vm:getNumber('steps')
+    self.outSkill, self.outAnswer, self.outMistake = vm:getString('skill'), vm:getString('answer'), vm:getString('mistake')
+    self.outTitle, self.outTask, self.outCaption = vm:getString('title'), vm:getString('task'), vm:getString('caption')
+    self.outDone = vm:getBoolean('stepDone')
     local display = context:font('Display')
     local body = context:font('Body')
     local mono = context:font('Mono')
@@ -262,6 +401,10 @@ function init(self: Area, context: Context): boolean
             if not self.done[k] then
                 self.done[k] = true
                 sfx(self, 'chime')
+                post(self, 'done', '', '')
+                if self.step == #LESSONS[self.li].steps then
+                    post(self, 'complete', '', '')
+                end
             end
         end,
         isDone = function(): boolean
@@ -283,14 +426,32 @@ function init(self: Area, context: Context): boolean
         end,
     }
     self.g = g
-    say(self, 'home')
+    lab.answer = function(value: string, correct: boolean, mistake: string)
+        post(self, if correct then 'right' else 'wrong', value, mistake)
+    end
+    applyInputs(self)
+    if not self.embedded then
+        say(self, 'home')
+    end
     return true
 end
 
-function resize(self: Area, size: Vector) end
+function resize(self: Area, size: Vector)
+    self.viewW, self.viewH = size.x, size.y
+    local was = lab.portrait
+    lab.portrait = wantsUpright(self)
+    -- turned round mid-lesson: the step starts again, so the lesson lays itself out for the new shape
+    if was ~= lab.portrait and self.screen == 'lesson' and self.g ~= nil then
+        enterStep(self, self.step)
+    end
+end
 
 function advance(self: Area, dt: number): boolean
     self.t += dt
+    if self.g ~= nil then
+        applyInputs(self)
+    end
+    flush(self)
     self.age += dt
     self.screenAge += dt
     self.voiceAge += dt
@@ -351,6 +512,27 @@ local function cardPos(i: number): (number, number)
     local x0 = (1280 - (inRow * CARD_W + (inRow - 1) * 20)) / 2
     local y0 = if n <= PER_ROW then 250 else 196
     return x0 + ((i - 1) % PER_ROW) * (CARD_W + 20), y0 + row * (CARD_H + 18)
+end
+
+-- The design (1280 × 760, or just the board when embedded, or the upright frame) is fitted inside the canvas.
+local function fit(self: Area)
+    local dx, dy, dw, dh = 0, 0, 1280, 760
+    if self.embedded then
+        if lab.portrait then
+            dx, dy, dw, dh = 0, 0, lab.PW, lab.PH
+        else
+            dx, dy, dw, dh = kit.BX, kit.BY, kit.BW, kit.BH
+        end
+    end
+    local s = math.min(self.viewW / dw, self.viewH / dh)
+    self.sc = s
+    self.ox = (self.viewW - dw * s) / 2 - dx * s
+    self.oy = (self.viewH - dh * s) / 2 - dy * s
+end
+
+-- a point on the canvas, in the design's own coordinates
+local function toDesign(self: Area, p: Vector): Vector
+    return Vector.xy((p.x - self.ox) / self.sc, (p.y - self.oy) / self.sc)
 end
 
 -- buttons of the lesson frame
@@ -424,9 +606,9 @@ local function press(self: Area, id: string)
 end
 
 function pointerDown(self: Area, event: PointerEvent)
-    local p = event.position
+    local p = toDesign(self, event.position)
     self.hover = p
-    local b = frameHit(self, p)
+    local b = if self.embedded then '' else frameHit(self, p)
     if b ~= '' then
         press(self, b)
         event:hit()
@@ -442,7 +624,7 @@ function pointerDown(self: Area, event: PointerEvent)
 end
 
 function pointerMove(self: Area, event: PointerEvent)
-    local p = event.position
+    local p = toDesign(self, event.position)
     self.hover = p
     local g = self.g
     if g ~= nil and self.screen == 'lesson' then
@@ -452,7 +634,7 @@ function pointerMove(self: Area, event: PointerEvent)
 end
 
 function pointerUp(self: Area, event: PointerEvent)
-    local p = event.position
+    local p = toDesign(self, event.position)
     local g = self.g
     if g ~= nil and self.screen == 'lesson' then
         lesson(self).up(g, p)
@@ -473,6 +655,9 @@ function keyboardEvent(self: Area, event: KeyboardEvent): boolean
     local g = self.g
     if self.screen == 'lesson' and g ~= nil and lesson(self).key(g, k) then
         return true
+    end
+    if self.embedded then
+        return false -- the page owns Next, Back and mute
     end
     if k == 256 then -- Esc
         if self.screen ~= 'home' then
@@ -637,6 +822,39 @@ local function drawTaskChip(self: Area, r: Renderer, fonts: Fonts)
     r:restore()
 end
 
+-- a small hint chip, bottom left of the board
+local function drawHint(self: Area, r: Renderer, fonts: Fonts, x: number, y: number)
+    if self.hintText == '' or self.hintAge >= 7 then
+        return
+    end
+    local hk = math.min(kit.ease(self.hintAge * 3), kit.clamp((7 - self.hintAge) * 2, 0, 1))
+    local w = kit.width(fonts, self.hintText, fonts.body, 15) + 40
+    r:save()
+    r:modulateOpacity(hk)
+    r:drawPath(kit.rrect(x, y, w, 36, 18), kit.fill(kit.GOLD_WASH))
+    r:drawPath(kit.rrect(x, y, w, 36, 18), kit.stroke(kit.GOLD, 1.5))
+    kit.label(r, fonts, self.hintText, fonts.body, 15, kit.GOLD_DEEP, x + 20, y + 18, 0)
+    r:restore()
+end
+
+-- Embedded: only the board, filling the canvas. The page draws everything round it.
+local function drawEmbedded(self: Area, r: Renderer, fonts: Fonts, g: G)
+    local x, y, w, h = kit.BX, kit.BY, kit.BW, kit.BH
+    if lab.portrait then
+        x, y, w, h = 0, 0, lab.PW, lab.PH
+    end
+    r:save()
+    r:clipPath(kit.rect(x, y, w, h))
+    local sx = 0
+    if self.shakeT > 0 then
+        sx = math.sin(self.shakeT * 70) * self.shakeA * (self.shakeT / 0.3)
+    end
+    r:transform(Mat2D.withTranslation(sx, 0))
+    lesson(self).draw(g, r)
+    r:restore()
+    drawHint(self, r, fonts, x + 20, y + h - 56)
+end
+
 local function drawLessonFrame(self: Area, r: Renderer, fonts: Fonts, g: G)
     local L = lesson(self)
     local st = L.steps[self.step]
@@ -665,17 +883,7 @@ local function drawLessonFrame(self: Area, r: Renderer, fonts: Fonts, g: G)
     L.draw(g, r)
     r:restore()
 
-    -- a hint chip
-    if self.hintText ~= '' and self.hintAge < 7 then
-        local hk = math.min(kit.ease(self.hintAge * 3), kit.clamp((7 - self.hintAge) * 2, 0, 1))
-        local w = kit.width(fonts, self.hintText, fonts.body, 15) + 40
-        r:save()
-        r:modulateOpacity(hk)
-        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.fill(kit.GOLD_WASH))
-        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.stroke(kit.GOLD, 1.5))
-        kit.label(r, fonts, self.hintText, fonts.body, 15, kit.GOLD_DEEP, bx + 40, by + bh - 38, 0)
-        r:restore()
-    end
+    drawHint(self, r, fonts, bx + 20, by + bh - 56)
 
     drawCaption(self, r, fonts, 646)
 
@@ -826,7 +1034,15 @@ function draw(self: Area, r: Renderer)
     if fonts == nil or g == nil then
         return
     end
-    if self.screen == 'home' then
+    fit(self)
+    if self.embedded then
+        r:drawPath(kit.rect(0, 0, self.viewW, self.viewH), kit.fill(kit.SURFACE))
+    end
+    r:save()
+    r:transform(Mat2D.withTranslation(self.ox, self.oy) * Mat2D.withScale(self.sc, self.sc))
+    if self.embedded then
+        drawEmbedded(self, r, fonts, g)
+    elseif self.screen == 'home' then
         drawHome(self, r, fonts, g)
     elseif self.screen == 'lesson' then
         drawLessonFrame(self, r, fonts, g)
@@ -834,6 +1050,7 @@ function draw(self: Area, r: Renderer)
         drawComplete(self, r, fonts, g)
     end
     drawBits(self, r)
+    r:restore()
 end
 
 return function(context: Context): Layout<Area>
@@ -864,6 +1081,20 @@ return function(context: Context): Layout<Area>
         hintAge = 99,
         hover = Vector.xy(-100, -100),
         downOn = '',
+        vm = nil,
+        inLesson = nil, inStep = nil, inMuted = nil,
+        outSeq = nil, outEvent = nil, outLesson = nil, outStep = nil, outSteps = nil,
+        outSkill = nil, outAnswer = nil, outMistake = nil, outTitle = nil, outTask = nil, outCaption = nil, outDone = nil,
+        embedded = false,
+        appliedLesson = 0,
+        appliedStep = 0,
+        appliedMuted = false,
+        outbox = {},
+        viewW = 1280,
+        viewH = 760,
+        sc = 1,
+        ox = 0,
+        oy = 0,
         init = init,
         resize = resize,
         advance = advance,

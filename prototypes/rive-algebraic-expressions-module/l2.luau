@@ -4,6 +4,7 @@
 --   3. 14 × 12 on the keypad, as (10 + 4)(10 + 2) -> 168
 
 local kit = require('kit')
+local lab = require('lab')
 type G = kit.G
 type Keypad = kit.Keypad
 
@@ -26,18 +27,50 @@ type St = {
     solvedAt: number,
 }
 
-local COLS, ROWS, CUT, U = 13, 12, 10, 26
-local FX, FY = 160, 232
+local COLS, ROWS, CUT = 13, 12, 10
+local C3, R3 = 14, 12 -- step 3
 local GAP = 16
-local C3, R3, U3 = 14, 12, 20 -- step 3
-local F3X, F3Y = 150, 232
+-- Where things go. place() sets these for the frame the shell gives: the wide board, or the upright one on a phone
+-- (figure in lab.stage, readouts underneath in lab.panel).
+local FX, FY, U = 160, 232, 26 -- steps 1 and 2: the field
+local PX, PY, PW = 770, 236, 400 -- step 1: the question card
 local TX, TY = 790, 232 -- step 2: the grid of products
+local F3X, F3Y, U3 = 150, 232, 20 -- step 3: the field
+local QX, QY = 668, 300 -- step 3: the question
+local KX, KY = 860, 172 -- step 3: the keypad
+local WX, WY = 290, 516 -- step 3: the rule card, once solved
+local SMALL = 12 -- the small capital labels
+
+local function place()
+    if lab.portrait then
+        local st, pn = lab.stage, lab.panel
+        U = 23
+        FX, FY = st.x + math.floor((st.w - COLS * U) / 2) + 32, st.y + 68 -- 32: the brackets down the left side take room too
+        PX, PY, PW = pn.x, pn.y, pn.w
+        TX, TY = lab.PW / 2 - 145, pn.y + 44
+        U3 = 16
+        F3X, F3Y = st.x + (st.w - C3 * U3) / 2 + 32, st.y + 66
+        QX, QY = lab.PW / 2, 314
+        KX, KY = (lab.PW - 286) / 2, 340
+        WX, WY = lab.PW / 2, pn.y
+        SMALL = 14
+    else
+        FX, FY, U = 160, 232, 26
+        PX, PY, PW = 770, 236, 400
+        TX, TY = 790, 232
+        F3X, F3Y, U3 = 150, 232, 20
+        QX, QY = 668, 300
+        KX, KY = 860, 172
+        WX, WY = 290, 516
+        SMALL = 12
+    end
+end
 
 local S: St = {
     v = false, h = false, bothAt = -1, a = nil, b = nil, live = '',
     gx = { x = 0, v = 0 }, gy = { x = 0, v = 0 },
     tapped = {}, order = {},
-    kp = kit.keypad(860, 172), solvedAt = -1,
+    kp = kit.keypad(KX, KY), solvedAt = -1,
 }
 
 local L = {}
@@ -113,6 +146,7 @@ local function judge(a: Vector, b: Vector): string
 end
 
 L.id = 'AE_BINOMIAL_BINOMIAL'
+lab.upright[L.id] = true
 L.tag = 'MULTIPLYING TWO BINOMIALS'
 L.title = 'Two binomials, four pieces'
 L.blurb = 'Cut both ways: four pieces to add.'
@@ -123,10 +157,11 @@ L.steps = {
 }
 
 function L.enter(g: G, step: number)
+    place()
     S.v, S.h, S.bothAt, S.a, S.b, S.live = false, false, -1, nil, nil, ''
     S.gx, S.gy = { x = 0, v = 0 }, { x = 0, v = 0 }
     S.tapped, S.order = {}, {}
-    S.kp = kit.keypad(860, 172)
+    S.kp = kit.keypad(KX, KY)
     S.solvedAt = -1
     if step == 2 then
         S.v, S.h = true, true
@@ -195,12 +230,12 @@ local function drawStep1(g: G, r: Renderer)
         end
     end
     -- the question, and what the cuts turn it into
-    r:drawPath(kit.rrect(770, 236, 400, 124, 22), kit.fill(kit.PAGE))
-    r:drawPath(kit.rrect(770, 236, 400, 124, 22), kit.stroke(kit.LINE, 2))
-    kit.label(r, f, 'THE WHOLE FIELD', f.mono, 12, kit.INK_SOFT, 794, 264, 0)
-    kit.label(r, f, COLS .. ' × ' .. ROWS .. ' = ?', f.display, 44, kit.INK, 794, 316, 0)
+    r:drawPath(kit.rrect(PX, PY, PW, 124, 22), kit.fill(kit.PAGE))
+    r:drawPath(kit.rrect(PX, PY, PW, 124, 22), kit.stroke(kit.LINE, 2))
+    kit.label(r, f, 'THE WHOLE FIELD', f.mono, SMALL, kit.INK_SOFT, PX + 24, PY + 28, 0)
+    kit.label(r, f, COLS .. ' × ' .. ROWS .. ' = ?', f.display, 44, kit.INK, PX + 24, PY + 80, 0)
     if S.bothAt >= 0 then
-        kit.rule(r, f, '(10 + 3) × (10 + 2)', 'the same field, in four pieces', kit.clamp((g.t - S.bothAt - 0.8) * 1.5, 0, 1), 970, 390)
+        kit.rule(r, f, '(10 + 3) × (10 + 2)', 'the same field, in four pieces', kit.clamp((g.t - S.bothAt - 0.8) * 1.5, 0, 1), PX + PW / 2, PY + 154)
     end
 end
 
@@ -285,18 +320,27 @@ end
 local function drawStep3(g: G, r: Renderer)
     local f = g.fonts
     local ps = parts(C3, R3, true, true)
+    local age = if S.solvedAt >= 0 then g.t - S.solvedAt else 0
+    local k = kit.clamp((age - 1.2) * 1.5, 0, 1) -- the rule card, rising in once it is solved
     drawPieces(r, ps, F3X, F3Y, U3, GAP, GAP, {})
     drawDims(g, r, F3X, F3Y, U3, C3, R3, GAP, GAP)
-    kit.label(r, f, '14 × 12', f.display, 40, kit.INK, 668, 300, 0.5)
-    kit.label(r, f, '= (10 + 4) × (10 + 2)', f.body, 19, kit.INK_SOFT, 668, 344, 0.5)
+    if lab.portrait then -- one line, under the field
+        kit.label(r, f, '14 × 12 = (10 + 4) × (10 + 2)', f.display, 24, kit.INK, QX, QY, 0.5)
+    else
+        kit.label(r, f, '14 × 12', f.display, 40, kit.INK, QX, QY, 0.5)
+        kit.label(r, f, '= (10 + 4) × (10 + 2)', f.body, 19, kit.INK_SOFT, QX, QY + 44, 0.5)
+    end
     if S.solvedAt >= 0 then
-        local age = g.t - S.solvedAt
         drawProducts(g, r, ps, F3X, F3Y, U3, GAP, GAP, function(i: number): number
             return age - (i - 1) * 0.25
         end)
-        kit.rule(r, f, '100 + 40 + 20 + 8 = 168', 'every part times every part', kit.clamp((age - 1.2) * 1.5, 0, 1), F3X + C3 * U3 / 2, 516)
     end
+    -- upright there is no room for both: the keypad makes way for the rule card
+    r:save()
+    r:modulateOpacity(if lab.portrait then 1 - k else 1)
     kit.keypadDraw(r, f, S.kp, '14 × 12 = ?', '', g.t)
+    r:restore()
+    kit.rule(r, f, '100 + 40 + 20 + 8 = 168', 'every part times every part', k, WX, WY)
 end
 
 function L.draw(g: G, r: Renderer)
@@ -352,14 +396,17 @@ local function tap(g: G, i: number)
 end
 
 local function check(g: G)
-    local v = tonumber(S.kp.value) or -1
+    local typed = S.kp.value
+    local v = tonumber(typed) or -1
     if v == 168 then
         S.kp.okT = 3
+        lab.answer(typed, true, '')
         S.solvedAt = g.t
         g.done()
-        g.burst(1000, 300, 40)
+        g.burst(KX + 140, KY + 128, 40)
         g.say('l2s3done')
     else
+        lab.answer(typed, false, if v == 108 then 'FIRST_LAST_ONLY' else '') -- the syllabus mistake this answer shows, if it is a known one
         g.sfx('oops')
         kit.keypadWrong(S.kp, 'Not quite. Have another go.')
         g.say(if v == 108 then 'l2n108' else 'l2nx')
