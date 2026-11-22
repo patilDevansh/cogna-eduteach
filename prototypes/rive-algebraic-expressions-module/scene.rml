@@ -1,8 +1,8 @@
 <Rive version="1" kind="fragment">
-    <!-- The Brackets module (algebraic expressions and identities). Like the Area module, the scene only
+    <!-- The Algebraic expressions and identities module (CBSE Class 8, chapter 8). Like the Area module, the scene only
          hosts the scripts; everything on screen is drawn by them. The frame is the shared chapter shell
          (main.luau links to rive-chapter-shell), and kit, the fonts and the sounds come from rive-area-module. -->
-    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="Brackets" id="0:2">
+    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="AlgebraicExpressions" id="0:2">
         <LayoutComponentStyle name="Artboard Style" id="0:5"/>
         <Fill name="Background">
             <SolidColor colorValue="FFF4F7F3" name="Color"/>

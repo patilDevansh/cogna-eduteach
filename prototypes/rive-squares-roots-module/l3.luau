@@ -1,4 +1,4 @@
--- Lesson 3 · Square roots
+-- Lesson 3 · What a square root is, and estimating one (syllabus skills SQ_ROOT_MEANING, SQ_ESTIMATE)
 --   1. 36 tiles in three long rows: drag a gold handle to change how wide the rows are and the tiles shuffle; 6 wide is a square, so √36 = 6
 --   2. 40 tiles: try a side of 6 (4 left over) and a side of 7 (9 short), so √40 is between 6 and 7
 --   3. a square garden of 81 sq m on the keypad -> side 9 (40 or 41 is the "halved, not rooted" slip)
@@ -317,8 +317,8 @@ end
 
 -- protocol ---------------------------------------------------------------------------------
 
-L.id = 'square-roots'
-L.tag = 'SQUARE ROOTS'
+L.id = 'SQ_ROOT_MEANING'
+L.tag = 'WHAT A SQUARE ROOT IS'
 L.title = 'Back from the tiles to the side'
 L.blurb = 'Shuffle the tiles into a square.'
 L.steps = {

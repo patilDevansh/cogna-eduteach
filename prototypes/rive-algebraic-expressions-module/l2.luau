@@ -112,9 +112,9 @@ local function judge(a: Vector, b: Vector): string
     return if math.abs(((a.y + b.y) / 2 - FY) / U - CUT) <= 0.9 then 'h' else 'bad'
 end
 
-L.id = 'twobrackets'
-L.tag = 'TWO BRACKETS'
-L.title = 'Two brackets'
+L.id = 'AE_BINOMIAL_BINOMIAL'
+L.tag = 'MULTIPLYING TWO BINOMIALS'
+L.title = 'Two binomials, four pieces'
 L.blurb = 'Cut both ways: four pieces to add.'
 L.steps = {
     { title = 'Cut it both ways', line = 'l2s1', task = 'Cut down at 10, then across at 10' },

@@ -67,8 +67,8 @@ local function sum(r: Renderer, f: kit.Fonts, terms: { { s: string, c: Color } }
     end
 end
 
-L.id = 'squaresum'
-L.tag = 'SQUARE OF A SUM'
+L.id = 'AE_IDENTITY_SQ_PLUS'
+L.tag = 'THE IDENTITY (a + b)² = a² + 2ab + b²'
 L.title = 'The square of a sum'
 L.blurb = 'Grow a square: (a + b)² has two strips.'
 L.steps = {

@@ -1,4 +1,4 @@
--- Lesson 1 · Square numbers
+-- Lesson 1 · Squaring a number, and which numbers are perfect squares (syllabus skills SQ_SQUARE, SQ_PERFECT)
 --   1. drag a gold corner along the diagonal: the square grows a border at a time, and 1, 4, 9, 16, 25, 36 are collected
 --   2. three piles of tiles (12, 16, 20): pick one and it tries to build a square; only 16 leaves nothing over
 --   3. 7² on the keypad -> 49 (14 is the "doubled, not squared" slip)
@@ -261,8 +261,8 @@ end
 
 -- protocol ---------------------------------------------------------------------------------
 
-L.id = 'square-numbers'
-L.tag = 'SQUARE NUMBERS'
+L.id = 'SQ_SQUARE'
+L.tag = 'SQUARING A NUMBER'
 L.title = 'A number times itself'
 L.blurb = 'Grow a square and count its tiles.'
 L.steps = {

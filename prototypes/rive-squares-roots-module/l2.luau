@@ -1,4 +1,4 @@
--- Lesson 2 · Odd numbers build squares
+-- Lesson 2 · Square patterns: the first n odd numbers add up to n² (syllabus skill SQ_PATTERNS)
 --   1. tap the gold border round a square: 3, 5, 7, 9 tiles drop in, each border its own colour, and 1 + 3 + 5 + 7 + 9 = 25
 --   2. why always odd: drag two strips of 4 and one corner tile onto a 4 by 4 square -> 4 + 4 + 1
 --   3. 1 + 3 + 5 + 7 + 9 + 11 on the keypad -> 36 (six borders, 6 × 6)
@@ -325,8 +325,8 @@ end
 
 -- protocol ---------------------------------------------------------------------------------
 
-L.id = 'odd-numbers'
-L.tag = 'ODD NUMBERS'
+L.id = 'SQ_PATTERNS'
+L.tag = 'SQUARE PATTERNS'
 L.title = 'Odd numbers build squares'
 L.blurb = 'Wrap a border round it: 3, 5, 7, 9.'
 L.steps = {

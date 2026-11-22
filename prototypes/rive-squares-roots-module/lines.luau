@@ -1,9 +1,9 @@
--- Everything Kiara says in the Squares module, as it reads on screen.
+-- Everything Kiara says in the Squares and square roots module, as it reads on screen.
 -- Not recorded yet: with no AudioAsset v_<key> in scene.rml a line shows as a caption only.
 -- rive-area-module/tools/record-voice.mjs records lines like these (it spells out × and ² for the voice).
 local lines: { [string]: string } = {
     -- module
-    home = 'Welcome to Squares! Three short lessons, and you will build every idea with your own hands. Pick lesson one to start.',
+    home = 'Welcome to Squares and square roots! Three short lessons, and you will build every idea with your own hands. Pick lesson one to start.',
     complete = 'Lesson complete! Brilliant work.',
 
     -- 1 · square numbers
@@ -39,7 +39,7 @@ local lines: { [string]: string } = {
     l3s3 = 'Your turn. This square garden covers 81 square metres. How long is each side?',
     l3n40 = "That's about half of 81. Halving is not the same as finding the side. Which number times itself makes 81?",
     l3nx = 'Which number times itself makes 81? 8 × 8 is 64, so try a little bigger.',
-    l3s3done = "9! Because 9 × 9 = 81, the square root of 81 is 9. You've finished Squares!",
+    l3s3done = "9! Because 9 × 9 = 81, the square root of 81 is 9. You've finished all three lessons!",
 }
 
 return lines

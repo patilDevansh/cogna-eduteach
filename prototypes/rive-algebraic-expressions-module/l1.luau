@@ -62,8 +62,8 @@ local function judge(a: Vector, b: Vector): number
     return kit.clamp(math.floor(at + 0.5), 1, COLS - 1)
 end
 
-L.id = 'onebracket'
-L.tag = 'ONE BRACKET'
+L.id = 'AE_MONO_POLY'
+L.tag = 'MULTIPLYING A MONOMIAL BY A POLYNOMIAL'
 L.title = 'Split a multiplication'
 L.blurb = 'Cut a field in two: a(b + c) = ab + ac.'
 L.steps = {

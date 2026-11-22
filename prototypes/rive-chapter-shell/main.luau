@@ -701,8 +701,16 @@ local function drawHome(self: Area, r: Renderer, fonts: Fonts, g: G)
     r:save()
     r:modulateOpacity(k)
     kit.label(r, fonts, M.kicker, fonts.mono, 13, kit.ACCENT, 60, 46, 0)
-    local nameW = kit.label(r, fonts, M.name, fonts.display, 56, kit.INK, 60, 100, 0)
-    kit.label(r, fonts, M.blurb, fonts.body, 19, kit.INK_SOFT, 60 + nameW + 24, 104, 0)
+    -- a short name has its line beside it, as "Area" does; a long one is sized to fit, with its line underneath
+    local nameW = kit.width(fonts, M.name, fonts.display, 56)
+    if 60 + nameW + 24 + kit.width(fonts, M.blurb, fonts.body, 19) <= 910 then
+        kit.label(r, fonts, M.name, fonts.display, 56, kit.INK, 60, 100, 0)
+        kit.label(r, fonts, M.blurb, fonts.body, 19, kit.INK_SOFT, 60 + nameW + 24, 104, 0)
+    else
+        local size = math.min(56, 56 * 840 / nameW)
+        kit.label(r, fonts, M.name, fonts.display, size, kit.INK, 60, 96, 0)
+        kit.label(r, fonts, M.blurb, fonts.body, 19, kit.INK_SOFT, 60, 96 + size / 2 + 28, 0)
+    end
     r:restore()
     local nDone = 0
     for i = 1, #LESSONS do

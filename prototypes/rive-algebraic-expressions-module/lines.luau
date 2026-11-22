@@ -1,9 +1,9 @@
--- Everything Kiara says in the Brackets module, as it reads on screen.
+-- Everything Kiara says in the Algebraic expressions and identities module, as it reads on screen.
 -- Not recorded yet: rive-area-module/tools/record-voice.mjs records each line, and scene.rml then
 -- needs an AudioAsset named v_<key> for each one.
 local lines: { [string]: string } = {
     -- module
-    home = 'Welcome to Brackets! Three short lessons, and you will open every bracket with your own hands. Pick lesson one to start.',
+    home = 'Welcome to Algebraic expressions and identities! Three short lessons, all done with your own hands. Pick lesson one to start.',
     complete = 'Lesson complete! Brilliant work.',
 
     -- 1 · one bracket: a(b + c) = ab + ac

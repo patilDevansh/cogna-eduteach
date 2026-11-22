@@ -1,8 +1,8 @@
 <Rive version="1" kind="fragment">
-    <!-- The Squares module (squares and square roots). Like the Area module, the scene only hosts
+    <!-- The Squares and square roots module (CBSE Class 8, chapter 5). Like the Area module, the scene only hosts
          the scripts; everything on screen is drawn by them. The frame is the shared chapter shell,
          and kit, the fonts and the sounds come from rive-area-module. -->
-    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="Squares" id="0:2">
+    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="SquaresRoots" id="0:2">
         <LayoutComponentStyle name="Artboard Style" id="0:5"/>
         <Fill name="Background">
             <SolidColor colorValue="FFF4F7F3" name="Color"/>
