@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type ModuleRunView } from "@/lib/api";
 import { getStudent } from "@/lib/session";
+import { VoiceTutor } from "@/components/voice-tutor/VoiceTutor";
+
+/** Lesson stages whose questions are practice the tutor may help with. Every other question is a check that steers the lesson, so the tutor waits. */
+const TUTOR_HELP_STAGES = new Set(["SUPPORTED_PRACTICE", "RETURN"]);
 
 type PendingAction = { eventId: string; expectedRevision: number; action: Record<string, unknown> };
 const activeKey = (studentId: string) => `cogna_module_learning_active_v1_${studentId}`;
@@ -115,5 +119,17 @@ export default function ModuleLearningPage() {
         {pending && <button type="button" disabled={busy} onClick={() => send(pending.action, pending)} style={{ marginTop: 16 }}>Retry saving this step</button>}
       </section>}
     </div>
+    {run && <VoiceTutor
+      surface="LESSON"
+      getScreen={() => ({
+        title: run.asset?.staticSlides[0]?.title ?? "Factorisation",
+        steps: run.asset?.staticSlides.map(slide => `${slide.title}. ${slide.explanation}${slide.equations.length ? ` (${slide.equations.join("; ")})` : ""}`),
+        question: run.question?.prompt,
+        options: run.question?.options ?? undefined,
+        studentFirstName: getStudent()?.name?.split(" ")[0],
+      })}
+      prepareHelp={async () => ({ allowed: TUTOR_HELP_STAGES.has(run.state.stage) && !run.question?.independent })}
+      pausedReason={run.question && (run.question.independent || !TUTOR_HELP_STAGES.has(run.state.stage)) ? "This question is a check on your own, so I'll stay quiet. I can help again after you answer." : null}
+    />}
   </main>;
 }

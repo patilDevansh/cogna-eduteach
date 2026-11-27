@@ -9,7 +9,7 @@ const num = (name: string, fallback: number) => {
 const general = createRateLimiter({ windowMs: 60_000, max: num("RATE_LIMIT_GENERAL_PER_MIN", 600) });
 // Routes that mint sessions, spend OpenAI/ElevenLabs credits or start renders.
 const strict = createRateLimiter({ windowMs: 60_000, max: num("RATE_LIMIT_BILLED_PER_MIN", 60) });
-const STRICT_ROUTE = /^\/(lotus|personalized-videos|ai|auth|parents|sessions|diagnostic-v2)(\/|$)/;
+const STRICT_ROUTE = /^\/(lotus|personalized-videos|ai|auth|parents|sessions|diagnostic-v2|voice-tutor)(\/|$)/;
 
 export function rateLimitMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Health checks and CORS preflights are free: a preflight is the browser asking, not the user.

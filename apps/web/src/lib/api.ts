@@ -687,6 +687,27 @@ export interface ModuleRunView {
   question: { id: string; prompt: string; options: string[] | null; independent: boolean } | null;
 }
 
+/** What the page tells the live voice tutor about the screen (display text only, never evidence). */
+export interface VoiceTutorScreen {
+  surface: "PRACTICE" | "LESSON";
+  title?: string;
+  steps?: string[];
+  question?: string;
+  options?: string[];
+  approvedHints?: string[];
+  helpOnQuestion: boolean;
+  studentFirstName?: string;
+}
+
+export const voiceTutor = {
+  status: () => apiFetch<{ enabled: boolean }>("/voice-tutor/status", undefined, false),
+  hear: (wav: Blob) => apiFetch<{ text: string }>("/voice-tutor/hear", { method: "POST", body: wav, headers: { "Content-Type": "audio/wav" } }),
+  talk: (said: string, screen: VoiceTutorScreen, history: Array<{ role: "student" | "tutor"; text: string }>) =>
+    apiFetch<{ say: string | null; voice: string | null }>("/voice-tutor/talk", { method: "POST", body: JSON.stringify({ said, screen, history }) }),
+  /** The reply's voice, for an <audio> element: the signed token stands in for the session headers it cannot send. */
+  voiceUrl: (token: string) => `${API_URL}/voice-tutor/voice?t=${encodeURIComponent(token)}`,
+};
+
 export const api = {
   moduleRuns: () => apiFetch<ModuleRunView[]>("/module-learning/for-student"),
   moduleRun: (id: string) => apiFetch<ModuleRunView>(`/module-learning/runs/${encodeURIComponent(id)}`),

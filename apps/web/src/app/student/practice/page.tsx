@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
+import { VoiceTutor, type TutorHelp } from "@/components/voice-tutor/VoiceTutor";
 import Link from "next/link";
 import type { PracticeNextResponse, QuestionPayload } from "@cogna/shared";
 import {
@@ -700,6 +701,23 @@ function PracticeContent() {
     router.push("/");
   }
 
+  /**
+   * Talking to the tutor while a question is open counts as help: a hint is recorded first, the same
+   * way "Get a hint" records one, so the answer is saved as helped. A question with no reviewed hints
+   * cannot record help, so the tutor talks only about the idea, not that question.
+   */
+  async function prepareTutorHelp(): Promise<TutorHelp> {
+    const ladder = question?.hintLadder ?? [];
+    if (phase !== "question" || !question || ladder.length === 0) return { allowed: false };
+    let level = highestHintLevel;
+    if (level === 0) {
+      const recorded = await requestHint();
+      if (!recorded) throw new Error("Couldn't save that you asked for help, so Cogna didn't answer. Try again.");
+      level = 1;
+    }
+    return { allowed: true, approvedHints: ladder.slice(0, Math.max(level, 1)) };
+  }
+
   const chrome = (
     <div className={styles.chrome}>
       <Link href="/" className="wordmark">
@@ -708,6 +726,16 @@ function PracticeContent() {
       <button type="button" className="btn-quiet" onClick={signOut}>
         Pause and sign out
       </button>
+      <VoiceTutor
+        surface="PRACTICE"
+        getScreen={() => ({
+          title: "Practice",
+          question: phase === "question" && question ? question.stem : undefined,
+          studentFirstName: studentName.split(" ")[0] || undefined,
+        })}
+        prepareHelp={prepareTutorHelp}
+        pausedReason={mode === "BASELINE" ? "This is your starting check, so I'll stay quiet. Talk to me again in practice." : null}
+      />
     </div>
   );
 
