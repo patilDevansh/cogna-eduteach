@@ -1,0 +1,823 @@
+<title>Cogna Premium UI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..600,0..100;1,9..144,400..600,0..100&family=Instrument+Sans:wght@400..700&family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@400..600&family=STIX+Two+Text:ital@0;1&display=swap">
+<style>
+/* Layout: a tabbed gallery of four screens, each shown full-bleed inside its own soft frame. Single light look by choice: it previews the product as it ships. */
+:root {
+  color-scheme: light;
+  --bg: #f4f7f3; --ink: #16241d; --ink-soft: #51635a; --ink-faint: #7d8c84; --deep-ink: #10201a;
+  --accent: #0e6b54; --accent-deep: #08463a; --accent-wash: #e3efe9; --mint: #9fdcc4;
+  --success-wash: #e2f2e8; --caution: #a2660d; --caution-wash: #f7eedd;
+  --nope: #9a4a37; --nope-wash: #fff4f0; --nope-line: #e3b6aa;
+  --surface: #ffffff; --line: #dce4dd; --line-strong: #b9c6bc;
+  --shadow-1: 0 1px 2px rgba(12,52,40,.06), 0 2px 6px -2px rgba(12,52,40,.06);
+  --shadow-2: 0 1px 2px rgba(12,52,40,.05), 0 12px 32px -14px rgba(12,52,40,.22);
+  --shadow-3: 0 2px 4px rgba(12,52,40,.05), 0 30px 60px -24px rgba(12,52,40,.32);
+  --ring: 0 0 0 4px rgba(14,107,84,.16);
+  --spring: cubic-bezier(.34,1.4,.64,1); --settle: cubic-bezier(.2,.8,.2,1);
+  --wash: radial-gradient(1200px 520px at 78% -10%, rgba(242,177,52,.10), transparent 60%), radial-gradient(900px 600px at 10% 0%, rgba(14,107,84,.09), transparent 62%);
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Instrument Sans", "Helvetica Neue", system-ui, sans-serif;
+  --f-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-maths: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--wash), var(--bg); color: var(--ink); font: 16px/1.5 var(--f-body); }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; text-wrap: pretty; }
+button { font: inherit; }
+.maths { font-family: var(--f-maths); white-space: nowrap; }
+.maths i { font-style: italic; }
+.serif { font-family: var(--f-serif); font-weight: 500; letter-spacing: -.025em; font-variation-settings: "opsz" 144, "SOFT" 50; }
+.serif em { font-style: italic; font-variation-settings: "opsz" 144, "SOFT" 100; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px; }
+.top h1 { font-size: clamp(1.8rem, 4cqi, 2.5rem); line-height: 1.05; }
+.top p { color: var(--ink-soft); max-width: 46ch; margin-top: 6px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-1); }
+.tabs button { border: 0; background: none; border-radius: 999px; padding: 8px 14px; min-height: 40px; font-weight: 600; font-size: .9rem; color: var(--ink-soft); cursor: pointer; transition: background-color .2s, color .2s; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+.tabs button:focus-visible, button:focus-visible, input:focus-visible, a:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.frame { container-type: inline-size; width: 100%; max-width: 1180px; margin-inline: auto; transition: max-width .6s var(--settle); border-radius: 26px; overflow: hidden; background: var(--wash), var(--bg); box-shadow: var(--shadow-3); border: 1px solid rgba(22,36,29,.06); position: relative; }
+.frame::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .05; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.wrap[data-size="tablet"] .frame { max-width: 820px; }
+.wrap[data-size="phone"] .frame { max-width: 390px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.tabs button { white-space: nowrap; }
+.devices { display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-1); }
+.devices button { border: 0; background: none; border-radius: 999px; padding: 8px 12px; min-height: 40px; font-size: .85rem; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+.devices button[aria-pressed="true"] { background: var(--deep-ink); color: #fff; }
+@media (max-width: 700px) { .devices { display: none; } }
+.mobileOnly { display: none; }
+.wordmark { font: 700 1.35rem var(--f-display); color: var(--ink); text-decoration: none; letter-spacing: -.02em; }
+.wordmark span { color: var(--accent); }
+.note { color: var(--ink-faint); font-size: .88rem; }
+
+/* ---------- landing ---------- */
+.lHead { display: flex; justify-content: space-between; align-items: center; padding: 18px clamp(18px, 4cqi, 40px); }
+.lHead nav { display: flex; gap: 22px; font-size: .9rem; color: var(--ink-soft); }
+.hero { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-areas: "copy stage" "roles stage"; gap: 26px 40px; align-items: center; padding: 24px clamp(18px, 4cqi, 40px) 48px; }
+.kicker { display: flex; align-items: center; gap: 10px; font-size: .85rem; font-weight: 600; color: var(--accent); }
+.kicker::before { content: ""; width: 18px; height: 2px; background: currentColor; }
+.hero h2 { font-size: clamp(2.6rem, 5.4cqi, 4.2rem); line-height: 1; margin-top: 16px; color: var(--deep-ink); }
+.hero h2 em { color: var(--accent); }
+.lede { margin-top: 18px; font-size: 1.1rem; color: var(--ink-soft); max-width: 40ch; }
+.copy { grid-area: copy; align-self: end; }
+.roles { grid-area: roles; align-self: start; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stage { grid-area: stage; }
+.role { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.85); box-shadow: var(--shadow-1); color: var(--ink); text-decoration: none; transition: transform .25s var(--spring), box-shadow .25s; cursor: pointer; }
+.role:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+.role b { font-weight: 600; }
+.role span { grid-column: 1; font-size: .85rem; color: var(--ink-soft); }
+.role i { grid-row: 1 / 3; grid-column: 2; align-self: center; font-style: normal; color: var(--accent); }
+.role.main { grid-column: 1 / -1; background: linear-gradient(180deg, #13785f, var(--accent)); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 14px 28px -14px rgba(8,70,58,.6); padding: 18px 20px; }
+.role.main span, .role.main i { color: #d7e8e0; }
+
+.stage { --px: 0; --py: 0; position: relative; padding: 2.4rem 0 5.8rem 2.2rem; isolation: isolate; }
+.stage::before { content: ""; position: absolute; inset: 0 -6% -4% 10%; z-index: -1; background: radial-gradient(closest-side, rgba(14,107,84,.16), transparent 72%); }
+.practice { max-width: 460px; margin-left: auto; background: var(--surface); border-radius: 24px; border: 1px solid rgba(22,36,29,.06); padding: clamp(1.2rem, 2.4cqi, 1.8rem); box-shadow: var(--shadow-3); transform: perspective(1400px) rotateX(calc(var(--py) * -6deg)) rotateY(calc(var(--px) * 7deg)); transition: transform .6s var(--settle); }
+.pTop { display: flex; align-items: center; gap: .8rem; font-size: .75rem; font-weight: 600; color: var(--ink-faint); }
+.bar { flex: 1; height: 8px; border-radius: 99px; background: #e8eee9; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 50%; border-radius: inherit; background: linear-gradient(90deg, #2c9b78, var(--accent)); transition: width .9s var(--spring); }
+.prompt { margin-top: 1.2rem; font-size: .9rem; font-weight: 500; color: var(--ink-soft); }
+.lines { list-style: none; margin: .6rem -.7rem 0; padding: 0; display: grid; gap: .3rem; }
+.lines li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .3rem .7rem; border-radius: 12px; font-size: clamp(1.4rem, 2.3cqi, 1.75rem); color: var(--deep-ink); }
+.flagged { background: var(--caution-wash); }
+.flagged .maths { text-decoration: line-through 2px transparent; transition: text-decoration-color .4s; }
+.struck .maths { text-decoration-color: rgba(162,102,13,.5); }
+.flag { font: 700 .72rem var(--f-body); color: var(--caution); white-space: nowrap; background: var(--surface); border-radius: 99px; padding: .2rem .6rem; box-shadow: var(--shadow-1); }
+.struck .flag { color: var(--accent-deep); }
+.fixed { background: var(--success-wash); color: var(--accent-deep) !important; animation: pop .5s var(--spring) both; }
+.ask { margin-top: 1rem; }
+.ask p { font-size: .9rem; font-weight: 600; color: var(--ink-soft); }
+.choices { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.choice { min-height: 44px; padding: .45rem .85rem; border-radius: 12px; cursor: pointer; font-size: 1.15rem; color: var(--deep-ink); background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow-1); transition: transform .22s var(--spring), border-color .18s, box-shadow .22s; }
+.choice:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow-2); }
+.choice:active { transform: scale(.97); }
+.choice.nope { cursor: default; transform: none; color: var(--nope); background: var(--nope-wash); border-color: var(--nope-line); box-shadow: none; animation: shake .38s ease; }
+.hint { margin-top: 1rem; display: grid; gap: .15rem; padding: .85rem 1rem; border-radius: 14px; background: #f5f8f6; border: 1px solid var(--line); font-size: .9rem; color: var(--ink-soft); animation: rise .5s var(--settle) both; }
+.hint strong { font-size: .75rem; color: var(--accent-deep); }
+.hint.done { background: var(--success-wash); border-color: rgba(14,107,84,.18); }
+.again { justify-self: start; margin-top: .35rem; padding: 0; background: none; border: 0; font-weight: 600; color: var(--accent-deep); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.float { position: absolute; z-index: 1; background: rgba(255,255,255,.94); border: 1px solid rgba(22,36,29,.07); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 16px; box-shadow: var(--shadow-2); font-size: .9rem; translate: calc(var(--px) * -22px) calc(var(--py) * -16px); transition: translate .6s var(--settle); }
+.caught { top: .4rem; left: 0; display: flex; align-items: center; gap: .55rem; padding: .6rem .95rem; font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--caution); box-shadow: 0 0 0 4px rgba(162,102,13,.15); transition: background-color .3s; }
+.caught.done .dot { background: var(--accent); box-shadow: 0 0 0 4px rgba(14,107,84,.15); }
+.ready { bottom: 0; left: -.4rem; width: 220px; display: grid; gap: .3rem; padding: .95rem 1.05rem; }
+.ready > span:first-child { font-size: .75rem; font-weight: 600; color: var(--ink-faint); }
+.ready strong { font: 500 1.7rem/1 var(--f-serif); letter-spacing: -.02em; color: var(--deep-ink); }
+.ready em { font-style: normal; font-size: .9rem; color: var(--ink-soft); }
+.ready .bar { height: 6px; flex: none; margin-top: .3rem; }
+.ready .bar i { width: 79%; }
+.copy > *, .roles { animation: rise .7s var(--settle) both; }
+.copy > :nth-child(2) { animation-delay: .08s; } .copy > :nth-child(3) { animation-delay: .16s; } .roles { animation-delay: .26s; }
+.practice { animation: rise .8s var(--settle) .2s backwards; }
+.lines li .maths { animation: write .7s cubic-bezier(.5,0,.3,1) both; }
+.lines li:nth-child(1) .maths { animation-delay: .7s; }
+.lines li:nth-child(2) .maths { animation-delay: 1.4s; }
+.lines .fixed .maths { animation: none; }
+.flagged { animation: flagIn .4s ease 2.1s both; }
+.flag { animation: pop .45s var(--spring) 2.2s both; }
+.caught { animation: pop .5s var(--spring) 2.3s both; }
+.ask { animation: rise .6s var(--settle) 2.7s both; }
+.ready { animation: pop .5s var(--spring) 3.1s both; }
+.yourTurn { display: inline-block; margin-right: 8px; padding: 2px 9px; border-radius: 99px; background: var(--accent); color: #fff; font-size: .72rem; font-weight: 700; vertical-align: 1px; animation: nudge 1.8s ease-out 3.2s 3; }
+.choices .choice { animation: pop .45s var(--spring) backwards; }
+.choices .choice:nth-child(1) { animation-delay: 2.85s; } .choices .choice:nth-child(2) { animation-delay: 2.95s; } .choices .choice:nth-child(3) { animation-delay: 3.05s; }
+.choice.nope { animation: shake .38s ease; }
+@keyframes write { from { clip-path: inset(0 100% 0 0); } }
+@keyframes flagIn { from { background-color: transparent; } }
+@keyframes nudge { 0% { box-shadow: 0 0 0 0 rgba(14,107,84,.45); } 100% { box-shadow: 0 0 0 10px rgba(14,107,84,0); } }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.96); } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+
+/* ---------- teacher sign-in ---------- */
+.tGrid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); min-height: 640px; }
+.story { position: relative; padding: clamp(24px, 4cqi, 52px); color: #fff; display: flex; flex-direction: column; justify-content: space-between; gap: 40px; background: radial-gradient(900px 520px at 0% 0%, rgba(79,195,155,.24), transparent 62%), radial-gradient(700px 520px at 100% 100%, rgba(242,177,52,.12), transparent 60%), linear-gradient(160deg, #0b5a47, #063a2f); }
+.story .wordmark { color: #fff; } .story .wordmark span { color: #8ad2b8; }
+.eyebrow { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8ad2b8; }
+.story h2 { font-size: clamp(2.3rem, 4.4cqi, 3.8rem); line-height: 1.02; margin-top: 10px; }
+.story h2 em { color: var(--mint); }
+.story .lede { color: #d7e8e0; }
+.glimpse { margin-top: 28px; max-width: 340px; display: grid; gap: .35rem; padding: 1.1rem 1.25rem; border-radius: 20px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 24px 48px -24px rgba(0,0,0,.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: transform .4s var(--spring), background-color .3s; }
+.glimpse:hover { transform: translateY(-4px) rotate(-.6deg); background: rgba(255,255,255,.12); }
+.glimpse > span:first-child { font-size: .8rem; font-weight: 600; color: #a9c8bb; }
+.glimpse strong { font: 500 2rem/1 var(--f-serif); letter-spacing: -.02em; }
+.glimpse strong em { font: 500 .95rem var(--f-body); color: #d7e8e0; margin-left: .4rem; }
+.glimpse .bar { height: 6px; background: rgba(255,255,255,.14); flex: none; }
+.glimpse .bar i { width: 79%; background: linear-gradient(90deg, #4fc39b, var(--mint)); }
+.glimpse:hover .bar i { width: 82%; }
+.glimpse p { font-size: .9rem; color: #d7e8e0; }
+.trust { font-size: .85rem; color: #a9c8bb; max-width: 32rem; }
+.formSide { display: grid; place-items: center; padding: 28px clamp(16px, 3cqi, 32px); }
+.card { width: min(100%, 460px); background: rgba(255,255,255,.94); border: 1px solid rgba(22,36,29,.06); border-radius: 28px; padding: clamp(22px, 4cqi, 38px); box-shadow: var(--shadow-3); display: grid; gap: 14px; }
+.card .eyebrow { color: var(--accent); }
+.card h3 { font-size: 2.1rem; line-height: 1.05; }
+.card > p { color: var(--ink-soft); }
+label.f { display: grid; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--ink-soft); }
+.input { width: 100%; min-height: 50px; padding: .75rem .9rem; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 12px; color: var(--ink); font: inherit; box-shadow: inset 0 1px 2px rgba(12,52,40,.04); transition: border-color .2s, box-shadow .2s; }
+.input:hover { border-color: var(--ink-faint); }
+.input:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+.btn { border: 0; border-radius: 14px; min-height: 54px; color: #fff; font-weight: 600; font-size: 1.02rem; cursor: pointer; background: linear-gradient(180deg, #13785f, var(--accent)); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 2px rgba(8,70,58,.3), 0 10px 22px -12px rgba(8,70,58,.6); transition: transform .2s var(--settle), box-shadow .2s; }
+.btn:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 4px rgba(8,70,58,.3), 0 16px 28px -14px rgba(8,70,58,.6); }
+.btn:active { transform: scale(.99); }
+.btn:disabled { opacity: .55; transform: none; cursor: not-allowed; }
+.fine { font-size: .85rem; color: var(--ink-faint); text-align: center; }
+.fine a { color: var(--accent-deep); }
+.toast { font-size: .9rem; color: var(--accent-deep); background: var(--success-wash); border-radius: 12px; padding: .7rem .9rem; animation: rise .4s var(--settle) both; }
+
+/* ---------- student sign-in ---------- */
+.sStage { display: flex; flex-direction: column; align-items: center; padding: 18px 18px 48px; min-height: 640px; }
+.chrome { width: 100%; max-width: 420px; display: flex; justify-content: space-between; align-items: center; padding-bottom: 26px; }
+.pill { border-radius: 999px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-1); padding: 8px 14px; font-size: .9rem; color: var(--ink); text-decoration: none; }
+.sCard { width: 100%; max-width: 400px; margin: auto 0; text-align: center; }
+.sCard h3 { font: 700 clamp(1.6rem, 5cqi, 1.95rem)/1.1 var(--f-display); letter-spacing: -.025em; }
+.code { min-height: 64px; font: 500 1.6rem var(--f-maths); letter-spacing: .32em; text-indent: .32em; text-align: center; text-transform: uppercase; border-radius: 16px; background: #fbfcfb; }
+.code::placeholder { color: #c3ccc6; }
+.join { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: .95rem 1rem; text-align: left; text-decoration: none; color: var(--accent-deep); background: var(--accent-wash); border-radius: 18px; box-shadow: inset 0 0 0 1px rgba(14,107,84,.1); transition: transform .26s var(--settle), box-shadow .26s, background-color .26s; cursor: pointer; }
+.join:hover { transform: translateY(-2px); background: #d9ece4; box-shadow: inset 0 0 0 1px rgba(14,107,84,.14), var(--shadow-2); }
+.join .ic { width: 2.5rem; height: 2.5rem; border-radius: 12px; background: var(--surface); display: grid; place-items: center; box-shadow: var(--shadow-1); font-weight: 700; color: var(--accent); }
+.join strong { display: block; color: var(--ink); }
+.join small { color: var(--ink-soft); font-size: .85rem; }
+.sep { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; }
+.sep > p { font-size: .9rem; font-weight: 600; color: var(--ink-soft); }
+
+/* ---------- free check ---------- */
+.tryHero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 40px; align-items: center; padding: 28px clamp(18px, 4cqi, 40px) 40px; }
+.tryHero h2 { font-size: clamp(2.4rem, 5cqi, 3.7rem); line-height: 1.02; color: var(--deep-ink); }
+.tryHero h2 em { color: var(--accent); }
+.eq { margin-top: 20px; width: fit-content; max-width: 100%; display: flex; flex-wrap: wrap; gap: 0 .5ch; padding: .7rem 1.2rem; border-radius: 16px; background: rgba(255,255,255,.7); box-shadow: var(--shadow-1); font: 400 clamp(1.5rem, 3cqi, 2rem) var(--f-maths); }
+.eq span:last-child { color: var(--accent-deep); }
+.check { display: flex; gap: 10px; align-items: flex-start; text-align: left; font-size: .85rem; color: var(--ink-soft); cursor: pointer; }
+.check input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+.tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 clamp(18px, 4cqi, 40px) 40px; }
+.tiers h3.serif { grid-column: 1 / -1; font-size: clamp(1.6rem, 3cqi, 2.1rem); }
+.tier { border-radius: 22px; padding: 20px; display: grid; gap: 10px; align-content: start; }
+.tier ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; color: var(--ink-soft); }
+.tier.free { background: rgba(255,255,255,.8); box-shadow: var(--shadow-1); }
+.tier.full { background: linear-gradient(160deg, #eaf5f0, var(--accent-wash)); box-shadow: inset 0 0 0 1px rgba(14,107,84,.22), var(--shadow-2); }
+.price { font: 500 2rem/1 var(--f-serif); letter-spacing: -.02em; color: var(--accent-deep); }
+
+
+/* ---------- 10 directions ---------- */
+.dirs { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; padding: clamp(14px, 3cqi, 28px); }
+.dirs > header { grid-column: 1 / -1; }
+.dirs > header h2 { font-size: clamp(1.9rem, 4.2cqi, 2.8rem); line-height: 1.05; color: var(--deep-ink); }
+.dirs > header p { color: var(--ink-soft); margin-top: 6px; max-width: 60ch; }
+.pick { display: grid; gap: 4px; align-content: start; }
+.pick button { text-align: left; border: 0; background: none; border-radius: 12px; padding: 9px 12px; cursor: pointer; display: grid; gap: 1px; color: var(--ink); transition: background-color .2s; }
+.pick button:hover { background: rgba(255,255,255,.7); }
+.pick button[aria-pressed="true"] { background: var(--surface); box-shadow: var(--shadow-1); }
+.pick b { font-weight: 600; font-size: .92rem; }
+.pick small { font-size: .78rem; color: var(--ink-faint); }
+.pick b i { font: italic 500 .9rem var(--f-maths); color: var(--accent); margin-right: 6px; }
+.dview { container-type: inline-size; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-3); min-width: 0; }
+.d { min-height: 520px; display: flex; flex-direction: column; gap: 22px; padding: clamp(18px, 5cqi, 44px); position: relative; overflow: hidden; }
+.d nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: .85rem; }
+.d nav b { font-size: 1.05rem; }
+.d .links { display: flex; gap: 18px; opacity: .75; }
+.d h3 { margin: 0; text-wrap: balance; }
+.d p { max-width: 46ch; }
+@container (max-width: 760px) {
+  .dirs { grid-template-columns: 1fr; }
+  .pick { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; scrollbar-width: none; }
+  .pick small { display: none; }
+}
+@container (max-width: 560px) { .d .links { display: none; } .d { min-height: 0; } .d.d6 { min-height: 440px; } .d.d7, .d.d10 { min-height: 380px; } }
+
+/* 1 chalk */
+.d1 { background: radial-gradient(120% 90% at 50% 0%, #2a4a41, #15302a 70%); color: #efeee6; }
+.d1 nav b { font: 600 1.1rem var(--f-serif); }
+.d1 h3 { font: 400 clamp(2.4rem, 7cqi, 4.4rem)/1 var(--f-serif); letter-spacing: -.02em; }
+.d1 h3 em { color: #f3d27a; }
+.d1 .board { border-top: 1px solid rgba(239,238,230,.18); padding-top: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.d1 .chalk { font: 400 clamp(1.8rem, 6cqi, 3rem) var(--f-maths); text-shadow: 0 0 1px rgba(255,255,255,.6), 0 0 12px rgba(255,255,255,.12); min-width: 0; }
+.d1 .chalk.in { animation: rise .5s var(--settle); }
+.d1 button { border: 1px solid rgba(239,238,230,.4); background: none; color: inherit; border-radius: 99px; padding: 10px 18px; cursor: pointer; font-weight: 600; }
+.d1 button:hover { background: rgba(239,238,230,.08); }
+.d1 .stepNo { font-size: .8rem; opacity: .6; }
+
+/* 2 graph paper */
+.d2 { background-color: #fbfcfa; background-image: linear-gradient(#e7eee9 1px, transparent 1px), linear-gradient(90deg, #e7eee9 1px, transparent 1px); background-size: 24px 24px; color: #14231c; font-family: "JetBrains Mono", ui-monospace, monospace; }
+.d2 nav { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+.d2 .g { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; flex: 1; }
+.d2 h3 { font: 700 clamp(2rem, 5.6cqi, 3.4rem)/1.02 "Archivo", var(--f-body); letter-spacing: -.03em; }
+.d2 p { font-size: .85rem; color: #4d6158; margin-top: 12px; }
+.d2 canvas { width: 100%; height: 260px; display: block; background: rgba(255,255,255,.85); border: 1px solid #cfdcd4; border-radius: 4px; cursor: crosshair; }
+.d2 .coord { font-size: .78rem; color: var(--accent); margin-top: 6px; }
+@container (max-width: 640px) { .d2 .g { grid-template-columns: 1fr; } .d2 canvas { height: 200px; } }
+
+/* 3 textbook */
+.d3 { background: #fffdf8; color: #22201b; font-family: var(--f-serif); }
+.d3 nav { font-family: var(--f-body); color: #6b665b; }
+.d3 .chap { font: italic 400 1rem var(--f-serif); color: #9b4d2e; }
+.d3 h3 { font: 400 clamp(2.4rem, 6.5cqi, 4rem)/1.02 var(--f-serif); letter-spacing: -.025em; margin-top: 4px; }
+.d3 .cols { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 28px; border-top: 1px solid #e6dfd0; padding-top: 18px; }
+.d3 .body { font-size: 1.08rem; line-height: 1.65; }
+.d3 .body::first-letter { float: left; font-size: 3.4em; line-height: .85; padding: 4px 8px 0 0; color: #9b4d2e; }
+.d3 sup button { border: 0; background: #f4ece0; color: #9b4d2e; border-radius: 4px; font: 600 .7rem var(--f-body); padding: 1px 5px; cursor: pointer; }
+.d3 aside { display: grid; gap: 14px; align-content: start; font: .85rem/1.5 var(--f-body); color: #6b665b; }
+.d3 aside p { padding-left: 10px; border-left: 2px solid transparent; transition: border-color .25s, color .25s; }
+.d3 aside p.on { border-color: #9b4d2e; color: #22201b; }
+@container (max-width: 640px) { .d3 .cols { grid-template-columns: 1fr; } }
+
+/* 4 swiss */
+.d4 { background: #f6f5f1; color: #111; font-family: "Archivo", var(--f-body); }
+.d4 nav b { font-weight: 800; letter-spacing: -.02em; }
+.d4 h3 { font: 800 clamp(2.8rem, 10cqi, 6rem)/.9 "Archivo", var(--f-body); font-stretch: 75%; letter-spacing: -.035em; text-transform: uppercase; }
+.d4 h3 span { color: #d8432a; }
+.d4 details { border-top: 2px solid #111; padding: 12px 0; }
+.d4 details:last-of-type { border-bottom: 2px solid #111; }
+.d4 summary { list-style: none; display: grid; grid-template-columns: 3rem 1fr auto; align-items: baseline; cursor: pointer; font-weight: 700; font-size: 1.2rem; }
+.d4 summary::-webkit-details-marker { display: none; }
+.d4 summary::after { content: "+"; font-weight: 400; transition: transform .3s var(--spring); }
+.d4 details[open] summary::after { transform: rotate(45deg); }
+.d4 summary em { font-style: normal; font-size: .8rem; color: #d8432a; }
+.d4 details p { margin: 8px 0 0 3rem; color: #444; font-family: var(--f-body); }
+
+/* 5 lab notebook */
+.d5 { background: #fdfbf3 repeating-linear-gradient(transparent 0 31px, #dfe7ef 31px 32px); color: #1c2733; font-family: "JetBrains Mono", ui-monospace, monospace; padding-left: clamp(42px, 9cqi, 72px); }
+.d5::before { content: ""; position: absolute; top: 0; bottom: 0; left: clamp(28px, 6cqi, 52px); width: 2px; background: #e9a3a3; }
+.d5 nav { font-size: .75rem; color: #5b6b7a; }
+.d5 .exp { font-size: .78rem; color: #b04a4a; }
+.d5 h3 { font: 600 clamp(1.7rem, 5cqi, 2.7rem)/1.15 var(--f-body); letter-spacing: -.02em; }
+.d5 table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+.d5 th, .d5 td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #cdd8e2; }
+.d5 th { font-weight: 600; color: #5b6b7a; }
+.d5 td.cause { color: #0e6b54; transition: opacity .4s; }
+.d5 .hideCause td.cause { opacity: 0; }
+.d5 label { display: flex; align-items: center; gap: 8px; font-size: .8rem; cursor: pointer; }
+.d5 .tw { overflow-x: auto; }
+
+/* 6 night sky */
+.d6 { background: radial-gradient(90% 70% at 70% 20%, #1b2a55, #090f22 70%); color: #e8ecf8; }
+.d6 canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.d6 > *:not(canvas) { position: relative; pointer-events: none; }
+.d6 nav b { font: 500 1.1rem var(--f-serif); }
+.d6 h3 { font: 300 clamp(2rem, 6cqi, 3.6rem)/1.05 var(--f-serif); max-width: 14ch; }
+.d6 h3 em { color: #ffd98a; }
+.d6 p { color: #aab4d4; font-size: .95rem; margin-top: auto; }
+
+/* 7 kinetic type */
+.d7 { background: #f7f6f2; color: #0f1713; justify-content: space-between; }
+.d7 nav b { font: 800 1.1rem var(--f-display); }
+.d7 h3 { font: 600 clamp(2.6rem, 9.5cqi, 6.2rem)/.95 var(--f-display); letter-spacing: -.045em; transition: font-weight .5s var(--settle); }
+.d7 h3:hover { font-weight: 800; }
+.d7 .swap { display: inline-block; color: var(--accent); font-weight: 800; animation: swapIn .6s var(--settle) both; }
+.d7 .caret { display: inline-block; width: .06em; height: .8em; background: var(--accent); margin-left: .05em; vertical-align: -.05em; animation: blink 1s steps(1) infinite; }
+.d7 .meta { display: flex; flex-wrap: wrap; gap: 10px 26px; font-size: .9rem; color: #55615b; border-top: 1px solid #dcdad3; padding-top: 14px; }
+@keyframes swapIn { from { opacity: 0; transform: translateY(.3em); font-weight: 300; } }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* 8 bento */
+.d8 { background: #f3f1fb; color: #1d1b2e; }
+.d8 nav b { font: 800 1.1rem var(--f-display); }
+.d8 h3 { font: 700 clamp(1.9rem, 5cqi, 2.8rem)/1.05 var(--f-display); letter-spacing: -.03em; }
+.d8 .bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 120px; gap: 10px; }
+.d8 .t { border-radius: 20px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; transition: transform .3s var(--spring), box-shadow .3s; cursor: default; }
+.d8 .t:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 18px 30px -18px rgba(40,30,90,.45); }
+.d8 .t small { font-size: .75rem; font-weight: 600; opacity: .7; }
+.d8 .t strong { font: 700 1.8rem/1 var(--f-display); letter-spacing: -.03em; }
+.d8 .a { grid-column: span 2; grid-row: span 2; background: #1d1b2e; color: #f3f1fb; }
+.d8 .a strong { font-size: clamp(2rem, 6cqi, 3.2rem); }
+.d8 .b { background: #ffd9c7; } .d8 .c { background: #d3f0e0; } .d8 .e { grid-column: span 2; background: #fff; }
+.d8 .ringS { width: 64px; aspect-ratio: 1; border-radius: 50%; background: conic-gradient(#6b5bd6 79%, #e4e0f7 0); display: grid; place-items: center; align-self: flex-end; }
+.d8 .ringS::after { content: "79%"; width: 50px; aspect-ratio: 1; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: .8rem; font-weight: 700; }
+@container (max-width: 640px) { .d8 .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* 9 periodic */
+.d9 { background: #fafaf7; color: #1a1f1c; }
+.d9 nav b { font: 600 1.1rem var(--f-serif); }
+.d9 h3 { font: 500 clamp(2rem, 5.4cqi, 3.2rem)/1.05 var(--f-serif); letter-spacing: -.02em; }
+.d9 .table { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.d9 .el { aspect-ratio: 1.1; border: 1px solid #d9ddd8; background: #fff; border-radius: 10px; padding: 8px 10px; display: grid; grid-template-rows: auto 1fr auto; text-align: left; cursor: pointer; transition: transform .25s var(--spring), border-color .2s, background-color .2s; color: inherit; font: inherit; }
+.d9 .el:hover, .d9 .el:focus-visible, .d9 .el.on { transform: translateY(-3px); border-color: var(--accent); background: var(--accent-wash); }
+.d9 .el span { font-size: .7rem; color: #7b847f; }
+.d9 .el b { font: 500 clamp(1.4rem, 4.4cqi, 2.2rem)/1 var(--f-serif); align-self: center; }
+.d9 .el small { font-size: .72rem; }
+.d9 .detail { min-height: 3em; color: #4a554f; border-left: 3px solid var(--accent); padding-left: 12px; }
+
+/* 10 one question */
+.d10 { background: #fff; color: #111; align-items: center; justify-content: center; text-align: center; }
+.d10 nav { position: absolute; top: clamp(18px, 5cqi, 44px); left: clamp(18px, 5cqi, 44px); right: clamp(18px, 5cqi, 44px); }
+.d10 .pre { font-size: .9rem; color: #777; }
+.d10 h3 { font: 400 clamp(2.6rem, 9cqi, 5.4rem)/1 var(--f-maths); }
+.d10 input { width: min(100%, 220px); text-align: center; font: 400 2.4rem var(--f-maths); border: 0; border-bottom: 2px solid #111; background: none; padding: 6px; color: #111; outline: none; border-radius: 0; }
+.d10 input:focus { border-color: var(--accent); }
+.d10 .reply { min-height: 3.2em; color: #555; max-width: 34ch; }
+.d10 .reply strong { color: var(--accent); }
+.d10 .cta { opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s var(--spring); background: #111; color: #fff; border-radius: 99px; padding: 12px 22px; font-weight: 600; }
+.d10.solved .cta { opacity: 1; transform: none; }
+
+@container (max-width: 900px) {
+  .hero, .tryHero, .tGrid { grid-template-columns: 1fr; }
+  .hero { grid-template-areas: "copy" "stage" "roles"; }
+  .mobileOnly { display: inline-block; }
+  .stage { padding: 2.8rem 0 6.2rem; max-width: 540px; width: 100%; margin: 0 auto; }
+  .practice { margin: 0 auto; }
+  .lHead nav { display: none; }
+  .tGrid { min-height: 0; }
+}
+@container (max-width: 560px) {
+  .roles, .tiers { grid-template-columns: 1fr; }
+  .ready { left: 0; width: 196px; }
+  .code { font-size: 1.35rem; letter-spacing: .22em; text-indent: .22em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; transition: none !important; }
+  .practice { transform: none; } .float { translate: none; }
+}
+</style>
+
+<div class="wrap" id="wrap" data-size="desktop">
+  <header class="top">
+    <div>
+      <h1 class="serif">Cogna, <em>premium</em> pass</h1>
+      <p>The redesigned landing, sign-in and free-check screens. Everything here is clickable. Switch between Desktop, Tablet and Phone to see each layout.</p>
+    </div>
+    <div class="controls">
+    <div class="tabs" role="tablist" aria-label="Screens">
+      <button role="tab" id="tab-landing" aria-controls="landing" aria-selected="true">Landing</button>
+      <button role="tab" id="tab-teacher" aria-controls="teacher" aria-selected="false">Teacher sign-in</button>
+      <button role="tab" id="tab-student" aria-controls="student" aria-selected="false">Student sign-in</button>
+      <button role="tab" id="tab-try" aria-controls="try" aria-selected="false">Free check</button>
+      <button role="tab" id="tab-ideas" aria-controls="ideas" aria-selected="false">10 directions</button>
+    </div>
+    <div class="devices" role="group" aria-label="Preview width">
+      <button aria-pressed="true" data-size="desktop">Desktop</button>
+      <button aria-pressed="false" data-size="tablet">Tablet</button>
+      <button aria-pressed="false" data-size="phone">Phone</button>
+    </div>
+    </div>
+  </header>
+
+  <!-- Landing -->
+  <section class="frame" id="landing" role="tabpanel" aria-labelledby="tab-landing">
+    <div class="lHead">
+      <a class="wordmark" href="#landing">Cogna<span>.</span></a>
+      <nav aria-label="Sign in"><span>Student sign in</span><span>Parent sign in</span><span>Teacher sign in</span></nav>
+      <span class="pill mobileOnly">Sign in</span>
+    </div>
+    <div class="hero">
+      <div class="copy">
+        <p class="kicker">Grade 8 maths, one student at a time</p>
+        <h2 class="serif">A personal tutor at <em>every desk.</em></h2>
+        <p class="lede">A class of forty has to move together. Cogna learns how each student thinks, then builds the next explanation, hint and practice step for them alone.</p>
+      </div>
+        <div class="roles">
+          <button class="role main" data-go="student"><b>I'm a student</b><span>Pick up where you left off with your code</span><i>→</i></button>
+          <div class="role"><b>I'm a parent</b><span>See progress and what's next</span><i>→</i></div>
+          <button class="role" data-go="teacher"><b>I'm a teacher</b><span>Your class, ready to teach</span><i>→</i></button>
+        </div>
+      <div class="stage" id="stage">
+        <div class="practice" role="group" aria-label="Try a practice question">
+          <div class="pTop"><span>Question 4 of 8</span><span class="bar"><i></i></span></div>
+          <p class="prompt">Solve for <span class="maths"><i>x</i></span></p>
+          <ol class="lines" id="lines">
+            <li><span class="maths">3(<i>x</i> + 4) = 21</span></li>
+            <li class="flagged" id="line2"><span class="maths">3<i>x</i> + 4 = 21</span><span class="flag" id="flag">Check this line</span></li>
+          </ol>
+          <div class="ask" id="ask">
+            <p id="ask-label"><span class="yourTurn">Your turn</span>What should line 2 be?</p>
+            <div class="choices" role="group" aria-labelledby="ask-label">
+              <button class="choice" data-right="0"><span class="maths">3<i>x</i> + 7 = 21</span></button>
+              <button class="choice" data-right="1"><span class="maths">3<i>x</i> + 12 = 21</span></button>
+              <button class="choice" data-right="0"><span class="maths"><i>x</i> + 4 = 21</span></button>
+            </div>
+          </div>
+          <div aria-live="polite" id="feedback"></div>
+        </div>
+        <div class="float caught" id="caught" aria-hidden="true"><span class="dot"></span><span id="caughtText">Caught at line 2 · bracket expansion</span></div>
+        <div class="float ready" aria-hidden="true">
+          <span>Grade 8 · Section A</span>
+          <strong id="readyNum">27 of 34</strong>
+          <em>ready to move on</em>
+          <span class="bar"><i id="readyBar"></i></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Teacher -->
+  <section class="frame" id="teacher" role="tabpanel" aria-labelledby="tab-teacher" hidden>
+    <div class="tGrid">
+      <div class="story">
+        <span class="wordmark">Cogna<span>.</span></span>
+        <div>
+          <p class="eyebrow">Teacher workspace</p>
+          <h2 class="serif">Return to what your class <em>needs next.</em></h2>
+          <p class="lede">Your latest class evidence, readiness decision, and next teaching move are waiting in one concise view.</p>
+          <div class="glimpse">
+            <span>Grade 8 · Section A</span>
+            <strong>27 of 34<em>ready to move on</em></strong>
+            <span class="bar"><i></i></span>
+            <p>Next move: reteach bracket expansion to 7 students.</p>
+          </div>
+        </div>
+        <p class="trust">Cogna reports what students demonstrated. It does not score or rank teachers.</p>
+      </div>
+      <div class="formSide">
+        <form class="card" id="teacherForm">
+          <p class="eyebrow">Welcome back</p>
+          <h3 class="serif">Teacher sign in</h3>
+          <p>Use the same school-issued invitation that opened this workspace.</p>
+          <label class="f" for="t-email">School email<input class="input" id="t-email" type="email" placeholder="you@school.edu" required></label>
+          <label class="f" for="t-code">School-issued invite code<input class="input" id="t-code" placeholder="SCHOOL-2026" required></label>
+          <div id="teacherMsg" aria-live="polite"></div>
+          <button class="btn" type="submit">Sign in to teacher workspace →</button>
+          <p class="fine">New to Cogna? <a href="#teacher">Create a teacher workspace</a></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Student -->
+  <section class="frame" id="student" role="tabpanel" aria-labelledby="tab-student" hidden>
+    <div class="sStage">
+      <div class="chrome"><span class="wordmark">Cogna<span>.</span></span><span class="pill">I'm a parent</span></div>
+      <form class="card sCard" id="studentForm">
+        <h3>Let's pick up where you left off</h3>
+        <p>Enter your sign-in code to continue.</p>
+        <label class="f" for="s-code" style="text-align:left">Sign-in code</label>
+        <input class="input code" id="s-code" maxlength="8" placeholder="AB12CD34" autocomplete="off" spellcheck="false">
+        <div id="studentMsg" aria-live="polite"></div>
+        <button class="btn" type="submit" id="studentBtn" disabled>Start practicing</button>
+        <p class="note">Don't have a code? Ask your teacher, or the grown-up who set up your account.</p>
+        <div class="sep">
+          <p>In class with your teacher?</p>
+          <div class="join"><span class="ic">▭</span><span><strong>Join your class</strong><small>Enter the code your teacher put on the board.</small></span><span aria-hidden="true">→</span></div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Free check -->
+  <section class="frame" id="try" role="tabpanel" aria-labelledby="tab-try" hidden>
+    <div class="lHead"><span class="wordmark">Cogna<span>.</span></span><span class="note">Parent sign in</span></div>
+    <div class="tryHero">
+      <div>
+        <h2 class="serif">Find exactly where your child's factorisation <em>breaks down.</em></h2>
+        <p class="lede">A free 15-minute check for Grade 8 that adapts to every answer. The full report is ₹299.</p>
+        <p class="eq" aria-label="Example: 12x squared plus 18x equals 6x times 2x plus 3"><span class="maths">12<i>x</i>² + 18<i>x</i></span><span>=</span><span class="maths">6<i>x</i>(2<i>x</i> + 3)</span></p>
+      </div>
+      <form class="card" id="tryForm">
+        <h3 class="serif" style="font-size:1.75rem">Start the free check</h3>
+        <label class="f" for="try-email">Parent's email<input class="input" id="try-email" type="email" required></label>
+        <label class="f" for="try-child">Child's first name<input class="input" id="try-child" maxlength="40" required></label>
+        <label class="check" for="try-consent"><input id="try-consent" type="checkbox"><span>I'm the parent or guardian, and I agree to my child taking this check. Their answers are used only to make the report.</span></label>
+        <div id="tryMsg" aria-live="polite"></div>
+        <button class="btn" type="submit" id="tryBtn" disabled>Start the check</button>
+        <p class="fine">Best on a laptop or tablet. No account needed.</p>
+      </form>
+    </div>
+    <div class="tiers">
+      <h3 class="serif">What you see at the end</h3>
+      <div class="tier free"><b>Free</b><ul><li>How many questions your child answered, and how many were right</li><li>How many skills are secure, and how many need work</li></ul></div>
+      <div class="tier full"><b>Full report</b><span class="price">₹299</span><ul><li>Which skills are secure and which need work, by name</li><li>Where your child gets stuck, and why</li><li>A short lesson made from your child's own answers</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 10 directions -->
+  <section class="frame" id="ideas" role="tabpanel" aria-labelledby="tab-ideas" hidden>
+    <div class="dirs">
+      <header>
+        <h2 class="serif">Ten directions <em>for the whole site.</em></h2>
+        <p>Each is a complete look for Cogna's front page, with its own layout, type and colour, and one thing to try. Pick one, then use Desktop, Tablet and Phone above to see it reflow.</p>
+      </header>
+      <div class="pick" id="pick" role="group" aria-label="Design directions"></div>
+      <div class="dview">
+
+        <div class="d d1" data-d="1">
+          <nav><b>Cogna</b><span class="links"><span>Students</span><span>Parents</span><span>Teachers</span></span></nav>
+          <h3>Every mistake is<br>a <em>lesson plan.</em></h3>
+          <p style="opacity:.75">The calm of a chalkboard after class. One worked problem, one line at a time.</p>
+          <div class="board">
+            <div><div class="stepNo" id="d1n">Step 1 of 4</div><div class="chalk maths" id="d1s"></div></div>
+            <button id="d1b">Next step</button>
+          </div>
+        </div>
+
+        <div class="d d2" data-d="2" hidden>
+          <nav><b>Cogna</b><span class="links"><span>Method</span><span>Classes</span><span>Sign in</span></span></nav>
+          <div class="g">
+            <div>
+              <h3>Learning is a curve. We plot each student's.</h3>
+              <p>Everything sits on a 24-pixel grid, like exercise-book paper. Move over the graph to read it.</p>
+            </div>
+            <div><canvas id="d2c" aria-label="Progress curve"></canvas><div class="coord" id="d2o">week 0 · 0% secure</div></div>
+          </div>
+        </div>
+
+        <div class="d d3" data-d="3" hidden>
+          <nav><b>Cogna</b><span class="links"><span>Contents</span><span>Index</span><span>Sign in</span></span></nav>
+          <div><div class="chap">Chapter 8</div><h3>A tutor for every desk.</h3></div>
+          <div class="cols">
+            <p class="body">A class of forty moves together, but no two students get stuck in the same place<sup><button data-n="1">1</button></sup>. Cogna reads each line of working, finds the first one that went wrong<sup><button data-n="2">2</button></sup>, and writes the next lesson for that student alone<sup><button data-n="3">3</button></sup>.</p>
+            <aside id="d3a">
+              <p data-n="1">1. Across 34 students, a bracket question breaks in five different places.</p>
+              <p data-n="2">2. Code checks the maths. AI never marks an answer.</p>
+              <p data-n="3">3. Short, from the student's own answers, checked before it's shown.</p>
+            </aside>
+          </div>
+        </div>
+
+        <div class="d d4" data-d="4" hidden>
+          <nav><b>COGNA</b><span class="links"><span>Students</span><span>Parents</span><span>Teachers</span></span></nav>
+          <h3>Find the <span>first</span> wrong line.</h3>
+          <div>
+            <details open><summary><em>01</em>Check<span></span></summary><p>A short check. Code marks every answer and finds where each one starts to go wrong.</p></details>
+            <details><summary><em>02</em>Lesson<span></span></summary><p>Each student gets a short lesson built from their own answers.</p></details>
+            <details><summary><em>03</em>On their own<span></span></summary><p>A fresh question with no help shows whether it stuck.</p></details>
+          </div>
+        </div>
+
+        <div class="d d5" data-d="5" hidden>
+          <nav><b>Cogna lab</b><span class="links"><span>Notes</span><span>Results</span></span></nav>
+          <div><div class="exp">Experiment 08 · Grade 8, Section A</div><h3>Hypothesis: every student gets stuck somewhere different.</h3></div>
+          <label for="d5t"><input type="checkbox" id="d5t" checked> Show Cogna's reading</label>
+          <div class="tw"><table id="d5tab">
+            <thead><tr><th>Student</th><th>First wrong line</th><th>Cause</th></tr></thead>
+            <tbody>
+              <tr><td>Aarav</td><td class="maths">3<i>x</i> + 4 = 21</td><td class="cause">Bracket expansion</td></tr>
+              <tr><td>Meera</td><td class="maths">−2<i>y</i> − 10 = 16</td><td class="cause">Sign of −2 × −5</td></tr>
+              <tr><td>Kabir</td><td class="maths">5<i>x</i> = 2<i>x</i> + 2</td><td class="cause">Moved terms, kept signs</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="d d6" data-d="6" hidden>
+          <canvas id="d6c" aria-label="Skills as stars; click to light them"></canvas>
+          <nav><b>Cogna</b><span class="links"><span>Students</span><span>Parents</span><span>Teachers</span></span></nav>
+          <h3>Skills come together like <em>constellations.</em></h3>
+          <p id="d6p">Tap the stars. Each one is a skill; mastered skills join up.</p>
+        </div>
+
+        <div class="d d7" data-d="7" hidden>
+          <nav><b>cogna</b><span class="links"><span>students</span><span>parents</span><span>teachers</span></span></nav>
+          <h3>A tutor for<br>every <span class="swap" id="d7w">desk</span><span class="caret"></span></h3>
+          <div class="meta"><span>Grade 8 maths</span><span>Code marks every answer</span><span>Teachers never ranked</span></div>
+        </div>
+
+        <div class="d d8" data-d="8" hidden>
+          <nav><b>cogna</b><span class="links"><span>Learn</span><span>Progress</span><span>Sign in</span></span></nav>
+          <h3>Your maths, at a glance.</h3>
+          <div class="bento">
+            <div class="t a"><small>Next up</small><strong>Bracket expansion</strong><small>4 minutes · made from your answers</small></div>
+            <div class="t b"><small>Streak</small><strong>12 days</strong></div>
+            <div class="t c"><small>Right first time</small><strong>31</strong></div>
+            <div class="t e"><small>Secure skills</small><span class="ringS" aria-label="79 percent"></span></div>
+          </div>
+        </div>
+
+        <div class="d d9" data-d="9" hidden>
+          <nav><b>Cogna</b><span class="links"><span>Students</span><span>Parents</span><span>Teachers</span></span></nav>
+          <h3>The elements of a good lesson.</h3>
+          <div class="table" id="d9t"></div>
+          <p class="detail" id="d9d" aria-live="polite">Pick an element.</p>
+        </div>
+
+        <div class="d d10" data-d="10" hidden>
+          <nav><b>Cogna</b></nav>
+          <p class="pre">Before anything else:</p>
+          <h3>7 × 8 =</h3>
+          <input id="d10i" inputmode="numeric" maxlength="3" aria-label="Your answer" autocomplete="off">
+          <p class="reply" id="d10r" aria-live="polite">Type your answer.</p>
+          <span class="cta">Meet Cogna →</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <p class="note">Design preview. The forms here don't send anything; they only show how the real pages respond. The ₹299 price is an example.</p>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  function show(id) {
+    tabs.forEach((t) => {
+      const on = t.getAttribute('aria-controls') === id;
+      t.setAttribute('aria-selected', on);
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+  }
+  tabs.forEach((t) => t.addEventListener('click', () => show(t.getAttribute('aria-controls'))));
+  document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => show(b.dataset.go)));
+
+  // Preview width: frames respond to their own width (container queries), so this shows each layout.
+  const devices = [...document.querySelectorAll('.devices button')];
+  devices.forEach((b) => b.addEventListener('click', () => {
+    $('#wrap').dataset.size = b.dataset.size;
+    devices.forEach((d) => d.setAttribute('aria-pressed', d === b));
+  }));
+
+  // Hero: tilt under the mouse.
+  const stage = $('#stage');
+  const calm = matchMedia('(prefers-reduced-motion: reduce)');
+  stage.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || calm.matches) return;
+    const r = stage.getBoundingClientRect();
+    stage.style.setProperty('--px', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
+    stage.style.setProperty('--py', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
+  });
+  stage.addEventListener('pointerleave', () => { stage.style.setProperty('--px', 0); stage.style.setProperty('--py', 0); });
+
+  // Hero: the question.
+  const ask = $('#ask'), feedback = $('#feedback'), line2 = $('#line2'), lines = $('#lines');
+  const choices = [...document.querySelectorAll('.choice')];
+  function setSolved(solved) {
+    line2.classList.toggle('struck', solved);
+    $('#flag').textContent = solved ? 'Fixed' : 'Check this line';
+    $('#caught').classList.toggle('done', solved);
+    $('#caughtText').textContent = (solved ? 'Fixed' : 'Caught') + ' at line 2 · bracket expansion';
+    $('#readyNum').textContent = (solved ? 28 : 27) + ' of 34';
+    $('#readyBar').style.width = solved ? '82%' : '';
+    ask.hidden = solved;
+    lines.querySelector('.fixed')?.remove();
+    feedback.innerHTML = '';
+    if (solved) {
+      lines.insertAdjacentHTML('beforeend', '<li class="fixed"><span class="maths">3<i>x</i> + 12 = 21</span></li>');
+      feedback.innerHTML = '<div class="hint done"><strong>That’s it</strong><span>The 3 multiplies everything inside the bracket, so 3 × 4 = 12.</span><button type="button" class="again">Try it again</button></div>';
+      feedback.querySelector('.again').addEventListener('click', () => {
+        choices.forEach((c) => { c.classList.remove('nope'); c.disabled = false; });
+        setSolved(false);
+        choices[0].focus();
+      });
+    }
+  }
+  choices.forEach((c) => c.addEventListener('click', () => {
+    if (c.dataset.right === '1') return setSolved(true);
+    c.classList.add('nope'); c.disabled = true;
+    feedback.innerHTML = '<div class="hint"><strong>Hint</strong><span>The 3 multiplies everything inside the bracket, the 4 as well.</span></div>';
+  }));
+
+  // Student: code input fills, uppercases and unlocks the button at 8 characters.
+  const code = $('#s-code'), sBtn = $('#studentBtn');
+  code.addEventListener('input', () => {
+    code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    sBtn.disabled = code.value.length < 8;
+  });
+  $('#studentForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('#studentMsg').innerHTML = '<p class="toast">Code accepted. In the app this opens the student home.</p>';
+  });
+
+  // Teacher + free check: show what happens on submit, without sending anything.
+  $('#teacherForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('#teacherMsg').innerHTML = '<p class="toast">Invitation checked. In the app this opens today’s class view.</p>';
+  });
+  const consent = $('#try-consent'), tBtn = $('#tryBtn');
+  consent.addEventListener('change', () => { tBtn.disabled = !consent.checked; });
+  $('#tryForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('#tryMsg').innerHTML = '<p class="toast">Starting the check. In the app this opens question 1.</p>';
+  });
+  // ---------- 10 directions ----------
+  const dirs = [['Chalk & slate', 'Dark, quiet, one problem'], ['Graph paper', 'Grid-true, technical'], ['The textbook', 'Editorial serif, margin notes'], ['Swiss grid', 'Bold type, three rows'], ['Lab notebook', 'Science, data as story'], ['Night sky', 'Skills as constellations'], ['Kinetic type', 'The headline moves'], ['Bento', 'Friendly student dashboard'], ['Periodic table', 'Features as elements'], ['One question', 'Answer to enter']];
+  const roman = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
+  $('#pick').innerHTML = dirs.map(([n, d], i) => `<button aria-pressed="${i === 0}" data-d="${i + 1}"><b><i>${roman[i]}</i>${n}</b><small>${d}</small></button>`).join('');
+  const views = [...document.querySelectorAll('.d')];
+  $('#pick').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...$('#pick').children].forEach((x) => x.setAttribute('aria-pressed', x === b));
+    views.forEach((v) => v.hidden = v.dataset.d !== b.dataset.d);
+    d2(); d6();
+  });
+
+  // 1 chalk
+  const chalk = ['3(x + 4) = 21', '3x + 12 = 21', '3x = 9', 'x = 3'];
+  let c1 = 0;
+  const M = (t) => t.replace(/([a-z])/g, '<i>$1</i>');
+  function d1() { const el = $('#d1s'); el.innerHTML = M(chalk[c1]); el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); $('#d1n').textContent = `Step ${c1 + 1} of 4`; $('#d1b').textContent = c1 === 3 ? 'Start again' : 'Next step'; }
+  $('#d1b').addEventListener('click', () => { c1 = (c1 + 1) % 4; d1(); }); d1();
+
+  // 2 graph paper
+  const c2 = $('#d2c'); let hx = -1;
+  const curve = (t) => 1 - Math.exp(-t * 3.2);
+  function d2() {
+    const w = c2.clientWidth, h = c2.clientHeight; if (!w) return;
+    const dpr = devicePixelRatio || 1; c2.width = w * dpr; c2.height = h * dpr;
+    const g = c2.getContext('2d'); g.scale(dpr, dpr); const pad = 18;
+    g.strokeStyle = '#0e6b54'; g.lineWidth = 2.5; g.beginPath();
+    for (let x = 0; x <= w - pad * 2; x++) { const y = h - pad - curve(x / (w - pad * 2)) * (h - pad * 2); x ? g.lineTo(pad + x, y) : g.moveTo(pad, y); }
+    g.stroke();
+    if (hx >= 0) {
+      const t = Math.min(1, Math.max(0, (hx - pad) / (w - pad * 2))), y = h - pad - curve(t) * (h - pad * 2), x = pad + t * (w - pad * 2);
+      g.setLineDash([4, 4]); g.strokeStyle = '#9fb3a8'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, h - pad); g.lineTo(x, y); g.lineTo(pad, y); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#0e6b54'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
+      $('#d2o').textContent = `week ${Math.round(t * 12)} · ${Math.round(curve(t) * 100)}% secure`;
+    }
+  }
+  c2.addEventListener('pointermove', (e) => { hx = e.clientX - c2.getBoundingClientRect().left; d2(); });
+  new ResizeObserver(d2).observe(c2);
+
+  // 3 textbook
+  $('#d3a').parentElement.addEventListener('click', (e) => {
+    const n = e.target.closest('sup button')?.dataset.n; if (!n) return;
+    $('#d3a').querySelectorAll('p').forEach((p) => p.classList.toggle('on', p.dataset.n === n));
+  });
+  $('#d3a').parentElement.addEventListener('mouseover', (e) => { const n = e.target.closest('sup button')?.dataset.n; if (n) $('#d3a').querySelectorAll('p').forEach((p) => p.classList.toggle('on', p.dataset.n === n)); });
+
+  // 5 lab
+  $('#d5t').addEventListener('change', (e) => $('#d5tab').classList.toggle('hideCause', !e.target.checked));
+
+  // 6 night sky
+  const c6 = $('#d6c'), stars = [[.62, .3, 'Signs'], [.74, .22, 'Brackets'], [.86, .36, 'Like terms'], [.79, .55, 'Balance'], [.66, .62, 'Checking'], [.9, .7, 'Factorise']];
+  const lit = new Set([0]);
+  const bg = Array.from({ length: 70 }, (_, i) => [((i * 97) % 100) / 100, ((i * 57) % 100) / 100, (i % 3) * .4 + .4]);
+  function d6() {
+    const w = c6.clientWidth, h = c6.clientHeight; if (!w) return;
+    const dpr = devicePixelRatio || 1; c6.width = w * dpr; c6.height = h * dpr;
+    const g = c6.getContext('2d'); g.scale(dpr, dpr);
+    const narrow = w < 560, P = ([x, y]) => [narrow ? (x - .45) * w * 1.6 : x * w, narrow ? y * h * .6 + h * .38 : y * h];
+    bg.forEach(([x, y, r]) => { g.fillStyle = 'rgba(232,236,248,.35)'; g.beginPath(); g.arc(x * w, y * h, r, 0, 7); g.fill(); });
+    const on = [...lit].sort((a, b) => a - b);
+    g.strokeStyle = 'rgba(255,217,138,.55)'; g.lineWidth = 1.2; g.beginPath();
+    on.forEach((i, k) => { const [x, y] = P(stars[i]); k ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    stars.forEach((s, i) => {
+      const [x, y] = P(s), l = lit.has(i);
+      g.fillStyle = l ? '#ffd98a' : 'rgba(232,236,248,.75)'; g.shadowColor = '#ffd98a'; g.shadowBlur = l ? 14 : 0;
+      g.beginPath(); g.arc(x, y, l ? 5 : 3.5, 0, 7); g.fill(); g.shadowBlur = 0;
+      g.fillStyle = l ? '#ffe7b5' : 'rgba(170,180,212,.8)'; g.font = '12px Instrument Sans, sans-serif'; g.fillText(s[2], x + 9, y + 4);
+    });
+    c6.P = P;
+  }
+  c6.addEventListener('click', (e) => {
+    const r = c6.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    stars.forEach((s, i) => { const [x, y] = c6.P(s); if (Math.hypot(mx - x, my - y) < 22) lit.has(i) ? lit.delete(i) : lit.add(i); });
+    $('#d6p').textContent = `${lit.size} of ${stars.length} skills secure.`; d6();
+  });
+  new ResizeObserver(d6).observe(c6);
+
+  // 7 kinetic
+  const words = ['desk', 'mistake', 'question', 'student'];
+  let wi = 0;
+  setInterval(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || $('[data-d="7"]').hidden) return;
+    wi = (wi + 1) % words.length; const el = $('#d7w'); el.textContent = words[wi]; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  }, 2200);
+
+  // 9 periodic
+  const els9 = [['Ck', 'Check', 'A short check. Code marks every answer.'], ['Ls', 'Lesson', 'Built from the student’s own answers.'], ['Pr', 'Practice', 'Games that show the working when stuck.'], ['Hn', 'Hints', 'One nudge at a time, never the answer.'], ['Rp', 'Reports', 'What each student showed, line by line.'], ['Pa', 'Parents', 'What your child did, and what’s next.'], ['Tc', 'Teachers', 'Who is ready to move on. Never ranked.'], ['Sf', 'Safety', 'AI text is checked before anyone reads it.']];
+  $('#d9t').innerHTML = els9.map(([s, n], i) => `<button class="el" data-i="${i}"><span>${i + 1}</span><b>${s}</b><small>${n}</small></button>`).join('');
+  const pick9 = (b) => { [...$('#d9t').children].forEach((x) => x.classList.toggle('on', x === b)); $('#d9d').textContent = `${els9[b.dataset.i][1]}: ${els9[b.dataset.i][2]}`; };
+  $('#d9t').addEventListener('click', (e) => { const b = e.target.closest('.el'); if (b) pick9(b); });
+  $('#d9t').addEventListener('mouseover', (e) => { const b = e.target.closest('.el'); if (b) pick9(b); });
+
+  // 10 one question
+  $('#d10i').addEventListener('input', (e) => {
+    const v = e.target.value.trim(), d = $('[data-d="10"]');
+    d.classList.toggle('solved', v === '56');
+    $('#d10r').innerHTML = !v ? 'Type your answer.' : v === '56' ? '<strong>Right.</strong> Now imagine every question knew <em>how</em> you got there.'
+      : v.length < 2 ? '…' : 'Close. Try 7 × 4, then double it.';
+  });
+})();
+</script>

@@ -1,0 +1,347 @@
+<title>Classroom Zoom</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..600,0..100;1,9..144,400..600,0..100&family=Instrument+Sans:wght@400..700&family=STIX+Two+Text:ital@0;1&display=swap">
+<style>
+/* Layout: one pinned 3D classroom; the page's own scroll drives the camera through five beats, with type overlaid. Single warm daylight look by choice. */
+:root {
+  color-scheme: light;
+  --paper: #efe9df; --ink: #17241e; --ink-soft: #55625b; --ink-faint: #8a958f;
+  --accent: #0e6b54; --accent-deep: #08463a; --accent-wash: #e3efe9;
+  --amber: #a2660d; --amber-wash: #f7eedd; --pen: #23395d; --rule: #c9d8e6; --margin: #e2a1a1;
+  --card: rgba(255,255,255,.92); --line: rgba(22,36,29,.08);
+  --shadow: 0 2px 4px rgba(12,52,40,.06), 0 30px 60px -24px rgba(12,52,40,.38);
+  --f-serif: "Fraunces", Georgia, serif; --f-body: "Instrument Sans", "Helvetica Neue", system-ui, sans-serif;
+  --f-hand: "Caveat", "Bradley Hand", cursive; --f-maths: "STIX Two Text", "Cambria Math", serif;
+  --settle: cubic-bezier(.2,.8,.2,1);
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 16px/1.5 var(--f-body); }
+h1, h2, p { margin: 0; text-wrap: balance; }
+.maths { font-family: var(--f-maths); white-space: nowrap; } .maths i { font-style: italic; }
+.serif { font-family: var(--f-serif); font-weight: 400; letter-spacing: -.025em; font-variation-settings: "opsz" 144, "SOFT" 50; }
+.serif em { font-style: italic; color: var(--accent); }
+
+.intro, .outro { min-height: 70dvh; display: grid; place-content: center; text-align: center; gap: 14px; padding-block: 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.intro h1 { font-size: clamp(2.4rem, 7vw, 4.6rem); line-height: 1; }
+.intro p, .outro p { color: var(--ink-soft); max-width: 44ch; margin-inline: auto; }
+.hint { font-size: .85rem; color: var(--ink-faint); display: grid; justify-items: center; gap: 8px; margin-top: 18px; }
+.hint i { width: 1px; height: 40px; background: linear-gradient(var(--ink-faint), transparent); animation: drip 1.8s ease-in-out infinite; }
+@keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+.outro h2 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; }
+
+.story { height: 760vh; position: relative; }
+.pin { position: sticky; top: 0; height: 100dvh; overflow: hidden; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.layer { position: absolute; inset: 0; pointer-events: none; }
+
+.cap { position: absolute; left: 50%; bottom: max(7dvh, 40px); width: min(92%, 640px); transform: translateX(-50%); text-align: center; opacity: 0; }
+.cap h2 { font-size: clamp(1.7rem, 4.4vw, 2.9rem); line-height: 1.05; color: var(--ink); text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 24px rgba(239,233,223,.9); }
+.cap p { margin-top: 8px; color: var(--ink-soft); text-shadow: 0 0 18px rgba(239,233,223,.95); }
+.cap.top { bottom: auto; top: max(8dvh, 40px); }
+
+/* the notebook close-up */
+.book { position: absolute; left: 50%; top: 50%; width: min(90vw, 600px); translate: -50% -50%; opacity: 0; border-radius: 6px 14px 14px 6px; padding: 28px 26px 28px 64px; background: #fdfcf7 repeating-linear-gradient(transparent 0 39px, var(--rule) 39px 40px); background-position: 0 22px; box-shadow: var(--shadow); }
+.book::before { content: ""; position: absolute; top: 0; bottom: 0; left: 46px; width: 2px; background: var(--margin); }
+.book .q { font: 600 .8rem var(--f-body); color: var(--ink-faint); height: 40px; display: flex; align-items: center; }
+.book ol { list-style: none; margin: 0; padding: 0; }
+.book li { position: relative; height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 600 clamp(1.7rem, 6vw, 2.2rem) var(--f-hand); color: var(--pen); opacity: 0; }
+.book li .w { clip-path: inset(0 var(--clip, 100%) 0 0); }
+.book li.flag::after { content: ""; position: absolute; inset: 2px -12px 2px -14px; border-radius: 8px; background: var(--amber-wash); z-index: -1; opacity: var(--glow, 0); }
+.book li.fix { font: 400 clamp(1.4rem, 5vw, 1.8rem) var(--f-maths); color: var(--accent-deep); }
+.book li.fix::before { content: "Cogna"; position: absolute; left: -58px; font: 700 .62rem var(--f-body); color: var(--accent); letter-spacing: .04em; }
+.strike { position: absolute; left: 0; top: 52%; height: 2px; background: rgba(162,102,13,.55); width: var(--strike, 0%); }
+.note { font: 700 .72rem var(--f-body); color: var(--amber); background: #fff; border-radius: 99px; padding: 4px 10px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 14px -6px rgba(0,0,0,.2); white-space: nowrap; opacity: var(--note, 0); transform: translateY(calc((1 - var(--note, 0)) * 6px)); }
+
+/* notes over each desk when we pull back */
+.chip { position: absolute; left: 0; top: 0; translate: -50% -100%; font: 600 .74rem var(--f-body); padding: 5px 10px; border-radius: 99px; white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 10px 18px -10px rgba(0,0,0,.35); opacity: 0; }
+.chip.need { background: #fff; color: var(--amber); }
+.chip.ok { background: var(--accent); color: #fff; }
+.chip::after { content: ""; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 8px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+
+.dash { position: absolute; right: max(4vw, 16px); top: max(10dvh, 70px); width: min(86vw, 320px); padding: 18px 20px; border-radius: 22px; background: var(--card); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: var(--shadow); display: grid; gap: 6px; opacity: 0; }
+.dash span { font-size: .78rem; font-weight: 600; color: var(--ink-faint); }
+.dash strong { font: 500 2.2rem/1 var(--f-serif); letter-spacing: -.02em; }
+.dash strong em { font: 500 .95rem var(--f-body); font-style: normal; color: var(--ink-soft); margin-left: 6px; }
+.dash .bar { height: 7px; border-radius: 99px; background: #e5ece7; overflow: hidden; }
+.dash .bar i { display: block; height: 100%; width: calc(var(--fill, 0) * 79%); background: linear-gradient(90deg, #2c9b78, var(--accent)); border-radius: inherit; }
+.dash p { font-size: .88rem; color: var(--ink-soft); }
+.dash p b { color: var(--amber); }
+
+.rail { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: 50%; translate: 0 -50%; display: grid; gap: 14px; }
+.rail span { display: flex; align-items: center; gap: 10px; font-size: .74rem; font-weight: 600; color: var(--ink-faint); transition: color .3s; }
+.rail span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .5; transition: transform .3s, opacity .3s; }
+.rail span.on { color: var(--accent-deep); }
+.rail span.on::before { opacity: 1; transform: scale(1.4); }
+
+.fallback { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; color: var(--ink-soft); }
+
+@media (max-width: 700px) {
+  .rail b { display: none; }
+  .dash { left: 50%; right: auto; translate: -50% 0; top: max(8dvh, 56px); }
+  .chip.x { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hint i { animation: none; } }
+</style>
+
+<section class="intro">
+  <p class="hint" style="margin:0">Cogna · scroll story prototype</p>
+  <h1 class="serif">Step into <em>the classroom.</em></h1>
+  <p>Scroll slowly. The camera walks to one desk, reads one line of working, then pulls back to the whole class.</p>
+  <div class="hint">Scroll<i></i></div>
+</section>
+
+<section class="story" id="story">
+  <div class="pin">
+    <canvas id="scene" aria-label="A classroom of forty desks seen in 3D"></canvas>
+    <div class="fallback" id="fallback">This browser can't show the 3D classroom. The story still reads below.</div>
+
+    <div class="layer" id="chips" aria-hidden="true"></div>
+
+    <div class="layer">
+      <div class="cap" data-cap="0"><h2 class="serif">A class of forty has to <em>move together.</em></h2><p>One teacher, one board, one pace.</p></div>
+      <div class="cap" data-cap="1"><h2 class="serif">But every student gets stuck <em>somewhere different.</em></h2></div>
+      <div class="cap top" data-cap="2"><h2 class="serif" style="font-size:clamp(1.3rem,3vw,1.8rem)">Cogna reads every line.</h2></div>
+      <div class="cap" data-cap="3"><h2 class="serif">One lesson for the class. <em>A next step for each student.</em></h2></div>
+
+      <div class="book" id="book" aria-hidden="true">
+        <div class="q">Q4. Solve for x</div>
+        <ol>
+          <li id="l1"><span class="w">3(x + 4) = 21</span></li>
+          <li id="l2" class="flag"><span class="w" style="position:relative">3x + 4 = 21<span class="strike"></span></span><span class="note">Caught at line 2 · bracket expansion</span></li>
+          <li id="l3" class="fix"><span class="w maths">3<i>x</i> + 12 = 21</span></li>
+        </ol>
+      </div>
+
+      <div class="dash" id="dash" aria-hidden="true">
+        <span>Grade 8 · Section A</span>
+        <strong>27 of 34<em>ready to move on</em></strong>
+        <span class="bar"><i></i></span>
+        <p>Next move: reteach <b>bracket expansion</b> to 7 students.</p>
+      </div>
+
+      <div class="rail" id="rail" aria-hidden="true">
+        <span><b>The class</b></span><span><b>One desk</b></span><span><b>The working</b></span><span><b>Every desk</b></span><span><b>The teacher</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="outro">
+  <h2 class="serif">That's the hook: <em>one class, every student seen.</em></h2>
+  <p>Prototype with placeholder 3D desks. In production, a commissioned classroom model and real lighting replace these shapes; the camera path and timing stay the same.</p>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const ease = (t) => t * t * (3 - 2 * t);
+  const range = (p, a, b) => clamp((p - a) / (b - a));
+  // fade in over [a, a+f], out over [b-f, b]
+  const band = (p, a, b, f = 0.035) => Math.min(range(p, a, a + f), 1 - range(p, b - f, b));
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!window.THREE) { $('#fallback').style.display = 'grid'; return; }
+  const canvas = $('#scene');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
+  catch (e) { $('#fallback').style.display = 'grid'; return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  const scene = new THREE.Scene();
+  const bgc = new THREE.Color('#efe9df');
+  scene.background = bgc;
+  scene.fog = new THREE.Fog(bgc, 22, 46);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.03, 120);
+
+  scene.add(new THREE.HemisphereLight('#fff8ec', '#b8a78b', 0.8));
+  const sun = new THREE.DirectionalLight('#fff0d4', 1.15);
+  sun.position.set(-12, 15, 7);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 60 });
+  sun.shadow.bias = -0.0004;
+  scene.add(sun);
+
+  const std = (color, rough = 0.8, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
+  const box = (w, h, d, m, x, y, z) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(x, y, z); b.castShadow = true; b.receiveShadow = true; scene.add(b); return b;
+  };
+  const texFrom = (w, h, draw) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; return t;
+  };
+
+  // floor: warm planks
+  const floorTex = texFrom(1024, 1024, (g, w, h) => {
+    for (let i = 0; i < 16; i++) {
+      const l = 70 + ((i * 37) % 9);
+      g.fillStyle = `hsl(34, 38%, ${l}%)`; g.fillRect(0, i * h / 16, w, h / 16);
+      g.fillStyle = 'rgba(80,55,30,.18)'; g.fillRect(0, i * h / 16, w, 2);
+      for (let k = 0; k < 3; k++) { g.fillRect(((i * 211 + k * 347) % w), i * h / 16, 2, h / 16); }
+    }
+  });
+  floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(3, 3);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 34), std('#ffffff', 0.9, { map: floorTex }));
+  floor.rotation.x = -Math.PI / 2; floor.position.z = -2; floor.receiveShadow = true; scene.add(floor);
+
+  // walls, windows, board
+  const wall = std('#e8e1d3', 1);
+  box(40, 9, 0.2, wall, 0, 4.5, -12);
+  box(0.2, 9, 34, wall, -15, 4.5, -2);
+  for (let i = 0; i < 4; i++) box(0.05, 3.2, 3, std('#fffbe8', 1, { emissive: '#fff4d2', emissiveIntensity: 0.9 }), -14.88, 4.2, -8 + i * 5.2);
+  const drawBoard = (g, w, h) => {
+    g.fillStyle = '#2d473d'; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,.05)'; for (let i = 0; i < 900; i++) g.fillRect((i * 733) % w, (i * 397) % h, 3, 1);
+    g.fillStyle = 'rgba(244,241,230,.88)'; g.font = '600 120px Caveat, cursive'; g.fillText('3(x + 4) = 21', 120, 230);
+    g.font = '600 72px Caveat, cursive'; g.fillStyle = 'rgba(244,241,230,.6)'; g.fillText('Expand the bracket first', 130, 380);
+  };
+  const drawPage = (g, w, h) => {
+    g.fillStyle = '#fdfcf7'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#c9d8e6'; g.lineWidth = 2; for (let y = 24; y < h; y += 20) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.strokeStyle = '#e2a1a1'; g.beginPath(); g.moveTo(28, 0); g.lineTo(28, h); g.stroke();
+    g.fillStyle = '#23395d'; g.font = '600 26px Caveat, cursive'; g.fillText('3(x+4) = 21', 40, 62); g.fillText('3x + 4 = 21', 40, 102);
+  };
+  const board = texFrom(1600, 520, drawBoard);
+  box(8.6, 2.9, 0.12, std('#8a6b4a', 0.7), 0, 3.2, -11.85);
+  const boardMesh = box(8.2, 2.6, 0.06, std('#ffffff', 0.95, { map: board }), 0, 3.2, -11.76);
+  box(2.4, 0.8, 1, std('#b08a62', 0.7), 0, 0.4, -9);
+
+  // forty desks
+  const deskTop = std('#d7b98e', 0.6), metal = std('#7f8b86', 0.4, { metalness: 0.4 }), seat = std('#5d7f72', 0.7);
+  const pageTex = texFrom(256, 192, drawPage);
+  const desks = [];
+  const ROWS = 5, COLS = 8;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const x = (c - 3.5) * 2.3, z = -5.4 + r * 2.5;
+    box(1.32, 0.06, 0.78, deskTop, x, 0.75, z);
+    for (const [dx, dz] of [[-.6, -.33], [.6, -.33], [-.6, .33], [.6, .33]]) box(0.045, 0.72, 0.045, metal, x + dx, 0.36, z + dz);
+    box(0.5, 0.05, 0.46, seat, x, 0.46, z + 0.72);
+    box(0.5, 0.42, 0.05, seat, x, 0.72, z + 0.96);
+    for (const dx of [-.22, .22]) box(0.04, 0.46, 0.04, metal, x + dx, 0.23, z + 0.72);
+    const glow = std('#fdfcf7', 0.9, { map: pageTex, emissive: '#000000' });
+    const book = box(0.36, 0.012, 0.27, glow, x - 0.12, 0.787, z + 0.02);
+    book.rotation.y = ((r * 7 + c * 3) % 5 - 2) * 0.06;
+    const pen = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.17, 8), std('#e2b23c', 0.5));
+    pen.rotation.z = Math.PI / 2; pen.rotation.y = 0.5; pen.position.set(x + 0.18, 0.79, z); pen.castShadow = true; scene.add(pen);
+    desks.push({ r, c, x, z, mat: glow });
+  }
+  const T = desks.find((d) => d.r === 2 && d.c === 4);
+  // what each desk shows when we pull back (examples)
+  const notes = [[0, 1, 'Signs', 1], [0, 5, 'Secure', 0], [1, 2, 'Brackets', 1], [1, 6, 'Like terms', 1, 'x'], [2, 0, 'Secure', 0, 'x'], [2, 4, 'Brackets', 1], [3, 3, 'Balance', 1], [3, 7, 'Secure', 0, 'x'], [4, 1, 'Secure', 0], [4, 5, 'Brackets', 1, 'x']];
+  const chipsEl = $('#chips');
+  const chipList = notes.map(([r, c, t, need, x]) => {
+    const el = document.createElement('div'); el.className = `chip ${need ? 'need' : 'ok'} ${x || ''}`; el.textContent = t; chipsEl.appendChild(el);
+    const d = desks.find((k) => k.r === r && k.c === c); d.need = need; return { el, d };
+  });
+
+  // camera path: wide → desk → over the notebook → high above the class
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  let K = [];
+  function keys() {
+    const narrow = camera.aspect < 0.8;
+    K = [
+      { pos: narrow ? V(0, 17, 21) : V(0, 12.5, 16.5), look: V(0, 0, -3.5) },
+      { pos: V(T.x - 0.25, 1.85, T.z + 1.5), look: V(T.x - 0.1, 0.8, T.z) },
+      { pos: V(T.x - 0.12, 1.15, T.z + 0.1), look: V(T.x - 0.12, 0.78, T.z + 0.02) },
+      { pos: narrow ? V(0, 24, 9) : V(0, 17.5, 8.5), look: V(0, 0, -2.2) },
+    ];
+  }
+  // [start, end, from key, to key]
+  const SEG = [[0.10, 0.40, 0, 1], [0.40, 0.50, 1, 2], [0.72, 0.86, 2, 3]];
+  const tmpP = V(0, 0, 0), tmpL = V(0, 0, 0);
+  function cameraAt(p) {
+    let from = 0, to = 0, t = 0;
+    if (p >= SEG[2][0]) { from = 2; to = 3; t = range(p, SEG[2][0], SEG[2][1]); }
+    else if (p >= SEG[1][0]) { from = 1; to = 2; t = range(p, SEG[1][0], SEG[1][1]); }
+    else { from = 0; to = 1; t = range(p, SEG[0][0], SEG[0][1]); }
+    if (calm) t = t < 0.5 ? 0 : 1;
+    t = ease(t);
+    tmpP.lerpVectors(K[from].pos, K[to].pos, t);
+    tmpL.lerpVectors(K[from].look, K[to].look, t);
+    camera.position.copy(tmpP); camera.lookAt(tmpL);
+  }
+
+  const caps = [...document.querySelectorAll('.cap')];
+  const rail = [...$('#rail').children];
+  const book = $('#book'), l1 = $('#l1'), l2 = $('#l2'), l3 = $('#l3'), dash = $('#dash');
+  const proj = V(0, 0, 0);
+
+  function frame(p) {
+    cameraAt(p);
+    // captions
+    caps[0].style.opacity = band(p, -0.1, 0.13);
+    caps[1].style.opacity = band(p, 0.17, 0.42);
+    caps[2].style.opacity = band(p, 0.5, 0.72);
+    caps[3].style.opacity = range(p, 0.88, 0.92);
+    // notebook: grows out of the real page, then hands back
+    const b = band(p, 0.46, 0.75, 0.05);
+    book.style.opacity = b;
+    canvas.style.filter = b > 0.01 ? `blur(${b * 7}px) brightness(${1 - b * 0.06})` : '';
+    book.style.transform = `scale(${0.86 + 0.14 * b})`;
+    [[l1, 0.52], [l2, 0.56]].forEach(([el, a]) => { el.style.opacity = range(p, a, a + 0.01); el.querySelector('.w').style.setProperty('--clip', `${100 - range(p, a, a + 0.04) * 100}%`); });
+    l2.style.setProperty('--glow', range(p, 0.6, 0.62));
+    l2.style.setProperty('--note', range(p, 0.61, 0.63));
+    l2.style.setProperty('--strike', `${range(p, 0.64, 0.66) * 100}%`);
+    l3.style.opacity = range(p, 0.66, 0.67);
+    l3.querySelector('.w').style.setProperty('--clip', `${100 - range(p, 0.66, 0.69) * 100}%`);
+    // every desk lights up as we rise
+    const glow = range(p, 0.76, 0.84);
+    desks.forEach((d) => { d.mat.emissive.set(d.need === 1 ? '#c9871d' : d.need === 0 ? '#1f8a69' : '#000000'); d.mat.emissiveIntensity = glow * 1.3; });
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    camera.updateMatrixWorld();
+    chipList.forEach(({ el, d }, i) => {
+      proj.set(d.x - 0.1, 1.05, d.z).project(camera);
+      el.style.transform = `translate(${(proj.x + 1) / 2 * w}px, ${(1 - proj.y) / 2 * h}px)`;
+      el.style.opacity = range(p, 0.78 + i * 0.008, 0.8 + i * 0.008) * (1 - range(p, 0.9, 0.93) * 0.35);
+    });
+    dash.style.opacity = range(p, 0.87, 0.9);
+    dash.style.transform = `translateY(${(1 - range(p, 0.87, 0.9)) * 14}px)`;
+    dash.style.setProperty('--fill', ease(range(p, 0.89, 0.95)));
+    // chapter rail
+    const beat = p < 0.15 ? 0 : p < 0.47 ? 1 : p < 0.74 ? 2 : p < 0.87 ? 3 : 4;
+    rail.forEach((s, i) => s.classList.toggle('on', i === beat));
+    $('#rail').style.opacity = 1 - range(p, 0.76, 0.8) * 0.75;
+    renderer.render(scene, camera);
+  }
+
+  function size() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.fov = camera.aspect < 0.8 ? 52 : 38; camera.updateProjectionMatrix();
+    keys(); frame(cur);
+  }
+
+  // smooth the scroll so the camera glides
+  const story = $('#story');
+  let target = 0, cur = 0, raf = 0;
+  const read = () => { const r = story.getBoundingClientRect(); return clamp(-r.top / (r.height - innerHeight)); };
+  function loop() {
+    cur += (target - cur) * (calm ? 1 : 0.12);
+    if (Math.abs(target - cur) < 0.0004) cur = target;
+    frame(cur);
+    raf = cur === target ? 0 : requestAnimationFrame(loop);
+  }
+  addEventListener('scroll', () => { target = read(); if (!raf) raf = requestAnimationFrame(loop); }, { passive: true });
+  new ResizeObserver(size).observe(canvas);
+
+  // chalk and notebook writing need the handwriting font loaded first
+  document.fonts.load('600 40px Caveat').then(() => {
+    boardMesh.material.map = texFrom(1600, 520, drawBoard); boardMesh.material.needsUpdate = true;
+    const page = texFrom(256, 192, drawPage);
+    desks.forEach((d) => { d.mat.map = page; d.mat.needsUpdate = true; });
+    frame(cur);
+  });
+
+  target = cur = read();
+  size();
+})();
+</script>

@@ -1,0 +1,311 @@
+<title>Forty Points of Light</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..600,0..100;1,9..144,300..600,0..100&family=Instrument+Sans:wght@400..700&family=STIX+Two+Text:ital@0;1&display=swap">
+<style>
+/* Layout: a pinned morning field of forty soft orbs driven by page scroll; one opens (iris) into a sheet of paper, then the class regroups. Single light look by choice. */
+:root {
+  color-scheme: light;
+  --night: #f5f2ea; --night-2: #e6f0e9; --glow: #0e6b54; --text: #17241e; --text-soft: #55625b; --text-faint: #8a958f;
+  --secure: #2c9b78; --brackets: #d9951a; --signs: #e0704a; --balance: #6f86e0;
+  --paper: #fbf8f0; --ink: #1f2f4f; --ink-dark: #17241e; --ink-soft: #5b675f; --rule: #d3dde6; --margin: #e2a1a1;
+  --accent: #0e6b54; --accent-deep: #08463a; --amber: #a2660d; --amber-wash: #f7eedd;
+  --f-serif: "Fraunces", Georgia, serif; --f-body: "Instrument Sans", "Helvetica Neue", system-ui, sans-serif;
+  --f-hand: var(--f-serif); --f-maths: "STIX Two Text", "Cambria Math", serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--night); color: var(--text); font: 16px/1.5 var(--f-body); }
+h1, h2, p { margin: 0; text-wrap: balance; }
+.maths { font-family: var(--f-maths); white-space: nowrap; } .maths i { font-style: italic; }
+.serif { font-family: var(--f-serif); font-weight: 300; letter-spacing: -.02em; font-variation-settings: "opsz" 144, "SOFT" 60; }
+.serif em { font-style: italic; color: var(--accent); }
+
+.intro, .outro { min-height: 80dvh; display: grid; place-content: center; text-align: center; gap: 14px; padding-block: 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: radial-gradient(70% 60% at 50% 60%, var(--night-2), var(--night) 70%); }
+.intro h1 { font-size: clamp(2.6rem, 7.5vw, 5rem); line-height: 1; }
+.intro p, .outro p { color: var(--text-soft); max-width: 44ch; margin-inline: auto; }
+.kicker { font-size: .78rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); }
+.hint { font-size: .85rem; color: var(--text-faint); display: grid; justify-items: center; gap: 8px; margin-top: 18px; }
+.hint i { width: 1px; height: 44px; background: linear-gradient(var(--text-faint), transparent); animation: drip 1.8s ease-in-out infinite; }
+@keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+.outro h2 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.05; }
+
+.story { height: 820vh; position: relative; }
+.pin { position: sticky; top: 0; height: 100dvh; overflow: hidden; background: radial-gradient(60% 50% at 30% 20%, rgba(242,177,52,.10), transparent 70%), radial-gradient(80% 70% at 50% 45%, var(--night-2), var(--night) 72%); }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.layer { position: absolute; inset: 0; pointer-events: none; }
+
+.cap { position: absolute; left: 50%; bottom: max(8dvh, 44px); width: min(92%, 680px); transform: translateX(-50%); text-align: center; opacity: 0; }
+.cap h2 { font-size: clamp(1.7rem, 4.4vw, 3rem); line-height: 1.06; }
+.cap p { margin-top: 8px; color: var(--text-soft); }
+
+/* the paper: a light that opens like an iris */
+.paperWrap { position: absolute; inset: 0; filter: drop-shadow(0 24px 48px rgba(12,52,40,.18)); }
+.paper { position: absolute; inset: 0; clip-path: circle(0% at 50% 50%); display: grid; place-items: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)); color: var(--ink-dark);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .28 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"), radial-gradient(90% 80% at 50% 40%, #ffffff, #f6f2e8); }
+.sheet { position: relative; width: min(100%, 640px); padding: 0 0 0 68px; }
+.sheet::before { content: ""; position: absolute; top: -40vh; bottom: -40vh; left: 48px; width: 2px; background: var(--margin); opacity: .7; }
+.sheet .rules { position: absolute; left: -50vw; right: -50vw; top: -40vh; bottom: -40vh; background: repeating-linear-gradient(transparent 0 47px, var(--rule) 47px 48px); background-position: 0 30px; opacity: .8; z-index: -1; }
+.sheet .say { font: 400 clamp(1.3rem, 3vw, 1.9rem) var(--f-serif); letter-spacing: -.02em; margin-bottom: 26px; color: var(--ink-dark); font-variation-settings: "opsz" 96; }
+.sheet .say em { font-style: italic; color: var(--accent); }
+.sheet .q { font: 600 .82rem var(--f-body); color: var(--ink-soft); height: 48px; display: flex; align-items: center; }
+.sheet ol { list-style: none; margin: 0; padding: 0; }
+.sheet li { position: relative; height: 48px; display: flex; align-items: center; gap: 14px; font: 300 clamp(1.7rem, 5.6vw, 2.3rem) var(--f-hand); letter-spacing: -.01em; font-variation-settings: "opsz" 96, "SOFT" 60; color: var(--ink); opacity: 0; }
+.sheet li .w { position: relative; clip-path: inset(-20% var(--clip, 100%) -20% 0); }
+.sheet li.flag::after { content: ""; position: absolute; inset: 3px auto 3px -16px; width: calc(100% + 32px); max-width: 560px; border-radius: 10px; background: var(--amber-wash); z-index: -1; opacity: var(--glow, 0); }
+.strike { position: absolute; left: 0; top: 54%; height: 2.5px; border-radius: 2px; background: rgba(162,102,13,.6); width: var(--strike, 0%); }
+.note { font: 700 .74rem var(--f-body); color: var(--amber); background: #fff; border-radius: 99px; padding: 5px 11px; box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 8px 18px -8px rgba(0,0,0,.25); white-space: nowrap; opacity: var(--note, 0); transform: translateY(calc((1 - var(--note, 0)) * 6px)); }
+.sheet li.fix { font: 400 clamp(1.6rem, 5.4vw, 2.1rem) var(--f-maths); color: var(--accent-deep); }
+.sheet li.fix::before { content: "Cogna"; position: absolute; left: -64px; font: 700 .64rem var(--f-body); letter-spacing: .05em; color: var(--accent); }
+
+.chip { position: absolute; left: 0; top: 0; translate: -50% -100%; display: grid; justify-items: center; gap: 2px; opacity: 0; text-align: center; }
+.chip b { font: 400 1.6rem/1 var(--f-serif); color: var(--c); font-variation-settings: "opsz" 72; }
+.chip span { font-size: .78rem; font-weight: 600; color: var(--text-soft); white-space: nowrap; }
+
+.dash { position: absolute; left: 50%; top: max(9dvh, 60px); translate: -50% 0; width: min(88vw, 360px); padding: 18px 20px; border-radius: 22px; background: rgba(255,255,255,.78); border: 1px solid rgba(22,36,29,.06); box-shadow: 0 2px 4px rgba(12,52,40,.05), 0 30px 60px -24px rgba(12,52,40,.3); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); display: grid; gap: 6px; opacity: 0; }
+.dash span { font-size: .78rem; font-weight: 600; color: var(--text-faint); }
+.dash strong { font: 400 2.3rem/1 var(--f-serif); letter-spacing: -.02em; }
+.dash strong em { font: 500 .95rem var(--f-body); font-style: normal; color: var(--text-soft); margin-left: 6px; }
+.dash .bar { height: 6px; border-radius: 99px; background: #e3ebe5; overflow: hidden; }
+.dash .bar i { display: block; height: 100%; width: calc(var(--fill, 0) * 67.5%); background: linear-gradient(90deg, #2c9b78, var(--secure)); border-radius: inherit; }
+.dash p { font-size: .9rem; color: var(--text-soft); }
+.dash p b { color: #a2660d; font-weight: 600; }
+
+.rail { position: absolute; left: max(18px, env(safe-area-inset-left, 0px)); top: 50%; translate: 0 -50%; display: grid; gap: 14px; }
+.rail span { display: flex; align-items: center; gap: 10px; font-size: .74rem; font-weight: 600; color: var(--text-faint); transition: color .4s; }
+.rail span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; transition: transform .4s, box-shadow .4s; }
+.rail span.on { color: var(--glow); }
+.rail span.on::before { transform: scale(1.5); box-shadow: 0 0 0 4px rgba(14,107,84,.15); }
+.rail.onPaper span { color: var(--ink-soft); } .rail.onPaper span.on { color: var(--accent-deep); } .rail.onPaper span.on::before { box-shadow: none; }
+
+.fallback { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; color: var(--text-soft); }
+@media (max-width: 700px) { .rail b { display: none; } .sheet { padding-left: 56px; } .sheet::before { left: 38px; } .sheet li.fix::before { left: -54px; } }
+@media (prefers-reduced-motion: reduce) { .hint i { animation: none; } }
+</style>
+
+<section class="intro">
+  <p class="kicker">Cogna · scroll story prototype</p>
+  <h1 class="serif">Forty points of <em>light.</em></h1>
+  <p>Each light is a student. Scroll slowly: the class moves as one, one light comes closer, and we read what it wrote.</p>
+  <div class="hint">Scroll<i></i></div>
+</section>
+
+<section class="story" id="story">
+  <div class="pin">
+    <canvas id="scene" aria-label="Forty glowing points, one for each student"></canvas>
+    <div class="fallback" id="fallback">This browser can't draw the lights. The story still reads below.</div>
+    <div class="layer" id="chips" aria-hidden="true"></div>
+
+    <div class="layer">
+      <div class="cap" data-cap="0"><h2 class="serif">A class of forty has to <em>move together.</em></h2><p>One teacher, one board, one pace.</p></div>
+      <div class="cap" data-cap="1"><h2 class="serif">But each one is thinking <em>something different.</em></h2></div>
+
+      <div class="paperWrap"><div class="paper" id="paper" aria-hidden="true">
+        <div class="sheet">
+          <div class="rules"></div>
+          <p class="say">Cogna reads <em>every line.</em></p>
+          <div class="q">Q4. Solve for x</div>
+          <ol>
+            <li id="l1"><span class="w">3(x + 4) = 21</span></li>
+            <li id="l2" class="flag"><span class="w">3x + 4 = 21<span class="strike"></span></span><span class="note">Caught at line 2 · bracket expansion</span></li>
+            <li id="l3" class="fix"><span class="w maths">3<i>x</i> + 12 = 21</span></li>
+          </ol>
+        </div>
+      </div></div>
+
+      <div class="cap" data-cap="2"><h2 class="serif">Then the class regroups <em>by what each one needs.</em></h2></div>
+      <div class="cap" data-cap="3"><h2 class="serif">One lesson for the class. <em>A next step for each student.</em></h2></div>
+
+      <div class="dash" id="dash" aria-hidden="true">
+        <span>Grade 8 · Section A</span>
+        <strong>27 of 40<em>ready to move on</em></strong>
+        <span class="bar"><i></i></span>
+        <p>Next move: reteach <b>bracket expansion</b> to 7 students.</p>
+      </div>
+
+      <div class="rail" id="rail" aria-hidden="true">
+        <span><b>The class</b></span><span><b>One student</b></span><span><b>The working</b></span><span><b>Regrouped</b></span><span><b>The teacher</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="outro">
+  <h2 class="serif">One class. <em>Every student seen.</em></h2>
+  <p>Prototype. The numbers and groups are examples. No artwork needed: the lights, dust and paper are all drawn live.</p>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const ease = (t) => t * t * (3 - 2 * t);
+  const range = (p, a, b) => clamp((p - a) / (b - a));
+  const band = (p, a, b, f = 0.035) => Math.min(range(p, a, a + f), 1 - range(p, b - f, b));
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!window.THREE) { $('#fallback').style.display = 'grid'; return; }
+  const canvas = $('#scene');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); } catch (e) { $('#fallback').style.display = 'grid'; return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+
+  // seeded randomness so the class looks the same every visit
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+  const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    [[0, 1], [0.13, 0.95], [0.22, 0.5], [0.4, 0.16], [0.65, 0.04], [1, 0]].forEach(([o, a]) => gr.addColorStop(o, `rgba(255,255,255,${a})`));
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+  })();
+
+  // dust for depth
+  const dustN = 700, dustPos = new Float32Array(dustN * 3);
+  for (let i = 0; i < dustN; i++) { dustPos[i * 3] = (rnd() - 0.5) * 60; dustPos[i * 3 + 1] = (rnd() - 0.5) * 36; dustPos[i * 3 + 2] = (rnd() - 0.5) * 40 - 6; }
+  const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.07, color: 0x8fb3a3, transparent: true, opacity: 0.35, depthWrite: false, sizeAttenuation: true }));
+  scene.add(dust);
+
+  // groups: what each student showed (examples)
+  const G = [
+    { name: 'Secure', n: 27, col: new THREE.Color('#2c9b78') },
+    { name: 'Brackets', n: 7, col: new THREE.Color('#e0a020') },
+    { name: 'Signs', n: 4, col: new THREE.Color('#e0704a') },
+    { name: 'Balance', n: 2, col: new THREE.Color('#6f86e0') },
+  ];
+  const warm = new THREE.Color('#3aa784');
+  const lights = [];
+  G.forEach((g, gi) => { for (let k = 0; k < g.n; k++) lights.push({ gi, k }); });
+  // seat everyone in rows; groups are mixed through the room, as in a real class
+  const slots = lights.map((_, i) => i).sort(() => rnd() - 0.5);
+  lights.forEach((L, i) => {
+    L.slot = slots[i]; L.home = new THREE.Vector3();
+    L.ph = rnd() * 10; L.sp = 0.7 + rnd() * 0.6; L.size = 0.75 + rnd() * 0.35;
+    L.mat = new THREE.SpriteMaterial({ map: glowTex, color: warm.clone(), transparent: true, depthWrite: false });
+    L.sprite = new THREE.Sprite(L.mat); scene.add(L.sprite);
+  });
+  const chosen = lights.find((L) => L.gi === 1); // a student stuck on brackets
+
+  // cluster layout: a row on wide screens, a 2×2 grid on narrow ones
+  let centers = [];
+  function layout(narrow) {
+    const cols = narrow ? 5 : 8, rows = 40 / cols, gx = narrow ? 1.05 : 1.25, gy = narrow ? 1.05 : 1.05;
+    lights.forEach((L) => { const c = L.slot % cols, r = Math.floor(L.slot / cols); L.col = c; L.row = r; L.home.set((c - (cols - 1) / 2) * gx, ((rows - 1) / 2 - r) * gy, 0); });
+    centers = narrow ? [[-1.7, 1.9], [1.7, 1.9], [-1.7, -1.6], [1.7, -1.6]] : [[-5.1, -0.3], [-1.5, -0.3], [1.5, -0.3], [4.4, -0.3]];
+    G.forEach((g, gi) => {
+      lights.filter((L) => L.gi === gi).forEach((L) => {
+        // each group sits in its own tidy block, last row centred
+        const n = G[gi].n, cols = Math.min(n, n > 12 ? (narrow ? 5 : 6) : n > 4 ? 4 : 2), rows = Math.ceil(n / cols), sp = 0.42;
+        const r = Math.floor(L.k / cols), c = L.k % cols, inRow = r === rows - 1 ? n - r * cols : cols;
+        L.cluster = new THREE.Vector3(centers[gi][0] + (c - (inRow - 1) / 2) * sp, centers[gi][1] + ((rows - 1) / 2 - r) * sp, 0);
+      });
+    });
+  }
+
+  layout(false);
+  const chipsEl = $('#chips');
+  const chips = G.map((g) => {
+    const el = document.createElement('div'); el.className = 'chip'; el.style.setProperty('--c', `#${g.col.getHexString()}`);
+    el.innerHTML = `<b>${g.n}</b><span>${g.name}</span>`; chipsEl.appendChild(el); return el;
+  });
+
+  const caps = [...document.querySelectorAll('.cap')];
+  const rail = $('#rail'), railItems = [...rail.children];
+  const paper = $('#paper'), l1 = $('#l1'), l2 = $('#l2'), l3 = $('#l3'), dash = $('#dash');
+  const v = new THREE.Vector3(), near = new THREE.Vector3(), flock = new THREE.Vector3();
+  let narrow = false, mx = 0, my = 0, smx = 0, smy = 0;
+
+  function draw(p, t) {
+    const camZ = (narrow ? 19 : 13) - ease(range(p, 0.1, 0.42)) * 2.6 + ease(range(p, 0.7, 0.86)) * 3.4;
+    smx += (mx - smx) * 0.05; smy += (my - smy) * 0.05;
+    const lift = ease(range(p, 0.9, 0.95)) * (narrow ? 2.2 : 1.6); // room for the teacher's card
+    camera.position.set(smx * 0.8, lift - smy * 0.5, camZ); camera.lookAt(0, lift, 0);
+    dust.rotation.y = t * 0.012; dust.rotation.x = Math.sin(t * 0.05) * 0.03;
+
+    const come = ease(range(p, 0.14, 0.45)) * (1 - ease(range(p, 0.7, 0.8)));
+    const regroup = ease(range(p, 0.8, 0.9));
+    const dim = band(p, 0.18, 0.82, 0.07);
+    near.set(0, 0, camZ - 5);
+
+    lights.forEach((L) => {
+      const s = L.sp, ph = L.ph;
+      // a slow wave travels across the rows: ordered, but breathing
+      flock.copy(L.home).add(v.set(0, Math.sin(t * 0.9 - L.col * 0.55 - L.row * 0.35) * 0.06, Math.sin(t * 0.9 - L.col * 0.55 - L.row * 0.35) * 0.25));
+      const cl = v.copy(L.cluster).add(new THREE.Vector3(0, Math.sin(t * 0.9 - L.cluster.x * 0.8) * 0.03, 0));
+      const pos = flock.lerp(cl, regroup);
+      const tw = 1 + Math.sin(t * 2 * s + ph) * 0.08;
+      if (L === chosen) {
+        pos.lerp(near, come);
+        L.sprite.scale.setScalar(L.size * tw * (1 + come * 0.5));
+        L.mat.opacity = 1;
+      } else {
+        L.sprite.scale.setScalar(L.size * tw);
+        L.mat.opacity = 1 - dim * 0.7;
+      }
+      L.sprite.position.copy(pos);
+      L.mat.color.copy(warm).lerp(G[L.gi].col, regroup);
+    });
+
+    // the chosen light opens into paper
+    const iris = ease(range(p, 0.43, 0.5)) * (1 - ease(range(p, 0.7, 0.77)));
+    paper.style.clipPath = `circle(${iris * 80}% at 50% 50%)`;
+    [[l1, 0.52], [l2, 0.555]].forEach(([el, a]) => { el.style.opacity = range(p, a, a + 0.005); el.querySelector('.w').style.setProperty('--clip', `${100 - range(p, a, a + 0.035) * 100}%`); });
+    l2.style.setProperty('--glow', range(p, 0.59, 0.605));
+    l2.style.setProperty('--note', range(p, 0.6, 0.615));
+    l2.style.setProperty('--strike', `${range(p, 0.625, 0.64) * 100}%`);
+    l3.style.opacity = range(p, 0.645, 0.65);
+    l3.querySelector('.w').style.setProperty('--clip', `${100 - range(p, 0.645, 0.675) * 100}%`);
+
+    caps[0].style.opacity = band(p, -0.1, 0.13);
+    caps[1].style.opacity = band(p, 0.17, 0.41);
+    caps[2].style.opacity = band(p, 0.79, 0.9);
+    caps[3].style.opacity = range(p, 0.9, 0.93);
+
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    camera.updateMatrixWorld();
+    chips.forEach((el, gi) => {
+      v.set(centers[gi][0], centers[gi][1] + 0.55 + Math.sqrt(G[gi].n) * 0.17, 0).project(camera);
+      el.style.transform = `translate(${(v.x + 1) / 2 * w}px, ${(1 - v.y) / 2 * h}px)`;
+      el.style.opacity = range(p, 0.86, 0.89);
+    });
+    dash.style.opacity = range(p, 0.9, 0.93);
+    dash.style.transform = `translateY(${(1 - range(p, 0.9, 0.93)) * 14}px)`;
+    dash.style.setProperty('--fill', ease(range(p, 0.92, 0.97)));
+
+    const beat = p < 0.15 ? 0 : p < 0.45 ? 1 : p < 0.74 ? 2 : p < 0.9 ? 3 : 4;
+    railItems.forEach((s, i) => s.classList.toggle('on', i === beat));
+    rail.classList.toggle('onPaper', iris > 0.6);
+    renderer.render(scene, camera);
+  }
+
+  function size() {
+    const w = canvas.clientWidth, h = canvas.clientHeight; if (!w) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; narrow = camera.aspect < 0.8; camera.fov = narrow ? 58 : 45; camera.updateProjectionMatrix();
+    layout(narrow);
+  }
+
+  const story = $('#story');
+  let target = 0, cur = 0;
+  const read = () => { const r = story.getBoundingClientRect(); return clamp(-r.top / (r.height - innerHeight)); };
+  addEventListener('scroll', () => { target = read(); }, { passive: true });
+  addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && !calm) { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; } });
+  new ResizeObserver(size).observe(canvas);
+
+  const t0 = performance.now();
+  function loop(now) {
+    cur += (target - cur) * (calm ? 1 : 0.1);
+    if (Math.abs(target - cur) < 0.0003) cur = target;
+    draw(cur, calm ? 0 : (now - t0) / 1000);
+    requestAnimationFrame(loop);
+  }
+  target = cur = read();
+  size();
+  requestAnimationFrame(loop);
+})();
+</script>

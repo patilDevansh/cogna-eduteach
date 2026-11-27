@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
+import { HandDrawing } from "@/components/learning/HandDrawing";
 import Link from "next/link";
 import type { PracticeNextResponse, QuestionPayload } from "@cogna/shared";
 import {
@@ -1077,6 +1078,8 @@ function PracticeContent() {
               />
             </div>
           </div>
+
+          <HandDrawing key={question.id} />
 
           {error && <p className="error">{error}</p>}
 
