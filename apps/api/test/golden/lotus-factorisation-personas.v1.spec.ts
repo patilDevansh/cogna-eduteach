@@ -149,10 +149,12 @@ function assertNoHardcodedFallback(service: LotusService, view: LotusSessionView
     const origin = question.answerKey.diagnostics?.origin;
     assert.ok(origin === "AI" || origin === "CODE", "every factorisation item must be AI-generated or a checked code-built item — a hardcoded fallback is never eligible for display");
     // A code-built item is either staged as a game (a presentation such as detective, a puzzle interaction or a
-    // themed game) or a short check, which lives on a check slot (100 and up) and is one of the checked families.
-    const staged = question as { presentation?: string; interaction?: unknown; game?: unknown };
+    // themed game), a short check, which lives on a check slot (100 and up) and is one of the checked families,
+    // or a written re-check, which a probe asks typed with working (lotus-probes.ts, purpose CHECK).
+    const staged = question as { presentation?: string; interaction?: unknown; game?: unknown; type?: string; purpose?: string; asksForWorking?: boolean };
     const shortCheck = (question.answerKey.diagnostics?.slot ?? 0) >= CHECK_SLOT_BASE && !!skillFamily(question.answerKey.diagnostics?.skillId ?? "");
-    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction || staged.game || shortCheck, "a code-built item is a staged game or a checked short check");
+    const writtenRecheck = staged.type === "CONSTRUCTED_RESPONSE" && staged.asksForWorking === true && !!staged.purpose?.startsWith("Re-check");
+    if (origin === "CODE") assert.ok(staged.presentation || staged.interaction || staged.game || shortCheck || writtenRecheck, "a code-built item is a staged game, a checked short check or a written re-check");
   }
   for (const audit of view.audits) {
     assert.notEqual(audit.questionSelection.provenance, "HARDCODED_SYSTEM", "no observer-visible provenance may ever claim a hardcoded question for factorisation");

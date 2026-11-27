@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { validInteractionContext, type StudentInteractionContext } from "@cogna/shared";
 import { assertInteractionContext, assertSameInteractionSubmission } from "../../src/learning-evidence/interaction-context";
+import { resolveLotusResponse } from "../../src/lotus/lotus-interactions";
 export function context(source: "EXERCISE" | "LOTUS" = "EXERCISE", questionId = "context-question"): StudentInteractionContext {
   return { schemaVersion: 1, observationId: "observation-123456789", source, questionId, questionVersion: source === "EXERCISE" ? 1 : null, format: "TYPED_ANSWER", presentedAt: new Date().toISOString(), timing: { basis: "CLIENT_ITEM_MOUNT", elapsedMs: 3000, firstInputMs: null, hiddenMs: 400, visibilityChanges: 2, complete: true }, revisionsAfterFirstInput: 0, confidence: { status: "NOT_ASKED", value: null, scale: source === "EXERCISE" ? "ONE_TO_FIVE" : "ZERO_TO_HUNDRED" }, technical: { offlineMs: 0, offlineTransitions: 0, pageReloaded: false } };
 }
@@ -32,5 +33,14 @@ describe("interaction context v1 service boundary", () => {
     assert.throws(() => assertSameInteractionSubmission(prior, { ...prior, answer: "y" }));
     assert.throws(() => assertSameInteractionSubmission(prior, { answer: "x" }));
     assert.doesNotThrow(() => assertSameInteractionSubmission({ answer: "legacy" }, { answer: "legacy" }));
+  });
+  it("a Lotus time capped at the on-screen time still tells a changed resend from an identical one", () => {
+    const question = { id: "q1", answerKey: {} } as never;
+    const sent = { answer: "x", working: "", responseTimeMs: 5000, didNotKnow: false, submissionId: "s1", questionId: "q1", interactionContext: context("LOTUS", "q1") };
+    const stored = resolveLotusResponse(question, sent);
+    assert.equal(stored.responseTimeMs, 3000);
+    assert.doesNotThrow(() => assertSameInteractionSubmission(stored, resolveLotusResponse(question, sent)));
+    assert.throws(() => assertSameInteractionSubmission(stored, resolveLotusResponse(question, { ...sent, responseTimeMs: 4000 })));
+    assert.equal(resolveLotusResponse(question, { ...sent, responseTimeMs: 1000, reportedResponseTimeMs: 9 } as never).reportedResponseTimeMs, undefined);
   });
 });
