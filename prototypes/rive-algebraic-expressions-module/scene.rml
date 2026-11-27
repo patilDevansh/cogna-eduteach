@@ -51,6 +51,12 @@
         <ViewModelPropertyString name="task" id="0:54"/>
         <ViewModelPropertyString name="caption" id="0:55"/>
         <ViewModelPropertyBoolean name="stepDone" id="0:56"/>
+        <!-- in, for lesson 4: the child's own item, which the page has checked shows that mistake (empty: a sample child) -->
+        <ViewModelPropertyString name="mineV" id="0:57"/>
+        <ViewModelPropertyNumber name="mineN" id="0:58"/>
+        <ViewModelPropertyString name="mineSaid" id="0:59"/>
+        <ViewModelPropertyString name="mineMistake" id="0:60"/>
+        <ViewModelPropertyNumber name="help" id="0:61"/>
         <ViewModelInstance exports="true" name="Default" id="0:41">
             <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:42"/>
             <ViewModelInstanceNumber propertyValue="1" viewModelPropertyId="0:43"/>
@@ -67,6 +73,11 @@
             <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:54"/>
             <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:55"/>
             <ViewModelInstanceBoolean propertyValue="false" viewModelPropertyId="0:56"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:57"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:58"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:59"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:60"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:61"/>
         </ViewModelInstance>
     </ViewModel>
 
@@ -77,6 +88,7 @@
     <ScriptAsset file="l1.luau" isModule="true" name="l1" id="0:92"/>
     <ScriptAsset file="l2.luau" isModule="true" name="l2" id="0:93"/>
     <ScriptAsset file="l3.luau" isModule="true" name="l3" id="0:94"/>
+    <ScriptAsset file="l4.luau" isModule="true" name="l4" id="0:97"/>
     <ScriptAsset file="module.luau" isModule="true" name="module" id="0:95"/>
     <ScriptAsset file="main.luau" name="main" id="0:80"/>
 

@@ -73,6 +73,11 @@
   let lesson = Number(q.get("lesson")) || 1, step = Number(q.get("step")) || 1, steps = 3;
   const mistake = q.get("mistake");
   if (mistake) lab.lessons.forEach((l, i) => { if (l.mistakes[mistake]) { lesson = i + 1; step = l.mistakes[mistake]; } });
+  // the child's own item, for a lesson built on it (apps/api/src/personalized-videos/mistake-lab.ts makes these):
+  // ?lab=algebraic-expressions&mineV=x&mineN=6&mineSaid=x%C2%B2%20%2B%2036&mineMistake=SQUARE_DISTRIBUTES&help=2
+  const MINE = { mineV: "string", mineN: "number", mineSaid: "string", mineMistake: "string", help: "number" };
+  const mine = lab.lessons.findIndex((l) => l.mine);
+  if (q.has("mineV") && mine >= 0 && !q.get("lesson")) { lesson = mine + 1; step = 1; }
 
   const canvas = $("canvas");
   let vin = null;
@@ -94,6 +99,11 @@
       const vm = r.viewModelInstance;
       if (!vm) return fail("This lab has no Lab view model bound.");
       vin = { lesson: vm.number("lesson"), step: vm.number("step"), muted: vm.boolean("muted") };
+      // before the lesson opens: the lesson reads them as it starts
+      for (const [k, type] of Object.entries(MINE)) {
+        const p = q.has(k) ? vm[type](k) : null;
+        if (p) p.value = type === "number" ? Number(q.get(k)) : q.get(k);
+      }
       const out = { seq: vm.number("seq"), event: vm.string("event"), atLesson: vm.number("atLesson"), atStep: vm.number("atStep"), steps: vm.number("steps"),
         skill: vm.string("skill"), answer: vm.string("answer"), mistake: vm.string("mistake"), title: vm.string("title"), task: vm.string("task"),
         caption: vm.string("caption"), stepDone: vm.boolean("stepDone") };

@@ -1,9 +1,10 @@
 -- Everything Kiara says in the Algebraic expressions and identities module, as it reads on screen.
+-- Lesson 4's lines (l4…) are written by l4.luau as it starts, from the child's own item.
 -- Not recorded yet: rive-area-module/tools/record-voice.mjs records each line, and scene.rml then
 -- needs an AudioAsset named v_<key> for each one.
 local lines: { [string]: string } = {
     -- module
-    home = 'Welcome to Algebraic expressions and identities! Three short lessons, all done with your own hands. Pick lesson one to start.',
+    home = 'Welcome to Algebraic expressions and identities! Four short lessons, all done with your own hands, and the last one is built from your own answer. Pick lesson one to start.',
     complete = 'Lesson complete! Brilliant work.',
 
     -- 1 · one bracket: a(b + c) = ab + ac

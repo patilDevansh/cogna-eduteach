@@ -16,7 +16,8 @@
     "lessons": [
       { "skill": "AE_MONO_POLY", "title": "Split a multiplication", "steps": 3, "mistakes": { "FIRST_TERM_ONLY": 1 } },
       { "skill": "AE_BINOMIAL_BINOMIAL", "title": "Two binomials, four pieces", "steps": 3, "mistakes": { "FIRST_LAST_ONLY": 2 } },
-      { "skill": "AE_IDENTITY_SQ_PLUS", "title": "The square of a sum", "steps": 3, "mistakes": { "SQUARE_DISTRIBUTES": 2, "MIDDLE_NOT_DOUBLED": 1 } }
+      { "skill": "AE_IDENTITY_SQ_PLUS", "title": "The square of a sum", "steps": 3, "mistakes": { "SQUARE_DISTRIBUTES": 2, "MIDDLE_NOT_DOUBLED": 1 } },
+      { "skill": "AE_IDENTITY_SQ_PLUS", "title": "Your answer, as a field", "steps": 3, "mistakes": {}, "mine": true }
     ]
   }
 }

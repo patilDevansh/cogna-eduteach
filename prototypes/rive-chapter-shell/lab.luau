@@ -21,7 +21,8 @@ local panel: Rect = { x = 20, y = 396, w = 440, h = 348 }
 lab.stage = stage
 lab.panel = panel
 
--- set by the shell
+-- set by the shell. vm is the Lab view model, for a lesson that reads its own inputs (l4 reads the child's item).
+lab.vm = nil :: ViewModel?
 lab.answer = function(value: string, correct: boolean, mistake: string) end
 
 return lab

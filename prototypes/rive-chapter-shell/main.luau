@@ -10,6 +10,7 @@
 --
 -- The page that hosts the module talks to it through the Lab view model (scene.rml):
 --   in   lesson, step, muted          lesson 0 is the lesson map; 1 or more is "embedded"
+--        (a chapter may add inputs its own lessons read through lab.vm, set before `lesson`)
 --   out  seq, event, atLesson, atStep, steps, skill, answer, mistake, title, task, caption, stepDone
 -- Embedded, the module draws only the board, fitted to whatever size the canvas is: the page shows the
 -- title, the task, Kiara's caption and Next itself, and moves on by setting `step`. A canvas taller than
@@ -342,6 +343,7 @@ function init(self: Area, context: Context): boolean
         return true
     end
     self.vm = vm
+    lab.vm = vm
     self.inLesson, self.inStep, self.inMuted = vm:getNumber('lesson'), vm:getNumber('step'), vm:getBoolean('muted')
     self.outSeq, self.outEvent = vm:getNumber('seq'), vm:getString('event')
     self.outLesson, self.outStep, self.outSteps = vm:getNumber('atLesson'), vm:getNumber('atStep'), vm:getNumber('steps')
