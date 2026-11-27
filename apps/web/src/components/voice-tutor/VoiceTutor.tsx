@@ -1,172 +1,126 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { voiceTutor, type VoiceTutorScreen } from "@/lib/api";
-import { openEars, type Ears } from "./ears";
+import { useEffect, useRef, useState } from "react";
+import { voiceTutor, type VoiceTutorRef, type VoiceTutorScreen } from "@/lib/api";
+import { createAudioContext, openEars, silentWavDataUrl } from "./ears";
+import { createVoicePlayer, type AudioLike, type SpeechLike, type UtteranceLike } from "./voice-player";
+import { INITIAL_VIEW, TutorSession, type Mode, type TutorDeps, type TutorView } from "./tutor-session";
 import styles from "./voice-tutor.module.css";
-
-type Mode = "off" | "asking" | "listening" | "hearing" | "thinking" | "speaking";
-
-/** Whether the tutor may help with the open question, and the reviewed hints it may build on. */
-export interface TutorHelp {
-  allowed: boolean;
-  approvedHints?: string[];
-}
 
 export interface VoiceTutorProps {
   surface: VoiceTutorScreen["surface"];
-  /** What is on screen right now; read each time the student speaks. */
-  getScreen: () => Omit<VoiceTutorScreen, "surface" | "helpOnQuestion">;
-  /**
-   * Runs before the tutor answers while a question is open. It records the help first (so the answer
-   * counts as helped) and says whether help on this question is allowed. Throw to cancel the turn.
-   */
-  prepareHelp?: () => Promise<TutorHelp>;
-  /** When set, the tutor waits with this reason, e.g. during an independent check. */
+  /** Display text for the tutor (title, first name), read each time the student speaks. Never evidence. */
+  getScreen: () => Omit<VoiceTutorScreen, "surface">;
+  /** Where the student is (a practice question, a lesson run): the server reads the rest from its records. */
+  getRef?: () => VoiceTutorRef | undefined;
+  /** When set, the tutor waits with this reason (a check on their own): nothing is sent anywhere. */
   pausedReason?: string | null;
+  /**
+   * Changes whenever the student moves on (answers, a new question, the next lesson step). The tutor then
+   * stops talking at once and drops any reply still on its way: it never talks about a part the student has left.
+   */
+  contextKey?: string;
 }
 
 const LABEL: Record<Mode, string> = {
   off: "Talk to Cogna",
   asking: "Asking for the mic…",
   listening: "Listening",
-  hearing: "Listening…",
+  hearing: "Hearing you…",
   thinking: "Thinking…",
   speaking: "Speaking",
 };
 
-/** The browser's own voice: robotic, but it means a reply is never silent when no voice service answers. */
-function speakWithBrowser(text: string, onEnd: () => void): () => void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) { onEnd(); return () => undefined; }
-  const line = new SpeechSynthesisUtterance(text);
-  const voices = window.speechSynthesis.getVoices();
-  line.voice = voices.find((v) => v.lang === "en-IN") ?? voices.find((v) => v.lang.startsWith("en")) ?? null;
-  line.rate = 1;
-  line.onend = onEnd;
-  line.onerror = onEnd;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(line);
-  return () => window.speechSynthesis.cancel();
+function browserDeps(): TutorDeps {
+  const timers = {
+    setTimeout: (fn: () => void, ms: number): unknown => window.setTimeout(fn, ms),
+    clearTimeout: (handle: unknown) => window.clearTimeout(handle as number),
+  };
+  return {
+    hear: (wav, ref, signal) => voiceTutor.hear(wav, ref, signal),
+    talk: (said, screen, ref, history, signal) => voiceTutor.talk(said, screen, ref, history, signal),
+    voiceUrl: voiceTutor.voiceUrl,
+    createAudioContext,
+    openEars,
+    voice: createVoicePlayer({
+      makeAudio: () => (typeof Audio === "undefined" ? null : (new Audio() as unknown as AudioLike)),
+      speech: () => (typeof window !== "undefined" && "speechSynthesis" in window ? (window.speechSynthesis as unknown as SpeechLike) : null),
+      makeUtterance: (text) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike,
+      silentUrl: silentWavDataUrl,
+      ...timers,
+    }),
+    ...timers,
+  };
 }
 
 /**
- * The live voice tutor: tap once to allow the mic, then just talk. It hears the
- * student, answers out loud and in writing, and stops when interrupted. Hidden
- * unless the API's voice tutor switch is on (VOICE_TUTOR_ENABLED).
+ * The live voice tutor: tap once to allow the mic, then just talk. It hears the student, answers out loud
+ * and in writing, and stops when interrupted, when the student moves on, or when the page goes away.
+ * Hidden unless the API's voice tutor switch is on (VOICE_TUTOR_ENABLED). The turn rules live in
+ * tutor-session.ts; this component only shows them.
  */
 export function VoiceTutor(props: VoiceTutorProps) {
   const latest = useRef(props);
   latest.current = props;
-
+  const session = useRef<TutorSession | null>(null);
   const [enabled, setEnabled] = useState(false);
-  const [mode, setMode] = useState<Mode>("off");
-  const [heard, setHeard] = useState<string | null>(null);
-  const [reply, setReply] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const [level, setLevel] = useState(0);
-
-  const ears = useRef<Ears | null>(null);
-  const busy = useRef(false);
-  const stopVoice = useRef<(() => void) | null>(null);
-  const history = useRef<Array<{ role: "student" | "tutor"; text: string }>>([]);
-  const turn = useRef(0);
+  const [view, setView] = useState<TutorView>(INITIAL_VIEW);
+  const [closedBubble, setClosedBubble] = useState<string | null>(null);
 
   useEffect(() => {
-    voiceTutor.status().then((s) => setEnabled(s.enabled)).catch(() => setEnabled(false));
+    let live = true;
+    voiceTutor.status().then((s) => { if (live) setEnabled(s.enabled); }).catch(() => { if (live) setEnabled(false); });
+    return () => { live = false; };
   }, []);
 
-  const quiet = useCallback(() => {
-    stopVoice.current?.();
-    stopVoice.current = null;
+  // One session per mount. Leaving the page stops the microphone, the voice and any request on its way.
+  useEffect(() => {
+    const created = new TutorSession(browserDeps(), () => latest.current, setView);
+    session.current = created;
+    return () => {
+      created.dispose();
+      if (session.current === created) session.current = null;
+    };
   }, []);
 
-  const speak = useCallback((say: string, voiceToken: string | null, onDone: () => void) => {
-    quiet();
-    let finished = false;
-    const done = () => { if (finished) return; finished = true; stopVoice.current = null; onDone(); };
-    const fallback = () => { if (!finished) stopVoice.current = speakWithBrowser(say, done); };
-    if (!voiceToken) { fallback(); return; }
-    const audio = new Audio(voiceTutor.voiceUrl(voiceToken));
-    stopVoice.current = () => { finished = true; audio.pause(); audio.src = ""; };
-    audio.onended = done;
-    audio.onerror = () => { stopVoice.current = null; fallback(); };
-    audio.play().catch(() => { stopVoice.current = null; fallback(); });
-  }, [quiet]);
+  // The student moved on: stop mid-sentence and drop any reply still on its way.
+  const firstKey = useRef(true);
+  useEffect(() => {
+    if (firstKey.current) { firstKey.current = false; return; }
+    session.current?.contextChanged();
+  }, [props.contextKey]);
 
-  const answer = useCallback(async (wav: Blob) => {
-    const mine = ++turn.current;
-    busy.current = true;
-    setMode("thinking");
-    setNote(null);
-    const backToListening = () => { if (turn.current === mine) { busy.current = false; setMode(ears.current ? "listening" : "off"); } };
-    try {
-      // Paused for a check: nothing is sent anywhere, so a check stays unaided and costs nothing.
-      if (latest.current.pausedReason) { setHeard(null); setReply(latest.current.pausedReason); backToListening(); return; }
-      const { text } = await voiceTutor.hear(wav);
-      if (!text.trim()) { backToListening(); return; }
-      setHeard(text);
-      const { getScreen, prepareHelp, surface } = latest.current;
-      const screen = getScreen();
-      const help = screen.question && prepareHelp ? await prepareHelp() : { allowed: Boolean(screen.question) };
-      const full: VoiceTutorScreen = { ...screen, surface, helpOnQuestion: help.allowed, approvedHints: help.allowed ? help.approvedHints : undefined };
-      const result = await voiceTutor.talk(text, full, history.current);
-      if (turn.current !== mine) return; // the student started talking again
-      if (!result.say) { backToListening(); return; }
-      history.current = [...history.current, { role: "student" as const, text }, { role: "tutor" as const, text: result.say }].slice(-12);
-      setReply(result.say);
-      busy.current = false; // the student may interrupt while it speaks
-      setMode("speaking");
-      speak(result.say, result.voice, backToListening);
-    } catch (error) {
-      setNote(error instanceof Error ? error.message : "Sorry, that didn't work. Try again.");
-      backToListening();
-    }
-  }, [speak]);
-
-  const turnOn = useCallback(async () => {
-    setMode("asking");
-    setNote(null);
-    try {
-      ears.current = await openEars({
-        onStart: () => { turn.current++; busy.current = false; quiet(); setMode("hearing"); },
-        onSpeech: (wav) => { void answer(wav); },
-        onCancel: () => { if (!busy.current) setMode("listening"); },
-        onLevel: setLevel,
-        tutorTalking: () => stopVoice.current !== null,
-        busy: () => busy.current,
-      });
-      setMode("listening");
-      setReply(latest.current.pausedReason ?? "I'm listening. Ask me anything about what's on your screen.");
-    } catch {
-      ears.current = null;
-      setMode("off");
-      setNote("Cogna can't hear you yet. Allow the microphone in your browser, then tap again.");
-    }
-  }, [answer, quiet]);
-
-  const turnOff = useCallback(() => {
-    turn.current++;
-    busy.current = false;
-    quiet();
-    ears.current?.stop();
-    ears.current = null;
-    setMode("off");
-    setLevel(0);
-  }, [quiet]);
-
-  useEffect(() => () => { ears.current?.stop(); stopVoice.current?.(); }, []);
+  // A hidden tab is no place for an open microphone.
+  useEffect(() => {
+    const onVisibility = () => { if (document.hidden) session.current?.hidden(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   if (!enabled) return null;
+  const { mode, heard, reply, note, level } = view;
   const on = mode !== "off" && mode !== "asking";
-  const paused = props.pausedReason;
+  const paused = on ? props.pausedReason ?? null : null;
+  // Paused for a check: the reason is shown in the bubble, not only in a tooltip.
+  const shownReply = reply ?? paused;
+  const bubbleKey = `${heard ?? ""}|${shownReply ?? ""}|${note ?? ""}`;
+  const showBubble = Boolean(heard || shownReply || note) && closedBubble !== bubbleKey;
 
   return (
-    <aside className={styles.tutor} aria-live="polite" data-mode={mode}>
-      {(heard || reply || note) && (
+    <aside className={styles.tutor} aria-label="Cogna, your voice tutor" data-mode={mode}>
+      {/* Only Cogna's reply is announced; the state of the button is not. */}
+      <p className={styles.srOnly} aria-live="polite">{reply ?? ""}</p>
+      <p className={styles.srOnly} role="status">{note ?? ""}</p>
+      {showBubble && (
         <div className={styles.bubble}>
-          {heard && <p className={styles.heard}><span>You</span> {heard}</p>}
-          {reply && <p className={styles.reply}><span>Cogna</span> {reply}</p>}
-          {note && <p className={styles.note} role="alert">{note}</p>}
+          <button type="button" className={styles.close} aria-label="Hide Cogna's words" onClick={() => setClosedBubble(bubbleKey)}>
+            <span aria-hidden="true">×</span>
+          </button>
+          <div className={styles.words}>
+            {heard && <p className={styles.heard}><span>You</span> {heard}</p>}
+            {shownReply && <p className={styles.reply}><span>Cogna</span> {shownReply}</p>}
+            {note && <p className={styles.note}>{note}</p>}
+          </div>
         </div>
       )}
       <button
@@ -174,11 +128,16 @@ export function VoiceTutor(props: VoiceTutorProps) {
         className={styles.pill}
         data-mode={mode}
         aria-pressed={on}
-        onClick={() => (on ? turnOff() : void turnOn())}
-        title={paused ?? undefined}
+        // Disabled while the mic is being asked for (a second tap does nothing), without dropping keyboard focus.
+        aria-disabled={mode === "asking"}
+        onClick={() => {
+          if (mode === "asking") return;
+          if (on) session.current?.turnOff();
+          else void session.current?.turnOn();
+        }}
       >
         <span className={styles.orb} style={{ transform: `scale(${1 + (mode === "hearing" ? level * 0.5 : 0)})` }} aria-hidden="true" />
-        <span>{paused && on ? "Paused for this check" : LABEL[mode]}</span>
+        <span>{paused ? "Paused for this check" : LABEL[mode]}</span>
         {on && <span className={styles.stop}>Stop</span>}
       </button>
     </aside>
