@@ -43,7 +43,7 @@
 .option[data-state="wrong"] { border-color: #c2410c; animation: shake 0.4s; }
 .feedback { font-weight: 500 !important; color: #c2410c; }
 .feedback[data-ok] { color: #17734f; }
-@keyframes pulse { 40% { transform: scale(1.12); } }
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@keyframes pulse { 40% { transform: scale(1.04); } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
+@keyframes shake { 30% { transform: translateX(-7px); } 60% { transform: translateX(4px); } 85% { transform: translateX(-1.5px); } }
 @media (prefers-reduced-motion: reduce) { .card * { animation-duration: 1ms !important; transition-duration: 1ms !important; } }

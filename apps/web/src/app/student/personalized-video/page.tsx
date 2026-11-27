@@ -360,9 +360,6 @@ function PersonalizedVideoPage() {
 
             {!error && waiting && (
               <section className={L.making} aria-live="polite">
-                <div className={L.makingArt} aria-hidden="true">
-                  <span /><span /><span /><span /><span />
-                </div>
                 <div>
                   <h2>
                     {assignment?.delivery === "UNDER_REVIEW"

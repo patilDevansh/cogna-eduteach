@@ -84,38 +84,13 @@
 .centerCard h1 { margin-top: 10px; font-size: var(--text-xl); }
 .centerCard p { color: var(--ink-soft); }
 
-@keyframes settle {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
+@keyframes settle { from { opacity: 0; transform: translateY(8px); filter: blur(6px); } }
 
-.orb {
-  position: relative;
-  width: 84px;
-  height: 84px;
-  margin: 0 auto 22px;
-}
-.orb span {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  opacity: 0;
-  animation: ripple 2.4s var(--ease-settle) infinite;
-}
-.orb span:nth-child(2) { animation-delay: 0.8s; }
-.orb span:nth-child(3) { animation-delay: 1.6s; }
-.orb::after {
-  content: "";
-  position: absolute;
-  inset: 30px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-@keyframes ripple {
-  0% { transform: scale(0.35); opacity: 0.9; }
-  100% { transform: scale(1); opacity: 0; }
-}
+/* Waiting for the report: one slow sweep, no pulsing rings. */
+.orb { position: relative; width: 160px; height: 2px; margin: 8px auto 30px; overflow: hidden; background: var(--line); }
+.orb span { display: none; }
+.orb::after { content: ""; position: absolute; inset: 0; width: 30%; background: var(--accent); animation: ripple 1.5s ease-in-out infinite; }
+@keyframes ripple { from { transform: translateX(-101%); } to { transform: translateX(335%); } }
 
 .steps {
   list-style: none;
@@ -147,12 +122,9 @@
   color: var(--theme-ink-on-accent, #fff);
 }
 li[data-state="done"] .stepMark { background: var(--success); border-color: var(--success); }
-li[data-state="active"] .stepMark {
-  border-color: var(--accent);
-  border-top-color: transparent;
-  animation: spin 0.9s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+li[data-state="active"] .stepMark { border-color: var(--accent); }
+.steps li { position: relative; overflow: hidden; }
+.steps li[data-state="active"]::before { content: ""; position: absolute; left: 0; top: 0; width: 30%; height: 1.5px; background: var(--accent); animation: ripple 1.5s ease-in-out infinite; }
 
 /* ---------- report ---------- */
 

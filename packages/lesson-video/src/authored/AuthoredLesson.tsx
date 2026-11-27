@@ -1,20 +1,21 @@
 import React from "react";
 import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
+import { carry, tokenize } from "../morph";
 import {
-  Arrow,
   C,
+  CarryLine,
   MathText,
   SceneFrame,
   Svg,
   ThemeRoot,
   UI_FONT,
+  MATH_FONT,
   VarContext,
   WIDTH,
   beatP,
   beatPop,
   currentBeat,
-  pulse,
-  textWidth,
+  mathWidth,
   type BeatClock,
 } from "../lesson-kit";
 import { prettyMath, type AuthoredLessonProps, type AuthoredVisual } from "./build";
@@ -35,9 +36,10 @@ type VisualProps<T extends AuthoredVisual["type"]> = { v: Extract<AuthoredVisual
 
 const p = (clock: BeatClock, beat: number, from: number, to: number) => beatP(clock, beat, from, to);
 
-function Centered({ y, children, opacity = 1, scale = 1 }: { y: number; children: React.ReactNode; opacity?: number; scale?: number }) {
+/** A centred row. It arrives by coming into focus as its opacity rises. */
+function Centered({ y, children, opacity = 1 }: { y: number; children: React.ReactNode; opacity?: number }) {
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, top: y, display: "flex", justifyContent: "center", opacity, transform: `scale(${scale})` }}>
+    <div style={{ position: "absolute", left: 0, right: 0, top: y, display: "flex", justifyContent: "center", opacity, transform: `translateY(${(1 - opacity) * 10}px)`, filter: opacity < 1 ? `blur(${(1 - opacity) * 6}px)` : undefined }}>
       {children}
     </div>
   );
@@ -45,7 +47,7 @@ function Centered({ y, children, opacity = 1, scale = 1 }: { y: number; children
 
 function Pill({ text, color, bg, opacity = 1 }: { text: string; color: string; bg: string; opacity?: number }) {
   return (
-    <span style={{ fontFamily: UI_FONT, fontSize: 20, fontWeight: 700, color, background: bg, border: `2px solid ${color}`, borderRadius: 999, padding: "4px 14px", opacity }}>
+    <span style={{ fontFamily: UI_FONT, fontSize: 20, fontWeight: 600, color, background: bg, borderRadius: 8, padding: "5px 14px", opacity }}>
       {text}
     </span>
   );
@@ -56,7 +58,7 @@ function Pill({ text, color, bg, opacity = 1 }: { text: string; color: string; b
 function TitleVisual({ v, clock, beat }: VisualProps<"title">) {
   const pop = beatPop(clock, beat, 0.05);
   return (
-    <Centered y={MID_Y - 60} opacity={Math.min(1, pop)} scale={0.9 + 0.1 * Math.min(1, pop)}>
+    <Centered y={MID_Y - 60} opacity={Math.min(1, pop)}>
       <div style={{ maxWidth: 980, textAlign: "center", fontFamily: UI_FONT, fontSize: 52, fontWeight: 800, color: C.ink, lineHeight: 1.2 }}>
         {/* Titles are sentences: they wrap (MathText alone keeps maths on one line). */}
         <MathText text={v.text.replace(/\^2/g, "²")} style={{ fontFamily: UI_FONT, whiteSpace: "normal" }} />
@@ -92,18 +94,18 @@ function ExpressionVisual({ v, clock, beat }: VisualProps<"expression">) {
   const pop = beatPop(clock, beat, 0.04);
   const pretty = prettyMath(v.expr);
   const parts = runs(pretty, v.highlight ?? []);
+  const lit = (hi: number) => (hi >= 0 ? p(clock, beat, 0.25 + hi * 0.15, 0.4 + hi * 0.15) : 0);
+  const focus = Math.max(0, ...parts.map((part) => lit(part.hi)));
   return (
     <>
-      <Centered y={MID_Y - 70} opacity={Math.min(1, pop)} scale={0.85 + 0.15 * Math.min(1, pop)}>
-        <div style={{ fontSize: 84, color: C.ink, display: "flex", alignItems: "center" }}>
-          {parts.map((part, i) => {
-            const lit = part.hi >= 0 ? p(clock, beat, 0.25 + part.hi * 0.15, 0.4 + part.hi * 0.15) : 0;
-            return (
-              <span key={i} style={{ background: lit ? C.fixSoft : "transparent", borderRadius: 14, padding: lit ? "0 8px" : 0, outline: lit ? `3px solid ${C.fix}` : "none", outlineOffset: 2, opacity: part.hi >= 0 ? 0.6 + 0.4 * lit : 1 }}>
-                <MathText text={part.text} />
-              </span>
-            );
-          })}
+      <Centered y={MID_Y - 70} opacity={Math.min(1, pop)}>
+        <div style={{ fontSize: 84, color: C.ink, display: "flex", alignItems: "baseline" }}>
+          {parts.map((part, i) => (
+            <span key={i} style={{ position: "relative", opacity: part.hi >= 0 ? 1 : 1 - 0.6 * focus }}>
+              <MathText text={part.text} />
+              {part.hi >= 0 && <span style={{ position: "absolute", left: 0, right: 0, bottom: 4, height: 3, background: C.fix, transform: `scaleX(${lit(part.hi)})`, transformOrigin: "left" }} />}
+            </span>
+          ))}
         </div>
       </Centered>
       {v.caption && (
@@ -120,21 +122,24 @@ function StepsVisual({ v, clock, beat }: VisualProps<"steps">) {
   const size = n > 4 ? 44 : 54;
   const gap = size * 1.5;
   const top = MID_Y - ((n - 1) * gap) / 2 - 30;
+  const lines = v.steps.map(prettyMath);
+  const arrive = (i: number) => p(clock, beat, 0.06 + (i * 0.72) / n, 0.06 + ((i + 0.82) * 0.72) / n);
   return (
     <>
-      {v.steps.map((step, i) => {
-        const appear = p(clock, beat, 0.08 + (i * 0.7) / n, 0.2 + (i * 0.7) / n);
+      {lines.map((line, i) => {
+        const t = arrive(i);
+        const last = i === n - 1;
+        // A line steps back once the next one has left it.
+        const older = last ? 0 : arrive(i + 1);
         return (
-          <div key={i} style={{ position: "absolute", left: WIDTH / 2 - 380, top: top + i * gap, display: "flex", alignItems: "center", gap: 18, opacity: appear, transform: `translateX(${(1 - appear) * -24}px)` }}>
-            <span style={{ width: 50, textAlign: "right", fontSize: size, color: C.green, fontWeight: 700 }}>{i === 0 ? "" : "="}</span>
-            <MathText text={prettyMath(step)} style={{ fontSize: size, color: i === n - 1 ? C.green : C.ink }} />
+          <div key={i} style={{ position: "absolute", left: WIDTH / 2 - 380, top: top + i * gap, display: "flex", alignItems: "baseline", gap: 18, opacity: 1 - 0.45 * older }}>
+            <span style={{ width: 50, textAlign: "right", fontFamily: MATH_FONT, fontSize: size, color: C.muted, opacity: Math.min(1, t * 3) }}>{i === 0 ? "" : "="}</span>
+            <CarryLine text={line} from={lines[i - 1]} size={size} t={t} rise={gap} color={last ? C.green : C.ink} ruled={last ? p(clock, beat, 0.84, 0.96) : 0} />
           </div>
         );
       })}
       {v.caption && (
-        <div style={{ position: "absolute", left: WIDTH / 2 - 380, top: top + n * gap, opacity: p(clock, beat, 0.85, 0.95) }}>
-          <Pill text={`✓ ${v.caption}`} color={C.green} bg={C.greenSoft} />
-        </div>
+        <div style={{ position: "absolute", left: WIDTH / 2 - 312, top: top + n * gap + 14, fontFamily: UI_FONT, fontSize: 24, color: C.muted, opacity: p(clock, beat, 0.9, 0.98) }}>{v.caption}</div>
       )}
     </>
   );
@@ -142,7 +147,7 @@ function StepsVisual({ v, clock, beat }: VisualProps<"steps">) {
 
 /** Lays out inline tokens centred on a row; returns each token's centre and width. */
 function layout(tokens: string[], size: number, y: number) {
-  const widths = tokens.map((t) => textWidth(t, size) + size * 0.22);
+  const widths = tokens.map((t) => mathWidth(t, size) + size * 0.22);
   let x = WIDTH / 2 - widths.reduce((a, b) => a + b, 0) / 2;
   return tokens.map((t, i) => {
     const cell = { text: t, cx: x + widths[i]! / 2, width: widths[i]!, y };
@@ -170,19 +175,24 @@ function DistributeVisual({ v, clock, beat }: VisualProps<"distribute">) {
   return (
     <>
       {cells.map((c, i) => (
-        <div key={i} style={{ position: "absolute", left: c.cx - c.width / 2, width: c.width, top: y - size * 0.6, textAlign: "center", fontSize: size, color: i === 0 ? C.blue : C.ink, opacity: p(clock, beat, 0, 0.1) }}>
+        <div key={i} style={{ position: "absolute", left: c.cx - c.width / 2, width: c.width, top: y - size * 0.6, textAlign: "center", fontSize: size, color: C.ink, opacity: p(clock, beat, 0, 0.1) }}>
           <MathText text={c.text} />
         </div>
       ))}
-      <Svg>
-        {inside.map((c, i) => (
-          <Arrow key={i} from={{ x: outside.cx, y: y - size * 0.7 }} to={{ x: c.cx, y: y - size * 0.7 }} progress={p(clock, beat, 0.12 + (i * 0.6) / n, 0.3 + (i * 0.6) / n)} color={C.blue} />
-        ))}
-      </Svg>
-      {results.map((c, i) => {
-        const appear = i === 0 ? p(clock, beat, 0.12, 0.2) : p(clock, beat, 0.24 + ((i - 1) * 0.6) / n, 0.34 + ((i - 1) * 0.6) / n);
+      {inside.map((c, i) => {
+        // A copy of the outside term lifts off, arcs over to this term, and hands over to the product below.
+        const t = p(clock, beat, 0.12 + (i * 0.6) / n, 0.3 + (i * 0.6) / n);
+        const lift = Math.sin(Math.PI * t) * (34 + Math.abs(c.cx - outside.cx) * 0.08);
         return (
-          <div key={`r${i}`} style={{ position: "absolute", left: c.cx - c.width / 2, width: c.width, top: c.y - 40, textAlign: "center", fontSize: 64, color: C.green, opacity: appear, transform: `translateY(${(1 - appear) * 14}px)` }}>
+          <div key={`t${i}`} style={{ position: "absolute", left: outside.cx - outside.width / 2 + (c.cx - c.width / 2 - outside.width * 0.55 - (outside.cx - outside.width / 2)) * t, width: outside.width, top: y - size * 0.6 - lift, textAlign: "center", fontSize: size, color: C.green, opacity: t <= 0 ? 0 : Math.min(1, t * 6) * (1 - Math.max(0, (t - 0.8) / 0.2)) }}>
+            <MathText text={outside.text} />
+          </div>
+        );
+      })}
+      {results.map((c, i) => {
+        const appear = i === 0 ? p(clock, beat, 0.12, 0.2) : p(clock, beat, 0.26 + ((i - 1) * 0.6) / n, 0.36 + ((i - 1) * 0.6) / n);
+        return (
+          <div key={`r${i}`} style={{ position: "absolute", left: c.cx - c.width / 2, width: c.width, top: c.y - 40, textAlign: "center", fontSize: 64, color: i === 0 ? C.muted : C.green, opacity: appear, transform: `translateY(${(1 - appear) * 8}px)`, filter: appear < 1 ? `blur(${(1 - appear) * 6}px)` : undefined }}>
             <MathText text={c.text} />
           </div>
         );
@@ -245,7 +255,7 @@ function PairSearchVisual({ v, clock, beat }: VisualProps<"pair-search">) {
         const win = isAnswer(a, b);
         const finale = win ? p(clock, beat, 0.78, 0.9) : 0;
         return (
-          <div key={i} style={{ position: "absolute", left: startX + i * (cardW + 20), top: STAGE_TOP + 110, width: cardW, height: 230, borderRadius: 20, background: C.surface, border: `3px solid ${finale ? C.green : C.line}`, boxShadow: finale ? `0 0 0 ${8 * finale}px ${C.greenSoft}` : "none", transform: `scale(${Math.min(1, appear) * (1 + 0.06 * finale)})`, opacity: win || finale ? 1 : 1 - 0.45 * p(clock, beat, 0.78, 0.9), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, fontFamily: UI_FONT }}>
+          <div key={i} style={{ position: "absolute", left: startX + i * (cardW + 20), top: STAGE_TOP + 110, width: cardW, height: 230, borderRadius: 20, background: C.surface, border: `2px solid ${finale ? C.green : C.line}`, transform: `translateY(${(1 - Math.min(1, appear)) * 10}px)`, opacity: Math.min(1, appear) * (win ? 1 : 1 - 0.55 * p(clock, beat, 0.78, 0.9)), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, fontFamily: UI_FONT }}>
             <div style={{ fontSize: 46, fontWeight: 800, color: C.ink }}>{fmt(a)} , {fmt(b)}</div>
             <div style={{ fontSize: 22, color: C.blue, opacity: judged }}>× → {fmt(a * b)} ✓</div>
             <div style={{ fontSize: 22, color: a + b === v.sum ? C.green : C.miss, opacity: judged }}>+ → {fmt(a + b)} {a + b === v.sum ? "✓" : "✗"}</div>
@@ -273,7 +283,7 @@ function CommonFactorVisual({ v, clock, beat }: VisualProps<"common-factor">) {
           </div>
         </div>
       ))}
-      <Centered y={top + 120} opacity={result} scale={0.9 + 0.1 * result}>
+      <Centered y={top + 120} opacity={result}>
         <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 70 }}>
           <span style={{ color: C.green, fontWeight: 700 }}>=</span>
           <MathText text={factored} style={{ color: C.green }} />
@@ -286,37 +296,40 @@ function CommonFactorVisual({ v, clock, beat }: VisualProps<"common-factor">) {
   );
 }
 
+/** The lens: the student's own line, one hairline under what went wrong, then the right line carried out of it. */
 function MistakeVisual({ v, clock, beat }: VisualProps<"mistake">) {
-  // An unfinished answer is equal to the expression: amber "keep going", never a red cross or a strike-through.
+  // An unfinished answer is equal to the expression: "keep going", never a cross or a strike-through.
   const unfinished = v.wrongKind === "unfinished";
-  const card = (side: 0 | 1) => {
-    const appear = p(clock, beat, side === 0 ? 0.1 : 0.4, side === 0 ? 0.22 : 0.52);
-    const good = side === 1;
-    const tone = good ? C.green : unfinished ? C.fix : C.miss;
-    const label = good ? "Right answer" : unfinished ? "Your answer · equal, not finished" : "Your answer";
-    const mark = good ? "✓" : unfinished ? "…" : "✗";
-    return (
-      <div style={{ position: "absolute", left: side === 0 ? WIDTH / 2 - 540 : WIDTH / 2 + 20, top: STAGE_TOP + 110, width: 520, height: 210, borderRadius: 22, background: C.surface, border: `1px solid ${C.line}`, borderTop: `8px solid ${tone}`, padding: "22px 30px", opacity: appear, transform: `translateY(${(1 - appear) * 22}px)` }}>
-        <div style={{ fontFamily: UI_FONT, fontSize: 18, fontWeight: 700, letterSpacing: 1.2, color: tone, textTransform: "uppercase" }}>{label}</div>
-        <div style={{ marginTop: 18, fontSize: 56, color: C.ink, display: "flex", alignItems: "center", gap: 18 }}>
-          <MathText text={prettyMath(good ? v.right : v.wrong)} style={{ textDecoration: !good && !unfinished && p(clock, beat, 0.3, 0.38) > 0.5 ? `line-through ${C.miss}` : "none" }} />
-          <span style={{ fontFamily: UI_FONT, fontSize: 40, color: tone, opacity: p(clock, beat, good ? 0.55 : 0.28, good ? 0.62 : 0.34) }}>{mark}</span>
-        </div>
-      </div>
-    );
-  };
+  const wrong = prettyMath(v.wrong), right = prettyMath(v.right);
+  const wrongTokens = tokenize(wrong);
+  const kept = new Set(carry(wrongTokens, tokenize(right)));
+  // What the right answer does not keep is what went wrong. If it keeps everything, nothing is singled out.
+  const marks = wrongTokens.map((tok, i) => tok.trim() !== "" && !kept.has(i));
+  const label = (text: string, y: number, opacity: number) => (
+    <Centered y={y} opacity={opacity}>
+      <div style={{ fontFamily: UI_FONT, fontSize: 20, fontWeight: 600, color: C.muted }}>{text}</div>
+    </Centered>
+  );
+  const top = STAGE_TOP + 104;
+  const rise = 156;
   return (
     <>
-      <Centered y={STAGE_TOP + 20} opacity={p(clock, beat, 0, 0.1)}>
-        <div style={{ fontSize: 46, color: C.ink, display: "flex", gap: 16, alignItems: "baseline" }}>
-          <span style={{ fontFamily: UI_FONT, fontSize: 26, color: C.muted, textTransform: "capitalize" }}>{v.task}</span>
+      <Centered y={STAGE_TOP + 10} opacity={p(clock, beat, 0, 0.1)}>
+        <div style={{ fontSize: 40, color: C.ink, display: "flex", gap: 16, alignItems: "baseline" }}>
+          <span style={{ fontFamily: UI_FONT, fontSize: 24, color: C.muted, textTransform: "capitalize" }}>{v.task}</span>
           <MathText text={prettyMath(v.expr)} />
         </div>
       </Centered>
-      {card(0)}
-      {card(1)}
-      <Centered y={STAGE_TOP + 350} opacity={p(clock, beat, 0.7, 0.82)}>
-        <Pill text={v.note} color={C.fix} bg={C.fixSoft} />
+      {label(unfinished ? "Your answer: equal, not finished" : "Your answer", top, p(clock, beat, 0.08, 0.18))}
+      <div style={{ position: "absolute", left: 0, right: 0, top: top + 30, display: "flex", justifyContent: "center" }}>
+        <CarryLine text={wrong} size={64} t={p(clock, beat, 0.08, 0.2)} marks={marks.some(Boolean) ? marks : undefined} markP={p(clock, beat, 0.26, 0.38)} />
+      </div>
+      {label("Right answer", top + rise, p(clock, beat, 0.44, 0.54))}
+      <div style={{ position: "absolute", left: 0, right: 0, top: top + rise + 30, display: "flex", justifyContent: "center" }}>
+        <CarryLine text={right} from={wrong} size={64} t={p(clock, beat, 0.46, 0.64)} rise={rise} align="center" color={C.green} ruled={p(clock, beat, 0.66, 0.78)} />
+      </div>
+      <Centered y={top + rise * 2 + 14} opacity={p(clock, beat, 0.8, 0.92)}>
+        <div style={{ maxWidth: 900, textAlign: "center", fontFamily: UI_FONT, fontSize: 26, lineHeight: 1.35, color: C.ink }}>{v.note}</div>
       </Centered>
     </>
   );
@@ -325,14 +338,14 @@ function MistakeVisual({ v, clock, beat }: VisualProps<"mistake">) {
 function RuleVisual({ v, clock, beat }: VisualProps<"rule">) {
   const appear = beatPop(clock, beat, 0.03);
   return (
-    <Centered y={STAGE_TOP + 10} opacity={Math.min(1, appear)} scale={0.92 + 0.08 * Math.min(1, appear)}>
-      <div style={{ width: 860, background: C.surface, borderRadius: 24, border: `1px solid ${C.line}`, borderTop: `8px solid ${C.green}`, padding: "26px 38px", fontFamily: UI_FONT }}>
+    <Centered y={STAGE_TOP + 10} opacity={Math.min(1, appear)}>
+      <div style={{ width: 860, background: C.surface, borderRadius: 24, border: `1px solid ${C.line}`, borderTop: `2px solid ${C.green}`, padding: "26px 38px", fontFamily: UI_FONT }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: C.green, letterSpacing: 1.4, textTransform: "uppercase" }}>{v.heading}</div>
         {v.lines.map((line, i) => {
           const lp = p(clock, beat, 0.15 + i * 0.16, 0.27 + i * 0.16);
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 18, opacity: lp, transform: `translateX(${(1 - lp) * 20}px)` }}>
-              <div style={{ width: 44, height: 44, borderRadius: 22, background: C.green, color: C.onAccent, fontWeight: 800, fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", transform: `scale(${pulse(clock, lp > 0.9 ? 0.4 : 0)})` }}>{i + 1}</div>
+              <div style={{ width: 44, height: 44, borderRadius: 22, background: C.green, color: C.onAccent, fontWeight: 800, fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
               <div style={{ fontSize: 30, fontWeight: 600, color: C.ink }}>{line}</div>
             </div>
           );
@@ -455,7 +468,7 @@ function FigureCaption({ text, clock, beat }: { text?: string; clock: BeatClock;
   if (!text) return null;
   return (
     <Centered y={FIG.cy + 230} opacity={p(clock, beat, 0.6, 0.75)}>
-      <div style={{ fontSize: 32, color: C.green, fontFamily: UI_FONT, fontWeight: 600 }}>{text}</div>
+      <div style={{ fontSize: 28, color: C.muted, fontFamily: UI_FONT }}>{text}</div>
     </Centered>
   );
 }
@@ -465,17 +478,17 @@ function ShapeVisual({ v, clock, beat }: VisualProps<"shape">) {
   return (
     <>
       <Svg>
-        <polygon points={corners.map((q) => `${q.x},${q.y}`).join(" ")} fill={C.greenSoft} stroke={C.green} strokeWidth={6} strokeLinejoin="round" opacity={p(clock, beat, 0, 0.15)} />
+        <path d={`M ${corners.map((q) => `${q.x} ${q.y}`).join(" L ")} Z`} pathLength={1} fill="none" stroke={C.ink} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" strokeDasharray="1 1" strokeDashoffset={1 - p(clock, beat, 0, 0.3)} />
         <text x={FIG.cx + 260} y={FIG.cy + 200} textAnchor="end" fontSize={20} fill={C.muted} fontFamily={UI_FONT}>Not to scale</text>
         {corners.map((q, i) => {
-          const at = towardCentre(q, FIG.cx, FIG.cy, 55);
+          const at = towardCentre(q, FIG.cx, FIG.cy, 74);
           const a = v.angles[i];
-          return <text key={i} x={at.x} y={at.y} textAnchor="middle" dominantBaseline="middle" fontSize={a === null ? 44 : 32} fontWeight={800} fill={a === null ? C.miss : C.ink} fontFamily={UI_FONT} opacity={p(clock, beat, 0.15 + i * 0.08, 0.3 + i * 0.08)}>{a === null ? "?" : `${a}°`}</text>;
+          return <text key={i} x={at.x} y={at.y} textAnchor="middle" dominantBaseline="middle" fontSize={a === null ? 40 : 32} fontWeight={600} fill={a === null ? C.green : C.ink} fontFamily={UI_FONT} opacity={p(clock, beat, 0.3 + i * 0.08, 0.42 + i * 0.08)}>{a === null ? "?" : `${a}°`}</text>;
         })}
         {v.sides?.map((label, i) => {
           const a = corners[i]!, b = corners[(i + 1) % corners.length]!;
           const mid = towardCentre({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, FIG.cx, FIG.cy, -34);
-          return <text key={`s${i}`} x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle" fontSize={26} fill={C.muted} fontFamily={UI_FONT} opacity={p(clock, beat, 0.4, 0.55)}>{label}</text>;
+          return <text key={`s${i}`} x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="middle" fontSize={26} fill={C.muted} fontFamily={UI_FONT} opacity={p(clock, beat, 0.6, 0.72)}>{label}</text>;
         })}
       </Svg>
       <FigureCaption text={v.caption} clock={clock} beat={beat} />
@@ -530,7 +543,7 @@ function GridVisual({ v, clock, beat }: VisualProps<"grid">) {
           </g>
         ))}
         {v.line && end > 0 && (
-          <line x1={at(0, v.line.c).x} y1={at(0, v.line.c).y} x2={at(end, v.line.m * end + v.line.c).x} y2={at(end, v.line.m * end + v.line.c).y} stroke={C.fix} strokeWidth={6} strokeLinecap="round" opacity={p(clock, beat, 0.5, 0.65)} />
+          <line x1={at(0, v.line.c).x} y1={at(0, v.line.c).y} x2={at(end, v.line.m * end + v.line.c).x} y2={at(end, v.line.m * end + v.line.c).y} stroke={C.fix} strokeWidth={4} strokeLinecap="round" pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - p(clock, beat, 0.5, 0.75)} />
         )}
         {v.points.map((pt, i) => (
           <g key={pt.label} opacity={p(clock, beat, 0.1 + i * 0.1, 0.25 + i * 0.1)}>

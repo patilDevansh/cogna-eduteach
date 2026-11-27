@@ -10,5 +10,6 @@ export { gridExtent, missingAngle, pieSlices, polygonCorners, slicePath, towardC
 export { trinomialDurationInFrames, type TrinomialLessonProps } from "./trinomial/trinomial";
 export { distributionLessonDurationInFrames, lessonFps, type DistributionLessonProps } from "./distribution/lesson";
 export { LESSON_THEMES, type LessonThemeId } from "./themes";
+export { carry, tokenize } from "./morph";
 export type { LessonCheckpoint, KitScene } from "./lesson-types";
 export { LESSON_VIDEO_WIDTH, LESSON_VIDEO_HEIGHT } from "./types";

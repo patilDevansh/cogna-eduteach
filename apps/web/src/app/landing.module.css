@@ -1,10 +1,14 @@
 .hero {
-  padding: clamp(3rem, 9vh, 6.5rem) var(--s-5) clamp(3rem, 8vh, 5.5rem);
-  max-width: 860px;
+  padding: clamp(3rem, 9vh, 6.5rem) var(--s-5) var(--s-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: center;
 }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
 
 .heroTitle {
-  font-size: var(--text-hero);
+  font-size: clamp(2.6rem, 5.4vw, 4.6rem);
   font-weight: 600;
   margin-top: var(--s-3);
   letter-spacing: -0.04em;
@@ -38,33 +42,6 @@
   .heroTitle { transition: none; }
 }
 
-.workedEquation {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.9rem;
-  margin-top: var(--s-6);
-}
-
-.workedStep {
-  font-family: var(--font-math);
-  font-size: calc(var(--text-math) * 0.62);
-  color: var(--ink-soft);
-  opacity: 0;
-  animation: stepIn 600ms var(--ease-settle) forwards;
-}
-.workedStep:nth-child(2) { animation-delay: 900ms; }
-.workedStep:nth-child(3) { animation-delay: 1800ms; color: var(--accent-deep); }
-
-@keyframes stepIn {
-  from { opacity: 0; transform: translateX(-6px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .workedStep { animation: none; opacity: 1; }
-}
-
 .heroLede {
   margin-top: var(--s-6);
   font-size: var(--text-lg);
@@ -80,40 +57,75 @@
   margin-top: var(--s-7);
 }
 
+.scope { margin-top: var(--s-5); font-size: var(--text-sm); color: var(--ink-faint); }
+
+/* nav */
+.signIn { font: 600 var(--text-sm) var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.5rem 1.1rem; min-height: 40px; cursor: pointer; }
+.signIn:hover { border-color: var(--ink-soft); }
+.signInMenu { position: fixed; inset: 64px max(var(--s-5), calc(50vw - 530px + var(--s-5))) auto auto; margin: 0; min-width: 170px; padding: var(--s-2); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); }
+.signInMenu a { display: block; padding: 0.6rem 0.9rem; border-radius: var(--radius); color: var(--ink) !important; }
+.signInMenu a:hover { background: var(--accent-wash); }
+@media (max-width: 560px) { .navExtra { display: none; } }
+
+/* hero: the lesson being worked */
+.lessonCard { margin: 0; padding: var(--s-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-3); }
+.lessonCard figcaption { display: flex; justify-content: space-between; gap: var(--s-4); font-size: var(--text-sm); color: var(--ink-faint); padding-bottom: var(--s-4); border-bottom: 1px solid var(--line); }
+.lessonCard figcaption b { color: var(--ink); font-weight: 600; }
+.lessonMaths { font-size: clamp(1.6rem, 3.4vw, 2.3rem); padding: var(--s-6) 0; min-height: 5.4em; }
+.lessonCard > p { font-size: var(--text-sm); color: var(--ink-soft); }
+
+.try { padding-top: var(--s-8); }
+.sectionHead { margin-bottom: calc(var(--s-6) * -1); }
+.sectionHead h2 { margin-top: var(--s-2); }
+
 .band {
   background: var(--surface);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   padding: var(--s-8) 0;
 }
+.bandTitle { font-size: var(--text-2xl); font-weight: 700; }
 
-.bandTitle {
-  font-size: var(--text-2xl);
-  font-weight: 700;
+/* how it works: words on the left, the real thing on the right */
+.row { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--s-7); align-items: center; padding: var(--s-7) 0; border-top: 1px solid var(--line); }
+.row:first-of-type { margin-top: var(--s-6); }
+.row > div:first-child p:last-child { margin-top: var(--s-2); color: var(--ink-soft); max-width: 30em; }
+.frag { display: grid; gap: var(--s-3); padding: var(--s-5) var(--s-6); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-lg); font-size: var(--text-xl); }
+.frag u { text-decoration: none; border-bottom: 2px solid var(--caution); }
+.frag em { font: 600 var(--text-xs) var(--font-body); color: var(--caution); margin-left: var(--s-3); vertical-align: middle; }
+.frag p { font-size: var(--text-sm); color: var(--ink-soft); }
+.frag p b { color: var(--caution); font-weight: 600; }
+.frag strong { font: 700 var(--text-xl) var(--font-display); letter-spacing: -0.02em; }
+.frag strong span { font: 500 var(--text-sm) var(--font-body); color: var(--ink-soft); letter-spacing: 0; }
+.meter { display: block; height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--accent) 67.5%, var(--line) 67.5%); }
+.pair { grid-template-columns: 1fr 1fr; gap: var(--s-6); }
+.pair > div { display: grid; gap: var(--s-2); align-content: start; }
+.pair > div + div { border-left: 1px solid var(--line); padding-left: var(--s-6); }
+.pair b { font: 600 var(--text-sm) var(--font-body); color: var(--accent-deep); }
+.pair :global(.maths) { font-size: var(--text-lg); color: var(--accent); }
+
+.trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-7); padding-top: var(--s-8); padding-bottom: var(--s-8); }
+.trust h3 { font-size: var(--text-lg); font-weight: 700; padding-top: var(--s-4); border-top: 2px solid var(--accent); }
+.trust p { margin-top: var(--s-2); color: var(--ink-soft); }
+
+.close { padding-top: var(--s-7); padding-bottom: var(--s-9); }
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-4); }
+.foot nav { display: flex; gap: var(--s-4); }
+
+@media (max-width: 760px) {
+  .row, .trust { grid-template-columns: 1fr; gap: var(--s-5); }
+  .pair { grid-template-columns: 1fr; }
+  .pair > div + div { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: var(--s-4); }
+  .paths :global(.btn-lg) { width: 100%; }
 }
 
-.steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s-6);
-  margin-top: var(--s-6);
-}
-.steps p:last-child { margin-top: var(--s-2); color: var(--ink-soft); }
-
-@media (max-width: 700px) {
-  .steps { grid-template-columns: 1fr; }
-  .paths .btn-lg { width: 100%; }
-}
-
-.trust {
-  padding: var(--s-8) var(--s-5);
-}
-.trustLine {
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 500;
-  line-height: 1.6;
-  color: var(--ink);
-  border-left: 3px solid var(--accent);
-  padding-left: var(--s-5);
+/* Large desktops: the story fills the screen, so the nav and hero widen and scale up to match it. */
+@media (min-width: 1400px) {
+  div.top, section.hero { max-width: 1280px; }
+  .heroTitle { font-size: 5.6rem; }
+  .heroLede { font-size: 1.5rem; }
+  .lessonCard { padding: var(--s-7); }
+  .lessonMaths { font-size: 2.8rem; }
+  .lessonCard figcaption, .lessonCard > p, .scope { font-size: var(--text-md); }
+  .signInMenu { right: calc(50vw - 640px + var(--s-5)); }
 }

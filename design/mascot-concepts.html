@@ -1,0 +1,133 @@
+<title>Cogna Mascot Concepts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: one intro column, a 2x2 sheet of concept cards, then the owl note and a pick. */
+:root{
+  --bg:#f3f6f3; --surface:#ffffff; --ink:#16241d; --ink-soft:#51635a; --line:#d9e3dd;
+  --accent:#0e6b54; --wash:#e3efe9; --stage:#eaf1ec; --warn:#a4561a; --warn-wash:#fbeee2;
+  --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;
+  --body:Inter,system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1714; --surface:#16211c; --ink:#e6eee9; --ink-soft:#9fb1a7; --line:#26352e;
+  --accent:#5cc7a3; --wash:#1b2d26; --stage:#1a2822; --warn:#f0a56b; --warn-wash:#2c2018; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1714; --surface:#16211c; --ink:#e6eee9; --ink-soft:#9fb1a7; --line:#26352e;
+  --accent:#5cc7a3; --wash:#1b2d26; --stage:#1a2822; --warn:#f0a56b; --warn-wash:#2c2018; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding-block:48px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.5rem;font-weight:800}
+h3{font-size:1.6rem;font-weight:800}
+p{margin:0;max-width:65ch}
+.eyebrow{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.intro{display:grid;gap:12px}
+.intro p{color:var(--ink-soft);font-size:1.05rem}
+.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+.stage{background:var(--stage);display:grid;place-items:center;padding:20px 0 8px}
+.stage:has(img){padding:0}
+.stage img{display:block;width:100%}
+.stage.pending{padding:28px 24px;color:var(--ink-soft);font-size:.9rem;place-items:start}
+.body{padding:22px 24px 24px;display:grid;gap:14px;align-content:start;min-width:0}
+.head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.kind{color:var(--ink-soft);font-size:.9rem}
+.hook{font-size:1.02rem}
+dl{margin:0;display:grid;gap:10px}
+dt{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+dd{margin:2px 0 0}
+.moods{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.moods span{background:var(--wash);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:.82rem}
+.moods b{color:var(--accent);font-weight:600}
+.owl{display:grid;gap:14px;background:var(--warn-wash);border-radius:20px;padding:24px}
+.owl img{border-radius:12px;width:100%}
+.owl .eyebrow{color:var(--warn)}
+.pick{display:grid;gap:12px;border-top:2px solid var(--accent);padding-top:24px}
+.pick ol{margin:0;padding-left:1.2em;display:grid;gap:6px;max-width:65ch}
+</style>
+
+<main class="wrap">
+  <header class="intro">
+    <span class="eyebrow">Cogna · mascot exploration</span>
+    <h1>Four friends who could teach Grade 3 maths</h1>
+    <p>Each concept ties to something Cogna already says about learning: the light coming on, growth through mistakes, mastery opening up, and one step at a time. Lumi and Axel have hand-drawn concept art with an expression sheet. Lo and Step are ideas only so far.</p>
+  </header>
+
+  <section class="sheet">
+    <!-- Lumi -->
+    <article class="card">
+      <div class="stage"><img src="lumi.webp" alt="Lumi the firefly, hand-drawn in pencil and watercolour, with four expressions: thinking, stuck, aha, and celebrating"></div>
+      <div class="body">
+        <div class="head"><h3>Lumi</h3><span class="kind">a firefly</span></div>
+        <p class="hook">Her tail glows brighter as an idea clicks. The "light comes on" moment, made visible.</p>
+        <dl>
+          <dt>Why it fits</dt><dd>Pairs directly with the forty-lights story on the landing page: every child is a light, and Lumi is one of them.</dd>
+          <dt>Moods</dt><dd class="moods"><span><b>dim</b> stuck</span><span><b>flicker</b> thinking</span><span><b>bright</b> got it</span><span><b>sparkle</b> streak</span></dd>
+          <dt>Rive rig</dt><dd>Glow intensity is one number input (mastery 0–1). Small silhouette, easy to fly across a lesson.</dd>
+        </dl>
+      </div>
+    </article>
+
+    <!-- Axel -->
+    <article class="card">
+      <div class="stage"><img src="axel.webp" alt="Axel the pink axolotl, hand-drawn in pencil and watercolour, with four expressions: thinking, stuck, aha, and celebrating"></div>
+      <div class="body">
+        <div class="head"><h3>Axel</h3><span class="kind">an axolotl</span></div>
+        <p class="hook">Axolotls regrow what they lose. Axel shrugs off a wrong answer and tries again.</p>
+        <dl>
+          <dt>Why it fits</dt><dd>A growth-mindset character for the moments that matter most: when a child gets it wrong. Kids already love axolotls.</dd>
+          <dt>Moods</dt><dd class="moods"><span><b>gills flutter</b> curious</span><span><b>oops</b> wrong answer</span><span><b>regrow</b> retry</span><span><b>spin</b> correct</span></dd>
+          <dt>Rive rig</dt><dd>Six gill fronds give lots of expressive motion from one bone chain each. Lives in water, so lessons can float.</dd>
+        </dl>
+      </div>
+    </article>
+
+    <!-- Lo -->
+    <article class="card">
+      <div class="stage pending">Idea only. No illustration yet.</div>
+      <div class="body">
+        <div class="head"><h3>Lo</h3><span class="kind">a lotus bud</span></div>
+        <p class="hook">Opens one petal per skill mastered. By the end of the unit Lo is in full bloom.</p>
+        <dl>
+          <dt>Why it fits</dt><dd>Lotus is already the name of the student journey and report. The mascot becomes the progress bar.</dd>
+          <dt>Moods</dt><dd class="moods"><span><b>closed</b> new topic</span><span><b>peek</b> trying</span><span><b>petal</b> skill won</span><span><b>bloom</b> unit done</span></dd>
+          <dt>Rive rig</dt><dd>Petal count driven by a number input; leaf arms do the waving. A seasonal colour swap is cheap.</dd>
+        </dl>
+      </div>
+    </article>
+
+    <!-- Step -->
+    <article class="card">
+      <div class="stage pending">Idea only. No illustration yet.</div>
+      <div class="body">
+        <div class="head"><h3>Step</h3><span class="kind">a tortoise</span></div>
+        <p class="hook">Carries the steps on his back, one book at a time. Never rushes, never skips one.</p>
+        <dl>
+          <dt>Why it fits</dt><dd>Echoes the landing headline word "step" and the carry-steps work in lessons. Calm and patient for anxious learners.</dd>
+          <dt>Moods</dt><dd class="moods"><span><b>tuck in</b> hard problem</span><span><b>peek</b> hint</span><span><b>stack</b> step done</span><span><b>stretch</b> solved</span></dd>
+          <dt>Rive rig</dt><dd>Book stack grows per step completed. Slow walk cycle is cheap to animate and reads as "take your time".</dd>
+        </dl>
+      </div>
+    </article>
+  </section>
+
+  <section class="owl">
+    <span class="eyebrow">Already in the repo</span>
+    <h2>The owl prototype</h2>
+    <img src="owl-moods.png" alt="Four poses of the existing brown owl prototype: neutral, thinking, happy, and surprised">
+    <p>The owl in <code>apps/web/rive/owl</code> is well drawn, but an owl as the learning mascot of a playful edtech app will be read as Duolingo's at a glance, especially with the Duolingo-like art direction we're aiming for. If we keep it, it needs a twist that only Cogna has. Otherwise one of the four above gives the brand its own face.</p>
+  </section>
+
+  <section class="pick">
+    <span class="eyebrow">Recommendation</span>
+    <h2>Lead with Lumi, keep Lo as the runner-up</h2>
+    <ol>
+      <li>Lumi already belongs to the brand story (forty lights) and owns a metaphor no big edtech uses.</li>
+      <li>Her glow is a single, honest signal of understanding, which maps cleanly onto mastery data.</li>
+      <li>The simplest silhouette of the four, so it works as an app icon, a loading spinner, and a 24px avatar.</li>
+      <li>Lo is the strongest fit if Lotus stays the product's central name.</li>
+    </ol>
+  </section>
+</main>
