@@ -1,0 +1,115 @@
+<Rive version="1" kind="fragment">
+    <!-- The Squares and square roots module (CBSE Class 8, chapter 5). Like the Area module, the scene only hosts
+         the scripts; everything on screen is drawn by them. The frame is the shared chapter shell,
+         and kit, the fonts and the sounds come from rive-area-module. -->
+    <Artboard defaultStateMachineId="0:7" viewModelId="0:40" viewModelInstanceId="0:41" styleId="0:5" width="1280" height="760" clip="true" name="SquaresRoots" id="0:2">
+        <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+        <Fill name="Background">
+            <SolidColor colorValue="FFF4F7F3" name="Color"/>
+        </Fill>
+        <LayoutComponent width="1280" height="760" styleId="0:11" name="Root Layout" id="0:10">
+            <LayoutComponentStyle layoutWidthScaleType="1" layoutHeightScaleType="1" widthUnitsValue="3" heightUnitsValue="3" name="Layout Style" id="0:11"/>
+            <ScriptedLayout scriptAssetId="0:80" name="Module" id="0:12">
+                <!-- keyboard: arrows step, Esc goes back to the lessons, M mutes; lessons add their own -->
+                <FocusData/>
+            </ScriptedLayout>
+        </LayoutComponent>
+
+        <StateMachine name="State Machine 1" id="0:7">
+            <StateMachineLayer name="Layer 1" id="0:8">
+                <AnyState x="200" y="-120"/>
+                <ExitState x="400" y="-120"/>
+                <EntryState>
+                    <StateTransition stateToId="0:13"/>
+                </EntryState>
+                <!-- focus the module as the machine starts, so keys work when embedded too -->
+                <AnimationState x="200" animationId="0:6" id="0:13">
+                    <FocusActionTarget targetId="0:12"/>
+                </AnimationState>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <LinearAnimation duration="60" name="Idle" id="0:6"/>
+    </Artboard>
+
+    <!-- The link to the page that hosts the lab. The page sets the first three; the lab writes the rest.
+         lesson: 0 shows the lesson map; 1 or more opens that lesson with no map, header or buttons (the page draws those).
+         seq goes up by one for every event, so the page listens to seq and then reads the others. -->
+    <ViewModel defaultInstanceId="0:41" name="Lab" id="0:40">
+        <ViewModelPropertyNumber name="lesson" id="0:42"/>
+        <ViewModelPropertyNumber name="step" id="0:43"/>
+        <ViewModelPropertyBoolean name="muted" id="0:44"/>
+        <ViewModelPropertyNumber name="seq" id="0:45"/>
+        <ViewModelPropertyString name="event" id="0:46"/>
+        <ViewModelPropertyNumber name="atLesson" id="0:47"/>
+        <ViewModelPropertyNumber name="atStep" id="0:48"/>
+        <ViewModelPropertyNumber name="steps" id="0:49"/>
+        <ViewModelPropertyString name="skill" id="0:50"/>
+        <ViewModelPropertyString name="answer" id="0:51"/>
+        <ViewModelPropertyString name="mistake" id="0:52"/>
+        <ViewModelPropertyString name="title" id="0:53"/>
+        <ViewModelPropertyString name="task" id="0:54"/>
+        <ViewModelPropertyString name="caption" id="0:55"/>
+        <ViewModelPropertyBoolean name="stepDone" id="0:56"/>
+        <ViewModelInstance exports="true" name="Default" id="0:41">
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:42"/>
+            <ViewModelInstanceNumber propertyValue="1" viewModelPropertyId="0:43"/>
+            <ViewModelInstanceBoolean propertyValue="false" viewModelPropertyId="0:44"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:45"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:46"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:47"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:48"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:49"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:50"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:51"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:52"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:53"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:54"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:55"/>
+            <ViewModelInstanceBoolean propertyValue="false" viewModelPropertyId="0:56"/>
+        </ViewModelInstance>
+    </ViewModel>
+
+    <!-- modules first: require() only finds a module declared above the script that needs it -->
+    <ScriptAsset file="kit.luau" isModule="true" name="kit" id="0:90"/>
+    <ScriptAsset file="lab.luau" isModule="true" name="lab" id="0:96"/>
+    <ScriptAsset file="lines.luau" isModule="true" name="lines" id="0:91"/>
+    <ScriptAsset file="l1.luau" isModule="true" name="l1" id="0:92"/>
+    <ScriptAsset file="l2.luau" isModule="true" name="l2" id="0:93"/>
+    <ScriptAsset file="l3.luau" isModule="true" name="l3" id="0:94"/>
+    <ScriptAsset file="module.luau" isModule="true" name="module" id="0:95"/>
+    <ScriptAsset file="main.luau" name="main" id="0:80"/>
+
+    <FontAsset file="../rive-area-module/Display.ttf" name="Display"/>
+    <FontAsset file="../rive-area-module/Body.ttf" name="Body"/>
+    <FontAsset file="../rive-area-module/Mono.ttf" name="Mono"/>
+    <FontAsset file="../rive-area-module/MathItalic.ttf" name="MathItalic"/>
+
+    <!-- sound effects, made by rive-area-module/tools/make-sfx.py -->
+    <AudioAsset file="../rive-area-module/sfx/snap.wav" volume="0.6" name="snap"/>
+    <AudioAsset file="../rive-area-module/sfx/pickup.wav" volume="0.6" name="pickup"/>
+    <AudioAsset file="../rive-area-module/sfx/drop.wav" volume="0.5" name="drop"/>
+    <AudioAsset file="../rive-area-module/sfx/pop.wav" volume="0.5" name="pop"/>
+    <AudioAsset file="../rive-area-module/sfx/chime.wav" volume="0.6" name="chime"/>
+    <AudioAsset file="../rive-area-module/sfx/sparkle.wav" volume="0.6" name="sparkle"/>
+    <AudioAsset file="../rive-area-module/sfx/whoosh.wav" volume="0.5" name="whoosh"/>
+    <AudioAsset file="../rive-area-module/sfx/slice.wav" volume="0.6" name="slice"/>
+    <AudioAsset file="../rive-area-module/sfx/thud.wav" volume="0.6" name="thud"/>
+    <AudioAsset file="../rive-area-module/sfx/oops.wav" volume="0.6" name="oops"/>
+    <AudioAsset file="../rive-area-module/sfx/fanfare.wav" volume="0.6" name="fanfare"/>
+    <AudioAsset file="../rive-area-module/sfx/tick0.wav" volume="0.5" name="tick0"/>
+    <AudioAsset file="../rive-area-module/sfx/tick1.wav" volume="0.5" name="tick1"/>
+    <AudioAsset file="../rive-area-module/sfx/tick2.wav" volume="0.5" name="tick2"/>
+    <AudioAsset file="../rive-area-module/sfx/tick3.wav" volume="0.5" name="tick3"/>
+    <AudioAsset file="../rive-area-module/sfx/tick4.wav" volume="0.5" name="tick4"/>
+    <AudioAsset file="../rive-area-module/sfx/tick5.wav" volume="0.5" name="tick5"/>
+    <AudioAsset file="../rive-area-module/sfx/tick6.wav" volume="0.5" name="tick6"/>
+    <AudioAsset file="../rive-area-module/sfx/tick7.wav" volume="0.5" name="tick7"/>
+    <AudioAsset file="../rive-area-module/sfx/tick8.wav" volume="0.5" name="tick8"/>
+    <AudioAsset file="../rive-area-module/sfx/tick9.wav" volume="0.5" name="tick9"/>
+    <AudioAsset file="../rive-area-module/sfx/tick10.wav" volume="0.5" name="tick10"/>
+    <AudioAsset file="../rive-area-module/sfx/tick11.wav" volume="0.5" name="tick11"/>
+
+    <!-- Kiara's voice is not recorded yet: the lines show as captions. rive-area-module/tools/record-voice.mjs
+         records them; each line in lines.luau then needs an AudioAsset named v_<key> here. -->
+</Rive>

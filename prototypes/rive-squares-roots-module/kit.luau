@@ -1,0 +1,1 @@
+../rive-area-module/kit.luau

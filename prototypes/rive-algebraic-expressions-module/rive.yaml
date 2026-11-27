@@ -1,0 +1,5 @@
+name: rive-algebraic-expressions-module
+main: AlgebraicExpressions
+logs:
+  file: build/rive.log
+  problems: build/problems.log

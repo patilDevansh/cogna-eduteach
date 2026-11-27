@@ -1,0 +1,5 @@
+name: rive-squares-roots-module
+main: SquaresRoots
+logs:
+  file: build/rive.log
+  problems: build/problems.log
