@@ -1,0 +1,29 @@
+/* The lesson screen: one stage, one line from Maji, one thing to do. Loaded after the other sheets. */
+
+/* the beat strip stays on one line, even on a phone */
+.t-lesson-beats { flex-wrap: nowrap; gap: var(--s-1); }
+.t-lesson-beat { min-width: 0; padding: 0.3rem 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 520px) { .t-lesson-beat { font-size: 0.6875rem; letter-spacing: 0; } }
+
+/* the stage */
+.t-anim-stage { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+.t-lesson { padding: var(--s-3); }
+.t-lesson-svg { display: block; width: 100%; height: auto; }
+
+/* what Maji is saying: her line, not a footnote */
+.t-caption {
+  position: relative; margin-top: var(--s-4); padding: var(--s-3) var(--s-4) var(--s-3) 3.4rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  color: var(--ink); font-size: var(--text-md); line-height: 1.45; min-height: 3.4rem;
+}
+.t-caption::before {
+  content: "Maji"; position: absolute; left: var(--s-3); top: var(--s-3);
+  font-family: var(--font-math); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent-deep); background: var(--accent-wash); border-radius: 999px; padding: 0.15rem 0.45rem;
+}
+
+/* the one thing to do */
+.t-lesson-task { margin-top: var(--s-3); padding: var(--s-4); border-radius: var(--radius-lg); background: var(--accent-wash); border: 1px solid var(--line); }
+.t-lesson-ask { font-family: var(--font-display); font-weight: 600; color: var(--ink); }
+.t-lesson-choice { background: var(--surface); }
+.t-lesson-board:not(.is-empty) { margin-top: var(--s-3); }

@@ -1,0 +1,26 @@
+/* Meena's shade net (anim/shade-net.js). The net is cloth, not grass: its own colours live here.
+   Everything else comes from the Cogna tokens and the land variables on .t-pf. */
+.t-net { --net-cloth: #3f8f7c; --net-cloth-deep: #2b6b5c; --net-thread: #e3f5ee; --net-peg: #8a6a45; }
+
+/* the cloth: a flat colour, a woven mesh over it, and a rope edge */
+.t-net .t-net-cloth { fill: var(--net-cloth); }
+.t-net .t-net-thread { fill: none; stroke: var(--net-thread); stroke-opacity: 0.32; stroke-width: 1.5; }
+.t-net .t-net-edge { fill: none; stroke: var(--net-cloth-deep); stroke-width: 4; stroke-linejoin: round; }
+.t-net .t-net-edge.is-hot { stroke: var(--pf-gold); stroke-width: 5; }
+.t-net .t-net-peg { fill: var(--net-peg); stroke: var(--ink); stroke-width: 2; }
+
+/* labels and pictures on top never catch the pointer */
+.t-net .t-net-labs, .t-net .t-net-target, .t-net .t-net-plumb { pointer-events: none; }
+
+/* the plumb line (the height), its right-angle mark, and where it should land */
+.t-net .t-net-plumb { stroke: var(--ink); stroke-width: 3.5; stroke-dasharray: 9 7; stroke-linecap: round; }
+.t-net .t-net-mark { fill: none; stroke: var(--pf-gold); stroke-width: 4; stroke-linejoin: round; }
+.t-net .t-net-target { fill: var(--pf-gold-wash); fill-opacity: 0.6; stroke: var(--pf-gold); stroke-width: 3; stroke-dasharray: 6 5; }
+.t-net .t-net-target.is-hot { fill-opacity: 0.95; stroke-width: 4; stroke-dasharray: none; }
+.t-pf.t-net .t-lesson-svg text.t-net-q { font-family: var(--font-display); font-size: 30px; font-weight: 700; fill: var(--pf-red); }
+
+/* the rule beat: plain triangles, the highlighted half, and the three steps */
+.t-net .t-net-plain { fill: var(--surface); stroke: var(--ink); stroke-width: 3.5; stroke-linejoin: round; }
+.t-net .t-net-half { fill: var(--pf-gold); fill-opacity: 0.3; stroke: var(--pf-gold); stroke-width: 4; stroke-linejoin: round; }
+.t-net .t-net-glow { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; }
+.t-pf.t-net .t-lesson-svg text.t-net-step { font-size: 23px; text-anchor: start; }

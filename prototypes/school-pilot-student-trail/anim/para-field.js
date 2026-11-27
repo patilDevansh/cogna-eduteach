@@ -4,6 +4,9 @@
      2. pick up the cut piece and set it down at the other end; it clicks in and the land is counted, square by square
      3. lean a second field with a handle: the slanted side changes, the land never does
      4. watch the bit that sticks out get cut off, carried across and set into the gap, then work out a third field on their own
+   It is told as a story: Maji presents (Cogna.lesson's presenter), Ramesh uncle walks on with his problem, the student
+   guesses first, does the cutting and moving, then TELLS RAMESH UNCLE the answer and how they knew. He thanks them and
+   leaves before the lesson moves from his field to any parallelogram.
    Land is drawn as a slab of earth (grass on top, soil underneath, a soft shadow on the ground) so a cut piece can be
    lifted, carried and set down. Built on Cogna.lesson (voice-paced steps) with GSAP for motion, drag and snap, and
    Cogna.sfx for sound. Every line the narrator can say is a literal `caption:` so tools/record-narration.mjs records it.
@@ -11,7 +14,7 @@
    never measured from the drawing. */
 (function () {
   "use strict";
-  var C = window.Cogna, S = C.svg, h = C.h;
+  var C = window.Cogna, S = C.svg, h = C.h, K = C.story;
   var W = 800, H = 470, U = 60;                    // drawing size; one square of land = U units
   var SLAB = [4, 10];                              // how far the soil shows under the grass (light from the top left)
   var REST = [3, 8, 0.22], HELD = [12, 28, 0.3];   // a piece's shadow (x, y, opacity): on the ground / while held up
@@ -34,6 +37,12 @@
     n20: { caption: "That's 5 × 4. Use the base, 7, with the height, 4." },
     nOther: { caption: "Use the base times the height." },
     nRight: { caption: "28! You've got it." },
+    guessed: { caption: "Good. Hold on to that guess, and let's find out for sure." },
+    noGuess: { caption: "That's fine. Let's find out together." },
+    tellWrong: { caption: "Look at the rectangle we made. 6 along and 4 up." },
+    tellRight: { caption: "He says thank you! Now he knows exactly how much seed to buy." },
+    tellRightGuess: { caption: "He says thank you! And 24 was your guess at the start. Spot on." },
+    tellRightOther: { caption: "He says thank you! Your first guess wasn't far off, and now you know for sure." },
   };
 
   /* ---------- drawing helpers ---------- */
@@ -464,6 +473,7 @@
 
   C.lesson.define({
     id: "para-field", title: "Ramesh uncle's wonky field", cls: "t-pf", w: W, h: H, durationMs: 180000,
+    presenter: { x: W - 100, y: H - 110, h: 106 },   // Maji tells the lesson from the bottom right corner
 
     build: function (svg, L) {
       var key = Math.random().toString(36).slice(2, 7);
@@ -482,6 +492,7 @@
       add(sg, "stop", { offset: 1, "stop-color": "#fff", "stop-opacity": 0 });
 
       c.world = add(svg, "g");
+      K.scene(svg, L, { w: W, h: H, hutX: 218, sunX: 330, before: c.world });   // the farm it all happens on, alive behind everything
 
       // scenery: two trees in the corner, clear of everywhere the land goes; they sway a little
       c.trees = [tree(c.world, 66, 128, 0.95), tree(c.world, 132, 112, 0.62)];
@@ -497,6 +508,9 @@
       text(c.sign, "LAND", SIGN[0], 42, "t-pf-signlab");
       c.signVal = text(c.sign, "? squares", SIGN[0], 75, "t-pf-signval");
       L.set(c.sign, { svgOrigin: SIGN[0] + " " + SIGN[1] });
+
+      // Ramesh uncle waits off to the left until the story brings him on (drawn under the land, so pieces pass over him)
+      c.uncle = K.person(c.world, L, { x: 74, y: 420, look: "uncle" });
 
       // field 1: whole to begin with; cut into two pieces later
       c.gF1 = add(c.world, "g");
@@ -614,6 +628,10 @@
     },
 
     steps: [
+      /* ---- 0. the story: someone needs help ---- */
+      { beat: "story", caption: "This is Ramesh uncle. Tomorrow he is planting his whole field, and seed is sold by the square.",
+        run: function (c, L) { K.enter(c.uncle, L); } },
+
       /* ---- 1. meet the field ---- */
       { branch: function () { var p = C.data && C.data.profile; return p && p.id === "aarav" ? 0 : (p && p.id === "riya" ? 1 : 2); },
         options: [
@@ -622,12 +640,16 @@
           { caption: "Meet Ramesh uncle's field. It's a bit wonky, isn't it?", run: function (c, L) { hello(c, L); } },
         ] },
       { caption: "He wants to know how much land he has. But look at these slanted edges. The squares there are all broken.",
-        run: function (c, L) { showBroken(c, L); } },
+        run: function (c, L) { showBroken(c, L); K.puzzled(c.uncle, L, true); } },
+      // a guess before anything is taught: nothing is marked right or wrong here
+      K.guessStep({ caption: "Before we help him, have a guess. How many squares of land do you think he has?",
+        choices: [{ label: "20", value: 20 }, { label: "24", value: 24 }, { label: "28", value: 28 }, { label: "No idea yet", value: 0 }],
+        guessed: R.guessed, none: R.noGuess }),
       { caption: "So here's a trick. Let's turn it into a rectangle, without losing a single bit of land.",
-        run: function (c, L) { L.to(c.gBroken, { opacity: 0, duration: 0.5 }); sheen(c, L); } },
+        run: function (c, L) { K.puzzled(c.uncle, L, false); L.to(c.gBroken, { opacity: 0, duration: 0.5 }); sheen(c, L); } },
 
       /* ---- 2. cut ---- */
-      { caption: "Swipe down across the field to cut it. Anywhere you like.",
+      { beat: "hands", caption: "Swipe down across the field to cut it. Anywhere you like.",
         task: function (c, L, done) {
           var svg = L.svg, start = null, misses = 0, over = false, k = c.knife, kx = 4, hint = fingerHint(c, L), offs = [];
           svg.classList.add("is-dragging-ok", "is-cutting");
@@ -841,8 +863,25 @@
           L.wait(1450, function () { setDown(p, L); L.sfx("snap"); popSign(c, L); L.board("wonky field = <b>24</b> squares"); });
         } },
 
+      /* ---- 4b. tell Ramesh uncle: the answer, then how you knew ---- */
+      K.tellStep({ who: function (c) { return c.uncle; }, skill: "a2", qid: "pf-tell",
+        caption: "Ramesh uncle is waiting. Tell him how many squares of land he has.",
+        prompt: "Tell Ramesh uncle. Squares of land:", answer: 24, other: R.tellWrong,
+        thanks: ["24 squares!", "Thank you!"], same: R.tellRightGuess, close: R.tellRightOther, plain: R.tellRight }),
+      K.howStep({ who: function (c) { return c.uncle; }, skill: "a2", qid: "pf-how", leave: true,
+        caption: "He has one more question. How did you know, without counting every broken square?",
+        prompt: "Tell him how:", bubble: ["How did", "you know?"],
+        choices: [
+          { label: "We measured the slanted edge", value: "slant", mixup: "slant",
+            caption: "Not the slanted edge. We cut the field and made a rectangle, 6 along and 4 up. Off he goes to buy his seed." },
+          { label: "We made a rectangle: 6 along, 4 up", value: "rect", correct: true,
+            caption: "Exactly. Same land, tidier shape. Off he goes to buy his seed." },
+          { label: "We added up all the sides", value: "perim", mixup: "perim",
+            caption: "Adding the sides gives the fence, not the land. We made a rectangle, 6 along and 4 up. Off he goes to buy his seed." },
+        ] }),
+
       /* ---- 5. lean ---- */
-      { caption: "Here's another field. Grab the gold handle and lean it. Keep your eye on the land.",
+      { beat: "rule", caption: "Here's another field. Grab the gold handle and lean it. Keep your eye on the land.",
         run: function (c, L) {
           L.board("");
           L.to(c.gF1, { opacity: 0, duration: 0.4, onComplete: function () { c.gF1.style.display = "none"; } });

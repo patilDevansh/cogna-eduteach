@@ -290,7 +290,7 @@
             bad("2x + 3", "That adds the sides. Area multiplies them: 2x × 3 = 6x."),
           ], "2x × 3 = 6x."),
         ] },
-        { id: "s3", type: "animation", anim: "cut-move", skill: "a1" },
+        { id: "s3", type: "animation", anim: "pen-fence", skill: "a1" },   // story lesson: the goat pen (replaces the cut-move video)
         { id: "s4", type: "game", game: "tile-cover", skill: "a1" },
         { id: "s5", type: "animation", anim: "para-field", skill: "a2" },   // hands-on: replaces the para-to-rect video + the cut-slide game
         { id: "s6", type: "rive", lessons: [1, 2, 3], title: "Area Lab: squares, fences and the wonky field" },
@@ -354,7 +354,7 @@
           ], "8 × 3 = 24 cm².", { guards: ["perim"] }),
         ] },
         { id: "s3", type: "animation", anim: "tri-field", skill: "a3" },   // hands-on: replaces the tri-half video
-        { id: "s4", type: "rive", lessons: [4], title: "Area Lab: two triangles, one field" },   // replaces the join-triangles and pick-height games: tri-field now does both
+        { id: "s4", type: "rive", lessons: [4], title: "Area Lab: two triangles, one field" },
         { id: "s6", type: "practice", questions: [
           num("d4p1", "a3", "Find the area of this right triangle. The 4 cm side is the height. Area = ? cm²", 12,
             "½ × 6 × 4 = 12 cm².",
@@ -564,7 +564,7 @@
             { unit: "cm²", wrongMixups: [{ value: 80, mixup: "half", why: "80 is the whole rectangle. A triangle is half: 40." }], guards: ["half"] }),
           num("d7r3", "a2", "A parallelogram has base 8 cm and height 6 cm. Area = ? cm²", 48, "8 × 6 = 48 cm².", { unit: "cm²" }),
         ] },
-        { id: "s3", type: "animation", anim: "poly-split", skill: "a5" },
+        { id: "s3", type: "animation", anim: "courtyard-split", skill: "a5" },   // story lesson: the L-shaped courtyard (replaces the poly-split video)
         { id: "s4", type: "game", game: "split-shape", skill: "a5" },
         { id: "s4b", type: "rive", lessons: [6], title: "Area Lab: awkward corners" },
         { id: "s5", type: "practice", questions: [
@@ -623,7 +623,7 @@
             bad("1000", "1000 is the number of millimetres in 1 metre. 1 m = 100 cm."),
           ], "1 m = 100 cm."),
         ] },
-        { id: "s3", type: "animation", anim: "units-10000", skill: "a6" },
+        { id: "s3", type: "animation", anim: "tile-units", skill: "a6" },   // story lesson: one square metre of tiles (replaces the units video)
         { id: "s4", type: "game", game: "floor-tiles", skill: "a6" },
         { id: "s4b", type: "rive", lessons: [7], title: "Area Lab: square metres and square centimetres" },
         { id: "s5", type: "practice", questions: [
@@ -691,6 +691,7 @@
             bad("4x + 6", "The − x means take away: 3x − x = 2x, not 4x."),
           ], "3(x + 2) = 3x + 6, and 3x + 6 − x = 2x + 6."),
         ] },
+        { id: "s2b", type: "animation", anim: "shade-net", skill: "a7" },   // story lesson: the shade net, before the worked example
         { id: "s3", type: "worked", skill: "a7",
           lines: [
             "A triangle has equal sides of 10 cm and a base of 12 cm. The height isn't given.",

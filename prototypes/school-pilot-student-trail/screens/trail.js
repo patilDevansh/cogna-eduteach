@@ -99,6 +99,17 @@
     for (var k = n - 1; k >= 0; k--) if (hist[k]) return hist[k];
     return hist[0] || {};
   }
+  /** What today's answers changed about the next day (plan.js). Null when the next day isn't a planned one. */
+  function madeForYou(next) {
+    var why = C.plan && C.plan.preview ? C.plan.preview(next) : null;
+    if (!why) return null;
+    return h("section", { class: "card rise t-plan-next", style: { "--i": 3 } },
+      h("p", { class: "eyebrow" }, "Day " + next + ", made for you"),
+      why.length
+        ? h("div", null, h("p", { class: "muted", style: { margin: "0 0 var(--s-2)" } }, "Because of your answers so far, Day " + next + " starts with:"),
+            h("ul", { class: "t-plan-list" }, why.map(function (w) { return h("li", null, w); })))
+        : h("p", { class: "muted", style: { margin: 0 } }, "Nothing to repair or check back on. Day " + next + " goes straight into the new lesson."));
+  }
   C.screens.dayDone = function (el, params) {
     var n = params.day, st = C.state.get(), d = getDay(n);
     var after = st.history[n] || st.skills;
@@ -133,14 +144,17 @@
         h("div", { class: "t-teacher" }, h("span", { class: "t-avatar", "aria-hidden": "true" }, "KR"),
           h("div", null, h("p", { class: "eyebrow" }, "A note from " + rao), h("blockquote", null, d.teacherNote)))) : null,
       d && d.tomorrow ? h("div", { class: "t-tomorrow rise", style: { "--i": 3 } }, h("p", { class: "eyebrow" }, "Tomorrow"), h("p", null, d.tomorrow)) : null,
+      madeForYou(n + 1),
       h("div", { class: "t-cta rise", style: { "--i": 4 } }, h("a", { class: "btn btn-primary btn-lg", href: "#/trail" }, "Back to trail"))));
   };
 
   /* ---------- review (read-only) ---------- */
+  /** A day's steps as this student got them: made-for-you steps (plan.js) and the day's own. */
+  function daySteps(day) { return C.plan ? C.plan.forDay(day.n).steps : (day.steps || []); }
   function findQuestion(day, qid) {
     if (!day) return null;
     var found = null;
-    (day.steps || []).forEach(function (s) {
+    daySteps(day).forEach(function (s) {
       var qs = (s.questions || []).concat(s.q ? [s.q] : []).concat(s.check ? [s.check] : []);
       qs = qs.concat(qs.filter(function (q) { return q && q.retry; }).map(function (q) { return q.retry; }));   // a replay's fresh question
       qs.forEach(function (q) { if (q && q.id === qid) found = q; });
@@ -148,7 +162,7 @@
     return found;
   }
   function stepOf(day, id) {
-    return day ? (day.steps || []).filter(function (s) { return s.id === id; })[0] : null;
+    return day ? daySteps(day).filter(function (s) { return s.id === id; })[0] : null;
   }
   var STEP_LABEL = { recall: "Quick recall", practice: "Practice", exit: "Exit check", try: "Try first", game: "Game", fix: "Fix the mix-up", explain: "In your words", worked: "Worked example", rive: "Area Lab" };
   function answerText(a) {
@@ -167,7 +181,7 @@
     var right = entries.filter(function (e) { return e.correct; }).length;
     var body = order.map(function (sid) {
       var step = stepOf(d, sid);
-      var title = STEP_LABEL[step && step.type] || "Step " + sid;
+      var title = (step && step.label) || STEP_LABEL[step && step.type] || "Step " + sid;
       return h("section", { class: "t-rvstep" },
         h("h3", null, title),
         groups[sid].map(function (e) {

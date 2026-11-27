@@ -5,16 +5,22 @@
      3. its base is the bottom plus the copy's top, 5 + 3 = 8; the student works out 8 × 4, then the copy lifts off: half
      4. stretch the top with a gold handle: shrink it to nothing and the rule turns into the triangle rule
      5. a new field to work out on their own
+   It is told as a story (Cogna.story, called ST here because K is the land kit): Maji presents, Lakshmi aunty walks on
+   with her plot that narrows at one end, the student guesses first, does the copy-and-spin, then TELLS HER the answer
+   and how they knew. She thanks them and leaves before the lesson moves on to the rule. The story, guess, tell and how
+   steps play in both modes (with or without flags.afterLesson).
+   Layout: the field starts at x 200 (not 40) so Lakshmi aunty and her speech bubble have the bottom-left corner, and the
+   copy waits up and to the right of the field, clear of Maji in the bottom-right corner.
    Built on Cogna.lesson + Cogna.landKit (same land look as para-field). Every line the narrator can say is a literal
    `caption:` so tools/record-narration.mjs records it. */
 (function () {
   "use strict";
-  var C = window.Cogna, K = C.landKit, h = C.h;
+  var C = window.Cogna, K = C.landKit, ST = C.story, h = C.h;
   var W = 800, H = 470, U = 52;
   var P = [[0, 4], [5, 4], [4, 0], [1, 0]];                // top 3 (from 1 to 4), bottom 5, height 4
   var SLOT = [[9, 0], [4, 0], [5, 4], [8, 4]];             // the half-turned copy's place
   var PARA = [[0, 4], [8, 4], [9, 0], [1, 0]];
-  var F0 = [40, 170];
+  var F0 = [200, 170];                                      // clear of Lakshmi aunty (x 40 to 108) and her speech bubble (x 14 to 190)
   var u3 = 40, P3 = [[0, 5], [8, 5], [6, 0], [2, 0]];      // your turn: top 4, bottom 8, height 5
 
   var R = {
@@ -37,10 +43,25 @@
     nRight: { caption: "30! You've got it." },
     got14: { caption: "14! The top is 2. Half of (2 + 5) × 4 is 14." },
     hint14: { caption: "Each step of the handle changes the land by 2 squares. Watch the sign as you drag." },
+    // the story: guess first, then tell Lakshmi aunty
+    guessed: { caption: "Good. Hold on to that guess, and let's find out for sure." },
+    noGuess: { caption: "That's fine. Let's find out together." },
+    tell32: { caption: "32 is two of her plots put together. Hers is half of that." },
+    tellWrong: { caption: "Look at the parallelogram we made, 8 × 4. Her plot is half of it." },
+    tellRight: { caption: "She says thank you! Now she knows exactly how much turf to buy." },
+    tellRightGuess: { caption: "She says thank you! And 16 was your guess at the start. Spot on." },
+    tellRightOther: { caption: "She says thank you! Your first guess was only a guess. Now you know for sure." },
   };
 
   function placeF(c) { c.gF.setAttribute("transform", "translate(" + c.f.x.toFixed(1) + " " + c.f.y.toFixed(1) + ")"); }
   function afterLesson(c, L) { return !!(L.flags && L.flags.afterLesson); }
+  function aunty(c) { return c.aunty; }
+  /** the guess step, with Lakshmi aunty cheering up once the student has guessed (the hands-on part starts next) */
+  function guessFirst(o) {
+    var s = ST.guessStep(o), task = s.task;
+    s.task = function (c, L, done) { task(c, L, function (v) { ST.puzzled(c.aunty, L, false); done(v); }); };
+    return s;
+  }
   /** a bracket from x0 to x1 at height y, with its label; returns { path, lab } (hidden) */
   function bracket(parent, cls) {
     var p = K.add(parent, "path", { "class": "t-pf-bracket " + (cls || "") }); p.style.opacity = 0;
@@ -71,18 +92,23 @@
   }
 
   C.lesson.define({
-    id: "trap-field", title: "Ramesh uncle's trapezium field", cls: "t-pf t-tf", w: W, h: H, durationMs: 200000,
+    id: "trap-field", title: "Lakshmi aunty's plot by the road", cls: "t-pf t-tf", w: W, h: H, durationMs: 260000,
+    presenter: { x: 700, y: 360, h: 106 },   // Maji tells the lesson from the bottom right corner
 
     build: function (svg, L) {
       var c = K.setup(svg, L);
+      ST.scene(svg, L, { w: W, h: H, road: true, sunX: 380, before: c.world });   // her plot runs along the road
       c.f = { x: F0[0], y: F0[1] }; c.a = 3;
       K.tree(c.world, 74, 132, 0.85, L);
       c.sign = K.sign(c, W);
 
+      // Lakshmi aunty waits off to the left until the story brings her on (drawn under the land, so pieces pass over her)
+      c.aunty = ST.person(c.world, L, { x: 74, y: 420, look: "aunty" });
+
       c.gF = K.add(c.world, "g"); placeF(c);
       c.whole = K.field(c, c.gF, P, U, { pad: 2 });
       c.twin = K.twin(c, c.gF, {
-        P: P, u: U, pivot: [2.5, 2], knobAt: [3.6, 2.8], stage: [6.2 * U, 0], target: [4 * U, 0], slot: SLOT,
+        P: P, u: U, pivot: [2.5, 2], knobAt: [3.6, 2.8], stage: [5.6 * U, -U], target: [4 * U, 0], slot: SLOT,   // it waits up and to the right, clear of Maji
         bounds: { minX: -F0[0] + 8, maxX: 6.4 * U, minY: -150, maxY: 70 }, R: R,
       });
       c.seam = K.seam(c, c.gF);
@@ -127,6 +153,10 @@
     },
 
     steps: [
+      /* ---- 0. the story: someone needs help (plays in both modes) ---- */
+      { beat: "story", caption: "This is Lakshmi aunty. She is laying turf on her plot by the road, and turf is sold by the square metre.",
+        run: function (c, L) { ST.enter(c.aunty, L); } },
+
       /* ---- 1. meet the field (left out when the trap-lesson video has just introduced it: flags.afterLesson) ---- */
       { skip: afterLesson,
         branch: function () { var p = C.data && C.data.profile; return p && p.id === "aarav" ? 0 : (p && p.id === "riya" ? 1 : 2); },
@@ -143,8 +173,27 @@
           L.wait(600, function () { L.sfx("pop"); }); L.wait(1800, function () { L.sfx("pop"); }); L.wait(3000, function () { L.sfx("pop"); });
         } },
 
+      /* ---- 1b. her problem, then a guess before anything is taught (both modes) ---- */
+      { caption: "But her plot narrows at one end. The top and the bottom are parallel, but they are not equal.",
+        run: function (c, L) {
+          // after the trap-lesson video nothing is labelled yet, so the plot says hello and its measurements pop in here
+          if (afterLesson(c, L)) {
+            K.hop(c.whole, L, 0.15);
+            L.wait(900, function () { L.sfx("pop"); }); L.wait(1500, function () { L.sfx("pop"); }); L.wait(2100, function () { L.sfx("pop"); });
+          }
+          L.to(c.par, { opacity: 1, duration: 0.4, delay: 0.5 });
+          L.to(c.topLab, { opacity: 1, duration: 0.35, delay: 0.9 });
+          L.to(c.botLab, { opacity: 1, duration: 0.35, delay: 1.5 });
+          L.to([c.hLine, c.hMark, c.hLab], { opacity: 1, duration: 0.35, delay: 2.1 });
+          L.wait(2600, function () { ST.puzzled(c.aunty, L, true); });
+        } },
+      guessFirst({ caption: "Before we help her, have a guess. Each square is one square metre. How many does her plot need?",
+        prompt: "Your guess, in square metres:",
+        choices: [{ label: "16", value: 16 }, { label: "20", value: 20 }, { label: "32", value: 32 }, { label: "No idea yet", value: 0 }],
+        guessed: R.guessed, none: R.noGuess }),
+
       /* ---- 2. copy, spin, fit ---- */
-      { caption: "Same trick as the triangle. Tap the field to make a copy.",
+      { beat: "hands", caption: "Same trick as the triangle. Tap the field to make a copy.",
         run: function (c, L) { L.to([c.par, c.hLine, c.hMark, c.hLab], { opacity: 0, duration: 0.3 }); },
         task: function (c, L, done) {
           var p = c.whole, over = false, bob = null;
@@ -205,7 +254,26 @@
           c.twin.away(L);
           L.wait(1300, function () { c.tagHalf.show(L); c.sign.count(L, 32, 16, 1.2, function () { L.board("half of (5 + 3) × 4 = <b>16</b>"); }); });
         } },
-      { caption: "That's the rule. Add the parallel sides, times the height, then take half.",
+
+      /* ---- 3b. tell Lakshmi aunty: the answer, then how you knew (both modes) ---- */
+      ST.tellStep({ who: aunty, skill: "a4", qid: "trap-tell",
+        caption: "Lakshmi aunty is waiting. Tell her how many square metres of turf to buy.",
+        prompt: "Tell Lakshmi aunty. Square metres of turf:", answer: 16,
+        wrong: [{ value: 32, mixup: "half", caption: R.tell32.caption }], other: R.tellWrong,
+        thanks: ["16 sq m!", "Thank you!"], same: R.tellRightGuess, close: R.tellRightOther, plain: R.tellRight }),
+      ST.howStep({ who: aunty, skill: "a4", qid: "trap-how", leave: true,
+        caption: "She has one more question. How did you know, when the top and the bottom are not equal?",
+        prompt: "Tell her how:", bubble: ["How did", "you know?"],
+        choices: [
+          { label: "I multiplied the long side by the height", value: "long",
+            caption: "The long side times the height is 20. That is too much, because her plot narrows. Two of them make a parallelogram, so hers is half of it. Off she goes to buy her turf." },
+          { label: "Two of them make a parallelogram, so hers is half of it", value: "half-para", correct: true,
+            caption: "Exactly. Half of 8 × 4 is 16. Off she goes to buy her turf." },
+          { label: "I used the slanted side as the height", value: "slant", mixup: "slant",
+            caption: "Not the slanted side. The height goes straight up, 4. Two of them make a parallelogram, so hers is half of it. Off she goes to buy her turf." },
+        ] }),
+
+      { beat: "rule", caption: "That's the rule. Add the parallel sides, times the height, then take half.",
         run: function (c, L) {
           L.board('<span class="t-rule">area = ½ × (a + b) × h</span><span class="t-rule-note">a and b are the parallel sides · ½ × (3 + 5) × 4 = 16</span>');
         } },

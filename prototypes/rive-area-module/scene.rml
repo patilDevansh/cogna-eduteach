@@ -34,6 +34,8 @@
     <!-- modules first: require() only finds a module declared above the script that needs it -->
     <ScriptAsset file="kit.luau" isModule="true" name="kit" id="0:90"/>
     <ScriptAsset file="lines.luau" isModule="true" name="lines" id="0:91"/>
+    <!-- the farm, the people and Maji: shared by the lessons and the module frame -->
+    <ScriptAsset file="world.luau" isModule="true" name="world" id="0:99"/>
     <ScriptAsset file="l1.luau" isModule="true" name="l1" id="0:92"/>
     <ScriptAsset file="l2.luau" isModule="true" name="l2" id="0:93"/>
     <ScriptAsset file="l3.luau" isModule="true" name="l3" id="0:94"/>
@@ -47,6 +49,9 @@
     <FontAsset file="Body.ttf" name="Body"/>
     <FontAsset file="Mono.ttf" name="Mono"/>
     <FontAsset file="MathItalic.ttf" name="MathItalic"/>
+
+    <!-- Maji's sprite sheet (8 columns × 11 rows of 96 × 104), drawn a frame at a time by world.maji -->
+    <ImageAsset file="maji.png" name="maji" id="0:60"/>
 
     <!-- sound effects, made by tools/make-sfx.py -->
     <AudioAsset file="sfx/snap.wav" volume="0.6" name="snap"/>

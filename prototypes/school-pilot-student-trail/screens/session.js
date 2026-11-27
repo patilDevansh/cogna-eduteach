@@ -76,7 +76,7 @@
     var root = h("div", { class: "t-q" });
     var tries = o.tries || 1;
     var opts = q.kind === "mcq" ? shuffled(q.options || [], q.id) : null;
-    var S = { pick: -1, sure: null, attempts: 0, locked: false, text: "" };
+    var S = { pick: -1, sure: null, attempts: 0, locked: false, text: "", tried: {}, seenMixups: {} };
     var R = {}; // element refs
     var uid = "q-" + hashStr(q.id + Math.random());
 
@@ -149,7 +149,7 @@
         box.appendChild(h("div", { class: "feedback feedback-correct t-right settle" }, icon("ok"), body));
         return;
       }
-      body.appendChild(h("strong", null, final ? "Not quite." : "Not quite. Have another go."));
+      body.appendChild(h("strong", null, final ? "Not quite." : "Not quite. Have another look."));
       if (final && o.replays && res.replay && C.anims[res.replay]) {
         // show, don't write: the replay below works through this exact answer, then a fresh question follows
         body.appendChild(h("span", { class: "t-fb-line" }, "Watch where " + res.answer + " comes from."));
@@ -157,8 +157,9 @@
         box.appendChild(h("div", { class: "feedback feedback-incorrect t-wrong settle" }, icon("x"), body));
         return;
       }
-      if (res.why) body.appendChild(h("span", { class: "t-fb-line" }, res.why));
-      if (res.mixup) {
+      // while a try is left, say nothing that gives the answer away: the `why` lines often work it out in full
+      if (final && res.why) body.appendChild(h("span", { class: "t-fb-line" }, res.why));
+      if (final && res.mixup) {
         var mi = mixupInfo(res.mixup);
         body.appendChild(h("span", { class: "t-fb-line t-mixup-line" }, "This is a mix-up we've seen before" + (mi ? ": " + mi.name : ".")));
       }
@@ -177,8 +178,15 @@
       var res = evaluate();
       if (res.invalid) { R.err.textContent = "Type a number to answer."; R.input.focus(); return; }
       S.attempts++;
-      var final = res.correct || S.attempts >= tries;
-      o.record({ qid: q.id, skill: q.skill, correct: res.correct, mixup: res.mixup, guards: q.guards, sure: o.needSure ? S.sure : undefined, answer: res.answer });
+      // a wrong answer that has its own mistake replay goes straight to the replay, as before
+      var final = res.correct || S.attempts >= tries || !!(o.replays && res.replay && C.anims[res.replay]);
+      if (!res.correct && q.kind === "mcq") S.tried[S.pick] = true;
+      // a second wrong try on the same question is logged, but it is one mistake, not two: it doesn't drop the
+      // skill again or count the same mix-up twice
+      var again = !res.correct && S.attempts > 1;
+      var mix = res.mixup && S.seenMixups[res.mixup] ? null : res.mixup;
+      if (res.mixup) S.seenMixups[res.mixup] = true;
+      o.record({ qid: q.id, skill: q.skill, correct: res.correct, mixup: mix, guards: q.guards, sure: o.needSure ? S.sure : undefined, answer: res.answer, noMastery: again || undefined });
       lock(res, final);
       if (o.feedback === "instant") showFeedback(res, final);
       if (o.reactions && o.feedback === "instant" && !o.neutral) react(res.correct);
@@ -206,6 +214,7 @@
         R.optBtns = opts.map(function (op, i) {
           var b = h("button", { type: "button", class: "t-opt", role: "radio", "aria-checked": "false", "aria-label": op.text, on: { click: function () { selectOpt(i); } } },
             h("span", { class: "t-opt-key", "aria-hidden": "true" }, String.fromCharCode(65 + i)), h("span", { class: "t-opt-text" }, op.text));
+          if (S.tried[i]) { b.disabled = true; b.classList.add("is-wrong"); }   // already tried: stays crossed out
           grp.appendChild(b); return b;
         });
         root.appendChild(grp);
@@ -388,6 +397,9 @@
       try { pick = window.localStorage.getItem("cogna-voice-set"); } catch (e) { /* ignore */ }
       var set = pick && C.voiceSets && C.voiceSets[pick];
       if (set && set.map && set.map[k]) return set.map[k];
+      // Maji's own voice is the default for every lesson line that has been recorded in it
+      var own = C.voiceSets && C.voiceSets["cartesia-skylar"];
+      if (own && own.map && own.map[k]) return own.map[k];
       if (C.narration && C.narration[k]) return C.narration[k];
       // no Sarvam recording yet (credits ran out 2026-11-19): use another recorded voice before the browser's
       var FALLBACK = ["elevenlabs-cgsgspj2msm6clmckdw9", "gemini-sulafat", "cartesia-kiara"];
@@ -471,7 +483,7 @@
     var ctl = null, playing = false, timer = null;
     function ended() { playing = false; toggle.textContent = "Play"; skip.hidden = true; clearTimeout(timer); if (!out.ended) { out.ended = true; if (o.onEnd) o.onEnd(); } }
     try {
-      ctl = A.mount(stage, { flags: o.flags || {}, onEnd: ended, onBeat: function (c, done) { if (c) { caption.textContent = c; voice.say(c, done); } else if (done) done(false); if (o.onBeat) o.onBeat(c); } });
+      ctl = A.mount(stage, { flags: o.flags || {}, onRecord: o.onRecord, onEnd: ended, onBeat: function (c, done) { if (c) { caption.textContent = c; voice.say(c, done); } else if (done) done(false); if (o.onBeat) o.onBeat(c); } });
     } catch (e) { console.error("[session] anim mount", id, e); stage.appendChild(placeholder("anim", id, "Mark as watched", function () { ended(); })); return out; }
     function start() { playing = true; toggle.textContent = "Pause"; try { ctl.play(); } catch (e) { console.error(e); } }
     toggle.addEventListener("click", function () {
@@ -512,6 +524,7 @@
     return function (el, step, ctx) {
       var qs = step.questions || [];
       var host = h("div", { class: "t-qrun" });
+      if (step.note) el.appendChild(h("p", { class: "t-plan-why" }, step.note));   // a made-for-you step says why it is here (plan.js)
       el.appendChild(host);
       var replays = [], retryView = null;
       ctx.onCleanup(function () { replays.forEach(function (b) { try { b.destroy(); } catch (e) { /* ignore */ } }); replays = []; });
@@ -546,7 +559,8 @@
         }
       }
       var run = runQuestions(host, qs, {
-        label: label, mode: mode, needSure: needSure, reactions: !!step.reactions, onReplay: mode === "instant" ? onReplay : null,
+        label: step.label || label, mode: mode, needSure: needSure, reactions: !!step.reactions, onReplay: mode === "instant" ? onReplay : null,
+        tries: mode === "instant" ? 2 : 1,   // a wrong answer gets one more look before the answer is shown
         record: record,
         onProgress: function (i, n) { ctx.progress && ctx.progress(i, n); },
         onFinish: function () { ctx.complete(); },
@@ -652,10 +666,11 @@
     el.appendChild(h("p", { class: "eyebrow" }, step.eyebrow || "Cogna lesson"));
     el.appendChild(h("h2", { class: "t-step-title" }, (a && a.title) || "Watch and listen"));
     if (!step.autoplay) el.appendChild(h("p", { class: "muted t-lesson-hint" }, a && a.interactive
-      ? "Press Play. Cogna explains out loud, and stops to let you try things yourself."
-      : "Press Play. Cogna explains each step out loud; captions follow along."));
+      ? "Press Play. Maji tells the story, and stops to let you try things yourself."
+      : "Press Play. Maji explains each step out loud; captions follow along."));
     var blk = animBlock(step.anim, {
       markButton: true, flags: step.flags,
+      onRecord: function (info) { ctx.record(info); },   // what the student tells the person in a story lesson
       onEnd: function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); },
     });
     el.appendChild(blk.el);
@@ -736,14 +751,23 @@
     ctx.setAuto(finish);
   };
 
+  /* step.carry (plan.js): a second look at a mix-up from an earlier day or the check-in. Always shown.
+     Both kinds show the student's own wrong answer first, when one is on record. */
   T.fix = function (el, step, ctx) {
     var mi = mixupInfo(step.mixup);
-    el.appendChild(h("p", { class: "eyebrow" }, "Let's look at that mix-up"));
+    el.appendChild(h("p", { class: "eyebrow" }, step.eyebrow || "Let's look at that mix-up"));
     el.appendChild(h("h2", { class: "t-step-title" }, mi ? mi.name : "A common mix-up"));
     if (mi && mi.plain) el.appendChild(h("p", { class: "lead" }, mi.plain));
-    var blk = animBlock(step.anim, { markButton: false });
+    if (step.note) el.appendChild(h("p", { class: "t-plan-why" }, step.note));
+    var ev = C.plan && C.plan.evidence ? C.plan.evidence(step.mixup, ctx.day) : null;
+    if (ev) el.appendChild(h("div", { class: "t-plan-own" },
+      h("p", { class: "eyebrow" }, ev.when + ", you answered"),
+      ev.prompt ? h("p", { class: "t-plan-own-q" }, ev.prompt) : null,
+      h("p", { class: "t-plan-own-a" }, h("strong", null, ev.his), ev.right ? " · the answer was " + ev.right : "")));
+    var blk = animBlock(step.anim, { markButton: !step.check, onEnd: function () { if (!step.check) ctx.complete(); } });
     el.appendChild(blk.el);
     ctx.onCleanup(blk.destroy);
+    if (!step.check) { ctx.setAuto(function () { ctx.complete(); }); return; }
     el.appendChild(h("p", { class: "t-fix-ask" }, "Now try one."));
     var host = h("div", { class: "t-qrun" });
     el.appendChild(host);
@@ -974,7 +998,7 @@
     destroyCurrent();
     var day = params.day, state = C.state;
     var d = (C.data.days || []).filter(function (x) { return x.n === day; })[0];
-    var steps = (d && d.steps) || [];
+    var steps = C.plan ? C.plan.forDay(day).steps : ((d && d.steps) || []);   // made-for-you steps first (plan.js)
     var P = { el: el, cleanups: [], auto: null, advance: null, isComplete: function () { return false; } };
     current = P;
     var idx = -1, stepCleanups = [], completed = false, advancing = false;
@@ -994,13 +1018,13 @@
     function nextIndex(from) {
       for (var i = from; i < steps.length; i++) {
         var s = steps[i];
-        if (s.type === "fix" && !state.shouldShowFix(day, s.mixup)) continue;
+        if (s.type === "fix" && !s.carry && !state.shouldShowFix(day, s.mixup)) continue;
         if (state.isStepDone(day, s.id)) continue;
         return i;
       }
       return -1;
     }
-    function visible() { return steps.filter(function (s, i) { return s.type !== "fix" || i === idx || state.shouldShowFix(day, s.mixup); }); }
+    function visible() { return steps.filter(function (s, i) { return s.type !== "fix" || s.carry || i === idx || state.shouldShowFix(day, s.mixup); }); }
     function drawDots() {
       var vis = visible(), cur = vis.indexOf(steps[idx]);
       dt.set(vis.map(function (s, i) { return i < cur || state.isStepDone(day, s.id); }), cur);

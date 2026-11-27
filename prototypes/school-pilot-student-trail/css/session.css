@@ -171,3 +171,10 @@
 .t-lab-canvas:focus-visible { outline: 3px solid var(--focus, #1f6feb); outline-offset: -3px; }
 .t-lab-note { text-align: center; margin: var(--s-2) 0 0; font-size: var(--text-sm); }
 .t-lab-go { display: block; margin: var(--s-3) auto 0; }
+
+/* ---------- made-for-you steps (plan.js) ---------- */
+.t-plan-why { margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border-left: 3px solid var(--accent); background: var(--accent-wash); border-radius: 0 var(--radius) var(--radius) 0; color: var(--ink); font-size: var(--text-sm); }
+.t-plan-own { margin: 0 0 var(--s-4); padding: var(--s-4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.t-plan-own-q { margin: var(--s-1) 0 var(--s-2); color: var(--ink-soft); }
+.t-plan-own-a { margin: 0; font-family: var(--font-math); }
+.t-plan-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); }

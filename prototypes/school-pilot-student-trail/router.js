@@ -49,9 +49,27 @@
       h("nav", { class: "topbar-links", "aria-label": "Main" },
         link("#/report", "Report", route.name === "report"),
         link("#/trail", "My 2 weeks", ["trail", "session", "dayDone", "review"].indexOf(route.name) !== -1),
-        h("span", { class: "t-who" }, (s.name || "").split(" ")[0] + " · " + (s.grade || ""))
+        h("span", { class: "t-who" }, (s.name || "").split(" ")[0] + " · " + (s.grade || "")),
+        themeSwitch()
       )
     );
+  }
+
+  /** Light / dark switch. The choice is remembered; until one is made the page follows the device (index.html). */
+  function themeSwitch() {
+    var root = document.documentElement;
+    function dark() { return root.getAttribute("data-theme") === "dark"; }
+    var b = h("button", { type: "button", class: "t-theme", "aria-pressed": String(dark()) }, dark() ? "Light" : "Dark");
+    b.setAttribute("aria-label", "Switch to " + (dark() ? "light" : "dark") + " mode");
+    b.addEventListener("click", function () {
+      var next = dark() ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { window.localStorage.setItem("cogna-theme", next); } catch (e) { /* ignore */ }
+      b.textContent = next === "dark" ? "Light" : "Dark";
+      b.setAttribute("aria-pressed", String(next === "dark"));
+      b.setAttribute("aria-label", "Switch to " + (next === "dark" ? "light" : "dark") + " mode");
+    });
+    return b;
   }
 
   function todo(el, name) {

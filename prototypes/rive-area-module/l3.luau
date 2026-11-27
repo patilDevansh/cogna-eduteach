@@ -5,8 +5,12 @@
 --   4. work out a field on the keypad (base 7, height 4, slanted side 5)
 
 local kit = require('kit')
+local world = require('world')
 type G = kit.G
 type Keypad = kit.Keypad
+
+-- Ramesh uncle: it is his field. He walks on, gets stuck, watches the student work and thanks them.
+local uncle = world.person()
 
 type Bit = { x: number, y: number, vx: number, vy: number, rot: number, spin: number, life: number, light: boolean }
 
@@ -155,6 +159,61 @@ function L.enter(g: G, step: number)
     S.kp = kit.keypad(860, 172)
     S.solvedAt = -1
     S.counted = 0
+    -- step 1 brings him on from the left; on the last step he stands by the keypad, clear of the field
+    uncle.y, uncle.s = 574, 1
+    world.hush(uncle)
+    local home = if step == 4 then 722 else 150
+    if step == 1 then
+        uncle.x = -90
+    elseif uncle.x < 0 then
+        uncle.x = home
+    end
+    uncle.tx = home
+    uncle.mood = 'idle'
+end
+
+-- how Ramesh uncle feels about what is happening on the board
+local function feel(g: G)
+    local m = 'watch'
+    uncle.lookX, uncle.lookY = FX + 4 * U, FY + 2 * U
+    if g.step == 1 then
+        if S.cutX < 0 then
+            m = if S.knifeA ~= nil then 'watch' elseif g.age < 1.5 then 'idle' elseif g.age < 3.2 then 'wave' else 'puzzled'
+        elseif g.t - S.cutAt < 1.9 then
+            m = 'cheer'
+        end
+    elseif g.step == 2 then
+        uncle.lookX, uncle.lookY = FX + S.px + 2 * U, FY + S.py + 2 * U
+        if S.snapped then
+            local age = g.t - S.snapAt
+            if age > 3.2 then
+                m = if age < 8.5 then 'cheer' else 'idle'
+                world.speak(uncle, '24 squares!', 'Thank you!')
+            end
+        elseif not S.dragging and not S.flying then
+            m = 'point'
+        end
+    elseif g.step == 3 then
+        uncle.lookX, uncle.lookY = F2X + (6 + S.lean) * U2, F2Y
+        if S.leanDone then
+            m = if g.t - S.leanDoneAt < 3.5 then 'cheer' else 'watch'
+            world.speak(uncle, 'Same land', 'every time!')
+        end
+    else
+        uncle.lookX, uncle.lookY = F4X + 5 * U4, F4Y + 2 * U4
+        if S.solvedAt >= 0 then
+            m = if g.t - S.solvedAt < 6 then 'cheer' else 'idle'
+            world.speak(uncle, '28 square metres!', 'Thank you!')
+        else
+            m = if g.age < 1.2 then 'idle' else 'puzzled'
+            if g.age > 1.6 and g.age < 9 then
+                world.speak(uncle, 'How much land', 'is this one?')
+            else
+                world.hush(uncle)
+            end
+        end
+    end
+    uncle.mood = m
 end
 
 function L.advance(g: G, dt: number)
@@ -216,6 +275,8 @@ function L.advance(g: G, dt: number)
         end
     end
     kit.keypadAdvance(S.kp, dt)
+    feel(g)
+    world.personAdvance(uncle, dt, g.t)
 end
 
 local function drawBits(r: Renderer)
@@ -415,6 +476,7 @@ local function drawStep4(g: G, r: Renderer)
 end
 
 function L.draw(g: G, r: Renderer)
+    world.farm(r, g.t, if g.step == 4 then nil else 250)
     if g.step == 1 then
         drawStep1(g, r)
     elseif g.step == 2 then
@@ -424,6 +486,7 @@ function L.draw(g: G, r: Renderer)
     else
         drawStep4(g, r)
     end
+    world.personDraw(r, g.fonts, uncle, g.t)
 end
 
 local function checkAnswer(g: G)

@@ -82,7 +82,8 @@
     var S = C.state, day = C.data.days[d - 1];
     if (!day) return;
     var target = storyTarget(d, day), counter = { n: 0 };
-    (day.steps || []).forEach(function (step) {
+    var steps = C.plan ? C.plan.forDay(d).steps : (day.steps || []);   // the same made-for-you steps the real session gets
+    steps.forEach(function (step) {
       switch (step.type) {
         case "recall": case "practice": case "exit":
           playQuestions(d, step, target, counter); break;
@@ -117,7 +118,7 @@
           if (step.skill) { S.markTaught(step.skill, d); S.recordAnswer({ day: d, stepId: step.id, qid: step.id + "-game", skill: step.skill, correct: true, answer: "(game)" }); }
           break;
         case "fix":
-          if (!S.shouldShowFix(d, step.mixup)) return; // skipped, like the real session
+          if (!step.carry && !S.shouldShowFix(d, step.mixup)) return; // skipped, like the real session
           if (step.check) S.recordAnswer({ day: d, stepId: step.id, qid: step.check.id, skill: step.check.skill, correct: true, guards: step.check.guards || [step.mixup], sure: true, answer: "(fixed)" });
           break;
         case "explain":
@@ -163,7 +164,7 @@
     if (ids.length < 2) return null;
     var pick = null;
     try { pick = window.localStorage.getItem("cogna-voice-set"); } catch (e) { /* ignore */ }
-    if (!sets[pick]) pick = "sarvam-priya";
+    if (!sets[pick]) pick = sets["cartesia-skylar"] ? "cartesia-skylar" : "sarvam-priya";
     return h("div", null,
       h("p", { class: "t-demo-label" }, "Voice"),
       h("div", { class: "t-demo-voices" }, ids.map(function (id) {

@@ -27,7 +27,8 @@ const env = Object.fromEntries(
 // The repo's "OpenAI" settings point at an OpenAI-compatible endpoint (today: Gemini).
 const LLM_URL = (env.OPENAI_BASE_URL || "https://api.openai.com/v1/").replace(/\/?$/, "/") + "chat/completions";
 const LLM_MODEL = env.GUIDE_MODEL || env.LOTUS_OPENAI_MODEL || "gpt-4.1-mini";
-const KIARA = "f8f5f1b2-f02d-4d8e-a40d-fd850a487b3d";
+// Cartesia voice. Kiara (f8f5f1b2…) left their catalogue in Nov 2026; Siya is their Indian woman's voice.
+const KIARA = env.GUIDE_CARTESIA_VOICE || "4459a9a5-69d6-4680-b970-e13dc51845b6";
 const BRAIN = (process.env.GUIDE_BRAIN || env.GUIDE_BRAIN || "sarvam").toLowerCase();
 // Kiara by default; if Cartesia refuses (no credits), that reply falls back to Sarvam Aparna.
 const VOICE = (process.env.GUIDE_VOICE || env.GUIDE_VOICE || "kiara").toLowerCase();
@@ -54,13 +55,27 @@ function spoken(t) {
     .replace(/−/g, " minus ").replace(/×/g, " times ").replace(/=/g, " equals ").replace(/½/g, "half").replace(/°/g, " degrees");
 }
 
+let sarvamDown = false; // set when Sarvam refuses for lack of credits; Gemini then hears and thinks
+async function hearGemini(wav) {
+  const res = await fetch(LLM_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: LLM_MODEL, temperature: 0, max_tokens: 300, messages: [{ role: "user", content: [
+      { type: "text", text: "A grade 8 Indian student is talking to their maths tutor. Write down exactly what they say, in English. Reply with only their words. If there is no clear speech, reply with nothing." },
+      { type: "input_audio", input_audio: { data: wav.toString("base64"), format: "wav" } }] }] }),
+  });
+  if (!res.ok) throw new Error(`speech-to-text ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const j = await res.json();
+  return String(j.choices?.[0]?.message?.content || "").trim();
+}
 async function hear(wav) {
-  if (!env.SARVAM_API_KEY) throw new Error("SARVAM_API_KEY missing in .env");
+  if (sarvamDown || BRAIN === "gemini" || !env.SARVAM_API_KEY) return hearGemini(wav);
   const form = new FormData();
   form.append("file", new Blob([wav], { type: "audio/wav" }), "speech.wav");
   form.append("model", env.GUIDE_STT_MODEL || "saarika:v2.5");
   form.append("language_code", "en-IN");
   const res = await fetch("https://api.sarvam.ai/speech-to-text", { method: "POST", headers: { "api-subscription-key": env.SARVAM_API_KEY }, body: form });
+  if (res.status === 402 || res.status === 429) { sarvamDown = true; console.error("sarvam has no credits: gemini hears and thinks from here"); return hearGemini(wav); }
   if (!res.ok) throw new Error(`speech-to-text ${res.status} ${(await res.text()).slice(0, 200)}`);
   const j = await res.json();
   return String(j.transcript || "").trim();
@@ -92,17 +107,19 @@ async function think(said, context, history, retry = 0) {
     .filter((t) => t && (t.role === "user" || t.role === "assistant") && t.text)
     .map((t) => (t.role === "user" ? "Student: " : "Cogna: ") + String(t.text).slice(0, 400));
   messages.push({ role: "user", content: (past.length ? "The conversation so far:\n" + past.join("\n") + "\n\nThe student now says: " : "") + String(said).slice(0, 1000) });
-  const res = BRAIN === "gemini"
+  const useGemini = BRAIN === "gemini" || sarvamDown;
+  const res = useGemini
     ? await fetch(LLM_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: LLM_MODEL, messages, temperature: 0.6, max_tokens: 220, response_format: { type: "json_object" } }),
+      body: JSON.stringify({ model: LLM_MODEL, messages, temperature: 0.6, max_tokens: 500, response_format: { type: "json_object" } }),
     })
     : await fetch("https://api.sarvam.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "api-subscription-key": env.SARVAM_API_KEY },
       body: JSON.stringify({ model: "sarvam-105b-conversations", messages, temperature: 0.5, max_tokens: 600 }),
     });
+  if (!useGemini && (res.status === 402 || res.status === 429)) { sarvamDown = true; console.error("sarvam has no credits: gemini thinks from here"); return think(said, context, history, retry); }
   if (!res.ok) throw new Error(`model ${res.status} ${(await res.text()).slice(0, 200)}`);
   const j = await res.json();
   const raw = j.choices?.[0]?.message?.content || "";

@@ -4,7 +4,9 @@
    so the session player needs no special case.
 
    define({ id, title, w, h, durationMs, build(svg, L) -> c, frame?(c, L), steps: [Step] })
-   Step = { caption?, run?(c, L), hold?: ms, gap?: ms, task?(c, L, done), skip?(c, L) -> true to leave it out }
+   Step = { caption?, run?(c, L), hold?: ms, gap?: ms, task?(c, L, done), skip?(c, L) -> true to leave it out,
+            beat?: 'story'|'guess'|'hands'|'tell'|'rule'  (starts that beat on the strip above the stage; see anim/story-kit.js),
+            hint?: { caption }  (said once if the student has not finished the task after 20 seconds) }
         | { branch(c, L) -> index, options: [Step, ...], skip?(c, L) }
    mount(el, { flags }) hands the step's flags to the lesson as L.flags (e.g. { afterLesson: true } when a lesson
    video has already introduced the shape, so a hands-on lesson can skip its own introduction).
@@ -13,7 +15,11 @@
      - `hold` ms have passed
      - every tween started during the step has finished
      - its task (if any) has called done(value)  — the student did the thing
-   Time is "lesson time": it stops while paused, so Pause freezes everything. */
+   Time is "lesson time": it stops while paused, so Pause freezes everything.
+
+   presenter: { x, y, h } puts Maji (guide/creature.js) on the stage as the one telling the lesson: she talks while a line
+   is spoken, watches the stage while the student has a task, jumps on a chime and droops on an oops. The floating guide
+   steps aside while she is on stage. Without the guide's files (the standalone gallery) there is simply no presenter. */
 (function () {
   "use strict";
   var C = window.Cogna, S = C.svg, h = C.h;
@@ -64,6 +70,26 @@
         var reduced = reducedMotion();
         var wrap = h("div", { class: "t-lesson " + (spec.cls || "") });
         var svg = S("svg", { "class": "t-anim t-lesson-svg", viewBox: "0 0 " + spec.w + " " + spec.h, role: "img", "aria-label": spec.title, preserveAspectRatio: "xMidYMid meet" });
+        // the beat strip: where the student is in the story (only for lessons whose steps name beats)
+        var BEATS = (C.story && C.story.BEATS) || [], beatEls = {}, strip = null;
+        if (BEATS.length && spec.steps.some(function (s) { return s.beat; })) {
+          strip = h("ol", { class: "t-lesson-beats", "aria-label": "Where you are in this lesson" });
+          BEATS.forEach(function (b) { strip.appendChild(beatEls[b[0]] = h("li", { class: "t-lesson-beat" }, b[1])); });
+          wrap.appendChild(strip);
+        }
+        function setBeat(id) {
+          // the story's scene steps back when the rule arrives: the idea leaves the farm behind
+          if (L.backdrop) {
+            var away = id === "rule";
+            if (away !== L.backdropAway) { L.backdropAway = away; L.to(L.backdrop, { opacity: away ? 0 : 1, duration: away ? 0.9 : 0.4, ease: "power2.inOut", overwrite: "auto" }, true); }
+          }
+          var seen = true;
+          BEATS.forEach(function (b) {
+            var el = beatEls[b[0]]; if (!el) return;
+            if (b[0] === id) { seen = false; el.className = "t-lesson-beat is-now"; el.setAttribute("aria-current", "step"); }
+            else { el.className = "t-lesson-beat" + (seen && id ? " is-done" : ""); el.removeAttribute("aria-current"); }
+          });
+        }
         var board = h("div", { class: "t-lesson-board math", "aria-live": "polite" });
         var bar = h("div", { class: "t-lesson-task", hidden: true });
         wrap.appendChild(svg); wrap.appendChild(board); wrap.appendChild(bar);
@@ -73,6 +99,30 @@
         var timers = [], tweens = [], gen = 0, idx = -1, cur = null, wantNext = false, c = null;
         var L = { G: G, ease: EASE, svg: svg, state: {}, reduced: reduced, flags: o.flags || {} };
         var gs = [], drags = [], offs = [];   // GSAP tweens, Draggables and listeners made by this lesson (paused, resumed and removed with it)
+
+        /* ----- the presenter (Maji) ----- */
+        var pres = null;
+        (function () {
+          var P = spec.presenter, GC = C.guideCreature;
+          if (!P || !GC || !GC.animator) return;
+          var sh = GC.sheet, ph = P.h || 120, pw = ph * sh.cw / sh.ch;
+          var box = S("svg", { "class": "t-lesson-maji", x: P.x, y: P.y, width: pw, height: ph, viewBox: "0 0 " + sh.cw + " " + sh.ch, "aria-hidden": "true" });
+          box.appendChild(S("image", { href: sh.src, width: sh.cw * sh.cols, height: sh.ch * sh.rows }));
+          pres = { box: box, anim: GC.animator(), mood: "idle", talking: 0, until: 0, react: null, look: null, raf: 0, last: performance.now() };
+          function loop(t) {
+            if (dead) return;
+            var dt = Math.min(0.05, (t - pres.last) / 1000); pres.last = t;
+            var mood = pres.react && t < pres.until ? pres.react : (pres.talking > 0 ? "talk" : "idle");
+            var f = pres.anim.step(playing ? dt : 0, mood, mood === "idle" ? pres.look : null, 0);
+            box.setAttribute("viewBox", f.col * sh.cw + " " + f.row * sh.ch + " " + sh.cw + " " + sh.ch);
+            pres.raf = requestAnimationFrame(loop);
+          }
+          pres.raf = requestAnimationFrame(loop);
+          document.body.classList.add("is-maji-presenting");   // the floating guide steps aside (guide/guide.css)
+        })();
+        function presTalk(on) { if (pres) pres.talking = Math.max(0, pres.talking + (on ? 1 : -1)); }
+        function presReact(mood, ms) { if (pres) { pres.react = mood; pres.until = performance.now() + (ms || 1400); } }
+
         function gsPause() { gs = gs.filter(function (t) { return t.progress() < 1; }); gs.forEach(function (t) { t.pause(); }); }
         function gsResume() { gs.forEach(function (t) { t.resume(); }); }
         function gsKill() {
@@ -120,11 +170,13 @@
         function maybeNext() { if (cur && cur.holds === 0) { if (playing) next(); else wantNext = true; } }
         function next() { wantNext = false; startStep(idx + 1); }
         function narrate(text) {
-          var release = hold(), g = gen, answered = false;
-          wait(readMs(text) * 2 + 5000, release); // safety net if the voice never reports back
+          var release = hold(), g = gen, answered = false, hush = false;
+          function quiet() { if (!hush) { hush = true; presTalk(false); } }
+          presTalk(true);
+          wait(readMs(text) * 2 + 5000, function () { quiet(); release(); }); // safety net if the voice never reports back
           function voiceDone(spoken) {
-            if (answered || g !== gen) return;
-            answered = true;
+            if (answered || g !== gen) { quiet(); return; }
+            answered = true; quiet();
             if (spoken) wait(250, release); else wait(readMs(text), release);
           }
           if (o.onBeat) o.onBeat(text, voiceDone); else voiceDone(false);
@@ -141,11 +193,17 @@
           if (s.branch) s = s.options[s.branch(c, L)] || s.options[0];
           cur = { holds: 1 };
           var me = cur;
+          if (s.beat) setBeat(s.beat);
+          if (pres) { pres.talking = 0; pres.look = s.task ? (spec.presenter.look || { x: -0.85, y: -0.35 }) : null; }
           if (s.run) try { s.run(c, L); } catch (e) { console.error("[lesson step]", i, e); }
           if (s.caption) narrate(s.caption);
           wait(s.gap != null ? s.gap : 450, hold());
           if (s.hold) wait(s.hold, hold());
-          if (s.task) { var rel = hold(); try { s.task(c, L, function (v) { L.state.last = v; rel(); }); } catch (e) { console.error("[lesson task]", e); rel(); } }
+          if (s.task) {
+            var rel = hold(), open = true;
+            try { s.task(c, L, function (v) { open = false; L.state.last = v; rel(); }); } catch (e) { console.error("[lesson task]", e); open = false; rel(); }
+            if (s.hint && s.hint.caption) wait(20000, function () { if (open && cur === me) L.say(s.hint.caption); });
+          }
           me.holds--; maybeNext();
         }
         function finish() {
@@ -157,6 +215,8 @@
 
         /* ----- task bar + board helpers ----- */
         L.wait = wait; L.tween = tween; L.hold = hold;
+        /** Log something the student answered inside the lesson: { qid, skill, correct, mixup?, answer, noMastery? }. */
+        L.record = function (info) { if (o.onRecord) try { o.onRecord(info); } catch (e) { console.error("[lesson record]", e); } };
         L.isPlaying = function () { return playing; };
         L.board = function (html) {
           board.innerHTML = html || "";
@@ -216,7 +276,8 @@
         /** A reaction line inside a task (not a step of its own): shown and spoken now; cb runs once it has been heard. */
         L.say = function (text, cb) {
           var g = gen, fired = false;
-          function fire() { if (fired || g !== gen) return; fired = true; if (cb) try { cb(); } catch (e) { console.error(e); } }
+          presTalk(true);
+          function fire() { if (fired) return; fired = true; presTalk(false); if (g !== gen) return; if (cb) try { cb(); } catch (e) { console.error(e); } }
           wait(readMs(text) * 2 + 4000, fire);
           if (o.onBeat) o.onBeat(text, function (spoken) { wait(spoken ? 200 : readMs(text), fire); });
           else wait(readMs(text), fire);
@@ -230,6 +291,8 @@
           }
           var rel = free ? null : hold(), oc = vars.onComplete;
           vars.onComplete = function () { if (oc) try { oc.apply(this, arguments); } catch (e) { console.error(e); } if (rel) rel(); };
+          // a tween that another one overwrites never completes: let go of the step then too, or the lesson would wait for ever
+          if (rel) { var oi = vars.onInterrupt; vars.onInterrupt = function () { if (oi) try { oi.apply(this, arguments); } catch (e) { console.error(e); } rel(); }; }
           if (!window.gsap) { console.error("[lesson] GSAP missing"); vars.onComplete(); return null; }
           var tw = window.gsap.to(target, vars);
           gs.push(tw);
@@ -257,7 +320,12 @@
           if (!window.Draggable) { console.error("[lesson] Draggable missing"); return null; }
           var d = window.Draggable.create(target, vars)[0]; drags.push(d); return d;
         };
-        L.sfx = function (name, arg) { if (C.sfx && C.sfx[name]) C.sfx[name](arg); };
+        L.sfx = function (name, arg) {
+          if (name === "chime") presReact("happy", 1500); else if (name === "oops") presReact("oops", 1500);   // she feels it too
+          if (C.sfx && C.sfx[name]) C.sfx[name](arg);
+        };
+        /** Make the presenter show a mood for a moment: 'happy' | 'oops' | 'think' | 'play'. */
+        L.mood = presReact;
         /** pointer position in viewBox units */
         L.point = function (ev) {
           var m = svg.getScreenCTM(); if (!m) return [0, 0];
@@ -268,8 +336,9 @@
         function build() {
           while (svg.firstChild) svg.removeChild(svg.firstChild);
           svg.classList.remove("is-dragging-ok", "is-cutting");   // a replay must not inherit a task's touch settings
-          L.clearBar(); L.board(""); L.state = {};
+          L.clearBar(); L.board(""); L.state = {}; L.backdrop = null; L.backdropAway = false; setBeat(null);
           c = spec.build(svg, L) || {};
+          if (pres) { pres.talking = 0; pres.react = null; pres.look = null; svg.appendChild(pres.box); }   // on top of the scene
           if (spec.frame) spec.frame(c, L);
         }
         build();
@@ -291,7 +360,12 @@
           build();
           play();
         }
-        function destroy() { dead = true; pause(); gsKill(); gen++; if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+        function destroy() {
+          if (dead) return;
+          dead = true; pause(); gsKill(); gen++;
+          if (pres) { cancelAnimationFrame(pres.raf); document.body.classList.remove("is-maji-presenting"); }
+          if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+        }
         return { play: play, pause: pause, replay: replay, destroy: destroy };
       },
     };

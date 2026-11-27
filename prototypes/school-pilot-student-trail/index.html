@@ -12,9 +12,25 @@
 <link rel="stylesheet" href="css/report.css" />
 <link rel="stylesheet" href="css/session.css" />
 <link rel="stylesheet" href="css/anim.css" />
+<link rel="stylesheet" href="css/story.css" />
+<link rel="stylesheet" href="css/lessons/pen-fence.css" />
+<link rel="stylesheet" href="css/lessons/courtyard-split.css" />
+<link rel="stylesheet" href="css/lessons/tile-units.css" />
+<link rel="stylesheet" href="css/lessons/shade-net.css" />
 <link rel="stylesheet" href="css/games.css" />
 <link rel="stylesheet" href="css/learning-flow.css" />
 <link rel="stylesheet" href="guide/guide.css" />
+<link rel="stylesheet" href="css/dark.css" />
+<link rel="stylesheet" href="css/shell.css" />
+<script>
+/* Theme before first paint: the student's own choice if they made one, else the device's setting. */
+(function () {
+  var t = null;
+  try { t = window.localStorage.getItem("cogna-theme"); } catch (e) { /* ignore */ }
+  if (t !== "dark" && t !== "light") t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -29,6 +45,7 @@
 <script src="data/students.js"></script>
 <script src="data/days.js"></script>
 <script src="data/lab.js"></script>
+<script src="plan.js"></script>
 <script src="audio/manifest.js"></script>
 <script src="audio/voices.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
@@ -36,12 +53,17 @@
 <script src="anim/timeline.js"></script>
 <script src="anim/lesson.js"></script>
 <script src="anim/sfx.js"></script>
+<script src="anim/story-kit.js"></script>
 <script src="anim/pyth-squares.js"></script>
 <script src="anim/para-field.js"></script>
 <script src="anim/land-kit.js"></script>
 <script src="anim/twin.js"></script>
 <script src="anim/tri-field.js"></script>
 <script src="anim/trap-field.js"></script>
+<script src="anim/pen-fence.js"></script>
+<script src="anim/courtyard-split.js"></script>
+<script src="anim/tile-units.js"></script>
+<script src="anim/shade-net.js"></script>
 <script src="anim/trap-day.js"></script>
 <script src="anim/trap-fixes.js"></script>
 <script src="anim/quad-heights.js"></script>

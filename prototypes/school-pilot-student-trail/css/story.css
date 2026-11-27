@@ -1,0 +1,140 @@
+/* Cogna.story (anim/story-kit.js): the people in the Area stories, Maji on the stage, and the beat strip.
+   Cogna tokens only, except the people's own colours (game objects). */
+.t-lesson { --st-skin: #c68a5b; --st-hair: #2c2118; --st-gold: #dca03a; --st-gold-wash: #fff4d8; --st-rose: #c9566b; --st-sky: #4c8dc4; }
+
+/* people: drawn like Maji, with a thick warm outline */
+.t-st-shadow { fill: var(--ink); opacity: 0.2; }
+.t-st-leg { fill: var(--st-cloth); stroke: var(--st-out); stroke-width: 3; }
+.t-st-sandal { fill: #784a1e; stroke: var(--st-out); stroke-width: 2.6; }
+.t-st-arm-out, .t-st-sleeve-out { fill: none; stroke: var(--st-out); stroke-width: 16; stroke-linecap: round; }
+.t-st-sleeve-out { stroke-width: 19; }
+.t-st-arm { fill: none; stroke: var(--st-skin); stroke-width: 10.5; stroke-linecap: round; }
+.t-st-sleeve { fill: none; stroke: var(--st-kurta); stroke-width: 13.5; stroke-linecap: round; }
+.t-st-hand { fill: var(--st-skin); stroke: var(--st-out); stroke-width: 2.6; }
+.t-st-body { fill: var(--st-kurta); stroke: var(--st-out); stroke-width: 3; }
+.t-st-person.is-aunty { --st-kurta: #e58aa0; }
+.t-st-person.is-girl { --st-kurta: #7fb4e6; }
+.t-st-person.is-boy { --st-kurta: #8fd0a8; }
+.t-st-trim { fill: none; stroke: var(--st-gold); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.t-st-button { fill: #7a4c08; }
+.t-st-skin { fill: var(--st-skin); stroke: var(--st-out); stroke-width: 3; }
+.t-st-cheek { fill: #e2705c; opacity: 0.36; }
+.t-st-turban { fill: #2e8c68; stroke: var(--st-out); stroke-width: 3.2; stroke-linejoin: round; }
+.t-st-fold { fill: none; stroke: #12624a; stroke-width: 2.8; stroke-linecap: round; }
+.t-st-pin { fill: var(--st-gold); stroke: var(--st-out); stroke-width: 2.6; }
+.t-st-hair { fill: var(--st-hair); stroke: var(--st-out); stroke-width: 3; stroke-linejoin: round; }
+.t-st-plait { fill: none; stroke: var(--st-hair); stroke-width: 10; stroke-linecap: round; }
+.t-st-bindi { fill: #c2283c; }
+.t-st-eye { fill: #fff; stroke: var(--st-out); stroke-width: 2.4; }
+.t-st-ink { fill: var(--st-out); }
+.t-st-glint { fill: #fff; }
+.t-st-joy, .t-st-brow { fill: none; stroke: var(--st-out); stroke-width: 3.4; stroke-linecap: round; }
+.t-st-mouth { fill: none; stroke: var(--st-out); stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.t-st-mouth.is-open { fill: #96362c; stroke-width: 2.6; }
+.t-st-tache { fill: none; stroke: #22180f; stroke-width: 7.5; stroke-linecap: round; }
+.t-st-q circle { fill: var(--surface); stroke: var(--t-wrong-stroke, #b4400c); stroke-width: 3; }
+.t-st-bubble, .t-st-tail { fill: var(--surface); stroke: var(--st-gold); stroke-width: 3; stroke-linejoin: round; }
+.t-st-tail-join { stroke: var(--surface); stroke-width: 5; stroke-linecap: round; }
+.t-st-bubble-shadow { fill: var(--ink); opacity: 0.12; }
+.t-lesson .t-lesson-svg text.t-st-line, .t-lesson .t-lesson-svg text.t-st-qmark {
+  font-family: var(--font-display); font-size: 19px; font-weight: 700; fill: var(--ink); stroke-width: 0;
+  text-anchor: middle; dominant-baseline: central;
+}
+.t-lesson .t-lesson-svg text.t-st-qmark { fill: var(--t-wrong-stroke, #b4400c); font-size: 22px; }
+
+/* the farm behind the lesson (K.farm). One set of variables, swapped for a night scene in dark mode. */
+.t-lesson {
+  --st-out: #4a2c12; --st-cloth: #fcfcf8; --st-kurta: #fff6de;
+  --w-sky1: #cee8ee; --w-sky2: #eef7f3; --w-hill1: #cce4d2; --w-hill2: #bcdbc1; --w-ground1: #d6ead0; --w-ground2: #ecf6e6;
+  --w-sun: #ffd880; --w-ray: #f6be54; --w-glow: #ffd678; --w-cloud: #ffffff; --w-bird: #51635a;
+  --w-tuft: #78b476; --w-blade1: #76b874; --w-blade2: #94cc8a; --w-wall: #faeed6; --w-roof: #cb744e;
+}
+:root[data-theme="dark"] .t-lesson {
+  --w-sky1: #101c2a; --w-sky2: #1a2c33; --w-hill1: #1d3a30; --w-hill2: #224535; --w-ground1: #1e3529; --w-ground2: #17261d;
+  --w-sun: #ecebd2; --w-ray: #8f9a8c; --w-glow: #cfd6c0; --w-cloud: #33444d; --w-bird: #8fa39a;
+  --w-tuft: #2f6b45; --w-blade1: #2c6441; --w-blade2: #387a50; --w-wall: #cdbf9f; --w-roof: #8d4f36;
+}
+.t-w-sky1 { stop-color: var(--w-sky1); } .t-w-sky2 { stop-color: var(--w-sky2); }
+.t-w-ground1 { stop-color: var(--w-ground1); } .t-w-ground2 { stop-color: var(--w-ground2); }
+.t-w-glow { fill: var(--w-glow); opacity: 0.3; filter: blur(12px); }
+.t-w-ray { stroke: var(--w-ray); stroke-width: 3.4; stroke-linecap: round; opacity: 0.75; }
+.t-w-sun { fill: var(--w-sun); } .t-w-sunshine { fill: #fff; opacity: 0.35; }
+.t-w-cloud { fill: var(--w-cloud); opacity: 0.92; }
+.t-w-birds path { fill: none; stroke: var(--w-bird); stroke-width: 2.2; stroke-linecap: round; opacity: 0.6; }
+.t-w-hill1 { fill: var(--w-hill1); } .t-w-hill2 { fill: var(--w-hill2); }
+.t-w-wall { fill: var(--w-wall); stroke: var(--st-out); stroke-opacity: 0.55; stroke-width: 2; }
+.t-w-roof { fill: var(--w-roof); stroke: var(--st-out); stroke-opacity: 0.55; stroke-width: 2; stroke-linejoin: round; }
+.t-w-door { fill: var(--st-out); opacity: 0.6; }
+.t-w-tuft { fill: none; stroke: var(--w-tuft); stroke-width: 2.4; stroke-linecap: round; opacity: 0.6; }
+.t-w-blade1 { fill: var(--w-blade1); } .t-w-blade2 { fill: var(--w-blade2); }
+
+/* Maji on the stage */
+.t-lesson-maji { pointer-events: none; overflow: hidden; }
+
+/* the beat strip */
+.t-lesson-beats { list-style: none; margin: 0 0 var(--s-3); padding: 0; display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.t-lesson-beat {
+  flex: 1 1 0; min-width: 4.5rem; text-align: center; padding: var(--s-1) var(--s-2);
+  border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.02em; color: var(--ink-faint);
+  transition: background var(--dur-fast) var(--ease-settle), color var(--dur-fast) var(--ease-settle), border-color var(--dur-fast) var(--ease-settle);
+}
+.t-lesson-beat.is-done { background: var(--accent-wash); border-color: var(--accent-wash); color: var(--accent-deep); }
+.t-lesson-beat.is-now { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+
+/* more of the world (K.scene): the canal, the road, the village, the room, and confetti */
+.t-lesson {
+  --w-water: #8cc7e0; --w-bank: #6fa58a; --w-shimmer: #ffffff;
+  --w-road: #bdb7aa; --w-kerb: #8e877a; --w-lane: #f8f4e8;
+  --w-auto: #e9c23a; --w-auto-roof: #1f3b2f; --w-glass: #cfe7ee;
+  --w-hwall: #f3e1c4; --w-parapet: #d9bd96; --w-hwin: #6d8f9c; --w-cwall: #eadcc2; --w-coping: #cbb48f;
+  --w-cloth1: #e46a5a; --w-cloth2: #f2c14e; --w-cloth3: #5aa2d6; --w-pole: #8a6a45; --w-line: #6b5a45;
+  --w-wallin: #e2edf1; --w-dado: #d2e2e7; --w-rail: #b7cbd1; --w-frame: #ffffff; --w-sill: #f6f1e6;
+  --w-curtain: #f2b5a5; --w-rod: #8a6a45; --w-beam: #fff0b8; --w-skirting: #c99f70; --w-floor: #d9aa70; --w-plank: #b98a55;
+  --w-smoke: #ffffff;
+  --st-c0: #f2b632; --st-c1: #0e8a68; --st-c2: #e46a5a; --st-c3: #5aa2d6;
+}
+:root[data-theme="dark"] .t-lesson {
+  --w-water: #1f4a5e; --w-bank: #2e5a46; --w-shimmer: #9fc7d6;
+  --w-road: #3a3a36; --w-kerb: #55524a; --w-lane: #8f8a7a;
+  --w-auto: #c9a52e; --w-auto-roof: #0f1d17; --w-glass: #ffd77a;
+  --w-hwall: #463f34; --w-parapet: #5b5143; --w-hwin: #ffd77a; --w-cwall: #3c372f; --w-coping: #514a3f;
+  --w-cloth1: #9e4a3f; --w-cloth2: #a88935; --w-cloth3: #3e6f93; --w-pole: #6b5236; --w-line: #8a7a65;
+  --w-wallin: #1c2a30; --w-dado: #19252b; --w-rail: #2c3d44; --w-frame: #33444b; --w-sill: #33434a;
+  --w-curtain: #6e4740; --w-rod: #5b4632; --w-beam: #cfd8e6; --w-skirting: #4d3a28; --w-floor: #4a3726; --w-plank: #3a2a1c;
+  --w-smoke: #9fb0b8;
+}
+.t-w-water { fill: var(--w-water); }
+.t-w-bank { fill: none; stroke: var(--w-bank); stroke-width: 3; }
+.t-w-shimmer { fill: none; stroke: var(--w-shimmer); stroke-width: 2.4; stroke-linecap: round; opacity: 0.85; }
+.t-w-road { fill: var(--w-road); }
+.t-w-kerb { fill: none; stroke: var(--w-kerb); stroke-width: 2.5; }
+.t-w-lane { fill: none; stroke: var(--w-lane); stroke-width: 2.5; stroke-dasharray: 16 14; }
+.t-w-auto-body { fill: var(--w-auto); stroke: var(--st-out); stroke-width: 2.4; stroke-linejoin: round; }
+.t-w-auto-roof { fill: none; stroke: var(--w-auto-roof); stroke-width: 5; stroke-linecap: round; }
+.t-w-auto-glass { fill: var(--w-glass); stroke: var(--st-out); stroke-width: 1.6; }
+.t-w-wheel { fill: #2a2622; stroke: var(--st-out); stroke-width: 1.6; }
+.t-w-spoke { fill: none; stroke: #9a948a; stroke-width: 1.4; }
+.t-w-hwall { fill: var(--w-hwall); stroke: var(--st-out); stroke-opacity: 0.45; stroke-width: 2; }
+.t-w-parapet { fill: var(--w-parapet); stroke: var(--st-out); stroke-opacity: 0.45; stroke-width: 2; }
+.t-w-hwin { fill: var(--w-hwin); stroke: var(--st-out); stroke-opacity: 0.5; stroke-width: 1.6; }
+.t-w-cwall { fill: var(--w-cwall); }
+.t-w-coping { fill: var(--w-coping); }
+.t-w-pole { fill: none; stroke: var(--w-pole); stroke-width: 4; stroke-linecap: round; }
+.t-w-line { fill: none; stroke: var(--w-line); stroke-width: 1.6; }
+.t-w-cloth1 { fill: var(--w-cloth1); } .t-w-cloth2 { fill: var(--w-cloth2); } .t-w-cloth3 { fill: var(--w-cloth3); }
+.t-w-peg { fill: none; stroke: #7a5a3a; stroke-width: 2.4; stroke-linecap: round; }
+.t-w-smoke circle { fill: var(--w-smoke); }
+.t-w-wallin { fill: var(--w-wallin); }
+.t-w-dado { fill: var(--w-dado); }
+.t-w-rail { fill: none; stroke: var(--w-rail); stroke-width: 3; }
+.t-w-frame { fill: none; stroke: var(--w-frame); stroke-width: 7; }
+.t-w-mullion { fill: none; stroke: var(--w-frame); stroke-width: 5; }
+.t-w-sill { fill: var(--w-sill); stroke: var(--st-out); stroke-opacity: 0.3; stroke-width: 1.5; }
+.t-w-curtain { fill: var(--w-curtain); stroke: var(--st-out); stroke-opacity: 0.35; stroke-width: 2; }
+.t-w-rod { fill: none; stroke: var(--w-rod); stroke-width: 5; stroke-linecap: round; }
+.t-w-beam { fill: var(--w-beam); opacity: 0.22; }
+.t-w-skirting { fill: var(--w-skirting); }
+.t-w-floor { fill: var(--w-floor); }
+.t-w-plank { fill: none; stroke: var(--w-plank); stroke-width: 1.6; }
+.t-st-conf0 { fill: var(--st-c0); } .t-st-conf1 { fill: var(--st-c1); } .t-st-conf2 { fill: var(--st-c2); } .t-st-conf3 { fill: var(--st-c3); }

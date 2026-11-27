@@ -41,6 +41,7 @@ export function spoken(t) {
 /* ---------- providers: each returns { bytes, ext } ---------- */
 const CARTESIA_VOICES = {
   kiara: { id: "f8f5f1b2-f02d-4d8e-a40d-fd850a487b3d", label: "Cartesia · Kiara (upbeat, Indian accent)" },
+  skylar: { id: "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4", label: "Cartesia · Skylar (Maji's voice)" },
   krishna: { id: "c63361f8-d142-4c62-8da7-8f8149d973d6", label: "Cartesia · Krishna (easygoing, Indian accent)" },
 };
 const GEMINI_STYLE = "Read this aloud as a warm, lively young Indian maths teacher talking to a 13-year-old in class. " +

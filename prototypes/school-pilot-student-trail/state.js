@@ -44,6 +44,7 @@
       explains: {},
       log: [],
       retest: {},
+      plans: {},
     };
   }
 
@@ -191,6 +192,12 @@
       ensure();
       if (S.skills[skillId]) { S.skills[skillId].revisitDay = null; save(); }
     },
+
+    /** The made-for-you plan decided for a day (see plan.js), or null if that day hasn't been decided yet. */
+    plan: function (day) { ensure(); return (S.plans && S.plans[day]) || null; },
+
+    /** Save a day's plan. Decided once, when the day is first opened. */
+    setPlan: function (day, rec) { ensure(); S.plans = S.plans || {}; S.plans[day] = rec; save(); },
 
     reset: function () {
       memory = null;

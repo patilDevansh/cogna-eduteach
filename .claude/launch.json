@@ -128,6 +128,85 @@
         "prototypes/school-pilot-student-trail"
       ],
       "port": 4480
+    },
+    {
+      "name": "student-trail-flow",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4483",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "prototypes/school-pilot-student-trail"
+      ],
+      "port": 4483
+    },
+    {
+      "name": "student-trail-before",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4481",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "/private/tmp/claude-501/-Users-dp-eduTeach/30cf39d9-c4a4-4fe2-89f2-ecf8a236f5e3/scratchpad/before-snapshot"
+      ],
+      "port": 4481
+    },
+    {
+      "name": "student-trail-before-lean",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4482",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "/private/tmp/claude-501/-Users-dp-eduTeach/30cf39d9-c4a4-4fe2-89f2-ecf8a236f5e3/scratchpad/before-lean"
+      ],
+      "port": 4482
+    },
+    {
+      "name": "student-trail-agent",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "prototypes/school-pilot-student-trail/tools/agent-server.mjs"
+      ],
+      "port": 4490
+    },
+    {
+      "name": "voice-tutor-api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/dp/eduTeach-voice-tutor/apps/api/dist/main.js"
+      ],
+      "port": 3001,
+      "env": {
+        "PORT": "3001",
+        "VOICE_TUTOR_ENABLED": "true",
+        "VOICE_TUTOR_SAFETY": "provider",
+        "LOTUS_DEV_OBSERVER_BYPASS": "true",
+        "MODULE_LEARNING_ENABLED": "true"
+      }
+    },
+    {
+      "name": "voice-tutor-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/dp/eduTeach-voice-tutor/apps/web",
+        "exec",
+        "next",
+        "dev",
+        "--port",
+        "3000"
+      ],
+      "port": 3000
     }
   ]
 }

@@ -4,16 +4,20 @@
      2. tap the field to make a copy, spin the copy with its gold knob, and slide it in: two triangles make a parallelogram
      3. the parallelogram is base × height (from the last lesson); guess the triangle's share, then watch the copy lift off
      4. on a new field, tap the real height (the slanted side is the trap), then work out the land on their own
-   Built on Cogna.lesson + Cogna.landKit (same land look as para-field). Every line the narrator can say is a literal
-   `caption:` so tools/record-narration.mjs records it. */
+   It is told as a story: Maji presents (Cogna.lesson's presenter), Meena (Ramesh uncle's daughter) walks on with her
+   problem, the student guesses first, makes the parallelogram, then TELLS MEENA the answer and how they knew. She
+   thanks them and leaves before the lesson moves from her plot to the rule and a new field.
+   Built on Cogna.lesson + Cogna.landKit (same land look as para-field) + Cogna.story (people and the shared steps).
+   Every line the narrator can say is a literal `caption:` so tools/record-narration.mjs records it. */
 (function () {
   "use strict";
-  var C = window.Cogna, K = C.landKit;
+  var C = window.Cogna, K = C.landKit, ST = C.story;   // K is the land kit here, so the story kit is ST
   var W = 800, H = 470, U = 52;
   var T = [[0, 4], [6, 4], [2, 0]];             // the triangle field, in squares
   var SLOT = [[8, 0], [2, 0], [6, 4]];          // where its half-turned copy goes
   var PARA = [[0, 4], [6, 4], [8, 0], [2, 0]];
-  var F0 = [60, 170];                           // where field 1 sits at first
+  var F0 = [140, 170];                          // where field 1 sits at first (clear of Meena, who stands bottom left)
+  var STAGE = [6.4 * U, -44];                   // where the copy waits, from the field: up a little, clear of Maji's corner
   var u3 = 44, T3 = [[0, 4], [10, 4], [3, 0]];  // the field for "your turn"
 
   var R = {
@@ -33,6 +37,16 @@
     n14: { caption: "That's 10 + 4. For land, we multiply, then take half." },
     nOther: { caption: "Half of base × height. The base is 10, the height is 4." },
     nRight: { caption: "20! Spot on." },
+    guessed: { caption: "Good. Hold on to that guess, and let's find out for sure." },
+    noGuess: { caption: "That's fine. Let's find out together." },
+    tell24: { caption: "24 is both triangles together. Her plot is one of them." },
+    tellWrong: { caption: "The two triangles together had 24 squares. Take half." },
+    tellRight: { caption: "She says thank you! Now she knows exactly how much seed to buy." },
+    tellRightGuess: { caption: "She says thank you! And 12 was your guess at the start. Spot on." },
+    tellRightOther: { caption: "She says thank you! Now you know for sure, and so does she." },
+    howRight: { caption: "Exactly. Half of 6 × 4. Off she goes to buy her seed." },
+    howHalf: { caption: "Base × height is the whole parallelogram, 24. Her triangle is half of that. Off she goes to buy her seed." },
+    howSlant: { caption: "Not the slanted side. The height goes straight up, 4, and her plot is half of 6 × 4. Off she goes to buy her seed." },
   };
 
   function placeF(c) { c.gF.setAttribute("transform", "translate(" + c.f.x.toFixed(1) + " " + c.f.y.toFixed(1) + ")"); }
@@ -65,21 +79,26 @@
   }
 
   C.lesson.define({
-    id: "tri-field", title: "Ramesh uncle's triangle field", cls: "t-pf t-tf", w: W, h: H, durationMs: 180000,
+    id: "tri-field", title: "Meena's corner plot", cls: "t-pf t-tf", w: W, h: H, durationMs: 180000,
+    presenter: { x: 700, y: 360, h: 106 },   // Maji tells the lesson from the bottom right corner
 
     build: function (svg, L) {
       var c = K.setup(svg, L);
+      ST.scene(svg, L, { w: W, h: H, river: true, hutX: 210, sunX: 360, before: c.world });   // the canal cuts the plot
       c.f = { x: F0[0], y: F0[1] };
       K.tree(c.world, 74, 132, 0.85, L);
       c.sign = K.sign(c, W);
+
+      // Meena waits off to the left until the story brings her on (drawn under the land, so pieces pass over her)
+      c.meena = ST.person(c.world, L, { x: 74, y: 420, look: "girl" });
 
       // field 1 and its copy
       c.gF = K.add(c.world, "g"); placeF(c);
       c.whole = K.field(c, c.gF, T, U);
       c.broken = K.broken(c, c.gF, T, U);
       c.twin = K.twin(c, c.gF, {
-        P: T, u: U, pivot: [3, 2], knobAt: [4.3, 3.05], stage: [7.6 * U, 0], target: [2 * U, 0], slot: SLOT,
-        bounds: { minX: -F0[0] + 8, maxX: 7.9 * U, minY: -150, maxY: 70 }, R: R,
+        P: T, u: U, pivot: [3, 2], knobAt: [4.3, 3.05], stage: STAGE, target: [2 * U, 0], slot: SLOT,
+        bounds: { minX: -F0[0] + 8, maxX: 6.6 * U, minY: -150, maxY: 70 }, R: R,
       });
       c.seam = K.seam(c, c.gF);
       c.outline = K.outline(c.gF, PARA, U);
@@ -118,6 +137,10 @@
     },
 
     steps: [
+      /* ---- 0. the story: someone needs help ---- */
+      { beat: "story", caption: "This is Meena, Ramesh uncle's daughter. She wants marigolds on the corner plot the canal cuts into a triangle, and seed is sold by the square.",
+        run: function (c, L) { ST.enter(c.meena, L); } },
+
       /* ---- 1. meet the field ---- */
       { branch: function () { var p = C.data && C.data.profile; return p && p.id === "aarav" ? 0 : (p && p.id === "riya" ? 1 : 2); },
         options: [
@@ -126,12 +149,16 @@
           { caption: "Ramesh uncle has a new field. This one is a triangle.", run: function (c, L) { K.hop(c.whole, L, 0.15); L.wait(700, function () { c.sign.pop(L); }); } },
         ] },
       { caption: "Two slanted edges, and lots of broken squares. Counting them would be a mess.",
-        run: function (c, L) { c.broken.show(L); } },
+        run: function (c, L) { c.broken.show(L); ST.puzzled(c.meena, L, true); } },
+      // a guess before anything is taught: nothing is marked right or wrong here
+      ST.guessStep({ caption: "Before we help her, have a guess. How many squares of land do you think her triangle has?",
+        choices: [{ label: "12", value: 12 }, { label: "24", value: 24 }, { label: "30", value: 30 }, { label: "No idea yet", value: 0 }],
+        guessed: R.guessed, none: R.noGuess }),
       { caption: "But we already know parallelograms. Can two of these triangles make one?",
-        run: function (c, L) { c.broken.hide(L); K.sheen(c, L, c.whole, 6 * U, 4 * U); } },
+        run: function (c, L) { ST.puzzled(c.meena, L, false); c.broken.hide(L); K.sheen(c, L, c.whole, 6 * U, 4 * U); } },
 
       /* ---- 2. copy it ---- */
-      { caption: "Tap the field to make a copy.",
+      { beat: "hands", caption: "Tap the field to make a copy.",
         task: function (c, L, done) {
           var p = c.whole, over = false, bob = null;
           p.g.classList.add("is-movable"); p.lift.setAttribute("tabindex", "0"); p.lift.setAttribute("role", "button");
@@ -182,7 +209,22 @@
             c.sign.count(L, 24, 12, 1.1, function () { L.board("half of 6 × 4 = <b>12</b>"); });
           });
         } },
-      { caption: "That's the rule. A triangle's area is half of base × height.",
+      /* ---- 4b. tell Meena: the answer, then how you knew ---- */
+      ST.tellStep({ who: function (c) { return c.meena; }, skill: "a3", qid: "tri-tell",
+        caption: "Meena is waiting. Tell her how many squares of land her triangle has.",
+        prompt: "Tell Meena. Squares of land:", answer: 12,
+        wrong: [{ value: 24, caption: R.tell24.caption, mixup: "half" }], other: R.tellWrong,
+        thanks: ["12 squares!", "Thank you!"], same: R.tellRightGuess, close: R.tellRightOther, plain: R.tellRight }),
+      ST.howStep({ who: function (c) { return c.meena; }, skill: "a3", qid: "tri-how", leave: true,
+        caption: "She has one more question. How did you know, without counting every broken square?",
+        prompt: "Tell her how:", bubble: ["How did", "you know?"],
+        choices: [
+          { label: "I multiplied the base and the height", value: "whole", mixup: "half", caption: R.howHalf.caption },
+          { label: "Two triangles make a parallelogram, and hers is half of it", value: "half", correct: true, caption: R.howRight.caption },
+          { label: "I used the slanted side as the height", value: "slant", mixup: "slant", caption: R.howSlant.caption },
+        ] }),
+
+      { beat: "rule", caption: "That's the rule. A triangle's area is half of base × height.",
         run: function (c, L) {
           L.board('<span class="t-rule">area = ½ × base × height</span><span class="t-rule-note">½ × 6 × 4 = 12 squares</span>');
         } },

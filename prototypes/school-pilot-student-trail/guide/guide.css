@@ -182,3 +182,6 @@
 @media (prefers-reduced-motion: reduce) { .cg-guide[data-mood="think"] .cg-ring, .cg-guide[data-mood="listen"] .cg-ring, .cg-mic-dot { animation: none; } }
 /* the gel body shows her moods itself; the old orb's ring is not used */
 .cg-ring { display: none; }
+
+/* Maji is on a lesson's own stage (Cogna.lesson presenter): the floating one steps aside */
+.is-maji-presenting .cg-guide, .is-maji-presenting .cg-bubble, .is-maji-presenting .cg-spot { display: none !important; }

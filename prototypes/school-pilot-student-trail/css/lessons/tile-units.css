@@ -1,0 +1,41 @@
+/* tile-units (anim/tile-units.js): one square metre of floor, covered in 1 cm mosaic tiles.
+   The floor is a land-kit slab (.t-pf-piece) re-coloured as bare cement; the tiles, ruler and magnifier are this
+   lesson's own objects, so their colours live in variables on .t-tile. Everything else uses the Cogna tokens. */
+.t-tile {
+  --tile-floor: #cfc6b8; --tile-floor-edge: #9c917f; --tile-slab: #8f8676; --tile-slab-edge: #6f6759;
+  --tile-a: #2f8f9d; --tile-b: #62bcc8; --tile-grout: #f3eee4;
+  --tile-ruler: #f2d27a; --tile-ruler-edge: #b98a1e; --tile-ruler-ink: #4a3608;
+}
+
+/* the bare floor: the land-kit slab without grass, stripes or grid */
+.t-pf.t-tile .t-pf-grass { fill: var(--tile-floor); }
+.t-pf.t-tile .t-pf-soil { fill: var(--tile-slab); stroke: var(--tile-slab-edge); }
+.t-pf.t-tile .t-pf-edge { stroke: var(--tile-floor-edge); }
+.t-pf.t-tile .t-pf-stripe { opacity: 0; }
+.t-pf.t-tile .t-pf-grid { stroke-opacity: 0; }
+
+/* the tiles (also the cells of the <pattern> that fills the tiled part of the floor) */
+.t-tile .t-tile-grout { fill: var(--tile-grout); }
+.t-tile .t-tile-a { fill: var(--tile-a); }
+.t-tile .t-tile-b { fill: var(--tile-b); }
+.t-tile .t-tile-top { stroke: var(--pf-gold); stroke-width: 3; stroke-linecap: round; }
+
+/* the ruler along the bottom edge, and the marker that slides on it */
+.t-tile .t-tile-ruler { fill: var(--tile-ruler); stroke: var(--tile-ruler-edge); stroke-width: 2; }
+.t-tile .t-tile-ticks { fill: none; stroke: var(--tile-ruler-ink); stroke-width: 1; }
+.t-tile .t-lesson-svg text.t-tile-rulernum { font-size: 12px; font-weight: 700; fill: var(--tile-ruler-ink); stroke-width: 0; }
+.t-tile .t-tile-meas { fill: var(--pf-gold); stroke: #fff; stroke-width: 1.5; }
+.t-tile .t-tile-stem { stroke: var(--pf-gold); stroke-width: 4; stroke-linecap: round; }
+
+/* the magnifier: a few tiles, enlarged */
+.t-tile .t-tile-mag { pointer-events: none; }
+.t-tile .t-tile-magbg { fill: var(--tile-floor); }
+.t-tile .t-tile-magrim { fill: none; stroke: var(--ink); stroke-width: 5; }
+.t-tile .t-tile-maglink { stroke: var(--ink); stroke-width: 4; stroke-linecap: round; }
+.t-tile .t-tile-maglens { fill: none; stroke: var(--ink); stroke-width: 3; }
+.t-tile .t-lesson-svg text.t-tile-maglab { font-size: 18px; fill: var(--ink-soft); }
+
+/* the rule: plain squares, off the floor */
+.t-tile .t-tile-plain { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; }
+.t-tile .t-lesson-svg text.t-tile-big { font-family: var(--font-display); font-size: 34px; font-weight: 700; fill: var(--accent-deep); }
+.t-tile .t-lesson-svg text.t-tile-small { font-size: 20px; font-weight: 700; }

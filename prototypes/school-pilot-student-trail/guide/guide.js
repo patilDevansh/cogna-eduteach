@@ -28,13 +28,13 @@
   if (/[?&]guide=reset\b/.test(window.location.search)) { seen = {}; try { window.localStorage.removeItem(SEEN_KEY); } catch (e) { /* ignore */ } }
 
   /* ------------------------------------------------------------------ the orb */
-  // her body is drawn on a canvas by guide/creature.js (a gel drop with orbiting maths shapes)
+  // her body is drawn on a canvas by guide/creature.js (Maji, a lion cub, from a sprite sheet)
   var DPR = Math.min(2, window.devicePixelRatio || 1), CANVAS = 112;
   var canvas = h("canvas", { class: "cg-canvas", width: CANVAS * DPR, height: CANVAS * DPR, "aria-hidden": "true" });
   var creature = C.guideCreature.create(canvas);
   var level = 0;
   var body = h("span", { class: "cg-body" }, canvas);
-  var orb = h("button", { type: "button", class: "cg-orb", "aria-label": "Cogna, your guide. Tap to hear that again." },
+  var orb = h("button", { type: "button", class: "cg-orb", "aria-label": "Maji, your guide. Tap to hear that again." },
     h("span", { class: "cg-ring" }), body);
   var shadow = h("span", { class: "cg-shadow", "aria-hidden": "true" });
   var text = h("p", { class: "cg-text" });
@@ -43,7 +43,7 @@
   var skipBtn = h("button", { type: "button", class: "cg-btn cg-skip" }, "Skip tour");
   var hideBtn = h("button", { type: "button", class: "cg-x", "aria-label": "Hide the guide's message" }, "×");
   var bubble = h("div", { class: "cg-bubble", role: "status", "aria-live": "polite", hidden: true },
-    h("span", { class: "cg-name" }, "Cogna"), hideBtn, heard, text, h("div", { class: "cg-actions" }, nextBtn, skipBtn));
+    h("span", { class: "cg-name" }, "Maji"), hideBtn, heard, text, h("div", { class: "cg-actions" }, nextBtn, skipBtn));
   var spot = h("div", { class: "cg-spot", "aria-hidden": "true", hidden: true });
   var sparks = h("div", { class: "cg-sparks", "aria-hidden": "true" });
   var root = h("div", { class: "cg-guide", "data-mood": "idle" }, shadow, orb, sparks);
@@ -338,7 +338,17 @@
     var e = mine[mine.length - 1];
     if (me.step && (me.step.type === "animation")) return; // never talk over a lesson
     if (e.correct) { cheer(); say(L.right[rightIx++ % L.right.length]); }
-    else { oops(); say(e.mixup && L.mixup[e.mixup] ? L.mixup[e.mixup] : L.wrong); }
+    else {
+      oops();
+      var hint = e.mixup && L.mixup[e.mixup] ? L.mixup[e.mixup] : null;
+      // "have another look" only when a try is left; once the answer is on screen she points at the working instead.
+      // The feedback is drawn right after this event, so look for its Try again button on the next tick.
+      setTimeout(function () {
+        if (session !== me) return;
+        var again = !!document.querySelector(".t-fb .t-retry");
+        say(hint || (again ? L.wrong : L.wrongFinal));
+      }, 0);
+    }
   });
 
   var handled = null;

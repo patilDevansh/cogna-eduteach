@@ -9,6 +9,7 @@
 
 local kit = require('kit')
 local lines = require('lines')
+local world = require('world')
 
 type Fonts = kit.Fonts
 type G = kit.G
@@ -35,6 +36,9 @@ type Area = {
     fonts: Fonts?,
     g: G?,
     sfx: { [string]: AudioSource },
+    maji: Image?,
+    majiSampler: ImageSampler?,
+    cheerAt: number, -- when the last task was finished: Maji jumps
     voices: { [string]: AudioSource },
     voice: AudioSound?,
     voiceKey: string,
@@ -231,6 +235,8 @@ function init(self: Area, context: Context): boolean
             print('sound missing: ' .. n)
         end
     end
+    self.maji = context:image('maji')
+    self.majiSampler = ImageSampler('clamp', 'clamp', 'bilinear')
     local missing = 0
     for k in lines do
         local src: AudioSource? = context:audio('v_' .. k)
@@ -265,6 +271,7 @@ function init(self: Area, context: Context): boolean
             local k = key(self.li, self.step)
             if not self.done[k] then
                 self.done[k] = true
+                self.cheerAt = self.t
                 sfx(self, 'chime')
             end
         end,
@@ -598,9 +605,18 @@ local function drawCaption(self: Area, r: Renderer, fonts: Fonts, y: number)
     r:transform(Mat2D.withTranslation(0, (1 - k) * 6))
     r:drawPath(kit.rrect(40, y, 1200, 52, 26), kit.fill(kit.SURFACE))
     r:drawPath(kit.rrect(40, y, 1200, 52, 26), kit.stroke(kit.LINE, 1.5))
-    drawOrb(self, r, 68, y + 26, 17)
-    local one = kit.width(fonts, self.caption, fonts.body, 17) < 1110
-    kit.paragraph(r, fonts, self.caption, 17, if talking(self) then kit.INK else kit.INK_SOFT, 98, y + (if one then 15 else 5), 1120)
+    -- Maji tells the lesson: she sits on the caption bar, talks with it and jumps when a task is done
+    local drew = false
+    local img, smp = self.maji, self.majiSampler
+    if img ~= nil and smp ~= nil then
+        local mood = if self.t - self.cheerAt < 1.4 then 'happy' elseif talking(self) then 'talk' else 'idle'
+        drew = world.maji(r, img, smp, 82, y + 50, 92, self.t, mood)
+    end
+    if not drew then
+        drawOrb(self, r, 68, y + 26, 17)
+    end
+    local one = kit.width(fonts, self.caption, fonts.body, 17) < 1070
+    kit.paragraph(r, fonts, self.caption, 17, if talking(self) then kit.INK else kit.INK_SOFT, 138, y + (if one then 15 else 5), 1080)
     r:restore()
 end
 
@@ -830,6 +846,9 @@ return function(context: Context): Layout<Area>
         fonts = nil,
         g = nil,
         sfx = {},
+        maji = nil,
+        majiSampler = nil,
+        cheerAt = -10,
         voices = {},
         voice = nil,
         voiceKey = '',

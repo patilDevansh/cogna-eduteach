@@ -8,26 +8,70 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../cogna.css">
 <style>
-  .t-voices { max-width: 640px; margin: 0 auto; padding: var(--s-6, 32px) 16px; display: grid; gap: var(--s-4, 16px); }
-  .t-voice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;
+  .t-voices { max-width: 720px; margin: 0 auto; padding: var(--s-6, 32px) 16px var(--s-8, 72px); display: grid; gap: var(--s-4, 16px); }
+  .t-voices h2 { margin: var(--s-5, 24px) 0 0; font-size: var(--text-xl); }
+  .t-line { margin: 0; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--accent-wash); border-radius: 0 var(--radius) var(--radius) 0; }
+  .t-voice { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 16px; padding: 14px 16px;
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
   .t-voice-name { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); }
-  .t-voice audio { width: min(320px, 100%); }
+  .t-voice-note { grid-column: 1; color: var(--ink-soft); font-size: var(--text-sm); margin: 0; }
+  .t-voice audio { grid-row: 1 / span 2; grid-column: 2; width: min(300px, 46vw); }
+  .t-voice.is-now { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .t-tag { font-family: var(--font-math); font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-deep); background: var(--accent-wash); border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
+  @media (max-width: 560px) { .t-voice { grid-template-columns: 1fr; } .t-voice audio { grid-row: auto; grid-column: 1; width: 100%; } }
 </style>
 </head>
 <body>
 <main class="t-voices">
   <p class="eyebrow">Prototype · narration</p>
-  <h1>Indian English voices</h1>
-  <p class="lead">Each voice reads the same line: “The square on side a holds 3 × 3, which is 9. So a² + b² = c², and c is 5.”
-    The lessons use <strong>Priya</strong>. To switch, re-run the recorder with <code>--voice=&lt;name&gt;</code>.</p>
-  <div class="t-voice"><span class="t-voice-name">Priya · female (in use)</span><audio controls preload="none" src="priya.mp3"></audio></div>
-  <div class="t-voice"><span class="t-voice-name">Kavya · female</span><audio controls preload="none" src="kavya.mp3"></audio></div>
-  <div class="t-voice"><span class="t-voice-name">Ritu · female</span><audio controls preload="none" src="ritu.mp3"></audio></div>
-  <div class="t-voice"><span class="t-voice-name">Neha · female</span><audio controls preload="none" src="neha.mp3"></audio></div>
-  <div class="t-voice"><span class="t-voice-name">Aditya · male</span><audio controls preload="none" src="aditya.mp3"></audio></div>
-  <div class="t-voice"><span class="t-voice-name">Shubh · male</span><audio controls preload="none" src="shubh.mp3"></audio></div>
-  <div class="t-voice"><span class="t-voice-name">Rahul · male</span><audio controls preload="none" src="rahul.mp3"></audio></div>
+  <h1>The voices we have recorded</h1>
+
+  <h2>Indian voices with lesson lines recorded</h2>
+  <p class="t-line">Each reads the same lesson line: “Ooh, a slanted cut. Slanted edges won't make a square corner. Try cutting straight down.”</p>
+
+  <div class="t-voice">
+    <span class="t-voice-name">Sarvam · Priya</span>
+    <audio controls preload="none" src="../sarvam-priya/6075n3.mp3"></audio>
+    <p class="t-voice-note">Indian English, female. The most complete Indian voice: 136 lesson lines.</p>
+  </div>
+  <div class="t-voice">
+    <span class="t-voice-name">Cartesia · Kiara</span>
+    <audio controls preload="none" src="../cartesia-kiara/6075n3.mp3"></audio>
+    <p class="t-voice-note">Upbeat, Indian accent, female. 30 lesson lines, plus Maji's 67 old guide lines. Not on the current Cartesia account.</p>
+  </div>
+  <div class="t-voice">
+    <span class="t-voice-name">Cartesia · Krishna</span>
+    <audio controls preload="none" src="../cartesia-krishna/6075n3.mp3"></audio>
+    <p class="t-voice-note">Easygoing, Indian accent, male. 30 lesson lines.</p>
+  </div>
+  <div class="t-voice">
+    <span class="t-voice-name">Gemini · Sulafat</span>
+    <audio controls preload="none" src="../gemini-sulafat/6075n3.wav"></audio>
+    <p class="t-voice-note">Female, told to sound like a lively Indian teacher. 34 lesson lines.</p>
+  </div>
+
+  <h2>For comparison: the voice in use now</h2>
+  <div class="t-voice is-now">
+    <span class="t-voice-name">Cartesia · Skylar <span class="t-tag">in use</span></span>
+    <audio controls preload="none" src="../cartesia-skylar/6075n3.mp3"></audio>
+    <p class="t-voice-note">American, female. Maji's voice now: 316 lesson lines and all 67 guide lines.</p>
+  </div>
+
+  <h2>Sarvam's Indian English voices: one sample each</h2>
+  <p class="t-line">Each reads: “The square on side a holds 3 × 3, which is 9. So a² + b² = c², and c is 5.” Only Priya has full lesson lines.</p>
+  <div class="t-voice"><span class="t-voice-name">Priya</span><audio controls preload="none" src="priya.mp3"></audio><p class="t-voice-note">Female</p></div>
+  <div class="t-voice"><span class="t-voice-name">Kavya</span><audio controls preload="none" src="kavya.mp3"></audio><p class="t-voice-note">Female</p></div>
+  <div class="t-voice"><span class="t-voice-name">Ritu</span><audio controls preload="none" src="ritu.mp3"></audio><p class="t-voice-note">Female</p></div>
+  <div class="t-voice"><span class="t-voice-name">Neha</span><audio controls preload="none" src="neha.mp3"></audio><p class="t-voice-note">Female</p></div>
+  <div class="t-voice"><span class="t-voice-name">Aditya</span><audio controls preload="none" src="aditya.mp3"></audio><p class="t-voice-note">Male</p></div>
+  <div class="t-voice"><span class="t-voice-name">Shubh</span><audio controls preload="none" src="shubh.mp3"></audio><p class="t-voice-note">Male</p></div>
+  <div class="t-voice"><span class="t-voice-name">Rahul</span><audio controls preload="none" src="rahul.mp3"></audio><p class="t-voice-note">Male</p></div>
 </main>
+<script>
+  // one voice at a time: starting one stops the others
+  document.addEventListener("play", function (e) {
+    document.querySelectorAll("audio").forEach(function (a) { if (a !== e.target) a.pause(); });
+  }, true);
+</script>
 </body>
 </html>

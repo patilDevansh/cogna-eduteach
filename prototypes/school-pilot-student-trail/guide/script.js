@@ -1,4 +1,4 @@
-/* Cogna guide — everything the orb says, in one place.
+/* Cogna guide — everything Maji the guide says, in one place.
    guide/guide.js reads these lines; tools/record-guide.mjs records every one of them
    (allLines() lists them all), so the words on screen and in the voice never drift apart.
    Placeholders are filled from the prototype's data: {first} is the student's first name,
@@ -8,7 +8,7 @@
   var C = window.Cogna;
 
   var L = {
-    welcomeFirst: "Hi {first}! I'm Cogna, and I'll be with you the whole way. Your check-in is done, so let's see what it found. Tap See my report.",
+    welcomeFirst: "Hi {first}! I'm Maji, and I'll be with you the whole way. Your check-in is done, so let's see what it found. Tap See my report.",
     welcomeBack: "Welcome back, {first}. Your report is right here.",
 
     // the report, one stop per section
@@ -48,6 +48,7 @@
 
     right: ["Yes, that's right!", "Spot on.", "Nice one, well done."],
     wrong: "Not quite. Have another look.",
+    wrongFinal: "Not quite. Read how it works, then on to the next one.",   // the answer is on screen now
     mixup: {
       slant: "Careful! That's the slanted side. The height goes straight up, at a right angle.",
       perim: "That's the distance around, the perimeter. Area counts the squares inside.",
