@@ -1,9 +1,10 @@
 -- Lesson 2 · Area or perimeter?
 --   1. a fence is built post by post round a field (16 m), then the land inside fills square by square (15);
 --      the student says which number is the land
---   2. exactly 20 m of fence: drag the corner to reshape the field. A live chart plots every field tried;
---      find the biggest (5 × 5 = 25)
---   3. a room 8 m by 3 m: how many 1 m tiles cover the floor? (24; 22 is the skirting round the edge)
+--   2. exactly 20 m of fence. The student bets first: can the land change if the fence stays the same?
+--      Then they drag the corner to reshape the field. A live chart plots every field tried; find the biggest (5 × 5 = 25)
+--   3. the other way: squeeze the same fence into the smallest field (9 × 1 = 9), next to the ghost of the 25 square
+--   4. a room 8 m by 3 m: how many 1 m tiles cover the floor? (24; 22 is the skirting round the edge)
 
 local kit = require('kit')
 type G = kit.G
@@ -14,7 +15,8 @@ type St = {
     picked: number,
     answered: boolean,
     answerAt: number,
-    -- step 2
+    -- steps 2 and 3
+    bet: number, -- step 2: -1 not yet, 0 'stays the same', 1 'it changes'
     w: number, -- target width (whole metres)
     shown: kit.Spring, -- the width as drawn (springs toward w)
     dragging: boolean,
@@ -34,12 +36,12 @@ local F1X, F1Y = 250, 250
 -- step 2 field
 local U2, P2 = 34, 10 -- half the fence: w + h = 10
 local F2X, F2Y = 120, 192
--- step 3 room
+-- step 4 room
 local U3 = 50
 local F3X, F3Y = 140, 250
 
 local S: St = {
-    choices = {}, picked = -1, answered = false, answerAt = -1,
+    choices = {}, picked = -1, answered = false, answerAt = -1, bet = -1,
     w = 2, shown = { x = 2, v = 0 }, dragging = false, held = 0, tried = {}, best = 0, pop = 0, won = false, winAt = -1,
 }
 
@@ -166,9 +168,26 @@ local function drawStep2(g: G, r: Renderer)
     r:drawPath(kit.poly(FP), kit.stroke(Color.rgb(150, 104, 44), 4))
     r:drawPath(kit.poly(kit.offset(FP, 0, -6)), kit.stroke(Color.rgb(186, 136, 66), 3))
     kit.halo(r, f, kit.num(wv) .. ' m', f.body, 17, kit.INK, x + w / 2, y - 30, 0.5)
-    kit.halo(r, f, kit.num(hv) .. ' m', f.body, 17, kit.INK, x + w + 32, y + h / 2, 0)
+    if g.step == 3 then
+        -- on the left here, clear of the ghost square
+        kit.halo(r, f, kit.num(hv) .. ' m', f.body, 17, kit.INK, x - 22, y + h / 2, 1)
+    else
+        kit.halo(r, f, kit.num(hv) .. ' m', f.body, 17, kit.INK, x + w + 32, y + h / 2, 0)
+    end
     -- handle on the bottom-right corner
-    kit.knob(r, g.t, x + w, y + h, 'slide', S.held, not S.dragging and next(S.tried) == nil)
+    if g.step == 3 then
+        -- the ghost of the biggest field, to compare against
+        local q = 5 * U2
+        r:drawPath(kit.rrect(F2X, F2Y, q, q, 4), kit.stroke(kit.alpha(kit.GOLD, 0.75), 2.5))
+        if S.w ~= 5 then
+            kit.halo(r, f, '25 sq m', f.body, 15, Color.rgb(150, 90, 20), F2X + q + 12, F2Y + q - 14, 0)
+        end
+    end
+    local canDrag = g.step == 3 or S.bet >= 0
+    local nudge = not S.dragging and not S.won and ((g.step == 2 and next(S.tried) == nil) or (g.step == 3 and S.w == 5))
+    if canDrag then
+        kit.knob(r, g.t, x + w, y + h, 'slide', S.held, nudge)
+    end
     -- readouts
     local A = areaFor(S.w)
     kit.sign(r, f, 'FENCE (ALWAYS)', '20 m', 0, 520, 176)
@@ -176,6 +195,14 @@ local function drawStep2(g: G, r: Renderer)
     -- the chart: land for every width tried
     local cx0, cy0, cw, ch = 790, 186, 400, 300
     r:drawPath(kit.rrect(cx0 - 20, cy0 - 20, cw + 40, ch + 90, 20), kit.fill(kit.PAGE))
+    if g.step == 2 and S.bet < 0 then
+        -- the bet comes first: nothing can be dragged until the student has committed
+        kit.label(r, f, 'YOUR BET', f.mono, 12, kit.INK_SOFT, cx0 + cw / 2, cy0 + 40, 0.5)
+        kit.label(r, f, 'The fence stays 20 m.', f.display, 24, kit.INK, cx0 + cw / 2, cy0 + 84, 0.5)
+        kit.label(r, f, 'Can the land change?', f.display, 24, kit.INK, cx0 + cw / 2, cy0 + 116, 0.5)
+        kit.choicesDraw(r, f, S.choices, hover, S.picked, g.t)
+        return
+    end
     kit.label(r, f, 'LAND FOR EACH SHAPE YOU TRY', f.mono, 12, kit.INK_SOFT, cx0, cy0, 0)
     local base = cy0 + ch
     r:drawPath(kit.line(cx0, base, cx0 + cw, base), kit.stroke(kit.LINE, 2))
@@ -187,7 +214,8 @@ local function drawStep2(g: G, r: Renderer)
             local k = kit.back((g.t - tt) * 3)
             local bh = (a / 25) * (ch - 50) * k
             local isNow = wi == S.w
-            local col = if wi == 5 and S.won then kit.GOLD elseif isNow then kit.ACCENT else kit.alpha(kit.GRASS, 0.8)
+            local smallest = g.step == 3 and S.won and (wi == 1 or wi == 9)
+            local col = if smallest then kit.ORANGE elseif wi == 5 and (S.won or g.step == 3) then kit.GOLD elseif isNow then kit.ACCENT else kit.alpha(kit.GRASS, 0.8)
             r:drawPath(kit.rrect(bx - 16, base - bh, 32, bh, 8), kit.fill(col))
             kit.label(r, f, tostring(a), f.display, 17, if isNow then kit.ACCENT_DEEP else kit.INK_SOFT, bx, base - bh - 16, 0.5)
         else
@@ -195,15 +223,18 @@ local function drawStep2(g: G, r: Renderer)
         end
         kit.label(r, f, wi .. '×' .. (P2 - wi), f.mono, 11, kit.INK_FAINT, bx, base + 18, 0.5)
     end
+    if g.step == 2 and not S.won then
+        kit.label(r, f, if S.bet == 1 then 'your bet: the land changes' else 'your bet: the land stays the same', f.mono, 12, kit.INK_FAINT, cx0 + cw / 2, cy0 + ch + 50, 0.5)
+    end
     if S.won then
         local k = kit.clamp((g.t - S.winAt) * 2, 0, 1)
-        kit.tag(r, f, 'a square holds the most!', cx0 + cw / 2, cy0 + ch + 50, k)
+        kit.tag(r, f, if g.step == 3 then 'same fence: 25 or just 9' else 'a square holds the most!', cx0 + cw / 2, cy0 + ch + 50, k)
     end
 end
 
--- step 3 ------------------------------------------------------------------------
+-- step 4 ------------------------------------------------------------------------
 
-local function drawStep3(g: G, r: Renderer)
+local function drawStep4(g: G, r: Renderer)
     local f = g.fonts
     local x, y, w, h = F3X, F3Y, 8 * U3, 3 * U3
     r:drawPath(kit.rect(x, y, w, h), kit.fill(Color.rgb(226, 222, 212)))
@@ -251,15 +282,26 @@ L.title = 'Fence or land?'
 L.blurb = 'Same fence, different land.'
 L.steps = {
     { title = 'Round the edge, or inside?', line = 'l2s1', task = 'Watch, then say how much land there is' },
-    { title = 'Same fence, different fields', line = 'l2s2', task = 'Find the biggest field 20 m of fence can hold' },
-    { title = 'Tiles or skirting?', line = 'l2s3', task = 'How many tiles cover the floor?' },
+    { title = 'Same fence, different fields', line = 'l2s2', task = 'Make your bet, then find the biggest field 20 m of fence can hold' },
+    { title = 'Now squeeze it', line = 'l2s3', task = 'Same 20 m of fence: make the smallest field you can' },
+    { title = 'Tiles or skirting?', line = 'l2s4', task = 'How many tiles cover the floor?' },
 }
 
 function L.enter(g: G, step: number)
     S.choices, S.picked, S.answered, S.answerAt = {}, -1, false, -1
-    S.w, S.shown, S.dragging, S.held, S.tried, S.best, S.pop, S.won, S.winAt = 2, { x = 2, v = 0 }, false, 0, {}, 0, 0, false, -1
+    -- the squeeze step keeps the chart the student built while finding the biggest field
+    local tried: { [number]: number } = if step == 3 then S.tried else {}
+    S.w, S.shown, S.dragging, S.held, S.tried, S.best, S.pop, S.won, S.winAt = 2, { x = 2, v = 0 }, false, 0, tried, 0, 0, false, -1
+    S.bet = -1
     lastPosts, lastCells = 0, 0
-    if step == 3 then
+    if step == 2 then
+        S.choices = kit.choices(g.fonts, { 'No, same land', 'Yes, it changes' }, { 0, 1 }, 990, 350)
+    elseif step == 3 then
+        S.w, S.shown = 5, { x = 5, v = 0 }
+        if S.tried[5] == nil then
+            S.tried[5] = g.t
+        end
+    elseif step == 4 then
         S.choices = kit.choices(g.fonts, { '22', '24', '11' }, { 22, 24, 11 }, 930, 330)
     end
 end
@@ -284,7 +326,7 @@ function L.advance(g: G, dt: number)
             S.choices = kit.choices(g.fonts, { '16 sq m', '15 sq m' }, { 16, 15 }, 865, 470)
             g.sfx('pop')
         end
-    elseif g.step == 2 then
+    elseif g.step == 2 or g.step == 3 then
         kit.spring(S.shown, S.w, 220, 18, dt)
         S.shown.x = kit.clamp(S.shown.x, 0.6, 9.4)
     end
@@ -293,10 +335,10 @@ end
 function L.draw(g: G, r: Renderer)
     if g.step == 1 then
         drawStep1(g, r)
-    elseif g.step == 2 then
+    elseif g.step == 2 or g.step == 3 then
         drawStep2(g, r)
     else
-        drawStep3(g, r)
+        drawStep4(g, r)
     end
 end
 
@@ -334,28 +376,47 @@ local function tryWidth(g: G, w: number)
 end
 
 local function release(g: G)
-    if S.w == 5 and not S.won then
+    if S.won then
+        return
+    end
+    if g.step == 2 and S.w == 5 then
         S.won = true
         S.winAt = g.t
         g.done()
         g.burst(F2X + 5 * U2 / 2, F2Y + 5 * U2 / 2, 40)
-        g.say('l2s2done')
+        g.say(if S.bet == 0 then 'l2s2doneno' else 'l2s2done')
+    elseif g.step == 3 and (S.w == 1 or S.w == 9) then
+        S.won = true
+        S.winAt = g.t
+        g.done()
+        g.burst(F2X + S.w * U2 / 2, F2Y + (P2 - S.w) * U2 / 2, 40)
+        g.say('l2s3done')
     end
 end
 
 function L.down(g: G, p: Vector): boolean
     hover = p
-    if (g.step == 1 or g.step == 3) and not S.answered then
+    if (g.step == 1 or g.step == 4) and not S.answered then
         local c = kit.choiceHit(S.choices, p)
         if c ~= nil then
             if g.step == 1 then
                 pick(g, c, 15, { [16] = 'l2s1wrong', [0] = 'l2s1wrong' }, 'l2s1done')
             else
-                pick(g, c, 24, { [22] = 'l2s3w22', [11] = 'l2s3w11', [0] = 'l2s3w22' }, 'l2s3done')
+                pick(g, c, 24, { [22] = 'l2s4w22', [11] = 'l2s4w11', [0] = 'l2s4w22' }, 'l2s4done')
             end
             return true
         end
-    elseif g.step == 2 then
+    elseif g.step == 2 and S.bet < 0 then
+        -- a bet has no wrong answer: it is tested by hand next
+        local c = kit.choiceHit(S.choices, p)
+        if c ~= nil then
+            S.bet = c.value
+            S.choices = {}
+            g.sfx('pop')
+            g.say(if c.value == 0 then 'l2s2no' else 'l2s2yes')
+            return true
+        end
+    elseif g.step == 2 or g.step == 3 then
         local corner = Vector.xy(F2X + S.shown.x * U2, F2Y + (P2 - S.shown.x) * U2)
         if kit.dist(p, corner) < 44 then
             S.dragging = true
@@ -369,7 +430,7 @@ end
 
 function L.move(g: G, p: Vector)
     hover = p
-    if g.step == 2 and S.dragging then
+    if (g.step == 2 or g.step == 3) and S.dragging then
         -- the corner moves along the line x + y = const, so project the pointer onto it
         local wx = (p.x - F2X) / U2
         local hy = (p.y - F2Y) / U2
@@ -387,12 +448,22 @@ function L.up(g: G, p: Vector)
 end
 
 function L.key(g: G, k: number): boolean
-    if g.step == 2 and (k == 262 or k == 263) then
+    if g.step == 2 and S.bet < 0 then
+        if k == 49 or k == 50 then
+            local c = S.choices[k - 48]
+            if c ~= nil then
+                L.down(g, Vector.xy(c.x + c.w / 2, c.y + 20))
+            end
+            return true
+        end
+        return false
+    end
+    if (g.step == 2 or g.step == 3) and (k == 262 or k == 263) then
         tryWidth(g, S.w + (if k == 262 then 1 else -1))
         release(g)
         return true
     end
-    if (g.step == 1 or g.step == 3) and k >= 49 and k <= 51 and #S.choices > 0 and not S.answered then
+    if (g.step == 1 or g.step == 4) and k >= 49 and k <= 51 and #S.choices > 0 and not S.answered then
         local c = S.choices[k - 48]
         if c ~= nil and not c.out then
             local mid = Vector.xy(c.x + c.w / 2, c.y + 20)
