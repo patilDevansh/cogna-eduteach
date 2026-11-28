@@ -49,14 +49,14 @@ const UNITS: Record<string, number> = {
 };
 const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
 const SCALES: Record<string, number> = { hundred: 100, thousand: 1000, lakh: 100000, lakhs: 100000, crore: 10000000, million: 1000000 };
-const UNIT_WORDS = /^(cm|centimetres?|centimeters?|metres?|meters?|m|mm|millimetres?|km|kilometres?|units?|inches|inch|feet|foot|ft|yards?)$/;
+export const UNIT_WORDS = /^(cm|centimetres?|centimeters?|metres?|meters?|m|mm|millimetres?|km|kilometres?|units?|inches|inch|feet|foot|ft|yards?)$/;
 const RELATIONS: string[][] = [
   ["is", "equal", "to"], ["are", "equal", "to"], ["is", "the", "same", "as"], ["equals"], ["equal"], ["gives", "you"], ["gives"], ["give"],
   ["makes"], ["make"], ["comes", "to"], ["works", "out", "to"], ["is"], ["are"], ["="],
 ];
 const OPERATORS = new Set(["+", "-", "*", "/", "^", "(", ")"]);
 
-function isNumberWord(w: string | undefined): boolean {
+export function isNumberWord(w: string | undefined): boolean {
   return !!w && (w in UNITS || w in TENS || w in SCALES);
 }
 
@@ -120,6 +120,8 @@ export function spokenTokens(text: string): string[] {
     if (w === "times" || w === "plus" || w === "minus") { out.push(w === "times" ? "*" : w === "plus" ? "+" : "-"); i++; continue; }
     // Indian classroom "six into four" is 6 × 4; "put them into brackets" is not
     if (w === "into" && prevIsMath() && nextIsMath(i + 1)) { out.push("*"); i++; continue; }
+    // "one over two", Indian classroom "one upon two": 1 / 2 (the tutor says them back in the student's words)
+    if ((w === "over" || w === "upon") && prevIsMath() && nextIsMath(i + 1)) { out.push("/"); i++; continue; }
     if ((w === "squared" || w === "square" || w === "cubed" || w === "cube") && prevIsMath() && words[i + 1] !== "root" && !UNIT_WORDS.test(words[i + 1] ?? "")) {
       out.push("^", w.startsWith("square") ? "2" : "3"); i++; continue;
     }

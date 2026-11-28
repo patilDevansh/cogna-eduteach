@@ -9,6 +9,7 @@ import { spokenMath } from "../ai/spoken-math";
 import { openAiStudentTextModerator } from "../ai/student-text-safety";
 import { recordTutorHelp, type TutorHelpKey } from "../learning-evidence/tutor-help";
 import { checkSpokenMaths } from "./voice-tutor.maths";
+import { mathsWords } from "./voice-tutor.words";
 import { generalContext, generalMode, moduleContext, practiceContext, type TutorContext, type TutorRecords, type TutorRuns, type VoiceTutorRef } from "./voice-tutor.context";
 import {
   correctionNote,
@@ -204,9 +205,10 @@ export class VoiceTutorService {
    * The tutor's spoken reply and a token for its voice. A filler ("um") gets no reply and costs nothing; an open
    * check gets its pause line with no model call. Help on an open practice question is recorded first. Every reply
    * passes the maths check (voice-tutor.maths.ts) before it can be spoken: a failing reply is sent back once with
-   * the reasons, and if the second one fails too the tutor says a line with no maths.
+   * the reasons, and if the second one fails too the tutor says a line with no maths. Maths is said back in the
+   * student's own words (voice-tutor.words.ts): `spoken` is the line as the voice says it, for the browser's voice too.
    */
-  async talk(studentId: string, said: string, ctx: TutorContext, history: VoiceTutorTurn[]): Promise<{ say: string | null; voice: string | null; paused?: boolean }> {
+  async talk(studentId: string, said: string, ctx: TutorContext, history: VoiceTutorTurn[]): Promise<{ say: string | null; spoken?: string; voice: string | null; paused?: boolean }> {
     const text = said.replace(/\s+/g, " ").trim();
     if (isFiller(text) || isNothingSaid(text)) return { say: null, voice: null };
     // Something is open that the student must do alone: say why, with no model call, no turn used and no voice to pay for.
@@ -215,7 +217,8 @@ export class VoiceTutorService {
     await this.countTurn(studentId);
     await this.reserveTutorCall();
     await this.recordHelp(ctx.record ?? []);
-    const messages = tutorMessages(text, ctx.screen, history);
+    const words = mathsWords([...history.filter((t) => t.role === "student").map((t) => t.text), text]);
+    const messages = tutorMessages(text, ctx.screen, history, words);
     const reply = await this.ask(messages);
     let say = reply.say;
     if (say !== FALLBACK_SAY) {
@@ -244,7 +247,8 @@ export class VoiceTutorService {
         return { say: "Let's keep going with the maths. What part would you like help with?", voice: null };
       }
     }
-    return { say, voice: issueVoiceToken(say) };
+    const spoken = spokenMath(say, words);
+    return { say, spoken, voice: issueVoiceToken(spoken) };
   }
 
   /** Streams the line's voice into `res`. Throws only before anything is written, so the caller can send an error. */

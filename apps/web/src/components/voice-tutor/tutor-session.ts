@@ -33,7 +33,7 @@ export interface TutorProps {
 
 export interface TutorDeps {
   hear(wav: Blob, ref: VoiceTutorRef | undefined, signal: AbortSignal): Promise<{ text: string; paused?: string }>;
-  talk(said: string, screen: VoiceTutorScreen, ref: VoiceTutorRef | undefined, history: VoiceTutorTurn[], signal: AbortSignal): Promise<{ say: string | null; voice: string | null; paused?: boolean }>;
+  talk(said: string, screen: VoiceTutorScreen, ref: VoiceTutorRef | undefined, history: VoiceTutorTurn[], signal: AbortSignal): Promise<{ say: string | null; spoken?: string; voice: string | null; paused?: boolean }>;
   voiceUrl(token: string): string;
   /** Called inside the tap, before anything is awaited. */
   createAudioContext(): AudioContext;
@@ -198,7 +198,7 @@ export class TutorSession {
       this.history = [...this.history, { role: "student" as const, text: said }, { role: "tutor" as const, text: result.say }].slice(-12);
       this.busy = false; // the student may interrupt while it speaks
       this.set({ reply: result.say, mode: "speaking" });
-      this.deps.voice.play(result.say, result.voice ? this.deps.voiceUrl(result.voice) : null, () => this.back(mine));
+      this.deps.voice.play(result.spoken ?? result.say, result.voice ? this.deps.voiceUrl(result.voice) : null, () => this.back(mine));
     } catch (error) {
       if (!isCurrent()) return; // stopped, moved on or left: nothing to say
       if (controller.signal.reason instanceof TurnTimeout || error instanceof TurnTimeout) { this.set({ note: TOO_SLOW }); this.back(mine); return; }

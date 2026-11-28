@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import { sessionSecretFromEnv } from "@cogna/shared/dist/session";
+import { type MathsWords, wordsNote } from "./voice-tutor.words";
 
 /**
  * The live voice tutor's pure rules: the switch, the daily limits, what the page may tell it, the
@@ -139,7 +140,7 @@ Reply with JSON only: {"say": "...", "maths": ["every equation your say states, 
 A checker re-derives every equation and every number before your reply is spoken; a reply that fails is not used.`;
 
 /** The messages sent to the model for one turn. Earlier turns go in as a short transcript. */
-export function tutorMessages(said: string, screen: VoiceTutorScreen, history: VoiceTutorTurn[]): Array<{ role: "system" | "user"; content: string }> {
+export function tutorMessages(said: string, screen: VoiceTutorScreen, history: VoiceTutorTurn[], words: MathsWords = {}): Array<{ role: "system" | "user"; content: string }> {
   const lines: string[] = [];
   lines.push(`Where the student is: ${screen.surface === "LESSON" ? "a lesson" : "practice"}${screen.title ? ` — ${screen.title}` : ""}.`);
   if (screen.studentFirstName) lines.push(`Student's first name: ${screen.studentFirstName}.`);
@@ -154,6 +155,8 @@ export function tutorMessages(said: string, screen: VoiceTutorScreen, history: V
   } else {
     lines.push("No question is open right now.");
   }
+  const note = wordsNote(words);
+  if (note) lines.push(note);
   const past = history.map((t) => `${t.role === "student" ? "Student" : "Cogna"}: ${t.text}`);
   const ask = (past.length ? `The conversation so far:\n${past.join("\n")}\n\n` : "") + `The student now says: ${said.slice(0, 1000)}`;
   return [
@@ -277,7 +280,7 @@ export function issueVoiceToken(text: string, env: NodeJS.ProcessEnv = process.e
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", voiceKey(secret), iv);
   cipher.setAAD(VOICE_TOKEN_AAD);
-  const body = JSON.stringify({ v: 1, t: text.slice(0, 500), e: now + VOICE_TOKEN_TTL_MS, n: randomBytes(12).toString("base64url") });
+  const body = JSON.stringify({ v: 1, t: text.slice(0, 800), e: now + VOICE_TOKEN_TTL_MS, n: randomBytes(12).toString("base64url") });
   const sealed = Buffer.concat([cipher.update(body, "utf8"), cipher.final()]);
   return VOICE_TOKEN_PREFIX + Buffer.concat([iv, cipher.getAuthTag(), sealed]).toString("base64url");
 }
