@@ -121,7 +121,7 @@
         answer: info.answer === undefined ? null : info.answer,
         correct: !!info.correct, mixup: info.correct ? null : (info.mixup || null),
         sure: typeof info.sure === "boolean" ? info.sure : null, ts: Date.now(),
-        what: info.what || null, right: info.right == null ? null : String(info.right),
+        noMastery: !!info.noMastery, what: info.what || null, right: info.right == null ? null : String(info.right),
       });
       save();
     },

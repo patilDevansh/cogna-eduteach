@@ -197,3 +197,45 @@ a.t-daycard:hover { border-color: var(--accent); transform: translateY(-1px); }
 .t-slip-ans b { color: var(--ink); font-weight: 600; }
 .t-slip-mix { font-size: var(--text-xs); font-weight: 600; }
 .t-slip .t-chip { justify-self: start; margin-top: var(--s-1); }
+
+/* ---------- day done: what moved today ---------- */
+.t-moved-card { --dc-right: #1a8a5a; --dc-wrong: #c2410c; }
+:root[data-theme="dark"] .t-moved-card { --dc-right: #2f9a6c; --dc-wrong: #d9692f; }
+.t-moved-lead { margin: var(--s-2) 0 var(--s-4); font-size: var(--text-md); line-height: 1.5; }
+.t-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-2); margin-bottom: var(--s-4); }
+.t-kpi { display: grid; gap: 2px; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--radius); }
+.t-kpi-n { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); }
+.t-kpi-l { font-size: var(--text-xs); color: var(--ink-soft); }
+.t-kpi.is-good { box-shadow: inset 0 3px 0 var(--dc-right); }
+.t-kpi.is-bad { box-shadow: inset 0 3px 0 var(--dc-wrong); }
+.t-mv-why { margin: var(--s-1) 0 0; font-size: var(--text-sm); color: var(--ink-soft); }
+.t-dc { margin: var(--s-5) 0 0; }
+.t-dc-title { font-weight: 600; font-size: var(--text-sm); }
+.t-dc-legend { display: flex; gap: var(--s-4); flex-wrap: wrap; margin: var(--s-1) 0 var(--s-2); font-size: var(--text-xs); color: var(--ink-soft); align-items: center; }
+.t-dc-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.t-dc-key { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.t-dc-key.is-right { background: var(--dc-right); }
+.t-dc-key.is-wrong { border: 2px solid var(--dc-wrong); box-sizing: border-box; }
+.t-dc-plot { position: relative; }
+.t-dc-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.t-dc-band { fill: var(--ink); opacity: 0.035; }
+.t-dc-band.is-alt { opacity: 0.065; }
+.t-dc-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.t-dc-axis, .t-dc-part { font-size: 11px; fill: var(--ink-soft); font-family: var(--font-body); }
+.t-dc-part { font-weight: 600; }
+.t-dc-path { fill: none; stroke: var(--line-strong, #b9c6bc); stroke-width: 2; stroke-linejoin: round; }
+.t-dc-hit { fill: transparent; }
+.t-dc-dot { fill: var(--dc-right); stroke: var(--surface); stroke-width: 2; }
+.t-dc-ring { fill: var(--surface); stroke: var(--dc-wrong); stroke-width: 2.5; }
+.t-dc-x { stroke: var(--dc-wrong); stroke-width: 2; stroke-linecap: round; }
+.t-dc-mark { cursor: default; outline: none; }
+.t-dc-mark:hover .t-dc-hit, .t-dc-mark:focus .t-dc-hit { fill: var(--ink); opacity: 0.07; }
+.t-dc-tip { position: absolute; width: 240px; z-index: 3; padding: var(--s-2) var(--s-3); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); font-size: var(--text-xs); pointer-events: none; }
+.t-dc-tip p { margin: 0; }
+.t-dc-tip-h { color: var(--ink-soft); margin-bottom: 2px !important; }
+.t-dc-tip-a { margin-top: 4px !important; font-weight: 600; }
+.t-dc-table { margin-top: var(--s-3); font-size: var(--text-sm); }
+.t-dc-table summary { cursor: pointer; color: var(--ink-soft); }
+.t-dc-table table { width: 100%; border-collapse: collapse; margin-top: var(--s-2); font-size: var(--text-xs); }
+.t-dc-table th, .t-dc-table td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+@media (max-width: 480px) { .t-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

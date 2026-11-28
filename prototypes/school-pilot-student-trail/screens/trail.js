@@ -156,6 +156,118 @@
       h("ol", { class: "t-slip-list" }, rows),
       h("a", { class: "btn btn-quiet", href: "#/day/" + n + "/review" }, "See every answer"));
   }
+  /* ---------- "What moved today", for a parent or teacher ----------
+     Read top to bottom: one sentence, four numbers, which skills changed and why, then the day answer by answer.
+     The chart: one mark per answer in the order given, grouped by part of the day; height = how hard the question was
+     (practice levels 1-3; everything else counts as level 1). Right = filled dot, wrong = hollow ring with a cross,
+     so it never relies on colour alone. Hover or focus a mark for the question and the answer. A table holds the same. */
+  function dayEvents(n, d) {
+    return C.state.get().log.filter(function (e) { return e.day === n; }).map(function (e, i, all) {
+      var step = stepOf(d, e.stepId), q = findQuestion(d, e.qid);
+      var part = (step && step.label) || (step && step.type === "adaptive" ? "Practice" : STEP_LABEL[step && step.type]) || (step && step.type === "animation" ? "Lesson" : "Other");
+      var fixed = !e.correct && all.slice(i + 1).some(function (l) { return l.correct && l.qid === e.qid; });
+      return { e: e, part: part, level: (q && q.level) || 1, prompt: promptOf(q) || e.what || skillName(e.skill), right: rightOf(q, e), fixed: fixed };
+    });
+  }
+  function whyMoved(ev, id, before, after) {
+    var mine = ev.filter(function (x) { return x.e.skill === id && !x.e.noMastery; });
+    var run = 0; for (var i = mine.length - 1; i >= 0 && mine[i].e.correct; i--) run++;
+    var wrong = ev.filter(function (x) { return x.e.skill === id && !x.e.correct; }).length;
+    var up = ["untaught", "missing", "shaky", "secure"].indexOf(after) > ["untaught", "missing", "shaky", "secure"].indexOf(before);
+    if (up) return (run ? "Ended the day with " + run + " right in a row" : "More right than wrong at the end") +
+      (wrong ? ", after " + wrong + " wrong turn" + (wrong === 1 ? "" : "s") + " earlier. Worth checking again in a few days." : ".");
+    return wrong + " wrong answer" + (wrong === 1 ? "" : "s") + " on this today, so it slipped back. The next day starts by repairing it.";
+  }
+  function dayChart(ev) {
+    var NS = "http://www.w3.org/2000/svg";
+    function s(tag, a, parent) { var e = document.createElementNS(NS, tag); Object.keys(a || {}).forEach(function (k) { e.setAttribute(k, a[k]); }); if (parent) parent.appendChild(e); return e; }
+    var maxL = Math.max.apply(null, ev.map(function (x) { return x.level; }).concat([1]));
+    var W = 640, left = 56, right = 12, top = 14, rowH = maxL > 1 ? 44 : 0, plotH = (maxL - 1) * rowH, H = top + plotH + 64;
+    var step = (W - left - right) / ev.length;
+    function X(i) { return left + step * (i + 0.5); }
+    function Y(l) { return top + 12 + (maxL - l) * rowH; }
+    var svg = s("svg", { viewBox: "0 0 " + W + " " + H, class: "t-dc-svg", role: "img", "aria-label": "Every answer today in order, by difficulty: " + ev.filter(function (x) { return x.e.correct; }).length + " right and " + ev.filter(function (x) { return !x.e.correct; }).length + " wrong." });
+    // parts of the day as bands, named underneath
+    var groups = []; ev.forEach(function (x, i) { var g = groups[groups.length - 1]; if (!g || g.part !== x.part) groups.push(g = { part: x.part, a: i, b: i }); g.b = i; });
+    groups.forEach(function (g, k) {
+      var x0 = left + step * g.a, x1 = left + step * (g.b + 1);
+      s("rect", { x: x0 + 1, y: top, width: x1 - x0 - 2, height: plotH + 24, rx: 6, class: "t-dc-band" + (k % 2 ? " is-alt" : "") }, svg);
+      var t = s("text", { x: (x0 + x1) / 2, y: top + plotH + 44, class: "t-dc-part", "text-anchor": "middle" }, svg);
+      t.textContent = (x1 - x0) < 60 && g.part.length > 6 ? g.part.slice(0, 5) + "…" : g.part;
+    });
+    // level guides
+    if (maxL > 1) for (var l = 1; l <= maxL; l++) {
+      s("line", { x1: left, x2: W - right, y1: Y(l), y2: Y(l), class: "t-dc-grid" }, svg);
+      var lt = s("text", { x: left - 8, y: Y(l) + 4, class: "t-dc-axis", "text-anchor": "end" }, svg); lt.textContent = "Level " + l;
+    }
+    // the path through the day
+    s("polyline", { points: ev.map(function (x, i) { return X(i).toFixed(1) + "," + Y(x.level); }).join(" "), class: "t-dc-path" }, svg);
+    var tip = h("div", { class: "t-dc-tip", role: "status", hidden: true });
+    ev.forEach(function (x, i) {
+      var g = s("g", { class: "t-dc-mark " + (x.e.correct ? "is-right" : "is-wrong"), tabindex: "0", role: "img",
+        "aria-label": "Answer " + (i + 1) + ", " + x.part + ": " + (x.e.correct ? "right" : "wrong") + ". " + x.prompt }, svg);
+      s("circle", { cx: X(i), cy: Y(x.level), r: 16, class: "t-dc-hit" }, g);
+      if (x.e.correct) s("circle", { cx: X(i), cy: Y(x.level), r: 6.5, class: "t-dc-dot" }, g);
+      else {
+        s("circle", { cx: X(i), cy: Y(x.level), r: 6.5, class: "t-dc-ring" }, g);
+        s("path", { d: "M" + (X(i) - 3) + "," + (Y(x.level) - 3) + "l6,6m0,-6l-6,6", class: "t-dc-x" }, g);
+      }
+      function show() {
+        tip.innerHTML = "";
+        tip.appendChild(h("p", { class: "t-dc-tip-h" }, "Answer " + (i + 1) + " · " + x.part + (x.level > 1 ? " · level " + x.level : "")));
+        tip.appendChild(h("p", null, x.prompt));
+        tip.appendChild(h("p", { class: "t-dc-tip-a" }, (x.e.correct ? "Right: " : "Said ") + answerText(x.e.answer) + (!x.e.correct && x.right ? " · right answer " + x.right : "")));
+        tip.hidden = false;
+        var box = svg.getBoundingClientRect(), k = box.width / W;
+        tip.style.left = Math.min(Math.max(X(i) * k - 120, 0), box.width - 240) + "px";
+        tip.style.top = (Y(x.level) * k + 18) + "px";
+      }
+      function hide() { tip.hidden = true; }
+      g.addEventListener("pointerenter", show); g.addEventListener("pointerleave", hide);
+      g.addEventListener("focus", show); g.addEventListener("blur", hide);
+    });
+    var legend = h("div", { class: "t-dc-legend" },
+      h("span", null, h("i", { class: "t-dc-key is-right" }), "Right"),
+      h("span", null, h("i", { class: "t-dc-key is-wrong" }), "Wrong"),
+      maxL > 1 ? h("span", { class: "muted" }, "Higher = harder question") : null);
+    return h("figure", { class: "t-dc" },
+      h("figcaption", { class: "t-dc-title" }, "The day, answer by answer"),
+      legend, h("div", { class: "t-dc-plot" }, svg, tip));
+  }
+  function dayTable(ev) {
+    return h("details", { class: "t-dc-table" }, h("summary", null, "See it as a table"),
+      h("table", null,
+        h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "Part"), h("th", null, "Question"), h("th", null, "Answer"), h("th", null, "Result"))),
+        h("tbody", null, ev.map(function (x, i) {
+          return h("tr", null, h("td", null, String(i + 1)), h("td", null, x.part + (x.level > 1 ? " (L" + x.level + ")" : "")), h("td", null, x.prompt),
+            h("td", null, answerText(x.e.answer)), h("td", null, x.e.correct ? "Right" : x.fixed ? "Wrong, fixed" : "Wrong" + (x.right ? " (" + x.right + ")" : "")));
+        }))));
+  }
+  function movedCard(n, d, rows, moved) {
+    var ev = dayEvents(n, d), st = C.state.get();
+    var first = (C.data.student && C.data.student.name ? String(C.data.student.name).split(" ")[0] : "They");
+    var right = ev.filter(function (x) { return x.e.correct; }).length, wrong = ev.length - right;
+    var fixed = ev.filter(function (x) { return x.fixed; }).length;
+    var after = st.history[n] || st.skills, before = snapshotBefore(st.history, n);
+    var lead = !ev.length ? "Nothing was answered today."
+      : first + " gave " + ev.length + " answers today. " + right + " were right" +
+        (wrong ? " and " + wrong + " went wrong" + (fixed ? ", " + fixed + " of them put right on the next try." : ".") : ", with no wrong turns.");
+    var kpis = h("div", { class: "t-kpis" }, [
+      ["Answers", ev.length, ""], ["Right", right, "is-good"], ["Wrong turns", wrong, wrong ? "is-bad" : ""], ["Still to fix", wrong - fixed, wrong - fixed ? "is-bad" : ""],
+    ].map(function (k) { return h("div", { class: "t-kpi " + k[2] }, h("span", { class: "t-kpi-n" }, String(k[1])), h("span", { class: "t-kpi-l" }, k[0])); }));
+    rows.forEach(function (r, i) {
+      var id = moved[i];
+      r.querySelector(".t-mv-name").parentNode.appendChild(h("p", { class: "t-mv-why" }, whyMoved(ev, id, statusOf(before, id), statusOf(after, id))));
+    });
+    return h("section", { class: "card rise t-moved-card", style: { "--i": 1 } },
+      h("h2", { class: "t-section-title" }, "What moved today"),
+      h("p", { class: "t-moved-lead" }, lead),
+      ev.length ? kpis : null,
+      rows.length ? h("div", { class: "t-moved" }, rows)
+        : h("p", { class: "muted", style: { margin: 0 } }, "No skill changed level today. Practice first, then the meters move. That's normal."),
+      ev.length ? dayChart(ev) : null,
+      ev.length ? dayTable(ev) : null);
+  }
   C.screens.dayDone = function (el, params) {
     var n = params.day, st = C.state.get(), d = getDay(n);
     var after = st.history[n] || st.skills;
@@ -183,10 +295,7 @@
         h("p", { class: "eyebrow" }, "Day " + n + " done"),
         h("h1", { style: { fontSize: "var(--text-xl)", marginTop: "var(--s-1)" } }, d ? d.title : "Nice work"),
         d && d.summaryLine ? h("p", { class: "lead" }, d.summaryLine) : null),
-      h("section", { class: "card rise", style: { "--i": 1 } },
-        h("h2", { class: "t-section-title" }, "What moved today"),
-        rows.length ? h("div", { class: "t-moved" }, rows)
-          : h("p", { class: "muted", style: { margin: 0 } }, "No skill changed level today. Practice first, then the meters move. That's normal.")),
+      movedCard(n, d, rows, moved),
       slipsCard(n, d),
       d && d.teacherNote ? h("section", { class: "card rise", style: { "--i": 2 } },
         h("div", { class: "t-teacher" }, h("span", { class: "t-avatar", "aria-hidden": "true" }, "KR"),
