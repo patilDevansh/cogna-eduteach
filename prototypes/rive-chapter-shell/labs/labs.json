@@ -18,5 +18,15 @@
       { "skill": "AE_BINOMIAL_BINOMIAL", "title": "Two binomials, four pieces", "steps": 3, "mistakes": { "FIRST_LAST_ONLY": 2 } },
       { "skill": "AE_IDENTITY_SQ_PLUS", "title": "The square of a sum", "steps": 3, "mistakes": { "SQUARE_DISTRIBUTES": 2, "MIDDLE_NOT_DOUBLED": 1 } }
     ]
+  },
+  "graphs": {
+    "name": "Introduction to graphs",
+    "chapter": 13,
+    "file": "graphs.riv",
+    "lessons": [
+      { "skill": "GR_COORDS", "title": "Across, then up", "steps": 3, "mistakes": { "COORDS_SWAPPED": 2, "ZERO_COORD_WRONG_AXIS": 3 } },
+      { "skill": "GR_LINE_GRAPH_READ", "title": "A day you can climb", "steps": 3, "mistakes": { "HIGHEST_AS_STEEPEST": 2, "GAVE_VALUE_NOT_CHANGE": 3 } },
+      { "skill": "GR_SHAPE", "title": "Ride the graph", "steps": 3, "mistakes": { "GRAPH_AS_PICTURE": 2 } }
+    ]
   }
 }
