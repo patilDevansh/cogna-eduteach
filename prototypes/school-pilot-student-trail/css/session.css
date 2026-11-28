@@ -113,7 +113,18 @@
 .t-fix-ask { margin: var(--s-5) 0 var(--s-3); font-family: var(--font-display); font-weight: 600; }
 
 /* ---------- explain ---------- */
-.t-explain-input { width: 100%; resize: vertical; min-height: 7rem; font-family: var(--font-body); font-size: var(--text-md); }
+.t-explain-hint { margin: var(--s-1) 0 var(--s-4); font-size: var(--text-sm); }
+.t-explain-box { border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--surface); transition: border-color 0.15s, box-shadow 0.15s; }
+.t-explain-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-wash); }
+.t-explain-input, .t-explain-input:focus { width: 100%; resize: vertical; min-height: 7.5rem; border: 0; box-shadow: none; outline: none; background: transparent; padding: var(--s-4); font-family: var(--font-body); font-size: var(--text-md); line-height: 1.5; }
+.t-explain-tools { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3); border-top: 1px solid var(--line); }
+.t-explain-tools .t-check { margin-left: auto; }
+.t-explain-count { font-size: var(--text-xs); color: var(--ink-soft); }
+.t-mic { display: inline-flex; align-items: center; gap: var(--s-2); border-radius: 999px; }
+.t-mic-dot { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; }
+.t-mic.is-on { border-color: var(--t-wrong-ink, #b4400c); color: var(--t-wrong-ink, #b4400c); }
+.t-mic.is-on .t-mic-dot { background: var(--t-wrong-ink, #b4400c); color: #fff; animation: t-mic-pulse 1.2s ease-out infinite; }
+@keyframes t-mic-pulse { 0% { box-shadow: 0 0 0 0 rgba(180, 64, 12, 0.45); } 100% { box-shadow: 0 0 0 10px rgba(180, 64, 12, 0); } }
 .t-reading { margin-top: var(--s-4); display: grid; gap: var(--s-2); }
 .t-reading-bar { height: 3.5rem; }
 .t-reading-text { color: var(--ink-soft); font-size: var(--text-sm); }
@@ -129,6 +140,7 @@
   .t-bar-note { display: none; }
   .t-continue { width: 100%; }
   .t-check { width: 100%; }
+  .t-explain-tools .t-check { width: auto; }
   .t-num-input, .t-blank-input { max-width: none; flex: 1; min-width: 0; }
   .t-blank-label { min-width: 0; width: 100%; }
   .t-conf-choices { max-width: none; }

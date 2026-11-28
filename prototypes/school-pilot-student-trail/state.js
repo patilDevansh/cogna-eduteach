@@ -121,6 +121,7 @@
         answer: info.answer === undefined ? null : info.answer,
         correct: !!info.correct, mixup: info.correct ? null : (info.mixup || null),
         sure: typeof info.sure === "boolean" ? info.sure : null, ts: Date.now(),
+        what: info.what || null, right: info.right == null ? null : String(info.right),
       });
       save();
     },
@@ -138,7 +139,11 @@
       S.explains[info.saveAs || String(info.day)] = info.text;
       if (info.verdict === "strong" && info.skill) {
         api.recordAnswer({ day: info.day, stepId: info.stepId, qid: info.stepId + "-explain", skill: info.skill, correct: true, answer: "(explanation)" });
-      } else { save(); }
+      } else {
+        // a weak or partial explanation is a slip the report shows; it does not move the meter
+        api.recordAnswer({ day: info.day, stepId: info.stepId, qid: info.stepId + "-explain", skill: info.skill, correct: false, noMastery: true,
+          answer: info.text, what: "Explained it in your own words (" + (info.verdict === "close" ? "part of the idea" : "missed the idea") + ")" });
+      }
     },
 
     completeStep: function (day, stepId) {

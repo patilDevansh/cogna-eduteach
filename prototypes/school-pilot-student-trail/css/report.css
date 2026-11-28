@@ -185,3 +185,15 @@ a.t-daycard:hover { border-color: var(--accent); transform: translateY(-1px); }
 .t-next { display: grid; gap: var(--s-2); margin-top: var(--s-3); }
 .t-next-item { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--radius); font-size: var(--text-sm); }
 .t-after-note { font-size: var(--text-xs); color: var(--ink-faint); margin: var(--s-3) 0 0; }
+
+/* ---------- day done: every wrong turn ---------- */
+.t-slip-list { list-style: none; margin: 0 0 var(--s-3); padding: 0; display: grid; gap: var(--s-2); }
+.t-slip { position: relative; padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4); border-radius: var(--radius); background: var(--t-wrong-bg, #fdf0ea); border-left: 3px solid var(--t-wrong-ink, #b4400c); display: grid; gap: 2px; }
+.t-slip.is-fixed { background: var(--surface-2, #f4f6f3); border-left-color: var(--line-strong); }
+.t-slip p { margin: 0; }
+.t-slip-where { font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
+.t-slip-q { font-weight: 600; font-size: var(--text-sm); }
+.t-slip-ans { font-size: var(--text-sm); color: var(--ink-soft); overflow-wrap: anywhere; }
+.t-slip-ans b { color: var(--ink); font-weight: 600; }
+.t-slip-mix { font-size: var(--text-xs); font-weight: 600; }
+.t-slip .t-chip { justify-self: start; margin-top: var(--s-1); }

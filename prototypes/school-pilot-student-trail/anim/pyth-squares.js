@@ -25,6 +25,31 @@
       L.tween(ms == null ? 600 : ms, function (t) { op(e, from + (to - from) * t); }, { delay: (o.delay || 0) + i * (o.stagger || 0), ease: "out" });
     });
   }
+  /** a small child seen from above-ish: shadow, body, head. Moved with place(). */
+  function kid(p, cls) {
+    var g = add(p, "g", { "class": cls });
+    add(g, "ellipse", { cx: 0, cy: 0.05, rx: 0.2, ry: 0.07, "class": "t-kid-shadow" });
+    add(g, "path", { d: "M-0.13,0 Q-0.14,-0.28 0,-0.3 Q0.14,-0.28 0.13,0 Z", "class": "t-kid-body" });
+    add(g, "circle", { cx: 0, cy: -0.4, r: 0.11, "class": "t-kid-head" });
+    return g;
+  }
+  function place(g, p, bob) { g.setAttribute("transform", "translate(" + p[0].toFixed(3) + " " + (p[1] - (bob || 0)).toFixed(3) + ")"); }
+  /** walk a child along a list of points in ms, dropping footprints every half metre */
+  function walk(c, L, who, pts, ms, o) {
+    o = o || {};
+    var segs = [], total = 0;
+    for (var i = 1; i < pts.length; i++) { var d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); total += d; }
+    var nextPrint = 0.5;
+    L.tween(ms, function (t) {
+      var at = total * t, k = 0;
+      while (k < segs.length - 1 && at > segs[k]) { at -= segs[k]; k++; }
+      var p = lerp(pts[k], pts[k + 1], Math.min(1, at / segs[k]));
+      var ux = (pts[k + 1][0] - pts[k][0]) / segs[k], uy = (pts[k + 1][1] - pts[k][1]) / segs[k];
+      place(who, p, Math.abs(Math.sin(t * total * Math.PI * 2.4)) * 0.06);
+      if (o.prints && total * t >= nextPrint) { op(add(c.gSteps, "circle", { cx: p[0] + uy * 0.17, cy: p[1] - ux * 0.17, r: 0.045, "class": "t-print " + (o.prints || "") }), 0.7); nextPrint += 0.5; }
+      if (o.each) o.each(total * t);
+    }, { ease: "inOut", delay: o.delay || 0, then: o.then });
+  }
   function plus(p, v, s) { return [p[0] + v[0] * s, p[1] + v[1] * s]; }
   function lerp(p, q, t) { return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; }
   function world(f, p) {
@@ -87,12 +112,18 @@
       // the school ground
       c.gGround = add(gf, "g");
       c.ground = add(c.gGround, "rect", { x: 0, y: -3, width: 4, height: 3, rx: 0.12, "class": "t-ground" });
+      for (var gx = 0; gx < 4; gx += 1) add(c.gGround, "rect", { x: gx, y: -3, width: 0.5, height: 3, "class": "t-grass" });
+      [[-0.18, -2, -0.02, -2], [-0.18, -1, -0.02, -1], [1, 0.02, 1, 0.18], [2, 0.02, 2, 0.18], [3, 0.02, 3, 0.18]]
+        .forEach(function (t) { add(c.gGround, "line", { x1: t[0], y1: t[1], x2: t[2], y2: t[3], "class": "t-tick" }); });
+      c.gSteps = add(c.gGround, "g");
       c.trail = add(c.gGround, "path", { d: "M0,-3 L0,0 L4,0", pathLength: 1, "class": "t-trail" });
       c.flag = add(c.gGround, "g", { "class": "t-flag" });
       add(c.flag, "line", { x1: 4, y1: 0, x2: 4, y2: -1.15, "class": "t-pole" });
       add(c.flag, "polygon", { points: "4,-1.15 4.75,-0.92 4,-0.68", "class": "t-flagcloth" });
-      c.walker = add(c.gGround, "circle", { cx: 0, cy: -3, r: 0.2, "class": "t-walker" });
       c.short = add(gf, "path", { d: "M0,-3 L4,0", pathLength: 1, "class": "t-short" });
+      c.runner = kid(c.gGround, "t-kid t-kid-b"); place(c.runner, A); op(c.runner, 0);
+      c.walker = kid(c.gGround, "t-kid"); place(c.walker, A);
+      c.ring = add(c.gGround, "circle", { cx: 0, cy: -3, r: 0.32, "class": "t-walker-ring" });
 
       // squares and their small squares
       c.gSq = add(gf, "g");
@@ -114,12 +145,18 @@
       c.mark = add(c.gTri, "path", { d: "M0.45,0 L0.45,-0.45 L0,-0.45", "class": "t-mark2" });
       // tap targets for "which side is c?" (keyboard: Tab to a side, Enter to pick)
       c.hits = [
-        { el: add(c.gTri, "line", { x1: 0, y1: 0, x2: 0, y2: -3, "class": "t-hitline" }), longest: false, name: "a short side" },
-        { el: add(c.gTri, "line", { x1: 0, y1: 0, x2: 4, y2: 0, "class": "t-hitline" }), longest: false, name: "the other short side" },
-        { el: add(c.gTri, "line", { x1: 0, y1: -3, x2: 4, y2: 0, "class": "t-hitline" }), longest: true, name: "the side facing the right angle" },
+        { el: add(c.gTri, "line", { x1: 0, y1: 0, x2: 0, y2: -3, "class": "t-hitline" }), side: c.legA, longest: false, name: "a short side" },
+        { el: add(c.gTri, "line", { x1: 0, y1: 0, x2: 4, y2: 0, "class": "t-hitline" }), side: c.legB, longest: false, name: "the other short side" },
+        { el: add(c.gTri, "line", { x1: 0, y1: -3, x2: 4, y2: 0, "class": "t-hitline" }), side: c.hyp, longest: true, name: "the side facing the right angle" },
       ];
       c.hits.forEach(function (hd) {
         var e = hd.el;
+        // the hit area is wide and invisible; only the real side lights up
+        function lit(on) { hd.side.classList.toggle("is-hover", on && !!c.onTap); }
+        e.addEventListener("pointerenter", function () { lit(true); });
+        e.addEventListener("pointerleave", function () { lit(false); });
+        e.addEventListener("focus", function () { lit(true); });
+        e.addEventListener("blur", function () { lit(false); });
         e.style.display = "none";
         e.setAttribute("role", "button"); e.setAttribute("aria-label", "Pick " + hd.name);
         function pick(ev) { if (ev) ev.preventDefault(); if (c.onTap) c.onTap(hd); }
@@ -161,13 +198,12 @@
         run: function (c, L) { L.board("Start → flag"); } },
       { caption: "Along the edges it is 3 metres, then 4 metres. That is 7 metres.",
         run: function (c, L) {
-          L.tween(3600, function (t) {
-            var d = 7 * t, p = d <= 3 ? [0, -3 + d] : [d - 3, 0];
-            c.walker.setAttribute("cx", p[0]); c.walker.setAttribute("cy", p[1]);
-            c.trail.style.strokeDashoffset = 1 - t;
+          c.ring.style.display = "none";
+          walk(c, L, c.walker, [A, R, B], 3600, { delay: 300, prints: "t-print-a", each: function (d) {
+            c.trail.style.strokeDashoffset = 1 - d / 7;
             if (d >= 1.5 && !c.l3._op) op(c.l3, 1);
             if (d >= 5 && !c.l4._op) op(c.l4, 1);
-          }, { ease: "inOut", delay: 300 });
+          } });
           L.board("3 m + 4 m = " + K.c + "7 m" + K.x + ", the long way");
         } },
       { caption: "Cutting straight across is shorter. How long is the shortcut? Make a guess.",
@@ -180,6 +216,7 @@
         task: function (c, L, done) {
           L.ask("Your guess:", [{ label: "5 m", value: 5 }, { label: "6 m", value: 6 }, { label: "7 m", value: 7 }], function (v) {
             L.state.guess = v; c.lQ.textContent = v + " m?";
+            if (L.record) L.record({ qid: "pyth-squares-guess", skill: "pyth", correct: v === 5, answer: v + " m", noMastery: true, what: "Guessed the shortcut", right: "5 m" });
             L.board("Your guess: " + K.c + v + " m" + K.x);
             done(v);
           });
@@ -233,7 +270,9 @@
         run: function (c, L) { L.board(K.a + "9" + K.x + " + " + K.b + "16" + K.x + " → " + K.c + "?" + K.x); },
         task: function (c, L, done) {
           L.ask("Your prediction:", [{ label: "Spill over", value: "over" }, { label: "Fit exactly", value: "fit" }, { label: "Leave a gap", value: "gap" }], function (v) {
-            L.state.predict = v; done(v);
+            L.state.predict = v;
+            if (L.record) L.record({ qid: "pyth-squares-predict", skill: "pyth", correct: v === "fit", answer: { over: "Spill over", fit: "Fit exactly", gap: "Leave a gap" }[v], noMastery: true, what: "Predicted if 9 + 16 fill the square", right: "Fit exactly" });
+            done(v);
           });
         } },
       { caption: "Watch them move across, one at a time.",
@@ -267,6 +306,7 @@
         task: function (c, L, done) {
           var misses = 0;
           L.number("Length of the lit side:", function (v) {
+            if (L.record) L.record({ qid: "pyth-squares-side", skill: "pyth", correct: v === 5, answer: String(v), noMastery: true, what: "Side of the 25-square", right: "5" });
             if (v === 5) return true;
             misses++;
             if (misses >= 2) return "Count the squares along the lit side: 1, 2, 3, 4, 5. Type 5.";
@@ -281,7 +321,14 @@
           L.tween(1600, function (t) { c.fig.k = K_SQ + (K_GROUND - K_SQ) * t; }, { delay: 400 });
           c.lQ.textContent = "5 m";
           c.short.style.strokeDashoffset = 0;
+          while (c.gSteps.firstChild) c.gSteps.removeChild(c.gSteps.firstChild);
+          place(c.walker, A); place(c.runner, A); op(c.runner, 1);
           fade(L, [c.gGround, c.short, c.l3, c.l4, c.lQ], 1, 700, { delay: 1200 });
+          // a race at the same speed: the shortcut arrives when the long way still has 2 m to go
+          L.wait(2000, function () {
+            walk(c, L, c.walker, [A, R, B], 3500, { prints: "t-print-a" });
+            walk(c, L, c.runner, [A, B], 2500, { prints: "t-print-b", then: function () { L.board("Shortcut = " + K.c + "5 m" + K.x + ". The long way still has " + K.a + "2 m" + K.x + " to go."); } });
+          });
           L.board("Shortcut = " + K.c + "5 m" + K.x + ", not 7 m" + (L.state.guess === 5 ? " · your guess was right!" : ""));
         } },
 
@@ -307,15 +354,22 @@
         task: function (c, L, done) {
           // all three sides the same colour, so colour can't give the answer away
           c.legA.setAttribute("class", "t-leg-c"); c.legB.setAttribute("class", "t-leg-c");
-          c.hits.forEach(function (hd) { hd.el.style.display = ""; hd.el.setAttribute("tabindex", "0"); hd.el.classList.remove("is-wrong"); });
+          c.hits.forEach(function (hd) { hd.el.style.display = ""; hd.el.setAttribute("tabindex", "0"); });
+          fade(L, c.mark, 1, 300);   // the right-angle box stays: it is the clue
           L.svg.classList.add("is-dragging-ok");
           c.onTap = function (hd) {
+            if (L.record) L.record({ qid: "pyth-squares-tap-c", skill: "pyth", correct: hd.longest, answer: hd.longest ? "the longest side" : "a short side", noMastery: true, what: "Tapped side c on the turned triangle", right: "the side facing the right angle" });
             if (!hd.longest) {
-              hd.el.classList.add("is-wrong");
-              L.board("That side touches the right angle. " + K.c + "c" + K.x + " faces it.");
+              var s = hd.side;
+              s.classList.remove("is-wrong"); void s.getBBox(); s.classList.add("is-wrong");
+              L.wait(1300, function () { s.classList.remove("is-wrong"); });
+              // pulse the right-angle box: that is where to look
+              L.tween(1200, function (t) { op(c.mark, 0.4 + 0.6 * Math.abs(Math.cos(t * Math.PI * 3))); }, { then: function () { op(c.mark, 1); } });
+              L.board("That side touches the right angle. " + K.c + "c" + K.x + " is the side across from it.");
               return;
             }
             c.onTap = null;
+            c.hits.forEach(function (x) { x.side.classList.remove("is-hover", "is-wrong"); });
             L.svg.classList.remove("is-dragging-ok");
             c.hits.forEach(function (x) { x.el.style.display = "none"; x.el.removeAttribute("tabindex"); });
             c.legA.setAttribute("class", "t-leg-a"); c.legB.setAttribute("class", "t-leg-b");

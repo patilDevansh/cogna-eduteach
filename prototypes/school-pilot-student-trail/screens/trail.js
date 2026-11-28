@@ -110,6 +110,52 @@
             h("ul", { class: "t-plan-list" }, why.map(function (w) { return h("li", null, w); })))
         : h("p", { class: "muted", style: { margin: 0 } }, "Nothing to repair or check back on. Day " + next + " goes straight into the new lesson."));
   }
+  /** Every wrong turn of the day, in order: what was asked, what the student said, the right answer, and whether
+      they got it right later the same day. Nothing is left out, including guesses inside lessons and weak explanations. */
+  function rightOf(q, e) {
+    if (e.right) return e.right;
+    if (!q) return null;
+    if (q.options) { var o = q.options.filter(function (x) { return x.correct; })[0]; return o ? (o.text || o.label) : null; }
+    return q.answer == null ? null : String(q.answer) + (q.unit ? " " + q.unit : "");
+  }
+  function promptOf(q) {
+    if (!q) return null;
+    if (q.prompt) return q.prompt;
+    if (q.themes) { var t = q.themes[(C.data.student || {}).theme] || q.themes[(C.data.student || {}).interest] || q.themes.default; return t; }
+    return null;
+  }
+  function slipsCard(n, d) {
+    var log = C.state.get().log.filter(function (e) { return e.day === n; });
+    var slips = log.map(function (e, i) { return { e: e, i: i }; }).filter(function (x) { return !x.e.correct; });
+    if (!slips.length) return h("section", { class: "card rise t-slips", style: { "--i": 2 } },
+      h("h2", { class: "t-section-title" }, "Where you went wrong"),
+      h("p", { class: "muted", style: { margin: 0 } }, log.length ? "Nowhere today. Every answer was right first time." : "Nothing was answered today."));
+    var stillOpen = 0;
+    var rows = slips.map(function (x) {
+      var e = x.e, step = stepOf(d, e.stepId), q = findQuestion(d, e.qid);
+      var after = log.slice(x.i + 1);
+      var fixed = after.some(function (l) { return l.correct && l.qid === e.qid; });
+      var nextRight = !fixed && after.some(function (l) { return l.correct && l.stepId === e.stepId && l.skill === e.skill; });
+      var later = fixed || nextRight;
+      if (!fixed) stillOpen++;
+      var mix = e.mixup ? (C.data.mixups.filter(function (m) { return m.id === e.mixup; })[0]) : null;
+      var right = rightOf(q, e);
+      return h("li", { class: "t-slip" + (later ? " is-fixed" : "") },
+        h("p", { class: "t-slip-where" }, (step && step.label) || STEP_LABEL[step && step.type] || (step && step.type === "adaptive" ? "Practice" : "Lesson")),
+        h("p", { class: "t-slip-q" }, promptOf(q) || e.what || skillName(e.skill) || e.qid),
+        h("p", { class: "t-slip-ans" }, h("span", null, "You said: "), h("b", null, answerText(e.answer)),
+          right ? h("span", null, " · Right answer: ") : null, right ? h("b", null, right) : null),
+        mix ? h("p", { class: "t-slip-mix" }, "Mix-up: " + mix.name) : null,
+        h("span", { class: "t-chip", "data-tone": fixed ? "secure" : nextRight ? "shaky" : "missing" }, fixed ? "Fixed on the next try" : nextRight ? "Got a similar one right after" : "Still to fix"));
+    });
+    return h("section", { class: "card rise t-slips", style: { "--i": 2 } },
+      h("h2", { class: "t-section-title" }, "Where you went wrong"),
+      h("p", { class: "muted", style: { margin: "0 0 var(--s-3)" } },
+        slips.length + " wrong turn" + (slips.length === 1 ? "" : "s") + " today" +
+        (stillOpen ? ", " + stillOpen + " not fixed on that question." : ", and you fixed every one.")),
+      h("ol", { class: "t-slip-list" }, rows),
+      h("a", { class: "btn btn-quiet", href: "#/day/" + n + "/review" }, "See every answer"));
+  }
   C.screens.dayDone = function (el, params) {
     var n = params.day, st = C.state.get(), d = getDay(n);
     var after = st.history[n] || st.skills;
@@ -122,6 +168,7 @@
       setTimeout(function () {
         if (!m.isConnected) return;
         m.setAttribute("data-tone", nw);
+        m.setAttribute("aria-label", (C.toneChip(nw).textContent || nw));
         chipSlot.innerHTML = "";
         chipSlot.appendChild(C.toneChip(nw));
       }, 500);
@@ -140,6 +187,7 @@
         h("h2", { class: "t-section-title" }, "What moved today"),
         rows.length ? h("div", { class: "t-moved" }, rows)
           : h("p", { class: "muted", style: { margin: 0 } }, "No skill changed level today. Practice first, then the meters move. That's normal.")),
+      slipsCard(n, d),
       d && d.teacherNote ? h("section", { class: "card rise", style: { "--i": 2 } },
         h("div", { class: "t-teacher" }, h("span", { class: "t-avatar", "aria-hidden": "true" }, "KR"),
           h("div", null, h("p", { class: "eyebrow" }, "A note from " + rao), h("blockquote", null, d.teacherNote)))) : null,
@@ -155,7 +203,7 @@
     if (!day) return null;
     var found = null;
     daySteps(day).forEach(function (s) {
-      var qs = (s.questions || []).concat(s.q ? [s.q] : []).concat(s.check ? [s.check] : []);
+      var qs = (s.questions || []).concat(s.pool || []).concat(s.q ? [s.q] : []).concat(s.check ? [s.check] : []);
       qs = qs.concat(qs.filter(function (q) { return q && q.retry; }).map(function (q) { return q.retry; }));   // a replay's fresh question
       qs.forEach(function (q) { if (q && q.id === qid) found = q; });
     });

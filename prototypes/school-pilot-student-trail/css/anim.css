@@ -92,8 +92,21 @@
 .t-anim .t-cellc-b { fill: var(--caution); fill-opacity: 0.25; stroke: var(--caution); stroke-width: 0.05; }
 .t-anim .t-edge-lit { stroke: var(--accent); stroke-width: 0.26; stroke-linecap: round; }
 .t-anim .t-hitline { stroke: transparent; stroke-width: 0.9; stroke-linecap: round; pointer-events: stroke; cursor: pointer; }
-.t-anim .t-hitline:focus-visible { stroke: var(--accent-wash); outline: none; }
-.t-anim .t-hitline.is-wrong { stroke: var(--danger-wash, var(--accent-wash)); }
+.t-anim .t-hitline:focus, .t-anim .t-hitline:focus-visible { outline: none; }
+.t-anim .t-leg-c, .t-anim .t-leg-a, .t-anim .t-leg-b { transition: stroke 0.2s, stroke-width 0.2s; }
+.t-anim .t-leg-c.is-hover { stroke: var(--accent); stroke-width: 0.2; }
+.t-anim .t-leg-c.is-wrong { stroke: var(--danger, #c2410c); stroke-width: 0.2; animation: t-side-no 0.45s ease-in-out 2; }
+@keyframes t-side-no { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.35; } }
+.t-anim .t-grass { fill: var(--success); opacity: 0.07; }
+.t-anim .t-pitch { fill: none; stroke: var(--success); stroke-width: 0.03; opacity: 0.45; }
+.t-anim .t-tick { stroke: var(--ink-soft); stroke-width: 0.035; }
+.t-anim .t-print { fill: var(--ink-soft); }
+.t-anim .t-print-b { fill: var(--accent); }
+.t-anim .t-kid-shadow { fill: #000; opacity: 0.18; }
+.t-anim .t-kid-body { fill: #2f6fb0; }
+.t-anim .t-kid-head { fill: #8d5a3b; }
+.t-anim .t-kid-b .t-kid-body { fill: var(--accent); }
+.t-anim .t-kid-b .t-kid-head { fill: #6b4226; }
 .t-lesson-go {min-width: 9rem; animation: t-nudge 1.6s var(--ease-settle) infinite; }
 @keyframes t-nudge { 0%, 100% { transform: none; } 50% { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(14, 107, 84, 0.25); } }
 

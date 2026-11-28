@@ -70,6 +70,7 @@
     ears = null;
   }
   /** Float32 blocks at `rate` -> 16 kHz mono 16-bit WAV, which speech-to-text likes. */
+  C.toWav = toWav;   // the answer box's microphone (screens/session.js) uses it too
   function toWav(chunks, rate) {
     var total = 0; chunks.forEach(function (c) { total += c.length; });
     var ratio = rate / 16000, n = Math.floor(total / ratio), pcm = new Int16Array(n), flat = new Float32Array(total), o = 0;

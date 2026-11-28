@@ -1052,13 +1052,91 @@
     if (!groups.length || hits === groups.length) return "strong";
     return hits >= 1 ? "close" : "nudge";
   }
+  /** A microphone for a written answer: what the student says is written into the box (they can fix it before sending).
+      Uses the browser's own speech-to-text when it has one (Indian English), otherwise records and sends the sound to the
+      trail's voice server (/api/hear). Returns { el, stop } or null when there is no microphone at all. */
+  function micFor(ta, onText) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.AudioContext || window.webkitAudioContext));
+    if (!SR && !canRecord) return null;
+    var label = h("span", null, "Say it");
+    var btn = h("button", { type: "button", class: "btn btn-ghost t-mic", "aria-pressed": "false" },
+      h("span", { class: "t-mic-dot", "aria-hidden": "true" }), label);
+    btn.firstChild.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+    var on = false, rec = null, base = "", raw = null;
+    function put(text) {
+      ta.value = (base ? base.replace(/\s+$/, "") + " " : "") + text;
+      if (onText) onText();
+    }
+    function setOn(v, msg) {
+      on = v; btn.classList.toggle("is-on", v); btn.setAttribute("aria-pressed", String(v));
+      label.textContent = msg || (v ? "Listening… tap to stop" : "Say it");
+    }
+    function startBrowser() {
+      rec = new SR(); rec.lang = "en-IN"; rec.interimResults = true; rec.continuous = true;
+      rec.onresult = function (ev) {
+        var t = ""; for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+        put(t.trim());
+      };
+      rec.onerror = function (ev) {
+        rec = null;
+        if (canRecord && (ev.error === "network" || ev.error === "service-not-allowed" || ev.error === "language-not-supported")) { SR = null; startRecording(); return; }
+        setOn(false, ev.error === "not-allowed" ? "Microphone blocked" : "Say it");
+      };
+      rec.onend = function () { if (rec) { rec = null; setOn(false); } };
+      rec.start(); setOn(true);
+    }
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)(), src = ctx.createMediaStreamSource(stream);
+        var proc = ctx.createScriptProcessor(2048, 1, 1), chunks = [];
+        proc.onaudioprocess = function (e) { chunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+        src.connect(proc); proc.connect(ctx.destination);
+        raw = { stream: stream, ctx: ctx, proc: proc, chunks: chunks };
+        setOn(true);
+      }).catch(function () { setOn(false, "Microphone blocked"); });
+    }
+    function stopRecording() {
+      var r = raw; raw = null; if (!r) return;
+      try { r.proc.disconnect(); r.stream.getTracks().forEach(function (t) { t.stop(); }); r.ctx.close(); } catch (e) { /* ignore */ }
+      if (!C.toWav || !r.chunks.length) { setOn(false); return; }
+      setOn(false, "Writing it down…"); btn.disabled = true;
+      fetch("/api/hear", { method: "POST", headers: { "Content-Type": "audio/wav" }, body: C.toWav(r.chunks, r.ctx.sampleRate) })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (j) { btn.disabled = false; if (j && j.text) { put(j.text.trim()); setOn(false); } else setOn(false, "Didn't catch that. Try again"); })
+        .catch(function () { btn.disabled = false; setOn(false, "Can't hear right now. Please type"); });
+    }
+    function stop() {
+      if (rec) { var r = rec; rec = null; try { r.stop(); } catch (e) { /* ignore */ } setOn(false); }
+      if (raw) stopRecording();
+    }
+    btn.addEventListener("click", function () {
+      if (on) { stop(); return; }
+      if (C.voice) C.voice.stop();   // the student is talking: Cogna stops
+      base = ta.value;
+      if (SR) { try { startBrowser(); return; } catch (e) { SR = null; } }
+      startRecording();
+    });
+    return { el: btn, stop: stop };
+  }
+
   T.explain = function (el, step, ctx) {
+    el.classList.add("t-explain");
     el.appendChild(h("p", { class: "eyebrow" }, "In your own words"));
     el.appendChild(h("h2", { class: "t-step-title", id: "ex-prompt" }, step.prompt));
-    var ta = h("textarea", { class: "input t-explain-input", rows: 4, "aria-labelledby": "ex-prompt", placeholder: "Type your thinking here" });
+    el.appendChild(h("p", { class: "muted t-explain-hint" }, "Type it or say it. A sentence or two is enough, and there's no wrong way to start."));
+    var ta = h("textarea", { class: "input t-explain-input", rows: 4, "aria-labelledby": "ex-prompt", placeholder: "Because…" });
+    var count = h("span", { class: "t-explain-count", "aria-hidden": "true" }, "");
     var send = h("button", { type: "button", class: "btn btn-primary t-check" }, "Send");
     var out = h("div", { class: "t-fb", role: "status", "aria-live": "polite" });
-    el.appendChild(ta); el.appendChild(h("div", { class: "t-q-actions" }, send)); el.appendChild(out);
+    function words() { var n = ta.value.trim().split(/\s+/).filter(Boolean).length; count.textContent = n ? n + (n === 1 ? " word" : " words") : ""; send.disabled = !n || ta.disabled; }
+    ta.addEventListener("input", words);
+    var mic = micFor(ta, words);
+    el.appendChild(h("div", { class: "t-explain-box" }, ta,
+      h("div", { class: "t-explain-tools" }, mic ? mic.el : null, count, send)));
+    el.appendChild(out);
+    if (mic) ctx.onCleanup(mic.stop);
+    words();
     var submissions = 0, busy = false, timers = [], resolveAuto = null;
     ctx.onCleanup(function () { timers.forEach(clearTimeout); });
 
@@ -1066,6 +1144,7 @@
       if (busy) return;
       var text = ta.value.trim();
       if (!text) { ta.focus(); return; }
+      if (mic) mic.stop();
       busy = true; send.disabled = true; ta.disabled = true; out.innerHTML = "";
       out.appendChild(h("div", { class: "t-reading" }, h("div", { class: "skeleton t-reading-bar" }), h("p", { class: "t-reading-text" }, "Cogna is reading your answer…")));
       timers.push(setTimeout(function () {
