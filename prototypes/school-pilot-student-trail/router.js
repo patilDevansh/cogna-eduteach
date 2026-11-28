@@ -11,6 +11,7 @@
      #/retest           -> 'retest'
      #/growth           -> 'growth'
      #/lesson/<id>      -> 'lesson'    params {id}      (one lesson on its own, for demos)
+     #/dashboard[/parent|/teacher[/N]] -> 'dashboard' params {view, day?}
 */
 (function () {
   "use strict";
@@ -28,12 +29,14 @@
     { re: /^\/retest$/, name: "retest" },
     { re: /^\/growth$/, name: "growth" },
     { re: /^\/lesson\/([a-z0-9-]+)$/, name: "lesson", id: true },
+    { re: /^\/dashboard(?:\/(parent|teacher))?(?:\/(\d+))?$/, name: "dashboard", dash: true },
   ];
 
   function parse(hash) {
     var path = (hash || "").replace(/^#/, "");
     for (var i = 0; i < ROUTES.length; i++) {
       var m = path.match(ROUTES[i].re);
+      if (m && ROUTES[i].dash) return { name: "dashboard", params: { view: m[1] || "parent", day: m[2] ? parseInt(m[2], 10) : null }, path: path };
       if (m) return { name: ROUTES[i].name, params: ROUTES[i].day ? { day: parseInt(m[1], 10) } : (ROUTES[i].id ? { id: m[1] } : {}), path: path };
     }
     return { name: "welcome", params: {}, path: "/welcome" };
@@ -49,6 +52,7 @@
       h("nav", { class: "topbar-links", "aria-label": "Main" },
         link("#/report", "Report", route.name === "report"),
         link("#/trail", "My 2 weeks", ["trail", "session", "dayDone", "review"].indexOf(route.name) !== -1),
+        link("#/dashboard/parent", "Dashboard", route.name === "dashboard"),
         h("span", { class: "t-who" }, (s.name || "").split(" ")[0] + " · " + (s.grade || "")),
         themeSwitch()
       )
