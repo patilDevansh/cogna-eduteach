@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cogna · Area · seven story lessons</title>
+<!-- Prototype: the seven Area story lessons on one page. GSAP animates each scene (the farm, the village, the room,
+     the people, the land you cut and slide); Motion animates the page around it (the lesson picker, the arrival,
+     Maji's words, the panel that asks you things, the end card). Open lessons.html#<lesson id>. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="cogna.css" />
+<link rel="stylesheet" href="proto.css" />
+<link rel="stylesheet" href="css/session.css" />
+<link rel="stylesheet" href="css/anim.css" />
+<link rel="stylesheet" href="css/story.css" />
+<link rel="stylesheet" href="css/lessons/pen-fence.css" />
+<link rel="stylesheet" href="css/lessons/courtyard-split.css" />
+<link rel="stylesheet" href="css/lessons/tile-units.css" />
+<link rel="stylesheet" href="css/lessons/shade-net.css" />
+<link rel="stylesheet" href="css/dark.css" />
+<link rel="stylesheet" href="css/shell.css" />
+<script>
+(function () {
+  var t = null;
+  try { t = window.localStorage.getItem("cogna-theme"); } catch (e) { /* ignore */ }
+  if (t !== "dark" && t !== "light") t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+})();
+</script>
+<style>
+  body { min-height: 100vh; }
+  .p3 { max-width: 980px; margin: 0 auto; padding: var(--s-5) var(--s-4) var(--s-7); display: grid; gap: var(--s-4); }
+  .p3-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-4); flex-wrap: wrap; }
+  .p3-eyebrow { font-family: var(--font-math); font-size: var(--text-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-deep); margin: 0 0 var(--s-1); }
+  .p3-title { font-family: var(--font-display); font-size: clamp(1.7rem, 4.4vw, 2.5rem); line-height: 1.05; margin: 0; letter-spacing: -0.02em; }
+  .p3-tools { display: flex; gap: var(--s-2); }
+  .p3-pill { border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); border-radius: 999px; padding: 0.4rem 0.9rem; font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .p3-pill:hover { color: var(--ink); border-color: var(--line-strong); }
+
+  /* the lesson picker: a pill slides under the chosen lesson */
+  .p3-picker { position: relative; display: flex; gap: 2px; padding: 4px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; overflow-x: auto; scrollbar-width: none; }
+  .p3-picker::-webkit-scrollbar { display: none; }
+  .p3-chip { position: relative; z-index: 1; flex: 1 0 auto; border: 0; background: none; border-radius: 999px; padding: 0.5rem 0.8rem; font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--ink-soft); cursor: pointer; white-space: nowrap; transition: color var(--dur-fast) var(--ease-settle); }
+  .p3-chip b { font-family: var(--font-math); font-weight: 600; opacity: 0.6; margin-right: 0.35rem; }
+  .p3-chip.is-on { color: #fff; }
+  .p3-chip.is-on b { opacity: 0.85; }
+  .p3-chip:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+  .p3-mark { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; width: 0; border-radius: 999px; background: var(--accent); }
+
+  .p3-stage { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: var(--s-3); box-shadow: var(--shadow-soft); }
+  .p3-stage .t-anim-stage { border: 0; box-shadow: none; background: none; min-height: 0; overflow: visible; }
+  .p3-stage .t-lesson { padding: 0; }
+  .p3-stage .t-lesson-board.is-empty { display: none; }
+  .p3-stage .t-lesson-svg { border-radius: 16px; overflow: hidden; }
+  .p3-say { display: flex; align-items: center; gap: var(--s-3); background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: var(--s-3) var(--s-4); min-height: 4.4rem; box-shadow: var(--shadow-soft); }
+  .p3-who { flex: none; font-family: var(--font-math); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-deep); background: var(--accent-wash); border-radius: 999px; padding: 0.2rem 0.55rem; }
+  .p3-words { margin: 0; font-size: var(--text-lg); line-height: 1.4; color: var(--ink); }
+  .p3-words span { display: inline-block; white-space: pre; will-change: transform, opacity; }
+  .p3-controls { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
+  .p3-go { min-width: 9rem; }
+  .p3-note { color: var(--ink-faint); font-size: var(--text-sm); margin: 0 0 0 auto; }
+  .p3-done { display: none; align-items: center; gap: var(--s-4); flex-wrap: wrap; background: var(--accent); color: #fff; border-radius: 22px; padding: var(--s-4) var(--s-5); }
+  .p3-done-text { display: grid; gap: 2px; flex: 1 1 18rem; }
+  .p3-done strong { font-family: var(--font-display); font-size: var(--text-lg); }
+  .p3-done span { opacity: 0.92; }
+  .p3-done .btn { background: #fff; color: var(--accent-deep); border-color: #fff; }
+</style>
+</head>
+<body>
+<main class="p3" id="page">
+  <header class="p3-head" data-in>
+    <div>
+      <p class="p3-eyebrow" id="eyebrow">Area</p>
+      <h1 class="p3-title" id="title">Area</h1>
+    </div>
+    <div class="p3-tools">
+      <button class="p3-pill" id="sound" type="button">Sound on</button>
+      <button class="p3-pill" id="theme" type="button">Dark</button>
+    </div>
+  </header>
+
+  <nav class="p3-picker" id="picker" aria-label="Lessons" data-in><span class="p3-mark" id="mark" aria-hidden="true"></span></nav>
+
+  <section class="p3-stage" data-in><div id="stage" class="t-anim-stage"></div></section>
+
+  <div class="p3-say" data-in aria-live="polite">
+    <span class="p3-who">Maji</span>
+    <p class="p3-words" id="words">Press Play. I'll tell you the story, and stop when it's your turn.</p>
+  </div>
+
+  <div class="p3-controls" data-in>
+    <button class="btn btn-primary p3-go" id="play" type="button">Play</button>
+    <button class="btn btn-ghost" id="replay" type="button">Start again</button>
+    <p class="p3-note">Scene: GSAP · Interface: Motion</p>
+  </div>
+
+  <div class="p3-done" id="done">
+    <div class="p3-done-text"><strong>Lesson complete.</strong><span id="rule"></span></div>
+    <button class="btn" id="next" type="button">Next lesson</button>
+  </div>
+</main>
+
+<script src="core.js"></script>
+<script src="state.js"></script>
+<script src="data/fig.js"></script>
+<script src="data/skills.js"></script>
+<script src="data/students.js"></script>
+<script src="audio/manifest.js"></script>
+<script src="audio/voices.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/motion@14.14.0/dist/motion.js"></script>
+<script src="anim/timeline.js"></script>
+<script src="anim/lesson.js"></script>
+<script src="anim/sfx.js"></script>
+<script src="anim/story-kit.js"></script>
+<script src="guide/creature.js"></script>
+<script src="anim/para-field.js"></script>
+<script src="anim/land-kit.js"></script>
+<script src="anim/twin.js"></script>
+<script src="anim/tri-field.js"></script>
+<script src="anim/trap-field.js"></script>
+<script src="anim/pen-fence.js"></script>
+<script src="anim/courtyard-split.js"></script>
+<script src="anim/tile-units.js"></script>
+<script src="anim/shade-net.js"></script>
+<script src="screens/report.js"></script>
+<script src="screens/session.js"></script>
+<script>
+(function () {
+  "use strict";
+  var C = window.Cogna, M = window.Motion;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var SPRING = { type: "spring", stiffness: 320, damping: 26 };
+  var POP = { type: "spring", stiffness: 520, damping: 18 };
+  function $(id) { return document.getElementById(id); }
+  function motion(el, keys, opt) { if (!M || reduce || !el) return null; try { return M.animate(el, keys, opt); } catch (e) { console.error("[motion]", e); return null; } }
+
+  /* the seven lessons, in teaching order */
+  var LESSONS = [
+    { id: "pen-fence", chip: "Goat pen", topic: "Area or perimeter?", rule: "Area counts the squares inside. The fence round the edge is the perimeter." },
+    { id: "para-field", chip: "Wonky field", topic: "Parallelograms", rule: "Parallelogram: area = base × height." },
+    { id: "tri-field", chip: "Corner plot", topic: "Triangles", rule: "Triangle: area = ½ × base × height." },
+    { id: "trap-field", chip: "Road plot", topic: "Trapeziums", rule: "Trapezium: area = ½ × (the two parallel sides added) × height.", flags: { afterLesson: true } },
+    { id: "courtyard-split", chip: "Courtyard", topic: "Any shape", rule: "Any shape: split it into shapes you know, find each, add them." },
+    { id: "tile-units", chip: "Tiles", topic: "Units", rule: "1 m² = 100 cm × 100 cm = 10,000 cm²." },
+    { id: "shade-net", chip: "Shade net", topic: "Hidden heights", rule: "Hidden height: drop it, find it with a² + b² = c², then ½ × base × height." },
+  ];
+  function byId(id) { for (var i = 0; i < LESSONS.length; i++) if (LESSONS[i].id === id) return i; return 0; }
+
+  /* ---- Motion: the page arrives, one piece after another ---- */
+  if (M && !reduce) M.animate("[data-in]", { opacity: [0, 1], y: [26, 0] }, Object.assign({ delay: M.stagger(0.08) }, SPRING));
+
+  /* ---- the picker, with a pill that slides (Motion) to the chosen lesson ---- */
+  var picker = $("picker"), mark = $("mark"), chips = [];
+  LESSONS.forEach(function (l, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "p3-chip"; b.innerHTML = "<b>" + (i + 1) + "</b>" + l.chip;
+    b.setAttribute("aria-label", "Lesson " + (i + 1) + ": " + C.anims[l.id].title);
+    b.addEventListener("click", function () { go(i); });
+    picker.appendChild(b); chips.push(b);
+  });
+  if (M && !reduce) M.animate(chips, { opacity: [0, 1], y: [10, 0] }, Object.assign({ delay: M.stagger(0.04, { startDelay: 0.25 }) }, POP));
+  function placeMark(i, instant) {
+    var b = chips[i], x = b.offsetLeft, w = b.offsetWidth;
+    chips.forEach(function (c, k) { c.classList.toggle("is-on", k === i); c.setAttribute("aria-current", k === i ? "true" : "false"); });
+    if (instant || !M || reduce) { mark.style.transform = "translateX(" + x + "px)"; mark.style.width = w + "px"; }
+    else M.animate(mark, { x: x, width: w }, SPRING);
+    try { b.scrollIntoView({ block: "nearest", inline: "center", behavior: instant ? "auto" : "smooth" }); } catch (e) { /* ignore */ }
+  }
+
+  /* ---- Motion: Maji's words land one at a time, in step with her voice ---- */
+  var words = $("words");
+  function sayWords(text) {
+    words.textContent = "";
+    var spans = String(text).split(/(\s+)/).filter(Boolean).map(function (w) {
+      var s = document.createElement("span"); s.textContent = w; words.appendChild(s); return s;
+    });
+    if (M && !reduce && spans.length) M.animate(spans, { opacity: [0, 1], y: [10, 0] }, { delay: M.stagger(0.028), duration: 0.32, ease: "easeOut" });
+  }
+
+  /* ---- Motion: every button gives under the finger ---- */
+  document.addEventListener("pointerdown", function (e) {
+    var b = e.target.closest && e.target.closest("button");
+    if (b && !b.disabled && !b.classList.contains("p3-chip")) { b.__pressed = true; motion(b, { scale: 0.94 }, { duration: 0.09 }); }
+  });
+  ["pointerup", "pointercancel"].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      Array.prototype.forEach.call(document.querySelectorAll("button"), function (b) { if (b.__pressed) { b.__pressed = false; motion(b, { scale: 1 }, POP); } });
+    });
+  });
+
+  /* ---- the lesson itself (GSAP, through Cogna.lesson) ---- */
+  var stage = $("stage"), play = $("play"), ctl = null, playing = false, ended = false, cur = 0, obs = null;
+  function mount() {
+    if (ctl) ctl.destroy();
+    C.voice.stop();
+    ended = false; playing = false; play.textContent = "Play";
+    $("done").style.display = "none";
+    var l = LESSONS[cur];
+    ctl = C.anims[l.id].mount(stage, {
+      flags: l.flags || {},
+      // vo.interrupt (a reaction) cuts the line still being said; the returned line lets a lesson cut its own caption
+      onBeat: function (text, done, vo) { if (text) { sayWords(text); return C.voice.say(text, done, vo); } else if (done) done(false); return null; },
+      onEnd: function () {
+        ended = true; playing = false; play.textContent = "Play again";
+        $("rule").textContent = l.rule;
+        $("next").style.display = cur < LESSONS.length - 1 ? "" : "none";
+        var d = $("done"); d.style.display = "flex";
+        motion(d, { opacity: [0, 1], scale: [0.9, 1], y: [20, 0] }, POP);
+      },
+    });
+    watch();
+  }
+  function setPlaying(on) {
+    playing = on; play.textContent = on ? "Pause" : "Play";
+    if (on) { if (ended) mount(), playing = true, play.textContent = "Pause"; ctl.play(); C.voice.resume(); }
+    else { ctl.pause(); C.voice.pause(); }
+  }
+  play.addEventListener("click", function () { setPlaying(!playing); });
+  $("replay").addEventListener("click", function () { mount(); sayWords("Here we go again."); setPlaying(true); });
+  $("next").addEventListener("click", function () { go(cur + 1, true); });
+
+  /* choosing a lesson: the stage slips out, the new lesson slips in (Motion) */
+  function show(i, autoplay, first) {
+    cur = i;
+    var l = LESSONS[i], A = C.anims[l.id];
+    $("eyebrow").textContent = "Area · Lesson " + (i + 1) + " · " + l.topic;
+    $("title").textContent = A.title;
+    placeMark(i, first);
+    mount();
+    sayWords(autoplay ? "Here's the next one." : "Press Play. I'll tell you the story, and stop when it's your turn.");
+    if (!first) {
+      motion($("title"), { opacity: [0, 1], y: [14, 0] }, SPRING);
+      motion(stage, { opacity: [0, 1], x: [24, 0] }, SPRING);
+    }
+    if (autoplay) setPlaying(true);
+  }
+  function go(i, autoplay) {
+    if (i < 0 || i >= LESSONS.length) return;
+    if (window.location.hash !== "#" + LESSONS[i].id) history.replaceState(null, "", "#" + LESSONS[i].id);
+    var out = motion(stage, { opacity: 0, x: -24 }, { duration: 0.18, ease: "easeIn" });
+    if (out && out.finished) out.finished.then(function () { show(i, autoplay); }); else show(i, autoplay);
+  }
+
+  /* ---- Motion: react to what the lesson puts on the page ---- */
+  function watch() {
+    if (obs) obs.disconnect();
+    var bar = stage.querySelector(".t-lesson-task"), board = stage.querySelector(".t-lesson-board"), strip = stage.querySelector(".t-lesson-beats");
+    obs = new MutationObserver(function (list) {
+      list.forEach(function (m) {
+        var t = m.target;
+        if (t === bar && m.type === "childList" && m.addedNodes.length && !bar.hidden) {
+          motion(bar, { opacity: [0, 1], y: [18, 0], scale: [0.97, 1] }, SPRING);
+          var kids = bar.querySelectorAll("button, input");
+          if (kids.length && M && !reduce) M.animate(kids, { opacity: [0, 1], y: [12, 0] }, Object.assign({ delay: M.stagger(0.06, { startDelay: 0.08 }) }, POP));
+        }
+        if (t === board && m.type === "childList" && board.textContent) motion(board, { scale: [0.92, 1], opacity: [0.4, 1] }, POP);
+        if (m.type === "attributes" && t.classList && t.classList.contains("t-lesson-beat") && t.classList.contains("is-now")) {
+          motion(t, { scale: [0.86, 1.08, 1] }, { duration: 0.5, ease: "easeOut" });
+        }
+      });
+    });
+    if (bar) obs.observe(bar, { childList: true });
+    if (board) obs.observe(board, { childList: true });
+    if (strip) obs.observe(strip, { attributes: true, attributeFilter: ["class"], subtree: true });
+  }
+
+  /* ---- sound and theme ---- */
+  var sound = $("sound"), theme = $("theme"), root = document.documentElement;
+  function paintTools() {
+    sound.textContent = C.voice.isOn() ? "Sound on" : "Sound off";
+    theme.textContent = root.getAttribute("data-theme") === "dark" ? "Light" : "Dark";
+  }
+  sound.addEventListener("click", function () { C.voice.set(!C.voice.isOn()); paintTools(); });
+  theme.addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { window.localStorage.setItem("cogna-theme", next); } catch (e) { /* ignore */ }
+    paintTools();
+    motion(document.querySelector(".p3-stage"), { scale: [0.985, 1] }, SPRING);
+  });
+  window.addEventListener("resize", function () { placeMark(cur, true); });
+  window.addEventListener("hashchange", function () { var i = byId(window.location.hash.slice(1)); if (i !== cur) go(i); });
+
+  paintTools();
+  show(byId(window.location.hash.slice(1)), false, true);
+})();
+</script>
+</body>
+</html>

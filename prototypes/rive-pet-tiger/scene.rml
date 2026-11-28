@@ -1,0 +1,40 @@
+<Rive version="1" kind="fragment">
+    <!-- Sheru, Cogna's pixel tiger cub. The script draws him; the app picks his mood by
+         writing the view model number "mood": 0 idle, 1 excited, 2 playful, 3 thinking. -->
+    <Artboard defaultStateMachineId="0:7" viewModelId="0:40" styleId="0:5" width="480" height="540" clip="true" name="Sheru" id="0:2">
+        <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+        <Fill name="Background">
+            <SolidColor colorValue="FFF4F7F3" name="Color"/>
+        </Fill>
+        <LayoutComponent width="480" height="540" styleId="0:11" name="Root Layout" id="0:10">
+            <LayoutComponentStyle layoutWidthScaleType="1" layoutHeightScaleType="1" widthUnitsValue="3" heightUnitsValue="3" name="Layout Style" id="0:11"/>
+            <ScriptedLayout scriptAssetId="0:80" name="Sheru" id="0:12">
+                <FocusData/>
+            </ScriptedLayout>
+        </LayoutComponent>
+        <StateMachine name="State Machine 1" id="0:7">
+            <StateMachineLayer name="Layer 1" id="0:8">
+                <AnyState x="200" y="-120"/>
+                <ExitState x="400" y="-120"/>
+                <EntryState>
+                    <StateTransition stateToId="0:13"/>
+                </EntryState>
+                <AnimationState x="200" animationId="0:6" id="0:13">
+                    <FocusActionTarget targetId="0:12"/>
+                </AnimationState>
+            </StateMachineLayer>
+        </StateMachine>
+        <LinearAnimation duration="60" name="Idle" id="0:6"/>
+    </Artboard>
+
+    <ViewModel defaultInstanceId="0:41" name="Pet" id="0:40">
+        <ViewModelPropertyNumber name="mood" id="0:44"/>
+        <ViewModelInstance exports="true" name="Instance" id="0:41">
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:44"/>
+        </ViewModelInstance>
+    </ViewModel>
+
+    <ScriptAsset file="main.luau" name="main" id="0:80"/>
+    <FontAsset file="Body.ttf" name="Body"/>
+    <FontAsset file="Display.ttf" name="Display"/>
+</Rive>

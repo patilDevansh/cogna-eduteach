@@ -1,0 +1,41 @@
+/* Lakshmi aunty's courtyard (anim/courtyard-split.js). Spec class: "t-pf t-court".
+   The courtyard is paved stone on a slab, not grass, so it has its own colours (game objects). Everything else uses
+   the Cogna tokens and the land variables on .t-pf. */
+.t-court {
+  --ct-stone: #dccbab;        /* sandstone paving */
+  --ct-stone-a: #ecb79a;      /* first piece after a cut: terracotta */
+  --ct-stone-b: #a9c6da;      /* second piece: slate blue */
+  --ct-joint: #a8946f;        /* the lines between tiles */
+  --ct-edge: #8a7655;         /* the kerb round the paving */
+  --ct-base: #8b7c69;         /* the slab underneath */
+  --ct-base-edge: #6a5d4d;
+}
+
+/* the paving */
+.t-court .t-ct-base polygon { fill: var(--ct-base); stroke: var(--ct-base-edge); stroke-width: 1.5; stroke-linejoin: round; }
+.t-court .t-ct-stone { fill: var(--ct-stone); }
+.t-court .t-ct-piece.is-a .t-ct-stone { fill: var(--ct-stone-a); }
+.t-court .t-ct-piece.is-b .t-ct-stone { fill: var(--ct-stone-b); }
+.t-court .t-ct-joint { fill: none; stroke: var(--ct-joint); stroke-opacity: 0.7; stroke-width: 2; }
+.t-court .t-ct-edge { fill: none; stroke: var(--ct-edge); stroke-width: 3; stroke-linejoin: round; }
+.t-court .t-ct-piece.is-glow .t-ct-edge { stroke: var(--pf-gold); stroke-width: 6; }
+.t-court .t-ct-piece, .t-court .t-ct-dims, .t-court .t-ct-house { pointer-events: none; }
+.t-court .t-lesson-svg text.t-ct-note { font-size: 15px; font-weight: 600; fill: var(--ink-soft); stroke-width: 0; }
+
+/* the two lines to tap */
+.t-court .t-ct-cut { fill: none; stroke: var(--pf-gold); stroke-width: 6; stroke-dasharray: 12 9; stroke-linecap: round; pointer-events: none; }
+.t-court .t-ct-cuthalo { fill: none; stroke: var(--surface); stroke-opacity: 0.85; stroke-width: 12; stroke-linecap: round; pointer-events: none; }
+.t-court .t-ct-hit { fill: none; stroke: transparent; stroke-width: 36; stroke-linecap: round; pointer-events: none; }
+.t-court .t-ct-cutg.is-live .t-ct-hit { pointer-events: stroke; cursor: pointer; }
+.t-court .t-ct-cutg.is-live:hover .t-ct-cut { stroke-width: 9; }
+.t-court .t-ct-hit:focus { outline: none; }
+.t-court .t-ct-cutg.is-live .t-ct-hit:focus-visible ~ .t-ct-cut { stroke: var(--focus); stroke-width: 9; }
+.t-court .t-ct-cutg.is-cut .t-ct-cut { stroke-dasharray: none; stroke-width: 7; }
+
+/* the plain house shape for the rule */
+.t-court .t-ct-hshape { fill: var(--accent-wash); }
+.t-court .t-ct-hfill.is-rect { fill: var(--accent); fill-opacity: 0.28; }
+.t-court .t-ct-hfill.is-tri { fill: var(--pf-gold); fill-opacity: 0.4; }
+.t-court .t-ct-hgrid { fill: none; stroke: var(--accent-deep); stroke-opacity: 0.25; stroke-width: 1.5; }
+.t-court .t-ct-hedge { fill: none; stroke: var(--accent-deep); stroke-width: 3.5; stroke-linejoin: round; }
+.t-court .t-ct-split { fill: none; stroke: var(--pf-gold); stroke-width: 6; stroke-dasharray: 12 9; stroke-linecap: round; }

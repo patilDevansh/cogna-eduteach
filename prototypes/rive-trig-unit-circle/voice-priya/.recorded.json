@@ -1,0 +1,17 @@
+{
+  "step1": "This is the unit circle. Its radius is exactly one. The angle, theta, starts on the right, and grows as the dot turns anticlockwise. Watch me first, then drag the dot yourself, up to ninety degrees.",
+  "done1": "Perfect. Ninety degrees, straight up.",
+  "step2": "Drop a line straight down from the dot, and you get a right-angled triangle. Its flat side, in blue, is cos theta. It tells you how far across the dot is. On the left of the centre, cos theta becomes negative. Can you make it negative?",
+  "done2": "Yes! The dot is on the left, so cos theta is negative.",
+  "step3": "The standing side, in orange, is sine theta. It tells you how far up the dot is. At ninety degrees it is one, its biggest value. Below the centre, sine theta is negative. Now make sine theta equal to minus one.",
+  "done3": "Exactly. At two hundred and seventy degrees, sine theta is minus one.",
+  "step4": "Now watch the dot spin. Its height is carried straight across to the graph. One full turn, from zero to three hundred and sixty degrees, draws one full sine wave. Then drag the dot to where the wave crosses the middle line, at one hundred and eighty degrees.",
+  "done4": "Right. At one hundred and eighty degrees, the dot is level with the centre, so the wave is at zero.",
+  "step5": "The longest side of the triangle is the radius, which is one. Pythagoras says, across square plus up square equals one square. So cos square theta plus sine square theta equals one, at every angle. Try three different angles and see.",
+  "done5": "See? Every single time, it comes to exactly one.",
+  "step6": "Your turn. Drag the dot until the orange side and the blue side are the same length. There are two places on the circle where this happens. Can you find both?",
+  "found45": "Yes! Forty-five degrees. Now find the other one.",
+  "found225": "Yes! Two hundred and twenty-five degrees. Now find the other one.",
+  "foundBoth": "Brilliant! You found both. At forty-five and at two hundred and twenty-five degrees, sine theta equals cos theta.",
+  "hint6": "Here is a hint. Try exactly halfway between zero and ninety degrees."
+}

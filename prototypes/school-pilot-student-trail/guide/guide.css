@@ -1,0 +1,187 @@
+/* Cogna guide — the orb, her speech bubble and the ring she puts round things.
+   Uses the Cogna tokens from cogna.css only. */
+
+.cg-guide {
+  position: fixed; left: 0; top: 0; z-index: 900;
+  width: 64px; height: 64px;
+  pointer-events: none;
+  will-change: transform;
+}
+.cg-orb {
+  position: absolute; inset: 0;
+  padding: 0; border: 0; background: none; cursor: pointer;
+  pointer-events: auto;
+  transform-origin: 50% 90%;
+  border-radius: 50%;
+}
+.cg-orb:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+
+/* the canvas body (guide/creature.js) overflows the 64px box so shapes can orbit outside it */
+.cg-body { position: absolute; inset: 0; }
+.cg-canvas { position: absolute; left: -24px; top: -24px; width: 112px; height: 112px; pointer-events: none; }
+.cg-body-old {
+  position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, #6fd3ae 0%, #2a9a76 34%, var(--accent) 62%, var(--accent-deep) 100%);
+  box-shadow:
+    inset -6px -8px 14px rgba(4, 40, 32, 0.45),
+    inset 4px 5px 10px rgba(255, 255, 255, 0.22),
+    0 6px 18px rgba(14, 107, 84, 0.35);
+  overflow: hidden;
+}
+.cg-shine {
+  position: absolute; left: 14px; top: 9px; width: 18px; height: 11px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55); filter: blur(1px); transform: rotate(-24deg);
+}
+.cg-eyes { position: absolute; left: 0; right: 0; top: 23px; display: flex; justify-content: center; gap: 9px; }
+.cg-eye {
+  position: relative; width: 12px; height: 15px; border-radius: 50%;
+  background: #fff; box-shadow: inset 0 -1px 2px rgba(0, 0, 0, 0.12);
+  animation: cg-blink 5.2s infinite;
+  transform-origin: 50% 60%;
+}
+.cg-eye b {
+  position: absolute; left: 3px; top: 4px; width: 6px; height: 7px; border-radius: 50%;
+  background: var(--ink); transition: transform 120ms linear;
+}
+.cg-eye b::after { content: ""; position: absolute; left: 1px; top: 1px; width: 2px; height: 2px; border-radius: 50%; background: #fff; }
+.cg-mouth {
+  position: absolute; left: 50%; top: 43px; width: 14px; height: 6px; margin-left: -7px;
+  border-bottom: 2.5px solid rgba(255, 255, 255, 0.9); border-radius: 0 0 10px 10px;
+  transition: height 160ms var(--ease-settle), width 160ms var(--ease-settle);
+}
+.cg-ring {
+  position: absolute; inset: -6px; border-radius: 50%;
+  border: 2px solid rgba(14, 107, 84, 0.0);
+}
+.cg-shadow {
+  position: absolute; left: 10px; right: 10px; bottom: -14px; height: 10px; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(22, 36, 29, 0.45), rgba(22, 36, 29, 0) 70%);
+  filter: blur(1.5px);
+}
+
+/* moods */
+.cg-guide[data-mood="talk"] .cg-mouth { animation: cg-talk 260ms ease-in-out infinite alternate; }
+.cg-guide[data-mood="talk"] .cg-ring { animation: cg-glow 1.1s ease-out infinite; }
+.cg-guide[data-mood="happy"] .cg-eye { height: 8px; border-radius: 12px 12px 3px 3px; margin-top: 4px; animation: none; }
+.cg-guide[data-mood="happy"] .cg-eye b { opacity: 0; }
+.cg-guide[data-mood="happy"] .cg-mouth { width: 18px; margin-left: -9px; height: 9px; background: rgba(255, 255, 255, 0.9); border-radius: 0 0 12px 12px; }
+.cg-guide[data-mood="oops"] .cg-eye { height: 11px; margin-top: 3px; }
+.cg-guide[data-mood="oops"] .cg-mouth { width: 10px; margin-left: -5px; height: 0; border-radius: 2px; top: 46px; }
+.cg-guide[data-mood="think"] .cg-eye b { transform: translate(2px, -2px) !important; }
+.cg-guide[data-mood="think"] .cg-mouth { width: 8px; margin-left: -1px; }
+
+@keyframes cg-blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes cg-talk { from { height: 3px; width: 12px; margin-left: -6px; } to { height: 9px; width: 15px; margin-left: -7.5px; background: rgba(255, 255, 255, 0.85); } }
+@keyframes cg-glow {
+  from { border-color: rgba(14, 107, 84, 0.45); transform: scale(0.92); }
+  to { border-color: rgba(14, 107, 84, 0); transform: scale(1.35); }
+}
+
+/* the sparkle burst when something goes right */
+.cg-sparks { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.cg-sparks i {
+  position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%;
+  background: #d6a01e; opacity: 0;
+  animation: cg-spark 900ms var(--ease-settle) var(--d) forwards;
+}
+.cg-sparks i:nth-child(3n) { background: var(--accent); }
+.cg-sparks i:nth-child(3n + 1) { background: #e07020; }
+@keyframes cg-spark {
+  0% { opacity: 1; transform: translate(0, 0) scale(0.6); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.1); }
+}
+
+/* speech bubble */
+.cg-bubble {
+  position: fixed; z-index: 901; max-width: 340px; min-width: 220px;
+  padding: var(--s-3) var(--s-4) var(--s-3);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft), 0 14px 40px rgba(22, 36, 29, 0.12);
+  font-family: var(--font-body); font-size: var(--text-sm); line-height: 1.45;
+}
+.cg-bubble[hidden] { display: none; }
+.cg-bubble.cg-pop { animation: cg-pop var(--dur-phase) var(--ease-settle); }
+@keyframes cg-pop { from { opacity: 0; transform: translateY(6px) scale(0.97); } to { opacity: 1; transform: none; } }
+.cg-name {
+  display: block; margin-bottom: 2px;
+  font-family: var(--font-math); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+}
+.cg-text { margin: 0; padding-right: 18px; }
+.cg-x {
+  position: absolute; top: 6px; right: 8px; width: 26px; height: 26px; padding: 0;
+  border: 0; background: none; color: var(--ink-faint); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 50%;
+}
+.cg-x:hover { color: var(--ink); background: var(--accent-wash); }
+.cg-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.cg-actions:has(> .cg-btn:not([hidden])) { display: flex; }
+.cg-actions:not(:has(> .cg-btn:not([hidden]))) { display: none; }
+.cg-btn {
+  min-height: 36px; padding: 0 var(--s-4); border-radius: 999px; cursor: pointer;
+  font: 600 var(--text-xs) var(--font-body);
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+}
+.cg-btn[hidden] { display: none; }
+.cg-next { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cg-next:hover { background: var(--accent-deep); }
+.cg-skip:hover { border-color: var(--ink-soft); }
+
+/* the ring she puts round what she is talking about */
+.cg-spot {
+  position: fixed; z-index: 899; pointer-events: none;
+  border-radius: 14px;
+  box-shadow: 0 0 0 3px rgba(14, 107, 84, 0.55), 0 0 0 9px rgba(14, 107, 84, 0.12);
+  animation: cg-spot 1.6s ease-in-out infinite;
+  transition: left 300ms var(--ease-settle), top 300ms var(--ease-settle), width 300ms var(--ease-settle), height 300ms var(--ease-settle);
+}
+.cg-spot[hidden] { display: none; }
+@keyframes cg-spot {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(14, 107, 84, 0.55), 0 0 0 9px rgba(14, 107, 84, 0.12); }
+  50% { box-shadow: 0 0 0 3px rgba(14, 107, 84, 0.75), 0 0 0 14px rgba(14, 107, 84, 0.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-eye, .cg-spot, .cg-bubble.cg-pop, .cg-guide[data-mood="talk"] .cg-ring, .cg-guide[data-mood="talk"] .cg-mouth { animation: none; }
+  .cg-spot { transition: none; }
+}
+@media print { .cg-guide, .cg-bubble, .cg-spot { display: none; } }
+
+/* ---- live conversation (guide/talk.js) ---- */
+.cg-heard {
+  margin: 0 0 6px; padding: 6px 10px; border-radius: 10px;
+  background: var(--accent-wash); color: var(--ink-soft); font-size: var(--text-xs);
+}
+.cg-heard[hidden] { display: none; }
+.cg-guide[data-mood="listen"] .cg-eye { height: 17px; width: 13px; }
+.cg-guide[data-mood="listen"] .cg-mouth { width: 8px; height: 8px; margin-left: -4px; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%; top: 44px; }
+.cg-guide[data-mood="listen"] .cg-ring { border-color: rgba(14, 107, 84, 0.5); animation: cg-glow 0.9s ease-out infinite; }
+.cg-guide[data-mood="think"] .cg-ring { border-style: dashed; border-color: rgba(14, 107, 84, 0.45); animation: cg-spin 2.4s linear infinite; }
+@keyframes cg-spin { to { transform: rotate(360deg); } }
+
+.cg-mic {
+  position: absolute; left: 50%; top: 82px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  min-height: 32px; padding: 0 12px 0 10px; border-radius: 999px; cursor: pointer;
+  pointer-events: auto;
+  font: 600 var(--text-xs) var(--font-body); color: var(--accent-deep);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-soft);
+}
+.cg-mic[hidden] { display: none; }
+.cg-mic:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cg-mic-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.cg-mic-bars { display: none; align-items: center; gap: 2px; height: 14px; }
+.cg-mic-bars i { display: block; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); transform: scaleY(0.25); transform-origin: 50% 50%; }
+.cg-mic[data-state="on"] .cg-mic-dot, .cg-mic[data-state="hearing"] .cg-mic-dot { display: none; }
+.cg-mic[data-state="on"] .cg-mic-bars, .cg-mic[data-state="hearing"] .cg-mic-bars { display: inline-flex; }
+.cg-mic[data-state="hearing"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.cg-mic[data-state="hearing"] .cg-mic-bars i { background: #fff; }
+.cg-mic[data-state="thinking"] .cg-mic-dot { background: var(--accent); animation: cg-blinkdot 0.8s ease-in-out infinite alternate; }
+@keyframes cg-blinkdot { from { opacity: 0.25; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cg-guide[data-mood="think"] .cg-ring, .cg-guide[data-mood="listen"] .cg-ring, .cg-mic-dot { animation: none; } }
+/* the gel body shows her moods itself; the old orb's ring is not used */
+.cg-ring { display: none; }
+
+/* Maji is on a lesson's own stage (Cogna.lesson presenter): the floating one steps aside */
+.is-maji-presenting .cg-guide, .is-maji-presenting .cg-bubble, .is-maji-presenting .cg-spot { display: none !important; }

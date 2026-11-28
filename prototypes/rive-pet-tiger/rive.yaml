@@ -1,0 +1,5 @@
+name: rive-pet-tiger
+main: Sheru
+logs:
+  file: build/rive.log
+  problems: build/problems.log

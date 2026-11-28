@@ -1,0 +1,107 @@
+/* Cogna pets gallery — ten pet options, each with one teaching trick for the Area unit.
+   Cogna tokens only (cogna.css, proto.css). Gold marks things the student can move. */
+
+.pk-page { padding-bottom: var(--s-8); }
+.pk-intro { max-width: 760px; margin: var(--s-6) 0 var(--s-5); }
+.pk-intro h1 { font-size: var(--text-2xl); }
+.pk-intro p { color: var(--ink-soft); margin: var(--s-3) 0 0; }
+.pk-tools { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; margin-top: var(--s-4); }
+
+.pk-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: var(--s-6); }
+.pk-table th, .pk-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pk-table th { font: 600 var(--text-xs) var(--font-body); color: var(--ink-soft); background: var(--bg); }
+.pk-table tr:last-child td { border-bottom: 0; }
+.pk-table a { font-weight: 600; text-decoration: none; }
+.pk-table td:first-child { white-space: nowrap; }
+
+.pk-grid { display: grid; grid-template-columns: 1fr; gap: var(--s-5); }
+@media (min-width: 1100px) { .pk-grid { grid-template-columns: 1fr 1fr; } .pk-page.shell { max-width: 1240px; } }
+
+.pk-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft); padding: var(--s-5); display: grid; gap: var(--s-4); align-content: start;
+  scroll-margin-top: var(--s-5);
+}
+.pk-head { display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
+.pk-head h2 { font-size: var(--text-xl); margin: 0; }
+.pk-kind { color: var(--ink-soft); font-size: var(--text-md); }
+.pk-num { font: 600 var(--text-xs) var(--font-math); color: var(--accent); letter-spacing: 0.06em; }
+.pk-effort { margin-left: auto; font: 600 var(--text-xs) var(--font-body); color: var(--ink-soft); border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px 10px; }
+.pk-line { margin: 0; font-size: var(--text-md); }
+
+.pk-stage {
+  position: relative; border-radius: var(--radius); overflow: hidden;
+  background: linear-gradient(180deg, #fbfdfb 0%, #eef4ef 100%);
+  border: 1px solid var(--line);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.pk-stage:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.pk-svg { display: block; width: 100%; height: auto; }
+.pk-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pk-actions .btn { min-height: 40px; padding: 0.5rem 1rem; font-size: var(--text-sm); }
+
+.pk-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: var(--text-sm); }
+.pk-facts dt { color: var(--ink-faint); font-weight: 600; }
+.pk-facts dd { margin: 0; color: var(--ink); }
+.pk-facts .pk-mix { display: inline-block; background: var(--t-missing-bg); color: var(--t-missing-ink); border: 1px solid var(--t-missing-line); border-radius: 999px; padding: 0 8px; font-size: var(--text-xs); margin: 1px 4px 1px 0; }
+
+/* speech bubbles and chips laid over the stage (positions in % of the stage) */
+.pk-bubble, .pk-chip { position: absolute; pointer-events: none; }
+.pk-bubble[hidden], .pk-chip[hidden] { display: none; }
+.pk-bubble {
+  transform: translate(-50%, calc(-100% - 12px)); max-width: 60%;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
+  border-radius: 14px; padding: 7px 11px; font: 500 var(--text-sm)/1.3 var(--font-body);
+  box-shadow: 0 6px 18px rgba(22, 36, 29, 0.12); text-align: center; white-space: normal; width: max-content;
+  animation: pk-pop var(--dur-phase) var(--ease-settle);
+}
+.pk-bubble::after {
+  content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; margin-left: -6px;
+  background: inherit; border-right: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); transform: rotate(45deg);
+}
+.pk-bubble.is-good { border-color: var(--success); color: var(--t-secure-ink); background: var(--success-wash); }
+.pk-bubble.is-warn { border-color: var(--t-missing-label); color: var(--t-missing-ink); background: var(--t-missing-bg); }
+.pk-chip {
+  transform: translate(-50%, -50%); white-space: nowrap;
+  font: 600 var(--text-xs) var(--font-math); padding: 3px 9px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink);
+  box-shadow: 0 2px 8px rgba(22, 36, 29, 0.08);
+}
+.pk-chip.is-good { background: var(--success-wash); border-color: var(--success); color: var(--t-secure-ink); }
+.pk-chip.is-warn { background: var(--t-missing-bg); border-color: var(--t-missing-label); color: var(--t-missing-ink); }
+.pk-chip.is-gold { background: #fff4d8; border-color: #dca03a; color: #7a4c08; }
+@keyframes pk-pop { from { opacity: 0; transform: translate(-50%, calc(-100% - 4px)) scale(0.96); } }
+
+/* SVG parts */
+.pk-grid-lines { stroke: rgba(14, 107, 84, 0.1); stroke-width: 1; fill: none; }
+.pk-shape { fill: #e3efe9; stroke: #51635a; stroke-width: 2; stroke-linejoin: round; }
+.pk-label { font: 600 13px var(--font-math); fill: #51635a; }
+.pk-label-good { font: 700 13px var(--font-math); fill: #115a3d; }
+.pk-label-warn { font: 700 13px var(--font-math); fill: #b4400c; }
+.pk-hit { fill: transparent; cursor: grab; }
+.pk-hit:active { cursor: grabbing; }
+.pk-movable-ring { fill: none; stroke: #dca03a; stroke-width: 3; stroke-dasharray: 5 5; animation: pk-spin 6s linear infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes pk-spin { to { transform: rotate(360deg); } }
+
+/* life: blinking eyes and breathing bodies (CSS, so they never fight the movement transforms) */
+.pk-eye { transform-box: fill-box; transform-origin: center; animation: pk-blink 4.6s infinite; }
+@keyframes pk-blink { 0%, 94%, 100% { transform: scaleY(1); } 96.5% { transform: scaleY(0.08); } }
+.pk-breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: pk-breathe 2.6s ease-in-out infinite; }
+@keyframes pk-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.025, 0.975); } }
+.pk-bob { transform-box: fill-box; transform-origin: center; animation: pk-bob 2.2s ease-in-out infinite; }
+@keyframes pk-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.pk-flap { transform-box: fill-box; transform-origin: 50% 100%; animation: pk-flap 0.12s linear infinite alternate; }
+@keyframes pk-flap { from { transform: scaleY(1); } to { transform: scaleY(0.35); } }
+.pk-glow-pulse { transform-box: fill-box; transform-origin: center; animation: pk-glow 1.6s ease-in-out infinite; }
+@keyframes pk-glow { 0%, 100% { opacity: 0.75; transform: scale(0.92); } 50% { opacity: 1; transform: scale(1.12); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-eye, .pk-breathe, .pk-bob, .pk-flap, .pk-glow-pulse, .pk-movable-ring, .pk-bubble { animation: none; }
+}
+
+/* Dori's legs take turns while she walks */
+.is-walking .pk-legs-a { animation: pk-step 0.2s ease-in-out infinite alternate; }
+.is-walking .pk-legs-b { animation: pk-step 0.2s ease-in-out infinite alternate-reverse; }
+@keyframes pk-step { from { transform: translateY(-1.8px); } to { transform: translateY(1.8px); } }
+.pk-tilu-label { font: 600 8px var(--font-math); fill: #b98a2e; }
+@media (prefers-reduced-motion: reduce) { .is-walking .pk-legs-a, .is-walking .pk-legs-b { animation: none; } }

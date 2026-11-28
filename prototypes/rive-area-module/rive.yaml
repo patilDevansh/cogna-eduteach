@@ -1,0 +1,8 @@
+name: rive-area-module
+main: Area
+logs:
+  file: build/rive.log
+  problems: build/problems.log
+pages:
+  workspaceId: 1718846
+  name: "rive-area-module"
