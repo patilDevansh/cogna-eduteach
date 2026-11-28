@@ -90,6 +90,14 @@ type Area = {
     pAnswer: Property<string>?,
     pAnswerId: Property<number>?,
     pDone: Property<number>?,
+    pHost: Property<boolean>?,
+    pNavNext: Property<number>?,
+    pNavBack: Property<number>?,
+    pStepInfo: Property<string>?,
+    host: boolean, -- inside Cogna: the module draws only the board; the page shows title, task, caption and the buttons
+    navNext: number,
+    navBack: number,
+    stepInfoSent: string,
     hostVoice: boolean, -- the page speaks every line (its own voice player), so it can stop when the student moves on
     linked: boolean, -- opened on one lesson by the page: no lesson grid, no "All lessons"
     sayId: number,
@@ -285,6 +293,10 @@ end
 --   heard     (page → module) the last sayId the page finished (spoken, cut short or skipped)
 --   answer + answerId (module → page) 'qid|1 or 0|value|mixup' for every answer the student gives
 --   done      (module → page) the number of the lesson just completed
+--   host      (page → module) true: Cogna hosts the lesson. The module draws only the board (the page crops the canvas
+--             to it) and the page shows the title, the task, the caption, Back / Next and sound in its own style
+--   navNext / navBack (page → module) counters: each rise is one press of Next / Back
+--   stepInfo  (module → page) 'step|steps|done 1 or 0|title|task' whenever any of it changes
 local function initBridge(self: Area, context: Context)
     local vm = context:viewModel()
     if vm == nil then
@@ -299,6 +311,45 @@ local function initBridge(self: Area, context: Context)
     self.pAnswer = vm:getString('answer')
     self.pAnswerId = vm:getNumber('answerId')
     self.pDone = vm:getNumber('done')
+    self.pHost = vm:getBoolean('host')
+    self.pNavNext = vm:getNumber('navNext')
+    self.pNavBack = vm:getNumber('navBack')
+    self.pStepInfo = vm:getString('stepInfo')
+    local function applyHost()
+        local p = self.pHost
+        self.host = p ~= nil and p.value == true
+    end
+    local function applyNav()
+        local pn, pb = self.pNavNext, self.pNavBack
+        if pn ~= nil and pn.value > self.navNext then
+            self.navNext = pn.value
+            if self.screen == 'lesson' then
+                nextStep(self)
+            end
+        end
+        if pb ~= nil and pb.value > self.navBack then
+            self.navBack = pb.value
+            if self.screen == 'lesson' then
+                prevStep(self)
+            end
+        end
+    end
+    for _, p in { self.pNavNext, self.pNavBack } do
+        if p ~= nil then
+            p:addListener(vm, function()
+                applyNav()
+                context:markNeedsUpdate()
+            end)
+        end
+    end
+    local ph0 = self.pHost
+    if ph0 ~= nil then
+        ph0:addListener(vm, function()
+            applyHost()
+            context:markNeedsUpdate()
+        end)
+    end
+    applyHost()
     local function applyHostVoice()
         local hv = self.pHostVoice
         self.hostVoice = hv ~= nil and hv.value == true
@@ -543,6 +594,16 @@ function advance(self: Area, dt: number): boolean
         end
     end
     self.bits = keep
+    local psi = self.pStepInfo
+    if psi ~= nil and self.screen == 'lesson' then
+        local L = lesson(self)
+        local st = L.steps[self.step]
+        local info = self.step .. '|' .. #L.steps .. '|' .. (if self.done[key(self.li, self.step)] == true then '1' else '0') .. '|' .. st.title .. '|' .. st.task
+        if info ~= self.stepInfoSent then
+            self.stepInfoSent = info
+            psi.value = info
+        end
+    end
     local g = self.g
     if g ~= nil then
         g.t = self.t
@@ -568,6 +629,9 @@ end
 
 -- buttons of the lesson frame
 local function frameHit(self: Area, p: Vector): string
+    if self.host and self.screen ~= 'home' then
+        return ''
+    end
     if not self.linked and kit.dist(p, Vector.xy(64, 52)) < 26 then
         return 'home'
     end
@@ -864,7 +928,38 @@ local function drawTaskChip(self: Area, r: Renderer, fonts: Fonts)
     r:restore()
 end
 
+-- Inside Cogna: only the board, edge to edge (the page crops the canvas to kit.BX..BY..BW..BH and draws its own frame)
+local function drawHostedBoard(self: Area, r: Renderer, fonts: Fonts, g: G)
+    local bx, by, bw, bh = kit.BX, kit.BY, kit.BW, kit.BH
+    r:drawPath(kit.rrect(bx - 2, by - 2, bw + 4, bh + 4, 0), kit.fill(kit.SURFACE))
+    r:save()
+    r:clipPath(kit.rrect(bx, by, bw, bh, 0))
+    local sx = 0
+    if self.shakeT > 0 then
+        sx = math.sin(self.shakeT * 70) * self.shakeA * (self.shakeT / 0.3)
+    end
+    r:transform(Mat2D.withTranslation(sx, 0))
+    if self.screen == 'lesson' then
+        lesson(self).draw(g, r)
+    end
+    r:restore()
+    if self.screen == 'lesson' and self.hintText ~= '' and self.hintAge < 7 then
+        local hk = math.min(kit.ease(self.hintAge * 3), kit.clamp((7 - self.hintAge) * 2, 0, 1))
+        local w = kit.width(fonts, self.hintText, fonts.body, 15) + 40
+        r:save()
+        r:modulateOpacity(hk)
+        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.fill(kit.ACCENT_WASH))
+        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.stroke(kit.alpha(kit.ACCENT, 0.5), 1.5))
+        kit.label(r, fonts, self.hintText, fonts.body, 15, kit.ACCENT_DEEP, bx + 40, by + bh - 38, 0)
+        r:restore()
+    end
+end
+
 local function drawLessonFrame(self: Area, r: Renderer, fonts: Fonts, g: G)
+    if self.host then
+        drawHostedBoard(self, r, fonts, g)
+        return
+    end
     local L = lesson(self)
     local st = L.steps[self.step]
     if not self.linked then
@@ -1091,6 +1186,8 @@ function draw(self: Area, r: Renderer)
         drawCrew(self, r, fonts)
     elseif self.screen == 'lesson' then
         drawLessonFrame(self, r, fonts, g)
+    elseif self.host then
+        drawHostedBoard(self, r, fonts, g) -- the page moves on by itself; no "Lesson complete" card inside the card
     else
         drawComplete(self, r, fonts, g)
     end
@@ -1138,6 +1235,10 @@ return function(context: Context): Layout<Area>
         pAnswerId = nil,
         pDone = nil,
         hostVoice = false,
+        host = false,
+        navNext = 0,
+        navBack = 0,
+        stepInfoSent = '',
         linked = false,
         sayId = 0,
         heard = 0,

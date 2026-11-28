@@ -798,27 +798,66 @@
     var title = step.title || (ls.length && lab.lessons && lab.lessons[ls[0]]) || "Try it with your own hands";
     el.appendChild(h("p", { class: "eyebrow" }, step.eyebrow || "Hands on"));
     el.appendChild(h("h2", { class: "t-step-title" }, title));
-    el.appendChild(h("p", { class: "muted t-lesson-hint" }, "Do each task with your finger, mouse or arrow keys: the gold things move. Press Next in the lesson when you're ready."));
-    var parts = h("p", { class: "eyebrow t-lab-parts", role: "status" }, ls.length > 1 ? "Part 1 of " + ls.length : "");
+    // The lesson is hosted: Rive draws only the board; this card shows the step, the task, what Maji says and the buttons
+    var stepTitle = h("h3", { class: "t-lab-steptitle" }, "");
+    var progress = h("span", { class: "t-lab-progress", role: "status" }, "");
+    var taskTag = h("b", null, "YOUR TURN"), taskText = h("span", null, "");
+    var task = h("p", { class: "t-lab-task", hidden: true }, taskTag, taskText);
     var stage = h("div", { class: "t-lab-stage" });
+    var capText = h("span", null, "");
+    var caption = h("p", { class: "t-lab-caption", "aria-live": "polite" }, h("span", { class: "t-lab-caption-who" }, "MAJI"), capText);
+    var dotsEl = h("span", { class: "t-lab-dots", "aria-hidden": "true" });
+    var backBtn = h("button", { type: "button", class: "btn btn-quiet", disabled: true }, "Back");
+    var voice = C.voice;
+    var soundBtn = h("button", { type: "button", class: "btn btn-quiet t-sound", "aria-pressed": String(!!(voice && voice.isOn())), hidden: !(voice && voice.available) },
+      voice && voice.isOn() ? "Sound on" : "Sound off");
     var msg = h("p", { class: "muted t-lab-note", role: "status" }, "Loading the lesson…");
     var skip = h("button", { type: "button", class: "btn btn-ghost t-lab-skip", hidden: true }, "Skip this lesson for now");
-    el.appendChild(parts); el.appendChild(stage); el.appendChild(msg); el.appendChild(skip);
-    var done = false, at = 0, voice = C.voice;
+    el.appendChild(h("div", { class: "t-lab-head" }, stepTitle, progress));
+    el.appendChild(task); el.appendChild(stage); el.appendChild(caption);
+    el.appendChild(h("div", { class: "t-lab-tools" }, dotsEl, backBtn, soundBtn));
+    el.appendChild(msg); el.appendChild(skip);
+    var done = false, at = 0, info = null;
     // a step can cover lessons that teach different skills (Day 3: counting squares, then parallelograms)
     function skillOf(n) { return (step.lessonSkills && step.lessonSkills[n]) || step.skill; }
     function finish(taught) {
       if (done) return; done = true;
       if (taught) [].concat(step.skills || [], step.skill ? [step.skill] : []).forEach(function (s) { C.state.markTaught(s, ctx.day); });
       msg.textContent = taught ? "Lesson done. Press Continue when you're ready." : "";
-      skip.hidden = true;
+      skip.hidden = true; task.hidden = true;
+      if (ctx.setBar) ctx.setBar(null);
       ctx.complete();
     }
+    function drawStep() {
+      if (!info || done) return;
+      var part = ls.length > 1 ? "Part " + (at + 1) + " of " + ls.length + " · " : "";
+      stepTitle.textContent = info.title;
+      progress.textContent = part + "Step " + info.step + " of " + info.steps;
+      task.hidden = !info.task;
+      task.classList.toggle("is-done", info.done);
+      taskTag.textContent = info.done ? "DONE" : "YOUR TURN";
+      taskText.textContent = info.task;
+      dotsEl.innerHTML = "";
+      for (var i = 1; i <= info.steps; i++) dotsEl.appendChild(h("i", { class: i === info.step ? "is-now" : i < info.step ? "is-done" : "" }));
+      backBtn.disabled = info.step <= 1;
+      var last = info.step === info.steps;
+      if (ctx.setBar) ctx.setBar({ label: last ? (at + 1 < ls.length ? "Next part" : "Finish lesson") : "Next", enabled: true, glow: info.done,
+        onClick: function () { if (run) run.next(); } });
+    }
+    soundBtn.addEventListener("click", function () {
+      voice.set(!voice.isOn());
+      soundBtn.textContent = voice.isOn() ? "Sound on" : "Sound off";
+      soundBtn.setAttribute("aria-pressed", String(voice.isOn()));
+      if (!voice.isOn()) voice.stop();
+    });
+    backBtn.addEventListener("click", function () { if (run) run.back(); });
     skip.addEventListener("click", function () { finish(false); });
     var run = lab.mount ? lab.mount(stage, {
-      lesson: ls[0] || 1,
+      lesson: ls[0] || 1, host: true,
       onReady: function () { if (msg.textContent === "Loading the lesson…") msg.textContent = ""; },
+      onStep: function (s) { info = s; drawStep(); },
       onLine: function (text, heard) {
+        capText.textContent = text;
         if (!voice || !voice.isOn()) { heard(); return; }   // sound off: the lesson paces itself by reading time
         voice.stop();                                     // a new line always replaces the one before it
         voice.say(text, function () { heard(); });
@@ -831,17 +870,17 @@
       onDone: function () {
         var s = skillOf(ls[at]); if (s) C.state.markTaught(s, ctx.day);   // each part counts as taught when it is done
         at += 1;
-        if (at < ls.length) { parts.textContent = "Part " + (at + 1) + " of " + ls.length; run.open(ls[at]); }
+        if (at < ls.length) { info = null; capText.textContent = ""; run.open(ls[at]); }
         else finish(true);
       },
-      onError: function (m) { msg.textContent = m + " You can skip it for now."; skip.hidden = false; },
+      onError: function (m) { msg.textContent = m + " You can skip it for now."; skip.hidden = false; if (ctx.setBar) ctx.setBar(null); },
     }) : null;
     if (run) ctx.onCleanup(run.destroy);
     else { msg.textContent = "This lesson isn't available here."; skip.hidden = false; }
     // a lesson running for a very long time (stuck, or a device that can't draw it) can still be left
     var late = setTimeout(function () { if (!done) skip.hidden = false; }, 6 * 60 * 1000);
     ctx.onCleanup(function () { clearTimeout(late); });
-    // the lesson has its own presenter on stage, so the floating guide steps aside while it plays
+    // the lesson's caption carries Maji's words, so the floating guide steps aside while it plays
     var gr = C.guide && C.guide.root;
     if (gr) { gr.style.display = "none"; ctx.onCleanup(function () { gr.style.display = ""; }); }
     ctx.setAuto(function () { finish(true); });
@@ -1230,9 +1269,13 @@
       dt.el.setAttribute("aria-label", "Step " + (cur + 1) + " of " + vis.length);
       barNote.textContent = "Step " + (cur + 1) + " of " + vis.length;
     }
+    // a step can drive the Continue button while it isn't complete (a hosted Rive lesson: Next / Finish lesson)
+    var barOverride = null;
     function updateBar() {
-      continueBtn.disabled = !completed;
-      continueBtn.textContent = nextIndex(idx + 1) === -1 ? "Finish day" : "Continue";
+      var o = !completed && barOverride;
+      continueBtn.disabled = o ? !o.enabled : !completed;
+      continueBtn.textContent = o ? o.label : (nextIndex(idx + 1) === -1 ? "Finish day" : "Continue");
+      continueBtn.classList.toggle("is-glow", !!(o && o.glow));
     }
     function finishDay() {
       if (!state.isDayDone(day)) state.completeDay(day);
@@ -1250,7 +1293,10 @@
       showStep(n);
     }
     P.advance = advance; P.isComplete = function () { return completed; };
-    continueBtn.addEventListener("click", advance);
+    continueBtn.addEventListener("click", function () {
+      if (!completed && barOverride) { if (barOverride.enabled && barOverride.onClick) barOverride.onClick(); return; }
+      advance();
+    });
 
     function showStep(i) {
       runCleanups(stepCleanups);
@@ -1259,6 +1305,7 @@
       var fresh = h("div", { class: "card t-step-card phase-in", tabindex: "-1" });
       stage.replaceChild(fresh, card); card = fresh;
       drawDots(); updateBar();
+      barOverride = null;
       var ctx = {
         day: day, state: state,
         complete: function () {
@@ -1274,6 +1321,7 @@
         },
         next: advance,
         onCleanup: function (fn) { stepCleanups.push(fn); },
+        setBar: function (o) { barOverride = o; updateBar(); },
         setAuto: function (fn) { P.auto = fn; },
       };
       var render = C.steps[step.type];

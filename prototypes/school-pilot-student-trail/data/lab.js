@@ -55,6 +55,10 @@
       canvas.className = "t-lab-canvas"; canvas.tabIndex = 0;
       canvas.setAttribute("aria-label", "Area lesson. Use your finger, mouse or arrow keys; Next moves on.");
       host.appendChild(canvas);
+      // hosted: the module draws only its board (artboard 1280×760, board at 40,150 sized 1200×486) and the page crops
+      // the canvas to it, so the lesson sits flush in Cogna's card with Cogna's own title, caption and buttons around it
+      if (o.host) host.classList.add("is-hosted");
+      var navN = 0, navB = 0, lastInfo = "";
       var inst = null, vmi = null, dead = false, lastSay = 0, lastAnswer = 0, lastDone = 0, spoken = 0;
 
       function prop(kind, name) { try { return vmi && vmi[kind] ? vmi[kind](name) : null; } catch (e) { return null; } }
@@ -83,6 +87,13 @@
         lastDone = n;
         if (o.onDone) o.onDone(n);
       }
+      function onStepInfo() {
+        var v = String((prop("string", "stepInfo") || {}).value || "");
+        if (!v || v === lastInfo) return;
+        lastInfo = v;
+        var f = v.split("|");
+        if (o.onStep) o.onStep({ step: +f[0], steps: +f[1], done: f[2] === "1", title: f[3] || "", task: f.slice(4).join("|") });
+      }
       function listen(kind, name, fn) { var p = prop(kind, name); if (p && p.on) p.on(fn); }
 
       loadRuntime().then(function (rive) {
@@ -98,6 +109,8 @@
             listen("number", "sayId", onSay);
             listen("number", "answerId", onAnswer);
             listen("number", "done", onDone);
+            listen("string", "stepInfo", onStepInfo);
+            var hp = prop("boolean", "host"); if (hp) hp.value = !!o.host;
             var hv = prop("boolean", "hostVoice"); if (hv) hv.value = !!o.onLine;
             if (o.lesson) setNum("lesson", o.lesson);
             try { canvas.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
@@ -111,7 +124,9 @@
       window.addEventListener("resize", resize);
       return {
         /** Open another lesson in the same player (the next part of a day). */
-        open: function (n) { lastDone = 0; setNum("lesson", n); try { canvas.focus({ preventScroll: true }); } catch (e) { /* ignore */ } },
+        next: function () { setNum("navNext", ++navN); },
+        back: function () { setNum("navBack", ++navB); },
+        open: function (n) { lastDone = 0; lastInfo = ""; setNum("lesson", n); try { canvas.focus({ preventScroll: true }); } catch (e) { /* ignore */ } },
         destroy: function () {
           dead = true; window.removeEventListener("resize", resize);
           if (o.onStop) try { o.onStop(); } catch (e) { /* ignore */ }

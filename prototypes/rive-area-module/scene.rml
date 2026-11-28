@@ -41,6 +41,10 @@
         <ViewModelPropertyString name="answer" id="0:127"/>
         <ViewModelPropertyNumber name="answerId" id="0:128"/>
         <ViewModelPropertyNumber name="done" id="0:129"/>
+        <ViewModelPropertyBoolean name="host" id="0:130"/>
+        <ViewModelPropertyNumber name="navNext" id="0:131"/>
+        <ViewModelPropertyNumber name="navBack" id="0:132"/>
+        <ViewModelPropertyString name="stepInfo" id="0:133"/>
         <ViewModelInstance exports="true" name="Default" id="0:121">
             <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:122"/>
             <ViewModelInstanceBoolean propertyValue="false" viewModelPropertyId="0:123"/>
@@ -50,6 +54,10 @@
             <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:127"/>
             <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:128"/>
             <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:129"/>
+            <ViewModelInstanceBoolean propertyValue="false" viewModelPropertyId="0:130"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:131"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:132"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:133"/>
         </ViewModelInstance>
     </ViewModel>
 

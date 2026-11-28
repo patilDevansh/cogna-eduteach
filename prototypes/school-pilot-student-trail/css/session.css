@@ -181,6 +181,27 @@
 .t-lab-stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; width: 100%; max-width: 1000px; aspect-ratio: 1280 / 760; margin-inline: auto; touch-action: none; }
 .t-lab-canvas { display: block; width: 100%; height: 100%; outline: none; }
 .t-lab-canvas:focus-visible { outline: 3px solid var(--focus, #1f6feb); outline-offset: -3px; }
+/* hosted in Cogna: the stage is the lesson's board only (1200 × 486 of the 1280 × 760 artboard, at 40, 150) */
+.t-lab-stage.is-hosted { position: relative; aspect-ratio: 1200 / 486; max-width: none; border: 0; border-radius: 14px; box-shadow: 0 1px 0 var(--line), 0 10px 28px rgba(22, 36, 29, 0.10); }
+.t-lab-stage.is-hosted .t-lab-canvas { position: absolute; width: 106.6667%; height: 156.3786%; left: -3.3333%; top: -30.8642%; }
+.t-lab-stage.is-hosted:has(.t-lab-canvas:focus-visible) { outline: 3px solid var(--focus, #1f6feb); outline-offset: 2px; }
+.t-lab-stage.is-hosted .t-lab-canvas:focus-visible { outline: none; }
+.t-lab-head { display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; margin: var(--s-2) 0 var(--s-3); }
+.t-lab-steptitle { font-family: var(--font-display); font-weight: 650; font-size: var(--text-md); margin: 0; }
+.t-lab-progress { font-size: var(--text-xs); color: var(--ink-soft); letter-spacing: 0.04em; }
+.t-lab-task { display: inline-flex; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-3); padding: 6px 14px 6px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--accent-deep, var(--ink)); font-size: var(--text-sm); transition: background 0.25s, color 0.25s; }
+.t-lab-task b { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface); }
+.t-lab-task.is-done { background: var(--accent); color: var(--surface); }
+.t-lab-task.is-done b { color: var(--accent); }
+.t-lab-caption { display: flex; gap: var(--s-3); align-items: flex-start; margin-top: var(--s-3); min-height: 2.8em; font-size: var(--text-md); color: var(--ink); }
+.t-lab-caption-who { flex: none; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--accent-wash); color: var(--accent-deep, var(--ink)); margin-top: 3px; }
+.t-lab-tools { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); }
+.t-lab-dots { display: inline-flex; gap: 6px; margin-right: auto; }
+.t-lab-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong, #c9d3cb); transition: background 0.2s, transform 0.2s; }
+.t-lab-dots i.is-done { background: var(--accent); opacity: 0.55; }
+.t-lab-dots i.is-now { background: var(--accent); transform: scale(1.35); opacity: 1; }
+.t-continue.is-glow { animation: t-glow 1.4s ease-in-out infinite; }
+@keyframes t-glow { 50% { box-shadow: 0 0 0 6px var(--accent-wash); } }
 .t-lab-note { text-align: center; margin: var(--s-2) 0 0; font-size: var(--text-sm); }
 .t-lab-go { display: block; margin: var(--s-3) auto 0; }
 
@@ -192,3 +213,6 @@
 .t-plan-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); }
 
 .t-fb-by { font-size: var(--text-xs); opacity: 0.8; }
+.t-lab-skip[hidden], .t-lab-task[hidden] { display: none; }
+.t-lab-task b { white-space: nowrap; flex: none; }
+.t-lab-caption:has(> span:last-child:empty) { visibility: hidden; }
