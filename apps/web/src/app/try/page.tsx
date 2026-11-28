@@ -7,6 +7,7 @@ import { TopBar } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { saveStudent } from "@/lib/session";
 import { saveSample } from "@/lib/sample";
+import { Maths } from "@/components/maths";
 import styles from "./try.module.css";
 
 /**
@@ -45,18 +46,18 @@ export default function TryPage() {
   const fullPrice = price ? `₹${price}` : "a one-time fee";
 
   return (
-    <div className="grid-air" style={{ minHeight: "100dvh" }}>
+    <div className="ambient grain">
       <div className="shell">
         <TopBar right={<Link href="/parent/login">Parent sign in</Link>} />
 
         <section className={styles.hero}>
           <div className={styles.copy}>
-            <h1>Find exactly where your child’s factorisation breaks down.</h1>
+            <h1>Find exactly where your child’s factorisation <em>breaks down.</em></h1>
             <p className={styles.lede}>A free 15-minute check for Grade 8 that adapts to every answer. The full report is {fullPrice}.</p>
             <p className={styles.line} aria-label="Example: 12x squared plus 18x equals 6x times 2x plus 3">
-              <span>12x² + 18x</span>
+              <span><Maths>12x^2 + 18x</Maths></span>
               <span>=</span>
-              <span>6x(2x + 3)</span>
+              <span><Maths>6x(2x + 3)</Maths></span>
             </p>
           </div>
 

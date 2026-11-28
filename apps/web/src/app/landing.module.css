@@ -5,14 +5,37 @@
 
 .heroTitle {
   font-size: var(--text-hero);
-  font-weight: 800;
+  font-weight: 600;
   margin-top: var(--s-3);
-  letter-spacing: -0.025em;
-  line-height: 1.08;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  transition: font-weight 500ms var(--ease-settle);
 }
+.heroTitle:hover { font-weight: 800; }
 
-.accentYou {
+/* Kinetic last word: it swaps every few seconds, settling in from a lighter weight. */
+.kineticSlot { white-space: nowrap; }
+@media (max-width: 520px) { .kineticSlot { display: block; } }
+.kineticWord {
+  display: inline-block;
   color: var(--accent);
+  font-weight: 800;
+  animation: swapIn 600ms var(--ease-settle) both;
+}
+.caret {
+  display: inline-block;
+  width: 0.06em;
+  height: 0.8em;
+  margin-left: 0.05em;
+  vertical-align: -0.05em;
+  background: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes swapIn { from { opacity: 0; transform: translateY(0.3em); font-weight: 500; } }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .kineticWord, .caret { animation: none; }
+  .heroTitle { transition: none; }
 }
 
 .workedEquation {
