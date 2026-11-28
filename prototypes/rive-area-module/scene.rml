@@ -68,6 +68,8 @@
     <ScriptAsset file="l6.luau" isModule="true" name="l6" id="0:97"/>
     <ScriptAsset file="l7.luau" isModule="true" name="l7" id="0:98"/>
     <ScriptAsset file="l8.luau" isModule="true" name="l8" id="0:103"/>
+    <!-- the height studio (trail Day 2): no story; borrows lesson 8's plumb line -->
+    <ScriptAsset file="l9.luau" isModule="true" name="l9" id="0:104"/>
     <ScriptAsset file="main.luau" name="main" id="0:80"/>
 
     <FontAsset file="Display.ttf" name="Display"/>

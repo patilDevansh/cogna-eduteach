@@ -41,7 +41,7 @@
     src: "lab/area-module.riv",
     lessons: {
       1: "Kavin's kolam patch", 2: "Rope or space?", 3: "The corner house", 4: "Tenzin's greenhouse wall",
-      5: "Kiran's funbox", 6: "Imran's island", 7: "The kitchen floor", 8: "Fiza's kites",
+      5: "Kiran's funbox", 6: "Imran's island", 7: "The kitchen floor", 8: "Fiza's kites", 9: "Where is the height?",
     },
     /**
      * Play the module on a canvas inside `host`.

@@ -76,7 +76,7 @@ end
 
 -- The plumb line ------------------------------------------------------------------------------
 
-type Plumb = {
+export type Plumb = {
     th: number, -- swing angle (radians; + swings right)
     om: number, -- how fast it swings
     len: number, -- from the pin to the point of the weight (px)
@@ -1307,5 +1307,8 @@ function L.thumb(g: G, r: Renderer, x: number, y: number, w: number, h: number)
     kite(r, kx, ky, 0.78, math.sin(t * 1.3) * 0.12, PAPER[1], KITE[7], 1)
     people.draw(r, g.fonts, thumbFiza, t)
 end
+
+-- Nani's plumb line and the line hit test, shared with lesson 9 (the height studio)
+L.plumbKit = { new = plumb, swing = swing, push = push, draw = plumbDraw, BOB = BOB, segDist = segDist }
 
 return L

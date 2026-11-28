@@ -25,7 +25,11 @@ local LESSONS: { Lesson } = {
     require('l6'),
     require('l7'),
     require('l8'),
+    require('l9'),
 }
+-- The lesson list shows the first eight (the seven friends' lessons). Lesson 9, the height studio, has no story and
+-- opens from the trail (Day 2) through the bridge.
+local HOME_COUNT = 8
 
 -- each lesson brings its own lines (the people and places are the lesson's own); they join the shared ones
 for _, Lz in LESSONS do
@@ -276,7 +280,7 @@ end
 -- Layout protocol ----------------------------------------------------------------
 
 -- The page that embeds the module talks to it through the AreaBridge view model:
---   lesson    (page → module) 1–8 opens that lesson straight away (linked mode); 0 is the lesson grid; 99 the cast sheet
+--   lesson    (page → module) 1–9 opens that lesson straight away (linked mode); 0 is the lesson grid; 99 the cast sheet
 --   hostVoice (page → module) true: the page speaks the lines; the module publishes each one as `say` + `sayId`
 --   heard     (page → module) the last sayId the page finished (spoken, cut short or skipped)
 --   answer + answerId (module → page) 'qid|1 or 0|value|mixup' for every answer the student gives
@@ -594,7 +598,7 @@ local function frameHit(self: Area, p: Vector): string
             return if self.li < #LESSONS then 'nextLesson' else 'home'
         end
     elseif self.screen == 'home' then
-        for i = 1, #LESSONS do
+        for i = 1, HOME_COUNT do
             local x, y = cardPos(i)
             if kit.inRect(p, x, y, CARD_W, CARD_H) then
                 return 'open:' .. i
@@ -931,7 +935,7 @@ local function drawHome(self: Area, r: Renderer, fonts: Fonts, g: G)
     kit.label(r, fonts, 'Cut it, slide it, spin it, stretch it. Every rule, found with your own hands.', fonts.body, 19, kit.INK_SOFT, 200, 104, 0)
     r:restore()
     local nDone = 0
-    for i = 1, #LESSONS do
+    for i = 1, HOME_COUNT do
         if self.finished[i] then
             nDone += 1
         end
@@ -939,11 +943,12 @@ local function drawHome(self: Area, r: Renderer, fonts: Fonts, g: G)
     -- progress bar
     r:drawPath(kit.rrect(940, 92, 240, 12, 6), kit.fill(kit.LINE))
     if nDone > 0 then
-        r:drawPath(kit.rrect(940, 92, 240 * nDone / #LESSONS, 12, 6), kit.fill(kit.ACCENT))
+        r:drawPath(kit.rrect(940, 92, 240 * nDone / HOME_COUNT, 12, 6), kit.fill(kit.ACCENT))
     end
-    kit.label(r, fonts, nDone .. ' of ' .. #LESSONS .. ' done', fonts.body, 14, kit.INK_SOFT, 1180, 124, 1)
+    kit.label(r, fonts, nDone .. ' of ' .. HOME_COUNT .. ' done', fonts.body, 14, kit.INK_SOFT, 1180, 124, 1)
 
-    for i, L in LESSONS do
+    for i = 1, HOME_COUNT do
+        local L = LESSONS[i]
         local x, y = cardPos(i)
         local ck = kit.back((self.screenAge - 0.08 * i) * 2.2)
         if ck > 0 then

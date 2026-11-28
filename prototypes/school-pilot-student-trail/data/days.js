@@ -205,7 +205,7 @@
             ok("6 cm"),
           ], "10² − 8² = 100 − 64 = 36, and √36 = 6 cm."),
         ] },
-        { id: "s3", type: "animation", anim: "quad-heights", skill: "quad" },
+        { id: "s3", type: "rive", lessons: [9], skill: "quad", title: "Where is the height?", eyebrow: "Cogna lesson" },
         { id: "s4", type: "try", skill: "quad",
           q: mcq("d2t1", "quad", "Here is a leaning parallelogram. Which length is its height?", [
             bad("5 cm, the slanted side", "The slanted side leans over. The height goes straight up from the base.", "slant"),
