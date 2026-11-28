@@ -290,10 +290,10 @@
             bad("2x + 3", "That adds the sides. Area multiplies them: 2x × 3 = 6x."),
           ], "2x × 3 = 6x."),
         ] },
-        { id: "s3", type: "animation", anim: "pen-fence", skill: "a1" },   // story lesson: the goat pen (replaces the cut-move video)
+        // Kavin's kolam patch (CAST_AND_STORIES.md): Rive lessons 1-3 in one step, in place of the goat-pen and wonky-field
+        // stories, which taught the same two ideas a second time. The lab teaches a1 and a2; the tile game below marks a1 too.
+        { id: "s6", type: "rive", lessons: [1, 2, 3], skill: "a2", skills: ["a1", "a2"], lessonSkills: { 1: "a1", 2: "a1", 3: "a2" }, title: "Kavin's kolam patch" },
         { id: "s4", type: "game", game: "tile-cover", skill: "a1" },
-        { id: "s5", type: "animation", anim: "para-field", skill: "a2" },   // hands-on: replaces the para-to-rect video + the cut-slide game
-        { id: "s6", type: "rive", lessons: [1, 2, 3], title: "Area Lab: squares, fences and the wonky field" },
         { id: "s7", type: "practice", questions: [
           mcq("d3p1", "a1", "Each small square is 1 cm². What is the area of this shape?", [
             bad("18 cm²", "18 is the distance round the edge (5 + 2 + 3 + 2 + 2 + 4). Area counts the squares inside.", "perim"),
@@ -313,11 +313,11 @@
             { unit: "cm²", guards: ["perim"], wrongMixups: [{ value: 14, why: "14 is 9 + 5. Area multiplies: 9 × 5 = 45." }, { value: 90, why: "90 is double. For a parallelogram it's just base × height: 9 × 5." }] }),
         ] },
         { id: "s8", type: "fix", mixup: "perim", anim: "fix-perim",
-          check: mcq("d3f1", "a1", "Two fields each use 20 m of fence. Field A is 8 m by 2 m. Field B is 6 m by 4 m. Which one has more grass?", [
-            bad("They're the same, because they have the same fence", "Same fence means the same perimeter. Grass is the area: A = 8 × 2 = 16 m² and B = 6 × 4 = 24 m².", "perim"),
-            ok("Field B, with 24 m²"),
-            bad("Field A, with 16 m²", "A has 16 m², but B has 6 × 4 = 24 m². B has more."),
-          ], "A = 8 × 2 = 16 m², B = 6 × 4 = 24 m². Same fence, different area.", { guards: ["perim"] }) },
+          check: mcq("d3f1", "a1", "Two kolam patches each use 20 m of rope. Patch A is 8 m by 2 m. Patch B is 6 m by 4 m. Which one has more space inside?", [
+            bad("They're the same, because they use the same rope", "Same rope means the same perimeter. The space inside is the area: A = 8 × 2 = 16 m² and B = 6 × 4 = 24 m².", "perim"),
+            ok("Patch B, with 24 m²"),
+            bad("Patch A, with 16 m²", "A has 16 m², but B has 6 × 4 = 24 m². B has more."),
+          ], "A = 8 × 2 = 16 m², B = 6 × 4 = 24 m². Same rope, different area.", { guards: ["perim"] }) },
         { id: "s9", type: "exit", questions: [
           num("d3e1", "a1", "A rectangle is 9 m by 4 m. Area = ? m²", 36, "9 × 4 = 36 m².",
             { unit: "m²", guards: ["perim"], wrongMixups: [{ value: 26, mixup: "perim", why: "26 is 9 + 4 + 9 + 4, the distance round. Area is 9 × 4 = 36." }] }),
@@ -353,8 +353,8 @@
             bad("11 cm²", "11 is 8 + 3. Area multiplies the sides."),
           ], "8 × 3 = 24 cm².", { guards: ["perim"] }),
         ] },
-        { id: "s3", type: "animation", anim: "tri-field", skill: "a3" },   // hands-on: replaces the tri-half video
-        { id: "s4", type: "rive", lessons: [4], title: "Area Lab: two triangles, one field" },
+        // Tenzin's greenhouse wall: Rive lesson 4, in place of the corner-plot story (the same lesson a second time)
+        { id: "s4", type: "rive", lessons: [4], skill: "a3", title: "Tenzin's greenhouse wall" },
         { id: "s6", type: "practice", questions: [
           num("d4p1", "a3", "Find the area of this right triangle. The 4 cm side is the height. Area = ? cm²", 12,
             "½ × 6 × 4 = 12 cm².",
@@ -483,10 +483,12 @@
       summaryLine: "A trapezium is half of a parallelogram made from two copies: area = ½ × (a + b) × h.",
       teacherNote: "Both parallel sides count, Aarav. Add them, multiply by the height, then halve.",
       tomorrow: "Any shape: split it into pieces you already know.",
-      /* Rebuilt 2026-11-19 on the animation flow (see anim/trap-day.js and anim/trap-fixes.js):
-         quick reminder -> quick recall -> try first -> lesson video with 2 guess stops -> hands-on field (the aha and the
-         play: copy, spin, slide; stretch the top; make exactly 14) -> check questions with a reaction on every answer
-         and a mistake replay after the common wrong answers, each followed by a fresh question -> progress. */
+      /* Rebuilt 2026-11-19 on the animation flow (see anim/trap-day.js and anim/trap-fixes.js), cast 2026-11-27
+         (CAST_AND_STORIES.md: Kiran's funbox ramp):
+         quick reminder -> quick recall -> try first -> lesson video with 2 guess stops (the ramp's side panel) ->
+         Rive lesson 5, hands on (copy, spin, slide; stretch the top) in place of the trap-field story, which was the same
+         lesson a second time -> check questions with a reaction on every answer and a mistake replay after the common
+         wrong answers, each followed by a fresh question -> progress. */
       steps: [
         { id: "d6-remind", type: "animation", anim: "trap-remind", eyebrow: "Quick reminder", autoplay: true },
         { id: "d6-recall", type: "recall", reactions: true, questions: [
@@ -503,7 +505,7 @@
             { figure: trap(8, 4, 2, 3, { bot: "8 cm", top: "4 cm", h: "3 cm", hl: true }), unit: "cm²" }),
           reveal: "The area is 18 cm². You'll see exactly where that comes from: ½ × (8 + 4) × 3. No worry if your guess was different." },
         { id: "d6-lesson", type: "animation", anim: "trap-lesson", skill: "a4" },
-        { id: "d6-hands", type: "animation", anim: "trap-field", skill: "a4", eyebrow: "Now you try", flags: { afterLesson: true } },
+        { id: "d6-lab", type: "rive", lessons: [5], skill: "a4", title: "Kiran's funbox ramp" },   // the lesson video ends: "On the next screen, make the copy yourself."
         { id: "d6-check", type: "practice", reactions: true, questions: [
           mcq("d6c1", "a4", "Find the area of this trapezium.", [
             rep(bad("100 cm²", "(8 + 12) × 5 = 100 is two trapeziums put together. Yours is half of it: 50."), "trap-fix-100"),
@@ -528,17 +530,16 @@
                 bad("64 cm²", "(11 + 5) × 4 = 64 forgets the ½. Yours is half: 32."),
               ], "½ × (11 + 5) × 4 = ½ × 16 × 4 = 32 cm². The slanted sides are 5 cm, but the height is 4 cm.",
                 { figure: trap(11, 5, 3, 4, { bot: "11 cm", top: "5 cm", leg: "5 cm", h: "4 cm", hl: true }), guards: ["slant"] }) }),
-          mcq("d6c3", "a4", "Ramesh uncle has three more fields. Which two have the same area?", [
+          mcq("d6c3", "a4", "Here are three trapeziums. Which two have the same area?", [
             ok("P and Q"),
             bad("P and R", "P and R share a bottom of 8 m, but nothing else. P is ½ × (4 + 8) × 5 = 30 m², and R is ½ × (6 + 8) × 4 = 28 m²."),
             bad("Q and R", "Q is ½ × (2 + 10) × 5 = 30 m², but R is ½ × (6 + 8) × 4 = 28 m²."),
           ], "P is ½ × (4 + 8) × 5 = 30 m² and Q is ½ × (2 + 10) × 5 = 30 m². They look different, but top + bottom is 12 in both, and the heights match.",
             { figure: trio([["P", 8, 4, 5], ["Q", 10, 2, 5], ["R", 8, 6, 4]],
-                "Three trapezium fields. P: parallel sides 4 m and 8 m, height 5 m. Q: parallel sides 2 m and 10 m, height 5 m. R: parallel sides 6 m and 8 m, height 4 m.") }),
+                "Three trapeziums. P: parallel sides 4 m and 8 m, height 5 m. Q: parallel sides 2 m and 10 m, height 5 m. R: parallel sides 6 m and 8 m, height 4 m.") }),
           num("d6c4", "a4", "A trapezium has area 36 cm² and parallel sides 5 cm and 7 cm. Its height = ? cm", 6, "36 = ½ × 12 × h = 6 × h, so h = 6 cm.",
             { unit: "cm", wrongMixups: [{ value: 3, why: "36 ÷ 12 = 3 forgets the ½. 36 = ½ × 12 × h = 6 × h, so h = 6." }, { value: 24, why: "24 is 36 − 12. Use the area rule backwards: 36 = ½ × (5 + 7) × h." }] }),
         ] },
-        { id: "d6-lab", type: "rive", lessons: [5], title: "Area Lab: two parallel sides" },
         { id: "d6-progress", type: "animation", anim: "trap-progress", eyebrow: "Today's progress", autoplay: true },
       ],
     },
@@ -564,9 +565,9 @@
             { unit: "cm²", wrongMixups: [{ value: 80, mixup: "half", why: "80 is the whole rectangle. A triangle is half: 40." }], guards: ["half"] }),
           num("d7r3", "a2", "A parallelogram has base 8 cm and height 6 cm. Area = ? cm²", 48, "8 × 6 = 48 cm².", { unit: "cm²" }),
         ] },
-        { id: "s3", type: "animation", anim: "courtyard-split", skill: "a5" },   // story lesson: the L-shaped courtyard (replaces the poly-split video)
+        // Imran's island: Rive lesson 6, in place of the courtyard story (the same lesson a second time)
+        { id: "s4b", type: "rive", lessons: [6], skill: "a5", title: "Imran's island" },
         { id: "s4", type: "game", game: "split-shape", skill: "a5" },
-        { id: "s4b", type: "rive", lessons: [6], title: "Area Lab: awkward corners" },
         { id: "s5", type: "practice", questions: [
           mcq("d7p1", "a5", "Each small square is 1 cm². What is the area of this shape?", [
             bad("35 cm²", "7 × 5 is the whole box. The bottom-right corner isn't part of the shape."),
@@ -623,9 +624,9 @@
             bad("1000", "1000 is the number of millimetres in 1 metre. 1 m = 100 cm."),
           ], "1 m = 100 cm."),
         ] },
-        { id: "s3", type: "animation", anim: "tile-units", skill: "a6" },   // story lesson: one square metre of tiles (replaces the units video)
+        // Birsa and Phulmani Oraon's kitchen floor: Rive lesson 7, in place of the mosaic-tiles story (the same lesson twice)
+        { id: "s4b", type: "rive", lessons: [7], skill: "a6", title: "Birsa and Phulmani Oraon's kitchen floor" },
         { id: "s4", type: "game", game: "floor-tiles", skill: "a6" },
-        { id: "s4b", type: "rive", lessons: [7], title: "Area Lab: square metres and square centimetres" },
         { id: "s5", type: "practice", questions: [
           num("d8p1", "a6", "A classroom floor is 5 m by 4 m. Its area = ? m²", 20, "5 × 4 = 20 m².",
             { unit: "m²", guards: ["perim"], wrongMixups: [{ value: 18, mixup: "perim", why: "18 is 5 + 4 + 5 + 4, the distance round. Area is 5 × 4 = 20." }] }),
@@ -691,17 +692,19 @@
             bad("4x + 6", "The − x means take away: 3x − x = 2x, not 4x."),
           ], "3(x + 2) = 3x + 6, and 3x + 6 − x = 2x + 6."),
         ] },
-        { id: "s2b", type: "animation", anim: "shade-net", skill: "a7" },   // story lesson: the shade net, before the worked example
+        // Fiza's kites: Rive lesson 8 (new), in place of the shade-net story
+        { id: "s2b", type: "rive", lessons: [8], skill: "a7", title: "Fiza's kites" },
+        // new numbers (15, 15, 18 and 25, 25, 14), so the worked example doesn't repeat a problem the student has just done
         { id: "s3", type: "worked", skill: "a7",
           lines: [
-            "A triangle has equal sides of 10 cm and a base of 12 cm. The height isn't given.",
-            "Drop the height from the top to the middle of the base. The base splits into 6 and 6.",
-            "Now there's a right triangle: longest side 10, one leg 6. So h² = 10² − 6² = 100 − 36 = 64, and h = 8 cm.",
-            "Area = ½ × 12 × 8 = 48 cm²",
+            "A triangle has equal sides of 15 cm and a base of 18 cm. The height isn't given.",
+            "Drop the height from the top to the middle of the base. The base splits into 9 and 9.",
+            "Now there's a right triangle: longest side 15, one leg 9. So h² = 15² − 9² = 225 − 81 = 144, and h = 12 cm.",
+            "Area = ½ × 18 × 12 = 108 cm²",
           ],
-          figure: tri(12, 6, 8, { base: "12 cm", left: "10 cm", right: "10 cm", h: "h = ?", hl: true, rm: true }),
-          yourTurn: { prompt: "Your turn: equal sides 13 cm and base 10 cm.",
-            blanks: [{ label: "Half the base =", answer: 5, unit: "cm" }, { label: "h² = 13² − 5² =", answer: 144 }, { label: "Height h =", answer: 12, unit: "cm" }, { label: "Area = ½ × 10 × 12 =", answer: 60, unit: "cm²" }] } },
+          figure: tri(18, 9, 12, { base: "18 cm", left: "15 cm", right: "15 cm", h: "h = ?", hl: true, rm: true, alt: "Triangle with sides 15, 15 and 18 cm. A dashed height of unknown length splits the base into 9 cm and 9 cm." }),
+          yourTurn: { prompt: "Your turn: equal sides 25 cm and base 14 cm.",
+            blanks: [{ label: "Half the base =", answer: 7, unit: "cm" }, { label: "h² = 25² − 7² =", answer: 576 }, { label: "Height h =", answer: 24, unit: "cm" }, { label: "Area = ½ × 14 × 24 =", answer: 168, unit: "cm²" }] } },
         { id: "s4", type: "practice", questions: [
           num("d9p1", "a7", "A triangle has sides 5 cm, 5 cm and 6 cm. Find its area. (cm²)", 12,
             "Half the base is 3. h² = 5² − 3² = 25 − 9 = 16, so h = 4. Area = ½ × 6 × 4 = 12 cm².",
@@ -857,7 +860,7 @@
     if (o.leg) p.push(F.label((xl + xtl) / 2 - 0.25, my + 0.3, o.leg, "end"));
     return F.wrap(W, H, p, { alt: o.alt || ("Trapezium" + (o.bot ? " with parallel sides " + o.top + " and " + o.bot : "") + "."), pad: 1.2 });
   }
-  /* Three trapezium fields side by side, named P, Q, R: list = [[name, bottom, top, height], ...] in metres.
+  /* Three trapeziums side by side, named P, Q, R: list = [[name, bottom, top, height], ...] in metres.
      Drawn at half scale (no grid) so the labels stay readable in one wide figure. */
   function trio(list, alt) {
     var s = 0.5, gap = 1.6, x = 0, parts = [], H = 0;

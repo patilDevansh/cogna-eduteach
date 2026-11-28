@@ -202,7 +202,8 @@
     var l = LESSONS[cur];
     ctl = C.anims[l.id].mount(stage, {
       flags: l.flags || {},
-      onBeat: function (text, done) { if (text) { sayWords(text); C.voice.say(text, done); } else if (done) done(false); },
+      // vo.interrupt (a reaction) cuts the line still being said; the returned line lets a lesson cut its own caption
+      onBeat: function (text, done, vo) { if (text) { sayWords(text); return C.voice.say(text, done, vo); } else if (done) done(false); return null; },
       onEnd: function () {
         ended = true; playing = false; play.textContent = "Play again";
         $("rule").textContent = l.rule;

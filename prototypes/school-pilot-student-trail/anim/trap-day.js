@@ -1,11 +1,13 @@
 /* Day 6 (trapeziums), rebuilt on the animation flow:
-     quick reminder -> lesson video with guess stops -> hands-on (trap-field) -> check questions with
-     mistake replays (trap-fixes.js) -> progress.
-   This file holds the three watch pieces, all in the land look (Cogna.landKit) so the day feels like one story:
+     quick reminder -> lesson video with guess stops -> hands-on (Rive lesson 5, Kiran's funbox ramp) -> check questions
+     with mistake replays (trap-fixes.js) -> progress.
+   This file holds the three watch pieces, drawn with Cogna.landKit in plywood (css/learning-flow.css: .t-flow), so the
+   day feels like one story (CAST_AND_STORIES.md, Day 6: Kiran Uikey's skate crew builds a funbox ramp):
      trap-remind    ~15 s  quick reminder: two triangles make a parallelogram, so one triangle is half
-     trap-lesson    ~2 min lesson video, Ramesh uncle's third field between a road and a canal. Two guess stops:
+     trap-lesson    ~2 min lesson video: the side panel of Kiran's funbox ramp at the village skatepark. Two guess stops:
                            "tap the height" and "what will two copies make?" (the student finds out by doing it, next)
-     trap-progress  ~12 s  progress: the trail stone lights up and the trapezium skill shows where it stands
+     trap-progress  ~12 s  progress: the trail stone lights up and the trapezium skill shows where it stands (the
+                           day-done screen says "Day 6 done" and names tomorrow, so this piece doesn't)
    Every line the narrator can say is a literal `caption:` so tools/record-narration.mjs records it. */
 (function () {
   "use strict";
@@ -78,9 +80,9 @@
   /* =========================================================== trap-lesson (lesson video, 2 guess stops) */
   (function () {
     var W = 800, H = 480, U = 52;
-    var P = [[0, 4], [5, 4], [4, 0], [1, 0]];          // the same field as trap-field: top 3, bottom 5, height 4
-    var FX0 = (W - 5 * U) / 2, FX = 150, FY = 186;     // the field starts in the middle and moves left for the puzzle
-    var ROAD = [112, 146], CANAL = [448, 480];
+    var P = [[0, 4], [5, 4], [4, 0], [1, 0]];          // the ramp's side panel: top 3, bottom 5, height 4
+    var FX0 = (W - 5 * U) / 2, FX = 150, FY = 186;     // the panel starts in the middle and moves left for the puzzle
+    var DECK = FY, GROUND = FY + 4 * U;                // the ramp's flat top and the ground it stands on
 
     var R = {
       tapSlant: { caption: "That's a slanted side. It leans over, so it isn't the height." },
@@ -88,36 +90,28 @@
       tapBase: { caption: "That's the bottom side. The height stands up from it." },
       tapHint: { caption: "Look for the line that drops straight down, like a stone on a string." },
       tapRight: { caption: "Yes! It drops straight down and makes a square corner. The height is 4." },
-      guessPara: { caption: "Good thinking. Let's test it with your own hands." },
-      guessOther: { caption: "Interesting guess. Let's test it with your own hands." },
+      // short: the next line already says "make the copy yourself"
+      guessPara: { caption: "Good thinking." },
+      guessOther: { caption: "Interesting guess." },
     };
 
     function scenery(c, L) {
-      // the road along the top
-      var road = K.add(c.world, "g", { "class": "t-flow-road" });
-      K.add(road, "rect", { x: -20, y: ROAD[0], width: W + 40, height: ROAD[1] - ROAD[0], "class": "t-flow-asphalt" });
-      K.add(road, "line", { x1: -20, y1: ROAD[0] + 3, x2: W + 20, y2: ROAD[0] + 3, "class": "t-flow-kerb" });
-      K.add(road, "line", { x1: -20, y1: ROAD[1] - 3, x2: W + 20, y2: ROAD[1] - 3, "class": "t-flow-kerb" });
-      K.add(road, "line", { x1: -20, y1: (ROAD[0] + ROAD[1]) / 2, x2: W + 20, y2: (ROAD[0] + ROAD[1]) / 2, "class": "t-flow-dash" });
-      // a little cart that drives past once
-      c.cart = K.add(road, "g", { "class": "t-flow-cart" });
-      K.add(c.cart, "rect", { x: -30, y: -15, width: 46, height: 20, rx: 6, "class": "t-flow-cart-body" });
-      K.add(c.cart, "path", { d: "M8 -15H20Q28 -15 28 -6V5H8Z", "class": "t-flow-cart-cab" });
-      K.add(c.cart, "circle", { cx: -18, cy: 7, r: 6, "class": "t-flow-wheel" });
-      K.add(c.cart, "circle", { cx: 16, cy: 7, r: 6, "class": "t-flow-wheel" });
-      L.set(c.cart, { x: -80, y: (ROAD[0] + ROAD[1]) / 2 - 2 });
-      // the canal along the bottom
-      var canal = K.add(c.world, "g", { "class": "t-flow-canal" });
-      K.add(canal, "rect", { x: -20, y: CANAL[0], width: W + 40, height: CANAL[1] - CANAL[0], "class": "t-flow-water" });
-      var d = "";
-      for (var x = -60; x < W + 80; x += 40) d += "M" + x + " " + (CANAL[0] + 15) + "q10 -6 20 0 M" + (x + 20) + " " + (CANAL[0] + 31) + "q10 -6 20 0 ";
-      c.ripple = K.add(canal, "path", { d: d, "class": "t-flow-ripple" });
-      L.to(c.ripple, { x: -40, duration: 3.2, repeat: -1, ease: "none" }, true);
-      // the two edges that run side by side (lit up in step 2)
+      // the skatepark's concrete floor along the bottom, with its expansion joints
+      var park = K.add(c.world, "g", { "class": "t-flow-park" });
+      K.add(park, "rect", { x: -20, y: GROUND + 8, width: W + 40, height: H - GROUND, "class": "t-flow-ground" });
+      K.add(park, "line", { x1: -20, y1: GROUND + 8, x2: W + 20, y2: GROUND + 8, "class": "t-flow-kerb" });
+      for (var x = 60; x < W + 40; x += 130) K.add(park, "line", { x1: x, y1: GROUND + 12, x2: x - 22, y2: H, "class": "t-flow-joint" });
+      // a skateboard that rolls past once
+      c.board = K.add(park, "g", { "class": "t-flow-board" });
+      K.add(c.board, "rect", { x: -28, y: -10, width: 56, height: 7, rx: 3.5, "class": "t-flow-cart-body" });
+      K.add(c.board, "circle", { cx: -16, cy: 2, r: 5, "class": "t-flow-wheel" });
+      K.add(c.board, "circle", { cx: 16, cy: 2, r: 5, "class": "t-flow-wheel" });
+      L.set(c.board, { x: -80, y: GROUND + 40 });
+      // the two edges that run side by side (lit up in step 2): the ramp's flat top and the ground
       c.par = K.add(c.world, "g", { "class": "t-pf-fx" });
-      c.parTop = K.add(c.par, "path", { d: "M0 " + ROAD[1] + "H" + W, "class": "t-flow-parline" });
-      c.parBot = K.add(c.par, "path", { d: "M0 " + CANAL[0] + "H" + W, "class": "t-flow-parline" });
-      [ROAD[1], CANAL[0]].forEach(function (y) {
+      c.parTop = K.add(c.par, "path", { d: "M0 " + DECK + "H" + W, "class": "t-flow-parline" });
+      c.parBot = K.add(c.par, "path", { d: "M0 " + GROUND + "H" + W, "class": "t-flow-parline" });
+      [DECK, GROUND].forEach(function (y) {
         [110, 690].forEach(function (x) {
           K.add(c.par, "path", { d: "M" + (x - 9) + " " + (y - 9) + "L" + x + " " + y + "L" + (x - 9) + " " + (y + 9) + "M" + (x + 4) + " " + (y - 9) + "L" + (x + 13) + " " + y + "L" + (x + 4) + " " + (y + 9), "class": "t-flow-parchev" });
         });
@@ -178,13 +172,13 @@
       build: function (svg, L) {
         var c = K.setup(svg, L);
         scenery(c, L);
-        K.tree(c.world, 64, 110, 0.75, L);                 // a tree on the roadside
-        c.sign = K.sign(c, W);
+        K.tree(c.world, 64, 110, 0.75, L);                 // a tree at the edge of the skatepark
+        c.sign = K.sign(c, W, "PLYWOOD");
         L.set(c.sign.g, { opacity: 0 });
 
         c.fx = { x: FX0 };
         c.gF = K.add(c.world, "g"); place(c.gF, FX0, FY);
-        c.field = K.field(c, c.gF, P, U, { pad: 1 });       // in view before Play: a real opening picture, not an empty box
+        c.field = K.field(c, c.gF, P, U, { pad: 1 });       // the side panel, in view before Play: a real opening picture
         c.seamTop = K.seam(c, c.gF); c.seamBot = K.seam(c, c.gF);
         c.arrows = K.add(c.gF, "g", { "class": "t-tp-par" });
         [[2.5 * U, 0], [2.5 * U, 4 * U]].forEach(function (q) {
@@ -198,7 +192,7 @@
         L.set([c.topLab, c.botLab], { opacity: 0 });
         c.lines = heightLines(c, L);
         c.known = known(c, L);
-        // "two copies?": a dashed ghost of the field beside it
+        // "two copies?": a dashed ghost of the panel beside it
         c.ghost = K.add(c.world, "polygon", { points: K.px(P, U), "class": "t-pf-ghost t-flow-ghost" });
         place(c.ghost, FX + 5.9 * U, FY);
         L.set(c.ghost, { opacity: 0 });
@@ -207,20 +201,20 @@
       },
 
       steps: [
-        /* ---- the field, the road and the canal ---- */
+        /* ---- Kiran's funbox ramp: the side panel, its flat top and the ground ---- */
         { branch: who,
           options: [
-            { caption: "Aarav, this is Ramesh uncle's third field. A road runs along the top of it, and a canal along the bottom.", run: arrive },
-            { caption: "Riya, this is Ramesh uncle's third field. A road runs along the top of it, and a canal along the bottom.", run: arrive },
-            { caption: "This is Ramesh uncle's third field. A road runs along the top of it, and a canal along the bottom.", run: arrive },
+            { caption: "Aarav, this is the side of a new funbox ramp. Kiran's skate crew is building it at their village skatepark.", run: arrive },
+            { caption: "Riya, this is the side of a new funbox ramp. Kiran's skate crew is building it at their village skatepark.", run: arrive },
+            { caption: "This is the side of a new funbox ramp. Kiran's skate crew is building it at their village skatepark.", run: arrive },
           ] },
-        { caption: "The road and the canal run side by side and never meet. They are parallel.",
+        { caption: "The ramp's flat top and the ground run side by side and never meet. They are parallel.",
           run: function (c, L) {
             L.to(c.par, { opacity: 1, duration: 0.3 });
             L.to(c.parTop, { strokeDashoffset: 0, duration: 1.3, ease: "power2.inOut" });
             L.to(c.parBot, { strokeDashoffset: 0, duration: 1.3, delay: 0.5, ease: "power2.inOut", onComplete: function () { L.sfx("sparkle"); } });
           } },
-        { caption: "So the top and the bottom of the field are parallel too. A shape with a pair of parallel sides is called a trapezium.",
+        { caption: "So the top and the bottom of the side panel are parallel too. A shape with a pair of parallel sides is called a trapezium.",
           run: function (c, L) {
             L.to(c.par, { opacity: 0.35, duration: 0.6 });
             c.seamTop.flash(L, [U, 0], [4 * U, 0]);
@@ -228,7 +222,7 @@
             L.to(c.arrows, { opacity: 1, duration: 0.4, delay: 1.3 });
             L.wait(3400, function () { c.tagName.show(L); });
           } },
-        { caption: "Ramesh uncle wants to sow seeds here. To buy the right amount, he needs to know how much land there is.",
+        { caption: "Saroj, the park's carpenter, cuts the panels from plywood. To buy the right amount, the crew needs the area of this side.",
           run: function (c, L) {
             c.tagName.hide(L);
             L.to(c.par, { opacity: 0, duration: 0.5 });
@@ -243,7 +237,7 @@
           } },
 
         /* ---- guess stop 1: which line is the height? ---- */
-        { caption: "Now the height. Tap the line that shows the height of this field.",
+        { caption: "Now the height. Tap the line that shows the height of this panel.",
           run: function (c, L) {
             L.to(c.arrows, { opacity: 0, duration: 0.3 });
             L.to(Object.keys(c.lines).map(function (k) { return c.lines[k].g; }), { opacity: 1, duration: 0.4, delay: 0.3 });
@@ -269,6 +263,7 @@
             });
             function win() {
               over = true;
+              L.success();   // found it: the rest of the question stops now, before the stone drops
               Object.keys(c.lines).forEach(function (k) { var ln = c.lines[k]; ln.g.classList.remove("is-live", "is-hint"); ln.hit.setAttribute("tabindex", "-1"); });
               L.to(["slant", "diag", "base"].map(function (k) { return c.lines[k].g; }), { opacity: 0, duration: 0.3 });
               c.lines.drop.g.classList.add("is-correct");
@@ -292,12 +287,12 @@
           } },
 
         /* ---- the puzzle ---- */
-        { caption: "We know the area of rectangles, triangles and parallelograms. But this field is none of them.",
+        { caption: "We know the area of rectangles, triangles and parallelograms. But this panel is none of them.",
           run: function (c, L) {
             L.to([c.topLab, c.botLab], { opacity: 0.35, duration: 0.4 });
             L.to([c.hLab, c.hMark], { opacity: 0, duration: 0.4 });
             L.to(c.lines.drop.g, { opacity: 0.4, duration: 0.4 });
-            // the field slides left to make room for the shapes we already know
+            // the panel slides left to make room for the shapes we already know
             L.to(c.fx, { x: FX, duration: 0.8, ease: "power2.inOut", onUpdate: function () { place(c.gF, c.fx.x, FY); } });
             c.known.items.forEach(function (it, i) {
               L.to(it.g, { opacity: 1, duration: 0.35, delay: 0.9 + i * 0.9, onStart: function () { L.sfx("pop"); } });
@@ -307,7 +302,7 @@
           } },
 
         /* ---- guess stop 2: what will two copies make? ---- */
-        { caption: "Think back to the triangle trick. What do you think two copies of this field will make?",
+        { caption: "Think back to the triangle trick. What do you think two copies of this panel will make?",
           run: function (c, L) {
             L.to(c.known.g, { opacity: 0, duration: 0.5 });
             L.to(c.known.q, { scale: 0, duration: 0.3, ease: "power2.in" });
@@ -316,7 +311,7 @@
             if (!L.reduced) L.to(c.ghost, { y: "-=6", duration: 0.8, repeat: -1, yoyo: true, ease: "sine.inOut", delay: 1 }, true);
           },
           task: function (c, L, done) {
-            L.ask("Two copies of this field make…", [
+            L.ask("Two copies of this panel make…", [
               { label: "A rectangle", value: "rect" }, { label: "A parallelogram", value: "para" }, { label: "A triangle", value: "tri" },
             ], function (v) {
               L.sfx(v === "para" ? "chime" : "pop");
@@ -329,7 +324,7 @@
     });
 
     function arrive(c, L) {
-      L.to(c.cart, { x: W + 80, duration: 4.2, delay: 0.4, ease: "none", onStart: function () { L.sfx("whoosh"); } }, true);
+      L.to(c.board, { x: W + 80, duration: 3.2, delay: 0.4, ease: "none", onStart: function () { L.sfx("whoosh"); } }, true);   // a skater's board rolls by
       K.hop(c.field, L, 0.6);
     }
   })();
@@ -373,7 +368,8 @@
         return c;
       },
       steps: [
-        { caption: "Day 6 done!",
+        // the stones come in and today's lights up. Nothing is said here: the day-done screen says "Day 6 done".
+        { hold: 2000,
           run: function (c, L) {
             c.stones.forEach(function (g, i) {
               L.to(g, { opacity: 1, scale: 1, duration: 0.35, delay: 0.1 + i * 0.09, ease: "back.out(2.6)", onStart: function () { L.sfx("tick", i); } });
@@ -394,14 +390,14 @@
             { caption: "Trapeziums are shaky for now. One more right answer tomorrow makes them secure.", run: function (c, L) { chip(L); } },
             { caption: "Trapeziums need a bit more practice, so they'll come back tomorrow.", run: function (c, L) { chip(L); } },
           ] },
-        { caption: "Tomorrow, a field with lots of corners. We'll split it into pieces.",
-          run: function (c, L) {
+        // tomorrow's stone hops. Nothing is said: the day-done screen names tomorrow's lesson.
+        { run: function (c, L) {
             var g = c.stones[6], q = stoneXY(6);
             L.set(g, { svgOrigin: q[0] + " " + q[1] });
             L.to(g, { keyframes: [{ y: -10, duration: 0.25, ease: "power2.out" }, { y: 0, duration: 0.55, ease: "bounce.out" }], delay: 0.4 });
             L.wait(400, function () { L.sfx("pop"); });
           },
-          hold: 300 },
+          hold: 1300 },
       ],
     });
   })();

@@ -1,7 +1,7 @@
 <Rive version="1" kind="fragment">
     <!-- The Area module. The scene only hosts the module script (main.luau), its lesson
          modules and their assets; everything on screen is drawn by the scripts. -->
-    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="1280" height="760" clip="true" name="Area" id="0:2">
+    <Artboard defaultStateMachineId="0:7" viewModelId="0:120" viewModelInstanceId="0:121" styleId="0:5" width="1280" height="760" clip="true" name="Area" id="0:2">
         <LayoutComponentStyle name="Artboard Style" id="0:5"/>
         <Fill name="Background">
             <SolidColor colorValue="FFF4F7F3" name="Color"/>
@@ -31,9 +31,33 @@
         <LinearAnimation duration="60" name="Idle" id="0:6"/>
     </Artboard>
 
+    <!-- The bridge to the page that embeds the module (the trail app). Read main.luau initBridge for what each does. -->
+    <ViewModel defaultInstanceId="0:121" name="AreaBridge" id="0:120">
+        <ViewModelPropertyNumber name="lesson" id="0:122"/>
+        <ViewModelPropertyBoolean name="hostVoice" id="0:123"/>
+        <ViewModelPropertyString name="say" id="0:124"/>
+        <ViewModelPropertyNumber name="sayId" id="0:125"/>
+        <ViewModelPropertyNumber name="heard" id="0:126"/>
+        <ViewModelPropertyString name="answer" id="0:127"/>
+        <ViewModelPropertyNumber name="answerId" id="0:128"/>
+        <ViewModelPropertyNumber name="done" id="0:129"/>
+        <ViewModelInstance exports="true" name="Default" id="0:121">
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:122"/>
+            <ViewModelInstanceBoolean propertyValue="false" viewModelPropertyId="0:123"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:124"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:125"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:126"/>
+            <ViewModelInstanceString propertyValue="" viewModelPropertyId="0:127"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:128"/>
+            <ViewModelInstanceNumber propertyValue="0" viewModelPropertyId="0:129"/>
+        </ViewModelInstance>
+    </ViewModel>
+
     <!-- modules first: require() only finds a module declared above the script that needs it -->
     <ScriptAsset file="kit.luau" isModule="true" name="kit" id="0:90"/>
     <ScriptAsset file="lines.luau" isModule="true" name="lines" id="0:91"/>
+    <!-- the cast (see CAST_AND_STORIES.md in the trail) -->
+    <ScriptAsset file="people.luau" isModule="true" name="people" id="0:101"/>
     <!-- the farm, the people and Maji: shared by the lessons and the module frame -->
     <ScriptAsset file="world.luau" isModule="true" name="world" id="0:99"/>
     <ScriptAsset file="l1.luau" isModule="true" name="l1" id="0:92"/>
@@ -43,6 +67,7 @@
     <ScriptAsset file="l5.luau" isModule="true" name="l5" id="0:96"/>
     <ScriptAsset file="l6.luau" isModule="true" name="l6" id="0:97"/>
     <ScriptAsset file="l7.luau" isModule="true" name="l7" id="0:98"/>
+    <ScriptAsset file="l8.luau" isModule="true" name="l8" id="0:103"/>
     <ScriptAsset file="main.luau" name="main" id="0:80"/>
 
     <FontAsset file="Display.ttf" name="Display"/>

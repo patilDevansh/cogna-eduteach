@@ -295,6 +295,17 @@
       h("h2", { class: "t-section-title" }, "In his own words"),
       h("div", { class: "t-two" }, expl("2", "Day 2: what makes a line the height?"), expl("9", "Day 9: how did you find the hidden height?"))));
 
+    // the crew: the seven friends from the Area lessons, together (Rive module, lesson 98; see CAST_AND_STORIES.md)
+    if (C.lab && C.lab.mount) {
+      var crewStage = h("div", { class: "t-lab-stage" });
+      page.appendChild(h("section", { class: "card t-section rise", style: { "--i": 4 } },
+        h("p", { class: "eyebrow" }, "Your Area crew"),
+        h("h2", { class: "t-section-title" }, "Seven friends, seven problems, all solved with you"),
+        crewStage));
+      var crew = C.lab.mount(crewStage, { lesson: 98 });
+      var offCrew = C.bus.on("route:changed", function () { offCrew(); try { crew.destroy(); } catch (e) { /* ignore */ } });
+    }
+
     // next
     var notSecure = skills.filter(function (k) { return (k.neededForArea || k.kind === "area") && statusOf(after, k.id) !== "secure"; });
     var c6 = h("section", { class: "card t-section rise", style: { "--i": 5 } },

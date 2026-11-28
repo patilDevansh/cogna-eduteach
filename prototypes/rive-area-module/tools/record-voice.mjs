@@ -16,11 +16,16 @@ const env = Object.fromEntries(
 );
 const KIARA = "f8f5f1b2-f02d-4d8e-a40d-fd850a487b3d";
 
-// key = 'text' or key = "text", one per line
-const src = fs.readFileSync(path.join(PROJECT, "lines.luau"), "utf8");
+// key = 'text' or key = "text", one per line: the shared lines, then every lesson's own L.lines (which win)
+const LINE = /^\s*([a-z0-9]+)\s*=\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"),?\s*$/gm;
 const lines = {};
-for (const m of src.matchAll(/^\s*([a-z0-9]+)\s*=\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"),?\s*$/gm)) {
-  lines[m[1]] = (m[2] ?? m[3]).replace(/\\(.)/g, "$1");
+function readLines(src) {
+  for (const m of src.matchAll(LINE)) lines[m[1]] = (m[2] ?? m[3]).replace(/\\(.)/g, "$1");
+}
+readLines(fs.readFileSync(path.join(PROJECT, "lines.luau"), "utf8"));
+for (const f of fs.readdirSync(PROJECT).filter((n) => /^l\d+\.luau$/.test(n)).sort()) {
+  const own = fs.readFileSync(path.join(PROJECT, f), "utf8").match(/L\.lines\s*=\s*\{([\s\S]*?)\n\}/);
+  if (own) readLines(own[1]);
 }
 
 export function spoken(t) {

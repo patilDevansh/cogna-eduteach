@@ -10,6 +10,7 @@
 local kit = require('kit')
 local lines = require('lines')
 local world = require('world')
+local people = require('people')
 
 type Fonts = kit.Fonts
 type G = kit.G
@@ -23,7 +24,20 @@ local LESSONS: { Lesson } = {
     require('l5'),
     require('l6'),
     require('l7'),
+    require('l8'),
 }
+
+-- each lesson brings its own lines (the people and places are the lesson's own); they join the shared ones
+for _, Lz in LESSONS do
+    local own = (Lz :: any).lines
+    if type(own) == 'table' then
+        for k, v in own do
+            if type(k) == 'string' and type(v) == 'string' then
+                lines[k] = v
+            end
+        end
+    end
+end
 
 local SFX = {
     'snap', 'pickup', 'drop', 'pop', 'chime', 'sparkle', 'whoosh', 'slice', 'thud', 'oops', 'fanfare',
@@ -62,6 +76,22 @@ type Area = {
     hintAge: number,
     hover: Vector,
     downOn: string,
+    -- the bridge to the page that embeds the module (the trail app); see initBridge
+    vm: ViewModel?,
+    pLesson: Property<number>?,
+    pHostVoice: Property<boolean>?,
+    pSay: Property<string>?,
+    pSayId: Property<number>?,
+    pHeard: Property<number>?,
+    pAnswer: Property<string>?,
+    pAnswerId: Property<number>?,
+    pDone: Property<number>?,
+    hostVoice: boolean, -- the page speaks every line (its own voice player), so it can stop when the student moves on
+    linked: boolean, -- opened on one lesson by the page: no lesson grid, no "All lessons"
+    sayId: number,
+    heard: number,
+    answerId: number,
+    context: Context?,
 }
 
 local function key(li: number, s: number): string
@@ -96,12 +126,28 @@ local function stopVoice(self: Area)
     self.voice = nil
 end
 
+-- Hand a line to the page to speak ('' stops whatever it is saying). The page reports back through `heard`.
+local function publishLine(self: Area, text: string)
+    self.sayId += 1
+    local ps, pi = self.pSay, self.pSayId
+    if ps ~= nil then
+        ps.value = text
+    end
+    if pi ~= nil then
+        pi.value = self.sayId
+    end
+end
+
 local function say(self: Area, k: string)
     stopVoice(self)
     self.voiceKey = k
     self.voiceAge = 0
     self.caption = lines[k] or ''
     self.captionAge = 0
+    if self.hostVoice then
+        publishLine(self, if self.muted then '' else self.caption)
+        return
+    end
     if self.muted then
         return
     end
@@ -117,6 +163,10 @@ local function talking(self: Area): boolean
         return false
     end
     local est = estimate(lines[self.voiceKey] or '')
+    if self.hostVoice then
+        -- until the page says the line is over (spoken, cut short or skipped), with a safety net
+        return not self.muted and self.heard < self.sayId and self.voiceAge < est * 2.2 + 3
+    end
     local v = self.voice
     if v ~= nil then
         if v:completed() then
@@ -184,6 +234,9 @@ local function goHome(self: Area)
     self.screenAge = 0
     self.queue = {}
     stopVoice(self)
+    if self.hostVoice then
+        publishLine(self, '')
+    end
     self.voiceKey = ''
     self.caption = ''
     sfx(self, 'pop')
@@ -199,7 +252,13 @@ local function nextStep(self: Area)
         self.screen = 'complete'
         self.screenAge = 0
         self.queue = {}
-        if not (self.li == #LESSONS and self.voiceKey == 'l7s3done') then
+        local pd = self.pDone
+        if pd ~= nil then
+            pd.value = self.li
+        end
+        -- In the trail (linked) the page moves straight on, so a "Lesson complete" line would only be cut off or repeated
+        -- after every part of a day; the module on its own says it.
+        if not self.linked then
             say(self, 'complete')
         end
         sfx(self, 'fanfare')
@@ -215,6 +274,84 @@ local function prevStep(self: Area)
 end
 
 -- Layout protocol ----------------------------------------------------------------
+
+-- The page that embeds the module talks to it through the AreaBridge view model:
+--   lesson    (page → module) 1–8 opens that lesson straight away (linked mode); 0 is the lesson grid; 99 the cast sheet
+--   hostVoice (page → module) true: the page speaks the lines; the module publishes each one as `say` + `sayId`
+--   heard     (page → module) the last sayId the page finished (spoken, cut short or skipped)
+--   answer + answerId (module → page) 'qid|1 or 0|value|mixup' for every answer the student gives
+--   done      (module → page) the number of the lesson just completed
+local function initBridge(self: Area, context: Context)
+    local vm = context:viewModel()
+    if vm == nil then
+        return
+    end
+    self.vm = vm
+    self.pLesson = vm:getNumber('lesson')
+    self.pHostVoice = vm:getBoolean('hostVoice')
+    self.pSay = vm:getString('say')
+    self.pSayId = vm:getNumber('sayId')
+    self.pHeard = vm:getNumber('heard')
+    self.pAnswer = vm:getString('answer')
+    self.pAnswerId = vm:getNumber('answerId')
+    self.pDone = vm:getNumber('done')
+    local function applyHostVoice()
+        local hv = self.pHostVoice
+        self.hostVoice = hv ~= nil and hv.value == true
+        if self.hostVoice then
+            stopVoice(self) -- the page's voice takes over from Kiara's recordings
+        end
+    end
+    local function applyLesson()
+        local pl = self.pLesson
+        if pl == nil then
+            return
+        end
+        local n = math.floor(pl.value)
+        if n >= 1 and n <= #LESSONS then
+            self.linked = true
+            openLesson(self, n)
+        elseif n == 99 then
+            self.screen = 'cast'
+            self.screenAge = 0
+        elseif n == 98 then
+            -- the seven friends from the lessons, together (the trail shows this at the end of the two weeks)
+            self.screen = 'crew'
+            self.screenAge = 0
+        elseif n == 0 and self.screen ~= 'home' then
+            self.linked = false
+            goHome(self)
+        end
+    end
+    local function applyHeard()
+        local ph = self.pHeard
+        if ph ~= nil then
+            self.heard = ph.value
+        end
+    end
+    local hv, pl, ph = self.pHostVoice, self.pLesson, self.pHeard
+    if hv ~= nil then
+        hv:addListener(vm, function()
+            applyHostVoice()
+            context:markNeedsUpdate()
+        end)
+    end
+    if pl ~= nil then
+        pl:addListener(vm, function()
+            applyLesson()
+            context:markNeedsUpdate()
+        end)
+    end
+    if ph ~= nil then
+        ph:addListener(vm, function()
+            applyHeard()
+            context:markNeedsUpdate()
+        end)
+    end
+    applyHostVoice()
+    applyHeard()
+    applyLesson()
+end
 
 function init(self: Area, context: Context): boolean
     local display = context:font('Display')
@@ -292,13 +429,80 @@ function init(self: Area, context: Context): boolean
             self.hintText = text
             self.hintAge = 0
         end,
+        report = function(qid: string, correct: boolean, value: string, mixup: string?)
+            self.answerId += 1
+            local pa, pi = self.pAnswer, self.pAnswerId
+            if pa ~= nil then
+                pa.value = qid .. '|' .. (if correct then '1' else '0') .. '|' .. value .. '|' .. (mixup or '')
+            end
+            if pi ~= nil then
+                pi.value = self.answerId
+            end
+        end,
     }
     self.g = g
-    say(self, 'home')
+    self.context = context
+    initBridge(self, context)
+    if self.screen == 'home' then
+        say(self, 'home')
+    end
     return true
 end
 
 function resize(self: Area, size: Vector) end
+
+-- Everyone in the lessons, standing in a row (lesson = 99 from the page): for checking the artwork.
+local CAST_ORDER = { 'kavin', 'paati', 'tenzin', 'dolkar', 'remi', 'kiran', 'saroj', 'imran', 'birsa', 'phulmani', 'fiza', 'nani' }
+local castPeople: { people.Person } = {}
+
+-- The crew: the seven young people the student helped, side by side, each with where they are from (lesson = 98).
+local CREW = {
+    { key = 'kavin', from = 'Chennai', what = 'kolam patch' },
+    { key = 'tenzin', from = 'Leh', what = 'greenhouse' },
+    { key = 'remi', from = 'Aizawl', what = 'pennants' },
+    { key = 'kiran', from = 'Madhya Pradesh', what = 'funbox ramp' },
+    { key = 'imran', from = 'Pune', what = 'game island' },
+    { key = 'birsa', from = 'Ranchi', what = 'kitchen floor' },
+    { key = 'fiza', from = 'Ahmedabad', what = 'kites' },
+}
+local crewPeople: { people.Person } = {}
+
+-- The cast sheet and the crew move in advance(), not draw(): a headless capture draws only once, at the end.
+local function advancePeople(self: Area, dt: number)
+    if self.screen == 'cast' then
+        if #castPeople == 0 then
+            for i, k in CAST_ORDER do
+                local col = (i - 1) % 6
+                local row = math.floor((i - 1) / 6)
+                local p = people.new(people.CAST[k], 130 + col * 204)
+                p.y = 380 + row * 320
+                p.mood = if i % 3 == 0 then 'wave' elseif i % 3 == 1 then 'idle' else 'cheer'
+                table.insert(castPeople, p)
+            end
+        end
+        for _, p in castPeople do
+            people.advance(p, dt, self.t)
+        end
+    elseif self.screen == 'crew' then
+        if #crewPeople == 0 then
+            for i, c in CREW do
+                local p = people.new(people.CAST[c.key], 1400) -- they walk (or roll) in from the right, one after another
+                p.tx = 130 + (i - 1) * 170
+                p.y = 560
+                table.insert(crewPeople, p)
+            end
+        end
+        for i, p in crewPeople do
+            if self.screenAge < 0.35 * (i - 1) then
+                p.x = 1400
+            end
+            local arrived = math.abs(p.x - p.tx) < 2
+            p.mood = if arrived then (if (math.floor(self.t * 0.5) + i) % 3 == 0 then 'cheer' else 'wave') else 'idle'
+            p.lookX, p.lookY = 640, 300
+            people.advance(p, dt, self.t)
+        end
+    end
+end
 
 function advance(self: Area, dt: number): boolean
     self.t += dt
@@ -308,6 +512,7 @@ function advance(self: Area, dt: number): boolean
     self.captionAge += dt
     self.hintAge += dt
     self.shakeT = math.max(0, self.shakeT - dt)
+    advancePeople(self, dt)
     -- queued lines wait their turn
     if #self.queue > 0 and not talking(self) then
         local k = table.remove(self.queue, 1)
@@ -354,12 +559,12 @@ local function cardPos(i: number): (number, number)
     if i <= 4 then
         return 60 + (i - 1) * (CARD_W + 20), 196
     end
-    return 206 + (i - 5) * (CARD_W + 20), 428
+    return 60 + (i - 5) * (CARD_W + 20), 428
 end
 
 -- buttons of the lesson frame
 local function frameHit(self: Area, p: Vector): string
-    if kit.dist(p, Vector.xy(64, 52)) < 26 then
+    if not self.linked and kit.dist(p, Vector.xy(64, 52)) < 26 then
         return 'home'
     end
     if kit.dist(p, Vector.xy(1214, 52)) < 24 then
@@ -379,6 +584,9 @@ local function frameHit(self: Area, p: Vector): string
             end
         end
     elseif self.screen == 'complete' then
+        if self.linked then
+            return if kit.inRect(p, 535, 470, 210, 52) then 'replay' else ''
+        end
         if kit.inRect(p, 420, 470, 210, 52) then
             return 'home'
         end
@@ -413,6 +621,8 @@ local function press(self: Area, id: string)
         prevStep(self)
     elseif id == 'nextLesson' then
         openLesson(self, self.li + 1)
+    elseif id == 'replay' then
+        openLesson(self, self.li)
     elseif string.sub(id, 1, 4) == 'dot:' then
         local n = tonumber(string.sub(id, 5))
         if n ~= nil and n ~= self.step then
@@ -653,7 +863,9 @@ end
 local function drawLessonFrame(self: Area, r: Renderer, fonts: Fonts, g: G)
     local L = lesson(self)
     local st = L.steps[self.step]
-    drawHomeButton(self, r)
+    if not self.linked then
+        drawHomeButton(self, r)
+    end
     drawSound(self, r)
     local k = kit.ease(self.age * 2.5)
     r:save()
@@ -684,9 +896,10 @@ local function drawLessonFrame(self: Area, r: Renderer, fonts: Fonts, g: G)
         local w = kit.width(fonts, self.hintText, fonts.body, 15) + 40
         r:save()
         r:modulateOpacity(hk)
-        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.fill(kit.GOLD_WASH))
-        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.stroke(kit.GOLD, 1.5))
-        kit.label(r, fonts, self.hintText, fonts.body, 15, kit.GOLD_DEEP, bx + 40, by + bh - 38, 0)
+        -- a hint is advice, not a thing to move: green, because gold means "this moves / this is where it goes"
+        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.fill(kit.ACCENT_WASH))
+        r:drawPath(kit.rrect(bx + 20, by + bh - 56, w, 36, 18), kit.stroke(kit.alpha(kit.ACCENT, 0.5), 1.5))
+        kit.label(r, fonts, self.hintText, fonts.body, 15, kit.ACCENT_DEEP, bx + 40, by + bh - 38, 0)
         r:restore()
     end
 
@@ -713,7 +926,7 @@ local function drawHome(self: Area, r: Renderer, fonts: Fonts, g: G)
     local k = kit.ease(self.screenAge * 2)
     r:save()
     r:modulateOpacity(k)
-    kit.label(r, fonts, 'CLASS 8 MATHS  ·  NCERT GANITA PRAKASH  ·  7 LESSONS', fonts.mono, 13, kit.ACCENT, 60, 46, 0)
+    kit.label(r, fonts, 'CLASS 8 MATHS  ·  NCERT GANITA PRAKASH  ·  8 LESSONS', fonts.mono, 13, kit.ACCENT, 60, 46, 0)
     kit.label(r, fonts, 'Area', fonts.display, 56, kit.INK, 60, 100, 0)
     kit.label(r, fonts, 'Cut it, slide it, spin it, stretch it. Every rule, found with your own hands.', fonts.body, 19, kit.INK_SOFT, 200, 104, 0)
     r:restore()
@@ -750,7 +963,10 @@ local function drawHome(self: Area, r: Renderer, fonts: Fonts, g: G)
             L.thumb(g, r, x + 10, y + 10, CARD_W - 20, 112)
             r:restore()
             kit.label(r, fonts, 'LESSON ' .. i, fonts.mono, 11, kit.ACCENT, x + 18, y + 142, 0)
-            kit.label(r, fonts, L.title, fonts.display, 21, kit.INK, x + 18, y + 168, 0)
+            -- a long title shrinks to fit the card instead of running off its edge
+            local tw = kit.width(fonts, L.title, fonts.display, 21)
+            local tsize = if tw > CARD_W - 36 then 21 * (CARD_W - 36) / tw else 21
+            kit.label(r, fonts, L.title, fonts.display, tsize, kit.INK, x + 18, y + 168, 0)
             kit.label(r, fonts, L.blurb, fonts.body, 14, kit.INK_SOFT, x + 18, y + 194, 0)
             if self.finished[i] then
                 r:drawPath(kit.circle(x + CARD_W - 28, y + 142, 13), kit.fill(kit.ACCENT))
@@ -804,9 +1020,40 @@ local function drawComplete(self: Area, r: Renderer, fonts: Fonts, g: G)
     end
     kit.label(r, fonts, nd .. ' of ' .. #L.steps .. ' tasks done with your own hands', fonts.body, 17, kit.INK_SOFT, 640, 414, 0.5)
     r:restore()
-    button(self, r, fonts, 'home', 'All lessons', 420, 470, 210, 52, false, true, false)
-    button(self, r, fonts, if self.li < #LESSONS then 'nextLesson' else 'home', if self.li < #LESSONS then 'Next lesson' else 'Done', 650, 470, 210, 52, true, true, true)
+    if self.linked then
+        button(self, r, fonts, 'replay', 'Do it again', 535, 470, 210, 52, false, true, false)
+    else
+        button(self, r, fonts, 'home', 'All lessons', 420, 470, 210, 52, false, true, false)
+        button(self, r, fonts, if self.li < #LESSONS then 'nextLesson' else 'home', if self.li < #LESSONS then 'Next lesson' else 'Done', 650, 470, 210, 52, true, true, true)
+    end
     drawCaption(self, r, fonts, 646)
+end
+
+local function drawCast(self: Area, r: Renderer, fonts: Fonts)
+    kit.label(r, fonts, 'THE AREA CAST', fonts.mono, 13, kit.ACCENT, 60, 46, 0)
+    for _, p in castPeople do
+        people.draw(r, fonts, p, self.t)
+        kit.label(r, fonts, p.look.name, fonts.display, 18, kit.INK, p.x, p.y + 30, 0.5)
+    end
+end
+
+local function drawCrew(self: Area, r: Renderer, fonts: Fonts)
+    local k = kit.ease(self.screenAge * 1.6)
+    r:save()
+    r:modulateOpacity(k)
+    kit.label(r, fonts, 'YOUR AREA CREW', fonts.mono, 13, kit.ACCENT, 640, 120, 0.5)
+    kit.label(r, fonts, 'Seven friends, seven problems, all solved with you', fonts.display, 34, kit.INK, 640, 166, 0.5)
+    r:restore()
+    -- a long soft stage for them to stand on
+    r:drawPath(kit.rrect(60, 548, 1160, 26, 13), kit.soft(kit.alpha(kit.INK, 0.08), 12))
+    for i, p in crewPeople do
+        people.draw(r, fonts, p, self.t)
+        if math.abs(p.x - p.tx) < 2 then
+            kit.label(r, fonts, p.look.name, fonts.display, 20, kit.INK, p.x, p.y + 40, 0.5)
+            kit.label(r, fonts, CREW[i].from, fonts.body, 15, kit.INK_SOFT, p.x, p.y + 64, 0.5)
+            kit.label(r, fonts, CREW[i].what, fonts.mono, 12, kit.ACCENT, p.x, p.y + 86, 0.5)
+        end
+    end
 end
 
 local function drawBits(self: Area, r: Renderer)
@@ -833,6 +1080,10 @@ function draw(self: Area, r: Renderer)
     end
     if self.screen == 'home' then
         drawHome(self, r, fonts, g)
+    elseif self.screen == 'cast' then
+        drawCast(self, r, fonts)
+    elseif self.screen == 'crew' then
+        drawCrew(self, r, fonts)
     elseif self.screen == 'lesson' then
         drawLessonFrame(self, r, fonts, g)
     else
@@ -872,6 +1123,21 @@ return function(context: Context): Layout<Area>
         hintAge = 99,
         hover = Vector.xy(-100, -100),
         downOn = '',
+        vm = nil,
+        pLesson = nil,
+        pHostVoice = nil,
+        pSay = nil,
+        pSayId = nil,
+        pHeard = nil,
+        pAnswer = nil,
+        pAnswerId = nil,
+        pDone = nil,
+        hostVoice = false,
+        linked = false,
+        sayId = 0,
+        heard = 0,
+        answerId = 0,
+        context = nil,
         init = init,
         resize = resize,
         advance = advance,

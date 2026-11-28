@@ -23,6 +23,9 @@ export type G = {
     burst: (x: number, y: number, n: number) -> (), -- confetti
     shake: (amount: number) -> (), -- jolt the board
     hint: (text: string) -> (), -- a small hint chip on the board
+    -- An answer the student gave (keypad, a choice, a tap), for the trail's evidence. qid is stable per question
+    -- (e.g. 'l4s4'); mixup is the trail's mix-up id when the wrong answer shows one ('slant', 'perim', 'half', …).
+    report: (qid: string, correct: boolean, value: string, mixup: string?) -> (),
 }
 
 export type StepDef = { title: string, line: string, task: string }
@@ -42,6 +45,7 @@ export type Lesson = {
     key: (g: G, k: number) -> boolean,
     thumb: (g: G, r: Renderer, x: number, y: number, w: number, h: number) -> (),
 }
+-- A lesson may also set L.lines = { key = text }: its own spoken lines, merged into lines.luau at start-up.
 
 -- Board ---------------------------------------------------------------------
 
@@ -779,6 +783,9 @@ end
 
 -- keyboard: digits, backspace, enter
 function kit.keypadKey(kp: Keypad, code: number): string
+    if code >= 320 and code <= 329 then
+        code -= 272 -- the number pad's digits type like the top row's
+    end
     if code >= 48 and code <= 57 then
         if #kp.value < 6 then
             kp.value ..= tostring(code - 48)

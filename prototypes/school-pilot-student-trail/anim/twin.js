@@ -192,6 +192,7 @@
         }
         function snap() {
           if (won) return; won = true;
+          if (L.success) L.success();   // it's in: the rest of the step's caption stops now
           stopBob(); if (offTilt) { offTilt(); offTilt = null; }
           if (d) d.disable();
           kn.live(false);
@@ -209,7 +210,9 @@
             done("fit");
           });
         }
-        L.wait(18000, function () { if (!won) { if (!right()) L.say(opt.R.wrongWay.caption); hint(); } });
+        // a nudge, not a reaction: never after it's in, never once a reaction has been said, never mid-drag or mid-spin
+        // (L.hint checks all three). The "Do it for me" button still appears.
+        L.wait(18000, function () { if (!won) { if (!right()) (L.hint || L.say)(opt.R.wrongWay.caption); hint(); } });
       },
 
       /** the copy lifts off and floats away */

@@ -416,45 +416,101 @@
         .replace(/²/g, " square").replace(/√/g, "the square root of ").replace(/−/g, " minus ").replace(/×/g, " times ").replace(/=/g, " equals ").replace(/½/g, "half");
     }
 
-    var audio = null, pending = null, doneCb = null; // current recorded line, the next one waiting, and who to tell when it ends
-    function report(spoken) { var d = doneCb; doneCb = null; if (d) try { d(spoken); } catch (e) { console.error(e); } }
-    function stopAll() {
-      if (pending && pending.done) try { pending.done(false); } catch (e) { /* ignore */ }
-      pending = null; report(false);
-      if (audio) { audio.onended = null; audio.pause(); audio = null; }
-      if (synth) synth.cancel();
+    /* One line at a time, and the voice follows the student:
+       - a line that is playing is let finish, and only the newest waiting line is kept (an older waiting one is dropped);
+         recorded and fallback (browser) lines queue the same way;
+       - opts.interrupt cuts whatever is playing or waiting and says this line now (the student has already moved on);
+       - opts.tag labels a line (the guide's are "guide") so stop(tag) stops only those;
+       - opts.onStart() runs when the line starts to sound (or at once when it can't be heard), so captions follow the voice.
+       done(spoken) is called once per line: true when it was heard, or when it was cut or dropped because the student
+       moved on (it counts as heard: nothing waits a reading time for a line that was cut); false when it can't be heard
+       at all (sound off, no voice, autoplay blocked), so a lesson paces itself by reading time instead.
+       Every call returns { cut() } for that one line. */
+    var cur = null, pending = null, paused = false;
+    function settle(line, spoken) {
+      if (!line || line.over) return;
+      line.over = true; clearTimeout(line.timer);
+      if (line.done) try { line.done(spoken); } catch (e) { console.error(e); }
     }
-    function playRec(rec, done) {
-      doneCb = done || null;
-      audio = new Audio(rec);
-      audio.onended = function () { audio = null; report(true); if (pending) { var p = pending; pending = null; playRec(p.rec, p.done); } };
-      audio.play().catch(function () { audio = null; report(false); /* autoplay blocked: captions still show */ });
+    function silence(line) {
+      clearTimeout(line.timer);
+      if (line.audio) { line.audio.onended = null; line.audio.onerror = null; try { line.audio.pause(); } catch (e) { /* ignore */ } }
+      if (line.utter && synth) { line.utter.onend = null; line.utter.onerror = null; synth.cancel(); }
     }
-    /** done(spoken) is called once the line has finished (true) or will not be heard (false). */
-    function say(text, done) {
-      if (!on || !text) { if (done) done(false); return; }
-      var rec = recordingFor(String(text));
-      // Let a recorded sentence finish instead of cutting it off; only the newest waiting line is kept.
-      if (rec && audio && !audio.paused) { if (pending && pending.done) pending.done(false); pending = { rec: rec, done: done }; return; }
-      stopAll();
-      if (rec) { playRec(rec, done); return; }
-      if (!synth) { if (done) done(false); return; }
-      var u = new SpeechSynthesisUtterance(spokenText(text));
+    function next() { if (pending && !cur) { var p = pending; pending = null; begin(p); } }
+    function over(line, spoken) { if (cur !== line) return; cur = null; silence(line); settle(line, spoken); next(); }
+    /** A line that never reports its end (a stalled file, a browser voice that hangs, a background tab) must not block
+        the queue: after about its own length (ms) plus a margin, it counts as heard. */
+    function guard(line, ms) {
+      clearTimeout(line.timer);
+      line.timer = setTimeout(function () { if (cur !== line) return; if (paused) { guard(line, ms); return; } over(line, true); }, ms + 2500);
+    }
+    function spokenMs(text) { return String(text).split(/\s+/).length * 500; }   // the fallback voice reads about 2 words a second
+    function begin(line) {
+      cur = line;
+      if (line.onStart) try { line.onStart(); } catch (e) { console.error(e); }
+      if (line.rec) {
+        var a = line.audio = new Audio(line.rec);
+        a.onended = function () { over(line, true); };
+        a.onerror = function () { over(line, false); };
+        a.onloadedmetadata = function () { if (cur === line && isFinite(a.duration)) guard(line, a.duration * 1000); };   // its real length
+        guard(line, spokenMs(line.text) + 4000);   // until the file says how long it is
+        if (!paused) a.play().catch(function () { over(line, false); /* autoplay blocked: captions still show */ });
+        return;
+      }
+      if (!synth) { cur = null; settle(line, false); next(); return; }
+      var u = line.utter = new SpeechSynthesisUtterance(spokenText(line.text));
       var v = pick(); if (v) { u.voice = v; u.lang = v.lang; }
       u.rate = 0.95; u.pitch = 1;
-      doneCb = done || null;
-      u.onend = function () { report(true); };
-      u.onerror = function () { report(false); };
+      u.onend = function () { over(line, true); };
+      u.onerror = function () { over(line, false); };
+      guard(line, spokenMs(u.text));
       synth.speak(u);
+    }
+    function stopAll(spoken) {
+      var p = pending, c = cur;
+      pending = null; cur = null; paused = false;
+      if (p) settle(p, spoken);
+      if (c) { silence(c); settle(c, spoken); }
+      if (synth) synth.cancel();
+    }
+    function cutLine(line) {
+      if (line.over) return;
+      if (pending === line) { pending = null; settle(line, true); return; }
+      over(line, true);
+    }
+    function say(text, done, opts) {
+      opts = opts || {};
+      var line = { text: String(text || ""), done: done || null, tag: opts.tag || null, onStart: opts.onStart || null, over: false };
+      var handle = { cut: function () { cutLine(line); } };
+      if (!on || !text) {
+        if (line.onStart) try { line.onStart(); } catch (e) { console.error(e); }
+        settle(line, false);
+        return handle;
+      }
+      line.rec = recordingFor(line.text);
+      if (opts.interrupt) stopAll(true);
+      if (cur) {   // let the line that is playing finish; only the newest waiting line is kept
+        if (pending) settle(pending, true);
+        pending = line;
+        return handle;
+      }
+      begin(line);
+      return handle;
     }
     return {
       available: !!synth || !!C.narration,
       isOn: function () { return on; },
-      set: function (v) { on = v; try { window.localStorage.setItem(KEY, v ? "on" : "off"); } catch (e) { /* ignore */ } if (!v) stopAll(); },
+      set: function (v) { on = v; try { window.localStorage.setItem(KEY, v ? "on" : "off"); } catch (e) { /* ignore */ } if (!v) stopAll(false); },
       say: say,
-      pause: function () { if (audio) audio.pause(); if (synth) synth.pause(); },
-      resume: function () { if (audio) audio.play().catch(function () {}); if (synth) synth.resume(); },
-      stop: stopAll,
+      pause: function () { paused = true; if (cur && cur.audio) cur.audio.pause(); if (synth) synth.pause(); },
+      resume: function () { paused = false; if (cur && cur.audio) cur.audio.play().catch(function () {}); if (synth) synth.resume(); },
+      /** stop(): everything (it counts as heard). stop(tag): only the lines with that tag; the others go on. */
+      stop: function (tag) {
+        if (!tag) { stopAll(true); return; }
+        if (pending && pending.tag === tag) { var p = pending; pending = null; settle(p, true); }
+        if (cur && cur.tag === tag) over(cur, true);
+      },
     };
   })();
   C.voice = voice;
@@ -483,7 +539,15 @@
     var ctl = null, playing = false, timer = null;
     function ended() { playing = false; toggle.textContent = "Play"; skip.hidden = true; clearTimeout(timer); if (!out.ended) { out.ended = true; if (o.onEnd) o.onEnd(); } }
     try {
-      ctl = A.mount(stage, { flags: o.flags || {}, onRecord: o.onRecord, onEnd: ended, onBeat: function (c, done) { if (c) { caption.textContent = c; voice.say(c, done); } else if (done) done(false); if (o.onBeat) o.onBeat(c); } });
+      // vo.interrupt: a reaction to what the student just did cuts the line still being said. The caption under the
+      // stage changes when its line starts to sound, so the words on screen and the voice stay together.
+      ctl = A.mount(stage, { flags: o.flags || {}, onRecord: o.onRecord, onEnd: ended, onBeat: function (c, done, vo) {
+        var line = null;
+        if (c) line = voice.say(c, done, { interrupt: !!(vo && vo.interrupt), onStart: function () { caption.textContent = c; } });
+        else if (done) done(false);
+        if (o.onBeat) o.onBeat(c);
+        return line;
+      } });
     } catch (e) { console.error("[session] anim mount", id, e); stage.appendChild(placeholder("anim", id, "Mark as watched", function () { ended(); })); return out; }
     function start() { playing = true; toggle.textContent = "Pause"; try { ctl.play(); } catch (e) { console.error(e); } }
     toggle.addEventListener("click", function () {
@@ -492,7 +556,8 @@
       else { voice.resume(); start(); }
     });
     replay.addEventListener("click", function () { playing = true; toggle.textContent = "Pause"; voice.stop(); try { ctl.replay(); } catch (e) { console.error(e); } });
-    skip.addEventListener("click", ended);
+    // "Mark as watched" ends it for real: the lesson stops moving and stops talking
+    skip.addEventListener("click", function () { try { ctl.pause(); } catch (e) { /* ignore */ } voice.stop(); ended(); });
     timer = setTimeout(function () { if (!out.ended) skip.hidden = false; }, (A.durationMs || 20000) + 5000);
     out.play = start; out.destroy = function () { clearTimeout(timer); voice.stop(); try { ctl && ctl.destroy(); } catch (e) { /* ignore */ } };
     return out;
@@ -675,7 +740,9 @@
     });
     el.appendChild(blk.el);
     ctx.onCleanup(blk.destroy);
-    if (step.autoplay) blk.play();
+    // A piece that plays by itself starts once the screen has settled: the voice is stopped on every route change, and
+    // that comes after the screen is drawn, so starting during the draw would silence its first line (Day 6's reminder).
+    if (step.autoplay) setTimeout(function () { if (blk.el.isConnected) blk.play(); }, 0);
     ctx.setAuto(function () { if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); });
   };
 
@@ -721,34 +788,63 @@
     ctx.setAuto(ok);
   };
 
-  /* step: { type: "rive", lessons: [4] | 4, title? } — the Area Lab: the Rive Area module (data/lab.js) playing on a canvas.
-     It opens on its lesson list (no deep link), so the step says which lesson to tap. It cannot report back, so it records no
-     mastery; the student presses Continue when done. */
+  /* step: { type: "rive", lessons: [1, 2, 3] | 4, skill?, title?, eyebrow? } — an Area lesson: the Rive Area module
+     (data/lab.js) opened straight onto each lesson in turn. Its lines are spoken by the app's own voice (C.voice), and a new
+     line always replaces the old one, so the voice never talks about a part the student has left. Every answer given inside
+     it is recorded like any other answer (with its mix-up), and when the last lesson is done the skill counts as taught and
+     Continue opens. If the lesson cannot start (offline, no WebGL), the student can skip it. */
   T.rive = function (el, step, ctx) {
     var lab = C.lab || {}, ls = [].concat(step.lessons || step.lesson || []);
-    var names = ls.map(function (n) { return "lesson " + n + (lab.lessons && lab.lessons[n] ? ", “" + lab.lessons[n] + "”" : ""); });
-    el.appendChild(h("p", { class: "eyebrow" }, "Area Lab"));
-    el.appendChild(h("h2", { class: "t-step-title" }, step.title || "Try it with your own hands"));
-    el.appendChild(h("p", { class: "muted t-lesson-hint" }, names.length
-      ? "Tap " + names.join(" and ") + ". Cogna talks you through it, and the gold things can be dragged. When you've finished, press Continue."
-      : "Pick a lesson, and do the tasks with your own hands. When you've finished, press Continue."));
-    var done = false;
-    function finish() { if (done) return; done = true; if (step.skill) C.state.markTaught(step.skill, ctx.day); ctx.complete(); }
+    var title = step.title || (ls.length && lab.lessons && lab.lessons[ls[0]]) || "Try it with your own hands";
+    el.appendChild(h("p", { class: "eyebrow" }, step.eyebrow || "Hands on"));
+    el.appendChild(h("h2", { class: "t-step-title" }, title));
+    el.appendChild(h("p", { class: "muted t-lesson-hint" }, "Do each task with your finger, mouse or arrow keys: the gold things move. Press Next in the lesson when you're ready."));
+    var parts = h("p", { class: "eyebrow t-lab-parts", role: "status" }, ls.length > 1 ? "Part 1 of " + ls.length : "");
     var stage = h("div", { class: "t-lab-stage" });
-    el.appendChild(stage);
-    var msg = h("p", { class: "muted t-lab-note", role: "status" }, "Loading the lab…");
-    el.appendChild(msg);
-    var run = lab.mount ? lab.mount(stage, function (m) {
-      msg.textContent = m + " You can skip it for now.";
+    var msg = h("p", { class: "muted t-lab-note", role: "status" }, "Loading the lesson…");
+    var skip = h("button", { type: "button", class: "btn btn-ghost t-lab-skip", hidden: true }, "Skip this lesson for now");
+    el.appendChild(parts); el.appendChild(stage); el.appendChild(msg); el.appendChild(skip);
+    var done = false, at = 0, voice = C.voice;
+    // a step can cover lessons that teach different skills (Day 3: counting squares, then parallelograms)
+    function skillOf(n) { return (step.lessonSkills && step.lessonSkills[n]) || step.skill; }
+    function finish(taught) {
+      if (done) return; done = true;
+      if (taught) [].concat(step.skills || [], step.skill ? [step.skill] : []).forEach(function (s) { C.state.markTaught(s, ctx.day); });
+      msg.textContent = taught ? "Lesson done. Press Continue when you're ready." : "";
+      skip.hidden = true;
+      ctx.complete();
+    }
+    skip.addEventListener("click", function () { finish(false); });
+    var run = lab.mount ? lab.mount(stage, {
+      lesson: ls[0] || 1,
+      onReady: function () { if (msg.textContent === "Loading the lesson…") msg.textContent = ""; },
+      onLine: function (text, heard) {
+        if (!voice || !voice.isOn()) { heard(); return; }   // sound off: the lesson paces itself by reading time
+        voice.stop();                                     // a new line always replaces the one before it
+        voice.say(text, function () { heard(); });
+      },
+      onStop: function () { if (voice) voice.stop(); },
+      onAnswer: function (a) {
+        var bet = a.value === "same" || a.value === "changes";   // a bet is a guess before teaching, not an answer
+        ctx.record({ qid: step.id + "-" + a.qid, skill: skillOf(ls[at]), correct: a.correct, answer: a.value, mixup: a.mixup || undefined, noMastery: bet });
+      },
+      onDone: function () {
+        var s = skillOf(ls[at]); if (s) C.state.markTaught(s, ctx.day);   // each part counts as taught when it is done
+        at += 1;
+        if (at < ls.length) { parts.textContent = "Part " + (at + 1) + " of " + ls.length; run.open(ls[at]); }
+        else finish(true);
+      },
+      onError: function (m) { msg.textContent = m + " You can skip it for now."; skip.hidden = false; },
     }) : null;
     if (run) ctx.onCleanup(run.destroy);
-    // the lab has its own narrator (Kiara), so the app's guide steps aside while it plays
+    else { msg.textContent = "This lesson isn't available here."; skip.hidden = false; }
+    // a lesson running for a very long time (stuck, or a device that can't draw it) can still be left
+    var late = setTimeout(function () { if (!done) skip.hidden = false; }, 6 * 60 * 1000);
+    ctx.onCleanup(function () { clearTimeout(late); });
+    // the lesson has its own presenter on stage, so the floating guide steps aside while it plays
     var gr = C.guide && C.guide.root;
     if (gr) { gr.style.display = "none"; ctx.onCleanup(function () { gr.style.display = ""; }); }
-    el.appendChild(h("button", { type: "button", class: "btn btn-primary t-lab-go", on: { click: finish } }, "I've finished the lab, continue"));
-    var shown = setTimeout(function () { if (msg.textContent === "Loading the lab…") msg.textContent = "Tap the lesson, then use your finger or mouse. The sound button is top right."; }, 4000);
-    ctx.onCleanup(function () { clearTimeout(shown); });
-    ctx.setAuto(finish);
+    ctx.setAuto(function () { finish(true); });
   };
 
   /* step.carry (plan.js): a second look at a mix-up from an earlier day or the check-in. Always shown.
@@ -764,19 +860,28 @@
       h("p", { class: "eyebrow" }, ev.when + ", you answered"),
       ev.prompt ? h("p", { class: "t-plan-own-q" }, ev.prompt) : null,
       h("p", { class: "t-plan-own-a" }, h("strong", null, ev.his), ev.right ? " · the answer was " + ev.right : "")));
-    var blk = animBlock(step.anim, { markButton: !step.check, onEnd: function () { if (!step.check) ctx.complete(); } });
+    // With a check, the question comes once the animation has ended (or been marked as watched): nothing is said over
+    // the explanation, and Continue can't cut it short.
+    var blk = animBlock(step.anim, { markButton: true, onEnd: function () { if (!step.check) ctx.complete(); else showCheck(); } });
     el.appendChild(blk.el);
     ctx.onCleanup(blk.destroy);
     if (!step.check) { ctx.setAuto(function () { ctx.complete(); }); return; }
-    el.appendChild(h("p", { class: "t-fix-ask" }, "Now try one."));
-    var host = h("div", { class: "t-qrun" });
+    var ask = h("p", { class: "t-fix-ask", hidden: true }, "Now try one.");
+    var host = h("div", { class: "t-qrun", hidden: true });
+    el.appendChild(ask);
     el.appendChild(host);
-    var run = runQuestions(host, [step.check], {
-      label: "Check", mode: "instant", needSure: false, tries: 2,
-      record: function (info) { ctx.record(info); },
-      onFinish: function () { ctx.complete(); },
-    });
-    ctx.setAuto(function () { run.auto(); });
+    var run = null;
+    function showCheck() {
+      if (run) return;
+      ask.hidden = false; host.hidden = false;
+      run = runQuestions(host, [step.check], {
+        label: "Check", mode: "instant", needSure: false, tries: 2,
+        record: function (info) { ctx.record(info); },
+        onFinish: function () { ctx.complete(); },
+      });
+      try { ask.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) { /* ignore */ }
+    }
+    ctx.setAuto(function () { showCheck(); run.auto(); });
   };
 
   /* ---- adaptive practice (Day 1 personalised; see DAY1_PERSONALISED.md rules 1-11) ---- */
@@ -1042,6 +1147,7 @@
     function advance() {
       if (!completed || advancing) return;
       advancing = true;
+      voice.stop();   // the student has moved on: anything still being said belongs to the step they left
       var s = steps[idx];
       if (s) state.completeStep(day, s.id);
       runCleanups(stepCleanups);

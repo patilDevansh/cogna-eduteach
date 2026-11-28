@@ -106,7 +106,7 @@
             }
           })();
           break;
-        case "animation":
+        case "animation": case "rive":   // a lesson (video or Area lesson) teaches its skill
           if (step.skill) S.markTaught(step.skill, d); break;
         case "worked":
           if (step.skill) { S.markTaught(step.skill, d); S.recordAnswer({ day: d, stepId: step.id, qid: step.id + "-yourturn", skill: step.skill, correct: true, answer: "(worked)" }); }

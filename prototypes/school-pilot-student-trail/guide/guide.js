@@ -160,19 +160,30 @@
   var token = 0, lastLine = null, lastOpts = null, hideTimer = null;
   function readMs(s) { return Math.max(2400, String(s).split(/\s+/).length * 330); }
 
-  /** Show a line in the bubble and say it. opts: {quiet, then(), tour, keep} */
+  /** Out of sight: a lesson's own presenter is on stage (guide.css hides her) or a step has put her away (the Area
+      lessons). She never speaks from nowhere. */
+  function outOfSight() { try { return window.getComputedStyle(root).display === "none"; } catch (e) { return false; } }
+
+  /** Show a line in the bubble and say it. opts: {quiet, then(), tour, keep, speak}
+      speak: say these words instead of the whole line (the bubble still shows the whole line).
+      A spoken line appears when her voice gets to it (the app's voice says one line at a time), so the bubble and the
+      voice stay together. Out of sight she shows and says nothing. */
   function say(line, opts) {
     opts = opts || {};
     var my = ++token;
     clearTimeout(hideTimer);
     lastLine = line; lastOpts = opts;
-    text.textContent = line;
-    if (opts.heard) { heard.textContent = "You: " + opts.heard; heard.hidden = false; } else heard.hidden = true;
-    nextBtn.hidden = !opts.tour; skipBtn.hidden = !opts.tour;
-    nextBtn.textContent = opts.last ? "Done" : "Next";
-    bubble.hidden = false;
-    bubble.classList.remove("cg-pop"); void bubble.offsetWidth; bubble.classList.add("cg-pop");
-    if (root.getAttribute("data-mood") !== "happy") mood("talk");
+    var hidden = outOfSight();
+    function show() {
+      if (my !== token || hidden) return;
+      text.textContent = line;
+      if (opts.heard) { heard.textContent = "You: " + opts.heard; heard.hidden = false; } else heard.hidden = true;
+      nextBtn.hidden = !opts.tour; skipBtn.hidden = !opts.tour;
+      nextBtn.textContent = opts.last ? "Done" : "Next";
+      bubble.hidden = false;
+      bubble.classList.remove("cg-pop"); void bubble.offsetWidth; bubble.classList.add("cg-pop");
+      if (root.getAttribute("data-mood") !== "happy") mood("talk");
+    }
     var finished = false;
     function done(spoken) {
       if (finished || my !== token) return;
@@ -182,8 +193,8 @@
       if (opts.then) hideTimer = setTimeout(function () { if (my === token) opts.then(); }, wait);
       else if (!opts.keep) hideTimer = setTimeout(function () { if (my === token) bubble.hidden = true; }, wait + 2600);
     }
-    if (opts.quiet || !C.voice || !C.voice.isOn()) done(false);
-    else C.voice.say(line, done);
+    if (hidden || opts.quiet || !C.voice || !C.voice.isOn()) { show(); done(false); return; }
+    C.voice.say(opts.speak || line, done, { tag: "guide", onStart: show });
   }
   function hush() { token++; clearTimeout(hideTimer); bubble.hidden = true; if (root.getAttribute("data-mood") === "talk") mood("idle"); }
 
@@ -269,14 +280,22 @@
     },
   };
 
-  /* Lesson days: she docks in the corner, introduces each step, reacts to answers. */
+  /* Lesson days: she docks in the corner, introduces each kind of step the first time it appears, and reacts to answers
+     sparingly: the cards already say right or wrong, and lessons speak for themselves. */
   var session = null;
+  // steps where she says nothing about answers: lessons and the Area lessons (they have their own presenter and
+  // reactions), the exit check (no feedback until its summary, by design) and "try first" (nothing is marked there)
+  var QUIET = { animation: 1, rive: 1, exit: 1, try: 1 };
+  // steps where she never points at Continue: the card already says it (games, the Area lessons, the end of every
+  // question set), so she would only repeat it
+  var NO_NUDGE = { rive: 1, game: 1, recall: 1, practice: 1, exit: 1, try: 1, adaptive: 1 };
+  /** The step the student is on: the same list and rules as the session player (screens/session.js), so the made-for-you
+      steps from plan.js come first. */
   function currentStep(day) {
-    var d = dayOf(day); if (!d) return null;
-    var steps = d.steps || [];
+    var steps = C.plan ? C.plan.forDay(day).steps : ((dayOf(day) || {}).steps || []);
     for (var i = 0; i < steps.length; i++) {
       var s = steps[i];
-      if (s.type === "fix" && !C.state.shouldShowFix(day, s.mixup)) continue;
+      if (s.type === "fix" && !s.carry && !C.state.shouldShowFix(day, s.mixup)) continue;
       if (C.state.isStepDone(day, s.id)) continue;
       return s;
     }
@@ -285,14 +304,23 @@
   function startSession(day) {
     var main = q("#main"); if (!main) return;
     var d = dayOf(day);
-    session = { day: day, step: null, hints: 0, logLen: C.state.get().log.length, obs: null, cardEl: null, contTimer: null };
+    // started from the beginning: every new card gets its intro, even if a quick first answer interrupts the greeting
+    session = { day: day, step: null, hints: 0, rights: 0, rightsAt: null, run: 0, logLen: C.state.get().log.length,
+      obs: null, cardEl: null, contTimer: null, started: true };
     setTarget(null);
     var me = session;
-    say(S.fill(L.sessionStart, { n: day, title: d ? d.title : "" }), { then: function () { if (session === me) introStep(true); } });
+    // The trail has just said the day out loud, so the greeting is shown, not said. On the student's very first day she
+    // adds one warm line out loud, unless the day opens with a piece that plays by itself (it has the floor).
+    var opening = currentStep(day), warm = !seen.session && !(opening && opening.autoplay);
+    markSeen("session");
+    var line = S.fill(L.sessionStart, { n: day, title: d ? d.title : "" });
+    var opts = { then: function () { if (session === me) introStep(); } };
+    if (warm) { line += " " + L.sessionWarm; opts.speak = L.sessionWarm; } else opts.quiet = true;
+    say(line, opts);
     me.obs = new MutationObserver(function () {
       if (session !== me) return;
       var card = q("#main .t-step-card");
-      if (card && card !== me.cardEl) { me.cardEl = card; if (me.started) introStep(false); }
+      if (card && card !== me.cardEl) { me.cardEl = card; if (me.started) introStep(); }
       watchContinue();
     });
     me.obs.observe(main, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
@@ -300,24 +328,34 @@
   }
   function introStep() {
     var me = session; if (!me) return;
-    me.started = true;
     var s = currentStep(me.day);
     if (!s || (me.step && s.id === me.step.id)) return;
     me.step = s;
-    clearTimeout(me.contTimer);
+    clearTimeout(me.contTimer); me.contTimer = null;
+    if (C.voice) C.voice.stop("guide");   // what she was still saying belonged to the step the student has left
     setTarget(null);
-    if (L.step[s.type]) say(L.step[s.type]);
-    else if (L.stepQuiet[s.type]) { mood("think"); say(L.stepQuiet[s.type], { quiet: true }); }
+    var line = L.step[s.type];
+    if (!line) { hush(); return; }        // lessons, fixes and the Area lessons speak for themselves
+    // said out loud the first time this kind of step appears on the trail, only shown after that
+    var key = "step-" + s.type, firstTime = !seen[key];
+    markSeen(key);
+    say(line, { quiet: !firstTime });
   }
-  /* When a step is finished and the student lingers, point at Continue (twice per day at most). */
+  /** a card that already tells the student to press Continue */
+  function cardSaysContinue() { var card = q("#main .t-step-card"); return !!card && /\bcontinue\b/i.test(card.textContent || ""); }
+  /* When a step is finished and the student lingers, point at Continue: once a day at most, never where the card already
+     says it, and never while she is out of sight. */
   function watchContinue() {
     var me = session; if (!me) return;
     var btn = q("#main .t-continue");
     if (!btn || btn.disabled) { clearTimeout(me.contTimer); me.contTimer = null; if (target === btn) setTarget(null); return; }
-    if (me.contTimer || me.hints >= 2) return;
-    var stepAt = me.step && me.step.id;
+    if (me.contTimer || me.hints >= 1) return;
+    var s = me.step;
+    if (!s || NO_NUDGE[s.type]) return;
+    var stepAt = s.id;
     me.contTimer = setTimeout(function () {
-      if (session !== me || btn.disabled || !btn.isConnected || (me.step && me.step.id) !== stepAt) return;
+      if (session !== me || btn.disabled || !btn.isConnected || !me.step || me.step.id !== stepAt) return;
+      if (outOfSight() || cardSaysContinue()) return;
       me.hints++;
       docked = true; target = btn; spot.hidden = false; spot.style.borderRadius = "999px"; placeSpot(btn.getBoundingClientRect());
       say(L.continueHint);
@@ -336,19 +374,33 @@
     var mine = fresh.filter(function (e) { return e.day === me.day && e.answer !== "(explanation)"; });
     if (!mine.length) return;
     var e = mine[mine.length - 1];
-    if (me.step && (me.step.type === "animation")) return; // never talk over a lesson
-    if (e.correct) { cheer(); say(L.right[rightIx++ % L.right.length]); }
-    else {
-      oops();
-      var hint = e.mixup && L.mixup[e.mixup] ? L.mixup[e.mixup] : null;
-      // "have another look" only when a try is left; once the answer is on screen she points at the working instead.
-      // The feedback is drawn right after this event, so look for its Try again button on the next tick.
-      setTimeout(function () {
-        if (session !== me) return;
-        var again = !!document.querySelector(".t-fb .t-retry");
-        say(hint || (again ? L.wrong : L.wrongFinal));
-      }, 0);
+    var s = currentStep(me.day) || me.step;   // the answer belongs to the step on screen (it is marked done on Continue)
+    if (!s || QUIET[s.type]) return;
+    if (s.type === "game" && !/-done$/.test(String(e.qid || ""))) return;   // single moves in a game: only finishing counts
+    if (me.rightsAt !== s.id) { me.rightsAt = s.id; me.rights = 0; }
+    if (e.correct) {
+      me.rights++; me.run++;
+      if (s.reactions) return;   // the step plays its own sound and pop on every answer
+      // praise: the first right answer in a set, and a run of three right answers in a row (once; a wrong answer starts
+      // a new run)
+      var praise = me.rights === 1 ? L.right[rightIx++ % L.right.length] : (me.run === 3 ? L.streak : null);
+      if (praise) { cheer(); say(praise); }
+      return;
     }
+    me.run = 0;
+    oops();
+    // The feedback is drawn right after this event, so look at it on the next tick. A wrong answer that opens a mistake
+    // replay gets no line from her (the replay is the reaction). While a try is left the card already says "Not quite.
+    // Have another look.", so she only shows it. Once the answer is on screen she names the mix-up, or points at the working.
+    var REPLAY = "#main .t-replay, #main .t-adapt-fix";   // a mistake replay, or Day 1's "closer look"
+    var replays = document.querySelectorAll(REPLAY).length;
+    setTimeout(function () {
+      if (session !== me) return;
+      if (document.querySelectorAll(REPLAY).length > replays) return;
+      var card = q("#main .t-step-card");
+      if (card && card.querySelector(".t-fb .t-retry")) { say(L.wrong, { quiet: true }); return; }
+      say(e.mixup && L.mixup[e.mixup] ? L.mixup[e.mixup] : L.wrongFinal);
+    }, 0);
   });
 
   var handled = null;
@@ -364,7 +416,7 @@
       else if (name === "session") startSession(route.params.day);
       else if (name === "dayDone") {
         setTarget(q("#main .t-moved") || q("#main .card"));
-        cheer(); say(S.fill(L.dayDone, { n: route.params.day }), { keep: true });
+        cheer(); say(L.dayDone, { keep: true });   // the screen already says "Day N done"
       } else if (name === "retest") say(S.fill(L.retest, { first: first() }));
       else if (name === "growth") {
         setTarget(q("#main .t-big"));

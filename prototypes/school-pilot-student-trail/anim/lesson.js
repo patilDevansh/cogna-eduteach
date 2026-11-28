@@ -6,12 +6,16 @@
    define({ id, title, w, h, durationMs, build(svg, L) -> c, frame?(c, L), steps: [Step] })
    Step = { caption?, run?(c, L), hold?: ms, gap?: ms, task?(c, L, done), skip?(c, L) -> true to leave it out,
             beat?: 'story'|'guess'|'hands'|'tell'|'rule'  (starts that beat on the strip above the stage; see anim/story-kit.js),
-            hint?: { caption }  (said once if the student has not finished the task after 20 seconds) }
+            hint?: { caption }  (a nudge after 20 seconds: said only if the task is still open, nothing has been said in
+                                 reaction yet in the step, and the student is not in the middle of a drag; see L.hint) }
         | { branch(c, L) -> index, options: [Step, ...], skip?(c, L) }
    mount(el, { flags }) hands the step's flags to the lesson as L.flags (e.g. { afterLesson: true } when a lesson
    video has already introduced the shape, so a hands-on lesson can skip its own introduction).
+   The voice follows the student: a task is live while its caption is still being said, and the moment the student does
+   it (answers, picks, presses, or the task calls done) the rest of the caption stops. Reactions (L.say) cut whatever
+   the lesson is still saying; nudges (L.hint) never do.
    A step moves on only when ALL of these are true:
-     - its caption has been spoken to the end (or, with sound off, the time it takes to read it)
+     - its caption has been spoken to the end, or cut short by the student (with sound off: the time it takes to read it)
      - `hold` ms have passed
      - every tween started during the step has finished
      - its task (if any) has called done(value)  — the student did the thing
@@ -100,6 +104,14 @@
         var L = { G: G, ease: EASE, svg: svg, state: {}, reduced: reduced, flags: o.flags || {} };
         var gs = [], drags = [], offs = [];   // GSAP tweens, Draggables and listeners made by this lesson (paused, resumed and removed with it)
 
+        /* ----- the student's hands: a press or drag in progress anywhere on the lesson (a nudge never talks over one) ----- */
+        var pressing = false;
+        function pressDown() { pressing = true; }
+        function pressUp() { pressing = false; }
+        wrap.addEventListener("pointerdown", pressDown, true);
+        window.addEventListener("pointerup", pressUp, true);
+        window.addEventListener("pointercancel", pressUp, true);
+
         /* ----- the presenter (Maji) ----- */
         var pres = null;
         (function () {
@@ -169,8 +181,10 @@
         }
         function maybeNext() { if (cur && cur.holds === 0) { if (playing) next(); else wantNext = true; } }
         function next() { wantNext = false; startStep(idx + 1); }
+        /** Say a step's caption; the step waits until it has been heard. Returns cut(): the student has already done what
+            the line asks, so the rest of it stops now and it counts as heard (no reading-time wait). */
         function narrate(text) {
-          var release = hold(), g = gen, answered = false, hush = false;
+          var release = hold(), g = gen, answered = false, hush = false, line = null;
           function quiet() { if (!hush) { hush = true; presTalk(false); } }
           presTalk(true);
           wait(readMs(text) * 2 + 5000, function () { quiet(); release(); }); // safety net if the voice never reports back
@@ -179,8 +193,16 @@
             answered = true; quiet();
             if (spoken) wait(250, release); else wait(readMs(text), release);
           }
-          if (o.onBeat) o.onBeat(text, voiceDone); else voiceDone(false);
+          if (o.onBeat) line = o.onBeat(text, voiceDone); else voiceDone(false);
+          return function cut() {
+            if (g !== gen) return;
+            answered = true; quiet();
+            if (line && line.cut) line.cut();
+            release();
+          };
         }
+        /** stop the rest of a step's caption (once) */
+        function cutCaption(r) { if (r && r.cut) { var f = r.cut; r.cut = null; f(); } }
         function startStep(i) {
           gen++; idx = i;
           if (i >= spec.steps.length) { finish(); return; }
@@ -191,18 +213,21 @@
             if (leave) { startStep(i + 1); return; }
           }
           if (s.branch) s = s.options[s.branch(c, L)] || s.options[0];
-          cur = { holds: 1 };
+          // said: a reaction was spoken in this step · won: the student did what it asked · done: its task has finished
+          cur = { holds: 1, said: false, won: false, done: false, cut: null };
           var me = cur;
           if (s.beat) setBeat(s.beat);
           if (pres) { pres.talking = 0; pres.look = s.task ? (spec.presenter.look || { x: -0.85, y: -0.35 }) : null; }
           if (s.run) try { s.run(c, L); } catch (e) { console.error("[lesson step]", i, e); }
-          if (s.caption) narrate(s.caption);
+          if (s.caption) me.cut = narrate(s.caption);
           wait(s.gap != null ? s.gap : 450, hold());
           if (s.hold) wait(s.hold, hold());
           if (s.task) {
-            var rel = hold(), open = true;
-            try { s.task(c, L, function (v) { open = false; L.state.last = v; rel(); }); } catch (e) { console.error("[lesson task]", e); open = false; rel(); }
-            if (s.hint && s.hint.caption) wait(20000, function () { if (open && cur === me) L.say(s.hint.caption); });
+            var rel = hold();
+            // the task has succeeded: whatever is left of the step's caption is cut, and no nudge can follow it
+            var fin = function (v) { if (me.done) return; me.done = me.won = true; L.state.last = v; cutCaption(me); rel(); };
+            try { s.task(c, L, fin); } catch (e) { console.error("[lesson task]", e); fin(); }
+            if (s.hint && s.hint.caption) wait(20000, function () { if (cur === me) L.hint(s.hint.caption); });
           }
           me.holds--; maybeNext();
         }
@@ -236,6 +261,7 @@
             b.addEventListener("click", function () {
               Array.prototype.forEach.call(row.children, function (x) { x.disabled = true; });
               b.classList.add("is-picked");
+              cutCaption(cur);   // they have answered: the question stops being asked
               setTimeout(function () { if (!dead) { L.clearBar(); cb(ch.value); } }, 450);
             });
             row.appendChild(b);
@@ -246,7 +272,7 @@
         L.button = function (label, cb, cls) {
           L.clearBar(); bar.hidden = false;
           var b = h("button", { type: "button", class: "btn btn-primary t-lesson-go " + (cls || "") }, label);
-          b.addEventListener("click", function () { b.disabled = true; L.clearBar(); cb(); });
+          b.addEventListener("click", function () { b.disabled = true; L.clearBar(); L.success(); cb(); });
           bar.appendChild(b);
           try { b.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
           return b;
@@ -263,7 +289,7 @@
             var raw = String(inp.value).trim().replace(/[^\d.\-]/g, "");
             if (!raw) { inp.focus(); return; }
             var v = Number(raw), r = check(v);
-            if (r === true) { inp.disabled = true; go.disabled = true; setTimeout(function () { if (!dead) { L.clearBar(); cb(v); } }, 450); return; }
+            if (r === true) { inp.disabled = true; go.disabled = true; L.success(); setTimeout(function () { if (!dead) { L.clearBar(); cb(v); } }, 450); return; }
             msg.textContent = r || "Not quite. Try again.";
             inp.select();
           }
@@ -273,15 +299,34 @@
           try { inp.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
         };
         L.controls = function (nodes) { L.clearBar(); bar.hidden = false; nodes.forEach(function (n) { bar.appendChild(n); }); };
-        /** A reaction line inside a task (not a step of its own): shown and spoken now; cb runs once it has been heard. */
-        L.say = function (text, cb) {
+        function speak(text, cb, interrupt) {
           var g = gen, fired = false;
           presTalk(true);
           function fire() { if (fired) return; fired = true; presTalk(false); if (g !== gen) return; if (cb) try { cb(); } catch (e) { console.error(e); } }
           wait(readMs(text) * 2 + 4000, fire);
-          if (o.onBeat) o.onBeat(text, function (spoken) { wait(spoken ? 200 : readMs(text), fire); });
+          if (o.onBeat) o.onBeat(text, function (spoken) { wait(spoken ? 200 : readMs(text), fire); }, { interrupt: !!interrupt });
           else wait(readMs(text), fire);
+        }
+        /** A reaction to something the student just did, inside a task (not a step of its own). The voice follows the
+            student: it cuts the rest of the step's caption (and any earlier reaction still playing), is shown and spoken
+            now, and cb runs once it has been heard. */
+        L.say = function (text, cb) {
+          if (cur) { cur.said = true; cutCaption(cur); }
+          speak(text, cb, true);
         };
+        /** A nudge on a timer, not a reaction: said only while the step's task is still open, the student hasn't done it,
+            nothing has been said in reaction yet, and they are not in the middle of a drag. It never cuts a line.
+            Returns true if it was said. */
+        L.hint = function (text, cb) {
+          var r = cur;
+          if (dead || !r || r.done || r.won || r.said || pressing) return false;
+          r.said = true;
+          speak(text, cb, false);
+          return true;
+        };
+        /** The student has done what the step asked (call it the moment it happens, before any celebration): the rest of
+            the step's caption stops and no nudge will follow. */
+        L.success = function () { if (cur) { cur.won = true; cutCaption(cur); } };
         /** GSAP tween that pauses with the lesson and, unless free, holds the step until it ends. */
         L.to = function (target, vars, free) {
           vars = Object.assign({}, vars);
@@ -363,6 +408,7 @@
         function destroy() {
           if (dead) return;
           dead = true; pause(); gsKill(); gen++;
+          window.removeEventListener("pointerup", pressUp, true); window.removeEventListener("pointercancel", pressUp, true);
           if (pres) { cancelAnimationFrame(pres.raf); document.body.classList.remove("is-maji-presenting"); }
           if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
         }

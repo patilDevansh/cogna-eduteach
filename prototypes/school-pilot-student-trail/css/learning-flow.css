@@ -2,18 +2,24 @@
    reactions on every answer and the end-of-day progress moment. Colours come from the Cogna tokens and the
    land look in css/anim.css (--pf-gold, --pf-red, --pf-soil are set on .t-pf). */
 
-/* ---------- lesson scenery: the road, the cart and the canal ---------- */
-.t-flow .t-flow-asphalt { fill: var(--ink-faint); fill-opacity: 0.45; }
+/* ---------- Day 6 is Kiran's funbox ramp (CAST_AND_STORIES.md): the pieces are plywood, not grass ---------- */
+.t-pf.t-flow { --pf-grass: #e8c48c; --pf-soil: #b07c3c; --pf-soil-edge: #8a5e27; }
+.t-pf.t-flow .t-pf-stripe { fill: #a8742f; opacity: 0.1; }
+.t-pf.t-flow .t-pf-edge { stroke: #9b6b2c; }
+.t-pf.t-flow .t-pf-piece.is-copy .t-pf-grass { fill: #f3dcb4; }
+.t-pf.t-flow .t-pf-piece.is-copy .t-pf-edge { stroke: #b98a4c; }
+.t-pf.t-flow .t-pf-bracket.is-copy { stroke: #b98a4c; }
+.t-pf.t-flow .t-lesson-svg text.t-pf-dim.is-copy { fill: #8a5e27; }
+
+/* ---------- lesson scenery: the skatepark floor and a board rolling by ---------- */
+.t-flow .t-flow-ground { fill: var(--ink-faint); fill-opacity: 0.22; }
 .t-flow .t-flow-kerb { stroke: #fff; stroke-opacity: 0.75; stroke-width: 2; }
-.t-flow .t-flow-dash { stroke: #fff; stroke-width: 3; stroke-dasharray: 18 14; stroke-opacity: 0.9; }
+.t-flow .t-flow-joint { stroke: #fff; stroke-opacity: 0.7; stroke-width: 2; }
 .t-flow .t-flow-cart-body { fill: var(--pf-gold); stroke: var(--pf-soil-edge); stroke-width: 1.5; }
-.t-flow .t-flow-cart-cab { fill: var(--pf-gold-wash); stroke: var(--pf-soil-edge); stroke-width: 1.5; }
 .t-flow .t-flow-wheel { fill: var(--ink); }
-.t-flow .t-flow-water { fill: var(--accent); fill-opacity: 0.3; }
-.t-flow .t-flow-ripple { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-opacity: 0.75; }
 .t-flow .t-flow-parline { fill: none; stroke: var(--pf-gold); stroke-width: 6; stroke-linecap: round; }
 .t-flow .t-flow-parchev { fill: none; stroke: var(--pf-gold); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
-.t-flow .t-flow-road, .t-flow .t-flow-canal, .t-flow .t-flow-known, .t-flow .t-flow-plumb, .t-flow .t-flow-ghost { pointer-events: none; }
+.t-flow .t-flow-park, .t-flow .t-flow-known, .t-flow .t-flow-plumb, .t-flow .t-flow-ghost { pointer-events: none; }
 
 /* things we already know (rectangle, triangle, parallelogram) and the "?" over the new shape */
 .t-flow .t-lesson-svg text.t-flow-mini { font-size: 16px; fill: var(--ink-soft); }

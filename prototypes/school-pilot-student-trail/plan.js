@@ -8,7 +8,8 @@
                       (state.js), which makes it a repair candidate tomorrow.
      2. Second look — a mix-up that has been seen and is not fixed yet, when today's questions can trigger
                       it. Shows the student's own wrong answer, the fix lesson, and one question.
-                      Not repeated on the next day unless the mix-up showed up again in between.
+                      Not repeated on the next day unless the mix-up showed up again in between, and never carried
+                      into the day whose own lesson fixes it (FIXED_BY).
      3. Repair      — an earlier skill that is taught but not secure gets two questions before the new
                       lesson. A skill today builds on (NEEDS) goes first.
 
@@ -29,8 +30,17 @@
     a2: ["a1", "quad"], a3: ["a2", "quad"], a4: ["a2", "a3"],
     a5: ["a1", "a3"], a6: ["a1"], a7: ["a3", "pyth"],
   };
+  /* The skill whose lesson is the fix for each mix-up. On the day that lesson is first taught, the mix-up is not carried
+     in as a "second look": the day's own lesson already is one (Day 3 used to open with the perimeter fix and then teach
+     the same rope-and-squares idea again). */
+  var FIXED_BY = { perim: "a1", slant: "a3", half: "a3", units: "a6" };
 
   function getDay(n) { return (C.data.days || []).filter(function (d) { return d.n === n; })[0] || null; }
+  /** the first day whose own skills include this skill */
+  function firstTaught(skill) {
+    var days = (C.data.days || []).filter(function (d) { return (d.skills || []).indexOf(skill) !== -1; });
+    return days.length ? Math.min.apply(null, days.map(function (d) { return d.n; })) : -1;
+  }
   function skillInfo(id) { return (C.data.skills || []).filter(function (s) { return s.id === id; })[0] || null; }
   function skillName(id) { var s = skillInfo(id); return s ? s.name : id; }
   function mixupInfo(id) { return (C.data.mixups || []).filter(function (m) { return m.id === id; })[0] || null; }
@@ -133,6 +143,7 @@
     var open = (C.data.mixups || []).map(function (mi) {
       var m = st.mixups[mi.id];
       if (!m || !m.seen || m.fixed || !mi.fixAnim) return null;
+      if (FIXED_BY[mi.id] && firstTaught(FIXED_BY[mi.id]) === n) return null;   // today's own lesson fixes it
       var seenDay = lastSeenDay(m);
       if (seenDay < lastCarried(st, mi.id, n)) return null;   // already looked at, and not seen since
       var relevant = todays.some(function (q) { return touches(q, mi.id); }) || steps.some(function (s) { return s.type === "fix" && s.mixup === mi.id; });
