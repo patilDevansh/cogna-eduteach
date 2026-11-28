@@ -1147,14 +1147,29 @@
       if (mic) mic.stop();
       busy = true; send.disabled = true; ta.disabled = true; out.innerHTML = "";
       out.appendChild(h("div", { class: "t-reading" }, h("div", { class: "skeleton t-reading-bar" }), h("p", { class: "t-reading-text" }, "Cogna is reading your answer…")));
-      timers.push(setTimeout(function () {
-        var verdict = judgeExplain(step, text);
+      // An AI reads it like a teacher (tools/agent-server.mjs /api/judge). If that can't be reached, the old keyword
+      // check marks it and the student is told it was a quick check.
+      var t0 = Date.now(), ctrl = window.AbortController ? new AbortController() : null;
+      timers.push(setTimeout(function () { if (ctrl) ctrl.abort(); }, 12000));
+      fetch("/api/judge", { method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl ? ctrl.signal : undefined,
+        body: JSON.stringify({ prompt: step.prompt, keyIdeas: step.keyIdeas || [], text: text }) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; })
+        .then(function (ai) {
+          var wait = Math.max(0, 900 - (Date.now() - t0));   // a beat of "reading" even when it is fast
+          timers.push(setTimeout(function () { show(ai); }, wait));
+        });
+      function show(ai) {
+        if (!el.isConnected) return;
+        var verdict = ai ? ai.verdict : judgeExplain(step, text);
         submissions++;
-        C.state.recordExplain({ day: ctx.day, stepId: step.id, skill: step.skill, text: text, verdict: verdict, saveAs: step.saveAs });
+        C.state.recordExplain({ day: ctx.day, stepId: step.id, skill: step.skill, text: text, verdict: verdict, saveAs: step.saveAs,
+          by: ai ? "ai" : "keywords", wrongIdea: ai ? ai.wrongIdea : "" });
         out.innerHTML = "";
-        var r = (step.responses || {})[verdict] || "";
-        var body = h("div", null, h("strong", null, verdict === "strong" ? "That's it." : verdict === "close" ? "Close." : "Let's try again."), r);
+        var r = ai ? ai.feedback : ((step.responses || {})[verdict] || "");
+        var body = h("div", null, h("strong", null, verdict === "strong" ? "That's it." : verdict === "close" ? "Close." : "Let's try again."), " ", r);
         if (verdict === "nudge" && step.starter) body.appendChild(h("span", { class: "t-fb-line t-starter" }, "Try starting like this: " + step.starter));
+        if (!ai) body.appendChild(h("span", { class: "t-fb-line t-fb-by" }, "Quick check only: Cogna couldn't read it properly just now."));
         out.appendChild(h("div", { class: "feedback " + (verdict === "strong" ? "feedback-correct t-right" : "feedback-incorrect t-wrong") + " settle" }, icon(verdict === "strong" ? "ok" : "x"), body));
         var canRetry = submissions < 2 && verdict !== "strong";
         if (canRetry) {
@@ -1163,7 +1178,7 @@
         if (verdict !== "close" || !canRetry) ctx.complete();
         busy = false;
         if (resolveAuto) { resolveAuto(); resolveAuto = null; }
-      }, 1200));
+      }
     }
     send.addEventListener("click", submit);
     ctx.setAuto(function () {

@@ -19,11 +19,13 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = path.resolve(ROOT, "../..");
 const PORT = Number(process.env.PORT || 4490);
-const env = Object.fromEntries(
-  fs.readFileSync(path.join(REPO, ".env"), "utf8").split("\n")
+// keys: the repo's .env, or (in a worktree without one) whatever node was started with, e.g. --env-file=../eduTeach/.env
+const ENV_FILE = process.env.COGNA_ENV || path.join(REPO, ".env");
+const env = fs.existsSync(ENV_FILE) ? Object.fromEntries(
+  fs.readFileSync(ENV_FILE, "utf8").split("\n")
     .map((l) => l.match(/^([A-Z0-9_]+)=(.*)$/)).filter(Boolean)
     .map((m) => [m[1], m[2].trim().replace(/^["']|["']$/g, "")]),
-);
+) : { ...process.env };
 // The repo's "OpenAI" settings point at an OpenAI-compatible endpoint (today: Gemini).
 const LLM_URL = (env.OPENAI_BASE_URL || "https://api.openai.com/v1/").replace(/\/?$/, "/") + "chat/completions";
 const LLM_MODEL = env.GUIDE_MODEL || env.LOTUS_OPENAI_MODEL || "gpt-4.1-mini";
@@ -163,6 +165,35 @@ async function streamVoice(text, res, voice = VOICE) {
   res.end();
 }
 
+/** Mark a written "in your own words" answer. The model reads it like a teacher: right words in a wrong idea is not a pass.
+    -> { verdict: "strong" | "close" | "nudge", feedback, wrongIdea } */
+async function judge({ prompt, keyIdeas, text }) {
+  const ideas = (keyIdeas || []).map((g, i) => `${i + 1}. ${g.join(" / ")}`).join("\n");
+  const sys = `You mark a short written answer from a grade 8 student in India (maths, NCERT Ganita Prakash). Read it like a careful teacher.
+The question: "${prompt}"
+A full answer gets every key idea right, in any wording. Key ideas (the words are examples, not a checklist):
+${ideas}
+Rules:
+- "strong": every key idea is there AND nothing in the answer is mathematically wrong.
+- "close": at least one key idea is right, but one is missing, vague, or something in it is wrong.
+- "nudge": no key idea is right, or the main claim is wrong, or it is off topic or too short to judge.
+- Matching words is not enough: "parallelogram" does not mean "parallel", and "longest side" is not "the base". Judge the meaning.
+- feedback: 1-2 short sentences to the student, warm and plain, Indian English. Say exactly what was right, and if something is wrong or missing, say what, without giving the full answer away (for "nudge", point to where to look, do not state the answer). No pet names like "beta". No markdown.
+- wrongIdea: the wrong claim in a few words if there is one, else "".
+Reply with JSON only: {"verdict":"...","feedback":"...","wrongIdea":"..."}`;
+  const res = await fetch(LLM_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: LLM_MODEL, temperature: 0, max_tokens: 400, response_format: { type: "json_object" },
+      messages: [{ role: "system", content: sys }, { role: "user", content: `The student's answer: """${String(text).slice(0, 1200)}"""` }] }),
+  });
+  if (!res.ok) throw new Error(`judge ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const raw = String((await res.json()).choices?.[0]?.message?.content || "").replace(/^```(json)?|```$/g, "").trim();
+  const j = JSON.parse(raw);
+  if (!["strong", "close", "nudge"].includes(j.verdict)) throw new Error("judge: bad verdict " + raw.slice(0, 100));
+  return { verdict: j.verdict, feedback: String(j.feedback || "").slice(0, 400), wrongIdea: String(j.wrongIdea || "").slice(0, 120) };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   try {
@@ -181,6 +212,12 @@ const server = http.createServer(async (req, res) => {
       setTimeout(() => pendingVoice.delete(token), 60000);
       console.log(`said (${Date.now() - t0} ms think): ${reply.say} [${reply.action}]`);
       return json(res, 200, { ...reply, voice: `/api/voice?t=${token}` });
+    }
+    if (url.pathname === "/api/judge" && req.method === "POST") {
+      const t0 = Date.now();
+      const out = await judge(JSON.parse((await body(req, 1e5)).toString("utf8") || "{}"));
+      console.log(`judged (${Date.now() - t0} ms): ${out.verdict} ${out.wrongIdea ? "[" + out.wrongIdea + "]" : ""}`);
+      return json(res, 200, out);
     }
     if (url.pathname === "/api/voice") {
       const text = pendingVoice.get(url.searchParams.get("t") || "");

@@ -142,7 +142,8 @@
       } else {
         // a weak or partial explanation is a slip the report shows; it does not move the meter
         api.recordAnswer({ day: info.day, stepId: info.stepId, qid: info.stepId + "-explain", skill: info.skill, correct: false, noMastery: true,
-          answer: info.text, what: "Explained it in your own words (" + (info.verdict === "close" ? "part of the idea" : "missed the idea") + ")" });
+          answer: info.text, right: info.wrongIdea ? "Wrong idea: " + info.wrongIdea : null,
+          what: "Explained it in your own words (" + (info.verdict === "close" ? "part of the idea" : "missed the idea") + ")" });
       }
     },
 

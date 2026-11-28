@@ -144,7 +144,7 @@
         h("p", { class: "t-slip-where" }, (step && step.label) || STEP_LABEL[step && step.type] || (step && step.type === "adaptive" ? "Practice" : "Lesson")),
         h("p", { class: "t-slip-q" }, promptOf(q) || e.what || skillName(e.skill) || e.qid),
         h("p", { class: "t-slip-ans" }, h("span", null, "You said: "), h("b", null, answerText(e.answer)),
-          right ? h("span", null, " · Right answer: ") : null, right ? h("b", null, right) : null),
+          right ? h("span", null, /^Wrong idea: /.test(right) ? " · Wrong idea: " : " · Right answer: ") : null, right ? h("b", null, right.replace(/^Wrong idea: /, "")) : null),
         mix ? h("p", { class: "t-slip-mix" }, "Mix-up: " + mix.name) : null,
         h("span", { class: "t-chip", "data-tone": fixed ? "secure" : nextRight ? "shaky" : "missing" }, fixed ? "Fixed on the next try" : nextRight ? "Got a similar one right after" : "Still to fix"));
     });

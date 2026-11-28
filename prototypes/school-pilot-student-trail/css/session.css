@@ -190,3 +190,5 @@
 .t-plan-own-q { margin: var(--s-1) 0 var(--s-2); color: var(--ink-soft); }
 .t-plan-own-a { margin: 0; font-family: var(--font-math); }
 .t-plan-list { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); }
+
+.t-fb-by { font-size: var(--text-xs); opacity: 0.8; }
