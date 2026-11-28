@@ -123,6 +123,9 @@ importers:
       '@remotion/player':
         specifier: 4.0.241
         version: 4.0.241(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@rive-app/webgl2':
+        specifier: 2.52.0
+        version: 2.52.0
       next:
         specifier: ^15.3.4
         version: 15.5.20(@opentelemetry/api@1.9.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1417,6 +1420,9 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
+
+  '@rive-app/webgl2@2.52.0':
+    resolution: {integrity: sha512-twmkd5gtBJbnWz/EmoRvraulnJlwjrMacQ2qOcdXoltr+0AXx6M6laBBR2i3q0NNCDgwbRgRYXrfMny2P4y9GQ==}
 
   '@scarf/scarf@1.4.0':
     resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
@@ -4256,14 +4262,14 @@ snapshots:
     dependencies:
       '@remotion/studio': 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@remotion/studio-shared': 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      css-loader: 5.2.7(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31))
+      css-loader: 5.2.7(webpack@5.96.1(postcss@8.4.31))
       esbuild: 0.24.0
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-refresh: 0.9.0
       remotion: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       source-map: 0.7.3
-      style-loader: 2.0.0(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31))
+      style-loader: 2.0.0(webpack@5.96.1(postcss@8.4.31))
       webpack: 5.96.1(esbuild@0.24.0)(postcss@8.4.31)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -4386,6 +4392,8 @@ snapshots:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       remotion: 4.0.241(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+
+  '@rive-app/webgl2@2.52.0': {}
 
   '@scarf/scarf@1.4.0': {}
 
@@ -4936,7 +4944,7 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  css-loader@5.2.7(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31)):
+  css-loader@5.2.7(webpack@5.96.1(postcss@8.4.31)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.31)
       loader-utils: 2.0.4
@@ -6013,7 +6021,7 @@ snapshots:
     dependencies:
       '@tokenizer/token': 0.3.0
 
-  style-loader@2.0.0(webpack@5.96.1(esbuild@0.24.0)(postcss@8.4.31)):
+  style-loader@2.0.0(webpack@5.96.1(postcss@8.4.31)):
     dependencies:
       loader-utils: 2.0.4
       schema-utils: 3.3.0

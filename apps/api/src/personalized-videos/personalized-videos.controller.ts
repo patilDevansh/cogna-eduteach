@@ -143,6 +143,16 @@ export class PersonalizedVideosController {
     return this.videos.createAssignment(body, { actor });
   }
 
+  /** What the hands-on lab reported (engagement only). Body: { event: "right" | "wrong" | "complete", step?, answer?, mistake? }. */
+  @Post("assignments/:id/lab")
+  lab(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.videos.recordLabEvent(id, body, resolveActor(headers));
+  }
+
   @Post("assignments/:id/watched")
   watched(
     @Headers() headers: Record<string, string | string[] | undefined>,

@@ -16,6 +16,7 @@
     "@cogna/lesson-video": "workspace:*",
     "@cogna/shared": "workspace:*",
     "@remotion/player": "4.0.241",
+    "@rive-app/webgl2": "2.52.0",
     "next": "^15.3.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

@@ -55,3 +55,45 @@ export function mistakeLabInputs(expression: string, studentAnswer: string, hist
 
   return { lesson: 4, mineV: v, mineN: n, mineSaid: pretty(normalizeMathText(studentAnswer)), mineMistake: mistake, help, policy: MISTAKE_LAB_POLICY };
 }
+
+/** The lab for a lesson: the first of the student's wrong answers that it can draw, or null. */
+export function mistakeLabForBrief(
+  brief: { studentItems: Array<{ expression: string; studentAnswer: string }> },
+  history: MistakeLabHistory = {},
+): MistakeLabInputs | null {
+  for (const item of brief.studentItems) {
+    const lab = mistakeLabInputs(item.expression, item.studentAnswer, history);
+    if (lab) return lab;
+  }
+  return null;
+}
+
+/**
+ * One thing the lab reported (prototypes/rive-chapter-shell, Lab view model). Engagement only: a lab answer is
+ * help the lesson gave, never independent work, so it is kept for the teacher and never read as mastery.
+ */
+export interface MistakeLabEvent {
+  event: "right" | "wrong" | "complete";
+  step?: number;
+  answer?: string;
+  mistake?: string;
+  at: string;
+}
+
+export const MAX_LAB_EVENTS = 200;
+
+/** The page's report of a lab event, read defensively. Null when it is not one. */
+export function readLabEvent(body: unknown, now = new Date()): MistakeLabEvent | null {
+  const v = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  if (v.event !== "right" && v.event !== "wrong" && v.event !== "complete") return null;
+  const text = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : undefined);
+  const step = typeof v.step === "number" && Number.isInteger(v.step) && v.step >= 0 && v.step < 20 ? v.step : undefined;
+  const mistake = typeof v.mistake === "string" && /^[A-Z_]{3,40}$/.test(v.mistake) ? v.mistake : undefined;
+  return {
+    event: v.event,
+    ...(step !== undefined ? { step } : {}),
+    ...(text(v.answer, 40) ? { answer: text(v.answer, 40) } : {}),
+    ...(mistake ? { mistake } : {}),
+    at: now.toISOString(),
+  };
+}

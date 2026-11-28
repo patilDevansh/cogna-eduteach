@@ -174,6 +174,20 @@ export interface PersonalizedVideoExitAttemptView {
   createdAt: string;
 }
 
+/**
+ * A hands-on Rive lab drawn from the student's own wrong answer (apps/api/src/personalized-videos/mistake-lab.ts),
+ * played before the lesson. Its answers are engagement only and never count as mastery.
+ */
+export interface PersonalizedVideoLabView {
+  /** The chapter lab's build, served at /labs/<chapter>.riv. */
+  chapter: "algebraic-expressions";
+  lesson: number;
+  /** Set on the lab's view model: the student's item, their answer as written, the mistake, and how much the lab does. */
+  inputs: { mineV: string; mineN: number; mineSaid: string; mineMistake: string; help: 1 | 2 | 3 };
+  /** The student has finished it once. */
+  done: boolean;
+}
+
 export interface PersonalizedVideoAssignmentView {
   /** Hash of immutable lesson/practice content, excluding saved learner progress. */
   contentVersion?: string;
@@ -205,6 +219,8 @@ export interface PersonalizedVideoAssignmentView {
   /** The transfer question's attempt. While either exit question is unsealed, neither shows `correct`. */
   exitTransferAttempt?: PersonalizedVideoExitAttemptView | null;
   limitations: string[];
+  /** The hands-on lab on the student's own answer, when one fits it. */
+  lab?: PersonalizedVideoLabView | null;
 }
 
 export interface PersonalizedVideoTeacherStudentRow {

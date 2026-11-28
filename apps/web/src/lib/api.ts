@@ -1308,6 +1308,10 @@ export const api = {
   checkMicroLesson: (id: string, option: number) =>
     personalizedVideoFetch<MicroCheckResult>(`/assignments/${id}/micro-check`, { method: "POST", body: JSON.stringify({ option }) }),
 
+  /** What the hands-on lab reported. Engagement only: never counted as mastery. */
+  recordLabEvent: (id: string, event: { event: "right" | "wrong" | "complete"; step?: number; answer?: string; mistake?: string }) =>
+    personalizedVideoFetch<{ saved: boolean; done: boolean }>(`/assignments/${id}/lab`, { method: "POST", body: JSON.stringify(event) }),
+
   checkPracticeAnswer: (id: string, itemId: string, answer: PracticeAnswer) =>
     personalizedVideoFetch<PracticeCheckResult>(`/assignments/${id}/practice/${encodeURIComponent(itemId)}`, {
       method: "POST",

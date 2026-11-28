@@ -75,6 +75,7 @@ import { authorLesson, type AuthoringAttempt } from "./ai-authoring/lesson-autho
 import { codePracticeFits, generatePractice } from "./ai-authoring/practice-generator";
 import { buildMicroLesson, estimatedSeconds } from "./micro-lessons";
 import { chooseLessonFormat, type LessonFormat } from "./lesson-format";
+import { MAX_LAB_EVENTS, mistakeLabForBrief, readLabEvent, type MistakeLabEvent, type MistakeLabInputs } from "./mistake-lab";
 import { spokenMath } from "../ai/spoken-math";
 import { answerFromPicks, buildTileInteraction, gameFormatsEnabled } from "../interaction-formats/tile-builder";
 import { taskVerdict } from "./ai-authoring/lesson-verifier";
@@ -187,6 +188,10 @@ type StoredScript = {
   practice?: { source: "AI_VERIFIED" | "CODE_GENERATED"; skillId: string; items: PracticeItem[] };
   /** The student's own diagnostic items, for the targeted micro-lesson (built and narrated on first open). */
   micro?: { brief: LessonBrief };
+  /** The hands-on lab drawn from the student's own answer (mistake-lab.ts), played before the lesson. */
+  lab?: MistakeLabInputs;
+  /** What the lab reported. Engagement only: never read as mastery. */
+  labEvents?: MistakeLabEvent[];
   /** SHORT: only the 20-second lesson; VIDEO: a written lesson rendered as video (lesson-format.ts). */
   format?: LessonFormat;
   formatReason?: string;
@@ -338,6 +343,8 @@ export class PersonalizedVideosService {
     const remembered = memory?.skills.find((s) => s.skillId === microBrief!.targetSkill.id);
     const history = memory && remembered ? memoryLines(memory, { only: [remembered.skillId] }) : [];
     if (microBrief && history.length) microBrief.history = history;
+    // A lab on the student's own answer, when one can draw it: one more level of help if a lesson on this skill failed.
+    const lab = microBrief ? mistakeLabForBrief(microBrief, { lessonFailedBefore: Boolean(remembered?.lessons.some((l) => !l.passed)) }) : null;
     // Short lesson or video, from the size of the gap. A small gap gets the 20-second lesson on the
     // student's own answer and nothing else, so no AI lesson is written for it.
     const chosenFormat = microBrief && trusted.session ? chooseLessonFormat({
@@ -382,6 +389,7 @@ export class PersonalizedVideosService {
       ...(practice && normalizeAlgebraAnswer(practice.transfer.expression) !== normalizeAlgebraAnswer(practice.exit.expression) ? { transfer: practice.transfer } : {}),
       ...(microBrief?.studentItems.length ? { micro: { brief: microBrief } } : {}),
       ...(format ? { format: format.format, formatReason: format.reason } : {}),
+      ...(lab ? { lab } : {}),
       ...(authoring ? { authoring } : {}),
       ...(practice && practiceSkill ? { practice: { source: "CODE_GENERATED" as const, skillId: practiceSkill, items: practice.items } } : {}),
       ...(animated
@@ -1216,6 +1224,26 @@ export class PersonalizedVideosService {
     return { full: full ?? "Student", first: full?.split(/\s+/)[0] ?? "" };
   }
 
+  /** Keeps what the lab reported, for the teacher. Engagement only: nothing here is read as mastery or evidence of a skill. */
+  async recordLabEvent(id: string, body: unknown, actor: AccessActor): Promise<{ saved: boolean; done: boolean }> {
+    const event = readLabEvent(body);
+    if (!event) throw new BadRequestException("Unknown lab event.");
+    if (actor.role !== "student") throw new ForbiddenException("Only the assigned student can record the lab.");
+    const assignment = await this.requireAssignableLesson(id);
+    assertStudentOwner(actor, assignment.studentId);
+    return this.withPracticeLock(id, async (tx) => {
+      const row = await tx.personalizedVideoAssignment.findUnique({ where: { id } });
+      if (!row) throw new NotFoundException("Lesson not found.");
+      const script = row.script as StoredScript | null;
+      if (!script?.lab) throw new ConflictException("This lesson has no lab.");
+      const events = script.labEvents ?? [];
+      const done = events.some((e) => e.event === "complete") || event.event === "complete";
+      if (events.length >= MAX_LAB_EVENTS) return { saved: false, done };
+      script.labEvents = [...events, event];
+      await tx.personalizedVideoAssignment.update({ where: { id }, data: { script: script as object } });
+      return { saved: true, done };
+    });
+  }
 
   async recordWatched(
     assignmentId: string,
@@ -1824,6 +1852,14 @@ export class PersonalizedVideosService {
           }
         : null,
       limitations: [...PERSONALIZED_VIDEO_LIMITATIONS],
+      lab: script.lab
+        ? {
+            chapter: "algebraic-expressions",
+            lesson: script.lab.lesson,
+            inputs: { mineV: script.lab.mineV, mineN: script.lab.mineN, mineSaid: script.lab.mineSaid, mineMistake: script.lab.mineMistake, help: script.lab.help },
+            done: Boolean(script.labEvents?.some((e) => e.event === "complete")),
+          }
+        : null,
     };
   }
 

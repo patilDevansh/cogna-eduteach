@@ -13,6 +13,7 @@ import L from "./lesson.module.css";
 import { PracticeArena } from "./PracticeArena";
 import { prettyAlgebra, TileGame, type TileGameState } from "@/components/games/TileGame";
 import { MicroLessonCard } from "@/components/games/MicroLessonCard";
+import { MistakeLab } from "@/components/learning/MistakeLab";
 import type { MicroLessonView } from "@cogna/shared";
 import { useDevState } from "@/lib/dev-mode";
 
@@ -42,6 +43,7 @@ function PersonalizedVideoPage() {
   const [working, setWorking] = useState("");
   /** The 20-second lesson on the student's own mistake (null when none fits). */
   const [micro, setMicro] = useState<MicroLessonView | null>(null);
+  const [labSkipped, setLabSkipped] = useState(false);
   /** A tile exit's picks; the server rebuilds the answer from them. */
   const [exitTiles, setExitTiles] = useState<TileGameState | null>(null);
   const [sealing, setSealing] = useState(false);
@@ -288,6 +290,8 @@ function PersonalizedVideoPage() {
   const firstName = name.split(" ")[0];
   const reportHref = reportSessionId ? `/student/lotus/report?session=${encodeURIComponent(reportSessionId)}` : null;
   const lessonReady = Boolean(assignment) && !waiting && assignment?.delivery !== "ABSTAINED";
+  // A hands-on lab on the student's own answer comes first, when one fits it (engagement only, never mastery).
+  const inLab = Boolean(lessonReady && assignment?.lab && !labSkipped && !assignment.lab.done);
   const recordLessonPresented = () => {
     if (!assignment?.contentVersion || !lessonReady || stage !== "lesson") return;
     // Called by a rendered micro-lesson or playing video, not by parent-page readiness.
@@ -341,8 +345,16 @@ function PersonalizedVideoPage() {
               )}
             </section>
 
+            {inLab && assignment?.lab && (
+              <MistakeLab
+                lab={assignment.lab}
+                onEvent={(e) => void api.recordLabEvent(assignment.id, e).catch(() => undefined)}
+                onFinish={() => setLabSkipped(true)}
+              />
+            )}
+
             {/* One lesson per gap: a small gap gets this short lesson; a bigger one gets the video below instead. */}
-            {assignment?.delivery === "SHORT" && micro && (
+            {!inLab && assignment?.delivery === "SHORT" && micro && (
               <section className={L.microSlot} aria-label="Your 20-second lesson">
                 <p className={L.eyebrow}>20 seconds on your own answer</p>
                 <MicroLessonCard lesson={micro} onCheck={(option) => api.checkMicroLesson(assignment!.id, option)} onPresented={recordLessonPresented} />
@@ -393,7 +405,7 @@ function PersonalizedVideoPage() {
             )}
 
             {/* A bigger gap whose video couldn't be made: fall back to the short lesson, or straight on to practice. */}
-            {!error && lessonReady && assignment && assignment.delivery !== "SHORT" && noVideo && (
+            {!error && !inLab && lessonReady && assignment && assignment.delivery !== "SHORT" && noVideo && (
               micro ? (
                 <section className={L.microSlot} aria-label="Your 20-second lesson">
                   <p className={L.eyebrow}>20 seconds on your own answer</p>
@@ -409,7 +421,7 @@ function PersonalizedVideoPage() {
               )
             )}
 
-            {!error && lessonReady && assignment && assignment.delivery === "VIDEO" && assignment.asset?.storageRef && (
+            {!error && !inLab && lessonReady && assignment && assignment.delivery === "VIDEO" && assignment.asset?.storageRef && (
               <div>
                 <div className={L.player}>
                   <video
