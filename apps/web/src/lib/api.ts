@@ -746,7 +746,7 @@ export const voiceTutor = {
       headers: { "Content-Type": "audio/wav", ...(ref ? { "X-Voice-Tutor-Ref": encodeURIComponent(JSON.stringify(ref)) } : {}) },
     }, signal),
   talk: (said: string, screen: VoiceTutorScreen, ref: VoiceTutorRef | undefined, history: VoiceTutorTurn[], signal?: AbortSignal) =>
-    tutorFetch<{ say: string | null; voice: string | null; paused?: boolean }>("/voice-tutor/talk", {
+    tutorFetch<{ say: string | null; spoken?: string; voice: string | null; paused?: boolean }>("/voice-tutor/talk", {
       method: "POST",
       body: JSON.stringify({ said, screen, ref, history }),
       headers: { "Content-Type": "application/json" },
