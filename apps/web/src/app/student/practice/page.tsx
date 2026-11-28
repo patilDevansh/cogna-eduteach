@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LearnerSupport } from "@/components/learning/LearnerSupport";
+import { VoiceTutor } from "@/components/voice-tutor/VoiceTutor";
 import Link from "next/link";
 import type { PracticeNextResponse, QuestionPayload } from "@cogna/shared";
 import {
@@ -10,6 +11,7 @@ import {
   breakMinutesFromDecision,
   newEventId,
   SESSION_LIMIT_MS,
+  type VoiceTutorRef,
 } from "@/lib/api";
 import { getStudent, clearStudent } from "@/lib/session";
 import { useInteractionObservation } from "@/lib/use-interaction-observation";
@@ -82,6 +84,10 @@ function PracticeContent() {
   const pendingEventId = useRef<string | null>(null);
   const pendingPayload = useRef<Parameters<typeof api.submitAnswer>[0] | null>(null);
   const submissionLock = useRef(false);
+  /** The session's real mode from the server (the URL's mode can be stale after the baseline hand-off): the voice tutor shows only in adaptive practice. */
+  const [sessionMode, setSessionMode] = useState<string | null>(null);
+  /** The question just answered, so the voice tutor can talk about it on the feedback screen (the next one is already issued). */
+  const answeredQuestion = useRef<{ questionId: string; questionVersion: number } | null>(null);
 
   const question = current?.payload as QuestionPayload | undefined;
   const BASELINE_TARGET = 12;
@@ -183,6 +189,7 @@ function PracticeContent() {
     try {
       const session = await api.createSession(studentId, "ADAPTIVE_PRACTICE");
       setSessionId(session.sessionId);
+      setSessionMode(session.sessionMode);
       setCurrent(session.next);
       setSessionStartedAt(Date.now());
       setBreakSuggestedThisSession(false);
@@ -233,7 +240,7 @@ function PracticeContent() {
         const replay = cached.pending && server.attempts.some(a => a.eventId === cached.pending?.eventId && a.questionId === cached.pending?.questionId);
         const superseded = cached.pending && server.attempts.some(a => a.questionId === cached.pending?.questionId && a.eventId !== cached.pending?.eventId);
         if (replay || superseded) {
-          setSessionId(cached.sessionId); setAnswer(cached.answer); setPhase("recovery-error");
+          setSessionId(cached.sessionId); setSessionMode(server.sessionMode ?? null); setAnswer(cached.answer); setPhase("recovery-error");
           setBlockedRecovery(replay ? "saved" : "stale");
           // A saved answer's next step can still succeed: keep the frozen request so Try again resends the same event.
           if (replay) { setCurrent(cached.current); setSessionStartedAt(cached.startedAt); pendingPayload.current = cached.pending; pendingEventId.current = cached.pending?.eventId ?? null; }
@@ -249,12 +256,12 @@ function PracticeContent() {
           await api.recordLearnerObservation(supportPending.pending);
           writeRecovery(recoveryKey("PREVIOUS_EXERCISE_DRAFT",student.studentId,`${cached.sessionId}:${cachedItem.id}:${cachedItem.version}`),cached);
           writeRecovery(supportKey,{...supportPending,pending:undefined,checkAttempted:true});
-          setSessionId(cached.sessionId);setCurrent(server.currentDelivery);setPhase("question");setAnswer("");setConfidence(null);setGradeResult(null);setHints([]);setHintCount(0);setHighestHintLevel(0);setSessionStartedAt(cached.startedAt);questionShownAt.current=Date.now();firstInputAt.current=null;pendingPayload.current=null;pendingEventId.current=null;recoveryReady.current=true;setRecoveryMessage("Your requested practice check was confirmed. The earlier draft is retained locally.");return;
+          setSessionId(cached.sessionId);setSessionMode(server.sessionMode ?? null);setCurrent(server.currentDelivery);setPhase("question");setAnswer("");setConfidence(null);setGradeResult(null);setHints([]);setHintCount(0);setHighestHintLevel(0);setSessionStartedAt(cached.startedAt);questionShownAt.current=Date.now();firstInputAt.current=null;pendingPayload.current=null;pendingEventId.current=null;recoveryReady.current=true;setRecoveryMessage("Your requested practice check was confirmed. The earlier draft is retained locally.");return;
         }
         const issuedItem = server.currentDelivery?.payload as QuestionPayload | undefined;
         const sameItem = server.currentDelivery?.decision.uiAction === cached.current.decision.uiAction && issuedItem?.id === cachedItem?.id && issuedItem?.version === cachedItem?.version;
         if (server.studentId === student.studentId && server.status === "ACTIVE" && (sameItem || replay)) {
-          setSessionId(cached.sessionId); setCurrent(replay ? cached.current : server.currentDelivery); setPhase(cached.phase);
+          setSessionId(cached.sessionId); setSessionMode(server.sessionMode ?? null); setCurrent(replay ? cached.current : server.currentDelivery); setPhase(cached.phase);
           setAnswer(cached.answer); setConfidence(cached.confidence);
           const checked = server.attempts.at(-1)?.storedResponse as {grade:string;isCorrect:boolean;attemptId:string}|undefined;
           setGradeResult(checked ? {grade:checked.grade,isCorrect:checked.isCorrect,attemptId:checked.attemptId} : null);
@@ -279,6 +286,7 @@ function PracticeContent() {
       recoveryReady.current = true;
       const session = await api.createSession(student.studentId, mode);
       setSessionId(session.sessionId);
+      setSessionMode(session.sessionMode);
       setCurrent(session.next);
       setSessionStartedAt(Date.now());
       setBreakSuggestedThisSession(false);
@@ -449,6 +457,7 @@ function PracticeContent() {
       const result = await api.submitAnswer(payload);
       pendingEventId.current = null;
       pendingPayload.current = null;
+      answeredQuestion.current = { questionId: payload.questionId, questionVersion: payload.questionVersion };
       setSubmitFailed(false);
 
       setGradeResult({ grade: result.grade, isCorrect: result.isCorrect, attemptId: result.attemptId });
@@ -501,9 +510,11 @@ function PracticeContent() {
     setSubmitting(true);
     setSubmitFailed(false);
     try {
-      const result = await api.submitAnswer(pendingPayload.current);
+      const sent = pendingPayload.current;
+      const result = await api.submitAnswer(sent);
       pendingEventId.current = null;
       pendingPayload.current = null;
+      answeredQuestion.current = { questionId: sent.questionId, questionVersion: sent.questionVersion };
       setBlockedRecovery(null);
       setRecoveryMessage("");
       recoveryReady.current = true;
@@ -700,6 +711,18 @@ function PracticeContent() {
     router.push("/");
   }
 
+  /**
+   * Where the student is, for the voice tutor. The server reads the question and its hints from its own
+   * records and records the help itself, so an answer the tutor helped with counts as helped. On the
+   * feedback screen the tutor talks about the question just answered: the next one is issued but not shown.
+   */
+  function tutorRef(): VoiceTutorRef | undefined {
+    if (!sessionId) return undefined;
+    if (phase === "question" && question) return { kind: "PRACTICE", sessionId, questionId: question.id, questionVersion: question.version };
+    if (phase === "feedback" && answeredQuestion.current) return { kind: "PRACTICE", sessionId, ...answeredQuestion.current };
+    return undefined;
+  }
+
   const chrome = (
     <div className={styles.chrome}>
       <Link href="/" className="wordmark">
@@ -708,6 +731,15 @@ function PracticeContent() {
       <button type="button" className="btn-quiet" onClick={signOut}>
         Pause and sign out
       </button>
+      {/* Never in baseline practice: the tutor shows only once the server says this is adaptive practice. */}
+      {sessionMode === "ADAPTIVE_PRACTICE" && (
+        <VoiceTutor
+          surface="PRACTICE"
+          getScreen={() => ({ title: "Practice", studentFirstName: studentName.split(" ")[0] || undefined })}
+          getRef={tutorRef}
+          contextKey={`${sessionId}:${question?.id ?? "none"}:${question?.version ?? 0}:${phase}`}
+        />
+      )}
     </div>
   );
 

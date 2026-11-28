@@ -59,6 +59,22 @@ function expectedItem(id: string) {
     ?? null;
 }
 
+/**
+ * What the live voice tutor may know about an item: its words, reviewed hints and answer. The answer is used only by the
+ * tutor's maths check, to make sure the tutor never says it; it is never sent to the page.
+ */
+export function moduleItemForTutor(id: string): { prompt: string; options: string[] | null; expression: string | null; canonicalAnswer: string; hints: string[] } | null {
+  const item = expectedItem(id);
+  if (!item) return null;
+  return {
+    prompt: item.prompt,
+    options: "options" in item ? item.options : null,
+    expression: "expression" in item ? item.expression : null,
+    canonicalAnswer: item.canonicalAnswer,
+    hints: "hints" in item ? item.hints : [],
+  };
+}
+
 export function publicModuleState(identity: ModuleRunIdentity, state: ModuleState) {
   const asset = state.segmentId && ["TEACHING", "REPAIR", "ALTERNATE"].includes(state.stage) ? factorisationReferenceAsset(state.segmentId) : null;
   const item = state.itemId ? expectedItem(state.itemId) : null;

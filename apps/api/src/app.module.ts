@@ -36,6 +36,7 @@ import { ClassroomsModule } from "./classrooms/classrooms.module";
 import { SampleModule } from "./sample/sample.module";
 import { ClassroomEventsModule } from "./classrooms/classroom-events";
 import { ModuleLearningModule } from "./module-learning/module-learning.module";
+import { VoiceTutorModule } from "./voice-tutor/voice-tutor.module";
 
 @Module({
   imports: [
@@ -90,6 +91,8 @@ import { ModuleLearningModule } from "./module-learning/module-learning.module";
     ClassroomsModule,
     SampleModule,
     ModuleLearningModule,
+    // Live voice tutor (UX-009): off unless VOICE_TUTOR_ENABLED=true.
+    VoiceTutorModule,
   ],
   controllers: [HealthController],
 })

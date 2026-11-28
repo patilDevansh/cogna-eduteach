@@ -1,4 +1,5 @@
 import { assertInteractionContext, assertSameInteractionSubmission } from "../learning-evidence/interaction-context";
+import { effectiveHintLevel, tutorHelped, type TutorHelpStore } from "../learning-evidence/tutor-help";
 import {
   Injectable,
   Logger,
@@ -115,6 +116,16 @@ export class LearningLoopService {
       const next = (issued?.payload as any)?.next;
       if (!next || next.decision?.uiAction !== "SHOW_QUESTION" || next.payload?.id !== event.questionId || next.payload?.version !== event.questionVersion) throw new BadRequestException("The issued question changed. Reload the session.");
     }
+    // Help from the live voice tutor is recorded by the server, never claimed by the page: an answer it
+    // helped with is saved and judged at hint level 2 or more, so it never counts as independent work.
+    // The raw answer event below still stores exactly what the client sent.
+    const helpedByTutor = await tutorHelped(this.prisma as unknown as TutorHelpStore, {
+      studentId: event.studentId,
+      sessionId: event.sessionId,
+      questionId: event.questionId,
+      questionVersion: event.questionVersion,
+    });
+    const hintLevel = effectiveHintLevel(event.highestHintLevel, helpedByTutor);
     let attempt: Attempt;
     let grade: Grade;
     let isCorrect: boolean;
@@ -184,7 +195,7 @@ export class LearningLoopService {
             idleTimeMs: event.idleTimeMs,
             attemptNumber: event.attemptNumber,
             hintCount: event.hintCount,
-            highestHintLevel: event.highestHintLevel,
+            highestHintLevel: hintLevel,
             selfRatedConfidence: event.selfRatedConfidence ?? undefined,
             inferredConfidence,
             answerChangedBeforeSubmit: event.answerChangedBeforeSubmit,
@@ -212,7 +223,7 @@ export class LearningLoopService {
           question,
           grade,
           submittedAnswer: event.submittedAnswer,
-          highestHintLevel: event.highestHintLevel,
+          highestHintLevel: hintLevel,
           selfRatedConfidence: event.selfRatedConfidence,
         });
 
@@ -256,7 +267,7 @@ export class LearningLoopService {
     if (
       isCorrect &&
       remediation?.state === "RETESTING" &&
-      event.highestHintLevel <= 1
+      hintLevel <= 1
     ) {
       await this.prisma.misconceptionRemediationState.update({
         where: {
@@ -286,7 +297,7 @@ export class LearningLoopService {
         misconceptionId: remediation.misconceptionId,
         retestAttemptId: attempt.id,
         grade: "CORRECT",
-        highestHintLevel: event.highestHintLevel,
+        highestHintLevel: hintLevel,
       });
     } else if (!isCorrect && remediation?.state === "RETESTING") {
       await this.completeExplanationOutcome({
@@ -296,7 +307,7 @@ export class LearningLoopService {
         misconceptionId: remediation.misconceptionId,
         retestAttemptId: attempt.id,
         grade: "INCORRECT",
-        highestHintLevel: event.highestHintLevel,
+        highestHintLevel: hintLevel,
       });
     }
 

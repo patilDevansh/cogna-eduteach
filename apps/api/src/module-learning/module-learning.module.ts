@@ -3,5 +3,5 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { ModuleLearningController } from "./module-learning.controller";
 import { ModuleLearningService } from "./module-learning.service";
 
-@Module({ imports: [PrismaModule], controllers: [ModuleLearningController], providers: [ModuleLearningService] })
+@Module({ imports: [PrismaModule], controllers: [ModuleLearningController], providers: [ModuleLearningService], exports: [ModuleLearningService] })
 export class ModuleLearningModule {}

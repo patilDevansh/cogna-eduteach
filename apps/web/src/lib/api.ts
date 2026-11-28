@@ -687,6 +687,74 @@ export interface ModuleRunView {
   question: { id: string; prompt: string; options: string[] | null; independent: boolean } | null;
 }
 
+/**
+ * What the page tells the live voice tutor about the screen: display text only, never evidence. The server
+ * reads the question, its hints and whether help is allowed from its own records (see VoiceTutorRef).
+ */
+export interface VoiceTutorScreen {
+  surface: "PRACTICE" | "LESSON";
+  title?: string;
+  studentFirstName?: string;
+}
+
+/** Where the student is. The server reads the question, its hints and whether help is allowed from its own records. */
+export type VoiceTutorRef =
+  | { kind: "PRACTICE"; sessionId: string; questionId: string; questionVersion: number }
+  | { kind: "MODULE"; runId: string };
+
+export type VoiceTutorTurn = { role: "student" | "tutor"; text: string };
+
+/** A refusal from the voice tutor, with the code that says whether to try again or rest until tomorrow. */
+export class VoiceTutorError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "VoiceTutorError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** The tutor's requests: cancellable (the student stopped, moved on or left), and their refusal codes kept. */
+async function tutorFetch<T>(path: string, init: RequestInit, signal?: AbortSignal): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...init, signal, headers: { ...cognaAuthHeaders(), ...init.headers } });
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    throw new VoiceTutorError("Cogna can't reach the server right now. Check the internet and try again.", 0);
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { message?: unknown; code?: unknown };
+    const message = typeof body.message === "string" && body.message ? body.message : "Sorry, that didn't work. Please try again.";
+    throw new VoiceTutorError(message, res.status, typeof body.code === "string" ? body.code : undefined);
+  }
+  return (res.json() as Promise<T>).catch(() => {
+    throw new VoiceTutorError("Sorry, that didn't work. Please try again.", res.status);
+  });
+}
+
+export const voiceTutor = {
+  status: () => apiFetch<{ enabled: boolean }>("/voice-tutor/status", undefined, false),
+  /** The ref travels in a header: the body is the raw recording. */
+  hear: (wav: Blob, ref: VoiceTutorRef | undefined, signal?: AbortSignal) =>
+    tutorFetch<{ text: string; paused?: string }>("/voice-tutor/hear", {
+      method: "POST",
+      body: wav,
+      headers: { "Content-Type": "audio/wav", ...(ref ? { "X-Voice-Tutor-Ref": encodeURIComponent(JSON.stringify(ref)) } : {}) },
+    }, signal),
+  talk: (said: string, screen: VoiceTutorScreen, ref: VoiceTutorRef | undefined, history: VoiceTutorTurn[], signal?: AbortSignal) =>
+    tutorFetch<{ say: string | null; voice: string | null; paused?: boolean }>("/voice-tutor/talk", {
+      method: "POST",
+      body: JSON.stringify({ said, screen, ref, history }),
+      headers: { "Content-Type": "application/json" },
+    }, signal),
+  /** The reply's voice, for an <audio> element: a sealed single-use token stands in for the session headers it cannot send. */
+  voiceUrl: (token: string) => `${API_URL}/voice-tutor/voice?t=${encodeURIComponent(token)}`,
+};
+
 export const api = {
   moduleRuns: () => apiFetch<ModuleRunView[]>("/module-learning/for-student"),
   moduleRun: (id: string) => apiFetch<ModuleRunView>(`/module-learning/runs/${encodeURIComponent(id)}`),
@@ -917,7 +985,7 @@ export const api = {
       body: JSON.stringify({ accessCode }),
     }),
 
-  getLearningSession: (sessionId: string) => apiFetch<{ id: string; studentId: string; status: string; startedAt: string; currentDelivery: PracticeNextResponse | null; issuedHints?: Array<{eventId:string;questionId:string;level:number}>; attempts: Array<{ eventId: string; questionId: string; storedResponse?: unknown }> }>(`/sessions/${encodeURIComponent(sessionId)}`),
+  getLearningSession: (sessionId: string) => apiFetch<{ id: string; studentId: string; sessionMode?: string; status: string; startedAt: string; currentDelivery: PracticeNextResponse | null; issuedHints?: Array<{eventId:string;questionId:string;level:number}>; attempts: Array<{ eventId: string; questionId: string; storedResponse?: unknown }> }>(`/sessions/${encodeURIComponent(sessionId)}`),
 
   createSession: (studentId: string, sessionMode: "BASELINE" | "ADAPTIVE_PRACTICE") =>
     apiFetch<{ sessionId: string; sessionMode: string; next: PracticeNextResponse }>(
